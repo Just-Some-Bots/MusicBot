@@ -41,12 +41,14 @@ jQuery(function() {
   setActiveSidebarLink();
 
   function fixSidebar() {
-    var top = window.scrollY;
+    var top = window.scrollY,
+      nav_height = $('.nav-bar').height();
 
-    if (top < $main.offset().top + 10) {
-      top = 80;
+    top = top - nav_height - 20;
+    if (top < nav_height - 32) {
+      top = 8;
     }
-
+    console.log(2);
     if (top < $main.offset().top + $main.height() - $sidebar.height()) {
       $sidebar.css('top', top);
     }
@@ -65,6 +67,8 @@ function getClosestHeader() {
   var $links = $('.sidebar a'),
   top = window.scrollY,
   $last = $links.first();
+
+
 
   if (top < 300) {
     return $last;

@@ -13,8 +13,8 @@ title: My App Docs
       <section class="doc-content">
         <section class="left-docs">
           <h3><a id="{{ doc.url | replace: '/', '' | replace: '.', '' }}">
-            {% if doc.type %}<span class="endpoint {{doc.type}}"></span> {% endif %}
-            {{doc.title}}</a></h3>
+            {{doc.title}}
+            {% if doc.type %}<span class="endpoint {{doc.type}}"></span> {% endif %}</a></h3>
           {% if doc.description %}
             <p class="description">{{doc.description}}</p>
           {% endif %}

@@ -79,11 +79,20 @@ body {
   font-family: "Raleway", "HelveticaNeue", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+.fixed-width .wrap {
+  width: 900px;
+  margin: 0 auto;
+}
+
+.wrap {
+    position: relative;
+}
+
 .nav-bar {
   background: #2196F3;
   padding: 12px 0;
   height: 40px;
-  box-shadow: 0 0 5px #333;
+  box-shadow: 0 0 5px #aaa;
   z-index: 1000;
   position: relative;
 }
@@ -91,7 +100,7 @@ body {
 .nav-bar .right {
   position: absolute;
   right: 36px;
-  top: 17px;
+  top: 5px;
   width: 200px;
 }
 
@@ -148,9 +157,8 @@ body {
   position: absolute;
   padding: 20px 20px 0 20px;
   white-space:nowrap;
-  top: 80px;
+  top: 8px;
   overflow-y: auto;
-  height: 100%;
 }
 
 .sidebar section {

@@ -18,31 +18,42 @@
 <body class="{{page.body_class}}">
 
   <nav class="nav-bar">
-    <ul class="hor">
-      <li> <a href="/" class="logo"><img src="/img/log.png" alt="logo" height="20" /></a> </li>
-      {% assign current = page.url %}
-      <li> <a href="/"
-        {% if current == '/index.html' %}
-          class="current"
-        {% endif %}
-        > Documentation </a> </li>
-      <li> <a href="/index2.html"
-        {% if current == '/index2.html' %}
-          class="current"
-        {% endif %}
-      > 2nd layout </a> </li>
-    </ul>
+    <div class="wrap">
+      <ul class="hor">
+        <li> <a href="/" class="logo"><img src="/img/logo.png" alt="logo" height="20" /></a> </li>
+        {% assign current = page.url %}
+        <li> <a href="/"
+          {% if current == '/index.html' %}
+            class="current"
+          {% endif %}
+          > Documentation </a> </li>
+        <li> <a href="/index2.html"
+          {% if current == '/index2.html' %}
+            class="current"
+          {% endif %}
+        > 2nd layout </a> </li>
 
-    <ul class="right hor">
-        <li><input type="text" name="search" id="search" class="search-box" placeholder="Search"><div id="search_results" class="search-results"></div></li>
+        <li> <a href="/index3.html"
+          {% if current == '/index3.html' %}
+            class="current"
+          {% endif %}
+        > 3rd layout </a> </li>
+      </ul>
 
-    </ul>
+      <ul class="right hor">
+          <li><input type="text" name="search" id="search" class="search-box" placeholder="Search"><div id="search_results" class="search-results"></div></li>
+
+      </ul>
+    </div>
   </nav>
-  {% if page.sidebar %}
-    {% include sidebar.html %}
-  {% endif %}
-  <div class="main">
-    {{content}}
+
+  <div class="wrap">
+    {% if page.sidebar %}
+      {% include sidebar.html %}
+    {% endif %}
+    <div class="main">
+      {{content}}
+    </div>
   </div>
 </body>
 </html>
