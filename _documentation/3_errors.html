@@ -1,0 +1,46 @@
+---
+title: Errors
+description: These are all the errors the API could return
+
+---
+  <table class="return_codes">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="return-code">200</span></td>
+        <td>OK</td>
+        <td>Success</td>
+      </tr>
+      <tr>
+        <td><span class="return-code">201</span></td>
+        <td>Created</td>
+        <td>Creation successful</td>
+      </tr>
+
+      <tr>
+        <td><span class="return-code">400</span></td>
+        <td>Bad Request</td>
+        <td>We could not process that action</td>
+      </tr>
+
+      <tr>
+        <td><span class="return-code">403</span></td>
+        <td>Forbidden</td>
+        <td>We couldn't authenticate you</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p> All errors will return JSON in the following format: </p>
+
+  <pre>
+{
+  error: true,
+  message: "error message here"
+}</pre>

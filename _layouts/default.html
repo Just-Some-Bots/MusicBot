@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{page.title}}</title>
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- <link rel="icon" type="image/png" href="images/favicon.png"> -->
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  <script src="/js/main.js"></script>
+
+  <link rel="stylesheet" href="/css/tomorrow.css">
+  <link rel="stylesheet" href="/css/railscasts.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/highlight.min.js"></script>
+</head>
+<body class="{{page.body_class}}">
+
+  <nav class="nav-bar">
+    <ul class="hor">
+      <li> <a href="/" class="logo"><img src="/img/log.png" alt="logo" height="20" /></a> </li>
+      {% assign current = page.url %}
+      <li> <a href="/"
+        {% if current == '/index.html' %}
+          class="current"
+        {% endif %}
+        > Documentation </a> </li>
+      <li> <a href="/index2.html"
+        {% if current == '/index2.html' %}
+          class="current"
+        {% endif %}
+      > 2nd layout </a> </li>
+    </ul>
+
+    <ul class="right hor">
+        <li><input type="text" name="search" id="search" class="search-box" placeholder="Search"><div id="search_results" class="search-results"></div></li>
+
+    </ul>
+  </nav>
+  {% if page.sidebar %}
+    {% include sidebar.html %}
+  {% endif %}
+  <div class="main">
+    {{content}}
+  </div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+
+/* Tomorrow Comment */
+.left-docs .hljs-comment {
+  color: #8e908c;
+}
+
+/* Tomorrow Red */
+.left-docs .hljs-variable,
+.left-docs .hljs-attribute,
+.left-docs .hljs-tag,
+.left-docs .hljs-regexp,
+.left-docs .ruby .hljs-constant,
+.left-docs .xml .hljs-tag .hljs-title,
+.left-docs .xml .hljs-pi,
+.left-docs .xml .hljs-doctype,
+.left-docs .html .hljs-doctype,
+.left-docs .css .hljs-id,
+.left-docs .css .hljs-class,
+.left-docs .css .hljs-pseudo {
+  color: #c82829;
+}
+
+/* Tomorrow Orange */
+.left-docs .hljs-number,
+.left-docs .hljs-preprocessor,
+.left-docs .hljs-pragma,
+.left-docs .hljs-built_in,
+.left-docs .hljs-literal,
+.left-docs .hljs-params,
+.left-docs .hljs-constant {
+  color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.left-docs .ruby .hljs-class .hljs-title,
+.left-docs .css .hljs-rules .hljs-attribute {
+  color: #eab700;
+}
+
+/* Tomorrow Green */
+.left-docs .hljs-string,
+.left-docs .hljs-value,
+.left-docs .hljs-inheritance,
+.left-docs .hljs-header,
+.left-docs .ruby .hljs-symbol,
+.left-docs .xml .hljs-cdata {
+  color: #718c00;
+}
+
+/* Tomorrow Aqua */
+.left-docs .hljs-title,
+.left-docs .css .hljs-hexcolor {
+  color: #3e999f;
+}
+
+/* Tomorrow Blue */
+.left-docs .hljs-function,
+.left-docs .python .hljs-decorator,
+.left-docs .python .hljs-title,
+.left-docs .ruby .hljs-function .hljs-title,
+.left-docs .ruby .hljs-title .hljs-keyword,
+.left-docs .perl .hljs-sub,
+.left-docs .javascript .hljs-title,
+.left-docs .coffeescript .hljs-title {
+  color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.left-docs .hljs-keyword,
+.left-docs .javascript .hljs-function {
+  color: #8959a8;
+}
+
+.left-docs .hljs {
+  display: block;
+  overflow-x: auto;
+  background: white;
+  color: #4d4d4c;
+  padding: 0.5em;
+  -webkit-text-size-adjust: none;
+}
+
+.left-docs .coffeescript .javascript,
+.left-docs .javascript .xml,
+.left-docs .tex .hljs-formula,
+.left-docs .xml .javascript,
+.left-docs .xml .vbscript,
+.left-docs .xml .css,
+.left-docs .xml .hljs-cdata {
+  opacity: 0.5;
+}

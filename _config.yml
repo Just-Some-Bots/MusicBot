@@ -1,0 +1,7 @@
+collections:
+  documentation:
+    title: Documentation
+    render: true
+  api:
+    title: APIs
+    render: true

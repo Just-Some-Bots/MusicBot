@@ -1,0 +1,43 @@
+---
+layout: default
+sidebar: true
+body_class: docs
+title: My App Docs
+---
+<script src="/js/lunr.min.js"></script>
+<script src="/js/search.js"></script>
+
+{% for collection in site.collections %}
+  {% if collection[1].render %}
+    {% for doc in collection[1].docs %}
+      <section class="doc-content full">
+        <section class="left-docs">
+          <h3><a id="{{ doc.url | replace: '/', '' | replace: '.', '' }}">
+            {% if doc.type %}<span class="endpoint {{doc.type}}"></span> {% endif %}
+            {{doc.title}}</a></h3>
+          {% if doc.description %}
+            <p class="description">{{doc.description}}</p>
+          {% endif %}
+
+          {% if doc.parameters %}
+            <h6> {{ doc.parameters.title }} </h6>
+            <dl class="parameters">
+              {% for parameter in doc.parameters.data %}
+                {% for k in parameter %}
+                <dt>{{k[0]}}</dt>
+                <dd>
+                  <strong> {{k[1][0]}} </strong>
+                  <br />
+                  {{k[1][1]}}
+                  </dd>
+                {% endfor %}
+              {% endfor %}
+            </dl>
+          {% endif %}
+
+          {{doc.content}}
+        </section>
+      </section>
+    {% endfor %}
+  {% endif %}
+{% endfor %}
