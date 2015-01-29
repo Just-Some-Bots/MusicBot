@@ -22,22 +22,13 @@
       <ul class="hor">
         <li> <a href="/" class="logo"><img src="/img/logo.png" alt="logo" height="20" /></a> </li>
         {% assign current = page.url %}
-        <li> <a href="/"
-          {% if current == '/index.html' %}
-            class="current"
-          {% endif %}
-          > Documentation </a> </li>
-        <li> <a href="/index2.html"
-          {% if current == '/index2.html' %}
-            class="current"
-          {% endif %}
-        > 2nd layout </a> </li>
-
-        <li> <a href="/index3.html"
-          {% if current == '/index3.html' %}
-            class="current"
-          {% endif %}
-        > 3rd layout </a> </li>
+        {% for main_link in site.main_links %}
+          <li> <a href="{{main_link.link}}"
+            {% if current == main_link.link %}
+              class="current"
+            {% endif %}
+            > {{ main_link.title }} </a> </li>
+        {% endfor %}
       </ul>
 
       <ul class="right hor">
