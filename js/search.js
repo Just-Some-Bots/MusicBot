@@ -1,7 +1,12 @@
 jQuery(function() {
   var $search = $("#search"),
-  data = $.getJSON('/search_data.json'),
   $search_results = $("#search_results");
+
+  if ($('.multi-page').length == 0) {
+    var data = $.getJSON('/search_data.json');
+  } else {
+    var data = $.getJSON('/search_data_multi.json');
+  }
 
   $(document).click(function(event) {
     if(!$(event.target).closest('#search_results').length && !$(event.target).closest('#search').length) {
@@ -49,12 +54,17 @@ jQuery(function() {
         if (results.length) {
           $search_results.empty().append('<ul>');
           results.forEach(function(result) {
-            var appendString = "<li><a href='#" + result.ref + "'>";
+            var appendString = "<li><a href='";
+            if ($('.multi-page').length == 0) {
+              appendString += '#';
+            }
+
+            appendString += result.ref + "'>";
             appendString += data[result.ref].title;
             if (data[result.ref].type != '') {
               appendString += "<span class='endpoint " + data[result.ref].type + "'></span> ";
             }
-            
+
             if (data[result.ref].description != '') {
               appendString += "<span class='description'>" + data[result.ref].description + "</span>";
             }

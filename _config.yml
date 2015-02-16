@@ -2,9 +2,11 @@ collections:
   documentation:
     title: Documentation
     render: true
+    output: true
   api:
     title: APIs
     render: true
+    output: true
 main_links:
   -
     title: 1st layout
@@ -15,3 +17,14 @@ main_links:
   -
     title: 3rd layout
     link: /index3.html
+  -
+    title: 4th layout
+    link: /index4.html
+defaults:
+  -
+    scope:
+      path: ""
+    values:
+      layout: multi
+      sidebar: true
+      body_class: docs fixed-width multi-page

@@ -1,0 +1,36 @@
+---
+layout: default
+---
+
+<script src="/js/lunr.min.js"></script>
+<script src="/js/search.js"></script>
+<section class="doc-content full">
+  <section class="left-docs">
+    <h3><a id="{{ page.url | replace: '/', '' | replace: '.', '' }}">
+      {{page.title}}
+      {% if page.type %}<span class="endpoint {{page.type}}"></span> {% endif %}</a></h3>
+    {% if page.description %}
+      <p class="description">{{page.description}}</p>
+    {% endif %}
+
+    {% if page.parameters %}
+      <h6> {{ page.parameters.title }} </h6>
+      <dl class="parameters">
+        {% for parameter in page.parameters.data %}
+          {% for k in parameter %}
+          <dt>{{k[0]}}</dt>
+          <dd>
+            <strong> {{k[1][0]}} </strong>
+            <br />
+            {{k[1][1]}}
+            </dd>
+          {% endfor %}
+        {% endfor %}
+      </dl>
+    {% endif %}
+
+    {{content}}
+
+
+  </section>
+</section>

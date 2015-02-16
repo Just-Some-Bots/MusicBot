@@ -48,19 +48,27 @@ jQuery(function() {
     if (top < nav_height - 32) {
       top = 8;
     }
-    console.log(2);
+
     if (top < $main.offset().top + $main.height() - $sidebar.height()) {
       $sidebar.css('top', top);
     }
+
+    $sidebar.css('height', window.innerHeight - 30);
   };
 
 
   function setActiveSidebarLink() {
-    $('.sidebar a').removeClass('active');
-    var $closest = getClosestHeader();
-    $closest.addClass('active');
-    document.title = $closest.text();
-  };
+    if ($('.multi-page').length == 0) {
+      $('.sidebar a').removeClass('active');
+        var $closest = getClosestHeader();
+        $closest.addClass('active');
+        document.title = $closest.text();
+    } else {
+      if ($('.sidebar a.active').length == 0) {
+        $('.sidebar a:first').addClass('active');
+      }
+    }
+  }
 });
 
 function getClosestHeader() {

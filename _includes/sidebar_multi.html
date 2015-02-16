@@ -1,0 +1,22 @@
+<div id="sidebar" class="sidebar">
+  {% for collection in site.collections %}
+    {% if collection[1].render %}
+        <section>
+          <h6> {{collection[1].title}} </h6>
+          <ul>
+            {% for doc in collection[1].docs %}
+              <li><a href="{{doc.url}}"
+                  {% assign current = page.url %}
+                  {% if current == doc.url %}
+                    class="active"
+                  {% endif %}
+              >
+                {{doc.title}}
+                {% if doc.type %}<span class="endpoint {{doc.type}}"></span> {% endif %}
+                </a></li>
+            {% endfor %}
+          </ul>
+        </section>
+    {% endif %}
+  {% endfor %}
+</div>
