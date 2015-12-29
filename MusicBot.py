@@ -187,12 +187,7 @@ def on_message(message):
 def is_long_member(dateJoined):
     convDT = dateJoined.date()
     today = datetime.date.today()
-<<<<<<< HEAD
     margin = datetime.timedelta(days = int(options[3]))
-=======
-    optDays = option[1]
-    margin = datetime.timedelta(days = int(options[1]))
->>>>>>> e2d4edc922ec42650852d0daac7b983f69f87681
     return today - margin > convDT
 
 def do_format(message):
