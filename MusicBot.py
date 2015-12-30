@@ -140,15 +140,15 @@ def on_message(message):
             for titles in playlistnames:
                 print(len(endmsg))
                 if len(endmsg) > 1500:
+                    print('doot')
                     msglist.append(endmsg)
                     endmsg = ''
                 else:
                     endmsg = endmsg + str(count) + ":  " + titles + " \n"
                     count += 1
-            if len(msglist) == 0:
-                msglist.append(endmsg)
+            msglist.append(endmsg)
             for items in msglist:
-                temp = yield from client.send_message(message.channel, endmsg)
+                temp = yield from client.send_message(message.channel, items)
                 playlistmsgstorage.append(temp)
             try:
                 yield from client.delete_message(message)
