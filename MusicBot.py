@@ -46,10 +46,11 @@ skipsRequired = int(options[5])
 skipCount = 0
 skipperlist = []
 
+playlistnames = []
 playlist = []
 currentlyPlaying = ''
 
-helpmessage = '`!play [youtube link]` will allow me to play a new song or add it to the queue.\n`!play playlist` will print out all links to youtube videos currently in the queue!\n`!play skip` will make it skip to the next song after 4 people vote to skip the current one!'
+helpmessage = '`!play [youtube link]` will allow me to play a new song or add it to the queue.\n`!playlist` will print out all links to youtube videos currently in the queue!\n`!play skip` will make it skip to the next song after '+ options[5] +' people vote to skip the current one!'
 
 
 client = discord.Client()
@@ -65,6 +66,7 @@ def on_ready():
         
 @client.async_event
 def on_message(message):
+    global options
     global option
     global ownerID
     global firstTime
@@ -79,15 +81,23 @@ def on_message(message):
         print('HELLO, '+message.author.name+ ' THE ID YOU NEED TO USE IS ' + message.author.id)
     elif '!creator' in message.content.lower():
         yield from client.send_message(message.channel,'I was coded by SexualRhinoceros and am currently on rev1.0! Go here for more info: https://github.com/SexualRhinoceros/MusicBot')
-    elif '!whitelist' in message.content.lower() and message.author.id == ownerID:
+    ownerLocation = None
+    for server in client.servers:
+        for channel in server.channels:
+            pre = discord.utils.get(channel.voice_members, id=ownerID)
+            if pre != None: ownerLocation = pre.server
+    if(message.server == ownerLocation):
+        if '!whitelist' in message.content.lower() and message.author.id == ownerID:
             msg = message.content
             substrStart = msg.find('!whitelist') + 11
             msg = msg[substrStart: ]
             msg.strip()
             msg = re.sub('<|@|>', '', msg)
-            
+            f = open('whitelist.txt', 'a')
+            f.write(msg + "\r")
+            f.close()
             whitelist.append(msg)
-    elif '!blacklist' in message.content.lower() and message.author.id == ownerID:
+        elif '!blacklist' in message.content.lower() and message.author.id == ownerID:
             msg = message.content
             substrStart = msg.find('!blacklist') + 11
             msg = msg[substrStart: ]
@@ -97,44 +107,88 @@ def on_message(message):
             f.write(msg + "\r")
             f.close()
             blacklist.append(msg)
-    elif '!servers' in message.content.lower():
-        count=0
-        for servers in client.servers:
-            count+=1
-        if count > 1:
-            yield from client.send_message(message.channel,'I DIDN\'T LISTEN TO DIRECTIONS AND HAVE MY BOT ON MORE THAN ONE SERVER')
-        else:
-            print('you good')
-    elif '!play' in message.content.lower():
+        elif '!joinserver' in message.content.lower() and message.author.id == ownerID:
             msg = message.content
-            msg2 = msg
+            substrStart = msg.find('!joinserver') + 12
+            msg = msg[substrStart: ]
+            msg.strip()
+            try:
+                yield from client.accept_invite(msg)
+            except:
+                print('you dun fucked up with the URL')
+        elif '!servers' in message.content.lower() and message.author.id == '77511942717046784':
+            count=0
+            for servers in client.servers:
+                count+=1
+            if count > 1:
+                yield from client.send_message(message.channel,'I DIDN\'T LISTEN TO DIRECTIONS AND HAVE MY BOT ON MORE THAN ONE SERVER')
+            else:
+                print('you good')
+        elif '!playlist' in message.content.lower():
+            print('GETTING PLAYLIST: If this is large the bot WILL hang')
+            endmsg = currentlyPlaying
+            endmsg = endmsg + getPlaylist()
+            sendmsg = True
+            if(endmsg == ''):
+                playlistmsg = yield from client.send_message(message.channel,'There is currently nothing left in the playlist')
+            else:
+                playlistmsg = yield from client.send_message(message.channel,endmsg)
+            try:
+                yield from client.delete_message(message)
+            except:
+                print('Couldn\'t delete message for some reason')
+            yield from asyncio.sleep(10)
+            yield from client.delete_message(playlistmsg)
+        elif '!play' in message.content.lower():
+            msg = message.content
             substrStart = msg.find('!play') + 6
             msg = msg[substrStart: ]
             msg.strip()
             sendmsg = False
             if message.author.id in blacklist :
                 print('no, blacklisted')
-            elif (options[2]=='1' and not is_long_member(message.author.joined_at)) and message.author.id not in whitelist:
+            elif (options[2]=='1' and message.author.id != ownerID) and (not is_long_member(message.author.joined_at) and message.author.id not in whitelist):
                 print('no, not whitelisted and new')
             elif msg.lower() == 'help':
                 hotsmessage = yield from client.send_message(message.channel,helpmessage)
             elif message.author.id == ownerID and firstTime is True:
                 vce = yield from client.join_voice_channel(message.author.voice_channel)
                 firstTime = False
-                playlist.append(msg)
-            elif msg.lower() == 'move' and message.author.id == ownerID:
-                yield from client.voice.disconnect()
-                vce = yield from client.join_voice_channel(message.author.voice_channel)
-            elif msg.lower() == 'playlist':
-                endmsg = currentlyPlaying
-                endmsg = endmsg + getPlaylist()
-                sendmsg = True
-                if(endmsg == ''):
-                    hotsmessage = yield from client.send_message(message.channel,'There is currently nothing left in the playlist')
+                if 'playlist' in msg:
+                    options = {
+                        'format': 'bestaudio/best',
+                        'extractaudio' : True,
+                        'audioformat' : "mp3",
+                        'outtmpl': '%(id)s',
+                        'noplaylist' : True,
+                        'nocheckcertificate' : True,
+                        'ignoreerrors' : True,
+                        'quiet' : True,
+                        'no_warnings' : True,}
+                    ydl = youtube_dl.YoutubeDL(options)
+                    print('Playlist detected, attempting to parse all URLs. ERRORS MAY OCCUR!')
+                    info = ydl.extract_info(msg, download=False)
+                    try:
+                        for items in info['entries']:
+                            playlist.append(items['webpage_url'])
+                            playlistnames.append(items['title'])
+                    except:
+                        print('Error with one URL, continuing processing!')
+                    print('Playlist Processing finished!')
                 else:
-                    hotsmessage = yield from client.send_message(message.channel,endmsg)
+                    #playlist.append(msg)
+                    updateNames(msg)
+            elif msg.lower() == 'move' and message.author.id == ownerID:
+                option = 'pause'
+                playlist_update()
+                yield from client.voice.disconnect()
+                yield from client.join_voice_channel(message.author.voice_channel)
+                option = 'resume'
+                playlist_update()
+                playlist.append('dicks')
             elif msg.lower() == 'skip':
                 if message.author.id == ownerID:
+                    print('instaskipping')
                     skipperlist = []
                     skipCount = 0
                     option = 'skip'
@@ -172,8 +226,31 @@ def on_message(message):
                 except:
                     print('thats not a number please use a number')
             else:
-                playlist.append(msg)
-                fixPlaylist()
+                if 'playlist' in msg:
+                    options = {
+                        'format': 'bestaudio/best',
+                        'extractaudio' : True,
+                        'audioformat' : "mp3",
+                        'outtmpl': '%(id)s',
+                        'noplaylist' : True,
+                        'nocheckcertificate' : True,
+                        'ignoreerrors' : True,
+                        'quiet' : True,
+                        'no_warnings' : True,}
+                    ydl = youtube_dl.YoutubeDL(options)
+                    print('Playlist detected, attempting to parse all URLs. ERRORS MAY OCCUR!')
+                    try:
+                        info = ydl.extract_info(msg, download=False)
+                        for items in info['entries']:
+                            playlist.append(items['webpage_url'])
+                            playlistnames.append(items['title'])
+                    except:
+                        print('Error with one URL, continuing processing!')
+                    print('Playlist Processing finished!')
+                else:
+                    #playlist.append(msg)
+                    updateNames(msg)
+            fixPlaylist()
             yield from asyncio.sleep(5)
             try:
                 yield from client.delete_message(message)
@@ -205,33 +282,27 @@ def do_format(message):
     endMsg = re.sub(r'([a-z])\1+', r'\1', endMsg)
     return endMsg
 
-def fixPlaylist():
-    for things in playlist:
-        if 'youtube' in things:
-            if '&' in things:
-                substrStart = things.find('&')
-                fixedThings = things[ :substrStart]
-                fixedThings.strip()
-            else:
-                fixedThings = things
-        else:
-            fixedThings = things
-        options = {
-                'format': 'bestaudio/best',
-                'extractaudio' : True,
-                'audioformat' : "mp3",
-                'outtmpl': '%(id)s',
-                'noplaylist' : True,
-                'nocheckcertificate' : True,}
-        ydl = youtube_dl.YoutubeDL(options)
-        try:
-            info = ydl.extract_info(fixedThings, download=False)
-        except Exception as e:
-            while fixedThings in playlist: playlist.remove(fixedThings)
+def updateNames(url):
+    options = {
+            'format': 'bestaudio/best',
+            'extractaudio' : True,
+            'audioformat' : "mp3",
+            'outtmpl': '%(id)s',
+            'noplaylist' : True,
+            'nocheckcertificate' : True,
+            'ignoreerrors' : True,
+            'quiet' : True,
+            'no_warnings' : True,}
+    ydl = youtube_dl.YoutubeDL(options)
+    try:
+        info = ydl.extract_info(url, download=False)
+        playlistnames.append(info['title'])
+        playlist.append(url)
+    except Exception as e:
+        x=0
+    
 
-def getPlaylist():
-    endmsg = ''
-    count = 0
+def fixPlaylist():
     for things in playlist:
         if 'youtube' in things:
             if '&' in things:
@@ -255,13 +326,15 @@ def getPlaylist():
         ydl = youtube_dl.YoutubeDL(options)
         try:
             info = ydl.extract_info(fixedThings, download=False)
-            title = info['title']
-            
         except Exception as e:
-            print("Can't access song! %s\n" % traceback.format_exc())
-            title = 'ERROR: Title is actual dicks.'
+            while fixedThings in playlist: playlist.remove(fixedThings)
+
+def getPlaylist():
+    endmsg = ''
+    count = 0
+    for title in playlistnames:
         count+=1
-        endmsg =endmsg +str(count) + ": "+ title + " \n"
+        endmsg =endmsg +str(count) + ":  "+ title + " \n"
     return endmsg
 
 def make_savepath(title, savedir=savedir):
@@ -269,15 +342,7 @@ def make_savepath(title, savedir=savedir):
 
 def download_song(unfixedsongURL):
     global currentlyPlaying
-    if 'youtube' in unfixedsongURL:
-        if '&' in unfixedsongURL:
-            substrStart = unfixedsongURL.find('&')
-            songURL = unfixedsongURL[ :substrStart]
-            songURL.strip()
-        else:
-            songURL = unfixedsongURL
-    else:
-        songURL = unfixedsongURL
+    songURL = unfixedsongURL
     options = {
 	    'format': 'bestaudio/best',
 	    'extractaudio' : True,
@@ -329,8 +394,8 @@ def playlist_update():
                 try:
                     path = download_song(thing)
                     if path!='butts!':
+                        yield from client.change_status(discord.Game(name=currentlyPlaying[5:]))
                         player = vce.create_ffmpeg_player(path, options='''-filter:a "volume={}"'''.format(volume))
-                        
                         player.start()
                         isPlaying = True
                         while thing in playlist: playlist.remove(thing)
@@ -342,11 +407,12 @@ def playlist_update():
             elif backuplist:
                 shuffle(backuplist)
                 thing = backuplist[0]
+                vce = client.voice
                 try:
                     path = download_song(thing)
                     if path!='butts!':
+                        yield from client.change_status(discord.Game(name=currentlyPlaying[5:]))
                         player = vce.create_ffmpeg_player(path, options='''-filter:a "volume={}"'''.format(volume))
-                        
                         player.start()
                         isPlaying = True
                         while thing in backuplist: backuplist.remove(thing)
@@ -361,12 +427,13 @@ def playlist_update():
                 for i, item in enumerate(backuplist):
                     backuplist[i] = item.rstrip()
                 shuffle(backuplist)
+                vce = client.voice
                 thing = backuplist[0]
                 try:
                     path = download_song(thing)
                     if path!='butts!':
+                        yield from client.change_status(discord.Game(name=currentlyPlaying[5:]))
                         player = vce.create_ffmpeg_player(path, options='''-filter:a "volume={}"'''.format(volume))
-                        
                         player.start()
                         isPlaying = True
                         while thing in backuplist: backuplist.remove(thing)
@@ -379,9 +446,6 @@ def playlist_update():
             while option!='skip' and player.is_playing():
                 if option == 'pause':
                     player.pause()
-                elif option == 'resume':
-                    player.resume()
-                    option = 'sleep'
                 else:
                     yield from asyncio.sleep(1)
             player.stop()
@@ -389,6 +453,7 @@ def playlist_update():
             isPlaying = False
         elif option == 'pause':
             player.pause()
+            isPlaying = False
             while option!='resume':
                 yield from asyncio.sleep(1)
             player.resume()
