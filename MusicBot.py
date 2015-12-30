@@ -86,7 +86,7 @@ def on_message(message):
     if '!whatismyuserid' in message.content.lower():
         print('HELLO, ' + message.author.name + ' THE ID YOU NEED TO USE IS ' + message.author.id)
     elif '!creator' in message.content.lower():
-        yield from client.send_message(message.channel,'I was coded by SexualRhinoceros and am currently on rev1.0! Go here for more info: https://github.com/SexualRhinoceros/MusicBot')
+        yield from client.send_message(message.channel,'I was coded by SexualRhinoceros and am currently on rev1.1! Go here for more info: https://github.com/SexualRhinoceros/MusicBot')
     ownerLocation = None
     for server in client.servers:
         for channel in server.channels:
@@ -230,7 +230,8 @@ def on_message(message):
                     option = 'skip'
             elif msg.lower() == 'shuffle':
                 if message.author.id == ownerID:
-                    shuffle(playlist)
+                    print('shuffle was removed in build 1.1 due to code changes')
+                    #shuffle(playlist)
                 else:
                     print('only the owner can shuffle')
             elif msg.lower() == 'pause':
