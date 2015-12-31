@@ -5,6 +5,7 @@ import os.path
 import traceback
 from random import shuffle
 
+from .constants import AUDIO_CACHE_PATH
 from .downloader import extract_info
 from .exceptions import ExtractionError
 from .utils import slugify
@@ -89,10 +90,6 @@ class Playlist(EventEmitter):
 
     def __iter__(self):
         return iter(self.entries)
-
-
-AUDIO_CACHE_PATH = os.path.join(os.getcwd(), 'audio_cache')
-DEFAULT_VOLUME = 0.10
 
 
 class PlaylistEntry(object):
