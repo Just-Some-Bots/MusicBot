@@ -1,10 +1,15 @@
-[DEFAULT]
+[Credentials]
 Username = borkedbot@mailinator.com
 Password = bbd58167294385
-DaysActive = 1
+
+[Permissions]
 OwnerID = 103675685343612928
+
+[Chat]
+CommandPrefix = ~
+
+[MusicBot]
+DaysActive = 1
 WhiteListCheck = no
 SkipsRequired = 7
-CommandPrefix = ~
 SaveVideos = yes
-VideoFolder = playlist

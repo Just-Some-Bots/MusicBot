@@ -1,0 +1,190 @@
+import traceback
+from array import array
+from asyncio import Lock
+
+from .constants import DEFAULT_VOLUME
+from .lib.event_emitter import EventEmitter
+
+
+class PatchedBuff(object):
+    """
+        PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
+    """
+
+    def __init__(self, player, buff):
+        self.player = player
+        self.buff = buff
+
+    def read(self, frame_size):
+        frame = self.buff.read(frame_size)
+
+        volume = self.player.volume
+        # Only make volume go down. Never up.
+        if volume < 1.0:
+            # Ffmpeg returns s16le pcm frames.
+            frame_array = array('h', frame)
+
+            for i in range(len(frame_array)):
+                frame_array[i] = int(frame_array[i] * volume)
+
+            frame = frame_array.tobytes()
+
+        return frame
+
+
+class MusicPlayerState(object):
+    # TODO: Maybe use enum3?
+
+    STOPPED = 0  # When the player isn't playing anything
+    PLAYING = 1  # The player is actively playing music.
+    PAUSED = 2  # The player is paused on a song.
+
+    @classmethod
+    def to_human(cls, state):
+        if state == cls.STOPPED:
+            return 'STOPPED'
+
+        if state == cls.PLAYING:
+            return 'PLAYING'
+
+        if state == cls.PAUSED:
+            return 'PAUSED'
+
+        raise ValueError('Unknown state %s' % state)
+
+
+class MusicPlayer(EventEmitter):
+    def __init__(self, bot, voice_client, playlist, volume=DEFAULT_VOLUME):
+        super().__init__()
+        self.bot = bot
+        self.loop = bot.loop
+        self.voice_client = voice_client
+        self.playlist = playlist
+        self.playlist.on('entry-added', self.on_entry_added)
+
+        self._play_lock = Lock()
+        self._current_player = None
+        self._current_entry = None
+        self._state = MusicPlayerState.STOPPED
+        self.volume = volume
+
+    def on_entry_added(self, playlist, entry):
+        if self.is_stopped:
+            self.loop.call_later(2, self.play)
+
+    def skip(self):
+        self._kill_current_player()
+
+    def stop(self):
+        self._state = MusicPlayerState.STOPPED
+        self._kill_current_player()
+
+        self.emit('stop', player=self)
+
+    def resume(self):
+        if self.is_paused and self._current_player:
+            self._current_player.resume()
+            self._state = MusicPlayerState.PLAYING
+            self.emit('resume', player=self, entry=self.current_entry)
+            return
+
+        raise ValueError('Cannot resume playback from state %s' % self.state)
+
+    def _playback_finished(self):
+        self._current_player = None
+        entry = self._current_entry
+        self._current_entry = None
+        if not self.is_stopped:
+            self.play(_continue=True)
+
+        self.emit('finished-playing', player=self, entry=entry)
+
+    def play(self, _continue=False):
+        self.loop.create_task(self._play(_continue=_continue))
+
+    async def _play(self, _continue=False):
+        """
+            Plays the next entry from the playlist, or resumes playback of the current entry if paused.
+        """
+        if self.is_paused:
+            return self.resume()
+
+        with await self._play_lock:
+            if self.is_stopped or _continue:
+                try:
+                    entry = await self.playlist.get_next_entry()
+
+                except Exception as e:
+                    print("Failed to get entry.")
+                    traceback.print_exc()
+                    # Retry playing the next entry in a sec.
+                    self.loop.call_later(0.1, self.play)
+                    return
+
+                # If nothing left to play, transition to the stopped state.
+                if not entry:
+                    self.stop()
+                    return
+
+                self._state = MusicPlayerState.PLAYING
+                self._current_entry = entry
+
+                # In-case there was a player, kill it. RIP.
+                self._kill_current_player()
+
+                self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
+                    entry.filename,
+                    #  Threadsafe call soon, b/c after will be called from the voice playback thread.
+                    after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
+                ))
+                self._current_player.start()
+
+                self.emit('play', player=self, entry=entry)
+
+    def _monkeypatch_player(self, player):
+        original_buff = player.buff
+        player.buff = PatchedBuff(self, original_buff)
+        return player
+
+    @property
+    def current_entry(self):
+        return self._current_entry
+
+    @property
+    def is_playing(self):
+        return self._state == MusicPlayerState.PLAYING
+
+    @property
+    def is_paused(self):
+        return self._state == MusicPlayerState.PAUSED
+
+    @property
+    def is_stopped(self):
+        return self._state == MusicPlayerState.STOPPED
+
+    def pause(self):
+        if self.is_playing:
+            self._state = MusicPlayerState.PAUSED
+
+            if self._current_player:
+                self._current_player.pause()
+
+            self.emit('pause', player=self, entry=self.current_entry)
+            return
+
+        elif self.is_paused:
+            return
+
+        raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
+
+    @property
+    def state(self):
+        return MusicPlayerState.to_human(self._state)
+
+    def _kill_current_player(self):
+        if self._current_player:
+            self._current_player.stop()
+            self._current_player = None
+            return True
+
+        return False

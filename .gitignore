@@ -1,0 +1,11 @@
+.idea/
+audio_cache/
+
+whitelist.txt
+blacklist.txt
+backuplist.txt
+blacklist.txt
+
+*.pyc
+options.txt
+whitelist.txt
