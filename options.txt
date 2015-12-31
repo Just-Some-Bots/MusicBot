@@ -1,6 +1,10 @@
-EMAIL
-PASSWORD
-0
-0
-77511942717046784
-2
+[DEFAULT]
+Username = borkedbot@mailinator.com
+Password = bbd58167294385
+DaysActive = 1
+OwnerID = 103675685343612928
+WhiteListCheck = no
+SkipsRequired = 7
+CommandPrefix = ~
+SaveVideos = yes
+VideoFolder = playlist
