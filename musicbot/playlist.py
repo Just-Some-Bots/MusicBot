@@ -6,6 +6,7 @@ import traceback
 from random import shuffle
 
 from .downloader import extract_info
+from .exceptions import ExtractionError
 from .utils import slugify
 from .lib.event_emitter import EventEmitter
 

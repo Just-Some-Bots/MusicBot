@@ -363,6 +363,10 @@ class MusicBot(discord.Client):
         for i, item in enumerate(player.playlist, 1):
             lines.append('%s) **%s** added by **%s**' % (i, item.title, item.meta['author'].name))
 
+        if not lines:
+            lines.append(
+                'There are no messages queued! Queue something with {}play.'.format(self.config.command_prefix))
+
         message = '\n'.join(lines)[:2000]
         return Response(message)
 
