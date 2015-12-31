@@ -34,6 +34,13 @@ class SkipState(object):
         return self.skip_count
 
 
+class Response(object):
+    def __init__(self, content, reply=False, delete_incoming=False):
+        self.content = content
+        self.reply = reply
+        self.delete_incoming = delete_incoming
+
+
 class MusicBot(discord.Client):
     helpmessage = (
         '`!play [youtube link]` will allow me to play a new song or add it to the queue.\n'
@@ -193,71 +200,33 @@ class MusicBot(discord.Client):
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
-    async def handle_play(self, message, song_url):
+    async def handle_play(self, player, channel, author, song_url):
         """
         Usage {command_prefix}play [song link]
         Adds the song to the playlist. [todo: list accepted data formats, full url, id, watch?v=id, etc]
         """
-        player = await self.get_player(message.channel)
 
         try:
-            await self.send_typing(message.channel)
+            await self.send_typing(channel)
 
-            entry, position = await player.playlist.add_entry(song_url, channel=message.channel, author=message.author)
+            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
 
             # TODO: implement me.
             # time_until = self.playlist.estimate_time_until(position)
 
-            await self.send_message(
-                message.channel,
+            return Response(
                 'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
                     entry.title, position, '0:00'  # todo: implement me.
-                ))
+                ),
+                reply=True
+            )
 
         except Exception:
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
 
-    # TODO: Update once Playlist objects are completed
-    async def handle_playlist(self, message, args):
-        """
-        Usage: {command_prefix}playlist
-        Prints the playlist into chat.
-        """
-
-        # TODO: JAKE FIX THIS.
-        msglist = []
-        playlistmsgstorage = []
-        endmsg = self.currentlyPlaying
-        count = 1
-
-        for titles in self.playlistnames:
-            print(len(endmsg))
-            if len(endmsg) > 1500:
-                msglist.append(endmsg)
-                endmsg = ''
-            else:
-                endmsg = endmsg + str(count) + ":  " + titles + " \n"
-                count += 1
-
-        msglist.append(endmsg)
-
-        for items in msglist:
-            temp = await self.send_message(message.channel, items)
-            playlistmsgstorage.append(temp)
-
-        try:
-            await self.delete_message(message)
-        except:
-            print('Error: Cannot delete messages!')
-
-        for msgs in playlistmsgstorage:
-            await self.delete_message(msgs)
-
-        pass
-
-    async def handle_summon(self, message):
+    async def handle_summon(self, channel, author):
         """
         Usage {command_prefix}summon
         This command is for summoning the bot into your voice channel [but it should do it automatically the first time]
@@ -265,11 +234,11 @@ class MusicBot(discord.Client):
         if self.voice_clients:
             raise CommandError("Multiple servers not supported at this time.")
 
-        server = message.channel.server
+        server = channel.server
 
         channel = None
         for channel in server.channels:
-            if discord.utils.get(channel.voice_members, id=message.author.id):
+            if discord.utils.get(channel.voice_members, id=author.id):
                 break
 
         if not channel:
@@ -280,12 +249,11 @@ class MusicBot(discord.Client):
         if player.is_stopped:
             player.play()
 
-    async def handle_pause(self, message):
+    async def handle_pause(self, player):
         """
         Usage {command_prefix}pause
         Pauses playback of the current song. [todo: should make sure it works fine when used inbetween songs]
         """
-        player = await self.get_player(message.channel)
 
         if player.is_playing:
             player.pause()
@@ -293,70 +261,64 @@ class MusicBot(discord.Client):
         else:
             raise CommandError('Player is not playing.')
 
-    async def handle_resume(self, message):
+    async def handle_resume(self, player):
         """
         Usage {command_prefix}resume
         Resumes playback of a paused song.
         """
-        player = await self.get_player(message.channel)
-
         if player.is_paused:
             player.resume()
 
         else:
             raise CommandError('Player is not paused.')
 
-    async def handle_shuffle(self, message):
+    async def handle_shuffle(self, player):
         """
         Usage {command_prefix}shuffle
         Shuffles the playlist.
         """
-        player = await self.get_player(message.channel)
         player.playlist.shuffle()
 
-    async def handle_skip(self, message):
+    async def handle_skip(self, player, channel, author):
         """
         Usage {command_prefix}skip
         Skips the current song when enough votes are cast, or by the bot owner.
         """
-        player = await self.get_player(message.channel)
 
         if player.is_stopped:
             raise CommandError("Can't skip! The player is not playing!")
 
-        if message.author.id == self.config.owner_id:
+        if author.id == self.config.owner_id:
             player.skip()
             return
 
         voice_channel = player.voice_client.channel
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (m.deaf or m.self_deaf))
-        num_skips = player.skip_state.add_skipper(message.author.id)
+        num_skips = player.skip_state.add_skipper(author.id)
 
         skips_remaining = min(self.config.skips_required, int(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
             player.skip()
-            await self.send_message(
-                message.channel,
-                '{}, your skip for **{}** was acknowledged.'
+            return Response(
+                'your skip for **{}** was acknowledged.'
                 '\nThe vote to skip has been passed.{}'.format(
-                    message.author.mention,
                     player.current_entry.title,
                     ' Next song coming up!' if player.playlist.peek() else ''
-                )
+                ),
+                reply=True
             )
 
         else:
-            await self.send_message(
-                message.channel,
-                '{}, your skip for **{}** was acknowledged.'
+            return Response(
+                'your skip for **{}** was acknowledged.'
                 '\n**{}** more {} required to vote to skip this song.'.format(
-                    message.author.mention,
                     player.current_entry.title,
                     skips_remaining,
                     'person is' if skips_remaining == 1 else 'people are'
-                )
+                ),
+                reply=True
             )
 
     async def handle_volume(self, message, new_volume=None):
@@ -369,8 +331,7 @@ class MusicBot(discord.Client):
         player = await self.get_player(message.channel)
 
         if not new_volume:
-            await self.send_message(message.channel, 'Current volume: `%s%%`' % int(player.volume * 100))
-            return
+            return Response('current volume: `%s%%`' % int(player.volume * 100), reply=True)
 
         relative = False
         if new_volume[0] in '+-':
@@ -389,7 +350,7 @@ class MusicBot(discord.Client):
             old_volume = int(player.volume * 100)
             player.volume = new_volume / 100.0
 
-            await self.send_message(message.channel, 'Updated volume from %d to %d' % (old_volume, new_volume))
+            return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True)
 
         else:
             raise CommandError(
@@ -403,7 +364,7 @@ class MusicBot(discord.Client):
             lines.append('%s) **%s** added by **%s**' % (i, item.title, item.meta['author'].name))
 
         message = '\n'.join(lines)[:2000]
-        await self.send_message(channel, message)
+        return Response(message)
 
     async def on_message(self, message):
         if message.author == self.user:
@@ -427,46 +388,60 @@ class MusicBot(discord.Client):
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
 
-        handler_kwargs = {}
-        if params.pop('message', None):
-            handler_kwargs['message'] = message
-
-        if params.pop('channel', None):
-            handler_kwargs['channel'] = message.channel
-
-        args_expected = []
-        for key, param in list(params.items()):
-            doc_key = '[%s=%s]' % (key, param.default) if param.default is not inspect.Parameter.empty else key
-            args_expected.append(doc_key)
-
-            if not args and param.default is not inspect.Parameter.empty:
-                params.pop(key)
-                continue
-
-            if args:
-                arg_value = args.pop(0)
-                handler_kwargs[key] = arg_value
-                params.pop(key)
-
-        if params:
-            docs = getattr(handler, '__doc__', None)
-            if not docs:
-                docs = 'Usage: {}{} {}'.format(
-                    self.config.command_prefix,
-                    command,
-                    ' '.join(args_expected)
-                )
-
-            await self.send_message(
-                message.channel,
-                '```\n%s\n```' % docs.strip().format(command_prefix=self.config.command_prefix)
-            )
-            print(params)
-            return
-
         # noinspection PyBroadException
         try:
-            await handler(**handler_kwargs)
+            handler_kwargs = {}
+            if params.pop('message', None):
+                handler_kwargs['message'] = message
+
+            if params.pop('channel', None):
+                handler_kwargs['channel'] = message.channel
+
+            if params.pop('author', None):
+                handler_kwargs['author'] = message.author
+
+            if params.pop('player', None):
+                handler_kwargs['player'] = await self.get_player(message.channel)
+
+            args_expected = []
+            for key, param in list(params.items()):
+                doc_key = '[%s=%s]' % (key, param.default) if param.default is not inspect.Parameter.empty else key
+                args_expected.append(doc_key)
+
+                if not args and param.default is not inspect.Parameter.empty:
+                    params.pop(key)
+                    continue
+
+                if args:
+                    arg_value = args.pop(0)
+                    handler_kwargs[key] = arg_value
+                    params.pop(key)
+
+            if params:
+                docs = getattr(handler, '__doc__', None)
+                if not docs:
+                    docs = 'Usage: {}{} {}'.format(
+                        self.config.command_prefix,
+                        command,
+                        ' '.join(args_expected)
+                    )
+
+                await self.send_message(
+                    message.channel,
+                    '```\n%s\n```' % docs.strip().format(command_prefix=self.config.command_prefix)
+                )
+                return
+
+            response = await handler(**handler_kwargs)
+            if response and isinstance(response, Response):
+                content = response.content
+                if response.reply:
+                    content = '%s, %s' % (message.author.mention, content)
+
+                await self.send_message(message.channel, content)
+
+                if response.delete_incoming:
+                    self.delete_message(message)
 
         except CommandError as e:
             await self.send_message(message.channel, '```\n%s\n```' % e.message)
