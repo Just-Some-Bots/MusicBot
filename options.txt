@@ -1,15 +1,15 @@
 [Credentials]
-Username = borkedbot@mailinator.com
-Password = bbd58167294385
+Username = my@email.com
+Password = rhino_is_a_numpty
 
 [Permissions]
-OwnerID = 103675685343612928
+OwnerID = 112233445566778899
 
 [Chat]
 CommandPrefix = ~
 
 [MusicBot]
-DaysActive = 1
+DaysActive = 3
 WhiteListCheck = no
-SkipsRequired = 7
+SkipsRequired = 6
 SaveVideos = yes
