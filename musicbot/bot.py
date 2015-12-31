@@ -203,7 +203,7 @@ class MusicBot(discord.Client):
     async def handle_play(self, player, channel, author, song_url):
         """
         Usage {command_prefix}play [song link]
-        Adds the song to the playlist. [todo: list accepted data formats, full url, id, watch?v=id, etc]
+        Adds the song to the playlist.
         """
 
         try:
@@ -426,9 +426,10 @@ class MusicBot(discord.Client):
                         ' '.join(args_expected)
                     )
 
+                docs = '\n'.join(l.strip() for l in docs.split('\n'))
                 await self.send_message(
                     message.channel,
-                    '```\n%s\n```' % docs.strip().format(command_prefix=self.config.command_prefix)
+                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix)
                 )
                 return
 
