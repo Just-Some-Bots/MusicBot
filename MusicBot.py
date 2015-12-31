@@ -13,6 +13,10 @@ import unicodedata
 import array
 from random import shuffle
 from concurrent.futures import ThreadPoolExecutor
+from discord.object import Object
+from discord.voice_client import VoiceClient
+from discord.enums import ChannelType
+from discord import utils
 
 if not discord.opus.is_loaded():
     opus_libs = ['libopus-0.x86.dll', 'libopus-0.x64.dll', 'libopus.so.0', '/usr/lib/libopus.so.0', '/usr/local/lib/libopus.0.dylib']
@@ -163,7 +167,7 @@ class Playlist(EventEmitter):
 
     def _add_entry(self, entry):
         self.entries.append(entry)
-        self.emit('entry-added', entry=entry)
+        self.emit('entry-added', playlist=self, entry=entry)
 
         if self.peek() is entry:
             entry.get_ready_future()
@@ -308,7 +312,7 @@ class PatchedBuff(object):
     """
         PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
-
+        
     def __init__(self, player, buff):
         self.player = player
         self.buff = buff
@@ -317,7 +321,7 @@ class PatchedBuff(object):
         frame = self.buff.read(frame_size)
 
         volume = self.player.volume
-        # Only make volume go down. Never up.
+        # Only make volume go down. Never up. 
         if volume < 1.0:
             # Ffmpeg returns s16le pcm frames.
             frame_array = array.array('h', frame)
@@ -351,10 +355,11 @@ class MusicPlayer(EventEmitter):
 
             raise ValueError('Unknown state %s' % state)
 
-    def __init__(self, bot, playlist, volume=DEFAULT_VOLUME):
+    def __init__(self, bot, voice_client, playlist, volume=DEFAULT_VOLUME):
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
+        self.voice_client = voice_client
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
         self._current_player = None
@@ -362,9 +367,8 @@ class MusicPlayer(EventEmitter):
         self._state = MusicPlayer.States.STOPPED
         self.volume = volume
 
-    def on_entry_added(self, entry):
+    def on_entry_added(self, playlist, entry):
         if self.is_stopped:
-            print('entry added', entry)
             self.loop.create_task(self.play())
 
     def skip(self):
@@ -374,13 +378,13 @@ class MusicPlayer(EventEmitter):
         self._state = MusicPlayer.States.STOPPED
         self._kill_current_player()
 
-        self.emit('stop')
+        self.emit('stop', player=self)
 
     def resume(self):
         if self.is_paused and self._current_player:
             self._current_player.resume()
             self._state = MusicPlayer.States.PLAYING
-            self.emit('resume', entry=self.current_entry)
+            self.emit('resume', player=self, entry=self.current_entry)
             return
 
         raise ValueError('Cannot resume playback from state %s' % self.state)
@@ -392,7 +396,7 @@ class MusicPlayer(EventEmitter):
         if not self.is_stopped:
             self.loop.create_task(self.play(_continue=True))
 
-        self.emit('finished-playing', entry=entry)
+        self.emit('finished-playing', player=self, entry=entry)
 
     @asyncio.coroutine
     def play(self, _continue=False):
@@ -424,14 +428,14 @@ class MusicPlayer(EventEmitter):
             # Incase there was a player, kill it. RIP.
             self._kill_current_player()
 
-            self._current_player = self._monkeypatch_player(self.bot.voice.create_ffmpeg_player(
+            self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
                 entry.filename,
                 #  Threadsafe call soon, b/c after will be called from the voice playback thread.
                 after=lambda: self.bot.loop.call_soon_threadsafe(self._playback_finished)
             ))
             self._current_player.start()
 
-            self.emit('play', entry=entry)
+            self.emit('play', player=self, entry=entry)
 
     def _monkeypatch_player(self, player):
         original_buff = player.buff
@@ -461,7 +465,7 @@ class MusicPlayer(EventEmitter):
             if self._current_player:
                 self._current_player.pause()
 
-            self.emit('pause', entry=self.current_entry)
+            self.emit('pause', player=self, entry=self.current_entry)
             return
 
         elif self.is_paused:
@@ -513,15 +517,10 @@ class MusicBot(discord.Client):
 
     def __init__(self):
         super().__init__()
-
-        self.playlist = Playlist(self.loop)
-        self.player = MusicPlayer(self, self.playlist) \
-            .on('play', self.on_play) \
-            .on('resume', self.on_resume) \
-            .on('pause', self.on_pause) \
-            .on('stop', self.on_stop)
-
-        self.skip_state = SkipState()
+        
+        self.players = {}
+        self.voice_clients = {}
+        self.voice_client_connect_lock = asyncio.Lock()
 
         self.volume = 0.10
         self.skipCount = 0
@@ -533,18 +532,91 @@ class MusicBot(discord.Client):
         if not os.path.exists(self.video_folder):
             os.makedirs(self.video_folder)
 
+    @asyncio.coroutine
+    def get_voice_client(self, channel):
+        if isinstance(channel, Object):
+            channel = self.get_channel(channel.id)
 
-    def on_play(self, entry):
+        if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
+            raise AttributeError('Channel passed must be a voice channel')
+        
+        with (yield from self.voice_client_connect_lock):
+            server = channel.server
+            if server.id in self.voice_clients:
+                return self.voice_clients[server.id]
+        
+            payload = {
+                'op': 4,
+                'd': {
+                    'guild_id': channel.server.id,
+                    'channel_id': channel.id,
+                    'self_mute': False,
+                    'self_deaf': False
+                }
+            }
+    
+            yield from self.ws.send(utils.to_json(payload))
+            yield from asyncio.wait_for(self._session_id_found.wait(), timeout=5.0, loop=self.loop)
+            yield from asyncio.wait_for(self._voice_data_found.wait(), timeout=5.0, loop=self.loop)
+            
+            session_id = self.session_id
+            voice_data = self._voice_data_found.data
+    
+            self._session_id_found.clear()
+            self._voice_data_found.clear()
+    
+            kwargs = {
+                'user': self.user,
+                'channel': channel,
+                'data': voice_data,
+                'loop': self.loop,
+                'session_id': session_id,
+                'main_ws': self.ws
+            }
+    
+            voice_client = VoiceClient(**kwargs)
+            self.voice_clients[server.id] = voice_client
+            yield from voice_client.connect()
+            return voice_client
+
+    @asyncio.coroutine
+    def get_player(self, channel, create=False):
+        server = channel.server
+        
+        if server.id not in self.players:
+            if not create:
+                raise KeyError('Player does not exist. It has not been summoned yet into a voice channel.')
+            
+            voice_client = yield from self.get_voice_client(channel)
+            
+            playlist = Playlist(self.loop)
+            player = MusicPlayer(self, voice_client, playlist) \
+                .on('play', self.on_play) \
+                .on('resume', self.on_resume) \
+                .on('pause', self.on_pause) \
+                .on('stop', self.on_stop)
+                
+            player.skip_state = SkipState()
+            self.players[server.id] = player
+        
+        return self.players[server.id]
+
+    def on_play(self, player, entry):
         self.update_now_playing(entry)
-        self.skip_state.reset()
+        player.skip_state.reset()
+        
+        self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song %s is now playing!' % (
+            entry.meta['author'].mention, entry.title
+        )))
+        
 
-    def on_resume(self, entry):
+    def on_resume(self, player, entry):
         self.update_now_playing(entry)
 
-    def on_pause(self, entry):
+    def on_pause(self, player, entry):
         self.update_now_playing(entry, True)
 
-    def on_stop(self):
+    def on_stop(self, player):
         self.update_now_playing()
 
     def update_now_playing(self, entry=None, is_paused=False):
@@ -578,6 +650,8 @@ class MusicBot(discord.Client):
         # CommandPrefix = !
         # SaveVideos = yes
         # VideoFolder = playlist
+
+        # TODO: Resume on restart
 
         config = configparser.ConfigParser()
         config.read('options.txt')
@@ -629,7 +703,7 @@ class MusicBot(discord.Client):
 
         argspec = inspect.getargspec(handler)
         expected_args = len(argspec.args) - 2
-        if not argpsec.varargs and len(args) != expected_args:
+        if not argspec.varargs and len(args) != expected_args:
             docs = getattr(handler, '__doc__', None)
             if not docs:
                 docs = '!%s requires %s argument%s' % (command, expected_args, '' if expected_args == '1' else 's')
@@ -645,6 +719,7 @@ class MusicBot(discord.Client):
             yield from self.send_message(message.channel, '```\n%s\n```' % e.message)
 
         except Exception as e:
+            yield from self.send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
             traceback.print_exc()
             pass
 
@@ -705,11 +780,18 @@ class MusicBot(discord.Client):
         Usage {command_prefix}play [song link]
         Adds the song to the playlist. [todo: list accepted data formats, full url, id, watch?v=id, etc]
         """
+        player = yield from self.get_player(message.channel)
+        
         try:
-            entry, position = yield from self.playlist.add_entry(margs[0])
+            yield from self.send_typing(message.channel)
+            
+            entry, position = yield from player.playlist.add_entry(song_url, channel=message.channel, author=message.author)
+            if position == 1 and player.is_stopped:
+                position = 'Up next!'
+                
             #time_until = self.playlist.estimate_time_until(position)
-
-            self.send_message(message.channel, 'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
+            
+            yield from self.send_message(message.channel, 'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
                 entry.title, position, '0:00' # todo: implement me.
             ))
 
@@ -755,109 +837,129 @@ class MusicBot(discord.Client):
             yield from self.delete_message(msgs)
         pass
 
-    def handle_summon(self, message, args):
+    def handle_summon(self, message):
         """
         Usage {command_prefix}summon
         This command is for summoning the bot into your voice channel [but it should do it automatically the first time]
         """
-        if self.player.is_playing:
-            self.player.pause()
-        else:
-            raise CommandError('Player is not playing.')
-
-        if self.voice:
-            yield from self.voice.disconnect()
-
-        yield from self.join_voice_channel(channelLocation)
-
-        if self.player.is_paused:
-            self.player.resume()
-        else:
-            raise CommandError('Player is not paused.')
-
-    def handle_pause(self, message, args):
+        if self.voice_clients:
+            raise CommandError("Multiple servers not supported at this time.")
+        
+        server = message.channel.server
+        
+        channel = None
+        for channel in server.channels:
+            if discord.utils.get(channel.voice_members, id=message.author.id):
+                break
+            
+        if not channel:
+            raise CommandError('You are not in a voice channel!')
+        
+        player = yield from self.get_player(channel, create=True)
+        
+        if player.is_stopped:
+            yield from player.play()
+            
+    def handle_pause(self, message):
         """
         Usage {command_prefix}pause
         Pauses playback of the current song. [todo: should make sure it works fine when used inbetween songs]
         """
-        if self.player.is_playing:
-            self.player.pause()
+        player = yield from self.get_player(message.channel)
+        
+        if player.is_playing:
+            player.pause()
+            
         else:
             raise CommandError('Player is not playing.')
 
-    def handle_resume(self, message, args):
+    def handle_resume(self, message):
         """
         Usage {command_prefix}resume
         Resumes playback of a paused song.
         """
-        if self.player.is_paused:
-            self.player.resume()
+        player = yield from self.get_player(message.channel)
+        
+        if player.is_paused:
+            player.resume()
         else:
             raise CommandError('Player is not paused.')
 
-    def handle_shuffle(self, message, args):
+    def handle_shuffle(self, message):
         """
         Usage {command_prefix}shuffle
         Shuffles the playlist.
         """
-        self.playlist.shuffle()
+        player = yield from self.get_player(message.channel)
+        player.playlist.shuffle()
 
     def handle_skip(self, message):
         """
         Usage {command_prefix}skip
         Skips the current song when enough votes are cast, or by the bot owner.
         """
-        if self.player.is_stopped:
+        player = yield from self.get_player(message.channel)
+        
+        if player.is_stopped:
             raise CommandError("Can't skip! The player is not playing!")
-
+        
         if message.author.id == self.owner_id:
-            self.player.skip()
+            player.skip()
             return
-
-        print(self.voice.channel.voice_members)
-
-        num_voice = sum(1 for m in self.voice.channel.voice_members if not (m.deaf or m.self_deaf))
-        num_skips = self.skip_state.add_skipper(message.author.id)
-
+        
+        voice_channel = player.voice_client.channel
+        
+        num_voice = sum(1 for m in voice_channel.voice_members if not (m.deaf or m.self_deaf))
+        num_skips = player.skip_state.add_skipper(message.author.id)
+        
         skips_required = min(self.skip_ratio_required, int(num_voice * self.skip_ratio_required))
-
+        
         if num_skips >= skips_required:
-            self.player.skip()
-
+            player.skip()
+            
         else:
             self.send_message(message.channel, 'Skip acknowledged - %s more skips required to vote to skip this song.' % skips_required)
 
-    def handle_volume(self, message, new_volume):
+    def handle_volume(self, message, new_volume=None):
         """
-        Usage {command_prefix}volume [volume]
-        Sets the playback volume. Accepted values are from 1 to 100.
+        Usage {command_prefix}volume (+/-)[volume]
+        Sets the playback volume. Accepted values are from 1 to 100. 
+        Putting + or - before the volume will make the volume change relative to the current volume.
         """
+
+        # TODO: Add relative volume change, +5, -10, etc
+        
+        player = yield from self.get_player(message.channel)
+        
+        relative = False
+        if new_volume[0] in '+-':
+            relative = True
+        
+        if new_volume is None:
+            yield from self.send_message(message.channel, 'Current volume: %s' % player.volume)
+            return
+        
         try:
             new_volume = int(new_volume)
-
+            
         except ValueError:
-            if new_volume is None:
-                yield from self.send_message(message.channel, 'Current volume: %s' % self.player.volume)
-            else:
-                raise CommandError('{} is not a valid number'.format(new_volume))
-
+            raise CommandError('{} is not a valid number'.format(new_volume))
+                
+        if relative:
+            new_volume = (player.volume * 100) + new_volume
+        
         if 0 < new_volume <= 100:
-            self.player.volume = new_volume / 100.0
-
+            old_volume = int(player.volume * 100)
+            player.volume = new_volume / 100.0
+            
+            yield from self.send_message(message.channel, 'Updated volume from %s to %s' % (old_volume, new_volume))
+            
         else:
             raise CommandError('Unreasonable volume provided {}%. Provide a value between 1 and 100.'.format(new_volume))
 
-    def get_owner_location():
-
-        # TODO:  Fix this shitty algorithm.
-        for server in self.servers:
-            for channel in server.channels:
-                pre = discord.utils.get(channel.voice_members, id=self.owner_id)
-                ownerLocation = pre.server if pre else None
-                if ownerLocation and channel.type == discord.ChannelType.voice:
-                    channelLocation = channel
-                    break
-            if ownerLocation: break
+    @asyncio.coroutine
+    def on_ready(self):
+        pass
 
     @asyncio.coroutine
     def on_message(self, message):
@@ -866,161 +968,163 @@ class MusicBot(discord.Client):
 
         if message.channel.is_private:
             yield from self.send_message(message.channel, 'You cannot use this bot in private messages.')
+            
+        yield from self.handle_message(message)
 
-        if message.content.lower().startswith('!whatismyuserid'):
-            print('HELLO, ' + message.author.name + ' THE ID YOU NEED TO USE IS ' + message.author.id)
+        # if message.content.lower().startswith('!whatismyuserid'):
+        #     print('HELLO, ' + message.author.name + ' THE ID YOU NEED TO USE IS ' + message.author.id)
 
-        elif message.content.lower().startswith('!creator'):
-            yield from self.send_message(message.channel,
-                'I was coded by SexualRhinoceros and am currently on rev{}! Go here for more info: https://github.com/SexualRhinoceros/MusicBot'.format(VERSION))
+        # elif message.content.lower().startswith('!creator'):
+        #     yield from self.send_message(message.channel,
+        #         'I was coded by SexualRhinoceros and am currently on rev{}! Go here for more info: https://github.com/SexualRhinoceros/MusicBot'.format(VERSION))
 
-        ownerLocation = None
-        channelLocation = None
+        # ownerLocation = None
+        # channelLocation = None
 
-        # TODO:  Fix this shitty algorithm.
-        for server in self.servers:
-            for channel in server.channels:
-                pre = discord.utils.get(channel.voice_members, id=self.owner_id)
-                ownerLocation = pre.server if pre else None
-                if ownerLocation and channel.type == discord.ChannelType.voice:
-                    channelLocation = channel
-                    break
-            if ownerLocation: break
+        # # TODO:  Fix this shitty algorithm.
+        # for server in self.servers:
+        #     for channel in server.channels:
+        #         pre = discord.utils.get(channel.voice_members, id=self.owner_id)
+        #         ownerLocation = pre.server if pre else None
+        #         if ownerLocation and channel.type == discord.ChannelType.voice:
+        #             channelLocation = channel
+        #             break
+        #     if ownerLocation: break
 
-        margs = message.content.split(' ')[1:]
+        # margs = message.content.split(' ')[1:]
 
-        if message.server == ownerLocation:
-            if message.content.lower().startswith('!joinserver') and message.author.id == self.owner_id:
-                msg = ''.join(margs).strip()
-                try:
-                    print(msg)
-                    yield from self.accept_invite(msg)
-                except:
-                    print('Ya dun fucked up with the URL:\n{}\n'.format(msg))
+        # if message.server == ownerLocation:
+        #     if message.content.lower().startswith('!joinserver') and message.author.id == self.owner_id:
+        #         msg = ''.join(margs).strip()
+        #         try:
+        #             print(msg)
+        #             yield from self.accept_invite(msg)
+        #         except:
+        #             print('Ya dun fucked up with the URL:\n{}\n'.format(msg))
 
-            elif message.content.lower().startswith('!servers') and message.author.id == '77511942717046784':
-                if len(self.servers) > 1 and self.user.id != '127715185115791363':
-                    yield from self.send_message(message.channel, "I DIDN'T LISTEN TO DIRECTIONS AND HAVE MY BOT ON MORE THAN ONE SERVER")
-                else:
-                    print("You good don't worry fam")
+        #     elif message.content.lower().startswith('!servers') and message.author.id == '77511942717046784':
+        #         if len(self.servers) > 1 and self.user.id != '127715185115791363':
+        #             yield from self.send_message(message.channel, "I DIDN'T LISTEN TO DIRECTIONS AND HAVE MY BOT ON MORE THAN ONE SERVER")
+        #         else:
+        #             print("You good don't worry fam")
 
-            elif message.content.lower().startswith('!playlist'):
-                print('GETTING PLAYLIST: If this is large the bot WILL hang')
+        #     elif message.content.lower().startswith('!playlist'):
+        #         print('GETTING PLAYLIST: If this is large the bot WILL hang')
 
-                msglist = []
-                playlistmsgstorage = []
-                endmsg = self.currentlyPlaying
-                count = 1
+        #         msglist = []
+        #         playlistmsgstorage = []
+        #         endmsg = self.currentlyPlaying
+        #         count = 1
 
-                for titles in self.playlistnames:
-                    print(len(endmsg))
-                    if len(endmsg) > 1500:
-                        print('doot')
-                        msglist.append(endmsg)
-                        endmsg = ''
-                    else:
-                        endmsg = endmsg + str(count) + ":  " + titles + " \n"
-                        count += 1
+        #         for titles in self.playlistnames:
+        #             print(len(endmsg))
+        #             if len(endmsg) > 1500:
+        #                 print('doot')
+        #                 msglist.append(endmsg)
+        #                 endmsg = ''
+        #             else:
+        #                 endmsg = endmsg + str(count) + ":  " + titles + " \n"
+        #                 count += 1
 
-                msglist.append(endmsg)
+        #         msglist.append(endmsg)
 
-                for items in msglist:
-                    temp = yield from self.send_message(message.channel, items)
-                    playlistmsgstorage.append(temp)
+        #         for items in msglist:
+        #             temp = yield from self.send_message(message.channel, items)
+        #             playlistmsgstorage.append(temp)
 
-                try:
-                    yield from self.delete_message(message)
-                except:
-                    print('Error: Cannot delete messages!')
+        #         try:
+        #             yield from self.delete_message(message)
+        #         except:
+        #             print('Error: Cannot delete messages!')
 
-                yield from asyncio.sleep(15)
+        #         yield from asyncio.sleep(15)
 
-                for msgs in playlistmsgstorage:
-                    yield from self.delete_message(msgs)
+        #         for msgs in playlistmsgstorage:
+        #             yield from self.delete_message(msgs)
 
-            elif message.content.lower().startswith('!play'):
-                msg = ''.join(margs).strip()
+        #     elif message.content.lower().startswith('!play'):
+        #         msg = ''.join(margs).strip()
 
-                if message.author.id in self.blacklist:
-                    print('No, blacklisted.')
-                    return
+        #         if message.author.id in self.blacklist:
+        #             print('No, blacklisted.')
+        #             return
 
-                if self.whitelistcheck and message.author.id != self.owner_id:
-                    if not self._is_long_member(message.author.joined_at) and message.author.id not in self.whitelist:
-                        print('no, not whitelisted and new')
-                        return
+        #         if self.whitelistcheck and message.author.id != self.owner_id:
+        #             if not self._is_long_member(message.author.joined_at) and message.author.id not in self.whitelist:
+        #                 print('no, not whitelisted and new')
+        #                 return
 
-                if len(margs) and margs[0].lower() == 'help':
-                    hotsmessage = yield from self.send_message(message.channel, self.helpmessage)
-                    yield from asyncio.sleep(10)
-                    yield from self.delete_message(hotsmessage)
+        #         if len(margs) and margs[0].lower() == 'help':
+        #             hotsmessage = yield from self.send_message(message.channel, self.helpmessage)
+        #             yield from asyncio.sleep(10)
+        #             yield from self.delete_message(hotsmessage)
 
-                elif message.author.id == self.owner_id and self.firstTime:
-                    yield from self.join_voice_channel(channelLocation)
+        #         elif message.author.id == self.owner_id and self.firstTime:
+        #             yield from self.join_voice_channel(channelLocation)
 
-                    self.firstTime = False
+        #             self.firstTime = False
 
-                    if len(margs) and margs[0].lower() == 'playlist':
-                        print('Playlist detected, attempting to parse all URLs. ERRORS MAY OCCUR!')
-                        info = self.ytdl.extract_info(msg, download=False)
+        #             if len(margs) and margs[0].lower() == 'playlist':
+        #                 print('Playlist detected, attempting to parse all URLs. ERRORS MAY OCCUR!')
+        #                 info = self.ytdl.extract_info(msg, download=False)
 
-                        try:
-                            boolfirst = True
-                            for items in info['entries']:
-                                if boolfirst:
-                                    boolfirst=False
-                                    self.playlist.append(items['webpage_url'])
-                                else:
-                                    self.playlist.append(items['webpage_url'])
-                                    self.playlistnames.append(items['title'])
-                        except:
-                            print('Error with one URL, continuing processing!')
+        #                 try:
+        #                     boolfirst = True
+        #                     for items in info['entries']:
+        #                         if boolfirst:
+        #                             boolfirst=False
+        #                             self.playlist.append(items['webpage_url'])
+        #                         else:
+        #                             self.playlist.append(items['webpage_url'])
+        #                             self.playlistnames.append(items['title'])
+        #                 except:
+        #                     print('Error with one URL, continuing processing!')
 
-                        print('Playlist Processing finished!')
+        #                 print('Playlist Processing finished!')
 
-                    else:
-                        self.update_names(msg)
+        #             else:
+        #                 self.update_names(msg)
 
-                elif len(margs) and margs[0].lower() == 'move' and message.author.id == self.owner_id:
-                    #self.option = 'pause'
-                    #self.playlist_update()
-                    if self.voice:
-                        yield from self.voice.disconnect()
+        #         elif len(margs) and margs[0].lower() == 'move' and message.author.id == self.owner_id:
+        #             #self.option = 'pause'
+        #             #self.playlist_update() 
+        #             if self.voice:
+        #                 yield from self.voice.disconnect()
 
-                    yield from self.join_voice_channel(channelLocation)
+        #             yield from self.join_voice_channel(channelLocation)
 
-                    #self.option = 'resume'
-                    #self.playlist_update()
+        #             #self.option = 'resume'
+        #             #self.playlist_update()
 
-                else:
-                    if len(margs) and margs[0].lower() == 'playlist':
-                        print('Playlist detected, attempting to parse all URLs. ERRORS MAY OCCUR!')
-                        try:
-                            info = self.ytdl.extract_info(msg, download=False)
-                            boolfirst = True
+        #         else:
+        #             if len(margs) and margs[0].lower() == 'playlist':
+        #                 print('Playlist detected, attempting to parse all URLs. ERRORS MAY OCCUR!')
+        #                 try:
+        #                     info = self.ytdl.extract_info(msg, download=False)
+        #                     boolfirst = True
 
-                            for items in info['entries']:
-                                if boolfirst:
-                                    boolfirst=False
-                                    self.playlist.append(items['webpage_url'])
-                                else:
-                                    self.playlist.append(items['webpage_url'])
-                                    self.playlistnames.append(items['title'])
-                        except:
-                            print('Error with one URL, continuing processing!')
+        #                     for items in info['entries']:
+        #                         if boolfirst:
+        #                             boolfirst=False
+        #                             self.playlist.append(items['webpage_url'])
+        #                         else:
+        #                             self.playlist.append(items['webpage_url'])
+        #                             self.playlistnames.append(items['title'])
+        #                 except:
+        #                     print('Error with one URL, continuing processing!')
 
-                        print('Playlist Processing finished!')
+        #                 print('Playlist Processing finished!')
 
-                    else:
-                        # print(self.playlist.add_entry(margs[0]))
-                        yield from self.playlist.add_entry(margs[0])
+        #             else:
+        #                 # print(self.playlist.add_entry(margs[0]))
+        #                 yield from self.playlist.add_entry(margs[0])
 
-                yield from asyncio.sleep(5)
+        #         yield from asyncio.sleep(5)
 
-                try:
-                    yield from self.delete_message(message)
-                except:
-                    print("Couldn't delete message for some reason")
+        #         try:
+        #             yield from self.delete_message(message)
+        #         except:
+        #             print("Couldn't delete message for some reason")
 
 
     def _is_long_member(self, dateJoined):
@@ -1032,3 +1136,5 @@ class MusicBot(discord.Client):
 if __name__ == '__main__':
     bot = MusicBot()
     bot.run() # TODO: Make that less hideous
+
+# TODO: add audio stingers between songs
