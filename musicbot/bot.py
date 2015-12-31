@@ -42,11 +42,6 @@ class Response(object):
 
 
 class MusicBot(discord.Client):
-    helpmessage = (
-        '`!play [youtube link]` will allow me to play a new song or add it to the queue.\n'
-        '`!playlist` will print out all links to youtube videos currently in the queue!\n'
-        '`!play skip` will make it skip to the next song after {} people vote to skip the current one!')
-
     def __init__(self, config_file='options.txt'):
         super().__init__()
 
