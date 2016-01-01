@@ -184,16 +184,18 @@ class MusicBot(discord.Client):
         self.whitelist.add(user_id)
         write_file('blacklist.txt', self.whitelist)
 
-    async def handle_id(self, username):
+    async def handle_id(self, author, username=None):
         """
-        Usage: {command_prefix}blacklist @UserName
-        Adds the user to the blacklist, forbidding them from using bot commands.
+        Usage: {command_prefix}id [@UserName]
+        Tells the user the id of the
         """
-        user_id = extract_user_id(username)
+        user_id = extract_user_id(username or author)
+        
         return Response(
-            'The User ID of **%s** is *%s*'% (
-                username, user_id
+            'The User ID of **%s** is `%s`' % (
+                username[1:], user_id
             ),
+            reply=True
         )
 
     async def handle_joinserver(self, message, server_link):
@@ -217,20 +219,26 @@ class MusicBot(discord.Client):
             await self.send_typing(channel)
 
             if 'playlist?list' in song_url:
-                print(song_url)
+                print('Playlist song url:', song_url)
+                
                 entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
                 entry = entry_list[0]
+                
                 print('out')
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
-            print('dos')
-            print('POSITION: ' + str(position))
-            print('tres')
+            
+            print('ein')            
+            print('POSITION:', position)
+
             time_until = await player.playlist.estimate_time_until(position)
-            print('tresuno')
+            print('zwei')
+
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
-            print('quatro')
+            
+            print('drei')
+            
             return Response(
                 'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
                     entry.title, position, time_until

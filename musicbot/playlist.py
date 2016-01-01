@@ -61,20 +61,25 @@ class Playlist(EventEmitter):
         """
         position = len(self.entries)+1
         entry_list = []
+        
         info = await extract_info(self.loop, playlist_url, download=False)
+        
         if not info:
             raise ExtractionError('Could not extract information from %s' % playlist_url)
+        
         for items in info['entries']:
             entry = PlaylistEntry(
-            self,
-            items['webpage_url'],
-            items['id'],
-            items['title'],
-            items.get('duration', 0),
-            **meta
+                self,
+                items['webpage_url'],
+                items['id'],
+                items['title'],
+                items.get('duration', 0),
+                **meta
             )
+            
             self._add_entry(entry)
             entry_list.append(entry)
+        
         return entry_list, position
 
     def _add_entry(self, entry):
@@ -115,8 +120,13 @@ class Playlist(EventEmitter):
             (very) Roughly estimates the time till the queue will 'position'
         """
         estimated_time = 0
+        
         for i in range(0, position):
             estimated_time += self.entries[i].duration
+
+        print(estimated_time)
+        print(sum([e.duration for e in entries[:position]]))
+        
         return datetime.timedelta(seconds=estimated_time)
 
     def __iter__(self):
