@@ -4,65 +4,78 @@
 
 It plays music in a plug.dj "request" style and if nothing is left it will play through a list of existing songs!
 
-## How do I set it up?
+## Setup and Installation
 
-Install Python here - https://www.python.org/downloads/
+Currently, you will need these things to run the bot:
 
-Install Git here - https://git-scm.com/download/win
+  - [Python 3.5+](https://www.python.org/downloads/) (This will not work on Python 2)
+  - [Git](https://git-scm.com/download/win)
 
-make sure you select this option in the Python install - https://i.gyazo.com/2c06a7ee35afda3383185916fd2a94d3.png
+Ensure the following options are checked during installation:
 
-and this option in the Git install - https://cdn.discordapp.com/attachments/129489631539494912/129505383223001088/pic.png
+  - ![python options](https://i.gyazo.com/2c06a7ee35afda3383185916fd2a94d3.png)
+  - ![git options](https://cdn.discordapp.com/attachments/129489631539494912/129505383223001088/pic.png)
 
-It was coded in 3.5.1 but 3.5 will work fine.
+Post install:
+  - Run `fixnupdate.bat` to install module dependencies
+  - Mane sure you have a discord account ready for your bot.
 
+## Configuration options
 
-Make sure you have installed the required modules by running `fixnupdate.bat`
+The options.txt file is in `.ini` format.  Example text:
 
-Make sure you meet the non-code requirements of having existing accounts for
-both discord.
+```ini
+[Credentials]
+Username = musicbot
+Password = honk
 
-##Options.txt set up
+[Permissions]
+OwnerID = 123456789123456789
 
-Line 1: Email address
+[Chat]
+CommandPrefix = $
 
-Line 2: Password
+[MusicBot]
+DaysActive = 3
+WhiteListCheck = no
+SkipsRequired = 6
+SkipRatio = 0.5
+SaveVideos = yes
+```
 
-Line 3: accepts "0" or "1", enables or disables the whitelist. 0 turning it off, 1 turning it on
+## Commands
 
-Line 4: the number of days until a person can freely interact with the bot and not be on the whitelist
+The command character here is set to `!` for example purposes, but can be set to almost anything in the config.
 
-Line 5: The Owner's User ID
+`!whitelist [@username]` Adds the user to the whitelist to bypass the DaysActive check.
 
-Line 6: The number of votes to skip for it to actually skip
+`!blacklist [@username]` Disallows the user from interacting with the bot.
 
+`!help` Prints a list commands in chat.
 
-## What are its commands?
+`!joinserver [invite url or code]` Tells the bot to join the linked server.
 
-`!whatismyuserid` will tell you your user ID!
+`!summon` Calls the bot to join whatever voice channel you're in.
 
-`!whitelist [@username]` will whitelist people (and you if the server is new!) so they can play music
+`!play [link]` Adds the linked media to the queue.  [[Supported sites]](https://rg3.github.io/youtube-dl/supportedsites.html)
 
-`!blacklist [@username]` will disallow a person from interacting with the bot!
+`!queue` Lists all the songs in queue, along with who added them.
 
-`!play help` will summon a list of commands accepted by the bot!
+`!pause` Pauses playback of the currently playing song.
 
-`!play [youtube link]` will allow me to play a new song or add it to the queue.
+`!resume` Resumes playback of the currently paused song.
 
-`!play playlist` will print out all links to youtube videos currently in the queue!
+`!play shuffle` Mixes the playlist up.
 
-`!play pause` will pause the playing of music! Will NOT pause the song but rather the playing of songs. Only usable by the bot's owner
+`!skip` Vote to skip the current song.  The owner can skip at any time.
 
-`!play resume` will resume the playing of songs! Only usable by the bot's owner
-
-`!play shuffle` will shuffle the songs in the playlist! Only usable by the bot's owner
-
-`!play skip` will make it skip to the next song after 2 people vote! Instant skip though if used by the Bot's Owner
-
-`!play volume [volume % in decimal form]` will change the volume level! Default is 0.15 (15%) **HAS TO BE A NUMBER FROM 0-1**
+`!volume [ 1 - 100 | +X | -X ]` Sets the playback volume of the bot. Examples:
+  - `!volume 20` Set the volume to 20.
+  - `!volume +5` Increase the volume by 5.
+  - `!volume -5` Decrease the volume by 5.
 
 ## Sounds cool, How do I use it?
-Simply download the bot, set everything up, then run `runbot.bat`!
+Simply download the bot, set the dependencies up, then run `runbot.bat`! (or runbot.sh on mac/linux)
 
 It'll let you know if it's connected and what channels are connected.
 
@@ -89,5 +102,5 @@ A: Run `fixnupdate.bat`
 
 Q:`I'm having other errors with the bot, it has to be broken`
 
-A: If Rhinobot is running in my discord, the bot isn't broken. I keep everything as updated as possible! 
+A: If Rhinobot is running in my discord, the bot isn't broken. I keep everything as updated as possible!
 
