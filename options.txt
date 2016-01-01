@@ -6,10 +6,12 @@ Password = rhino_is_a_numpty
 OwnerID = 112233445566778899
 
 [Chat]
-CommandPrefix = ~
+CommandPrefix = !
 
 [MusicBot]
-DaysActive = 3
+DaysActive = 0
 WhiteListCheck = no
-SkipsRequired = 6
+SkipsRequired = 7
+SkipRatio = 0.5
 SaveVideos = yes
+

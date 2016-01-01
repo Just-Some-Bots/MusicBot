@@ -273,6 +273,7 @@ class MusicBot(discord.Client):
         Shuffles the playlist.
         """
         player.playlist.shuffle()
+        # TODO: Add a message confirming the action worked
 
     async def handle_skip(self, player, channel, author):
         """
