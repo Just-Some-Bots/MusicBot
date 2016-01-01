@@ -1,6 +1,7 @@
 import traceback
 from array import array
 from asyncio import Lock
+from enum import Enum
 
 from .constants import DEFAULT_VOLUME
 from .lib.event_emitter import EventEmitter
@@ -32,25 +33,13 @@ class PatchedBuff(object):
         return frame
 
 
-class MusicPlayerState(object):
-    # TODO: Maybe use enum3?
-
+class MusicPlayerState(Enum):
     STOPPED = 0  # When the player isn't playing anything
     PLAYING = 1  # The player is actively playing music.
     PAUSED = 2  # The player is paused on a song.
 
-    @classmethod
-    def to_human(cls, state):
-        if state == cls.STOPPED:
-            return 'STOPPED'
-
-        if state == cls.PLAYING:
-            return 'PLAYING'
-
-        if state == cls.PAUSED:
-            return 'PAUSED'
-
-        raise ValueError('Unknown state %s' % state)
+    def __str__(self):
+        return self.value.name
 
 
 class MusicPlayer(EventEmitter):
@@ -65,7 +54,7 @@ class MusicPlayer(EventEmitter):
         self._play_lock = Lock()
         self._current_player = None
         self._current_entry = None
-        self._state = MusicPlayerState.STOPPED
+        self.state = MusicPlayerState.STOPPED
         self.volume = volume
 
     def on_entry_added(self, playlist, entry):
@@ -76,7 +65,7 @@ class MusicPlayer(EventEmitter):
         self._kill_current_player()
 
     def stop(self):
-        self._state = MusicPlayerState.STOPPED
+        self.state = MusicPlayerState.STOPPED
         self._kill_current_player()
 
         self.emit('stop', player=self)
@@ -84,7 +73,7 @@ class MusicPlayer(EventEmitter):
     def resume(self):
         if self.is_paused and self._current_player:
             self._current_player.resume()
-            self._state = MusicPlayerState.PLAYING
+            self.state = MusicPlayerState.PLAYING
             self.emit('resume', player=self, entry=self.current_entry)
             return
 
@@ -126,7 +115,7 @@ class MusicPlayer(EventEmitter):
                     self.stop()
                     return
 
-                self._state = MusicPlayerState.PLAYING
+                self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
 
                 # In-case there was a player, kill it. RIP.
@@ -152,19 +141,19 @@ class MusicPlayer(EventEmitter):
 
     @property
     def is_playing(self):
-        return self._state == MusicPlayerState.PLAYING
+        return self.state == MusicPlayerState.PLAYING
 
     @property
     def is_paused(self):
-        return self._state == MusicPlayerState.PAUSED
+        return self.state == MusicPlayerState.PAUSED
 
     @property
     def is_stopped(self):
-        return self._state == MusicPlayerState.STOPPED
+        return self.state == MusicPlayerState.STOPPED
 
     def pause(self):
         if self.is_playing:
-            self._state = MusicPlayerState.PAUSED
+            self.state = MusicPlayerState.PAUSED
 
             if self._current_player:
                 self._current_player.pause()
@@ -176,10 +165,6 @@ class MusicPlayer(EventEmitter):
             return
 
         raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
-
-    @property
-    def state(self):
-        return MusicPlayerState.to_human(self._state)
 
     def _kill_current_player(self):
         if self._current_player:
