@@ -184,6 +184,18 @@ class MusicBot(discord.Client):
         self.whitelist.add(user_id)
         write_file('blacklist.txt', self.whitelist)
 
+    async def handle_id(self, username):
+        """
+        Usage: {command_prefix}blacklist @UserName
+        Adds the user to the blacklist, forbidding them from using bot commands.
+        """
+        user_id = extract_user_id(username)
+        return Response(
+            'The User ID of **%s** is *%s*'% (
+                username, user_id
+            ),
+        )
+
     async def handle_joinserver(self, message, server_link):
         """
         Usage {command_prefix}joinserver [Server Link]
@@ -204,16 +216,24 @@ class MusicBot(discord.Client):
         try:
             await self.send_typing(channel)
 
-            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+            if 'playlist?list' in song_url:
+                print(song_url)
+                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                entry = entry_list[0]
+                print('out')
+            else:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+            print('dos')
+            print('POSITION: ' + str(position))
+            print('tres')
+            time_until = await player.playlist.estimate_time_until(position)
+            print('tresuno')
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
-
-            # TODO: implement me.
-            # time_until = self.playlist.estimate_time_until(position)
-
+            print('quatro')
             return Response(
                 'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
-                    entry.title, position, '0:00'  # todo: implement me.
+                    entry.title, position, time_until
                 ),
                 reply=True
             )
@@ -273,7 +293,6 @@ class MusicBot(discord.Client):
         Shuffles the playlist.
         """
         player.playlist.shuffle()
-        # TODO: Add a message confirming the action worked
 
     async def handle_skip(self, player, channel, author):
         """
