@@ -13,12 +13,16 @@ Currently, you will need these things to run the bot:
 
 Ensure the following options are checked during installation:
 
-  - ![python options](https://i.gyazo.com/2c06a7ee35afda3383185916fd2a94d3.png)
-  - ![git options](https://cdn.discordapp.com/attachments/129489631539494912/129505383223001088/pic.png)
+#### Python
+![python options](https://i.gyazo.com/2c06a7ee35afda3383185916fd2a94d3.png)
 
-Post install:
-  - Run `fixnupdate.bat` to install module dependencies
-  - Mane sure you have a discord account ready for your bot.
+
+#### Git
+![git options](https://cdn.discordapp.com/attachments/129489631539494912/129505383223001088/pic.png)
+
+After python and git have been installed:
+  - Run `fixnupdate.bat` to install module dependencies.
+  - Make sure you have a Discord account ready for your bot.
 
 ## Configuration options
 
@@ -75,13 +79,13 @@ The command character here is set to `!` for example purposes, but can be set to
   - `!volume -5` Decrease the volume by 5.
 
 ## Sounds cool, How do I use it?
-Simply download the bot, set the dependencies up, then run `runbot.bat`! (or runbot.sh on mac/linux)
+Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `runbot.sh` on mac/linux)
 
 It'll let you know if it's connected and what channels are connected.
 
-Once started, its good to go. If you have any errors, report them here or on my discord and then restart the bot
+Once started, it's good to go. If you have any errors, report them here or on my discord and then restart the bot
 
-Rhino Bot Discord - https://discord.gg/0iqN3da4zqrSz036
+Rhino Bot Help Discord - https://discord.gg/0iqN3da4zqrSz036
 
 #FAQ
 
@@ -93,8 +97,8 @@ Q:`Bot prints 'no, not whitelisted and new' when I try and play something`
 
 A: Add yourself to the whitelist!
 
-Q:`I'm getting this error! http://puu.sh/m6hkf/40eec0910c.png`
-A: The bot needs permission to delete messages. I'll be adding an options file to toggle this later though
+Q:`I'm getting this error!` http://puu.sh/m6hkf/40eec0910c.png
+A: The bot needs permission to delete messages. An option to toggle this behavior.
 
 Q: `I'm having an issue with the Discord installation / It doesn't say anything when I run it`
 
