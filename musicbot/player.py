@@ -39,7 +39,7 @@ class MusicPlayerState(Enum):
     PAUSED = 2  # The player is paused on a song.
 
     def __str__(self):
-        return self.value.name
+        return self.name
 
 
 class MusicPlayer(EventEmitter):
