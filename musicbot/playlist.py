@@ -1,5 +1,6 @@
 import asyncio
 import collections
+import itertools
 import datetime
 import os
 import os.path
@@ -124,8 +125,11 @@ class Playlist(EventEmitter):
         for i in range(0, position):
             estimated_time += self.entries[i].duration
 
-        print(estimated_time)
-        print(sum([e.duration for e in entries[:position]]))
+        print('rhino time:', estimated_time)
+        print('bork time:', [e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
+        
+        print('Entries:', self.entries)
+        print('positioned entries:', list(itertools.islice(self.entries, 0, position)))
         
         return datetime.timedelta(seconds=estimated_time)
 

@@ -169,7 +169,7 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(user_id)
+        self.whitelist.add(user_id) # TODO: Fix passing ints to file.write()
         write_file('whitelist.txt', self.whitelist)
 
     async def handle_blacklist(self, message, username):
@@ -181,22 +181,15 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(user_id)
+        self.whitelist.add(user_id) # TODO: Fix passing ints to file.write()
         write_file('blacklist.txt', self.whitelist)
 
-    async def handle_id(self, author, username=None):
+    async def handle_id(self, author):
         """
-        Usage: {command_prefix}id [@UserName]
-        Tells the user the id of the
+        Usage: {command_prefix}id
+        Tells the user their id.
         """
-        user_id = extract_user_id(username or author)
-        
-        return Response(
-            'The User ID of **%s** is `%s`' % (
-                username[1:], user_id
-            ),
-            reply=True
-        )
+        return Response('your id is `%s`' % author.id, reply=True)
 
     async def handle_joinserver(self, message, server_link):
         """
@@ -220,25 +213,27 @@ class MusicBot(discord.Client):
 
             if 'playlist?list' in song_url:
                 print('Playlist song url:', song_url)
-                
+
                 entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
                 entry = entry_list[0]
-                
+
                 print('out')
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
-            
-            print('ein')            
-            print('POSITION:', position)
 
-            time_until = await player.playlist.estimate_time_until(position)
+            print('ein')
+            print('POSITION:', position)
+            print('next item:', player.playlist.peek())
+            print('status:', player.state)
+            
+            time_until = await player.playlist.estimate_time_until(position) # does this actually work?
             print('zwei')
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
-            
+
             print('drei')
-            
+
             return Response(
                 'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
                     entry.title, position, time_until
@@ -246,7 +241,8 @@ class MusicBot(discord.Client):
                 reply=True
             )
 
-        except Exception:
+        except Exception as e:
+            traceback.print_exc()
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
 
     async def handle_summon(self, channel, author):
@@ -308,7 +304,7 @@ class MusicBot(discord.Client):
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
-        if player.is_stopped:
+        if player.is_stopped: # TODO: or player.is_paused?
             raise CommandError("Can't skip! The player is not playing!")
 
         if author.id == self.config.owner_id:
@@ -347,7 +343,7 @@ class MusicBot(discord.Client):
     async def handle_volume(self, message, new_volume=None):
         """
         Usage {command_prefix}volume (+/-)[volume]
-        Sets the playback volume. Accepted values are from 1 to 100. 
+        Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
 
