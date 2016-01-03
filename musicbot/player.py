@@ -80,9 +80,10 @@ class MusicPlayer(EventEmitter):
         raise ValueError('Cannot resume playback from state %s' % self.state)
 
     def _playback_finished(self):
-        self._current_player = None
         entry = self._current_entry
         self._current_entry = None
+        self._current_player = None
+        
         if not self.is_stopped:
             self.play(_continue=True)
 

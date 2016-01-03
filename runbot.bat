@@ -1,9 +1,11 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
+
 SET version=1
 FOR /F "tokens=* USEBACKQ" %%H IN (`git --version`) DO SET gvar=%%F
 IF /I NOT %gvar:~0,6% == git ve GOTO nogit
 cls
+
 FOR /f "delims=" %%a IN ('where python') DO (
     FOR /F "tokens=* USEBACKQ" %%F IN (`"%%a" -V`) DO (
 	    cls
@@ -15,6 +17,7 @@ FOR /f "delims=" %%a IN ('where python') DO (
         SET pypath="%%a"
     )
 )
+
 IF /I NOT %version:~0,3% == 3.5 GOTO errorhandler
 %pypath% run.py
 GOTO end
