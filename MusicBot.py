@@ -54,6 +54,7 @@ currentlyPlaying = ''
 helpmessage = '`!play [youtube link]` will allow me to play a new song or add it to the queue.' \
               '\n`!playlist` will print out all links to youtube videos currently in the queue!' \
               '\n`!play skip` will make it skip to the next song after ' + \
+              '\n`!playing` will display the song that is currently playing ' + \
               str(options[5]) + ' people vote to skip the current one!'
 
 client = discord.Client()
@@ -157,6 +158,16 @@ def on_message(message):
             yield from asyncio.sleep(15)
             for msgs in playlistmsgstorage:
                 yield from client.delete_message(msgs)
+        elif '!playing' in message.content.lower():
+            print('Currently playing')
+            yield from client.send_message(message.channel,currentlyPlaying)
+            try:
+                yield from client.delete_message(message)
+            except:
+                print('Error: Cannot delete messages!')
+            yield from asyncio.sleep(15)
+            for msgs in playlistmsgstorage:
+                yield from client.delete_message(msgs)	
         elif '!play' in message.content.lower():
             msg = message.content
             substrStart = msg.find('!play') + 6
