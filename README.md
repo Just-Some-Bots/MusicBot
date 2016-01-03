@@ -41,13 +41,13 @@ Line 6: The number of votes to skip for it to actually skip
 
 `!whatismyuserid` will tell you your user ID!
 
-`!whitelist [@username]` will whitelist people (and you if the server is new!) so they can play music
+`!whitelist @username` will whitelist people (and you if the server is new!) so they can play music
 
-`!blacklist [@username]` will disallow a person from interacting with the bot!
+`!blacklist @username` will disallow a person from interacting with the bot!
 
 `!play help` will summon a list of commands accepted by the bot!
 
-`!play [youtube link]` will allow me to play a new song or add it to the queue.
+`!play url` will allow me to play a new song or add it to the queue.
 
 `!play playlist` will print out all links to youtube videos currently in the queue!
 
@@ -59,7 +59,7 @@ Line 6: The number of votes to skip for it to actually skip
 
 `!play skip` will make it skip to the next song after 2 people vote! Instant skip though if used by the Bot's Owner
 
-`!play volume [volume % in decimal form]` will change the volume level! Default is 0.15 (15%) **HAS TO BE A NUMBER FROM 0-1**
+`!play volume level` will change the volume level! Default is 0.15 (15%) **HAS TO BE A NUMBER FROM 0-1**
 
 ## Sounds cool, How do I use it?
 Simply download the bot, set everything up, then run `runbot.bat`!
