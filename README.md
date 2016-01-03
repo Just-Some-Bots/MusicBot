@@ -8,7 +8,7 @@ It plays music in a plug.dj "request" style and if nothing is left it will play 
 
 Currently, you will need these things to run the bot:
 
-  - [Python 3.5+](https://www.python.org/downloads/) (This will not work on Python 2)
+  - [Python 3.5+](https://www.python.org/downloads/) (**not python 2.7**)
   - [Git](https://git-scm.com/download/win)
 
 Ensure the following options are checked during installation:
@@ -51,17 +51,20 @@ SaveVideos = yes
 
 The command character here is set to `!` for example purposes, but can be set to almost anything in the config.
 
-`!whitelist [@username]` Adds the user to the whitelist to bypass the DaysActive check.
+`!whitelist @username` Adds the user to the whitelist to bypass the DaysActive check.
 
-`!blacklist [@username]` Disallows the user from interacting with the bot.
+`!blacklist @username` Disallows the user from interacting with the bot.
 
 `!help` Prints a list commands in chat.
 
-`!joinserver [invite url or code]` Tells the bot to join the linked server.
+`!joinserver invite_url_or_code` Tells the bot to join the linked server. Valid types:
+  - `!joinserver https://discord.gg/0cDvIgU2voWAPofv`
+  - `!joinserver https://discordapp.com/invite/0cDvIgU2voWAPofv`
+  - `!joinserver 0cDvIgU2voWAPofv`
 
 `!summon` Calls the bot to join whatever voice channel you're in.
 
-`!play [link]` Adds the linked media to the queue.  [[Supported sites]](https://rg3.github.io/youtube-dl/supportedsites.html)
+`!play url` Adds the linked media to the queue.  [[Supported sites]](https://rg3.github.io/youtube-dl/supportedsites.html)
 
 `!queue` Lists all the songs in queue, along with who added them.
 
@@ -73,7 +76,7 @@ The command character here is set to `!` for example purposes, but can be set to
 
 `!skip` Vote to skip the current song.  The owner can skip at any time.
 
-`!volume [ 1 - 100 | +X | -X ]` Sets the playback volume of the bot. Examples:
+`!volume [ 1 - 100 | +X | -X ]` Sets the playback volume of the bot.  Don't type the brackets though.  Examples:
   - `!volume 20` Set the volume to 20.
   - `!volume +5` Increase the volume by 5.
   - `!volume -5` Decrease the volume by 5.
@@ -93,7 +96,7 @@ Q:`'pip' is not recognized as an internal or external command`
 
 A: http://stackoverflow.com/questions/23708898/pip-is-not-recognized-as-an-internal-or-external-command
 
-Q:`Bot prints 'no, not whitelisted and new' when I try and play something`
+Q:`Bot prints 'no, not whitelisted and new' when I try to play something`
 
 A: Add yourself to the whitelist!
 
