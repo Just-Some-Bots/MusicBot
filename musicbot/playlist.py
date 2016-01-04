@@ -126,10 +126,13 @@ class Playlist(EventEmitter):
             estimated_time += self.entries[i].duration
 
         print('rhino time:', estimated_time)
-        print('bork time:', [e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
+        print('bork time list:', [e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
+        print('bork time:', sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))]))
+
+        # I think this is correct, we just need to subtract now_playing_song_length + duration_song_has_been_playing
         
-        print('Entries:', self.entries)
-        print('positioned entries:', list(itertools.islice(self.entries, 0, position)))
+        # print('Entries:', self.entries)
+        # print('positioned entries:', list(itertools.islice(self.entries, 0, position)))
         
         return datetime.timedelta(seconds=estimated_time)
 

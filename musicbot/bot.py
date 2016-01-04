@@ -129,11 +129,11 @@ class MusicBot(discord.Client):
             self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
                 entry.meta['author'].mention, entry.title, player.voice_client.channel.name
             )))
-        # else:
-        #     self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
-        #         entry.meta['author'].name, entry.title, player.voice_client.channel.name
-        #     )))
-        # 
+        else:
+            self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
+                player.voice_client.channel.name, entry.title
+            )))
+        #
         # Uh, that print in the channel the song was added from, doesn't it?  I guess just not saying anything is fine?
 
     def on_resume(self, entry, **_):
@@ -218,8 +218,12 @@ class MusicBot(discord.Client):
         try:
             await self.send_typing(channel)
 
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+
             if 'playlist?list' in song_url:
                 print('Playlist song url:', song_url)
+
+                await self.send_message(channel, 'Gathering playlist information...') # yield from?
 
                 entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
                 entry = entry_list[0]
@@ -228,25 +232,21 @@ class MusicBot(discord.Client):
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
-            print('ein')
-            print('POSITION:', position)
-            print('next item:', player.playlist.peek())
+            print('position:', position)
             print('status:', player.state)
-            
-            time_until = await player.playlist.estimate_time_until(position) # does this actually work?
-            print('zwei')
+            print('next item:', player.playlist.peek())
+
+            time_until = await player.playlist.estimate_time_until(position) # This sort of works
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
+                reply_text = reply_text % (entry.title, position)
+            else:
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (entry.title, position, time_until)
 
-            print('drei')
 
-            return Response(
-                'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
-                    entry.title, position, time_until
-                ),
-                reply=True
-            )
+            return Response(reply_text, reply=True)
 
         except Exception as e:
             traceback.print_exc()
@@ -379,8 +379,12 @@ class MusicBot(discord.Client):
             return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True)
 
         else:
-            raise CommandError(
-                'Unreasonable volume provided {}%. Provide a value between 1 and 100.'.format(new_volume))
+            if relative:
+                raise CommandError(
+                    'Unreasonable volume change provided: {}{} -> {}%. Provide a value between 1 and 100.'.format(old_volume, new_volume, old_volume+new_volume))
+            else:
+                raise CommandError(
+                    'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
 
     async def handle_queue(self, channel):
         player = await self.get_player(channel)
@@ -391,7 +395,7 @@ class MusicBot(discord.Client):
 
         if not lines:
             lines.append(
-                'There are no messages queued! Queue something with {}play.'.format(self.config.command_prefix))
+                'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
         message = '\n'.join(lines)[:2000]
         return Response(message)
