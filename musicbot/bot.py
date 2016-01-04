@@ -42,7 +42,7 @@ class Response(object):
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file='options.txt'):
+    def __init__(self, config_file='config/options.txt'):
         super().__init__()
 
         self.players = {}

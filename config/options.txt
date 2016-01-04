@@ -14,4 +14,3 @@ WhiteListCheck = no
 SkipsRequired = 7
 SkipRatio = 0.5
 SaveVideos = yes
-

@@ -19,9 +19,9 @@ class Config(object):
 
         # TODO: Reimplement the SaveVideos option (delete when bot exits? delete when next song starts(probably awful)?)
 
-        self.blacklist_file = config.get('Files', 'BlacklistFile', fallback='blacklist.txt')
-        self.whitelist_file = config.get('Files', 'WhitelistFile', fallback='whitelist.txt')
-        self.backup_playlist_file = config.get('Files', 'BlackupPlaylistFile', fallback='backuplist.txt')
+        self.blacklist_file = config.get('Files', 'BlacklistFile', fallback='config/blacklist.txt')
+        self.whitelist_file = config.get('Files', 'WhitelistFile', fallback='config/whitelist.txt')
+        self.backup_playlist_file = config.get('Files', 'BlackupPlaylistFile', fallback='config/backuplist.txt')
 
         # Validation logic for bot settings.
         if not self.username or not self.password:
