@@ -16,6 +16,7 @@ class Config(object):
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=False)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=7)
         self.skip_ratio_required = config.getfloat('MusicBot', 'SkipRatio', fallback=0.5)
+        self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=True)
 
         # TODO: Reimplement the SaveVideos option (delete when bot exits? delete when next song starts(probably awful)?)
 

@@ -125,9 +125,16 @@ class MusicBot(discord.Client):
         self.update_now_playing(entry)
         player.skip_state.reset()
 
-        self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
-            entry.meta['author'].mention, entry.title, player.voice_client.channel.name
-        )))
+        if self.config.now_playing_mentions:
+            self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
+                entry.meta['author'].mention, entry.title, player.voice_client.channel.name
+            )))
+        # else:
+        #     self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
+        #         entry.meta['author'].name, entry.title, player.voice_client.channel.name
+        #     )))
+        # 
+        # Uh, that print in the channel the song was added from, doesn't it?  I guess just not saying anything is fine?
 
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
