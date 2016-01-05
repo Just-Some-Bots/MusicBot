@@ -408,10 +408,9 @@ class MusicBot(discord.Client):
             if currentlinesum + len(nextline) + len('* ... and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
                 if currentlinesum + len('* ... and xxx more*'):
                     unlisted += 1
-                else:
-                    lines.append(nextline)
-            else:
-                lines.append(nextline)
+                    continue
+
+            lines.append(nextline)
 
         if unlisted:
             lines.append('\n*... and %s more*' % unlisted)
