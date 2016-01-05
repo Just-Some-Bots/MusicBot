@@ -357,7 +357,7 @@ class MusicBot(discord.Client):
         player = await self.get_player(message.channel)
 
         if not new_volume:
-            return Response('current volume: `%s%%`' % int(player.volume * 100), reply=True)
+            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True)
 
         relative = False
         if new_volume[0] in '+-':
@@ -370,10 +370,12 @@ class MusicBot(discord.Client):
             raise CommandError('{} is not a valid number'.format(new_volume))
 
         if relative:
+            vol_change = new_volume
             new_volume += (player.volume * 100)
 
+        old_volume = int(player.volume * 100)
+
         if 0 < new_volume <= 100:
-            old_volume = int(player.volume * 100)
             player.volume = new_volume / 100.0
 
             return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True)
@@ -381,7 +383,8 @@ class MusicBot(discord.Client):
         else:
             if relative:
                 raise CommandError(
-                    'Unreasonable volume change provided: {}{} -> {}%. Provide a value between 1 and 100.'.format(old_volume, new_volume, old_volume+new_volume))
+                    'Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.'.format(
+                        old_volume, vol_change, old_volume + vol_change, 1 - old_volume, 100 - old_volume))
             else:
                 raise CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
