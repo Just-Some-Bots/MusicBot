@@ -165,7 +165,7 @@ class MusicBot(discord.Client):
         print('ID: ' + self.user.id)
         print('--Server List--')
         for server in self.servers:
-            print(server.name)
+            print(server.name) # If the server has ~FUN~ characters in its name, windows breaks because codecs
 
     async def handle_whitelist(self, message, username):
         """

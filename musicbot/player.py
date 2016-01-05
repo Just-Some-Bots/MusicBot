@@ -174,3 +174,14 @@ class MusicPlayer(EventEmitter):
             return True
 
         return False
+
+# if redistributing ffmpeg is an issue, it can be downloaded from here:
+#  - http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z
+#  - http://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-latest-win64-static.7z
+#
+# Extracting bin/ffmpeg.exe, bin/ffplay.exe, and bin/ffprobe.exe should be fine
+# However, the files are in 7z format so meh
+# I don't know if we can even do this for the user, at most we open it in the browser
+# I can't imagine the user is so incompetent that they can't pull 3 files out of it...
+# ...
+# ...right?
