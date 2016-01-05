@@ -224,7 +224,11 @@ class MusicBot(discord.Client):
             if 'playlist?list' in song_url:
                 print('Playlist song url:', song_url)
 
-                await self.send_message(channel, 'Gathering playlist information...') # yield from?
+                # TODO: Time how long playlists take and give an estimate on playlist processing time
+                await self.send_message(channel,
+                    'Gathering playlist information... (*this may take a long time for large playlists*)') # This message can be deleted after its done
+
+                await self.send_typing(channel)
 
                 entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
                 entry = entry_list[0]
@@ -397,14 +401,20 @@ class MusicBot(discord.Client):
         unlisted = 0
 
         for i, item in enumerate(player.playlist, 1):
+            nextline = '{}) **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+            currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
+
             # This is fine I guess, don't need to worry too much about trying to squeeze as much in as possible
-            if sum([len(x) for x in lines]) + len('*and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
-                unlisted += 1
+            if currentlinesum + len(nextline) + len('* ... and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
+                if currentlinesum + len('* ... and xxx more*'):
+                    unlisted += 1
+                else:
+                    lines.append(nextline)
             else:
-                lines.append('%s) **%s** added by **%s**' % (i, item.title, item.meta['author'].name))
+                lines.append(nextline)
 
         if unlisted:
-            lines.append('*and %s more*' % unlisted)
+            lines.append('\n*... and %s more*' % unlisted)
 
         if not lines:
             lines.append(
@@ -501,4 +511,13 @@ class MusicBot(discord.Client):
 
 if __name__ == '__main__':
     bot = MusicBot()
-    bot.run()  # TODO: Make that less hideous
+    bot.run()
+
+
+'''
+TODOs:
+  Deleting messages
+    Maybe Response objects can have a parameter that deletes the message
+    Probably should have an section for it in the options file
+
+'''
