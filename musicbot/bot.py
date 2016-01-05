@@ -11,6 +11,7 @@ from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
 from musicbot.utils import load_file, extract_user_id, write_file
 from .exceptions import CommandError
+from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
 VERSION = '2.0'
@@ -393,14 +394,23 @@ class MusicBot(discord.Client):
         player = await self.get_player(channel)
 
         lines = []
+        unlisted = 0
+
         for i, item in enumerate(player.playlist, 1):
-            lines.append('%s) **%s** added by **%s**' % (i, item.title, item.meta['author'].name))
+            # This is fine I guess, don't need to worry too much about trying to squeeze as much in as possible
+            if sum([len(x) for x in lines]) + len('*and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
+                unlisted += 1
+            else:
+                lines.append('%s) **%s** added by **%s**' % (i, item.title, item.meta['author'].name))
+
+        if unlisted:
+            lines.append('*and %s more*' % unlisted)
 
         if not lines:
             lines.append(
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
-        message = '\n'.join(lines)[:2000]
+        message = '\n'.join(lines)
         return Response(message)
 
     async def on_message(self, message):
