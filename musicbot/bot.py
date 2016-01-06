@@ -233,13 +233,8 @@ class MusicBot(discord.Client):
                 entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
                 entry = entry_list[0]
 
-                print('out')
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
-
-            print('position:', position)
-            print('status:', player.state)
-            print('next item:', player.playlist.peek())
 
             time_until = await player.playlist.estimate_time_until(position) # This sort of works
 
@@ -249,7 +244,7 @@ class MusicBot(discord.Client):
             else:
                 reply_text += ' - estimated time until playing: %s'
                 reply_text = reply_text % (entry.title, position, time_until)
-
+                # TODO: Subtract time the current song has been playing for\
 
             return Response(reply_text, reply=True)
 

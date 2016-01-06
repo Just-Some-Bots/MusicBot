@@ -62,12 +62,12 @@ class Playlist(EventEmitter):
         """
         position = len(self.entries)+1
         entry_list = []
-        
+
         info = await extract_info(self.loop, playlist_url, download=False)
-        
+
         if not info:
             raise ExtractionError('Could not extract information from %s' % playlist_url)
-        
+
         for items in info['entries']:
             entry = PlaylistEntry(
                 self,
@@ -77,10 +77,10 @@ class Playlist(EventEmitter):
                 items.get('duration', 0),
                 **meta
             )
-            
+
             self._add_entry(entry)
             entry_list.append(entry)
-        
+
         return entry_list, position
 
     def _add_entry(self, entry):
@@ -120,20 +120,11 @@ class Playlist(EventEmitter):
         """
             (very) Roughly estimates the time till the queue will 'position'
         """
-        estimated_time = 0
-        
-        for i in range(0, position):
-            estimated_time += self.entries[i].duration
+        estimated_time = sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
 
-        print('rhino time:', estimated_time)
-        print('bork time list:', [e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
-        print('bork time:', sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))]))
-
+        # print('bork time:', sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))]))
         # I think this is correct, we just need to subtract now_playing_song_length + duration_song_has_been_playing
-        
-        # print('Entries:', self.entries)
-        # print('positioned entries:', list(itertools.islice(self.entries, 0, position)))
-        
+
         return datetime.timedelta(seconds=estimated_time)
 
     def __iter__(self):

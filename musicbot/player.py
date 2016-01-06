@@ -83,7 +83,7 @@ class MusicPlayer(EventEmitter):
         entry = self._current_entry
         self._current_entry = None
         self._current_player = None
-        
+
         if not self.is_stopped:
             self.play(_continue=True)
 
