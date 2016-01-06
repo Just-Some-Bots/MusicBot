@@ -1,15 +1,20 @@
 import asyncio
-import inspect
-import traceback
 import discord
+import traceback
+import inspect
+import time
+
 from discord import utils
 from discord.enums import ChannelType
 from discord.object import Object
 from discord.voice_client import VoiceClient
+
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
 from musicbot.utils import load_file, extract_user_id, write_file
+
+from .downloader import extract_info
 from .exceptions import CommandError
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
@@ -161,12 +166,13 @@ class MusicBot(discord.Client):
         return super().run(self.config.username, self.config.password)
 
     async def on_ready(self):
-        print('Connected!')
+        print('Connected!\n')
         print('Username: ' + self.user.name)
         print('ID: ' + self.user.id)
         print('--Server List--')
         for server in self.servers:
             print(server.name) # If the server has ~FUN~ characters in its name, windows breaks because codecs
+        print()
 
     async def handle_whitelist(self, message, username):
         """
@@ -224,19 +230,40 @@ class MusicBot(discord.Client):
             if 'playlist?list' in song_url:
                 print('Playlist song url:', song_url)
 
-                # TODO: Time how long playlists take and give an estimate on playlist processing time
-                await self.send_message(channel,
-                    'Gathering playlist information... (*this may take a long time for large playlists*)') # This message can be deleted after its done
+                t0 = time.time()
 
+                # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+                # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+                # I don't think we can hook into it anyways, so this will have to do.
+                wait_per_song = 1.2
+
+                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+                num_songs = sum(1 for _ in info['entries'])
+
+                # This message can be deleted after playlist processing is done.
+                await self.send_message(channel,
+                    'Gathering playlist information for {} songs{}'.format(
+                        num_songs,
+                        ', ETA: {:g} seconds'.format(num_songs*wait_per_song) if num_songs >= 10 else '.'))
+
+                # We don't have a pretty way of doing this yet.  We need either a loop
+                # that sends these every 10 seconds or a nice context manager.
                 await self.send_typing(channel)
 
                 entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
                 entry = entry_list[0]
 
+                tnow = time.time()
+                ttime = tnow - t0
+
+                print("Processed {} songs in {:.2g} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
+                    len(entry_list), ttime, ttime/len(entry_list), ttime/len(entry_list) - wait_per_song))
+
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
-            time_until = await player.playlist.estimate_time_until(position) # This sort of works
+            # Still need to subtract the played duration of the current song from this
+            time_until = await player.playlist.estimate_time_until(position)
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
@@ -324,6 +351,8 @@ class MusicBot(discord.Client):
         num_skips = player.skip_state.add_skipper(author.id)
 
         skips_remaining = min(self.config.skips_required, int(num_voice * self.config.skip_ratio_required)) - num_skips
+
+        # TODO: Should we discount the ownerid since they don't really count towards the skip count?
 
         if skips_remaining <= 0:
             player.skip()
@@ -514,4 +543,7 @@ TODOs:
     Maybe Response objects can have a parameter that deletes the message
     Probably should have an section for it in the options file
 
+  Command to clear the queue, either a `!skip all` argument or a `!clear` or `!queue clear` or whatever
+
+  AUTO SUMMON OPTION
 '''
