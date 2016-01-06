@@ -124,7 +124,7 @@ class MusicPlayer(EventEmitter):
 
                 self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
                     entry.filename,
-                    #  Threadsafe call soon, b/c after will be called from the voice playback thread.
+                    # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
                 self._current_player.start()
@@ -174,6 +174,7 @@ class MusicPlayer(EventEmitter):
             return True
 
         return False
+
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:
 #  - http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z
