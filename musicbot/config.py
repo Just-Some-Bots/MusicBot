@@ -30,3 +30,5 @@ class Config(object):
 
         if not self.owner_id:
             raise ValueError("An owner is not specified in the configuration file")
+
+    # TODO: Add save function for future editing of options with commands

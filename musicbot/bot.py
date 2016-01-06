@@ -183,7 +183,7 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(user_id) # TODO: Fix passing ints to file.write()
+        self.whitelist.add(str(user_id))
         write_file('whitelist.txt', self.whitelist)
 
     async def handle_blacklist(self, message, username):
@@ -195,7 +195,7 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(user_id) # TODO: Fix passing ints to file.write()
+        self.whitelist.add(str(user_id))
         write_file('blacklist.txt', self.whitelist)
 
     async def handle_id(self, author):
@@ -542,6 +542,7 @@ TODOs:
   Deleting messages
     Maybe Response objects can have a parameter that deletes the message
     Probably should have an section for it in the options file
+    If not, we should have a cleanup command, or maybe have one anyways
 
   Command to clear the queue, either a `!skip all` argument or a `!clear` or `!queue clear` or whatever
 
