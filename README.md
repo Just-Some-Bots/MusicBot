@@ -65,6 +65,7 @@ The command character here is set to `!` for example purposes, but can be set to
 `!summon` Calls the bot to join whatever voice channel you're in.
 
 `!play url` Adds the linked media to the queue.  [[Supported sites]](https://rg3.github.io/youtube-dl/supportedsites.html)
+  - **Note:** While technically supported by youtube_dl, twitch.tv and other streaming sites will not work, due to the bot predownloading the content before it's played.
 
 `!queue` Lists all the songs in queue, along with who added them.
 
