@@ -185,6 +185,7 @@ class MusicBot(discord.Client):
 
         self.whitelist.add(str(user_id))
         write_file('whitelist.txt', self.whitelist)
+        # TODO: Respond with "user has been added to the list?"
 
     async def handle_blacklist(self, message, username):
         """
@@ -195,8 +196,9 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(str(user_id))
-        write_file('blacklist.txt', self.whitelist)
+        self.blacklist.add(str(user_id))
+        write_file('blacklist.txt', self.blacklist)
+        # TODO: Respond with "user has been added to the list?"
 
     async def handle_id(self, author):
         """
