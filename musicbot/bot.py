@@ -205,7 +205,7 @@ class MusicBot(discord.Client):
         Usage: {command_prefix}id
         Tells the user their id.
         """
-        return Response('Your id is `%s`' % author.id, reply=True)
+        return Response('your id is `%s`' % author.id, reply=True)
 
     async def handle_joinserver(self, message, server_link):
         """
