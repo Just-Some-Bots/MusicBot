@@ -1,8 +1,9 @@
+import time
+import inspect
+import traceback
 import asyncio
 import discord
-import traceback
-import inspect
-import time
+import win_unicode_console
 
 from discord import utils
 from discord.enums import ChannelType
@@ -166,12 +167,16 @@ class MusicBot(discord.Client):
         return super().run(self.config.username, self.config.password)
 
     async def on_ready(self):
+        win_unicode_console.enable()
+
         print('Connected!\n')
         print('Username: ' + self.user.name)
         print('ID: ' + self.user.id)
         print('--Server List--')
+
         for server in self.servers:
-            print(server.name) # If the server has ~FUN~ characters in its name, windows breaks because codecs
+            print(server.name)
+
         print()
 
     async def handle_whitelist(self, message, username):
@@ -454,6 +459,16 @@ class MusicBot(discord.Client):
 
         if message.channel.is_private:
             await self.send_message(message.channel, 'You cannot use this bot in private messages.')
+            return
+
+        if message.author.id in self.blacklist:
+            print("{0.id}/{0.name} is blacklisted".format(message.author))
+            return
+
+        elif self.config.white_list_check and message.author.id not in self.whitelist:
+            print("{0.id}/{0.name} is not whitelisted".format(message.author))
+            return
+        # At some point I want to move these around so I can log command usage
 
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
