@@ -21,7 +21,6 @@ Ensure the following options are checked during installation:
 ![git options](https://cdn.discordapp.com/attachments/129489631539494912/129505383223001088/pic.png)
 
 After python and git have been installed:
-  - Run `fixnupdate.bat` to install module dependencies.
   - Make sure you have a Discord account ready for your bot.
 
 ## Configuration options
@@ -102,11 +101,8 @@ Q:`Bot prints 'no, not whitelisted and new' when I try to play something`
 A: Add yourself to the whitelist!
 
 Q:`I'm getting this error!` http://puu.sh/m6hkf/40eec0910c.png
+
 A: The bot needs permission to delete messages. An option to toggle this behavior.
-
-Q: `I'm having an issue with the Discord installation / It doesn't say anything when I run it`
-
-A: Run `fixnupdate.bat`
 
 Q:`I'm having other errors with the bot, it has to be broken`
 
