@@ -359,7 +359,7 @@ class MusicBot(discord.Client):
 
         num_skips = player.skip_state.add_skipper(author.id)
 
-        skips_remaining = min(self.config.skips_required, int(num_voice * self.config.skip_ratio_required)) - num_skips
+        skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
             player.skip()
