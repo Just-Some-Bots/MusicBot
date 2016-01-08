@@ -53,6 +53,16 @@ def main():
     if not sys.version.startswith("3.5"):
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
 
+        if subprocess.check_call('py --help') == 0:
+            os.system('start cmd /k py -3 run.py')
+            return
+        else:
+            pass
+            # check other locations or some shit
+
+        input("Press any key to continue . . .")
+        return
+
     tried_requirementstxt = False
     tryagain = True
 
