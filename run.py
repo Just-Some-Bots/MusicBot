@@ -63,7 +63,6 @@ def main():
             titlenum = ''.join(map(str, sample(range(50000), 6)))
             titlestuff = str(hex(int(titlenum)))[2:]
 
-            print(titlestuff)
             os.system('title %s' % titlestuff)
             os.system('taskkill /fi "WindowTitle eq %s"' % titlestuff)
 
@@ -110,6 +109,8 @@ def unfuck(e):
             return
 
     print()
+
+    # TODO: Clean up redundant code from before I added the requirements.txt install code
 
     if e.name == 'discord':
         if check_for_module_pip('discord.py'):
