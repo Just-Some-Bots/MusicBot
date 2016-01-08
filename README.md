@@ -72,7 +72,7 @@ The command character here is set to `!` for example purposes, but can be set to
 
 `!resume` Resumes playback of the currently paused song.
 
-`!play shuffle` Mixes the playlist up.
+`!shuffle` Mixes the playlist up.
 
 `!skip` Vote to skip the current song.  The owner can skip at any time.
 
