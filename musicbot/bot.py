@@ -354,12 +354,12 @@ class MusicBot(discord.Client):
 
         voice_channel = player.voice_client.channel
 
-        num_voice = sum(1 for m in voice_channel.voice_members if not (m.deaf or m.self_deaf))
+        num_voice = sum(1 for m in voice_channel.voice_members if not (
+            m.deaf or m.self_deaf or m.id == str(self.config.owner_id)))
+
         num_skips = player.skip_state.add_skipper(author.id)
 
         skips_remaining = min(self.config.skips_required, int(num_voice * self.config.skip_ratio_required)) - num_skips
-
-        # TODO: Should we discount the ownerid since they don't really count towards the skip count?
 
         if skips_remaining <= 0:
             player.skip()
