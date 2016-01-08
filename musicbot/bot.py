@@ -461,11 +461,11 @@ class MusicBot(discord.Client):
             await self.send_message(message.channel, 'You cannot use this bot in private messages.')
             return
 
-        if message.author.id in self.blacklist:
+        if int(message.author.id) in self.blacklist:
             print("{0.id}/{0.name} is blacklisted".format(message.author))
             return
 
-        elif self.config.white_list_check and message.author.id not in self.whitelist:
+        elif self.config.white_list_check and int(message.author.id) not in self.whitelist:
             print("{0.id}/{0.name} is not whitelisted".format(message.author))
             return
         # At some point I want to move these around so I can log command usage
