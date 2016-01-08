@@ -1,11 +1,5 @@
 .idea/
 audio_cache/
-
-whitelist.txt
-blacklist.txt
-backuplist.txt
-blacklist.txt
+config/*
 
 *.pyc
-options.txt
-whitelist.txt

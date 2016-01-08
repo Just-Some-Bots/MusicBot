@@ -1,5 +1,7 @@
 import asyncio
 import collections
+import itertools
+import datetime
 import os
 import os.path
 import traceback
@@ -49,11 +51,37 @@ class Playlist(EventEmitter):
         self._add_entry(entry)
         return entry, len(self.entries)
 
-    def import_from(self, playlist_url, **meta):
+    async def import_from(self, playlist_url, **meta):
         """
-            Imports the songs from `playlist_url` and queues them to be played. Returns a list of `entries` that have been enqueued.
+            Imports the songs from `playlist_url` and queues them to be played.
+
+            Returns a list of `entries` that have been enqueued.
+
+            :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+            :param meta: Any additional metadata to add to the playlist entry
         """
-        pass
+        position = len(self.entries)+1
+        entry_list = []
+
+        info = await extract_info(self.loop, playlist_url, download=False)
+
+        if not info:
+            raise ExtractionError('Could not extract information from %s' % playlist_url)
+
+        for items in info['entries']:
+            entry = PlaylistEntry(
+                self,
+                items['webpage_url'],
+                items['id'],
+                items['title'],
+                items.get('duration', 0),
+                **meta
+            )
+
+            self._add_entry(entry)
+            entry_list.append(entry)
+
+        return entry_list, position
 
     def _add_entry(self, entry):
         self.entries.append(entry)
@@ -87,6 +115,17 @@ class Playlist(EventEmitter):
         """
         if self.entries:
             return self.entries[0]
+
+    async def estimate_time_until(self, position):
+        """
+            (very) Roughly estimates the time till the queue will 'position'
+        """
+        estimated_time = sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
+
+        # print('bork time:', sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))]))
+        # I think this is correct, we just need to subtract now_playing_song_length + duration_song_has_been_playing
+
+        return datetime.timedelta(seconds=estimated_time)
 
     def __iter__(self):
         return iter(self.entries)

@@ -1,16 +1,23 @@
-import asyncio
+import time
 import inspect
 import traceback
+import asyncio
 import discord
+import win_unicode_console
+
 from discord import utils
 from discord.enums import ChannelType
 from discord.object import Object
 from discord.voice_client import VoiceClient
+
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
 from musicbot.utils import load_file, extract_user_id, write_file
+
+from .downloader import extract_info
 from .exceptions import CommandError
+from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
 VERSION = '2.0'
@@ -42,7 +49,7 @@ class Response(object):
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file='options.txt'):
+    def __init__(self, config_file='config/options.txt'):
         super().__init__()
 
         self.players = {}
@@ -125,9 +132,16 @@ class MusicBot(discord.Client):
         self.update_now_playing(entry)
         player.skip_state.reset()
 
-        self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
-            entry.meta['author'].mention, entry.title, player.voice_client.channel.name
-        )))
+        if self.config.now_playing_mentions:
+            self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
+                entry.meta['author'].mention, entry.title, player.voice_client.channel.name
+            )))
+        else:
+            self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
+                player.voice_client.channel.name, entry.title
+            )))
+        #
+        # Uh, that print in the channel the song was added from, doesn't it?  I guess just not saying anything is fine?
 
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
@@ -153,12 +167,17 @@ class MusicBot(discord.Client):
         return super().run(self.config.username, self.config.password)
 
     async def on_ready(self):
-        print('Connected!')
+        win_unicode_console.enable()
+
+        print('Connected!\n')
         print('Username: ' + self.user.name)
         print('ID: ' + self.user.id)
         print('--Server List--')
+
         for server in self.servers:
             print(server.name)
+
+        print()
 
     async def handle_whitelist(self, message, username):
         """
@@ -169,8 +188,9 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(user_id)
-        write_file('whitelist.txt', self.whitelist)
+        self.whitelist.add(str(user_id))
+        write_file('./config/whitelist.txt', self.whitelist)
+        # TODO: Respond with "user has been added to the list?"
 
     async def handle_blacklist(self, message, username):
         """
@@ -181,8 +201,16 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(user_id)
-        write_file('blacklist.txt', self.whitelist)
+        self.blacklist.add(str(user_id))
+        write_file('./config/blacklist.txt', self.blacklist)
+        # TODO: Respond with "user has been added to the list?"
+
+    async def handle_id(self, author):
+        """
+        Usage: {command_prefix}id
+        Tells the user their id.
+        """
+        return Response('your id is `%s`' % author.id, reply=True)
 
     async def handle_joinserver(self, message, server_link):
         """
@@ -204,21 +232,58 @@ class MusicBot(discord.Client):
         try:
             await self.send_typing(channel)
 
-            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+
+            if 'playlist?list' in song_url:
+                print('Playlist song url:', song_url)
+
+                t0 = time.time()
+
+                # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+                # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+                # I don't think we can hook into it anyways, so this will have to do.
+                wait_per_song = 1.2
+
+                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+                num_songs = sum(1 for _ in info['entries'])
+
+                # This message can be deleted after playlist processing is done.
+                await self.send_message(channel,
+                    'Gathering playlist information for {} songs{}'.format(
+                        num_songs,
+                        ', ETA: {:g} seconds'.format(num_songs*wait_per_song) if num_songs >= 10 else '.'))
+
+                # We don't have a pretty way of doing this yet.  We need either a loop
+                # that sends these every 10 seconds or a nice context manager.
+                await self.send_typing(channel)
+
+                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                entry = entry_list[0]
+
+                tnow = time.time()
+                ttime = tnow - t0
+
+                print("Processed {} songs in {:.2g} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
+                    len(entry_list), ttime, ttime/len(entry_list), ttime/len(entry_list) - wait_per_song))
+
+            else:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            # Still need to subtract the played duration of the current song from this
+            time_until = await player.playlist.estimate_time_until(position)
+
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
+                reply_text = reply_text % (entry.title, position)
+            else:
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (entry.title, position, time_until)
+                # TODO: Subtract time the current song has been playing for\
 
-            # TODO: implement me.
-            # time_until = self.playlist.estimate_time_until(position)
+            return Response(reply_text, reply=True)
 
-            return Response(
-                'Enqueued **%s** to be played. Position in queue: %s - estimated time until playing %s' % (
-                    entry.title, position, '0:00'  # todo: implement me.
-                ),
-                reply=True
-            )
-
-        except Exception:
+        except Exception as e:
+            traceback.print_exc()
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
 
     async def handle_summon(self, channel, author):
@@ -273,7 +338,6 @@ class MusicBot(discord.Client):
         Shuffles the playlist.
         """
         player.playlist.shuffle()
-        # TODO: Add a message confirming the action worked
 
     async def handle_skip(self, player, channel, author):
         """
@@ -281,7 +345,7 @@ class MusicBot(discord.Client):
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
-        if player.is_stopped:
+        if player.is_stopped: # TODO: or player.is_paused?
             raise CommandError("Can't skip! The player is not playing!")
 
         if author.id == self.config.owner_id:
@@ -290,10 +354,12 @@ class MusicBot(discord.Client):
 
         voice_channel = player.voice_client.channel
 
-        num_voice = sum(1 for m in voice_channel.voice_members if not (m.deaf or m.self_deaf))
+        num_voice = sum(1 for m in voice_channel.voice_members if not (
+            m.deaf or m.self_deaf or m.id == str(self.config.owner_id)))
+
         num_skips = player.skip_state.add_skipper(author.id)
 
-        skips_remaining = min(self.config.skips_required, int(num_voice * self.config.skip_ratio_required)) - num_skips
+        skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
             player.skip()
@@ -320,14 +386,14 @@ class MusicBot(discord.Client):
     async def handle_volume(self, message, new_volume=None):
         """
         Usage {command_prefix}volume (+/-)[volume]
-        Sets the playback volume. Accepted values are from 1 to 100. 
+        Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
 
         player = await self.get_player(message.channel)
 
         if not new_volume:
-            return Response('current volume: `%s%%`' % int(player.volume * 100), reply=True)
+            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True)
 
         relative = False
         if new_volume[0] in '+-':
@@ -340,30 +406,51 @@ class MusicBot(discord.Client):
             raise CommandError('{} is not a valid number'.format(new_volume))
 
         if relative:
+            vol_change = new_volume
             new_volume += (player.volume * 100)
 
+        old_volume = int(player.volume * 100)
+
         if 0 < new_volume <= 100:
-            old_volume = int(player.volume * 100)
             player.volume = new_volume / 100.0
 
             return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True)
 
         else:
-            raise CommandError(
-                'Unreasonable volume provided {}%. Provide a value between 1 and 100.'.format(new_volume))
+            if relative:
+                raise CommandError(
+                    'Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.'.format(
+                        old_volume, vol_change, old_volume + vol_change, 1 - old_volume, 100 - old_volume))
+            else:
+                raise CommandError(
+                    'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
 
     async def handle_queue(self, channel):
         player = await self.get_player(channel)
 
         lines = []
+        unlisted = 0
+
         for i, item in enumerate(player.playlist, 1):
-            lines.append('%s) **%s** added by **%s**' % (i, item.title, item.meta['author'].name))
+            nextline = '{}) **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+            currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
+
+            # This is fine I guess, don't need to worry too much about trying to squeeze as much in as possible
+            if currentlinesum + len(nextline) + len('* ... and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
+                if currentlinesum + len('* ... and xxx more*'):
+                    unlisted += 1
+                    continue
+
+            lines.append(nextline)
+
+        if unlisted:
+            lines.append('\n*... and %s more*' % unlisted)
 
         if not lines:
             lines.append(
-                'There are no messages queued! Queue something with {}play.'.format(self.config.command_prefix))
+                'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
-        message = '\n'.join(lines)[:2000]
+        message = '\n'.join(lines)
         return Response(message)
 
     async def on_message(self, message):
@@ -372,6 +459,16 @@ class MusicBot(discord.Client):
 
         if message.channel.is_private:
             await self.send_message(message.channel, 'You cannot use this bot in private messages.')
+            return
+
+        if int(message.author.id) in self.blacklist:
+            print("{0.id}/{0.name} is blacklisted".format(message.author))
+            return
+
+        elif self.config.white_list_check and int(message.author.id) not in self.whitelist:
+            print("{0.id}/{0.name} is not whitelisted".format(message.author))
+            return
+        # At some point I want to move these around so I can log command usage
 
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
@@ -454,4 +551,17 @@ class MusicBot(discord.Client):
 
 if __name__ == '__main__':
     bot = MusicBot()
-    bot.run()  # TODO: Make that less hideous
+    bot.run()
+
+
+'''
+TODOs:
+  Deleting messages
+    Maybe Response objects can have a parameter that deletes the message
+    Probably should have an section for it in the options file
+    If not, we should have a cleanup command, or maybe have one anyways
+
+  Command to clear the queue, either a `!skip all` argument or a `!clear` or `!queue clear` or whatever
+
+  AUTO SUMMON OPTION
+'''
