@@ -58,13 +58,20 @@ def main():
             subprocess.check_output('py -3.5 -c "exit()"')
             print("Python 3.5 found.  Launching bot...")
             os.system('start cmd /k py -3.5 run.py')
-            print("You can now close this window.")
-            return
+
+            from random import sample
+            titlenum = ''.join(map(str, sample(range(50000), 6)))
+            titlestuff = str(hex(int(titlenum)))[2:]
+
+            print(titlestuff)
+            os.system('title %s' % titlestuff)
+            os.system('taskkill /fi "WindowTitle eq %s"' % titlestuff)
+
         except:
-            pass
+            traceback.print_exc()
+            input("Press any key to continue . . .")
             # check other locations or some shit
 
-        input("Press any key to continue . . .")
         return
 
     tried_requirementstxt = False
