@@ -102,7 +102,7 @@ A: Add yourself to the whitelist!
 
 Q:`I'm getting this error!` http://puu.sh/m6hkf/40eec0910c.png
 
-A: The bot needs permission to delete messages. An option to toggle this behavior.
+A: The bot needs permission to delete messages. An option to toggle this behavior will be added eventually.
 
 Q:`I'm having other errors with the bot, it has to be broken`
 
