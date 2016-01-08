@@ -52,11 +52,15 @@ def open_in_wb(text, printanyways=True, indents=4):
 def main():
     if not sys.version.startswith("3.5"):
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
+        print("Attempting to locate python 3.5...")
 
-        if subprocess.check_call('py --help') == 0:
+        try:
+            subprocess.check_output('py -3.5 -c "exit()"')
+            print("Python 3.5 found.  Launching bot...")
             os.system('start cmd /k py -3.5 run.py')
+            print("You can now close this window.")
             return
-        else:
+        except:
             pass
             # check other locations or some shit
 
