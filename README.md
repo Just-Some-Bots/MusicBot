@@ -1,5 +1,7 @@
 # MusicBot
 
+### This is the old version of the bot.  The rewrite is in the develop branch.
+
 ## What does it do?
 
 It plays music in a plug.dj "request" style and if nothing is left it will play through a list of existing songs!
