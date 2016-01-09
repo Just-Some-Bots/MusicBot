@@ -1,6 +1,6 @@
 # MusicBot
 
-### This is the old version of the bot.  The rewrite is in the develop branch.
+### This is the old version of the bot.  The rewrite is in the [develop branch](https://github.com/SexualRhinoceros/MusicBot/tree/develop).
 
 ## What does it do?
 
