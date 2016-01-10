@@ -6,8 +6,8 @@ RhinoBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### How do I set it up?
 
-- You can find the tutorial on how to install it on Windows [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions").
-- You can find the tutorial on how to install it on Linux [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions").
+- You can find a tutorial on how to install it on Windows [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions").
+- You can find a tutorial on how to install it on Linux [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions").
 
 ### Configuration options
 
@@ -15,10 +15,10 @@ All the configuration is done in 1 main options.txt file that you can find in th
 
 ### Commands
 
-The bot is controlled by very easy commands that you enter in the discord chat. We have a list of commands in the [wiki](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Commands list").
+The bot is controlled by very easy commands that you enter in the discord chat. We have a list of commands on the [wiki](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Commands list").
 
 ### Sounds cool, How do I use it?
-Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `run.sh` on mac, run.py on linux)
+Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `run.sh` on mac, `run.py` on linux)
 
 It will let you know if it's connected and what channels are connected.
 
