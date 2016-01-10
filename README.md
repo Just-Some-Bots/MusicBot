@@ -22,7 +22,7 @@ Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `ru
 
 It will let you know if it's connected and what channels are connected.
 
-Once started, it's good to go. If you have any errors FIRST read the FAQ and if you cannot fix it with the FAQ then report them on my discord and then restart the bot is is always recommended to take screenshots.
+Once started, it's good to go. If you have any errors FIRST read the FAQ and if you are not able to solve your problem using the FAQ then you can report them on my discord server and then restart the bot. Is is always recommended to take screenshots so the developers can see errors.
 
 Rhino Bot Help Discord - https://discord.gg/0iqN3da4zqrSz036
 
