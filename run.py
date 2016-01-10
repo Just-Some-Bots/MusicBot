@@ -138,6 +138,7 @@ def main():
             if pycom:
                 print("Python 3 found.  Launching bot...")
                 os.system('start cmd /k %s run.py' % pycom)
+                sys.exit(0)
 
         print("Please run the bot using python 3.5")
         input("Press enter to continue . . .")
