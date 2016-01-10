@@ -15,7 +15,7 @@ All the configuration is done in 1 main options.txt file that you can find in th
 
 ### Commands
 
-The bot is controlled by very easy commands. We have a list of commands in the [wiki](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Commands list").
+The bot is controlled by very easy commands that you enter in the discord chat. We have a list of commands in the [wiki](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Commands list").
 
 ### Sounds cool, How do I use it?
 Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `run.sh` on mac, run.py on linux)
