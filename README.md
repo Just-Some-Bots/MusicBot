@@ -6,8 +6,8 @@ RhinoBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### How do I set it up?
 
-You can find the tutorial on how to install it on Windows [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions").
-You can find the tutorial on how to install it on Linux [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions").
+- You can find the tutorial on how to install it on Windows [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions").
+- You can find the tutorial on how to install it on Linux [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions").
 
 ### Configuration options
 
