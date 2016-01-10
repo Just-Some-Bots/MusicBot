@@ -147,6 +147,7 @@ def main():
     if '--upgrade' in sys.argv:
         # MOAR CHECKS?
         err = PIP.run_install('--upgrade -r requirements.txt', quiet=True)
+
         if err == 2:
             print("Upgrade failed, you may need to run it as admin")
         elif err:
@@ -196,7 +197,7 @@ def unfuck(e):
     # TODO: Clean up redundant code from before I added the requirements.txt install code
 
     if e.name == 'discord':
-        if check_for_module_pip('discord.py'):
+        if PIP.get_module_version('discord.py'):
             return True
 
         print("Discord.py is not installed.")
@@ -207,7 +208,8 @@ def unfuck(e):
             open_in_wb("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
             return
 
-        err = PIP.run_install("git+https://github.com/Rapptz/discord.py@async")
+        print("Attempting to install discord.py")
+        err = PIP.run_install("git+https://github.com/Rapptz/discord.py@async", quiet=True)
 
         if err:
             print()
@@ -222,7 +224,8 @@ def unfuck(e):
     elif e.name == 'opus':
         print("Discord.py is out of date. Did you install the old version?")
 
-        err = PIP.run_install("--upgrade git+https://github.com/Rapptz/discord.py@async")
+        print("Attempting to upgrade discord.py")
+        err = PIP.run_install("--upgrade git+https://github.com/Rapptz/discord.py@async", quiet=True)
 
         if err:
             print()
@@ -234,17 +237,18 @@ def unfuck(e):
             return True
 
     elif e.name == 'win_unicode_console':
-        if check_for_module_pip('win_unicode_console'):
+        if PIP.get_module_version('win-unicode-console'):
             return True
 
         print("Module 'win_unicode_console' is missing.")
 
-        err = PIP.run_install("win_unicode_console")
+        print("Attempting to install win_unicode_console")
+        err = PIP.run_install("win-unicode-console", quiet=True)
 
         if err:
             print()
             print("Could not install win_unicode_console for you. Please run:")
-            print("    pip install win_unicode_console")
+            print("    pip install win-unicode-console")
         else:
             print("Ok, maybe we're good?")
             print()
