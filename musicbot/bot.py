@@ -42,10 +42,10 @@ class SkipState(object):
 
 
 class Response(object):
-    def __init__(self, content, reply=False, delete_incoming=False):
+    def __init__(self, content, reply=False, delete_after=0):
         self.content = content
         self.reply = reply
-        self.delete_incoming = delete_incoming
+        self.delete_after = delete_after
 
 
 class MusicBot(discord.Client):
@@ -178,6 +178,14 @@ class MusicBot(discord.Client):
             print(server.name)
 
         print()
+
+    async def handle_help(self, message):
+        """
+        Usage: {command_prefix}help
+        Prints a help message
+        """
+        helpmsg = '[this is where the help text goes]'
+        return Response(helpmsg, delete_after=30)
 
     async def handle_whitelist(self, message, username):
         """
@@ -338,6 +346,7 @@ class MusicBot(discord.Client):
         Shuffles the playlist.
         """
         player.playlist.shuffle()
+        return Response('*shuffleshuffleshuffle*', delete_after=10)
 
     async def handle_skip(self, player, channel, author):
         """
@@ -345,7 +354,7 @@ class MusicBot(discord.Client):
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
-        if player.is_stopped: # TODO: or player.is_paused?
+        if player.is_stopped or player.is_paused: # TODO: pausing and skipping a song breaks /something/, i'm not sure what
             raise CommandError("Can't skip! The player is not playing!")
 
         if author.id == self.config.owner_id:
@@ -369,7 +378,8 @@ class MusicBot(discord.Client):
                     player.current_entry.title,
                     ' Next song coming up!' if player.playlist.peek() else ''
                 ),
-                reply=True
+                reply=True,
+                delete_after=10
             )
 
         else:
@@ -451,7 +461,7 @@ class MusicBot(discord.Client):
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
         message = '\n'.join(lines)
-        return Response(message)
+        return Response(message, delete_after=10)
 
     async def on_message(self, message):
         if message.author == self.user:
@@ -536,10 +546,13 @@ class MusicBot(discord.Client):
                 if response.reply:
                     content = '%s, %s' % (message.author.mention, content)
 
-                await self.send_message(message.channel, content)
+                sentmsg = await self.send_message(message.channel, content)
 
-                if response.delete_incoming:
-                    self.delete_message(message)
+                if response.delete_after > 0:
+                    await asyncio.sleep(response.delete_after)
+                    await self.delete_message(sentmsg)
+                    # await self.delete_message(message)
+                    # TODO: Add options for deletion toggling
 
         except CommandError as e:
             await self.send_message(message.channel, '```\n%s\n```' % e.message)
