@@ -112,7 +112,9 @@ class MusicBot(discord.Client):
 
         if server.id not in self.players:
             if not create:
-                raise CommandError('Player does not exist. It has not been summoned yet into a voice channel.')
+                raise CommandError(
+                    'Player does not exist. It has not been summoned yet into a voice channel.  '
+                    'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
 
             voice_client = await self.get_voice_client(channel)
 
@@ -174,6 +176,8 @@ class MusicBot(discord.Client):
         print('ID: ' + self.user.id)
         print('--Server List--')
 
+        # If server list is empty, say something about needing to join a server.
+
         for server in self.servers:
             print(server.name)
 
@@ -185,6 +189,7 @@ class MusicBot(discord.Client):
         Prints a help message
         """
         helpmsg = '[this is where the help text goes]'
+        # Maybe there's a clever way to do this
         return Response(helpmsg, delete_after=30)
 
     async def handle_whitelist(self, message, username):
@@ -198,7 +203,8 @@ class MusicBot(discord.Client):
 
         self.whitelist.add(str(user_id))
         write_file('./config/whitelist.txt', self.whitelist)
-        # TODO: Respond with "user has been added to the list?"
+
+        return Response('user has been added to the whitelist', reply=True)
 
     async def handle_blacklist(self, message, username):
         """
@@ -211,7 +217,8 @@ class MusicBot(discord.Client):
 
         self.blacklist.add(str(user_id))
         write_file('./config/blacklist.txt', self.blacklist)
-        # TODO: Respond with "user has been added to the list?"
+
+        return Response('user has been added to the blacklist', reply=True)
 
     async def handle_id(self, author):
         """
@@ -256,7 +263,7 @@ class MusicBot(discord.Client):
                 num_songs = sum(1 for _ in info['entries'])
 
                 # This message can be deleted after playlist processing is done.
-                await self.send_message(channel,
+                procmesg = await self.send_message(channel,
                     'Gathering playlist information for {} songs{}'.format(
                         num_songs,
                         ', ETA: {:g} seconds'.format(num_songs*wait_per_song) if num_songs >= 10 else '.'))
@@ -274,6 +281,8 @@ class MusicBot(discord.Client):
                 print("Processed {} songs in {:.2g} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
                     len(entry_list), ttime, ttime/len(entry_list), ttime/len(entry_list) - wait_per_song))
 
+                await self.delete_message(procmesg)
+
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
@@ -286,7 +295,7 @@ class MusicBot(discord.Client):
             else:
                 reply_text += ' - estimated time until playing: %s'
                 reply_text = reply_text % (entry.title, position, time_until)
-                # TODO: Subtract time the current song has been playing for\
+                # TODO: Subtract time the current song has been playing for
 
             return Response(reply_text, reply=True)
 
@@ -461,7 +470,7 @@ class MusicBot(discord.Client):
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
         message = '\n'.join(lines)
-        return Response(message, delete_after=10)
+        return Response(message, delete_after=30)
 
     async def on_message(self, message):
         if message.author == self.user:
