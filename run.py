@@ -11,6 +11,8 @@ class GIT(object):
             return False
 
 # TODO: Maybe I should only check for if you can import pip.  It seems like more if an issue if you can't
+# Yes just checking for pip is probably a good idea, check for commands afterwards, and if pip isnt found
+# tell the user the bot will attempt to install pip, and tell them to run the thing
 
 class PIP(object):
 
@@ -177,7 +179,7 @@ def main():
                 err = PIP.run_install('-r requirements.txt', quiet=True)
 
                 if err == 2:
-                    print("\nIf that said \"Access is denied\", run it as admin.")
+                    print("\nIf that said \"Access/Permission is denied\", run it as admin/with sudo.")
                     break
 
             if e.name in ['discord', 'opus', 'win_unicode_console']:

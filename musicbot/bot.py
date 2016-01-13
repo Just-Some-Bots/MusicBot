@@ -183,6 +183,12 @@ class MusicBot(discord.Client):
 
         print()
 
+        # if self.config.auto_summon:
+        #     for server in self.servers:
+        #         for channel in server:
+        #             if channel is voicechannel and owner in channel
+        #                 join channel
+
     async def handle_help(self, message):
         """
         Usage: {command_prefix}help
