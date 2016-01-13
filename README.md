@@ -1,8 +1,8 @@
-# RhinoBot: The music bot for Discord.
-
 # :exclamation::exclamation: This is the old version of RhinoBot! :exclamation::exclamation:
 
 The up-to-date rewrite is in the [develop branch](https://github.com/SexualRhinoceros/MusicBot/tree/develop). You should use the `develop` branch version, not the `master` branch version.
+
+# RhinoBot: The music bot for Discord.
 
 ### What is this and what does it do?
 
