@@ -122,13 +122,9 @@ class Playlist(EventEmitter):
         """
         estimated_time = sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
 
-        # So when the player plays a song, it eats the first playlist item, we just have to add it back
+        # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped:
-            # print('Estimated time: %s, current len: %s, progress: %s' % (estimated_time, player.current_entry.duration, player.progress) )
             estimated_time += player.current_entry.duration - player.progress
-
-        # print('bork time:', sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))]))
-        # I think this is correct, we just need to subtract now_playing_song_length + duration_song_has_been_playing
 
         return datetime.timedelta(seconds=estimated_time)
 

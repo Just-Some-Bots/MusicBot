@@ -187,8 +187,6 @@ class MusicBot(discord.Client):
 
         print()
 
-        # check if owner is on the server
-
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
 
         if self.config.auto_summon:

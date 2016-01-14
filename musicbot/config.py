@@ -33,3 +33,4 @@ class Config(object):
             raise ValueError("An owner is not specified in the configuration file")
 
     # TODO: Add save function for future editing of options with commands
+    #       Maybe add warnings about fields missing from the config file

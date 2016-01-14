@@ -158,9 +158,9 @@ class MusicPlayer(EventEmitter):
     def progress(self):
         return round(self._current_player.buff.frame_count * 0.02)
         # TODO: Properly implement this
-        # Correct calculation should be bytes_read/192k
-        # 192k AKA sampleRate * (bitDepth / 8) * channelCount
-        # Change frame_count to bytes_read in the PatchedBuff
+        #       Correct calculation should be bytes_read/192k
+        #       192k AKA sampleRate * (bitDepth / 8) * channelCount
+        #       Change frame_count to bytes_read in the PatchedBuff
 
     def pause(self):
         if self.is_playing:
