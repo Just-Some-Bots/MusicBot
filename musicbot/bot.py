@@ -175,6 +175,11 @@ class MusicBot(discord.Client):
         print('Username: ' + self.user.name)
         print('Bot ID: ' + self.user.id)
         print()
+
+        # Config settings
+        # whitelist is enabled, etc
+
+        print()
         print('--Server List--')
 
         # If server list is empty, say something about needing to join a server.
@@ -226,6 +231,9 @@ class MusicBot(discord.Client):
         if not user_id:
             raise CommandError('Invalid user specified')
 
+        if str(user_id) == self.config.owner_id:
+            return Response("The owner cannot be blacklisted.")
+
         self.blacklist.add(str(user_id))
         write_file('./config/blacklist.txt', self.blacklist)
 
@@ -268,6 +276,8 @@ class MusicBot(discord.Client):
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
                 # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
                 # I don't think we can hook into it anyways, so this will have to do.
+                # It would probably be a thread to check a few playlists and get the speed from that
+                # Different playlists might download at different speeds though
                 wait_per_song = 1.2
 
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
@@ -297,8 +307,7 @@ class MusicBot(discord.Client):
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
-            # Still need to subtract the played duration of the current song from this
-            time_until = await player.playlist.estimate_time_until(position)
+            time_until = await player.playlist.estimate_time_until(position, player)
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
@@ -460,6 +469,8 @@ class MusicBot(discord.Client):
 
         lines = []
         unlisted = 0
+
+        # TODO: Add "Now Playing: ..."
 
         for i, item in enumerate(player.playlist, 1):
             nextline = '{}) **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
