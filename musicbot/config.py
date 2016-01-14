@@ -17,6 +17,7 @@ class Config(object):
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=7)
         self.skip_ratio_required = config.getfloat('MusicBot', 'SkipRatio', fallback=0.5)
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=True)
+        self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=True)
 
         # TODO: Reimplement the SaveVideos option (delete when bot exits? delete when next song starts(probably awful)?)
 

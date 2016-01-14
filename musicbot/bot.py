@@ -142,8 +142,6 @@ class MusicBot(discord.Client):
             self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
                 player.voice_client.channel.name, entry.title
             )))
-        #
-        # Uh, that print in the channel the song was added from, doesn't it?  I guess just not saying anything is fine?
 
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
@@ -193,11 +191,20 @@ class MusicBot(discord.Client):
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
 
-        # if self.config.auto_summon:
-        #     for server in self.servers:
-        #         for channel in server:
-        #             if channel is voicechannel and owner in channel
-        #                 join channel
+        if self.config.auto_summon:
+            await self._auto_summon()
+
+
+    async def _auto_summon(self):
+        for server in self.servers:
+            for channel in server.channels:
+                if discord.utils.get(channel.voice_members, id=self.config.owner_id):
+                    print("Owner found in %s/%s" % (server, channel))
+                    await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
+                    return
+
+        print("Owner not found in a voice channel, could not autosummon.")
+
 
     async def handle_help(self, message):
         """
@@ -584,7 +591,6 @@ class MusicBot(discord.Client):
                 if response.delete_after > 0:
                     await asyncio.sleep(response.delete_after)
                     await self.delete_message(sentmsg)
-                    # await self.delete_message(message)
                     # TODO: Add options for deletion toggling
 
         except CommandError as e:
