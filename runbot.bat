@@ -7,7 +7,7 @@ IF /I NOT %gvar:~0,6% == git ve GOTO nogit
 cls
 
 IF EXIST C:\Windows\py.exe (
-	cmd /k py -3 run.py
+	cmd /k C:\Windows\py.exe -3 run.py
     GOTO end
 )
 
