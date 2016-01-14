@@ -173,7 +173,8 @@ class MusicBot(discord.Client):
 
         print('Connected!\n')
         print('Username: ' + self.user.name)
-        print('ID: ' + self.user.id)
+        print('Bot ID: ' + self.user.id)
+        print()
         print('--Server List--')
 
         # If server list is empty, say something about needing to join a server.
@@ -497,6 +498,11 @@ class MusicBot(discord.Client):
         command, *args = message_content.split()
         command = command[len(self.config.command_prefix):].lower().strip()
 
+        handler = getattr(self, 'handle_%s' % command, None)
+        if not handler:
+            return
+
+
         if int(message.author.id) in self.blacklist:
             print("[Blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             # print("{0.id}/{0.name} is blacklisted".format(message.author))
@@ -506,12 +512,7 @@ class MusicBot(discord.Client):
             print("[Not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             # print("{0.id}/{0.name} is not whitelisted".format(message.author))
             return
-        # At some point I want to move these around so I can log command usage
 
-
-        handler = getattr(self, 'handle_%s' % command, None)
-        if not handler:
-            return
 
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
