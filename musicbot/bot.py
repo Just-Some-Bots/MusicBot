@@ -183,6 +183,10 @@ class MusicBot(discord.Client):
 
         print()
 
+        # check if owner is on the server
+
+        # maybe option to leave the ownerid blank and generate a random command for the owner to use
+
         # if self.config.auto_summon:
         #     for server in self.servers:
         #         for channel in server:
@@ -486,22 +490,24 @@ class MusicBot(discord.Client):
             await self.send_message(message.channel, 'You cannot use this bot in private messages.')
             return
 
-        if int(message.author.id) in self.blacklist:
-            print("{0.id}/{0.name} is blacklisted".format(message.author))
-            return
-
-        elif self.config.white_list_check and int(message.author.id) not in self.whitelist:
-            print("{0.id}/{0.name} is not whitelisted".format(message.author))
-            return
-        # At some point I want to move these around so I can log command usage
-
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
             return
 
         command, *args = message_content.split()
-
         command = command[len(self.config.command_prefix):].lower().strip()
+
+        if int(message.author.id) in self.blacklist:
+            print("[Blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            # print("{0.id}/{0.name} is blacklisted".format(message.author))
+            return
+
+        elif self.config.white_list_check and int(message.author.id) not in self.whitelist:
+            print("[Not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            # print("{0.id}/{0.name} is not whitelisted".format(message.author))
+            return
+        # At some point I want to move these around so I can log command usage
+
 
         handler = getattr(self, 'handle_%s' % command, None)
         if not handler:
