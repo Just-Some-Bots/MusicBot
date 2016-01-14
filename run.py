@@ -10,31 +10,55 @@ class GIT(object):
         except:
             return False
 
-# TODO: Maybe I should only check for if you can import pip.  It seems like more if an issue if you can't
-# Yes just checking for pip is probably a good idea, check for commands afterwards, and if pip isnt found
-# tell the user the bot will attempt to install pip, and tell them to run the thing
 
 class PIP(object):
 
     looked_for = False
+    use_import = True
     pip_command = None
-    use_import = False
 
     @classmethod
-    def run(cls, command, use_import=False, quiet=False, check_output=False):
+    def run(cls, command, use_command=False, quiet=False, check_output=False):
         if not cls.works():
-            raise RuntimeError("Unable to locate pip")
+            raise RuntimeError("PIP could not be located or imported.")
 
         check = subprocess.check_output if check_output else subprocess.check_call
 
-        if cls.use_import or use_import:
+        if cls.use_import:
             try:
                 import pip
-                return pip.main(["-q"] + command.split() if quiet else command.split())
+
+                if check_output:
+                    from io import StringIO
+
+                    out = StringIO()
+                    sys.stdout = out
+
+                    try:
+                        pip.main(["-q"] + command.split() if quiet else command.split())
+
+                    except:
+                        traceback.print_exc()
+
+                    finally:
+                        sys.stdout = sys.__stdout__
+                        out.close()
+
+                    pipinfos = out.readlines()
+                    print(pipinfos)
+
+
+
+                else:
+                    return pip.main(["-q"] + command.split() if quiet else command.split())
+
             except:
                 traceback.print_exc()
                 print("Error using pip import")
-        else:
+                # Using fallback...?
+                # rerun this commanmd with use_command if pip_command is not none
+
+        elif use_command and cls.pip_command is not None:
             try:
                 return check("{} {}{}".format(
                     cls.pip_command,
@@ -42,6 +66,8 @@ class PIP(object):
                     command), shell=True)
             except subprocess.CalledProcessError as e:
                 return e.returncode
+        else:
+            raise RuntimeError("PIP was not located, cannot run commands.")
 
     @classmethod
     def run_install(cls, cmd, use_import=False, quiet=False, check_output=False):
@@ -56,11 +82,17 @@ class PIP(object):
         if not cls.looked_for:
             cls.find_pip3()
 
-        return cls.pip_command or cls.use_import
+        return cls.use_import or cls.pip_command
 
     @classmethod
     def find_pip3(cls):
         cls.looked_for = True
+
+        try:
+            import pip
+            cls.use_import = True
+        except:
+            print("Tried to import pip but it failed. This does not bode well.")
 
         if cls._check_command_exists('pip3.5 -V'):
             cls.pip_command = 'pip3.5'
@@ -72,12 +104,6 @@ class PIP(object):
         elif cls._check_command_exists('pip -V'):
             if subprocess.check_output('pip -V', shell=True).strip().endswith('(python 3.5)'):
                 cls.pip_command = 'pip'
-        else:
-            try:
-                import pip
-                cls.use_import = True
-            except:
-                pass
 
         return cls.works()
 
@@ -120,12 +146,13 @@ def open_in_wb(text, printanyways=True, indents=4):
 def main():
     if not sys.version.startswith("3.5"):
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
+        print("Attempting to locate python 3.5...")
+
+        pycom = None
+
+        # Maybe I should check for if the current dir is the musicbot folder, just in case
 
         if sys.platform.startswith('win'):
-            print("Attempting to locate python 3.5...")
-
-            pycom = None
-
             try:
                 subprocess.check_output('py -3.5 -c "exit()"', shell=True)
                 pycom = 'py -3.5'
@@ -142,22 +169,48 @@ def main():
                 os.system('start cmd /k %s run.py' % pycom)
                 sys.exit(0)
 
+        else:
+            try:
+                pycom = subprocess.check_output(['which', 'python3.5'])
+            except:
+                pass
+
+            if pycom:
+                print("Python 3 found.  Launching bot...")
+                os.system("kill -9 %s && %s run.py" % (os.getpid(), pycom))
+                # If the process isn't killed by now then bugger it
+                # sys.exit(0)
+
+
         print("Please run the bot using python 3.5")
         input("Press enter to continue . . .")
 
         return
 
-    if '--upgrade' in sys.argv:
-        # MOAR CHECKS?
-        err = PIP.run_install('--upgrade -r requirements.txt', quiet=True)
 
-        if err == 2:
-            print("Upgrade failed, you may need to run it as admin")
-        elif err:
-            print("Automatic upgrade failed")
+    if '--update' in sys.argv:
+        if PIP.works():
+            err = PIP.run_install('--upgrade -r requirements.txt', quiet=True)
+            print()
 
-        input("Press enter to continue . . .")
-        return
+            if err:
+                if err == 2:
+                    print("Upgrade failed, you may need to run it as admin/root")
+
+                else:
+                    print("Automatic upgrade failed")
+
+                input("Press enter to continue . . .")
+                return
+
+        else:
+            print("\n"
+                "Could not locate PIP. If you're sure you have it, run this:\n"
+                "  your_pip_command install --upgrade -r requirements.txt"
+                "\n\n")
+
+            input("Press enter to continue . . .")
+            return
 
 
     tried_requirementstxt = False
