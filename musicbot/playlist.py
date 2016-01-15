@@ -116,11 +116,16 @@ class Playlist(EventEmitter):
         if self.entries:
             return self.entries[0]
 
-    async def estimate_time_until(self, position):
+    async def estimate_time_until(self, position, player):
         """
             (very) Roughly estimates the time till the queue will 'position'
         """
         estimated_time = sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
+
+        # So when the player plays a song, it eats the first playlist item, we just have to add it back
+        if not player.is_stopped:
+            # print('Estimated time: %s, current len: %s, progress: %s' % (estimated_time, player.current_entry.duration, player.progress) )
+            estimated_time += player.current_entry.duration - player.progress
 
         # print('bork time:', sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))]))
         # I think this is correct, we just need to subtract now_playing_song_length + duration_song_has_been_playing

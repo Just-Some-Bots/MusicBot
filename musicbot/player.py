@@ -15,8 +15,10 @@ class PatchedBuff(object):
     def __init__(self, player, buff):
         self.player = player
         self.buff = buff
+        self.frame_count = 0
 
     def read(self, frame_size):
+        self.frame_count += 1
         frame = self.buff.read(frame_size)
 
         volume = self.player.volume
@@ -151,6 +153,14 @@ class MusicPlayer(EventEmitter):
     @property
     def is_stopped(self):
         return self.state == MusicPlayerState.STOPPED
+
+    @property
+    def progress(self):
+        return round(self._current_player.buff.frame_count * 0.02)
+        # TODO: Properly implement this
+        # Correct calculation should be bytes_read/192k
+        # 192k AKA sampleRate * (bitDepth / 8) * channelCount
+        # Change frame_count to bytes_read in the PatchedBuff
 
     def pause(self):
         if self.is_playing:
