@@ -213,24 +213,41 @@ class MusicBot(discord.Client):
         # Maybe there's a clever way to do this
         return Response(helpmsg, delete_after=30)
 
-    async def handle_whitelist(self, message, username):
+    async def handle_whitelist(self, message, option, username):
         """
-        Usage: {command_prefix}whitelist @UserName
-        Adds the user to the whitelist, permitting them to add songs.
+        Usage: {command_prefix}whitelist [ + | - | add | remove ] @UserName
+        Adds or removes the user to the whitelist. When the whitelist is enabled,
+        whitelisted users are permitted to use bot commands.
         """
         user_id = extract_user_id(username)
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(str(user_id))
-        write_file('./config/whitelist.txt', self.whitelist)
+        if option not in ['+', '-', 'add', 'remove']:
+            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
 
-        return Response('user has been added to the whitelist', reply=True)
+        if option in ['+', 'add']:
+            self.whitelist.add(user_id)
+            write_file('./config/whitelist.txt', self.whitelist)
 
-    async def handle_blacklist(self, message, username):
+            return Response('user has been added to the whitelist', reply=True)
+
+        else:
+            if user_id not in self.whitelist:
+                return Response('user is not in the whitelist', reply=True)
+
+            else:
+                self.whitelist.remove(user_id)
+                write_file('./config/whitelist.txt', self.whitelist)
+
+                return Response('user has been removed from the whitelist', reply=True)
+
+
+    async def handle_blacklist(self, message, option, username):
         """
-        Usage: {command_prefix}blacklist @UserName
-        Adds the user to the blacklist, forbidding them from using bot commands.
+        Usage: {command_prefix}blacklist [ + | - | add | remove ] @UserName
+        Adds or removes the user to the blacklist. Blacklisted users are forbidden from
+        using bot commands. Blacklisting a user also removes them from the whitelist.
         """
         user_id = extract_user_id(username)
         if not user_id:
@@ -239,10 +256,31 @@ class MusicBot(discord.Client):
         if str(user_id) == self.config.owner_id:
             return Response("The owner cannot be blacklisted.")
 
-        self.blacklist.add(str(user_id))
-        write_file('./config/blacklist.txt', self.blacklist)
+        if option not in ['+', '-', 'add', 'remove']:
+            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
 
-        return Response('user has been added to the blacklist', reply=True)
+        if option in ['+', 'add']:
+            self.blacklist.add(user_id)
+            write_file('./config/blacklist.txt', self.blacklist)
+
+            if user_id in self.whitelist:
+                self.whitelist.remove(user_id)
+                write_file('./config/whitelist.txt', self.whitelist)
+                return Response('user has been added to the blacklist and removed from the whitelist', reply=True)
+
+            else:
+                return Response('user has been added to the blacklist', reply=True)
+
+        else:
+            if user_id not in self.blacklist:
+                return Response('user is not in the blacklist', reply=True)
+
+            else:
+                self.blacklist.remove(user_id)
+                write_file('./config/blacklist.txt', self.blacklist)
+
+                return Response('user has been removed from the blacklist', reply=True)
+
 
     async def handle_id(self, author):
         """

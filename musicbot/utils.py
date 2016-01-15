@@ -23,7 +23,7 @@ def load_file(filename):
 def write_file(filename, contents):
     with open(filename, 'w') as f:
         for item in contents:
-            f.write(item)
+            f.write(str(item))
             f.write('\n')
 
 
