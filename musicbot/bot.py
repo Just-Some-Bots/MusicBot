@@ -508,6 +508,10 @@ class MusicBot(discord.Client):
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
 
     async def handle_queue(self, channel):
+        """
+        Usage {command_prefix}queue
+        Prints the current song queue.
+        """
         player = await self.get_player(channel)
 
         lines = []
@@ -539,6 +543,8 @@ class MusicBot(discord.Client):
 
     async def on_message(self, message):
         if message.author == self.user:
+            if message.content.startswith(self.config.command_prefix):
+                print("Ignoring command from myself (%s)" % message.content)
             return
 
         if message.channel.is_private:
@@ -559,13 +565,14 @@ class MusicBot(discord.Client):
 
         if int(message.author.id) in self.blacklist:
             print("[Blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            # print("{0.id}/{0.name} is blacklisted".format(message.author))
             return
 
         elif self.config.white_list_check and int(message.author.id) not in self.whitelist:
             print("[Not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            # print("{0.id}/{0.name} is not whitelisted".format(message.author))
             return
+
+        else:
+            print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
 
         argspec = inspect.signature(handler)
