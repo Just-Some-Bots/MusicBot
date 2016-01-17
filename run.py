@@ -135,6 +135,7 @@ class PIP(object):
 
 def open_in_wb(text, printanyways=True, indents=4):
     import webbrowser
+    # TODO: Figure out console browser stuff
     if isinstance(webbrowser.get(), webbrowser.BackgroundBrowser):
         print('%s%s' % (' ' * indents , text))
     else:
@@ -245,7 +246,7 @@ def unfuck(e):
         if not PIP.works():
             print("Additionally, pip cannot be imported. Has python been installed properly?")
             print("Bot setup instructions can be found here:")
-            open_in_wb("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
+            print("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
             return
 
     print()
@@ -261,7 +262,7 @@ def unfuck(e):
         if not GIT.works():
             print("Additionally, git is also not installed.  Please install git.")
             print("Bot setup instructions can be found here:")
-            open_in_wb("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
+            print("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
             return
 
         print("Attempting to install discord.py")
