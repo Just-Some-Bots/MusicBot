@@ -170,15 +170,16 @@ class MusicBot(discord.Client):
         win_unicode_console.enable()
 
         print('Connected!\n')
-        print('Username: ' + self.user.name)
-        print('Bot ID: ' + self.user.id)
+        print('Username: %s' % self.user.name)
+        print('Bot ID: %s' % self.user.id)
+        print('Owner ID: %s' % self.config.owner_id)
         print()
 
         print("Command prefix is %s" % self.config.command_prefix)
-        print("Days active required to use commands is %s" % self.config.days_active+)
+        print("Days active required to use commands is %s" % self.config.days_active)
         print("Skip threshold at %s votes or %g%%" % (self.config.skips_required, self.config.skip_ratio_required*100))
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
-        print("@mentions for Now Playing messages are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
+        print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
         print()
 
