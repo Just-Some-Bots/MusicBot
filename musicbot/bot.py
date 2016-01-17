@@ -219,9 +219,9 @@ class MusicBot(discord.Client):
         Usage: {command_prefix}help
         Prints a help message
         """
-        helpmsg = '[this is where the help text goes]'
+        helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
         # Maybe there's a clever way to do this
-        return Response(helpmsg, delete_after=60)
+        return Response(helpmsg, reply=True, delete_after=60)
 
     async def handle_whitelist(self, message, option, username):
         """
