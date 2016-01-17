@@ -1,4 +1,6 @@
+import os
 import traceback
+
 from array import array
 from asyncio import Lock
 from enum import Enum
@@ -88,6 +90,14 @@ class MusicPlayer(EventEmitter):
 
         if not self.is_stopped:
             self.play(_continue=True)
+
+        if not self.bot.config.save_videos:
+            if any([entry.filename == e.filename for e in self.playlist.entries]):
+                print("[config:SaveVideos] Skipping deletion, found song in queue")
+
+            else:
+                print("[config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                os.unlink(entry.filename)
 
         self.emit('finished-playing', player=self, entry=entry)
 
