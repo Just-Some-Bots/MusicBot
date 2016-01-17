@@ -1,4 +1,6 @@
+import os
 import traceback
+
 from array import array
 from asyncio import Lock
 from enum import Enum
@@ -15,8 +17,10 @@ class PatchedBuff(object):
     def __init__(self, player, buff):
         self.player = player
         self.buff = buff
+        self.frame_count = 0
 
     def read(self, frame_size):
+        self.frame_count += 1
         frame = self.buff.read(frame_size)
 
         volume = self.player.volume
@@ -87,6 +91,14 @@ class MusicPlayer(EventEmitter):
         if not self.is_stopped:
             self.play(_continue=True)
 
+        if not self.bot.config.save_videos:
+            if any([entry.filename == e.filename for e in self.playlist.entries]):
+                print("[config:SaveVideos] Skipping deletion, found song in queue")
+
+            else:
+                print("[config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                os.unlink(entry.filename)
+
         self.emit('finished-playing', player=self, entry=entry)
 
     def play(self, _continue=False):
@@ -151,6 +163,14 @@ class MusicPlayer(EventEmitter):
     @property
     def is_stopped(self):
         return self.state == MusicPlayerState.STOPPED
+
+    @property
+    def progress(self):
+        return round(self._current_player.buff.frame_count * 0.02)
+        # TODO: Properly implement this
+        #       Correct calculation should be bytes_read/192k
+        #       192k AKA sampleRate * (bitDepth / 8) * channelCount
+        #       Change frame_count to bytes_read in the PatchedBuff
 
     def pause(self):
         if self.is_playing:

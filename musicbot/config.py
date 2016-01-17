@@ -16,9 +16,9 @@ class Config(object):
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=False)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=7)
         self.skip_ratio_required = config.getfloat('MusicBot', 'SkipRatio', fallback=0.5)
+        self.save_videos = config.getboolean('MusicBot', 'SaveVideos', fallback=True)
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=True)
-
-        # TODO: Reimplement the SaveVideos option (delete when bot exits? delete when next song starts(probably awful)?)
+        self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=True)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback='config/blacklist.txt')
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback='config/whitelist.txt')
@@ -32,3 +32,4 @@ class Config(object):
             raise ValueError("An owner is not specified in the configuration file")
 
     # TODO: Add save function for future editing of options with commands
+    #       Maybe add warnings about fields missing from the config file

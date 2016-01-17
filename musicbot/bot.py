@@ -42,10 +42,10 @@ class SkipState(object):
 
 
 class Response(object):
-    def __init__(self, content, reply=False, delete_incoming=False):
+    def __init__(self, content, reply=False, delete_after=0):
         self.content = content
         self.reply = reply
-        self.delete_incoming = delete_incoming
+        self.delete_after = delete_after
 
 
 class MusicBot(discord.Client):
@@ -112,7 +112,9 @@ class MusicBot(discord.Client):
 
         if server.id not in self.players:
             if not create:
-                raise CommandError('Player does not exist. It has not been summoned yet into a voice channel.')
+                raise CommandError(
+                    'Player does not exist. It has not been summoned yet into a voice channel.  '
+                    'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
 
             voice_client = await self.get_voice_client(channel)
 
@@ -140,8 +142,6 @@ class MusicBot(discord.Client):
             self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
                 player.voice_client.channel.name, entry.title
             )))
-        #
-        # Uh, that print in the channel the song was added from, doesn't it?  I guess just not saying anything is fine?
 
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
@@ -170,40 +170,133 @@ class MusicBot(discord.Client):
         win_unicode_console.enable()
 
         print('Connected!\n')
-        print('Username: ' + self.user.name)
-        print('ID: ' + self.user.id)
-        print('--Server List--')
+        print('Username: %s' % self.user.name)
+        print('Bot ID: %s' % self.user.id)
+        print('Owner ID: %s' % self.config.owner_id)
+        print()
 
-        for server in self.servers:
-            print(server.name)
+        print("Command prefix is %s" % self.config.command_prefix)
+        # print("Days active required to use commands is %s" % self.config.days_active) # NYI
+        print("Skip threshold at %s votes or %g%%" % (self.config.skips_required, self.config.skip_ratio_required*100))
+        print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
+        print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
+        print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
+        print()
+
+        if self.servers:
+            print('--Server List--')
+            [print(s) for s in self.servers]
+        else:
+            print("No servers have been joined yet.")
 
         print()
 
-    async def handle_whitelist(self, message, username):
+        if self.config.owner_id == self.user.id:
+            print(
+                "[Notice] You have either set the OwnerID config option to the bot's id instead "
+                "of yours, or you've used your own credentials to log the bot in instead of the "
+                "bot's account (the bot needs its own account to work properly).")
+
+        # maybe option to leave the ownerid blank and generate a random command for the owner to use
+
+        if self.config.auto_summon:
+            await self._auto_summon()
+
+
+    async def _auto_summon(self):
+        for server in self.servers:
+            for channel in server.channels:
+                if discord.utils.get(channel.voice_members, id=self.config.owner_id):
+                    print("Owner found in %s/%s" % (server, channel))
+                    await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
+                    return
+
+        print("Owner not found in a voice channel, could not autosummon.")
+
+
+    async def handle_help(self, message):
         """
-        Usage: {command_prefix}whitelist @UserName
-        Adds the user to the whitelist, permitting them to add songs.
+        Usage: {command_prefix}help
+        Prints a help message
         """
+        helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
+        # Maybe there's a clever way to do this
+        return Response(helpmsg, reply=True, delete_after=60)
+
+    async def handle_whitelist(self, message, option, username):
+        """
+        Usage: {command_prefix}whitelist [ + | - | add | remove ] @UserName
+        Adds or removes the user to the whitelist. When the whitelist is enabled,
+        whitelisted users are permitted to use bot commands.
+        """
+        if message.author.id != self.config.owner_id:
+            return
+
         user_id = extract_user_id(username)
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.whitelist.add(str(user_id))
-        write_file('./config/whitelist.txt', self.whitelist)
-        # TODO: Respond with "user has been added to the list?"
+        if option not in ['+', '-', 'add', 'remove']:
+            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
 
-    async def handle_blacklist(self, message, username):
+        if option in ['+', 'add']:
+            self.whitelist.add(user_id)
+            write_file('./config/whitelist.txt', self.whitelist)
+
+            return Response('user has been added to the whitelist', reply=True, delete_after=10)
+
+        else:
+            if user_id not in self.whitelist:
+                return Response('user is not in the whitelist', reply=True, delete_after=10)
+
+            else:
+                self.whitelist.remove(user_id)
+                write_file('./config/whitelist.txt', self.whitelist)
+
+                return Response('user has been removed from the whitelist', reply=True, delete_after=10)
+
+
+    async def handle_blacklist(self, message, option, username):
         """
-        Usage: {command_prefix}blacklist @UserName
-        Adds the user to the blacklist, forbidding them from using bot commands.
+        Usage: {command_prefix}blacklist [ + | - | add | remove ] @UserName
+        Adds or removes the user to the blacklist. Blacklisted users are forbidden from
+        using bot commands. Blacklisting a user also removes them from the whitelist.
         """
+        if message.author.id != self.config.owner_id:
+            return
+
         user_id = extract_user_id(username)
         if not user_id:
             raise CommandError('Invalid user specified')
 
-        self.blacklist.add(str(user_id))
-        write_file('./config/blacklist.txt', self.blacklist)
-        # TODO: Respond with "user has been added to the list?"
+        if str(user_id) == self.config.owner_id:
+            return Response("The owner cannot be blacklisted.", delete_after=10)
+
+        if option not in ['+', '-', 'add', 'remove']:
+            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
+
+        if option in ['+', 'add']:
+            self.blacklist.add(user_id)
+            write_file('./config/blacklist.txt', self.blacklist)
+
+            if user_id in self.whitelist:
+                self.whitelist.remove(user_id)
+                write_file('./config/whitelist.txt', self.whitelist)
+                return Response('user has been added to the blacklist and removed from the whitelist', reply=True, delete_after=10)
+
+            else:
+                return Response('user has been added to the blacklist', reply=True, delete_after=10)
+
+        else:
+            if user_id not in self.blacklist:
+                return Response('user is not in the blacklist', reply=True, delete_after=10)
+
+            else:
+                self.blacklist.remove(user_id)
+                write_file('./config/blacklist.txt', self.blacklist)
+
+                return Response('user has been removed from the blacklist', reply=True, delete_after=10)
+
 
     async def handle_id(self, author):
         """
@@ -218,7 +311,8 @@ class MusicBot(discord.Client):
         Asks the bot to join a server. [todo: add info about if it breaks or whatever]
         """
         try:
-            await self.accept_invite(server_link)
+            if message.author.id == self.config.owner_id:
+                await self.accept_invite(server_link)
 
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
@@ -242,13 +336,15 @@ class MusicBot(discord.Client):
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
                 # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
                 # I don't think we can hook into it anyways, so this will have to do.
+                # It would probably be a thread to check a few playlists and get the speed from that
+                # Different playlists might download at different speeds though
                 wait_per_song = 1.2
 
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
                 num_songs = sum(1 for _ in info['entries'])
 
                 # This message can be deleted after playlist processing is done.
-                await self.send_message(channel,
+                procmesg = await self.send_message(channel,
                     'Gathering playlist information for {} songs{}'.format(
                         num_songs,
                         ', ETA: {:g} seconds'.format(num_songs*wait_per_song) if num_songs >= 10 else '.'))
@@ -266,11 +362,12 @@ class MusicBot(discord.Client):
                 print("Processed {} songs in {:.2g} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
                     len(entry_list), ttime, ttime/len(entry_list), ttime/len(entry_list) - wait_per_song))
 
+                await self.delete_message(procmesg)
+
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
-            # Still need to subtract the played duration of the current song from this
-            time_until = await player.playlist.estimate_time_until(position)
+            time_until = await player.playlist.estimate_time_until(position, player)
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
@@ -278,9 +375,9 @@ class MusicBot(discord.Client):
             else:
                 reply_text += ' - estimated time until playing: %s'
                 reply_text = reply_text % (entry.title, position, time_until)
-                # TODO: Subtract time the current song has been playing for\
+                # TODO: Subtract time the current song has been playing for
 
-            return Response(reply_text, reply=True)
+            return Response(reply_text, reply=True, delete_after=15)
 
         except Exception as e:
             traceback.print_exc()
@@ -294,6 +391,12 @@ class MusicBot(discord.Client):
         if self.voice_clients:
             raise CommandError("Multiple servers not supported at this time.")
 
+        # moving = False
+        # if channel.server.id in self.players:
+        #     moving = True
+        #     print("Already in channel, moving")
+
+
         server = channel.server
 
         channel = None
@@ -303,6 +406,10 @@ class MusicBot(discord.Client):
 
         if not channel:
             raise CommandError('You are not in a voice channel!')
+
+        # if moving:
+        #     await self.move_member(channel.server.me, channel)
+        #     return Response('ok?')
 
         player = await self.get_player(channel, create=True)
 
@@ -338,6 +445,7 @@ class MusicBot(discord.Client):
         Shuffles the playlist.
         """
         player.playlist.shuffle()
+        return Response('*shuffleshuffleshuffle*', delete_after=10)
 
     async def handle_skip(self, player, channel, author):
         """
@@ -345,7 +453,7 @@ class MusicBot(discord.Client):
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
-        if player.is_stopped: # TODO: or player.is_paused?
+        if player.is_stopped or player.is_paused: # TODO: pausing and skipping a song breaks /something/, i'm not sure what
             raise CommandError("Can't skip! The player is not playing!")
 
         if author.id == self.config.owner_id:
@@ -369,10 +477,12 @@ class MusicBot(discord.Client):
                     player.current_entry.title,
                     ' Next song coming up!' if player.playlist.peek() else ''
                 ),
-                reply=True
+                reply=True,
+                delete_after=10
             )
 
         else:
+            # TODO: When a song gets skipped, delete the old x needed to skip messages
             return Response(
                 'your skip for **{}** was acknowledged.'
                 '\n**{}** more {} required to vote to skip this song.'.format(
@@ -393,7 +503,7 @@ class MusicBot(discord.Client):
         player = await self.get_player(message.channel)
 
         if not new_volume:
-            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True)
+            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=10)
 
         relative = False
         if new_volume[0] in '+-':
@@ -414,7 +524,7 @@ class MusicBot(discord.Client):
         if 0 < new_volume <= 100:
             player.volume = new_volume / 100.0
 
-            return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True)
+            return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True, delete_after=10)
 
         else:
             if relative:
@@ -426,10 +536,16 @@ class MusicBot(discord.Client):
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
 
     async def handle_queue(self, channel):
+        """
+        Usage {command_prefix}queue
+        Prints the current song queue.
+        """
         player = await self.get_player(channel)
 
         lines = []
         unlisted = 0
+
+        # TODO: Add "Now Playing: ..."
 
         for i, item in enumerate(player.playlist, 1):
             nextline = '{}) **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
@@ -451,36 +567,51 @@ class MusicBot(discord.Client):
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
         message = '\n'.join(lines)
-        return Response(message)
+        return Response(message, delete_after=30)
+
+
+    async def handle_clean(self, message, author, amount):
+        """
+        Usage {command_prefix}clean amount
+        Removes [amount] messages the bot has posted in chat.
+        """
+        pass
+
+
 
     async def on_message(self, message):
         if message.author == self.user:
+            if message.content.startswith(self.config.command_prefix):
+                print("Ignoring command from myself (%s)" % message.content)
             return
 
         if message.channel.is_private:
             await self.send_message(message.channel, 'You cannot use this bot in private messages.')
             return
 
-        if int(message.author.id) in self.blacklist:
-            print("{0.id}/{0.name} is blacklisted".format(message.author))
-            return
-
-        elif self.config.white_list_check and int(message.author.id) not in self.whitelist:
-            print("{0.id}/{0.name} is not whitelisted".format(message.author))
-            return
-        # At some point I want to move these around so I can log command usage
-
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
             return
 
         command, *args = message_content.split()
-
         command = command[len(self.config.command_prefix):].lower().strip()
 
         handler = getattr(self, 'handle_%s' % command, None)
         if not handler:
             return
+
+
+        if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
+            print("[Blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            return
+
+        elif self.config.white_list_check and int(message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
+            print("[Not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            return
+
+        else:
+            print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+
 
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
@@ -536,10 +667,12 @@ class MusicBot(discord.Client):
                 if response.reply:
                     content = '%s, %s' % (message.author.mention, content)
 
-                await self.send_message(message.channel, content)
+                sentmsg = await self.send_message(message.channel, content)
 
-                if response.delete_incoming:
-                    self.delete_message(message)
+                if response.delete_after > 0:
+                    await asyncio.sleep(response.delete_after)
+                    await self.delete_message(sentmsg)
+                    # TODO: Add options for deletion toggling
 
         except CommandError as e:
             await self.send_message(message.channel, '```\n%s\n```' % e.message)
@@ -563,5 +696,4 @@ TODOs:
 
   Command to clear the queue, either a `!skip all` argument or a `!clear` or `!queue clear` or whatever
 
-  AUTO SUMMON OPTION
 '''
