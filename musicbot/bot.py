@@ -174,18 +174,27 @@ class MusicBot(discord.Client):
         print('Bot ID: ' + self.user.id)
         print()
 
-        # Config settings
-        # whitelist is enabled, etc
+        print("Command prefix is %s" % self.config.command_prefix)
+        print("Days active required to use commands is %s" % self.config.days_active+)
+        print("Skip threshold at %s votes or %g%%" % (self.config.skips_required, self.config.skip_ratio_required*100))
+        print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
+        print("@mentions for Now Playing messages are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
+        print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
+        print()
+
+        if self.servers:
+            print('--Server List--')
+            [print(s) for s in self.servers]
+        else:
+            print("No servers have been joined yet.")
 
         print()
-        print('--Server List--')
 
-        # If server list is empty, say something about needing to join a server.
-
-        for server in self.servers:
-            print(server.name)
-
-        print()
+        if self.config.owner_id == self.user.id:
+            print(
+                "[Notice] You have either set the OwnerID config option to the bot's id instead "
+                "of yours, or you've used your own credentials to log the bot in instead of the "
+                "bot's account (the bot needs its own account to work properly).")
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
 
