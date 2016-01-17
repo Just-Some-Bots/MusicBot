@@ -144,7 +144,7 @@ def open_in_wb(text, printanyways=True, indents=4):
 
 
 def main():
-    if not sys.version.startswith("3.5"):
+    if not sys.version_info >= (3, 5):
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
         print("Attempting to locate python 3.5...")
 
