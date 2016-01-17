@@ -229,7 +229,7 @@ class MusicBot(discord.Client):
         Adds or removes the user to the whitelist. When the whitelist is enabled,
         whitelisted users are permitted to use bot commands.
         """
-        if author.id != self.config.owner_id:
+        if message.author.id != self.config.owner_id:
             return
 
         user_id = extract_user_id(username)
@@ -262,7 +262,7 @@ class MusicBot(discord.Client):
         Adds or removes the user to the blacklist. Blacklisted users are forbidden from
         using bot commands. Blacklisting a user also removes them from the whitelist.
         """
-        if author.id != self.config.owner_id:
+        if message.author.id != self.config.owner_id:
             return
 
         user_id = extract_user_id(username)
@@ -311,7 +311,7 @@ class MusicBot(discord.Client):
         Asks the bot to join a server. [todo: add info about if it breaks or whatever]
         """
         try:
-            if author.id == self.config.owner_id:
+            if message.author.id == self.config.owner_id:
                 await self.accept_invite(server_link)
 
         except:
