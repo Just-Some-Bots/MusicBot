@@ -42,12 +42,9 @@ class PIP(object):
 
                     finally:
                         sys.stdout = sys.__stdout__
+                        pipinfos = out.readlines()
+                        print(pipinfos)
                         out.close()
-
-                    pipinfos = out.readlines()
-                    print(pipinfos)
-
-
 
                 else:
                     return pip.main(["-q"] + command.split() if quiet else command.split())
@@ -136,6 +133,7 @@ class PIP(object):
 def open_in_wb(text, printanyways=True, indents=4):
     import webbrowser
     # TODO: Figure out console browser stuff
+    # also check GenericBrowser
     if isinstance(webbrowser.get(), webbrowser.BackgroundBrowser):
         print('%s%s' % (' ' * indents , text))
     else:
@@ -238,6 +236,8 @@ def main():
 
             if e.name in ['discord', 'opus', 'win_unicode_console']:
                 tryagain = unfuck(e)
+                if not tryagain:
+                    input('Press enter to continue . . .')
 
 def unfuck(e):
     try:
