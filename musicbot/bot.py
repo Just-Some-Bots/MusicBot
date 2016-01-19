@@ -13,7 +13,7 @@ from discord.voice_client import VoiceClient
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
-from musicbot.utils import load_file, extract_user_id, write_file
+from musicbot.utils import load_file, extract_user_id, write_file, write_json_file
 
 from .downloader import extract_info
 from .exceptions import CommandError
@@ -223,6 +223,46 @@ class MusicBot(discord.Client):
         helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
         # Maybe there's a clever way to do this
         return Response(helpmsg, reply=True, delete_after=60)
+
+
+    async def handle_group(self, message, group_name, option, username):
+        """
+        Usage: {command_prefix}group <group_name> [ + | - | add | remove ] @UserName
+        Adds or removes a user from a specific server group.
+        """
+
+        user_id = str(extract_user_id(username))
+        if not user_id:
+            raise CommandError('Invalid user specified')
+
+        if str(user_id) == self.config.owner_id:
+            return Response("The owner already has all permissions.", delete_after=10)
+
+        if group_name not in self.config.server_groups:
+            raise CommandError('The group "%s" doesn\'t exist in the server' % group_name)
+
+        if option not in ['+', '-', 'add', 'remove']:
+            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
+
+        if user_id not in self.groups_user:
+            self.groups_user[user_id] = []
+
+        if option in ['+', 'add']:
+            if group_name in self.groups_user[user_id]:
+                return Response('The user is already assigned to that group', reply=True, delete_after=10)
+            else:
+                self.groups_user[user_id].append(group_name)
+                write_json_file('./config/groups_user.json', self.groups_user)
+                return Response('user has been added to the specified group', reply=True, delete_after=10)
+
+        else:
+            if group_name in self.groups_user[user_id]:
+                self.groups_user[user_id].remove(group_name)
+                write_json_file('./config/groups_user.json', self.groups_user)
+                return Response('user has been removed from that group', reply=True, delete_after=10)
+            else:
+                return Response('The user is not assigned to that group', reply=True, delete_after=10)
+
 
     async def handle_whitelist(self, message, option, username):
         """

@@ -1,5 +1,6 @@
 import re
 import unicodedata
+import json
 
 _USER_ID_MATCH = re.compile(r'<@(\d+)>')
 
@@ -26,6 +27,10 @@ def write_file(filename, contents):
             f.write(str(item))
             f.write('\n')
 
+
+def write_json_file(filename, data):
+    with open(filename, 'w') as f:
+        json.dump(data, f)
 
 def extract_user_id(argument):
     match = _USER_ID_MATCH.match(argument)
