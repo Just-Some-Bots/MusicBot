@@ -10,7 +10,7 @@ class Config(object):
         self.password = config.get('Credentials', 'Password', fallback=None)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=None)
-        self.permission_groups = dict()
+        self.permission_groups = {}
         for group in config['PermissionGroups']:
             self.permission_groups[group.lower()] = config.get('PermissionGroups', group, fallback=None).lower().split()
 
