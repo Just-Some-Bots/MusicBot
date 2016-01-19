@@ -60,6 +60,7 @@ class MusicBot(discord.Client):
         self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
         self.backuplist = load_file(self.config.backup_playlist_file)
+        self.groups_user = {}
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
@@ -308,7 +309,7 @@ class MusicBot(discord.Client):
         """
         try:
             await self.accept_invite(server_link)
-            
+
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
@@ -605,6 +606,19 @@ class MusicBot(discord.Client):
             return
 
         else:
+            
+            permission = False
+            if command in self.config.permission_groups['default']:
+                permission = True
+            elif message.author.id in self.groups_user:
+                for group in self.groups_user[message.author.id]:
+                    if group in self.config.permission_groups and command in self.config.permission_groups[group]:
+                        permission = True
+                        break
+            if not permission:
+                print("[Not allowed] {0.id}/{0.name} ({1})".format(message.author, message_content))
+                return
+
             print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
 
