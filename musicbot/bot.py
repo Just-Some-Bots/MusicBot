@@ -13,7 +13,7 @@ from discord.voice_client import VoiceClient
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
-from musicbot.utils import load_file, extract_user_id, write_file
+from musicbot.utils import load_file, extract_user_id, write_file, write_json_file, load_json_file
 
 from .downloader import extract_info
 from .exceptions import CommandError
@@ -60,6 +60,7 @@ class MusicBot(discord.Client):
         self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
         self.backuplist = load_file(self.config.backup_playlist_file)
+        self.groups_user = load_json_file(self.config.groups_user_file)
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
@@ -223,14 +224,52 @@ class MusicBot(discord.Client):
         # Maybe there's a clever way to do this
         return Response(helpmsg, reply=True, delete_after=60)
 
+
+    async def handle_group(self, message, group_name, option, username):
+        """
+        Usage: {command_prefix}group <group_name> [ + | - | add | remove ] @UserName
+        Adds or removes a user from a specific server group.
+        """
+
+        user_id = str(extract_user_id(username))
+        if not user_id:
+            raise CommandError('Invalid user specified')
+
+        if str(user_id) == self.config.owner_id:
+            return Response("The owner already has all permissions.", delete_after=10)
+
+        if group_name not in self.config.server_groups:
+            raise CommandError('The group "%s" doesn\'t exist in the server' % group_name)
+
+        if option not in ['+', '-', 'add', 'remove']:
+            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
+
+        if user_id not in self.groups_user:
+            self.groups_user[user_id] = []
+
+        if option in ['+', 'add']:
+            if group_name in self.groups_user[user_id]:
+                return Response("The user {0} is already in the group {1}.".format(username, group_name), reply=True, delete_after=10)
+            else:
+                self.groups_user[user_id].append(group_name)
+                write_json_file('./config/groups_user.json', self.groups_user)
+                return Response("The user {0} has been added to the group {1}.".format(username, group_name), reply=True, delete_after=10)
+
+        else:
+            if group_name in self.groups_user[user_id]:
+                self.groups_user[user_id].remove(group_name)
+                write_json_file('./config/groups_user.json', self.groups_user)
+                return Response("The user {0} has been removed from the group {1}.".format(username, group_name), reply=True, delete_after=10)
+            else:
+                return Response("The user {0} is not in the group {1}.".format(username, group_name), reply=True, delete_after=10)
+
+
     async def handle_whitelist(self, message, option, username):
         """
         Usage: {command_prefix}whitelist [ + | - | add | remove ] @UserName
         Adds or removes the user to the whitelist. When the whitelist is enabled,
         whitelisted users are permitted to use bot commands.
         """
-        if message.author.id != self.config.owner_id:
-            return
 
         user_id = extract_user_id(username)
         if not user_id:
@@ -262,8 +301,6 @@ class MusicBot(discord.Client):
         Adds or removes the user to the blacklist. Blacklisted users are forbidden from
         using bot commands. Blacklisting a user also removes them from the whitelist.
         """
-        if message.author.id != self.config.owner_id:
-            return
 
         user_id = extract_user_id(username)
         if not user_id:
@@ -311,8 +348,7 @@ class MusicBot(discord.Client):
         Asks the bot to join a server. [todo: add info about if it breaks or whatever]
         """
         try:
-            if message.author.id == self.config.owner_id:
-                await self.accept_invite(server_link)
+            await self.accept_invite(server_link)
 
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
@@ -610,6 +646,20 @@ class MusicBot(discord.Client):
             return
 
         else:
+
+            permission = False
+            if message.author.id == self.config.owner_id or command in self.config.server_groups['default']:
+                permission = True
+            elif message.author.id in self.groups_user:
+                for group in self.groups_user[message.author.id]:
+                    if group in self.config.server_groups and command in self.config.server_groups[group]:
+                        permission = True
+                        break
+            if not permission:
+                print("[Not allowed] {0.id}/{0.name} ({1})".format(message.author, message_content))
+                await self.send_message(message.channel, '```\nYou are not allowed to do that.\n```')
+                return
+
             print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
 

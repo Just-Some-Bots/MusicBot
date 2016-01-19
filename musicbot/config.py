@@ -10,6 +10,10 @@ class Config(object):
         self.password = config.get('Credentials', 'Password', fallback=None)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=None)
+        self.server_groups = {}
+        for group in config['ServerGroups']:
+            self.server_groups[group.lower()] = config.get('ServerGroups', group, fallback=None).lower().split()
+
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback='!')
 
         self.days_active = config.getint('MusicBot', 'DaysActive', fallback=0)
@@ -23,6 +27,7 @@ class Config(object):
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback='config/blacklist.txt')
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback='config/whitelist.txt')
         self.backup_playlist_file = config.get('Files', 'BlackupPlaylistFile', fallback='config/backuplist.txt')
+        self.groups_user_file = config.get('Files', 'GroupsUserFile', fallback='config/groups_user.json')
 
         # Validation logic for bot settings.
         if not self.username or not self.password:
@@ -30,6 +35,9 @@ class Config(object):
 
         if not self.owner_id:
             raise ValueError("An owner is not specified in the configuration file")
+
+        if 'default' not in self.server_groups:
+            raise ValueError("The default permission group should be defined in the configuration file.")
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
