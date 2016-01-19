@@ -606,9 +606,9 @@ class MusicBot(discord.Client):
             return
 
         else:
-            
+
             permission = False
-            if command in self.config.permission_groups['default']:
+            if message.author.id == self.config.owner_id or command in self.config.permission_groups['default']:
                 permission = True
             elif message.author.id in self.groups_user:
                 for group in self.groups_user[message.author.id]:
