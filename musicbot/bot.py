@@ -249,19 +249,19 @@ class MusicBot(discord.Client):
 
         if option in ['+', 'add']:
             if group_name in self.groups_user[user_id]:
-                return Response('The user is already assigned to that group', reply=True, delete_after=10)
+                return Response("The user {0} is already in the group {1}.".format(username, group_name), reply=True, delete_after=10)
             else:
                 self.groups_user[user_id].append(group_name)
                 write_json_file('./config/groups_user.json', self.groups_user)
-                return Response('user has been added to the specified group', reply=True, delete_after=10)
+                return Response("The user {0} has been added to the group {1}.".format(username, group_name), reply=True, delete_after=10)
 
         else:
             if group_name in self.groups_user[user_id]:
                 self.groups_user[user_id].remove(group_name)
                 write_json_file('./config/groups_user.json', self.groups_user)
-                return Response('user has been removed from that group', reply=True, delete_after=10)
+                return Response("The user {0} has been removed from the group {1}.".format(username, group_name), reply=True, delete_after=10)
             else:
-                return Response('The user is not assigned to that group', reply=True, delete_after=10)
+                return Response("The user {0} is not in the group {1}.".format(username, group_name), reply=True, delete_after=10)
 
 
     async def handle_whitelist(self, message, option, username):
@@ -657,6 +657,7 @@ class MusicBot(discord.Client):
                         break
             if not permission:
                 print("[Not allowed] {0.id}/{0.name} ({1})".format(message.author, message_content))
+                await self.send_message(message.channel, '```\nYou are not allowed to do that.\n```')
                 return
 
             print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
