@@ -11,11 +11,11 @@ RhinoBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### Configuration options
 
-All the configuration is done in 1 main options.txt file that you can find in the config folder. The explination is [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Configuration").
+All the configuration is done in 1 main options.txt file that you can find in the config folder. The explanation is [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Configuration").
 
 ### Commands
 
-The bot is controlled by very easy commands that you enter in the discord chat. We have a list of commands on the [wiki](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration-file "Commands list").
+The bot is controlled by very easy commands that you enter in the discord chat. We have a list of commands on the [wiki](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
 
 ### Sounds cool, How do I use it?
 Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `run.sh` on mac, `run.py` on linux)
