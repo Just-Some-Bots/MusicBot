@@ -1,11 +1,17 @@
 [Credentials]
 ; The bot needs its own account to run on (not yours)
-Username = my@email.com
-Password = rhino_is_a_numpty
+Username = MusicBot@test.moe
+Password = FM22031994
 
 [Permissions]
 ; This is your id, not the bot's id.  The bot does not own the bot.  You do.
-OwnerID = 112233445566778899
+OwnerID = 100543016825008128
+
+[ServerGroups]
+; Define here the groups that the server will have with their permissions (command names). You should have a group called default defined.
+Default = id play queue skip
+DJ = pause resume volume shuffle
+Admin = whitelist blacklist joinserver
 
 [Chat]
 ; Change this if you don't want commands to trigger another bot
