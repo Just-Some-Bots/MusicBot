@@ -608,11 +608,11 @@ class MusicBot(discord.Client):
         else:
 
             permission = False
-            if message.author.id == self.config.owner_id or command in self.config.permission_groups['default']:
+            if message.author.id == self.config.owner_id or command in self.config.server_groups['default']:
                 permission = True
             elif message.author.id in self.groups_user:
                 for group in self.groups_user[message.author.id]:
-                    if group in self.config.permission_groups and command in self.config.permission_groups[group]:
+                    if group in self.config.server_groups and command in self.config.server_groups[group]:
                         permission = True
                         break
             if not permission:
