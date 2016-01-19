@@ -1,4 +1,5 @@
 import os
+import time
 import traceback
 
 from array import array
@@ -97,7 +98,22 @@ class MusicPlayer(EventEmitter):
 
             else:
                 print("[config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
-                os.unlink(entry.filename)
+
+                try:
+                    os.unlink(entry.filename)
+                except PermissionError as e:
+                    if e.winerror == 32: # File is in use
+                        print("File is locked")
+
+                        while True:
+                            try:
+                                os.unlink(entry.filename)
+                                break
+                            except PermissionError as e:
+                                if e.winerror == 32:
+                                    time.sleep(0.2)
+                    else:
+                        traceback.print_exc()
 
         self.emit('finished-playing', player=self, entry=entry)
 
