@@ -13,7 +13,7 @@ from discord.voice_client import VoiceClient
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
-from musicbot.utils import load_file, extract_user_id, write_file, write_json_file
+from musicbot.utils import load_file, extract_user_id, write_file, write_json_file, load_json_file
 
 from .downloader import extract_info
 from .exceptions import CommandError
@@ -60,7 +60,7 @@ class MusicBot(discord.Client):
         self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
         self.backuplist = load_file(self.config.backup_playlist_file)
-        self.groups_user = {}
+        self.groups_user = load_json_file(self.config.groups_user_file)
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
