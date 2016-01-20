@@ -161,9 +161,8 @@ class MusicBot(discord.Client):
 
     async def on_finished_playing(self, player, **_):
         if not player.playlist.entries and self.config.auto_playlist:
-            from random import choice
             song_url = choice(self.backuplist)
-            entry, position = await player.playlist.add_entry(song_url, channel=None, author=None)
+            await player.playlist.add_entry(song_url, channel=None, author=None)
 
 
     def update_now_playing(self, entry=None, is_paused=False):
