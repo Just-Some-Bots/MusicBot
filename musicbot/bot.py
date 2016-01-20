@@ -159,8 +159,11 @@ class MusicBot(discord.Client):
                 newmsg = 'Now playing in %s: **%s**' % (
                     player.voice_client.channel.name, entry.title)
 
-            watdo = self.edit_message if self.last_np_msg else self.send_message
-            self.last_np_msg = await watdo(entry.meta['channel'], newmsg)
+            if self.last_np_msg:
+                self.last_np_msg = await self.edit_message(self.last_np_msg, newmsg)
+            else:
+                self.last_np_msg = await self.send_message(channel, newmsg)
+
 
         # TODO: Delete last now playing message
 
