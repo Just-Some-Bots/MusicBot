@@ -83,9 +83,11 @@ class Playlist(EventEmitter):
                     self._add_entry(entry)
                     entry_list.append(entry)
                 except:
-                    traceback.print_exc()
-                    print("Could not add item:")
-                    print(str(items))
+                    pass
+                    # Once I know more about what's happening here I can add a proper message
+                    # traceback.print_exc()
+                    # print("Could not add item:")
+                    # print(str(items))
 
         return entry_list, position
 
