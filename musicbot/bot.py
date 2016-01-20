@@ -134,19 +134,31 @@ class MusicBot(discord.Client):
 
         return self.players[server.id]
 
-    def on_play(self, player, entry):
+    async def on_play(self, player, entry):
         self.update_now_playing(entry)
         player.skip_state.reset()
 
-        if entry.meta.get('channel', None):
+        channel = entry.meta.get('channel', None)
+        author = entry.meta.get('author', None)
+
+        if channel and author:
+            if self.last_np_msg and self.last_np_msg.channel == channel:
+
+                async for lmsg in self.logs_from(channel, limit=1):
+                    if lmsg.author != self.user:
+                        await self.delete_message(self.last_np_msg)
+                        self.last_np_msg = None
+                    break
+
             if self.config.now_playing_mentions:
-                self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name
-                )))
+                newmsg = '%s - your song **%s** is now playing in %s!' % (
+                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
-                    player.voice_client.channel.name, entry.title
-                )))
+                newmsg = 'Now playing in %s: **%s**' % (
+                    player.voice_client.channel.name, entry.title)
+
+            watdo = self.edit_message if self.last_np_msg else self.send_message
+            self.last_np_msg = await watdo(entry.meta['channel'], newmsg)
 
         # TODO: Delete last now playing message
 
@@ -362,7 +374,6 @@ class MusicBot(discord.Client):
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
                 num_songs = sum(1 for _ in info['entries'])
 
-                # This message can be deleted after playlist processing is done.
                 procmesg = await self.send_message(channel,
                     'Gathering playlist information for {} songs{}'.format(
                         num_songs,
@@ -377,9 +388,12 @@ class MusicBot(discord.Client):
 
                 tnow = time.time()
                 ttime = tnow - t0
+                listlen = len(entry_list)
 
-                print("Processed {} songs in {:.2g} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
-                    len(entry_list), ttime, ttime/len(entry_list), ttime/len(entry_list) - wait_per_song))
+                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                    listlen, '{:.2f}'.format(ttime).rstrip('0').rstrip('.'), ttime/listlen,
+                    ttime/listlen - wait_per_song, wait_per_song*listlen)
+                )
 
                 await self.delete_message(procmesg)
 
@@ -565,11 +579,12 @@ class MusicBot(discord.Client):
         unlisted = 0
         andmoretext = '* ... and %s more*' % ('x'*len(player.playlist.entries))
 
-        if player.current_entry.meta.get('channel', False):
-            lines.append("Now Playing: **%s** added by **%s**\n" % (
-                player.current_entry.title, player.current_entry.meta['author'].name))
-        else:
-            lines.append("Now Playing: **%s**\n" % player.current_entry.title)
+        if player.current_entry:
+            if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+                lines.append("Now Playing: **%s** added by **%s**\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name))
+            else:
+                lines.append("Now Playing: **%s**\n" % player.current_entry.title)
 
         for i, item in enumerate(player.playlist, 1):
             nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
