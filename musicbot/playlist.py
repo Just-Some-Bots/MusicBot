@@ -69,17 +69,23 @@ class Playlist(EventEmitter):
             raise ExtractionError('Could not extract information from %s' % playlist_url)
 
         for items in info['entries']:
-            entry = PlaylistEntry(
-                self,
-                items['webpage_url'],
-                items['id'],
-                items['title'],
-                items.get('duration', 0),
-                **meta
-            )
+            if items:
+                try:
+                    entry = PlaylistEntry(
+                        self,
+                        items['webpage_url'],
+                        items['id'],
+                        items['title'],
+                        items.get('duration', 0),
+                        **meta
+                    )
 
-            self._add_entry(entry)
-            entry_list.append(entry)
+                    self._add_entry(entry)
+                    entry_list.append(entry)
+                except:
+                    traceback.print_exc()
+                    print("Could not add item:")
+                    print(str(items))
 
         return entry_list, position
 
