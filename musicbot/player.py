@@ -94,10 +94,10 @@ class MusicPlayer(EventEmitter):
 
         if not self.bot.config.save_videos:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
-                print("[config:SaveVideos] Skipping deletion, found song in queue")
+                print("[Config:SaveVideos] Skipping deletion, found song in queue")
 
             else:
-                print("[config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
 
                 try:
                     os.unlink(entry.filename)

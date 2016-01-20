@@ -11,6 +11,7 @@ class GIT(object):
             return False
 
 
+# TODO: Try "sys.argv[0] -m pip ..." variant, and use import as backup
 class PIP(object):
 
     looked_for = False
@@ -175,7 +176,8 @@ def main():
                 pass
 
             if pycom:
-                print("Python 3 found.  Launching bot...")
+                print("\nPython 3 found.  Re-launching bot using: ")
+                print("  %s run.py\n" % pycom)
                 os.system("kill -9 %s && %s run.py" % (os.getpid(), pycom))
                 # If the process isn't killed by now then bugger it
                 # sys.exit(0)
@@ -227,6 +229,7 @@ def main():
             traceback.print_exc()
 
             if not tried_requirementstxt:
+                print("Attempting to install dependencies...")
                 tried_requirementstxt = True
                 err = PIP.run_install('-r requirements.txt', quiet=True)
 
@@ -238,6 +241,7 @@ def main():
                 tryagain = unfuck(e)
                 if not tryagain:
                     input('Press enter to continue . . .')
+
 
 def unfuck(e):
     try:
