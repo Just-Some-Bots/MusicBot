@@ -363,7 +363,7 @@ class MusicBot(discord.Client):
 
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
 
-            if 'playlist?list' in song_url:
+            if 'playlist?list' in song_url or '/sets/' in song_url:
                 t0 = time.time()
 
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
