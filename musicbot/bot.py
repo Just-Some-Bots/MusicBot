@@ -63,6 +63,8 @@ class MusicBot(discord.Client):
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
         self.backuplist = load_file(self.config.backup_playlist_file)
 
+        self.last_np_msg = None
+
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
