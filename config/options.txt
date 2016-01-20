@@ -25,7 +25,7 @@ SkipsRequired = 7
 SkipRatio = 0.5
 
 ; If no, delete videos after they've played, if the video
-; isn't still in the queue to avoid redownloading it
+; isn't still in the queue, to avoid redownloading it
 SaveVideos = yes
 
 ; Mentions the user who queued a song when the song plays
@@ -33,3 +33,6 @@ NowPlayingMentions = no
 
 ; On start up, if the owner is in a voice channel, join that channel
 AutoSummon = yes
+
+; Play random songs when nothing is queued
+UseAutoPlaylist = yes
