@@ -20,6 +20,8 @@ from .exceptions import CommandError
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
+from random import choice
+
 VERSION = '2.0'
 
 load_opus_lib()
@@ -104,6 +106,7 @@ class MusicBot(discord.Client):
 
             voice_client = VoiceClient(**kwargs)
             self.voice_clients[server.id] = voice_client
+
             await voice_client.connect()
             return voice_client
 
@@ -123,7 +126,8 @@ class MusicBot(discord.Client):
                 .on('play', self.on_play) \
                 .on('resume', self.on_resume) \
                 .on('pause', self.on_pause) \
-                .on('stop', self.on_stop)
+                .on('stop', self.on_stop) \
+                .on('finished-playing', self.on_finished_playing)
 
             player.skip_state = SkipState()
             self.players[server.id] = player
@@ -134,14 +138,17 @@ class MusicBot(discord.Client):
         self.update_now_playing(entry)
         player.skip_state.reset()
 
-        if self.config.now_playing_mentions:
-            self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
-                entry.meta['author'].mention, entry.title, player.voice_client.channel.name
-            )))
-        else:
-            self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
-                player.voice_client.channel.name, entry.title
-            )))
+        if entry.meta.get('channel', None):
+            if self.config.now_playing_mentions:
+                self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
+                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name
+                )))
+            else:
+                self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
+                    player.voice_client.channel.name, entry.title
+                )))
+
+        # TODO: Delete last now playing message
 
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
@@ -151,6 +158,13 @@ class MusicBot(discord.Client):
 
     def on_stop(self, **_):
         self.update_now_playing()
+
+    async def on_finished_playing(self, player, **_):
+        if not player.playlist.entries and self.config.auto_playlist:
+            from random import choice
+            song_url = choice(self.backuplist)
+            entry, position = await player.playlist.add_entry(song_url, channel=None, author=None)
+
 
     def update_now_playing(self, entry=None, is_paused=False):
         game = None
@@ -181,6 +195,7 @@ class MusicBot(discord.Client):
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
+        print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
         print()
 
         if self.servers:
@@ -202,16 +217,23 @@ class MusicBot(discord.Client):
         if self.config.auto_summon:
             await self._auto_summon()
 
+            if self.config.auto_playlist:
+                await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
+
 
     async def _auto_summon(self):
+        channel = self._get_owner_voice_channel()
+        if channel:
+            await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
+        else:
+            print("Owner not found in a voice channel, could not autosummon.")
+
+    def _get_owner_voice_channel(self):
         for server in self.servers:
             for channel in server.channels:
                 if discord.utils.get(channel.voice_members, id=self.config.owner_id):
-                    print("Owner found in %s/%s" % (server, channel))
-                    await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
-                    return
+                    return channel
 
-        print("Owner not found in a voice channel, could not autosummon.")
 
 
     async def handle_help(self, message):
@@ -329,8 +351,6 @@ class MusicBot(discord.Client):
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
 
             if 'playlist?list' in song_url:
-                print('Playlist song url:', song_url)
-
                 t0 = time.time()
 
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can

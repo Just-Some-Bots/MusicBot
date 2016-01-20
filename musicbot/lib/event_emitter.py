@@ -1,10 +1,12 @@
-import collections
+import asyncio
 import traceback
+import collections
 
 
 class EventEmitter(object):
     def __init__(self):
         self._events = collections.defaultdict(list)
+        self.loop = asyncio.get_event_loop()
 
     def emit(self, event, *args, **kwargs):
         if event not in self._events:
@@ -13,7 +15,10 @@ class EventEmitter(object):
         for cb in self._events[event]:
             # noinspection PyBroadException
             try:
-                cb(*args, **kwargs)
+                if asyncio.iscoroutinefunction(cb):
+                    asyncio.ensure_future(cb(*args, **kwargs), loop=self.loop)
+                else:
+                    cb(*args, **kwargs)
 
             except:
                 traceback.print_exc()
