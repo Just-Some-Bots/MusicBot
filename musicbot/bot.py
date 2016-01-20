@@ -233,9 +233,6 @@ class MusicBot(discord.Client):
         if self.config.auto_summon:
             await self._auto_summon()
 
-            if self.config.auto_playlist:
-                await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
-
 
     async def _auto_summon(self):
         channel = self._get_owner_voice_channel()
@@ -450,6 +447,9 @@ class MusicBot(discord.Client):
         #     return Response('ok?')
 
         player = await self.get_player(channel, create=True)
+
+        if self.config.auto_playlist:
+            await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
 
         if player.is_stopped:
             player.play()
