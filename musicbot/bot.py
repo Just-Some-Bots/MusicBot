@@ -563,16 +563,21 @@ class MusicBot(discord.Client):
 
         lines = []
         unlisted = 0
+        andmoretext = '* ... and %s more*' % ('x'*len(player.playlist.entries))
 
-        # TODO: Add "Now Playing: ..."
+        if player.current_entry.meta.get('channel', False):
+            lines.append("Now Playing: **%s** added by **%s**\n" % (
+                player.current_entry.title, player.current_entry.meta['author'].name))
+        else:
+            lines.append("Now Playing: **%s**\n" % player.current_entry.title)
 
         for i, item in enumerate(player.playlist, 1):
-            nextline = '{}) **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+            nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
             currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
 
             # This is fine I guess, don't need to worry too much about trying to squeeze as much in as possible
-            if currentlinesum + len(nextline) + len('* ... and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
-                if currentlinesum + len('* ... and xxx more*'):
+            if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
+                if currentlinesum + len(andmoretext):
                     unlisted += 1
                     continue
 
