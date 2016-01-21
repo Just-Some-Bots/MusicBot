@@ -370,7 +370,9 @@ class MusicBot(discord.Client):
 
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
 
-            if 'playlist?list' in song_url:
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+            if 'entries' in info:
                 t0 = time.time()
 
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
@@ -380,7 +382,6 @@ class MusicBot(discord.Client):
                 # Different playlists might download at different speeds though
                 wait_per_song = 1.2
 
-                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
                 num_songs = sum(1 for _ in info['entries'])
 
                 procmesg = await self.send_message(channel,
