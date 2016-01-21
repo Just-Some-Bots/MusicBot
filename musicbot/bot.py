@@ -59,6 +59,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
+        self.musicwhitelist = load_file(self.config.musicwhitelist_file)
         self.backuplist = load_file(self.config.backup_playlist_file)
 
     async def get_voice_client(self, channel):
@@ -322,6 +323,18 @@ class MusicBot(discord.Client):
         Usage {command_prefix}play [song link]
         Adds the song to the playlist.
         """
+
+        URLWhitelisted = False
+        # Since there is no whitelist/blacklist for strings lets make our own.
+        for line in self.musicwhitelist:
+            if line in song_url:
+                URLWhitelisted = True
+                break
+
+        if not URLWhitelisted:
+            reply_text = "The URL '**%s**' you have provided, is not whitelisted. Please contact an administrator if you want it whitelisted."
+            reply_text = reply_text % song_url
+            return Response(reply_text, reply=True, delete_after=0)
 
         try:
             await self.send_typing(channel)
