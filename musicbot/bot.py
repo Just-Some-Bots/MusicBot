@@ -471,7 +471,7 @@ class MusicBot(discord.Client):
  +        Usage {command_prefix}clear
  +        Clears the playlist.
  +        """
- +        if author.id == self.config.owner_id
+ +        if author.id == self.config.owner_id:
  +            player.playlist.clear()
  +            return
 
