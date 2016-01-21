@@ -232,18 +232,21 @@ class MusicBot(discord.Client):
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
 
         if self.config.auto_summon:
-            await self._auto_summon()
+            as_ok = await self._auto_summon()
 
-            if self.config.auto_playlist:
+            if self.config.auto_playlist and as_ok:
                 await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
 
 
+    # TODO: autosummon option to a specific channel
     async def _auto_summon(self):
         channel = self._get_owner_voice_channel()
         if channel:
             await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
+            return True
         else:
             print("Owner not found in a voice channel, could not autosummon.")
+            return False
 
     def _get_owner_voice_channel(self):
         for server in self.servers:
