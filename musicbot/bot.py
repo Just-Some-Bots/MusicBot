@@ -445,6 +445,16 @@ class MusicBot(discord.Client):
         if not channel:
             raise CommandError('You are not in a voice channel!')
 
+        chperms = channel.permissions_for(channel.server.me)
+
+        if not chperms.connect:
+            print("Cannot join channel \"%s\", no permission." % channel.name)
+            return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
+
+        elif not chperms.speak:
+            print("Will not join channel \"%s\", no permission to speak." % channel.name)
+            return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
+
         # if moving:
         #     await self.move_member(channel.server.me, channel)
         #     return Response('ok?')
