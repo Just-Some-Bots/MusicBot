@@ -26,9 +26,9 @@ class Playlist(EventEmitter):
 
     def shuffle(self):
         shuffle(self.entries)
-        
+
     def clear(self):
-        self.entries.clear()   
+        self.entries.clear()
 
     async def add_entry(self, song_url, **meta):
         """
@@ -71,6 +71,7 @@ class Playlist(EventEmitter):
         if not info:
             raise ExtractionError('Could not extract information from %s' % playlist_url)
 
+        baditems = 0
         for items in info['entries']:
             if items:
                 try:
@@ -86,12 +87,17 @@ class Playlist(EventEmitter):
                     self._add_entry(entry)
                     entry_list.append(entry)
                 except:
+                    baditems += 1
                     # Once I know more about what's happening here I can add a proper message
                     traceback.print_exc()
                     print(items)
                     print("Could not add item")
             else:
-                print("Skipping bad entry")
+                baditems += 1
+
+        if baditems:
+            print("Skipped %s bad entries" % baditems)
+
         return entry_list, position
 
     def _add_entry(self, entry):

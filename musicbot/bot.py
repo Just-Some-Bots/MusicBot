@@ -397,7 +397,7 @@ class MusicBot(discord.Client):
 
                 print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
                     listlen, '{:.2f}'.format(ttime).rstrip('0').rstrip('.'), ttime/listlen,
-                    ttime/listlen - wait_per_song, wait_per_song*listlen)
+                    ttime/listlen - wait_per_song, wait_per_song*num_songs)
                 )
 
                 await self.delete_message(procmesg)
