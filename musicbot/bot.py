@@ -466,14 +466,14 @@ class MusicBot(discord.Client):
         player.playlist.shuffle()
         return Response('*shuffleshuffleshuffle*', delete_after=10)
         
- +    async def handle_clear(self, player, author):
-          """
- +        Usage {command_prefix}clear
- +        Clears the playlist.
- +        """
- +        if author.id == self.config.owner_id:
- +            player.playlist.clear()
- +            return
+    async def handle_clear(self, player, author):
+        """
+        Usage {command_prefix}clear
+        Clears the playlist.
+        """
+         if author.id == self.config.owner_id:
+             player.playlist.clear()
+             return
 
     async def handle_skip(self, player, channel, author):
         """
