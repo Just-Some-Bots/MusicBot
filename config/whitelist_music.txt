@@ -1,0 +1,5 @@
+.youtube.com
+//youtube.com
+.bandcamp.com
+.soundcloud.com
+//soundcloud.com
