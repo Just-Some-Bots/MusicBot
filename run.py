@@ -27,28 +27,10 @@ class PIP(object):
 
         if cls.use_import:
             try:
-                import pip
-
-                if check_output:
-                    from io import StringIO
-
-                    out = StringIO()
-                    sys.stdout = out
-
-                    try:
-                        pip.main(["-q"] + command.split() if quiet else command.split())
-
-                    except:
-                        traceback.print_exc()
-
-                    finally:
-                        sys.stdout = sys.__stdout__
-                        pipinfos = out.readlines()
-                        print(pipinfos)
-                        out.close()
-
-                else:
-                    return pip.main(["-q"] + command.split() if quiet else command.split())
+                return check("{} -m pip {}{}".format(
+                    sys.executable,
+                    '-q ' if quiet else '',
+                    command).split(), shell=True)
 
             except:
                 traceback.print_exc()
@@ -61,7 +43,7 @@ class PIP(object):
                 return check("{} {}{}".format(
                     cls.pip_command,
                     '-q ' if quiet else '',
-                    command), shell=True)
+                    command).split(), shell=True)
             except subprocess.CalledProcessError as e:
                 return e.returncode
         else:
