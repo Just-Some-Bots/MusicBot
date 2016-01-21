@@ -28,7 +28,7 @@ class Playlist(EventEmitter):
         shuffle(self.entries)
         
     def clear(self):
- +        self.entries.clear()   
+        self.entries.clear()   
 
     async def add_entry(self, song_url, **meta):
         """
