@@ -97,7 +97,7 @@ class MusicPlayer(EventEmitter):
                 print("[Config:SaveVideos] Skipping deletion, found song in queue")
 
             else:
-                print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
 
                 try:
                     os.unlink(entry.filename)
@@ -105,13 +105,16 @@ class MusicPlayer(EventEmitter):
                     if e.winerror == 32: # File is in use
                         print("File is locked")
 
-                        while True:
+                        for x in range(25):
                             try:
                                 os.unlink(entry.filename)
                                 break
                             except PermissionError as e:
                                 if e.winerror == 32:
                                     time.sleep(0.2)
+                                    if x == 24:
+                                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                                            os.path.relpath(entry.filename)))
                     else:
                         traceback.print_exc()
 
