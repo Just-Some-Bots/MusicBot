@@ -108,7 +108,6 @@ def main():
                 print("  %s run.py\n" % pycom)
 
                 os.system("kill -9 %s && %s run.py" % (os.getpid(), pycom))
-                # This doesn't really work right...
 
 
         print("Please run the bot using python 3.5")
