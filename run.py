@@ -11,81 +11,38 @@ class GIT(object):
             return False
 
 
-# TODO: Try "sys.argv[0] -m pip ..." variant, and use import as backup
 class PIP(object):
 
-    looked_for = False
-    use_import = True
-    pip_command = None
-
     @classmethod
-    def run(cls, command, use_command=False, quiet=False, check_output=False):
+    def run(cls, command, quiet=False, check_output=False):
         if not cls.works():
-            raise RuntimeError("PIP could not be located or imported.")
+            raise RuntimeError("Could not import pip.")
 
         check = subprocess.check_output if check_output else subprocess.check_call
+        fullcommand = [sys.executable] + "-m pip {}{}".format('-q ' if quiet else '', command)
 
-        if cls.use_import:
-            try:
-                return check("{} -m pip {}{}".format(
-                    sys.executable,
-                    '-q ' if quiet else '',
-                    command).split(), shell=True)
+        try:
+            return check(fullcommand.split(), shell=True)
 
-            except:
-                traceback.print_exc()
-                print("Error using pip import")
-                # Using fallback...?
-                # rerun this commanmd with use_command if pip_command is not none
-
-        elif use_command and cls.pip_command is not None:
-            try:
-                return check("{} {}{}".format(
-                    cls.pip_command,
-                    '-q ' if quiet else '',
-                    command).split(), shell=True)
-            except subprocess.CalledProcessError as e:
-                return e.returncode
-        else:
-            raise RuntimeError("PIP was not located, cannot run commands.")
+        except:
+            traceback.print_exc()
+            raise RuntimeError("Failed to run command: %s" % fullcommand)
 
     @classmethod
-    def run_install(cls, cmd, use_import=False, quiet=False, check_output=False):
-        return cls.run("install %s" % cmd, use_import, quiet, check_output)
+    def run_install(cls, cmd, quiet=False, check_output=False):
+        return cls.run("install %s" % cmd, quiet, check_output)
 
     @classmethod
-    def run_show(cls, cmd, use_import=False, quiet=False, check_output=False):
-        return cls.run("show %s" % cmd, use_import, quiet, check_output)
+    def run_show(cls, cmd, quiet=False, check_output=False):
+        return cls.run("show %s" % cmd, quiet, check_output)
 
     @classmethod
     def works(cls):
-        if not cls.looked_for:
-            cls.find_pip3()
-
-        return cls.use_import or cls.pip_command
-
-    @classmethod
-    def find_pip3(cls):
-        cls.looked_for = True
-
         try:
             import pip
-            cls.use_import = True
-        except:
-            print("Tried to import pip but it failed. This does not bode well.")
-
-        if cls._check_command_exists('pip3.5 -V'):
-            cls.pip_command = 'pip3.5'
-
-        elif cls._check_command_exists('pip3 -V'):
-            if subprocess.check_output('pip3 -V', shell=True).strip().endswith('(python 3.5)'):
-                cls.pip_command = 'pip3'
-
-        elif cls._check_command_exists('pip -V'):
-            if subprocess.check_output('pip -V', shell=True).strip().endswith('(python 3.5)'):
-                cls.pip_command = 'pip'
-
-        return cls.works()
+            return True
+        except ImportError:
+            return False
 
     @classmethod
     def get_module_version(cls, mod):
@@ -100,17 +57,6 @@ class PIP(object):
                 return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
         except:
             pass
-
-    @staticmethod
-    def _check_command_exists(cmd):
-        try:
-            subprocess.check_output(cmd, shell=True)
-            return True
-        except subprocess.CalledProcessError:
-            return True
-        except:
-            traceback.print_exc()
-            return False
 
 
 def open_in_wb(text, printanyways=True, indents=4):
@@ -160,9 +106,9 @@ def main():
             if pycom:
                 print("\nPython 3 found.  Re-launching bot using: ")
                 print("  %s run.py\n" % pycom)
+
                 os.system("kill -9 %s && %s run.py" % (os.getpid(), pycom))
-                # If the process isn't killed by now then bugger it
-                # sys.exit(0)
+                # This doesn't really work right...
 
 
         print("Please run the bot using python 3.5")
@@ -211,8 +157,8 @@ def main():
             traceback.print_exc()
 
             if not tried_requirementstxt:
-                print("Attempting to install dependencies...")
                 tried_requirementstxt = True
+                print("Attempting to install dependencies...")
                 err = PIP.run_install('-r requirements.txt', quiet=True)
 
                 if err == 2:
@@ -236,8 +182,6 @@ def unfuck(e):
             return
 
     print()
-
-    # TODO: Clean up redundant code from before I added the requirements.txt install code
 
     if e.name == 'discord':
         if PIP.get_module_version('discord.py'):
