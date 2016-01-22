@@ -99,7 +99,7 @@ def main():
 
         else:
             try:
-                pycom = subprocess.check_output(['which', 'python3.5'])
+                pycom = subprocess.check_output(['which', 'python3.5']).strip().decode()
             except:
                 pass
 
