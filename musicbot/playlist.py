@@ -27,6 +27,9 @@ class Playlist(EventEmitter):
     def shuffle(self):
         shuffle(self.entries)
 
+    def clear(self):
+        self.entries.clear()
+
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
@@ -68,18 +71,32 @@ class Playlist(EventEmitter):
         if not info:
             raise ExtractionError('Could not extract information from %s' % playlist_url)
 
+        baditems = 0
         for items in info['entries']:
-            entry = PlaylistEntry(
-                self,
-                items['webpage_url'],
-                items['id'],
-                items['title'],
-                items.get('duration', 0),
-                **meta
-            )
+            if items:
+                try:
+                    entry = PlaylistEntry(
+                        self,
+                        items['webpage_url'],
+                        items['id'],
+                        items['title'],
+                        items.get('duration', 0),
+                        **meta
+                    )
 
-            self._add_entry(entry)
-            entry_list.append(entry)
+                    self._add_entry(entry)
+                    entry_list.append(entry)
+                except:
+                    baditems += 1
+                    # Once I know more about what's happening here I can add a proper message
+                    traceback.print_exc()
+                    print(items)
+                    print("Could not add item")
+            else:
+                baditems += 1
+
+        if baditems:
+            print("Skipped %s bad entries" % baditems)
 
         return entry_list, position
 

@@ -1,4 +1,5 @@
 import os
+import time
 import traceback
 
 from array import array
@@ -93,11 +94,29 @@ class MusicPlayer(EventEmitter):
 
         if not self.bot.config.save_videos:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
-                print("[config:SaveVideos] Skipping deletion, found song in queue")
+                print("[Config:SaveVideos] Skipping deletion, found song in queue")
 
             else:
-                print("[config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
-                os.unlink(entry.filename)
+                # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+
+                try:
+                    os.unlink(entry.filename)
+                except PermissionError as e:
+                    if e.winerror == 32: # File is in use
+                        print("File is locked")
+
+                        for x in range(25):
+                            try:
+                                os.unlink(entry.filename)
+                                break
+                            except PermissionError as e:
+                                if e.winerror == 32:
+                                    time.sleep(0.2)
+                                    if x == 24:
+                                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                                            os.path.relpath(entry.filename)))
+                    else:
+                        traceback.print_exc()
 
         self.emit('finished-playing', player=self, entry=entry)
 

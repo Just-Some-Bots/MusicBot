@@ -20,6 +20,9 @@ from .exceptions import CommandError
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
+from random import choice
+from datetime import timedelta
+
 VERSION = '2.0'
 
 load_opus_lib()
@@ -60,6 +63,8 @@ class MusicBot(discord.Client):
         self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
         self.backuplist = load_file(self.config.backup_playlist_file)
+
+        self.last_np_msg = None
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
@@ -104,6 +109,7 @@ class MusicBot(discord.Client):
 
             voice_client = VoiceClient(**kwargs)
             self.voice_clients[server.id] = voice_client
+
             await voice_client.connect()
             return voice_client
 
@@ -123,25 +129,41 @@ class MusicBot(discord.Client):
                 .on('play', self.on_play) \
                 .on('resume', self.on_resume) \
                 .on('pause', self.on_pause) \
-                .on('stop', self.on_stop)
+                .on('stop', self.on_stop) \
+                .on('finished-playing', self.on_finished_playing)
 
             player.skip_state = SkipState()
             self.players[server.id] = player
 
         return self.players[server.id]
 
-    def on_play(self, player, entry):
+    async def on_play(self, player, entry):
         self.update_now_playing(entry)
         player.skip_state.reset()
 
-        if self.config.now_playing_mentions:
-            self.loop.create_task(self.send_message(entry.meta['channel'], '%s - your song **%s** is now playing in %s!' % (
-                entry.meta['author'].mention, entry.title, player.voice_client.channel.name
-            )))
-        else:
-            self.loop.create_task(self.send_message(entry.meta['channel'], 'Now playing in %s: **%s**' % (
-                player.voice_client.channel.name, entry.title
-            )))
+        channel = entry.meta.get('channel', None)
+        author = entry.meta.get('author', None)
+
+        if channel and author:
+            if self.last_np_msg and self.last_np_msg.channel == channel:
+
+                async for lmsg in self.logs_from(channel, limit=1):
+                    if lmsg.author != self.user:
+                        await self.delete_message(self.last_np_msg)
+                        self.last_np_msg = None
+                    break
+
+            if self.config.now_playing_mentions:
+                newmsg = '%s - your song **%s** is now playing in %s!' % (
+                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
+            else:
+                newmsg = 'Now playing in %s: **%s**' % (
+                    player.voice_client.channel.name, entry.title)
+
+            if self.last_np_msg:
+                self.last_np_msg = await self.edit_message(self.last_np_msg, newmsg)
+            else:
+                self.last_np_msg = await self.send_message(channel, newmsg)
 
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
@@ -151,6 +173,12 @@ class MusicBot(discord.Client):
 
     def on_stop(self, **_):
         self.update_now_playing()
+
+    async def on_finished_playing(self, player, **_):
+        if not player.playlist.entries and self.config.auto_playlist:
+            song_url = choice(self.backuplist)
+            await player.playlist.add_entry(song_url, channel=None, author=None)
+
 
     def update_now_playing(self, entry=None, is_paused=False):
         game = None
@@ -181,6 +209,7 @@ class MusicBot(discord.Client):
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
+        print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
         print()
 
         if self.servers:
@@ -200,18 +229,28 @@ class MusicBot(discord.Client):
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
 
         if self.config.auto_summon:
-            await self._auto_summon()
+            as_ok = await self._auto_summon()
+
+            if self.config.auto_playlist and as_ok:
+                await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
 
 
+    # TODO: autosummon option to a specific channel
     async def _auto_summon(self):
+        channel = self._get_owner_voice_channel()
+        if channel:
+            await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
+            return True
+        else:
+            print("Owner not found in a voice channel, could not autosummon.")
+            return False
+
+    def _get_owner_voice_channel(self):
         for server in self.servers:
             for channel in server.channels:
                 if discord.utils.get(channel.voice_members, id=self.config.owner_id):
-                    print("Owner found in %s/%s" % (server, channel))
-                    await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
-                    return
+                    return channel
 
-        print("Owner not found in a voice channel, could not autosummon.")
 
 
     async def handle_help(self, message):
@@ -328,9 +367,9 @@ class MusicBot(discord.Client):
 
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
 
-            if 'playlist?list' in song_url:
-                print('Playlist song url:', song_url)
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
 
+            if 'entries' in info:
                 t0 = time.time()
 
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
@@ -340,10 +379,8 @@ class MusicBot(discord.Client):
                 # Different playlists might download at different speeds though
                 wait_per_song = 1.2
 
-                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
                 num_songs = sum(1 for _ in info['entries'])
 
-                # This message can be deleted after playlist processing is done.
                 procmesg = await self.send_message(channel,
                     'Gathering playlist information for {} songs{}'.format(
                         num_songs,
@@ -358,9 +395,12 @@ class MusicBot(discord.Client):
 
                 tnow = time.time()
                 ttime = tnow - t0
+                listlen = len(entry_list)
 
-                print("Processed {} songs in {:.2g} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
-                    len(entry_list), ttime, ttime/len(entry_list), ttime/len(entry_list) - wait_per_song))
+                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                    listlen, '{:.2f}'.format(ttime).rstrip('0').rstrip('.'), ttime/listlen,
+                    ttime/listlen - wait_per_song, wait_per_song*num_songs)
+                )
 
                 await self.delete_message(procmesg)
 
@@ -407,6 +447,16 @@ class MusicBot(discord.Client):
         if not channel:
             raise CommandError('You are not in a voice channel!')
 
+        chperms = channel.permissions_for(channel.server.me)
+
+        if not chperms.connect:
+            print("Cannot join channel \"%s\", no permission." % channel.name)
+            return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
+
+        elif not chperms.speak:
+            print("Will not join channel \"%s\", no permission to speak." % channel.name)
+            return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
+
         # if moving:
         #     await self.move_member(channel.server.me, channel)
         #     return Response('ok?')
@@ -446,6 +496,15 @@ class MusicBot(discord.Client):
         """
         player.playlist.shuffle()
         return Response('*shuffleshuffleshuffle*', delete_after=10)
+
+    async def handle_clear(self, player, author):
+        """
+        Usage {command_prefix}clear
+        Clears the playlist.
+        """
+        if author.id == self.config.owner_id:
+            player.playlist.clear()
+            return
 
     async def handle_skip(self, player, channel, author):
         """
@@ -544,16 +603,30 @@ class MusicBot(discord.Client):
 
         lines = []
         unlisted = 0
+        andmoretext = '* ... and %s more*' % ('x'*len(player.playlist.entries))
 
-        # TODO: Add "Now Playing: ..."
+        if player.current_entry:
+            song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
+            song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+                lines.append("Now Playing: **%s** added by **%s** %s\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
+            else:
+                lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
+
 
         for i, item in enumerate(player.playlist, 1):
-            nextline = '{}) **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+            if item.meta.get('channel', False) and item.meta.get('author', False):
+                nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+            else:
+                nextline = '`{}.` **{}**'.format(i, item.title).strip()
+
             currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
 
-            # This is fine I guess, don't need to worry too much about trying to squeeze as much in as possible
-            if currentlinesum + len(nextline) + len('* ... and xxx more*') > DISCORD_MSG_CHAR_LIMIT:
-                if currentlinesum + len('* ... and xxx more*'):
+            if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
+                if currentlinesum + len(andmoretext):
                     unlisted += 1
                     continue
 
