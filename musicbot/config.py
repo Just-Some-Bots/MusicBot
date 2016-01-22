@@ -23,6 +23,7 @@ class Config(object):
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback='config/blacklist.txt')
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback='config/whitelist.txt')
+        self.musicwhitelist_file = config.get('Files', 'MusicWhitelistFile', fallback='config/whitelist_music.txt')
         self.backup_playlist_file = config.get('Files', 'BlackupPlaylistFile', fallback='config/backuplist.txt')
 
         # Validation logic for bot settings.
