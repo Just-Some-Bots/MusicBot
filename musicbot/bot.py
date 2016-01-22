@@ -165,9 +165,6 @@ class MusicBot(discord.Client):
             else:
                 self.last_np_msg = await self.send_message(channel, newmsg)
 
-
-        # TODO: Delete last now playing message
-
     def on_resume(self, entry, **_):
         self.update_now_playing(entry)
 
