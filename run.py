@@ -19,10 +19,10 @@ class PIP(object):
             raise RuntimeError("Could not import pip.")
 
         check = subprocess.check_output if check_output else subprocess.check_call
-        fullcommand = [sys.executable] + "-m pip {}{}".format('-q ' if quiet else '', command)
+        fullcommand = [sys.executable] + "-m pip {}{}".format('-q ' if quiet else '', command).split()
 
         try:
-            return check(fullcommand.split(), shell=True)
+            return check(fullcommand, shell=True)
 
         except:
             traceback.print_exc()
