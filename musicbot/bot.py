@@ -369,6 +369,9 @@ class MusicBot(discord.Client):
 
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
 
+            if not info:
+                raise CommandError("That video cannot be played.")
+
             if 'entries' in info:
                 t0 = time.time()
 
