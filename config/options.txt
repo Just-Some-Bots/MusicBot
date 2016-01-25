@@ -38,9 +38,9 @@ AutoSummon = yes
 UseAutoPlaylist = yes
 
 ; Scrooble songs to LastFM
-; Create a LastFM API account here: http://last.fm/api/account/create
 Scrobble = no
 ; LastFM credentials
+; Create a LastFM API account here: http://last.fm/api/account/create
 LastFmUsername = name
 LastFmPassword = password
 LastFmApiKey = key
