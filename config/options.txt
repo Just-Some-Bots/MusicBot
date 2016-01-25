@@ -36,3 +36,12 @@ AutoSummon = yes
 
 ; Play random songs when nothing is queued
 UseAutoPlaylist = yes
+
+; Scrooble songs to LastFM
+; Create a LastFM API account here: http://last.fm/api/account/create
+Scrobble = no
+; LastFM credentials
+LastFmUsername = name
+LastFmPassword = password
+LastFmApiKey = key
+LastFmApiSecret= secret

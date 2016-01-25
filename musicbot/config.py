@@ -20,6 +20,11 @@ class Config(object):
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=True)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=True)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=True)
+        self.scrobble = config.getboolean('MusicBot', 'Scrobble', fallback=False)
+        self.lastFmUsername = config.get('MusicBot', 'LastFmUsername', fallback='')
+        self.lastFmPassword = config.get('MusicBot', 'LastFmPassword', fallback='')
+        self.lastFmApiKey = config.get('MusicBot', 'LastFmApiKey', fallback='')
+        self.lastFmApiSecret = config.get('MusicBot', 'LastFmApiSecret', fallback='')
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback='config/blacklist.txt')
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback='config/whitelist.txt')
