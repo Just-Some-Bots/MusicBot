@@ -13,6 +13,7 @@ from discord.voice_client import VoiceClient
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
+from musicbot.scrobble import Scrobble
 from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
@@ -59,6 +60,8 @@ class MusicBot(discord.Client):
         self.voice_clients = {}
         self.voice_client_connect_lock = asyncio.Lock()
         self.config = Config(config_file)
+        if self.config.scrobble:		
+            self.scrobble = Scrobble(self.config.lastFmUsername, self.config.lastFmPassword, self.config.lastFmApiKey, self.config.lastFmApiSecret)
 
         self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
@@ -138,6 +141,9 @@ class MusicBot(discord.Client):
         return self.players[server.id]
 
     async def on_play(self, player, entry):
+        if self.config.scrobble:
+            self.scrobble.send(entry)
+
         self.update_now_playing(entry)
         player.skip_state.reset()
 
@@ -210,6 +216,7 @@ class MusicBot(discord.Client):
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
         print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
+        print("LastFM Scrobbling is %s" % ['disabled', 'enabled'][self.config.scrobble])
         print()
 
         if self.servers:
