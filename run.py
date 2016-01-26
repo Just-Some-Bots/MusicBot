@@ -107,7 +107,7 @@ def main():
                 print("\nPython 3 found.  Re-launching bot using: ")
                 print("  %s run.py\n" % pycom)
 
-                os.system("kill -9 %s && %s run.py" % (os.getpid(), pycom))
+                os.execlp(pycom, pycom, 'run.py')
 
 
         print("Please run the bot using python 3.5")
