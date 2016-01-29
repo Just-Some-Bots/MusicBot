@@ -372,6 +372,10 @@ class MusicBot(discord.Client):
             if not info:
                 raise CommandError("That video cannot be played.")
 
+            if song_url not in self.backuplist:
+                self.backuplist.append(song_url)
+                write_file('./config/backuplist.txt', self.backuplist)
+
             if 'entries' in info:
                 t0 = time.time()
 
@@ -519,6 +523,10 @@ class MusicBot(discord.Client):
             raise CommandError("Can't skip! The player is not playing!")
 
         if author.id == self.config.owner_id:
+            if player.current_entry.url in self.backuplist:
+                self.backuplist.remove(player.current_entry.url)
+                write_file('./config/backuplist.txt', self.backuplist)
+
             player.skip()
             return
 
@@ -532,6 +540,10 @@ class MusicBot(discord.Client):
         skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
+            if player.current_entry.url in self.backuplist:
+                self.backuplist.remove(player.current_entry.url)
+                write_file('./config/backuplist.txt', self.backuplist)
+
             player.skip()
             return Response(
                 'your skip for **{}** was acknowledged.'
