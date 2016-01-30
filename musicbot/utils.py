@@ -1,7 +1,5 @@
-import re
-import unicodedata
-
-_USER_ID_MATCH = re.compile(r'<@(\d+)>')
+import json
+from slugify import slugify
 
 
 def load_file(filename):
@@ -27,13 +25,20 @@ def write_file(filename, contents):
             f.write('\n')
 
 
-def extract_user_id(argument):
-    match = _USER_ID_MATCH.match(argument)
-    if match:
-        return int(match.group(1))
+def load_json(filename):
+    try:
+        with open(filename, encoding='utf-8') as f:
+            return json.loads(f.read())
+
+    except IOError as e:
+        print("Error loading", filename, e)
+        return []
 
 
-def slugify(value):
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub('[^\w\s-]', '', value).strip().lower()
-    return re.sub('[-\s]+', '-', value)
+def write_json(filename, contents):
+    with open(filename, 'w') as outfile:
+        outfile.write(json.dumps(contents, indent=2))
+
+
+def do_slugify(value):
+    return slugify(value, separator='_')

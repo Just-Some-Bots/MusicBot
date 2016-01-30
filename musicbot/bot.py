@@ -3,7 +3,6 @@ import inspect
 import traceback
 import asyncio
 import discord
-import win_unicode_console
 
 from discord import utils
 from discord.enums import ChannelType
@@ -13,7 +12,7 @@ from discord.voice_client import VoiceClient
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
-from musicbot.utils import load_file, extract_user_id, write_file
+from musicbot.utils import load_file, write_file, load_json, write_json
 
 from .downloader import extract_info
 from .exceptions import CommandError
@@ -60,11 +59,32 @@ class MusicBot(discord.Client):
         self.voice_client_connect_lock = asyncio.Lock()
         self.config = Config(config_file)
 
-        self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
-        self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
+        self.bot_config = load_json(self.config.config_file)
         self.backuplist = load_file(self.config.backup_playlist_file)
 
         self.last_np_msg = None
+
+    def can_use(self, channel, user, command=None, ownerOnlyFlag=False):
+        perms = user.permissions_in(channel)
+        if user.id == self.config.owner_id:
+            return True
+        if not self.config.white_list_check and ownerOnlyFlag == False:
+            return True
+        try:
+            for role in user.roles:
+                try:
+                    if command:
+                        try:
+                            if role.id in self.bot_config[0][command][1] or user.id in self.bot_config[0][command][0]:
+                                return True
+                        except:
+                            pass
+                    if perms.manage_roles:
+                        return True
+                except:
+                    pass
+        except:
+            return False
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
@@ -195,8 +215,6 @@ class MusicBot(discord.Client):
         return super().run(self.config.username, self.config.password)
 
     async def on_ready(self):
-        win_unicode_console.enable()
-
         print('Connected!\n')
         print('Username: %s' % self.user.name)
         print('Bot ID: %s' % self.user.id)
@@ -239,7 +257,7 @@ class MusicBot(discord.Client):
     async def _auto_summon(self):
         channel = self._get_owner_voice_channel()
         if channel:
-            await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
+            await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)), flag=True)
             return True
         else:
             print("Owner not found in a voice channel, could not autosummon.")
@@ -253,104 +271,118 @@ class MusicBot(discord.Client):
 
 
 
-    async def handle_help(self, message):
+    async def handle_help(self, channel, author):
         """
         Usage: {command_prefix}help
         Prints a help message
         """
-        helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
-        # Maybe there's a clever way to do this
-        return Response(helpmsg, reply=True, delete_after=60)
+        if self.can_use(channel, author, command='help'):
+            helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
+            # Maybe there's a clever way to do this
+            return Response(helpmsg, reply=True, delete_after=60)
 
-    async def handle_whitelist(self, message, option, username):
+    async def handle_perms(self, channel, server, author, mentions, switch, command, role_to_add=None):
         """
-        Usage: {command_prefix}whitelist [ + | - | add | remove ] @UserName
-        Adds or removes the user to the whitelist. When the whitelist is enabled,
+        Usage: {command_prefix}perms [ + | - | add | remove | clear ] [command] [@UserName / Role Name]
+        Adds or removes the user(s) / role to the whitelist. When the whitelist is enabled,
         whitelisted users are permitted to use bot commands.
         """
-        if message.author.id != self.config.owner_id:
-            return
-
-        user_id = extract_user_id(username)
-        if not user_id:
-            raise CommandError('Invalid user specified')
-
-        if option not in ['+', '-', 'add', 'remove']:
-            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
-
-        if option in ['+', 'add']:
-            self.whitelist.add(user_id)
-            write_file('./config/whitelist.txt', self.whitelist)
-
-            return Response('user has been added to the whitelist', reply=True, delete_after=10)
-
-        else:
-            if user_id not in self.whitelist:
-                return Response('user is not in the whitelist', reply=True, delete_after=10)
-
+        if self.can_use(channel, author, command='perms'):
+            if switch not in ['add', 'remove', '+', '-', 'clear']:
+                raise CommandError('Invalid option "%s" specified, use allow, deny, or clear' % switch)
+            if switch in ['add', '+']:
+                if not command:
+                    raise CommandError('Invalid syntax, command required for `{}` statements'.format(switch))
+                handler = getattr(self, 'handle_%s' % command, None)
+                if not handler:
+                    raise CommandError('Invalid command "%s" specified, please use an active command' % switch)
+                if mentions:
+                    for users in mentions:
+                        if command in self.bot_config[0]:
+                            self.bot_config[0][command][0].append(users.id)
+                        else:
+                            self.bot_config[0][command] = [[users.id], []]
+                    write_json('./config/config.json', self.bot_config)
+                    return Response('perms successfully given', reply=True, delete_after=10)
+                else:
+                    try:
+                        role = discord.utils.get(server.roles, name=role_to_add)
+                        if not role:
+                            int('this')
+                        if command in self.bot_config[0]:
+                            self.bot_config[0][command][1].append(role.id)
+                        else:
+                            self.bot_config[0][command] = [[], [role.id]]
+                        write_json('./config/config.json', self.bot_config)
+                        return Response('perms successfully given', reply=True, delete_after=10)
+                    except:
+                        raise CommandError('Invalid user / role specified : {}'.format(role_to_add))
+            elif switch in ['remove', '-']:
+                if not command:
+                    raise CommandError('Invalid syntax, command required for `{}` statements'.format(switch))
+                handler = getattr(self, 'handle_%s' % command, None)
+                if not handler:
+                    raise CommandError('Invalid command "%s" specified, please use an active command' % switch)
+                if mentions:
+                    for users in mentions:
+                        if command in self.bot_config[0]:
+                            self.bot_config[0][command][0].remove(users.id)
+                        else:
+                            raise CommandError('User `{}` not whitelisted for command `{}`'.format(role_to_add.name, command))
+                    write_json('./config/config.json', self.bot_config)
+                    return Response('perms successfully removed', reply=True, delete_after=10)
+                else:
+                    try:
+                        role = discord.utils.get(server.roles, name=role_to_add)
+                        if not role:
+                            int('this')
+                        if command in self.bot_config[0]:
+                            self.bot_config[0][command][1].remove(role.id)
+                            write_json('./config/config.json', self.bot_config)
+                            return Response('perms successfully removed', reply=True, delete_after=10)
+                        else:
+                            raise CommandError('User `{}` not whitelisted for command `{}`'.format(role_to_add.name, command))
+                    except:
+                        raise CommandError('Invalid user / role specified : {}'.format(role_to_add))
             else:
-                self.whitelist.remove(user_id)
-                write_file('./config/whitelist.txt', self.whitelist)
-
-                return Response('user has been removed from the whitelist', reply=True, delete_after=10)
-
-
-    async def handle_blacklist(self, message, option, username):
-        """
-        Usage: {command_prefix}blacklist [ + | - | add | remove ] @UserName
-        Adds or removes the user to the blacklist. Blacklisted users are forbidden from
-        using bot commands. Blacklisting a user also removes them from the whitelist.
-        """
-        if message.author.id != self.config.owner_id:
-            return
-
-        user_id = extract_user_id(username)
-        if not user_id:
-            raise CommandError('Invalid user specified')
-
-        if str(user_id) == self.config.owner_id:
-            return Response("The owner cannot be blacklisted.", delete_after=10)
-
-        if option not in ['+', '-', 'add', 'remove']:
-            raise CommandError('Invalid option "%s" specified, use +, -, add, or remove' % option)
-
-        if option in ['+', 'add']:
-            self.blacklist.add(user_id)
-            write_file('./config/blacklist.txt', self.blacklist)
-
-            if user_id in self.whitelist:
-                self.whitelist.remove(user_id)
-                write_file('./config/whitelist.txt', self.whitelist)
-                return Response('user has been added to the blacklist and removed from the whitelist', reply=True, delete_after=10)
-
-            else:
-                return Response('user has been added to the blacklist', reply=True, delete_after=10)
-
-        else:
-            if user_id not in self.blacklist:
-                return Response('user is not in the blacklist', reply=True, delete_after=10)
-
-            else:
-                self.blacklist.remove(user_id)
-                write_file('./config/blacklist.txt', self.blacklist)
-
-                return Response('user has been removed from the blacklist', reply=True, delete_after=10)
+                if command:
+                    raise CommandError('Invalid syntax, command not used in `clear` statements')
+                if mentions:
+                    for users in mentions:
+                        for command, user_role_list in self.bot_config[0]:
+                            if users.id in user_role_list[0]:
+                                self.bot_config[0][command][0].remove(users.id)
+                    write_json('./config/config.json', self.bot_config)
+                    return Response('perms successfully removed', reply=True, delete_after=10)
+                else:
+                    try:
+                        role = discord.utils.get(server.roles, name=role_to_add)
+                        if not role:
+                            int('this')
+                        for command, user_role_list in self.bot_config[0]:
+                            if role.id in user_role_list[1]:
+                                self.bot_config[0][command][1].remove(role.id)
+                                write_json('./config/config.json', self.bot_config)
+                                return Response('perms successfully removed', reply=True, delete_after=10)
+                    except:
+                        raise CommandError('Invalid user / role specified : {}'.format(role_to_add))
 
 
-    async def handle_id(self, author):
+    async def handle_id(self, channel, author):
         """
         Usage: {command_prefix}id
         Tells the user their id.
         """
-        return Response('your id is `%s`' % author.id, reply=True)
+        if self.can_use(channel, author, command='id'):
+            return Response('your id is `%s`' % author.id, reply=True)
 
-    async def handle_joinserver(self, message, server_link):
+    async def handle_joinserver(self, channel, author, server_link):
         """
         Usage {command_prefix}joinserver [Server Link]
         Asks the bot to join a server. [todo: add info about if it breaks or whatever]
         """
         try:
-            if message.author.id == self.config.owner_id:
+            if self.can_use(channel, author, command='joinserver', ownerOnlyFlag=True):
                 await self.accept_invite(server_link)
 
         except:
@@ -361,151 +393,154 @@ class MusicBot(discord.Client):
         Usage {command_prefix}play [song link]
         Adds the song to the playlist.
         """
-
-        try:
-            await self.send_typing(channel)
-
-            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
-
-            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
-
-            if not info:
-                raise CommandError("That video cannot be played.")
-
-            if 'entries' in info:
-                t0 = time.time()
-
-                # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
-                # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
-                # I don't think we can hook into it anyways, so this will have to do.
-                # It would probably be a thread to check a few playlists and get the speed from that
-                # Different playlists might download at different speeds though
-                wait_per_song = 1.2
-
-                num_songs = sum(1 for _ in info['entries'])
-
-                procmesg = await self.send_message(channel,
-                    'Gathering playlist information for {} songs{}'.format(
-                        num_songs,
-                        ', ETA: {:g} seconds'.format(num_songs*wait_per_song) if num_songs >= 10 else '.'))
-
-                # We don't have a pretty way of doing this yet.  We need either a loop
-                # that sends these every 10 seconds or a nice context manager.
+        if self.can_use(channel, author, command='play'):
+            try:
                 await self.send_typing(channel)
 
-                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
-                entry = entry_list[0]
+                reply_text = "Enqueued **%s** to be played. Position in queue: %s"
 
-                tnow = time.time()
-                ttime = tnow - t0
-                listlen = len(entry_list)
+                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
 
-                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-                    listlen, '{:.2f}'.format(ttime).rstrip('0').rstrip('.'), ttime/listlen,
-                    ttime/listlen - wait_per_song, wait_per_song*num_songs)
-                )
+                if not info:
+                    raise CommandError("That video cannot be played.")
 
-                await self.delete_message(procmesg)
+                if 'entries' in info:
+                    t0 = time.time()
 
-            else:
-                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+                    # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+                    # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+                    # I don't think we can hook into it anyways, so this will have to do.
+                    # It would probably be a thread to check a few playlists and get the speed from that
+                    # Different playlists might download at different speeds though
+                    wait_per_song = 1.2
 
-            time_until = await player.playlist.estimate_time_until(position, player)
+                    num_songs = sum(1 for _ in info['entries'])
 
-            if position == 1 and player.is_stopped:
-                position = 'Up next!'
-                reply_text = reply_text % (entry.title, position)
-            else:
-                reply_text += ' - estimated time until playing: %s'
-                reply_text = reply_text % (entry.title, position, time_until)
-                # TODO: Subtract time the current song has been playing for
+                    procmesg = await self.send_message(channel,
+                        'Gathering playlist information for {} songs{}'.format(
+                            num_songs,
+                            ', ETA: {:g} seconds'.format(num_songs*wait_per_song) if num_songs >= 10 else '.'))
 
-            return Response(reply_text, reply=True, delete_after=15)
+                    # We don't have a pretty way of doing this yet.  We need either a loop
+                    # that sends these every 10 seconds or a nice context manager.
+                    await self.send_typing(channel)
 
-        except Exception as e:
-            traceback.print_exc()
-            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+                    entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                    entry = entry_list[0]
 
-    async def handle_summon(self, channel, author):
+                    tnow = time.time()
+                    ttime = tnow - t0
+                    listlen = len(entry_list)
+
+                    print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                        listlen, '{:.2f}'.format(ttime).rstrip('0').rstrip('.'), ttime/listlen,
+                        ttime/listlen - wait_per_song, wait_per_song*num_songs)
+                    )
+
+                    await self.delete_message(procmesg)
+
+                else:
+                    entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+                time_until = await player.playlist.estimate_time_until(position, player)
+
+                if position == 1 and player.is_stopped:
+                    position = 'Up next!'
+                    reply_text = reply_text % (entry.title, position)
+                else:
+                    reply_text += ' - estimated time until playing: %s'
+                    reply_text = reply_text % (entry.title, position, time_until)
+                    # TODO: Subtract time the current song has been playing for
+
+                return Response(reply_text, reply=True, delete_after=15)
+
+            except Exception as e:
+                traceback.print_exc()
+                raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def handle_summon(self, channel, author, flag=False):
         """
         Usage {command_prefix}summon
         This command is for summoning the bot into your voice channel [but it should do it automatically the first time]
         """
-        if self.voice_clients:
-            raise CommandError("Multiple servers not supported at this time.")
+        if flag or self.can_use(channel, author, command='summon'):
+            if self.voice_clients:
+                raise CommandError("Multiple servers not supported at this time.")
 
-        # moving = False
-        # if channel.server.id in self.players:
-        #     moving = True
-        #     print("Already in channel, moving")
+            # moving = False
+            # if channel.server.id in self.players:
+            #     moving = True
+            #     print("Already in channel, moving")
 
 
-        server = channel.server
+            server = channel.server
 
-        channel = None
-        for channel in server.channels:
-            if discord.utils.get(channel.voice_members, id=author.id):
-                break
+            channel = None
+            for channel in server.channels:
+                if discord.utils.get(channel.voice_members, id=author.id):
+                    break
 
-        if not channel:
-            raise CommandError('You are not in a voice channel!')
+            if not channel:
+                raise CommandError('You are not in a voice channel!')
 
-        chperms = channel.permissions_for(channel.server.me)
+            chperms = channel.permissions_for(channel.server.me)
 
-        if not chperms.connect:
-            print("Cannot join channel \"%s\", no permission." % channel.name)
-            return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
+            if not chperms.connect:
+                print("Cannot join channel \"%s\", no permission." % channel.name)
+                return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
 
-        elif not chperms.speak:
-            print("Will not join channel \"%s\", no permission to speak." % channel.name)
-            return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
+            elif not chperms.speak:
+                print("Will not join channel \"%s\", no permission to speak." % channel.name)
+                return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
 
-        # if moving:
-        #     await self.move_member(channel.server.me, channel)
-        #     return Response('ok?')
+            # if moving:
+            #     await self.move_member(channel.server.me, channel)
+            #     return Response('ok?')
 
-        player = await self.get_player(channel, create=True)
+            player = await self.get_player(channel, create=True)
 
-        if player.is_stopped:
-            player.play()
+            if player.is_stopped:
+                player.play()
 
-    async def handle_pause(self, player):
+    async def handle_pause(self, channel, author, player):
         """
         Usage {command_prefix}pause
         Pauses playback of the current song. [todo: should make sure it works fine when used inbetween songs]
         """
+        if self.can_use(channel, author, command='pause'):
+            if player.is_playing:
+                player.pause()
 
-        if player.is_playing:
-            player.pause()
+            else:
+                raise CommandError('Player is not playing.')
 
-        else:
-            raise CommandError('Player is not playing.')
-
-    async def handle_resume(self, player):
+    async def handle_resume(self, channel, author, player):
         """
         Usage {command_prefix}resume
         Resumes playback of a paused song.
         """
-        if player.is_paused:
-            player.resume()
+        if self.can_use(channel, author, command='resume'):
+            if player.is_paused:
+                player.resume()
 
-        else:
-            raise CommandError('Player is not paused.')
+            else:
+                raise CommandError('Player is not paused.')
 
-    async def handle_shuffle(self, player):
+    async def handle_shuffle(self, channel, author, player):
         """
         Usage {command_prefix}shuffle
         Shuffles the playlist.
         """
-        player.playlist.shuffle()
-        return Response('*shuffleshuffleshuffle*', delete_after=10)
+        if self.can_use(channel, author, command='shuffle'):
+            player.playlist.shuffle()
+            return Response('*shuffleshuffleshuffle*', delete_after=10)
 
-    async def handle_clear(self, player, author):
+    async def handle_clear(self, channel, player, author):
         """
         Usage {command_prefix}clear
         Clears the playlist.
         """
-        if author.id == self.config.owner_id:
+        if self.can_use(channel, author, command='clear', ownerOnlyFlag=True):
             player.playlist.clear()
             return
 
@@ -514,137 +549,176 @@ class MusicBot(discord.Client):
         Usage {command_prefix}skip
         Skips the current song when enough votes are cast, or by the bot owner.
         """
+        if self.can_use(channel, author, command='skip'):
+            if player.is_stopped or player.is_paused:  # TODO: pausing and skipping a song breaks /something/, i'm not sure what
+                raise CommandError("Can't skip! The player is not playing!")
 
-        if player.is_stopped or player.is_paused: # TODO: pausing and skipping a song breaks /something/, i'm not sure what
-            raise CommandError("Can't skip! The player is not playing!")
+            if author.id == self.config.owner_id:
+                player.skip()
+                return
 
-        if author.id == self.config.owner_id:
-            player.skip()
-            return
+            voice_channel = player.voice_client.channel
 
-        voice_channel = player.voice_client.channel
+            num_voice = sum(1 for m in voice_channel.voice_members if not (
+                m.deaf or m.self_deaf or m.id == str(self.config.owner_id)))
 
-        num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf or m.id == str(self.config.owner_id)))
+            num_skips = player.skip_state.add_skipper(author.id)
 
-        num_skips = player.skip_state.add_skipper(author.id)
+            skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
 
-        skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
+            if skips_remaining <= 0:
+                player.skip()
+                return Response(
+                    'your skip for **{}** was acknowledged.'
+                    '\nThe vote to skip has been passed.{}'.format(
+                        player.current_entry.title,
+                        ' Next song coming up!' if player.playlist.peek() else ''
+                    ),
+                    reply=True,
+                    delete_after=10
+                )
 
-        if skips_remaining <= 0:
-            player.skip()
-            return Response(
-                'your skip for **{}** was acknowledged.'
-                '\nThe vote to skip has been passed.{}'.format(
-                    player.current_entry.title,
-                    ' Next song coming up!' if player.playlist.peek() else ''
-                ),
-                reply=True,
-                delete_after=10
-            )
+            else:
+                # TODO: When a song gets skipped, delete the old x needed to skip messages
+                return Response(
+                    'your skip for **{}** was acknowledged.'
+                    '\n**{}** more {} required to vote to skip this song.'.format(
+                        player.current_entry.title,
+                        skips_remaining,
+                        'person is' if skips_remaining == 1 else 'people are'
+                    ),
+                    reply=True
+                )
 
-        else:
-            # TODO: When a song gets skipped, delete the old x needed to skip messages
-            return Response(
-                'your skip for **{}** was acknowledged.'
-                '\n**{}** more {} required to vote to skip this song.'.format(
-                    player.current_entry.title,
-                    skips_remaining,
-                    'person is' if skips_remaining == 1 else 'people are'
-                ),
-                reply=True
-            )
-
-    async def handle_volume(self, message, new_volume=None):
+    async def handle_volume(self, channel, author, new_volume=None):
         """
         Usage {command_prefix}volume (+/-)[volume]
         Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
+        if self.can_use(channel, author, command='volume'):
+            player = await self.get_player(channel)
 
-        player = await self.get_player(message.channel)
+            if not new_volume:
+                return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=10)
 
-        if not new_volume:
-            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=10)
+            relative = False
+            if new_volume[0] in '+-':
+                relative = True
 
-        relative = False
-        if new_volume[0] in '+-':
-            relative = True
+            try:
+                new_volume = int(new_volume)
 
-        try:
-            new_volume = int(new_volume)
+            except ValueError:
+                raise CommandError('{} is not a valid number'.format(new_volume))
 
-        except ValueError:
-            raise CommandError('{} is not a valid number'.format(new_volume))
-
-        if relative:
-            vol_change = new_volume
-            new_volume += (player.volume * 100)
-
-        old_volume = int(player.volume * 100)
-
-        if 0 < new_volume <= 100:
-            player.volume = new_volume / 100.0
-
-            return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True, delete_after=10)
-
-        else:
             if relative:
-                raise CommandError(
-                    'Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.'.format(
-                        old_volume, vol_change, old_volume + vol_change, 1 - old_volume, 100 - old_volume))
-            else:
-                raise CommandError(
-                    'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
+                vol_change = new_volume
+                new_volume += (player.volume * 100)
 
-    async def handle_queue(self, channel):
+            old_volume = int(player.volume * 100)
+
+            if 0 < new_volume <= 100:
+                player.volume = new_volume / 100.0
+
+                return Response('updated volume from %d to %d' % (old_volume, new_volume), reply=True, delete_after=10)
+
+            else:
+                if relative:
+                    raise CommandError(
+                        'Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.'.format(
+                            old_volume, vol_change, old_volume + vol_change, 1 - old_volume, 100 - old_volume))
+                else:
+                    raise CommandError(
+                        'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
+
+    async def handle_queue(self, channel, author):
         """
         Usage {command_prefix}queue
         Prints the current song queue.
         """
-        player = await self.get_player(channel)
+        if self.can_use(channel, author, command='queue'):
+            player = await self.get_player(channel)
 
-        lines = []
-        unlisted = 0
-        andmoretext = '* ... and %s more*' % ('x'*len(player.playlist.entries))
+            lines = []
+            unlisted = 0
+            andmoretext = '* ... and %s more*' % ('x'*len(player.playlist.entries))
 
-        if player.current_entry:
-            song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
-            song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
-            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+            if player.current_entry:
+                song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
+                song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+                prog_str = '`[%s/%s]`' % (song_progress, song_total)
 
-            if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                lines.append("Now Playing: **%s** added by **%s** %s\n" % (
-                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
+                if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+                    lines.append("Now Playing: **%s** added by **%s** %s\n" % (
+                        player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
+                else:
+                    lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
+
+
+            for i, item in enumerate(player.playlist, 1):
+                if item.meta.get('channel', False) and item.meta.get('author', False):
+                    nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+                else:
+                    nextline = '`{}.` **{}**'.format(i, item.title).strip()
+
+                currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
+
+                if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
+                    if currentlinesum + len(andmoretext):
+                        unlisted += 1
+                        continue
+
+                lines.append(nextline)
+
+            if unlisted:
+                lines.append('\n*... and %s more*' % unlisted)
+
+            if not lines:
+                lines.append(
+                    'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
+
+            message = '\n'.join(lines)
+            return Response(message, delete_after=30)
+
+    async def handle_ignore(self, message, server, author, channel, switch, target_channel):
+        """
+        Usage {command_prefix}ignore [#channel]
+        Makes the bot ignore the specified channel
+        """
+        if self.can_use(channel, author, command='ignore', ownerOnlyFlag=True):
+            if switch not in ['add', 'remove', '+', '-']:
+                raise CommandError('Invalid option "%s" specified, use allow, deny, or clear' % switch)
+            if switch in ['add', '+']:
+                try:
+                    target_channel_obj = discord.utils.get(server.channels, id=target_channel)
+                    if not target_channel_obj:
+                        int('this')
+                    self.bot_config[1].append(target_channel_obj.id)
+                    write_json('./config/config.json', self.bot_config)
+                    return Response('channel `{}` is now being ignored!'.format(target_channel_obj.name), reply=True, delete_after=10)
+                except:
+                    raise CommandError('Invalid Channel: {}'.format(target_channel))
             else:
-                lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
+                try:
+                    target_channel_obj = discord.utils.get(server.channels, id=target_channel)
+                    if not target_channel_obj:
+                        int('this')
+                    self.bot_config[1].remove(target_channel_obj.id)
+                    write_json('./config/config.json', self.bot_config)
+                    return Response('channel `{}` no longer being ignored!'.format(target_channel_obj.name), reply=True, delete_after=10)
+                except:
+                    raise CommandError('Invalid Channel: {}'.format(target_channel))
 
-
-        for i, item in enumerate(player.playlist, 1):
-            if item.meta.get('channel', False) and item.meta.get('author', False):
-                nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
-            else:
-                nextline = '`{}.` **{}**'.format(i, item.title).strip()
-
-            currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
-
-            if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
-                if currentlinesum + len(andmoretext):
-                    unlisted += 1
-                    continue
-
-            lines.append(nextline)
-
-        if unlisted:
-            lines.append('\n*... and %s more*' % unlisted)
-
-        if not lines:
-            lines.append(
-                'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
-
-        message = '\n'.join(lines)
-        return Response(message, delete_after=30)
-
+    async def handle_eval(self, author, server, message, channel, mentions, eval_string):
+        """
+        Usage: {command_prefix}eval "evaluation string"
+        runs a command thru the eval param for testing
+        """
+        if self.can_use(channel, author, command='ignore', ownerOnlyFlag=True):
+            this = eval(eval_string)
+            return Response('```{}```'.format(this), reply=True)
+        return
 
     async def handle_clean(self, message, author, amount):
         """
@@ -670,23 +744,25 @@ class MusicBot(discord.Client):
             return
 
         command, *args = message_content.split()
+
+        for arg in args:
+                if arg.startswith('<@'):
+                    args.remove(arg)
+                if arg.startswith('<#'):
+                    pos = args.index(arg)
+                    arg = arg.replace('<#', '').replace('>', '')
+                    args[pos] = arg
+
         command = command[len(self.config.command_prefix):].lower().strip()
 
         handler = getattr(self, 'handle_%s' % command, None)
         if not handler:
             return
 
-
-        if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
-            print("[Blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+        if message.channel.id in self.bot_config[1] and message.author.id != self.config.owner_id:
             return
 
-        elif self.config.white_list_check and int(message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
-            print("[Not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            return
-
-        else:
-            print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+        print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
 
         argspec = inspect.signature(handler)
@@ -704,8 +780,15 @@ class MusicBot(discord.Client):
             if params.pop('author', None):
                 handler_kwargs['author'] = message.author
 
+            if params.pop('mentions', None):
+                handler_kwargs['mentions'] = message.mentions
+
+            if params.pop('server', None):
+                handler_kwargs['server'] = message.server
+
             if params.pop('player', None):
                 handler_kwargs['player'] = await self.get_player(message.channel)
+
 
             args_expected = []
             for key, param in list(params.items()):

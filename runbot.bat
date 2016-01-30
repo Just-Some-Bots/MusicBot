@@ -1,10 +1,12 @@
-@echo off
+@ECHO off
+:start
+CHCP 65001
 SETLOCAL EnableDelayedExpansion
 
 SET version=1
 FOR /F "tokens=* USEBACKQ" %%H IN (`git --version`) DO SET gvar=%%F
 IF /I NOT %gvar:~0,6% == git ve GOTO nogit
-cls
+CLS
 
 IF EXIST C:\Windows\py.exe (
 	cmd /k C:\Windows\py.exe -3 run.py
@@ -40,4 +42,5 @@ GOTO end
 ECHO ERROR: No install of Python has been detected. Please review the README for more information
 
 :end
-pause
+PAUSE
+GOTO start
