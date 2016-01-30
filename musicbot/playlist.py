@@ -43,6 +43,10 @@ class Playlist(EventEmitter):
         if not info:
             raise ExtractionError('Could not extract information from %s' % song_url)
 
+        if info['extractor'] == 'youtube:search':
+            info = info['entries'][0]
+            song_url = info['webpage_url']
+
         entry = PlaylistEntry(
             self,
             song_url,

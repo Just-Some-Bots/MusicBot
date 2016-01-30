@@ -12,7 +12,8 @@ ytdl_format_options = {
     'nocheckcertificate': True,
     'ignoreerrors': True,
     'quiet': True,
-    'no_warnings': True
+    'no_warnings': True,
+    'default_search': "auto"
 }
 
 thread_pool = ThreadPoolExecutor(max_workers=2)
