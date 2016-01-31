@@ -253,13 +253,24 @@ class MusicBot(discord.Client):
 
 
 
-    async def handle_help(self, message):
+    async def handle_help(self):
         """
         Usage: {command_prefix}help
         Prints a help message
         """
-        helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
-        # Maybe there's a clever way to do this
+        helpmsg = "**Commands**\n```"
+        commands = []
+
+        # TODO: Get this to format nicely
+        for att in dir(self):
+            if att.startswith('handle_') and att != 'handle_help':
+                command_name = att.replace('handle_', '').lower()
+                commands.append("{}{}".format(self.config.command_prefix, command_name))
+
+        helpmsg += ", ".join(commands)
+        helpmsg += "```"
+        helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+
         return Response(helpmsg, reply=True, delete_after=60)
 
     async def handle_whitelist(self, message, option, username):
