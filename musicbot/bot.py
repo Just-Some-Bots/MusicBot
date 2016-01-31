@@ -277,8 +277,17 @@ class MusicBot(discord.Client):
         Prints a help message
         """
         if self.can_use(channel, author, command='help'):
-            helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
-            # Maybe there's a clever way to do this
+            attrs = dir(self)
+            helpmsg = "**All available commands:**\n```"
+            commands = []
+            for att in attrs:
+                if att.startswith('handle_') and att != 'handle_help':
+                    command_name = att.replace('handle_', '').lower()
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
+
+            helpmsg += ", ".join(commands)
+            helpmsg += "```"
+            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
             return Response(helpmsg, reply=True, delete_after=60)
 
     async def handle_perms(self, channel, server, author, mentions, switch, command, role_to_add=None):
