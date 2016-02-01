@@ -1,11 +1,11 @@
 [Credentials]
 ; The bot needs its own account to run on (not yours)
-Username = my@email.com
-Password = rhino_is_a_numpty
+Username = my@email
+Password = your_password
 
 [Permissions]
-; This is your id, not the bot's id.  The bot does not own the bot.  You do.
-OwnerID = 112233445566778899
+; This need to be your id, not the bot's id.  The bot does not own the bot.  You do.
+OwnerID = 000000000000000000
 
 [Chat]
 ; Change this if you don't want commands to trigger another bot
