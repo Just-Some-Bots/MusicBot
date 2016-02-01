@@ -200,7 +200,6 @@ class MusicBot(discord.Client):
 
     async def on_finished_playing(self, player, **_):
         if not player.playlist.entries and self.config.auto_playlist:
-            print('here')
             song_url = choice(self.backuplist)
             try:
                 await player.playlist.add_entry(song_url, channel=None, author=None)
