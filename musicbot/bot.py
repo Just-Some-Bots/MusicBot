@@ -3,7 +3,6 @@ import inspect
 import traceback
 import asyncio
 import discord
-import sys
 
 from discord import utils
 from discord.enums import ChannelType
@@ -23,6 +22,7 @@ from .opus_loader import load_opus_lib
 from random import choice
 from datetime import timedelta
 
+# import sys
 # if sys.platform.startswith('win'):
 #     import win_unicode_console
 #     win_unicode_console.enable()
@@ -213,7 +213,6 @@ class MusicBot(discord.Client):
 
         # TODO: Make this prettier and easier to read (in the console)
         print("Command prefix is %s" % self.config.command_prefix)
-        # print("Days active required to use commands is %s" % self.config.days_active) # NYI
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
         print("Skip threshold at %s votes or %s%%" % (self.config.skips_required, self._fixg(self.config.skip_ratio_required*100)))
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
