@@ -708,7 +708,7 @@ class MusicBot(discord.Client):
 
     async def handle_ignore(self, message, server, author, channel, switch, target_channel):
         """
-        Usage {command_prefix}ignore [#channel]
+        Usage {command_prefix}ignore [ + | - | add | remove ] [#channel]
         Makes the bot ignore the specified channel
         """
         if self.can_use(channel, author, command='ignore', ownerOnlyFlag=True):
