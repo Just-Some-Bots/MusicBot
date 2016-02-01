@@ -25,7 +25,7 @@ FOR /f "delims=" %%a IN ('C:\Windows\System32\where.exe python') DO (
     )
 )
 
-IF /I NOT %version:~0,3% == 3.5 GOTO errorhandler
+IF /I NOT %version:~0,3% == 3.5 GOTO errorhandlerpy
 CMD /k %pypath% -m pip install --upgrade -r requirements.txt
 GOTO end
 
