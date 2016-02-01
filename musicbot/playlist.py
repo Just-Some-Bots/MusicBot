@@ -10,7 +10,7 @@ from random import shuffle
 from .constants import AUDIO_CACHE_PATH
 from .downloader import extract_info
 from .exceptions import ExtractionError
-from .utils import slugify
+from .utils import do_slugify
 from .lib.event_emitter import EventEmitter
 
 
@@ -179,7 +179,7 @@ class PlaylistEntry(object):
         """
         Returns a slug generated from the ID and title of this PlaylistEntry
         """
-        return slugify('%s-%s' % (self.id, self.title))
+        return do_slugify('%s-%s' % (self.id, self.title))
 
     async def _download(self):
         if self._is_downloading:

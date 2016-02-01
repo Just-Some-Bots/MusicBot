@@ -36,3 +36,6 @@ AutoSummon = yes
 
 ; Play random songs when nothing is queued
 UseAutoPlaylist = yes
+
+; Delete all messages the bot sends after a time?
+AutoDelete = yes
