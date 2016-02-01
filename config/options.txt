@@ -39,3 +39,6 @@ UseAutoPlaylist = yes
 
 ; Delete all messages the bot sends after a time?
 AutoDelete = yes
+
+; Report errors to the chat so that you can help the devs improve the bot if it breaks?
+ReportErrors = yes
