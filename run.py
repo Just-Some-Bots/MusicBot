@@ -156,7 +156,7 @@ def main():
     if '--update' in sys.argv:
         if PIP.works():
             try:
-                err = PIP.run_install('--upgrade -r requirements.txt', quiet=True)
+                err = PIP.run_install('--upgrade -r requirements.txt')
             except subprocess.CalledProcessError as err:
                 print("\nUpgrade failed, you may need to run it as admin/root")
                 input("Press enter to continue . . .")
@@ -188,7 +188,7 @@ def main():
                 # TODO: Better output
                 print("Attempting to install dependencies...")
 
-                err = PIP.run_install('-r requirements.txt', quiet=False)
+                err = PIP.run_install('-r requirements.txt')
 
                 if err:
                     print("\nYou may need to %s to install dependencies." %
