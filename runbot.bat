@@ -10,7 +10,7 @@ IF /I NOT %gvar:~0,6% == git ve GOTO nogit
 CLS
 
 IF EXIST C:\Windows\py.exe (
-	CMD /k C:\Windows\py.exe -3 run.py
+	CMD /k C:\Windows\py.exe -3.5 run.py
     GOTO end
 )
 
@@ -32,7 +32,7 @@ GOTO end
 
 :errorhandlerpy
 IF /I %version% == 0 GOTO nopython
-ECHO ERROR: Bad version detected at %var%, please install Python 3.5.1
+ECHO ERROR: Bad version detected at %var%, please install Python 3.5+
 GOTO end
 
 :nogit
