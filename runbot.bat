@@ -2,6 +2,8 @@
 SETLOCAL EnableDelayedExpansion
 CHCP 65001
 
+CD /d "%~dp0"
+
 SET version=1
 FOR /F "tokens=* USEBACKQ" %%H IN (`git --version`) DO SET gvar=%%F
 IF /I NOT %gvar:~0,6% == git ve GOTO nogit
