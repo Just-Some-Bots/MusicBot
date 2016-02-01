@@ -20,6 +20,8 @@ class Config(object):
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=True)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=True)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=True)
+        self.auto_delete = config.getboolean('MusicBot', 'AutoDelete', fallback=True)
+        self.report_errors = config.getboolean('MusicBot', 'ReportErrors', fallback=True)
 
         self.config_file = config.get('Files', 'ConfigFile', fallback='config/config.json')
         self.backup_playlist_file = config.get('Files', 'BlackupPlaylistFile', fallback='config/backuplist.txt')

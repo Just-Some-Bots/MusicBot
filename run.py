@@ -14,27 +14,60 @@ class GIT(object):
 class PIP(object):
 
     @classmethod
-    def run(cls, command, quiet=False, check_output=False):
+    def run(cls, command, check_output=False):
         if not cls.works():
             raise RuntimeError("Could not import pip.")
 
-        check = subprocess.check_output if check_output else subprocess.check_call
-        fullcommand = [sys.executable] + "-m pip {}{}".format('-q ' if quiet else '', command).split()
-
         try:
-            return check(fullcommand, shell=True)
-
+            return PIP.run_python_m(*command.split(), check_output=check_output)
+        except subprocess.CalledProcessError as e:
+            return e.returncode
         except:
             traceback.print_exc()
-            raise RuntimeError("Failed to run command: %s" % fullcommand)
+            print("Error using -m method")
+
+    @classmethod
+    def run_python_m(cls, *args, **kwargs):
+        check_output = kwargs.pop('check_output', False)
+        check = subprocess.check_output if check_output else subprocess.check_call
+        return check([sys.executable, '-m', 'pip'] + list(args))
+
+    @classmethod
+    def run_pip_main(cls, *args, **kwargs):
+        import pip
+
+        args = list(args)
+        check_output = kwargs.pop('check_output', False)
+
+        if check_output:
+            from io import StringIO
+
+            out = StringIO()
+            sys.stdout = out
+
+            try:
+                pip.main(args)
+            except:
+                traceback.print_exc()
+            finally:
+                sys.stdout = sys.__stdout__
+
+                out.seek(0)
+                pipdata = out.read()
+                out.close()
+
+                print(pipdata)
+                return pipdata
+        else:
+            return pip.main(args)
 
     @classmethod
     def run_install(cls, cmd, quiet=False, check_output=False):
-        return cls.run("install %s" % cmd, quiet, check_output)
+        return cls.run("install %s%s" % ('-q ' if quiet else '', cmd), check_output)
 
     @classmethod
-    def run_show(cls, cmd, quiet=False, check_output=False):
-        return cls.run("show %s" % cmd, quiet, check_output)
+    def run_show(cls, cmd, check_output=False):
+        return cls.run("show %s" % cmd, check_output)
 
     @classmethod
     def works(cls):
@@ -48,7 +81,11 @@ class PIP(object):
     def get_module_version(cls, mod):
         try:
             out = cls.run_show(mod, check_output=True)
-            datas = str(out).split('\\r\\n')
+
+            if isinstance(out, bytes):
+                out = out.decode()
+
+            datas = out.replace('\r\n', '\n').split('\n')
             expectedversion = datas[3]
 
             if expectedversion.startswith('Version: '):
@@ -118,20 +155,15 @@ def main():
 
     if '--update' in sys.argv:
         if PIP.works():
-            err = PIP.run_install('--upgrade -r requirements.txt', quiet=True)
-            print()
-
-            if err:
-                if err == 2:
-                    print("Upgrade failed, you may need to run it as admin/root")
-
-                else:
-                    print("Automatic upgrade failed")
-
+            try:
+                err = PIP.run_install('--upgrade -r requirements.txt')
+            except subprocess.CalledProcessError as err:
+                print("\nUpgrade failed, you may need to run it as admin/root")
                 input("Press enter to continue . . .")
                 return
 
         else:
+            # TODO: Make this text less questionable
             print("\n"
                 "Could not locate PIP. If you're sure you have it, run this:\n"
                 "  your_pip_command install --upgrade -r requirements.txt"
@@ -145,100 +177,25 @@ def main():
     tryagain = True
 
     while tryagain:
-        tryagain = False
-
         try:
             from musicbot import MusicBot
             MusicBot().run()
-            break
+            break # check if restart? replace process?
 
         except ImportError as e:
-            traceback.print_exc()
-
             if not tried_requirementstxt:
                 tried_requirementstxt = True
+                # TODO: Better output
                 print("Attempting to install dependencies...")
-                err = PIP.run_install('-r requirements.txt', quiet=True)
 
-                if err == 2:
-                    print("\nIf that said \"Access/Permission is denied\", run it as admin/with sudo.")
+                err = PIP.run_install('-r requirements.txt')
+
+                if err:
+                    print("\nYou may need to %s to install dependencies." %
+                        ['use sudo', 'run as admin'][sys.platform.startswith('win')])
                     break
-
-            if e.name in ['discord', 'opus', 'win_unicode_console']:
-                tryagain = unfuck(e)
-                if not tryagain:
-                    input('Press enter to continue . . .')
-
-
-def unfuck(e):
-    try:
-        import pip
-    except:
-        if not PIP.works():
-            print("Additionally, pip cannot be imported. Has python been installed properly?")
-            print("Bot setup instructions can be found here:")
-            print("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
-            return
-
-    print()
-
-    if e.name == 'discord':
-        if PIP.get_module_version('discord.py'):
-            return True
-
-        print("Discord.py is not installed.")
-
-        if not GIT.works():
-            print("Additionally, git is also not installed.  Please install git.")
-            print("Bot setup instructions can be found here:")
-            print("https://github.com/SexualRhinoceros/MusicBot/blob/develop/README.md")
-            return
-
-        print("Attempting to install discord.py")
-        err = PIP.run_install("git+https://github.com/Rapptz/discord.py@async", quiet=True)
-
-        if err:
-            print()
-            print("Could not install discord.py for you. Please run:")
-            print("    pip install git+https://github.com/Rapptz/discord.py@async")
-
-        else:
-            print("Ok, maybe we're good?")
-            print()
-            return True
-
-    elif e.name == 'opus':
-        print("Discord.py is out of date. Did you install the old version?")
-
-        print("Attempting to upgrade discord.py")
-        err = PIP.run_install("--upgrade git+https://github.com/Rapptz/discord.py@async", quiet=True)
-
-        if err:
-            print()
-            print("Could not update discord.py for you. Please run:")
-            print("    pip install --upgrade git+https://github.com/Rapptz/discord.py@async")
-        else:
-            print("Ok, maybe we're good?")
-            print()
-            return True
-
-    elif e.name == 'win_unicode_console':
-        if PIP.get_module_version('win-unicode-console'):
-            return True
-
-        print("Module 'win_unicode_console' is missing.")
-
-        print("Attempting to install win_unicode_console")
-        err = PIP.run_install("win-unicode-console", quiet=True)
-
-        if err:
-            print()
-            print("Could not install win_unicode_console for you. Please run:")
-            print("    pip install win-unicode-console")
-        else:
-            print("Ok, maybe we're good?")
-            print()
-            return True
+                else:
+                    print("\nOk lets hope it worked\n")
 
 
 if __name__ == '__main__':

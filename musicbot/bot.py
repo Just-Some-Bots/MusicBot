@@ -12,7 +12,7 @@ from discord.voice_client import VoiceClient
 from musicbot.config import Config
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
-from musicbot.utils import load_file, write_file, load_json, write_json
+from musicbot.utils import load_file, load_json, write_json
 
 from .downloader import extract_info
 from .exceptions import CommandError
@@ -21,6 +21,10 @@ from .opus_loader import load_opus_lib
 
 from random import choice
 from datetime import timedelta
+
+# if sys.platform.startswith('win'):
+#     import win_unicode_console
+#     win_unicode_console.enable()
 
 VERSION = '2.0'
 
@@ -196,8 +200,13 @@ class MusicBot(discord.Client):
 
     async def on_finished_playing(self, player, **_):
         if not player.playlist.entries and self.config.auto_playlist:
+            print('here')
             song_url = choice(self.backuplist)
-            await player.playlist.add_entry(song_url, channel=None, author=None)
+            try:
+                await player.playlist.add_entry(song_url, channel=None, author=None)
+            except Exception as e:
+                print('\n\nUnable to queue up song at %s to be played.\n' % song_url)
+                traceback.print_exc()
 
 
     def update_now_playing(self, entry=None, is_paused=False):
@@ -219,15 +228,23 @@ class MusicBot(discord.Client):
         print('Username: %s' % self.user.name)
         print('Bot ID: %s' % self.user.id)
         print('Owner ID: %s' % self.config.owner_id)
+
+        if self.config.owner_id == self.user.id:
+            print("\n"
+                  "[NOTICE] You have either set the OwnerID config option to the bot's id instead "
+                  "of yours, or you've used your own credentials to log the bot in instead of the "
+                  "bot's account (the bot needs its own account to work properly).")
         print()
 
+        # TODO: Make this prettier and easier to read (in the console)
         print("Command prefix is %s" % self.config.command_prefix)
         # print("Days active required to use commands is %s" % self.config.days_active) # NYI
-        print("Skip threshold at %s votes or %g%%" % (self.config.skips_required, self.config.skip_ratio_required*100))
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
+        print("Skip threshold at %s votes or %s%%" % (self.config.skips_required, self._fixg(self.config.skip_ratio_required*100)))
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
         print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
+        print("Downloaded songs will be %s after playback" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
         if self.servers:
@@ -237,12 +254,6 @@ class MusicBot(discord.Client):
             print("No servers have been joined yet.")
 
         print()
-
-        if self.config.owner_id == self.user.id:
-            print(
-                "[Notice] You have either set the OwnerID config option to the bot's id instead "
-                "of yours, or you've used your own credentials to log the bot in instead of the "
-                "bot's account (the bot needs its own account to work properly).")
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
 
@@ -269,6 +280,8 @@ class MusicBot(discord.Client):
                 if discord.utils.get(channel.voice_members, id=self.config.owner_id):
                     return channel
 
+    def _fixg(self, x, dp=2):
+        return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
 
     async def handle_help(self, channel, author):
@@ -277,9 +290,20 @@ class MusicBot(discord.Client):
         Prints a help message
         """
         if self.can_use(channel, author, command='help'):
-            helpmsg = "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list" # THIS IS TEMPORARY
-            # Maybe there's a clever way to do this
-            return Response(helpmsg, reply=True, delete_after=60)
+            helpmsg = "**Commands**\n```"
+            commands = []
+
+            # TODO: Get this to format nicely
+            for att in dir(self):
+                if att.startswith('handle_') and att != 'handle_help':
+                    command_name = att.replace('handle_', '').lower()
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
+
+            helpmsg += ", ".join(commands)
+            helpmsg += "```"
+            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+
+        return Response(helpmsg, reply=True, delete_after=60)
 
     async def handle_perms(self, channel, server, author, mentions, switch, command, role_to_add=None):
         """
@@ -464,16 +488,11 @@ class MusicBot(discord.Client):
         This command is for summoning the bot into your voice channel [but it should do it automatically the first time]
         """
         if flag or self.can_use(channel, author, command='summon'):
-            if self.voice_clients:
-                raise CommandError("Multiple servers not supported at this time.")
-
-            # moving = False
-            # if channel.server.id in self.players:
-            #     moving = True
-            #     print("Already in channel, moving")
-
-
             server = channel.server
+            moving = False
+            if server.id in self.players:
+                moving = True
+                print("Already in channel, moving")
 
             channel = None
             for channel in server.channels:
@@ -489,13 +508,20 @@ class MusicBot(discord.Client):
                 print("Cannot join channel \"%s\", no permission." % channel.name)
                 return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
 
+            if not chperms.connect:
+                print("Cannot join channel \"%s\", no permission." % channel.name)
+                return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
+
             elif not chperms.speak:
                 print("Will not join channel \"%s\", no permission to speak." % channel.name)
                 return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
 
-            # if moving:
-            #     await self.move_member(channel.server.me, channel)
-            #     return Response('ok?')
+            if moving:
+                try:
+                    await self.join_voice_channel(channel)
+                except:
+                    pass
+                return Response('Switched to channel `{}`!'.format(channel.name))
 
             player = await self.get_player(channel, create=True)
 
@@ -814,10 +840,13 @@ class MusicBot(discord.Client):
                     )
 
                 docs = '\n'.join(l.strip() for l in docs.split('\n'))
-                await self.send_message(
-                    message.channel,
-                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix)
-                )
+                try:
+                    await self.send_message(
+                        message.channel,
+                            '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix)
+                    )
+                except discord.Forbidden:
+                    print('Cannot send message to \"{}\" due to lack of permissions'.format(message.channel))
                 return
 
             response = await handler(**handler_kwargs)
@@ -826,18 +855,31 @@ class MusicBot(discord.Client):
                 if response.reply:
                     content = '%s, %s' % (message.author.mention, content)
 
-                sentmsg = await self.send_message(message.channel, content)
+                try:
+                    sentmsg = await self.send_message(message.channel, content)
 
-                if response.delete_after > 0:
-                    await asyncio.sleep(response.delete_after)
-                    await self.delete_message(sentmsg)
-                    # TODO: Add options for deletion toggling
+                    if response.delete_after > 0 and self.config.auto_delete:
+                        await asyncio.sleep(response.delete_after)
+                        try:
+                            await self.delete_message(sentmsg)
+                        except discord.Forbidden:
+                            print('Cannot delete messages due to lack of permissions')
+                except discord.Forbidden:
+                    print('Cannot send message to \"{}\" due to lack of permissions'.format(message.channel))
 
         except CommandError as e:
-            await self.send_message(message.channel, '```\n%s\n```' % e.message)
+            try:
+                if self.config.report_errors:
+                    await self.send_message(message.channel, '```\n%s\n```' % e.message)
+            except discord.Forbidden:
+                print('Cannot send message to \"{}\" due to lack of permissions'.format(message.channel))
 
         except:
-            await self.send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+            try:
+                if self.config.report_errors:
+                    await self.send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+            except discord.Forbidden:
+                print('Cannot send message to \"{}\" due to lack of permissions'.format(message.channel))
             traceback.print_exc()
 
 

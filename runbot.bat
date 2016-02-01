@@ -1,7 +1,8 @@
 @ECHO off
-:start
-CHCP 65001
 SETLOCAL EnableDelayedExpansion
+CHCP 65001
+
+CD /d "%~dp0"
 
 SET version=1
 FOR /F "tokens=* USEBACKQ" %%H IN (`git --version`) DO SET gvar=%%F
@@ -9,13 +10,13 @@ IF /I NOT %gvar:~0,6% == git ve GOTO nogit
 CLS
 
 IF EXIST C:\Windows\py.exe (
-	cmd /k C:\Windows\py.exe -3 run.py
+	CMD /k C:\Windows\py.exe -3.5 run.py
     GOTO end
 )
 
-FOR /f "delims=" %%a IN ('where python') DO (
+FOR /f "delims=" %%a IN ('C:\Windows\System32\where.exe python') DO (
     FOR /F "tokens=* USEBACKQ" %%F IN (`"%%a" -V`) DO (
-	    cls
+	    CLS
         SET var=%%F
     )
     SET var=!var:~7,5!
@@ -25,13 +26,13 @@ FOR /f "delims=" %%a IN ('where python') DO (
     )
 )
 
-IF /I NOT %version:~0,3% == 3.5 GOTO errorhandler
-cmd /k %pypath% run.py
+IF /I NOT %version:~0,3% == 3.5 GOTO errorhandlerpy
+CMD /k %pypath% run.py
 GOTO end
 
 :errorhandlerpy
 IF /I %version% == 0 GOTO nopython
-ECHO ERROR: Bad version detected at %var%, please install Python 3.5.1
+ECHO ERROR: Bad version detected at %var%, please install Python 3.5+
 GOTO end
 
 :nogit
@@ -43,4 +44,3 @@ ECHO ERROR: No install of Python has been detected. Please review the README for
 
 :end
 PAUSE
-GOTO start
