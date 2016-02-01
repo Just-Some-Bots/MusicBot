@@ -197,9 +197,6 @@ def main():
                 else:
                     print("\nOk lets hope it worked\n")
 
-        except KeyboardInterrupt:
-            pass
-
 
 def unfuck(e):
     try:
