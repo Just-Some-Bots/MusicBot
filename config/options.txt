@@ -12,9 +12,6 @@ OwnerID = 000000000000000000
 CommandPrefix = !
 
 [MusicBot]
-; This option is not implemented yet
-DaysActive = 0
-
 ; Only allow whitelisted users to use commands
 WhiteListCheck = no
 
