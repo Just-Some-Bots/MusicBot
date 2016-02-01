@@ -737,7 +737,13 @@ class MusicBot(discord.Client):
                     continue
 
                 if args:
-                    arg_value = args.pop(0)
+                    arg_value = None
+
+                    if len(args) > 1:
+                        arg_value = ' '.join(args)
+                    else:
+                        arg_value = args.pop(0)
+                        
                     handler_kwargs[key] = arg_value
                     params.pop(key)
 
