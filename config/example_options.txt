@@ -38,4 +38,4 @@ UseAutoPlaylist = yes
 IgnoreNonVoice = yes
 
 ; Prints extra output in the console and some errors to chat
-DebugMode = yes
+DebugMode = no
