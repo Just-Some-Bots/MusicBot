@@ -33,3 +33,9 @@ AutoSummon = yes
 
 ; Play random songs when nothing is queued
 UseAutoPlaylist = yes
+
+; Ignore most commands from users not in voice chat
+IgnoreNonVoice = yes
+
+; Prints extra output in the console and some errors to chat
+DebugMode = yes
