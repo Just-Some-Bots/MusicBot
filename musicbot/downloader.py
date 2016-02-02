@@ -12,7 +12,8 @@ ytdl_format_options = {
     'nocheckcertificate': True,
     'ignoreerrors': True,
     'quiet': True,
-    'no_warnings': True
+    'no_warnings': True,
+    'source_address': '0.0.0.0' # This is evidently an experimental youtube-dl feature
 }
 
 thread_pool = ThreadPoolExecutor(max_workers=2)
