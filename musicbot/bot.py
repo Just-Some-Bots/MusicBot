@@ -118,6 +118,7 @@ class MusicBot(discord.Client):
             await voice_client.connect()
             return voice_client
 
+
     def ignore_non_voice(func):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -301,8 +302,6 @@ class MusicBot(discord.Client):
                 await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
 
 
-
-
     async def handle_help(self):
         """
         Usage: {command_prefix}help
@@ -323,6 +322,7 @@ class MusicBot(discord.Client):
 
         return Response(helpmsg, reply=True, delete_after=60)
 
+    @owner_only
     async def handle_whitelist(self, message, option, username):
         """
         Usage: {command_prefix}whitelist [ + | - | add | remove ] @UserName
@@ -355,7 +355,7 @@ class MusicBot(discord.Client):
 
                 return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
-
+    @owner_only
     async def handle_blacklist(self, message, option, username):
         """
         Usage: {command_prefix}blacklist [ + | - | add | remove ] @UserName
@@ -404,6 +404,7 @@ class MusicBot(discord.Client):
         """
         return Response('your id is `%s`' % author.id, reply=True)
 
+    @owner_only
     async def handle_joinserver(self, message, server_link):
         """
         Usage {command_prefix}joinserver [Server Link]
@@ -568,6 +569,7 @@ class MusicBot(discord.Client):
         player.playlist.shuffle()
         return Response('*shuffleshuffleshuffle*', delete_after=10)
 
+    @owner_only
     async def handle_clear(self, player, author):
         """
         Usage {command_prefix}clear
@@ -715,7 +717,7 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
-
+    @owner_only
     async def handle_clean(self, channel, author, amount=100):
         """
         Usage {command_prefix}clean [amount=100]
@@ -842,6 +844,11 @@ class MusicBot(discord.Client):
         except:
             await self.send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
             traceback.print_exc()
+
+
+    # async def on_voice_state_update(self, before, after):
+    #     print("Voice status update for", after)
+    #     print(before.voice_channel, '->', after.voice_channel)
 
 
 if __name__ == '__main__':
