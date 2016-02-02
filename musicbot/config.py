@@ -15,7 +15,9 @@ class ConfigDefaults(object):
     now_playing_mentions = False
     auto_summon = True
     auto_playlist = True
+    ignore_non_voice = True
 
+    options_file = 'config/options.txt'
     blacklist_file = 'config/blacklist.txt'
     whitelist_file = 'config/whitelist.txt'
     backup_playlist_file = 'config/backuplist.txt' # this will change when I add playlists
@@ -23,6 +25,7 @@ class ConfigDefaults(object):
 
 class Config(object):
     def __init__(self, config_file):
+        self.config_file = config_file
         config = configparser.ConfigParser()
         config.read(config_file)
 
@@ -41,6 +44,7 @@ class Config(object):
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
+        self.ignore_non_voice = config.getboolean('MusicBot', 'IgnoreNonVoice', fallback=ConfigDefaults.ignore_non_voice)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
@@ -55,3 +59,15 @@ class Config(object):
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
+
+    def create_default_config(self, location):
+        pass
+
+
+# These two are going to be wrappers for the id lists, with add/remove/load/save functions
+# and id/object conversion so types aren't an issue
+class Blacklist(object):
+    pass
+
+class Whitelist(object):
+    pass
