@@ -9,7 +9,8 @@ def load_file(filename):
             for line in f:
                 line = line.strip()
                 if line:
-                    results.append(line)
+                    if not line.startswith('#'):
+                        results.append(line)
 
             return results
 
