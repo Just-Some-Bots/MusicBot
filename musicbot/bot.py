@@ -15,7 +15,7 @@ from musicbot.playlist import Playlist
 from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
-from .exceptions import CommandError
+from .exceptions import CommandError, HelpfulError
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
