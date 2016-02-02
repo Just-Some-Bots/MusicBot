@@ -20,6 +20,7 @@ from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
 from random import choice
+from functools import wraps
 from datetime import timedelta
 
 # import sys
@@ -27,7 +28,7 @@ from datetime import timedelta
 #     import win_unicode_console
 #     win_unicode_console.enable()
 
-VERSION = '2.0'
+VERSION = '1.9.4'
 
 load_opus_lib()
 
@@ -64,8 +65,8 @@ class MusicBot(discord.Client):
         self.voice_client_connect_lock = asyncio.Lock()
         self.config = Config(config_file)
 
-        self.blacklist = set(map(int, load_file(self.config.blacklist_file)))
-        self.whitelist = set(map(int, load_file(self.config.whitelist_file)))
+        self.blacklist = set(map(str, load_file(self.config.blacklist_file)))
+        self.whitelist = set(map(str, load_file(self.config.whitelist_file)))
         self.backuplist = load_file(self.config.backup_playlist_file)
 
         self.last_np_msg = None
@@ -116,6 +117,67 @@ class MusicBot(discord.Client):
 
             await voice_client.connect()
             return voice_client
+
+    def ignore_non_voice(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            # if bot is in a voice channel, user is in the same voice channel, OK
+            # else, return Response saying "ignoring"
+
+            # Ye olde hack to dig up the origional message argument
+            orig_msg = self._get_variable('message')
+
+            # There is no "message" var, lets get outta here
+            if not orig_msg:
+                return await func(self, *args, **kwargs)
+
+
+            vc = self.voice_clients.get(orig_msg.server.id, None)
+
+            # If we've connected to a voice chat and we're in the same voice channel
+            if vc and vc.channel == orig_msg.author.voice_channel:
+                return await func(self, *args, **kwargs)
+            else:
+                return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=15)
+
+        return wrapper
+
+    def owner_only(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            # Only allow the owner to use these commands
+            orig_msg = self._get_variable('message')
+
+            if not orig_msg or orig_msg.author.id == self.config.owner_id:
+                return await func(self, *args, **kwargs)
+
+        return wrapper
+
+    def _get_variable(self, name):
+        stack = inspect.stack()
+        try:
+            for frames in stack:
+                current_locals = frames[0].f_locals
+                if name in current_locals:
+                    return current_locals[name]
+        finally:
+            del stack
+
+    # TODO: autosummon option to a specific channel
+    async def _auto_summon(self, channel=None):
+        owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
+
+        if owner:
+            await self.handle_summon(owner.voice_channel, owner)
+            return True
+        else:
+            print("Owner not found in a voice channel, could not autosummon.")
+            return False
+
+    def _fixg(self, x, dp=2):
+        return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
+
+
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -206,9 +268,9 @@ class MusicBot(discord.Client):
 
         if self.config.owner_id == self.user.id:
             print("\n"
-                "[NOTICE] You have either set the OwnerID config option to the bot's id instead "
-                "of yours, or you've used your own credentials to log the bot in instead of the "
-                "bot's account (the bot needs its own account to work properly).")
+                  "[NOTICE] You have either set the OwnerID config option to the bot's id instead "
+                  "of yours, or you've used your own credentials to log the bot in instead of the "
+                  "bot's account (the bot needs its own account to work properly).")
         print()
 
         # TODO: Make this prettier and easier to read (in the console)
@@ -230,6 +292,7 @@ class MusicBot(discord.Client):
         print()
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
+        # wait_for_message is pretty neato
 
         if self.config.auto_summon:
             as_ok = await self._auto_summon()
@@ -238,24 +301,6 @@ class MusicBot(discord.Client):
                 await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
 
 
-    # TODO: autosummon option to a specific channel
-    async def _auto_summon(self):
-        channel = self._get_owner_voice_channel()
-        if channel:
-            await self.handle_summon(channel, discord.Object(id=str(self.config.owner_id)))
-            return True
-        else:
-            print("Owner not found in a voice channel, could not autosummon.")
-            return False
-
-    def _get_owner_voice_channel(self):
-        for server in self.servers:
-            for channel in server.channels:
-                if discord.utils.get(channel.voice_members, id=self.config.owner_id):
-                    return channel
-
-    def _fixg(self, x, dp=2):
-        return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
 
     async def handle_help(self):
@@ -352,7 +397,6 @@ class MusicBot(discord.Client):
 
                 return Response('user has been removed from the blacklist', reply=True, delete_after=10)
 
-
     async def handle_id(self, author):
         """
         Usage: {command_prefix}id
@@ -372,6 +416,7 @@ class MusicBot(discord.Client):
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
+    @ignore_non_voice
     async def handle_play(self, player, channel, author, song_url):
         """
         Usage {command_prefix}play [song link]
@@ -445,6 +490,7 @@ class MusicBot(discord.Client):
             traceback.print_exc()
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
 
+    @ignore_non_voice
     async def handle_summon(self, channel, author):
         """
         Usage {command_prefix}summon
@@ -488,6 +534,7 @@ class MusicBot(discord.Client):
         if player.is_stopped:
             player.play()
 
+    @ignore_non_voice
     async def handle_pause(self, player):
         """
         Usage {command_prefix}pause
@@ -500,6 +547,7 @@ class MusicBot(discord.Client):
         else:
             raise CommandError('Player is not playing.')
 
+    @ignore_non_voice
     async def handle_resume(self, player):
         """
         Usage {command_prefix}resume
@@ -511,6 +559,7 @@ class MusicBot(discord.Client):
         else:
             raise CommandError('Player is not paused.')
 
+    @ignore_non_voice
     async def handle_shuffle(self, player):
         """
         Usage {command_prefix}shuffle
@@ -528,6 +577,7 @@ class MusicBot(discord.Client):
             player.playlist.clear()
             return
 
+    @ignore_non_voice
     async def handle_skip(self, player, channel, author):
         """
         Usage {command_prefix}skip
@@ -574,6 +624,7 @@ class MusicBot(discord.Client):
                 reply=True
             )
 
+    @ignore_non_voice
     async def handle_volume(self, message, new_volume=None):
         """
         Usage {command_prefix}volume (+/-)[volume]
@@ -665,13 +716,29 @@ class MusicBot(discord.Client):
         return Response(message, delete_after=30)
 
 
-    async def handle_clean(self, message, author, amount):
+    async def handle_clean(self, channel, author, amount=100):
         """
-        Usage {command_prefix}clean amount
+        Usage {command_prefix}clean [amount=100]
         Removes [amount] messages the bot has posted in chat.
         """
-        pass
+        def is_possible_command_invoke(entry):
+            valid_call = any(entry.content.startswith(prefix) for prefix in prefixes)
+            return valid_call and not entry.content[1:2].isspace()
 
+        msgs = 0
+        async for entry in self.logs_from(channel, limit=amount):
+            if entry.author == self.user:
+                await self.delete_message(entry)
+                msgs += 1
+            if is_possible_command_invoke(entry):
+                try:
+                    await self.delete_message(entry)
+                except discord.Forbidden:
+                    continue
+                else:
+                    msgs += 1
+
+        await self.bot.say('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'))
 
 
     async def on_message(self, message):
