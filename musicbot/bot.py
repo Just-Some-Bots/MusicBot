@@ -307,6 +307,7 @@ class MusicBot(discord.Client):
         Usage: {command_prefix}help
         Prints a help message
         """
+
         helpmsg = "**Commands**\n```"
         commands = []
 
@@ -329,8 +330,6 @@ class MusicBot(discord.Client):
         Adds or removes the user to the whitelist. When the whitelist is enabled,
         whitelisted users are permitted to use bot commands.
         """
-        if message.author.id != self.config.owner_id:
-            return
 
         user_id = extract_user_id(username)
         if not user_id:
@@ -362,8 +361,6 @@ class MusicBot(discord.Client):
         Adds or removes the user to the blacklist. Blacklisted users are forbidden from
         using bot commands. Blacklisting a user also removes them from the whitelist.
         """
-        if message.author.id != self.config.owner_id:
-            return
 
         user_id = extract_user_id(username)
         if not user_id:
@@ -402,6 +399,7 @@ class MusicBot(discord.Client):
         Usage: {command_prefix}id
         Tells the user their id.
         """
+
         return Response('your id is `%s`' % author.id, reply=True)
 
     @owner_only
@@ -410,9 +408,9 @@ class MusicBot(discord.Client):
         Usage {command_prefix}joinserver [Server Link]
         Asks the bot to join a server. [todo: add info about if it breaks or whatever]
         """
+
         try:
-            if message.author.id == self.config.owner_id:
-                await self.accept_invite(server_link)
+            await self.accept_invite(server_link)
 
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
@@ -497,6 +495,7 @@ class MusicBot(discord.Client):
         Usage {command_prefix}summon
         This command is for summoning the bot into your voice channel [but it should do it automatically the first time]
         """
+
         if self.voice_clients:
             raise CommandError("Multiple servers not supported at this time.")
 
@@ -554,6 +553,7 @@ class MusicBot(discord.Client):
         Usage {command_prefix}resume
         Resumes playback of a paused song.
         """
+
         if player.is_paused:
             player.resume()
 
@@ -566,6 +566,7 @@ class MusicBot(discord.Client):
         Usage {command_prefix}shuffle
         Shuffles the playlist.
         """
+
         player.playlist.shuffle()
         return Response('*shuffleshuffleshuffle*', delete_after=10)
 
@@ -575,9 +576,8 @@ class MusicBot(discord.Client):
         Usage {command_prefix}clear
         Clears the playlist.
         """
-        if author.id == self.config.owner_id:
-            player.playlist.clear()
-            return
+
+        player.playlist.clear()
 
     @ignore_non_voice
     async def handle_skip(self, player, channel, author):
@@ -674,6 +674,7 @@ class MusicBot(discord.Client):
         Usage {command_prefix}queue
         Prints the current song queue.
         """
+
         player = await self.get_player(channel)
 
         lines = []
@@ -723,6 +724,7 @@ class MusicBot(discord.Client):
         Usage {command_prefix}clean [amount=100]
         Removes [amount] messages the bot has posted in chat.
         """
+
         def is_possible_command_invoke(entry):
             valid_call = any(entry.content.startswith(prefix) for prefix in prefixes)
             return valid_call and not entry.content[1:2].isspace()
