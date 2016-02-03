@@ -4,13 +4,14 @@ import unicodedata
 _USER_ID_MATCH = re.compile(r'<@(\d+)>')
 
 
-def load_file(filename):
+def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
         with open(filename) as f:
             results = []
             for line in f:
                 line = line.strip()
-                if line:
+
+                if line and not (skip_commented_lines and line.startswith(comment_char)):
                     results.append(line)
 
             return results
