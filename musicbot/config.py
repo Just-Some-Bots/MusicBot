@@ -20,7 +20,7 @@ class ConfigDefaults(object):
     options_file = 'config/options.txt'
     blacklist_file = 'config/blacklist.txt'
     whitelist_file = 'config/whitelist.txt'
-    backup_playlist_file = 'config/backuplist.txt' # this will change when I add playlists
+    auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
 
 class Config(object):
@@ -48,7 +48,7 @@ class Config(object):
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
-        self.backup_playlist_file = config.get('Files', 'BlackupPlaylistFile', fallback=ConfigDefaults.backup_playlist_file)
+        self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
         # Validation logic for bot settings.
         if not self.username or not self.password:
