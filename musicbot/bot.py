@@ -67,7 +67,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(map(str, load_file(self.config.blacklist_file)))
         self.whitelist = set(map(str, load_file(self.config.whitelist_file)))
-        self.backuplist = load_file(self.config.backup_playlist_file)
+        self.autoplaylist = load_file(self.config.auto_playlist_file)
 
         self.last_np_msg = None
 
@@ -243,7 +243,7 @@ class MusicBot(discord.Client):
 
     async def on_finished_playing(self, player, **_):
         if not player.playlist.entries and self.config.auto_playlist:
-            song_url = choice(self.backuplist)
+            song_url = choice(self.autoplaylist)
             await player.playlist.add_entry(song_url, channel=None, author=None)
 
 
