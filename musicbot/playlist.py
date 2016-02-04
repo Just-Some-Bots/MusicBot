@@ -100,6 +100,41 @@ class Playlist(EventEmitter):
 
         return entry_list, position
 
+    async def async_process_youtube_playlist(self, playlist_url, **meta):
+        """
+            Processes youtube playlists links from `playlist_url` in a questionable, async fashion.
+
+            :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+            :param meta: Any additional metadata to add to the playlist entry
+        """
+
+        info = await extract_info(self.loop, playlist_url, download=False, process=False)
+
+        if not info:
+            raise ExtractionError('Could not extract information from %s' % playlist_url)
+
+        gooditems = 0
+        baditems = 0
+        for entry_data in info['entries']:
+            if entry_data:
+                baseurl = info['webpage_url'].split('playlist?list=')[0]
+                song_url = baseurl + 'watch?v=%s' % entry_data['id']
+
+                try:
+                    entry, elen = await self.add_entry(song_url, **meta)
+                    gooditems += 1
+                except ExtractionError:
+                    baditems += 1
+
+            else:
+                baditems += 1
+
+        if baditems:
+            print("Skipped %s bad entries" % baditems)
+
+        return gooditems
+
+
     def _add_entry(self, entry):
         self.entries.append(entry)
         self.emit('entry-added', playlist=self, entry=entry)
