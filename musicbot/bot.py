@@ -866,6 +866,8 @@ class MusicBot(discord.Client):
                     try:
                         await asyncio.sleep(response.delete_after)
                         await self.delete_message(sentmsg)
+                    except discord.NotFound:
+                        print("[Warning] Unable to delete message:\n%s\n" % sentmsg)
                     except discord.Forbidden:
                         pass
 
@@ -875,9 +877,8 @@ class MusicBot(discord.Client):
         except Exception as e:
             if self.config.debug_mode:
                 await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
-                traceback.print_exc()
-            else:
-                print("An error has occurred:")
+            traceback.print_exc()
+
 
 
 
