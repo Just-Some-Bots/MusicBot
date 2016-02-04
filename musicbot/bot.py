@@ -85,7 +85,6 @@ class MusicBot(discord.Client):
             if not orig_msg:
                 return await func(self, *args, **kwargs)
 
-
             vc = self.voice_clients.get(orig_msg.server.id, None)
 
             # If we've connected to a voice chat and we're in the same voice channel
@@ -205,7 +204,7 @@ class MusicBot(discord.Client):
         return self.players[server.id]
 
     async def on_play(self, player, entry):
-        self.update_now_playing(entry)
+        await self.update_now_playing(entry)
         player.skip_state.reset()
 
         channel = entry.meta.get('channel', None)
@@ -232,14 +231,14 @@ class MusicBot(discord.Client):
             else:
                 self.last_np_msg = await self.send_message(channel, newmsg)
 
-    def on_resume(self, entry, **_):
-        self.update_now_playing(entry)
+    async def on_resume(self, entry, **_):
+        await self.update_now_playing(entry)
 
-    def on_pause(self, entry, **_):
-        self.update_now_playing(entry, True)
+    async def on_pause(self, entry, **_):
+        await self.update_now_playing(entry, True)
 
-    def on_stop(self, **_):
-        self.update_now_playing()
+    async def on_stop(self, **_):
+        await self.update_now_playing()
 
     async def on_finished_playing(self, player, **_):
         if not player.playlist.entries and self.config.auto_playlist:
@@ -247,7 +246,7 @@ class MusicBot(discord.Client):
             await player.playlist.add_entry(song_url, channel=None, author=None)
 
 
-    def update_now_playing(self, entry=None, is_paused=False):
+    async def update_now_playing(self, entry=None, is_paused=False):
         game = None
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
@@ -255,7 +254,7 @@ class MusicBot(discord.Client):
             name = u'{}{}'.format(prefix, entry.title)[:128]
             game = discord.Game(name=name)
 
-        self.loop.create_task(self.change_status(game))
+        await self.change_status(game)
 
     async def safe_send_message(self, dest, content, *, tts=False):
         # TODO: Change this to a check then send
