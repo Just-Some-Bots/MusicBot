@@ -8,8 +8,9 @@ class ConfigDefaults(object):
     owner_id = None
     command_prefix = '!'
 
+    default_volume = 0.15
     white_list_check = False
-    skips_required = 5
+    skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
     now_playing_mentions = False
@@ -38,6 +39,7 @@ class Config(object):
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
 
+        self.default_volume = config.getboolean('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=ConfigDefaults.white_list_check)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
         self.skip_ratio_required = config.getfloat('MusicBot', 'SkipRatio', fallback=ConfigDefaults.skip_ratio_required)
@@ -62,7 +64,7 @@ class Config(object):
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
 
-    def create_default_config(self, location):
+    def write_default_config(self, location):
         pass
 
 
