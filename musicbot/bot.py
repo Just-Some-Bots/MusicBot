@@ -69,6 +69,10 @@ class MusicBot(discord.Client):
         self.whitelist = set(map(str, load_file(self.config.whitelist_file)))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
 
+        if not self.autoplaylist:
+            print("Warning: Autoplaylist is empty, disabling.")
+            self.config.auto_playlist = False
+
         self.last_np_msg = None
 
 
