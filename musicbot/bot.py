@@ -494,13 +494,13 @@ class MusicBot(discord.Client):
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
-                reply_text = reply_text % (btext, position)
+                reply_text %= (btext, position)
 
             else:
                 time_until = await player.playlist.estimate_time_until(position, player)
 
                 reply_text += ' - estimated time until playing: %s'
-                reply_text = reply_text % (btext, position, time_until)
+                reply_text %= (btext, position, time_until)
 
             return Response(reply_text, reply=True, delete_after=25)
 
