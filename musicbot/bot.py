@@ -438,14 +438,14 @@ class MusicBot(discord.Client):
         try:
             await self.send_typing(channel)
 
-            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
-
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
 
             if not info:
                 raise CommandError("That video cannot be played.")
 
-            if 'entries' in info:
+            is_playlist = 'entries' in info
+
+            if is_playlist:
                 t0 = time.time()
 
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
@@ -483,20 +483,26 @@ class MusicBot(discord.Client):
 
                 await self.delete_message(procmesg)
 
+                reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+                btext = listlen
+
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
-            time_until = await player.playlist.estimate_time_until(position, player)
+                reply_text = "Enqueued **%s** songs to be played, starting at position %s in queue"
+                btext = entry.title
 
             if position == 1 and player.is_stopped:
                 position = 'Up next!'
-                reply_text = reply_text % (entry.title, position)
-            else:
-                reply_text += ' - estimated time until playing: %s'
-                reply_text = reply_text % (entry.title, position, time_until)
-                # TODO: Subtract time the current song has been playing for
+                reply_text = reply_text % (btext, position)
 
-            return Response(reply_text, reply=True, delete_after=15)
+            else:
+                time_until = await player.playlist.estimate_time_until(position, player)
+
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (btext, position, time_until)
+
+            return Response(reply_text, reply=True, delete_after=25)
 
         except Exception as e:
             traceback.print_exc()
