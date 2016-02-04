@@ -245,9 +245,22 @@ class MusicBot(discord.Client):
         await self.update_now_playing()
 
     async def on_finished_playing(self, player, **_):
-        if not player.playlist.entries and self.config.auto_playlist:
-            song_url = choice(self.autoplaylist)
-            await player.playlist.add_entry(song_url, channel=None, author=None)
+        if not (player.playlist.entries and player.current_entry) and self.config.auto_playlist:
+            while self.autoplaylist:
+                song_url = choice(self.autoplaylist)
+                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+                if not info:
+                    self.autoplaylist.remove(song_url)
+                    print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+                    # TODO: Actually remove them from the playlist
+                    continue
+
+                await player.playlist.add_entry(song_url, channel=None, author=None)
+
+            if not self.auto_playlist:
+                print("[Warning] No playable songs in the autoplaylist, disabling.")
+                self.config.auto_playlist = False
 
 
     async def update_now_playing(self, entry=None, is_paused=False):
