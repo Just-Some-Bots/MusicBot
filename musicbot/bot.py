@@ -344,7 +344,9 @@ class MusicBot(discord.Client):
             as_ok = await self._auto_summon()
 
             if self.config.auto_playlist and as_ok:
-                await self.on_finished_playing(await self.get_player(self._get_owner_voice_channel()))
+                # TODO: Clean this up
+                owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
+                await self.on_finished_playing(await self.get_player(owner.voice_channel))
 
 
     async def handle_help(self):
