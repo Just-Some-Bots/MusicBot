@@ -28,7 +28,7 @@ from datetime import timedelta
 #     import win_unicode_console
 #     win_unicode_console.enable()
 
-VERSION = '1.9.4'
+VERSION = '1.9.5'
 
 load_opus_lib()
 
@@ -275,8 +275,8 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
+    # TODO: Change these to check then send
     async def safe_send_message(self, dest, content, *, tts=False):
-        # TODO: Change this to a check then send
         try:
             return await self.send_message(dest, content, tts=tts)
         except discord.Forbidden:
