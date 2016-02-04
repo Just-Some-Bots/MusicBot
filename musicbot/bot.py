@@ -223,7 +223,7 @@ class MusicBot(discord.Client):
                     if lmsg.author != self.user:
                         await self.safe_delete_message(self.last_np_msg)
                         self.last_np_msg = None
-                    break
+                    break # This is probably redundant
 
             if self.config.now_playing_mentions:
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
@@ -477,6 +477,9 @@ class MusicBot(discord.Client):
 
             is_playlist = 'entries' in info
 
+            if is_playlist and info['extractor'] == 'youtube:playlist':
+                return await self._handle_ytplaylist(player, channel, author, song_url)
+
             if is_playlist:
                 t0 = time.time()
 
@@ -534,11 +537,57 @@ class MusicBot(discord.Client):
                 reply_text += ' - estimated time until playing: %s'
                 reply_text %= (btext, position, time_until)
 
-            return Response(reply_text, reply=True, delete_after=25)
+            return Response(reply_text, delete_after=25)
 
         except Exception as e:
             traceback.print_exc()
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def _handle_ytplaylist(self, player, channel, author, playlist_url):
+        """
+        I hope this shit works
+        """
+
+        await self.send_typing(channel)
+        info = await extract_info(player.playlist.loop, playlist_url, download=False, process=False)
+
+        if not info:
+            raise CommandError("That playlist cannot be played.")
+
+        num_songs = sum(1 for _ in info['entries'])
+        t0 = time.time()
+
+        busymsg = await self.safe_send_message(channel, "Processing %s songs..." % num_songs)
+        await self.send_typing(channel)
+
+        try:
+            songs_added = await player.playlist.async_process_youtube_playlist(playlist_url, channel=channel, author=author)
+            # TODO: Add hook to be called after each song
+
+        except Exception as e:
+            traceback.print_exc()
+            raise CommandError('Error handling playlist %s queuing.' % playlist_url)
+
+        await self.safe_delete_message(busymsg)
+
+        tnow = time.time()
+        ttime = tnow - t0
+        wait_per_song = 1.2
+        # TODO: actually calculate wait per song in the process function and return that too
+
+        # This is technically inaccurate since bad songs are ignored but still take up time
+        print("Processed {}/{} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+            songs_added,
+            num_songs,
+            self._fixg(ttime),
+            ttime/num_songs,
+            ttime/num_songs - wait_per_song,
+            self._fixg(wait_per_song*num_songs))
+        )
+
+        return Response("Enqueued {} songs to be played in {} seconds".format(
+            songs_added, self._fixg(ttime, 1)), delete_after=25)
+
 
     @ignore_non_voice
     async def handle_summon(self, channel, author):
@@ -789,7 +838,7 @@ class MusicBot(discord.Client):
         msgs = 0
         delete_invokes = True
         async for entry in self.logs_from(channel, limit=int(amount)):
-            if entry.author == self.user:
+            if entry.author == self.user and entry != self.last_np_msg:
                 await self.safe_delete_message(entry)
                 msgs += 1
 
