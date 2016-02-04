@@ -95,7 +95,7 @@ class MusicBot(discord.Client):
             if vc and vc.channel == orig_msg.author.voice_channel:
                 return await func(self, *args, **kwargs)
             else:
-                return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=15)
+                return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=20)
 
         return wrapper
 
@@ -108,6 +108,8 @@ class MusicBot(discord.Client):
 
             if not orig_msg or orig_msg.author.id == self.config.owner_id:
                 return await func(self, *args, **kwargs)
+            else:
+                return Response("only the owner can use this command", reply=True, delete_after=20)
 
         return wrapper
 
