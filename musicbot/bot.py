@@ -221,7 +221,7 @@ class MusicBot(discord.Client):
 
                 async for lmsg in self.logs_from(channel, limit=1):
                     if lmsg.author != self.user:
-                        await self.delete_message(self.last_np_msg)
+                        await self.safe_delete_message(self.last_np_msg)
                         self.last_np_msg = None
                     break
 
@@ -233,9 +233,9 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title)
 
             if self.last_np_msg:
-                self.last_np_msg = await self.edit_message(self.last_np_msg, newmsg)
+                self.last_np_msg = await self.safe_edit_message(self.last_np_msg, newmsg, send_if_fail=True)
             else:
-                self.last_np_msg = await self.send_message(channel, newmsg)
+                self.last_np_msg = await self.safe_send_message(channel, newmsg)
 
     async def on_resume(self, entry, **_):
         await self.update_now_playing(entry)
@@ -280,9 +280,26 @@ class MusicBot(discord.Client):
         try:
             return await self.send_message(dest, content, tts=tts)
         except discord.Forbidden:
-            print("Error: Cannot send message to %s, no permission" % dest)
+            print("Error: Cannot send message to %s, no permission" % dest.name)
         except discord.NotFound:
-            print("Error: Cannot send message to %s, invalid channel?" % dest)
+            print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+
+    async def safe_delete_message(self, message):
+        try:
+            return await self.delete_message(message)
+        except discord.Forbidden:
+            print("Error: Cannot delete message \"%s\", no permission" % message.clean_content)
+        except discord.NotFound:
+            print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+
+    async def safe_edit_message(self, message, new, *, send_if_fail=False):
+        try:
+            return await self.edit_message(message, new)
+        except discord.NotFound:
+            print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
+            if send_if_fail:
+                print("Sending instead")
+                return await self.safe_send_message(message.channel, new)
 
 
     # noinspection PyMethodOverriding
@@ -472,7 +489,7 @@ class MusicBot(discord.Client):
 
                 num_songs = sum(1 for _ in info['entries'])
 
-                procmesg = await self.send_message(channel,
+                procmesg = await self.safe_send_message(channel,
                     'Gathering playlist information for {} songs{}'.format(
                         num_songs,
                         ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
@@ -773,7 +790,7 @@ class MusicBot(discord.Client):
         delete_invokes = True
         async for entry in self.logs_from(channel, limit=int(amount)):
             if entry.author == self.user:
-                await self.delete_message(entry)
+                await self.safe_delete_message(entry)
                 msgs += 1
 
             if is_possible_command_invoke(entry) and delete_invokes:
@@ -892,7 +909,7 @@ class MusicBot(discord.Client):
                         await asyncio.sleep(response.delete_after)
                         await self.delete_message(sentmsg)
                     except discord.NotFound:
-                        print("[Warning] Unable to delete message:\n%s\n" % sentmsg)
+                        print("[Warning] Message slated for deletion has already been deleted")
                     except discord.Forbidden:
                         pass
 
