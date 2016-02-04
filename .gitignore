@@ -1,5 +1,5 @@
 .idea/
 audio_cache/
-config/options.txt
+config/options.ini
 
 *.pyc

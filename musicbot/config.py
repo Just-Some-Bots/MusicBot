@@ -18,7 +18,7 @@ class ConfigDefaults(object):
     ignore_non_voice = True
     debug_mode = False
 
-    options_file = 'config/options.txt'
+    options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     whitelist_file = 'config/whitelist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
