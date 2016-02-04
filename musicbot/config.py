@@ -16,6 +16,7 @@ class ConfigDefaults(object):
     auto_summon = True
     auto_playlist = True
     ignore_non_voice = True
+    debug_mode = False
 
     options_file = 'config/options.txt'
     blacklist_file = 'config/blacklist.txt'
@@ -45,6 +46,7 @@ class Config(object):
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
         self.ignore_non_voice = config.getboolean('MusicBot', 'IgnoreNonVoice', fallback=ConfigDefaults.ignore_non_voice)
+        self.debug_mode = config.getboolean('MusicBot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
