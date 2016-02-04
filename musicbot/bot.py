@@ -92,7 +92,7 @@ class MusicBot(discord.Client):
             vc = self.voice_clients.get(orig_msg.server.id, None)
 
             # If we've connected to a voice chat and we're in the same voice channel
-            if vc and vc.channel == orig_msg.author.voice_channel:
+            if not vc or (vc and vc.channel == orig_msg.author.voice_channel):
                 return await func(self, *args, **kwargs)
             else:
                 return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=20)
@@ -635,6 +635,11 @@ class MusicBot(discord.Client):
 
         if player.is_stopped:
             player.play()
+
+        if self.config.auto_playlist:
+            # TODO: Clean this up
+            owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
+            await self.on_finished_playing(await self.get_player(owner.voice_channel))
 
     @ignore_non_voice
     async def handle_pause(self, player):
