@@ -752,7 +752,7 @@ class MusicBot(discord.Client):
                 else:
                     msgs += 1
 
-        await self.bot.say('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'))
+        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=20)
 
 
     async def on_message(self, message):
@@ -804,8 +804,17 @@ class MusicBot(discord.Client):
             if params.pop('author', None):
                 handler_kwargs['author'] = message.author
 
+            if params.pop('server', None):
+                handler_kwargs['server'] = message.server
+
             if params.pop('player', None):
                 handler_kwargs['player'] = await self.get_player(message.channel)
+
+            if params.pop('user_mentions', None):
+                handler_kwargs['user_mentions'] = list(map(message.server.get_member, message.raw_mentions))
+
+            if params.pop('channel_mentions', None):
+                handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
 
             args_expected = []
             for key, param in list(params.items()):
