@@ -9,7 +9,7 @@ from discord.enums import ChannelType
 from discord.object import Object
 from discord.voice_client import VoiceClient
 
-from musicbot.config import Config
+from musicbot.config import Config, ConfigDefaults
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
 from musicbot.utils import load_file, extract_user_id, write_file
@@ -57,7 +57,7 @@ class Response(object):
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file='config/options.txt'):
+    def __init__(self, config_file=ConfigDefaults.options_file):
         super().__init__()
 
         self.players = {}
