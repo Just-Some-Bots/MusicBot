@@ -65,8 +65,8 @@ class MusicBot(discord.Client):
         self.voice_client_connect_lock = asyncio.Lock()
         self.config = Config(config_file)
 
-        self.blacklist = set(map(str, load_file(self.config.blacklist_file)))
-        self.whitelist = set(map(str, load_file(self.config.whitelist_file)))
+        self.blacklist = set(load_file(self.config.blacklist_file))
+        self.whitelist = set(load_file(self.config.whitelist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
 
         if not self.autoplaylist:
