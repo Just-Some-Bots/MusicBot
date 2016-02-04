@@ -71,6 +71,68 @@ class MusicBot(discord.Client):
 
         self.last_np_msg = None
 
+
+    def ignore_non_voice(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            # if bot is in a voice channel, user is in the same voice channel, OK
+            # else, return Response saying "ignoring"
+
+            # Ye olde hack to dig up the origional message argument
+            orig_msg = self._get_variable('message')
+
+            # There is no "message" var, lets get outta here
+            if not orig_msg:
+                return await func(self, *args, **kwargs)
+
+
+            vc = self.voice_clients.get(orig_msg.server.id, None)
+
+            # If we've connected to a voice chat and we're in the same voice channel
+            if vc and vc.channel == orig_msg.author.voice_channel:
+                return await func(self, *args, **kwargs)
+            else:
+                return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=15)
+
+        return wrapper
+
+    # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
+    def owner_only(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            # Only allow the owner to use these commands
+            orig_msg = self._get_variable('message')
+
+            if not orig_msg or orig_msg.author.id == self.config.owner_id:
+                return await func(self, *args, **kwargs)
+
+        return wrapper
+
+    def _get_variable(self, name):
+        stack = inspect.stack()
+        try:
+            for frames in stack:
+                current_locals = frames[0].f_locals
+                if name in current_locals:
+                    return current_locals[name]
+        finally:
+            del stack
+
+    # TODO: autosummon option to a specific channel
+    async def _auto_summon(self, channel=None):
+        owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
+
+        if owner:
+            await self.handle_summon(owner.voice_channel, owner)
+            return True
+        else:
+            print("Owner not found in a voice channel, could not autosummon.")
+            return False
+
+    def _fixg(self, x, dp=2):
+        return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
+
+
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
@@ -117,68 +179,6 @@ class MusicBot(discord.Client):
 
             await voice_client.connect()
             return voice_client
-
-
-    def ignore_non_voice(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # if bot is in a voice channel, user is in the same voice channel, OK
-            # else, return Response saying "ignoring"
-
-            # Ye olde hack to dig up the origional message argument
-            orig_msg = self._get_variable('message')
-
-            # There is no "message" var, lets get outta here
-            if not orig_msg:
-                return await func(self, *args, **kwargs)
-
-
-            vc = self.voice_clients.get(orig_msg.server.id, None)
-
-            # If we've connected to a voice chat and we're in the same voice channel
-            if vc and vc.channel == orig_msg.author.voice_channel:
-                return await func(self, *args, **kwargs)
-            else:
-                return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=15)
-
-        return wrapper
-
-    def owner_only(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # Only allow the owner to use these commands
-            orig_msg = self._get_variable('message')
-
-            if not orig_msg or orig_msg.author.id == self.config.owner_id:
-                return await func(self, *args, **kwargs)
-
-        return wrapper
-
-    def _get_variable(self, name):
-        stack = inspect.stack()
-        try:
-            for frames in stack:
-                current_locals = frames[0].f_locals
-                if name in current_locals:
-                    return current_locals[name]
-        finally:
-            del stack
-
-    # TODO: autosummon option to a specific channel
-    async def _auto_summon(self, channel=None):
-        owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
-
-        if owner:
-            await self.handle_summon(owner.voice_channel, owner)
-            return True
-        else:
-            print("Owner not found in a voice channel, could not autosummon.")
-            return False
-
-    def _fixg(self, x, dp=2):
-        return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
-
-
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -256,6 +256,16 @@ class MusicBot(discord.Client):
             game = discord.Game(name=name)
 
         self.loop.create_task(self.change_status(game))
+
+    async def safe_send_message(self, dest, content, *, tts=False):
+        # TODO: Change this to a check then send
+        try:
+            return await self.send_message(dest, content, tts=tts)
+        except discord.Forbidden:
+            print("Error: Cannot send message to %s, no permission" % dest)
+        except discord.NotFound:
+            print("Error: Cannot send message to %s, invalid channel?" % dest)
+
 
     # noinspection PyMethodOverriding
     def run(self):
@@ -821,7 +831,7 @@ class MusicBot(discord.Client):
                     )
 
                 docs = '\n'.join(l.strip() for l in docs.split('\n'))
-                await self.send_message(
+                await self.safe_send_message(
                     message.channel,
                     '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix)
                 )
@@ -833,19 +843,26 @@ class MusicBot(discord.Client):
                 if response.reply:
                     content = '%s, %s' % (message.author.mention, content)
 
-                sentmsg = await self.send_message(message.channel, content)
+                sentmsg = await self.safe_send_message(message.channel, content)
 
-                if response.delete_after > 0:
-                    await asyncio.sleep(response.delete_after)
-                    await self.delete_message(sentmsg)
-                    # TODO: Add options for deletion toggling
+                # TODO: Add options for deletion toggling
+                if sentmsg and response.delete_after > 0:
+                    try:
+                        await asyncio.sleep(response.delete_after)
+                        await self.delete_message(sentmsg)
+                    except discord.Forbidden:
+                        pass
 
         except CommandError as e:
-            await self.send_message(message.channel, '```\n%s\n```' % e.message)
+            await self.safe_send_message(message.channel, '```\n%s\n```' % e.message)
 
-        except:
-            await self.send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
-            traceback.print_exc()
+        except Exception as e:
+            if self.config.debug_mode:
+                await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+                traceback.print_exc()
+            else:
+                print("An error has occurred:")
+
 
 
     # async def on_voice_state_update(self, before, after):
