@@ -638,8 +638,7 @@ class MusicBot(discord.Client):
 
         if self.config.auto_playlist:
             # TODO: Clean this up
-            owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
-            await self.on_finished_playing(await self.get_player(owner.voice_channel))
+            await self.on_finished_playing(await self.get_player(author.voice_channel))
 
     @ignore_non_voice
     async def handle_pause(self, player):
