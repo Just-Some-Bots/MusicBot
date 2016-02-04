@@ -253,7 +253,7 @@ class MusicBot(discord.Client):
                 if not info:
                     self.autoplaylist.remove(song_url)
                     print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
-                    # TODO: Actually remove them from the playlist
+                    write_file(self.config.auto_playlist_file, self.autoplaylist)
                     continue
 
                 await player.playlist.add_entry(song_url, channel=None, author=None)
