@@ -22,8 +22,8 @@ Simply download the bot, set the dependencies up, then run `runbot.bat`! (or `ru
 
 Once started, it's good to go. If you have any errors FIRST read the FAQ and if you are not able to solve your problem using the FAQ then you can report them on the discord help server. Is is recommended to take screenshots so the developers can see errors.
 
-Rhino Bot Help Discord - https://discord.gg/0iqN3da4zqrSz036
+[Rhino Bot Help Discord](http://discord.me/rhinohelp "Discord link")
 
 ### FAQ
 
-You can check our frequently asked questions on our wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "FAQ").
+You can check our frequently asked questions on our wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
