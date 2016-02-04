@@ -6,7 +6,6 @@ from array import array
 from asyncio import Lock
 from enum import Enum
 
-from .constants import DEFAULT_VOLUME
 from .lib.event_emitter import EventEmitter
 
 
@@ -48,19 +47,20 @@ class MusicPlayerState(Enum):
 
 
 class MusicPlayer(EventEmitter):
-    def __init__(self, bot, voice_client, playlist, volume=DEFAULT_VOLUME):
+    def __init__(self, bot, voice_client, playlist):
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
         self.voice_client = voice_client
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
+        self.volume = bot.config.default_volume
 
         self._play_lock = Lock()
         self._current_player = None
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
-        self.volume = volume
+
 
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
