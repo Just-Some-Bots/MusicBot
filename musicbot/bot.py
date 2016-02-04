@@ -366,7 +366,7 @@ class MusicBot(discord.Client):
 
         if option in ['+', 'add']:
             self.whitelist.add(user_id)
-            write_file('./config/whitelist.txt', self.whitelist)
+            write_file(self.config.whitelist_file, self.whitelist)
 
             return Response('user has been added to the whitelist', reply=True, delete_after=10)
 
@@ -376,7 +376,7 @@ class MusicBot(discord.Client):
 
             else:
                 self.whitelist.remove(user_id)
-                write_file('./config/whitelist.txt', self.whitelist)
+                write_file(self.config.whitelist_file, self.whitelist)
 
                 return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
@@ -400,11 +400,11 @@ class MusicBot(discord.Client):
 
         if option in ['+', 'add']:
             self.blacklist.add(user_id)
-            write_file('./config/blacklist.txt', self.blacklist)
+            write_file(self.config.blacklist_file, self.blacklist)
 
             if user_id in self.whitelist:
                 self.whitelist.remove(user_id)
-                write_file('./config/whitelist.txt', self.whitelist)
+                write_file(self.config.whitelist_file, self.whitelist)
                 return Response('user has been added to the blacklist and removed from the whitelist', reply=True, delete_after=10)
 
             else:
@@ -416,7 +416,7 @@ class MusicBot(discord.Client):
 
             else:
                 self.blacklist.remove(user_id)
-                write_file('./config/blacklist.txt', self.blacklist)
+                write_file(self.config.blacklist_file, self.blacklist)
 
                 return Response('user has been removed from the blacklist', reply=True, delete_after=10)
 
