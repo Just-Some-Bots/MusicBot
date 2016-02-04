@@ -734,20 +734,28 @@ class MusicBot(discord.Client):
         Removes [amount] messages the bot has posted in chat.
         """
 
+        try:
+            float(amount) # lazy check
+            amount = int(amount)
+        except:
+            return Response("that's not real number", reply=True, delete_after=15)
+
         def is_possible_command_invoke(entry):
-            valid_call = any(entry.content.startswith(prefix) for prefix in prefixes)
+            valid_call = any(entry.content.startswith(prefix) for prefix in [self.config.command_prefix]) # can be expanded
             return valid_call and not entry.content[1:2].isspace()
 
         msgs = 0
-        async for entry in self.logs_from(channel, limit=amount):
+        delete_invokes = True
+        async for entry in self.logs_from(channel, limit=int(amount)):
             if entry.author == self.user:
                 await self.delete_message(entry)
                 msgs += 1
-            if is_possible_command_invoke(entry):
+
+            if is_possible_command_invoke(entry) and delete_invokes:
                 try:
                     await self.delete_message(entry)
                 except discord.Forbidden:
-                    continue
+                    delete_invokes = False
                 else:
                     msgs += 1
 
