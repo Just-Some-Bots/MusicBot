@@ -483,13 +483,13 @@ class MusicBot(discord.Client):
 
                 await self.delete_message(procmesg)
 
-                reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+                reply_text = "Enqueued **%s** songs to be played. Position in queue: %s"
                 btext = listlen
 
             else:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
-                reply_text = "Enqueued **%s** songs to be played, starting at position %s in queue"
+                reply_text = "Enqueued **%s** to be played. Position in queue: %s"
                 btext = entry.title
 
             if position == 1 and player.is_stopped:
