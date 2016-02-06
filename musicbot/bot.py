@@ -9,6 +9,10 @@ from discord.enums import ChannelType
 from discord.object import Object
 from discord.voice_client import VoiceClient
 
+from random import choice
+from functools import wraps
+from datetime import timedelta
+
 from musicbot.config import Config, ConfigDefaults
 from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
@@ -18,10 +22,6 @@ from .downloader import extract_info
 from .exceptions import CommandError, HelpfulError
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
-
-from random import choice
-from functools import wraps
-from datetime import timedelta
 
 # import sys
 # if sys.platform.startswith('win'):
