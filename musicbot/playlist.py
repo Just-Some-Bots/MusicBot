@@ -1,11 +1,11 @@
-import asyncio
-import collections
-import itertools
-import datetime
 import os
-import os.path
+import asyncio
+import datetime
 import traceback
+
 from random import shuffle
+from itertools import islice
+from collections import deque
 
 from .constants import AUDIO_CACHE_PATH
 from .downloader import extract_info
@@ -22,7 +22,7 @@ class Playlist(EventEmitter):
     def __init__(self, loop):
         super().__init__()
         self.loop = loop
-        self.entries = collections.deque()
+        self.entries = deque()
 
     def shuffle(self):
         shuffle(self.entries)
@@ -172,7 +172,7 @@ class Playlist(EventEmitter):
         """
             (very) Roughly estimates the time till the queue will 'position'
         """
-        estimated_time = sum([e.duration for e in list(itertools.islice(self.entries, 0, position-1))])
+        estimated_time = sum([e.duration for e in islice(self.entries, position-1)])
 
         # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped:
