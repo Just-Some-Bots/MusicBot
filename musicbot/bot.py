@@ -23,10 +23,6 @@ from .exceptions import CommandError, HelpfulError
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
-# import sys
-# if sys.platform.startswith('win'):
-#     import win_unicode_console
-#     win_unicode_console.enable()
 
 VERSION = '1.9.5'
 
