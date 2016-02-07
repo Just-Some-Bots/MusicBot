@@ -255,6 +255,7 @@ class MusicBot(discord.Client):
                     continue
 
                 await player.playlist.add_entry(song_url, channel=None, author=None)
+                break
 
             if not self.auto_playlist:
                 print("[Warning] No playable songs in the autoplaylist, disabling.")
