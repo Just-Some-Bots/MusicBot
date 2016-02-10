@@ -6,13 +6,14 @@ from concurrent.futures import ThreadPoolExecutor
 ytdl_format_options = {
     'format': 'bestaudio/best',
     'extractaudio': True,
-    'audioformat': "mp3",
+    'audioformat': 'mp3',
     'outtmpl': '%(id)s', # part file temp name
     'noplaylist': True,
     'nocheckcertificate': True,
     'ignoreerrors': True,
     'quiet': True,
     'no_warnings': True,
+    'default_search': 'auto',
     'source_address': '0.0.0.0'
 }
 

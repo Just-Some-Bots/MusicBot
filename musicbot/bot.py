@@ -474,6 +474,14 @@ class MusicBot(discord.Client):
             if not info:
                 raise CommandError("That video cannot be played.")
 
+            if info['url'].startswith('ytsearch:'):
+                print("[Command:play] Using search query")
+                info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
+                song_url = info['entries'][0]['webpage_url']
+                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+                # Now I could just do: return await self.handle_play(player, channel, author, song_url)
+                # But this is probably fine
+
             is_playlist = 'entries' in info
 
             if is_playlist and info['extractor'] == 'youtube:playlist':
