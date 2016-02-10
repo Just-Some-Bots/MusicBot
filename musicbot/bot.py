@@ -460,7 +460,7 @@ class MusicBot(discord.Client):
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
     @ignore_non_voice
-    async def handle_play(self, player, channel, author, song_url):
+    async def handle_play(self, player, channel, author, leftover_args, song_url):
         """
         Usage {command_prefix}play [song link]
         Adds the song to the playlist.
@@ -469,18 +469,23 @@ class MusicBot(discord.Client):
         try:
             await self.send_typing(channel)
 
+            if leftover_args:
+                song_url = ' '.join([song_url, *leftover_args])
+
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
 
             if not info:
                 raise CommandError("That video cannot be played.")
 
             if info['url'].startswith('ytsearch:'):
-                print("[Command:play] Using search query")
+                print("[Command:play] Searching for \"%s\"" % song_url)
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
                 song_url = info['entries'][0]['webpage_url']
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
                 # Now I could just do: return await self.handle_play(player, channel, author, song_url)
                 # But this is probably fine
+
+                # TODO: Add prompt where bot says "is this what you want: link" and user replies y/n in wait_for_message
 
             is_playlist = 'entries' in info
 
@@ -924,6 +929,9 @@ class MusicBot(discord.Client):
 
             if params.pop('channel_mentions', None):
                 handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
+
+            if params.pop('leftover_args', None):
+                handler_kwargs['leftover_args'] = args
 
             args_expected = []
             for key, param in list(params.items()):
