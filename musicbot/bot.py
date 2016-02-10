@@ -843,7 +843,7 @@ class MusicBot(discord.Client):
 
         try:
             float(amount) # lazy check
-            amount = int(amount)
+            amount = int(amount) + 1 # because we want to clean the invoking command, but not count it
         except:
             return Response("that's not real number", reply=True, delete_after=15)
 
