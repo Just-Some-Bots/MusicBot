@@ -477,8 +477,9 @@ class MusicBot(discord.Client):
             if not info:
                 raise CommandError("That video cannot be played.")
 
-            if info['url'].startswith('ytsearch:'):
-                print("[Command:play] Searching for \"%s\"" % song_url)
+
+            if info.get('url', '').startswith('ytsearch'):
+                # print("[Command:play] Searching for \"%s\"" % song_url)
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
                 song_url = info['entries'][0]['webpage_url']
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
@@ -553,7 +554,7 @@ class MusicBot(discord.Client):
 
         except Exception as e:
             traceback.print_exc()
-            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+            raise CommandError('Unable to queue up song "%s" to be played.' % song_url)
 
     async def _handle_ytplaylist(self, player, channel, author, playlist_url):
         """
@@ -605,7 +606,7 @@ class MusicBot(discord.Client):
     async def handle_summon(self, channel, author):
         """
         Usage {command_prefix}summon
-        This command is for summoning the bot into your voice channel [but it should do it automatically the first time]
+        Call the bot to the summoner's voice channel.
         """
 
         if self.voice_clients:
@@ -742,15 +743,14 @@ class MusicBot(discord.Client):
                 reply=True
             )
 
+    @owner_only
     @ignore_non_voice
-    async def handle_volume(self, message, new_volume=None):
+    async def handle_volume(self, message, player, new_volume=None):
         """
         Usage {command_prefix}volume (+/-)[volume]
         Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
-
-        player = await self.get_player(message.channel)
 
         if not new_volume:
             return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=10)
@@ -785,13 +785,11 @@ class MusicBot(discord.Client):
                 raise CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
 
-    async def handle_queue(self, channel):
+    async def handle_queue(self, channel, player):
         """
         Usage {command_prefix}queue
         Prints the current song queue.
         """
-
-        player = await self.get_player(channel)
 
         lines = []
         unlisted = 0
