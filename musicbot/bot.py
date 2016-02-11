@@ -627,8 +627,7 @@ class MusicBot(discord.Client):
         try:
             leftover_args = shlex.split(' '.join(leftover_args))
         except ValueError:
-                raise CommandError("Please quote your search query properly.")
-                # TODO: ^ do something about
+            raise CommandError("Please quote your search query properly.")
 
         service = 'youtube'
         items_requested = 1
