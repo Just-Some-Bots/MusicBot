@@ -307,9 +307,15 @@ class MusicBot(discord.Client):
 
     async def on_ready(self):
         print('Connected!\n')
-        print('Username: %s' % self.user.name)
-        print('Bot ID: %s' % self.user.id)
-        print('Owner ID: %s' % self.config.owner_id)
+
+        print("Bot: %s/%s" % (self.user.id, self.user.name))
+
+        self.owner = discord.utils.get(self.get_all_members(), id=self.config.owner_id)
+        if not self.owner:
+            print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
+        else:
+            print("Owner: %s/%s" % (self.owner.id, self.owner.name))
+
 
         if self.config.owner_id == self.user.id:
             print("\n"
