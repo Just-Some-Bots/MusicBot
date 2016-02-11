@@ -1,4 +1,5 @@
 import time
+import shlex
 import inspect
 import discord
 import asyncio
@@ -11,6 +12,7 @@ from discord.voice_client import VoiceClient
 
 from random import choice
 from functools import wraps
+from textwrap import dedent
 from datetime import timedelta
 
 from musicbot.playlist import Playlist
@@ -600,6 +602,111 @@ class MusicBot(discord.Client):
 
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=25)
+
+    @ignore_non_voice
+    async def handle_search(self, player, channel, author, leftover_args):
+        """
+        Usage {command_prefix}search [service] <query>
+        Searches a service for a video and adds it to the queue.
+        - service: any one of the following services:
+            - youtube (yt) (default if unspecified)
+            - soundcloud (sc)
+            - yahoo (yh)
+        - number: return a number of video results and choose one
+          - note: If your search query starts with a number
+                  you must put your query in quotes
+            - ex: {command_prefix}search 2 "3 minutes clapping"
+        """
+
+        def argch():
+            if not leftover_args:
+                raise CommandError("Please specify a search query\n%s" % dedent(
+                    self.handle_search.__doc__.format(command_prefix=self.config.command_prefix)))
+        argch()
+
+        try:
+            leftover_args = shlex.split(' '.join(leftover_args))
+        except ValueError:
+                raise CommandError("Please quote your search query properly.")
+                # TODO: ^ do something about
+
+        service = 'youtube'
+        items_requested = 1
+        max_items = 15 # this can be whatever, but since ytdl uses about 1000, a small number might be better
+        services = {
+            'youtube': 'ytsearch',
+            'soundcloud': 'scsearch',
+            'yahoo': 'yvsearch',
+            'yt': 'ytsearch',
+            'sc': 'scsearch',
+            'yh': 'yvsearch'
+        }
+
+        if leftover_args[0] in services:
+            service = leftover_args.pop(0)
+            argch()
+
+        if leftover_args[0].isdigit():
+            items_requested = int(leftover_args.pop(0))
+            argch()
+            if items_requested > max_items:
+                raise CommandError("You cannot request more than %s videos" % max_items)
+
+        # Look jake, if you see this and go "what the fuck are you doing"
+        # and have a better idea on how to do this, i'd be delighted to know.
+        # I don't want to just do ' '.join(leftover_args).strip("\"'")
+        # Because that eats both quotes if they're there
+        # where I only want to eat the outermost ones
+        if leftover_args[0][0] in '\'"':
+            leftover_args[0] = leftover_args[0].lstrip(leftover_args[0][0])
+            leftover_args[-1] = leftover_args[-1].rstrip(leftover_args[0][0])
+
+        search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
+
+        m = await self.send_message(channel, "Searching for videos...")
+        await self.send_typing(channel)
+        info = await extract_info(player.playlist.loop, search_query, download=False, process=True)
+        await self.safe_delete_message(m)
+
+        if not info:
+            return Response("No videos found")
+
+        def check(m):
+            return (
+                m.content.lower()[0] in 'yn' or
+                # hardcoded function name weeee
+                m.content.lower().startswith('{}{}'.format(self.config.command_prefix, 'search')) or
+                m.content.lower().startswith('exit'))
+
+        for e in info['entries']:
+            result_message = await self.send_message(channel, "Result %s/%s: %s" % (
+                info['entries'].index(e)+1, len(info['entries']), e['webpage_url']))
+
+            confirm_message = await self.send_message(channel, "Is this ok? (y/n/exit)")
+            response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
+
+            if not response_message:
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                return Response("Ok nevermind.", delete_after=30)
+
+            # They started a new search query so lets clean up and bugger off
+            elif response_message.content.startswith(self.config.command_prefix) or \
+                 response_message.content.lower().startswith('exit'):
+
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                return
+
+            if response_message.content.lower().startswith('y'):
+                await self.handle_play(player, channel, author, [], e['webpage_url'])
+                return Response("Alright, comming up!", delete_after=10)
+            else:
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                await self.safe_delete_message(response_message)
+
+        return Response("Oh well :frowning:")
 
 
     @ignore_non_voice
