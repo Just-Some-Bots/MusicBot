@@ -468,95 +468,103 @@ class MusicBot(discord.Client):
         Adds the song to the playlist.
         """
 
+        await self.send_typing(channel)
+
+        if leftover_args:
+            song_url = ' '.join([song_url, *leftover_args])
+
         try:
-            await self.send_typing(channel)
-
-            if leftover_args:
-                song_url = ' '.join([song_url, *leftover_args])
-
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
 
             if not info:
                 raise CommandError("That video cannot be played.")
-
-
-            if info.get('url', '').startswith('ytsearch'):
-                # print("[Command:play] Searching for \"%s\"" % song_url)
-                info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
-                song_url = info['entries'][0]['webpage_url']
-                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
-                # Now I could just do: return await self.handle_play(player, channel, author, song_url)
-                # But this is probably fine
-
-                # TODO: Add prompt where bot says "is this what you want: link" and user replies y/n in wait_for_message
-
-            is_playlist = 'entries' in info
-
-            if is_playlist and info['extractor'] == 'youtube:playlist':
-                return await self._handle_ytplaylist(player, channel, author, song_url)
-
-            if is_playlist:
-                t0 = time.time()
-
-                # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
-                # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
-                # I don't think we can hook into it anyways, so this will have to do.
-                # It would probably be a thread to check a few playlists and get the speed from that
-                # Different playlists might download at different speeds though
-                wait_per_song = 1.2
-
-                num_songs = sum(1 for _ in info['entries'])
-
-                procmesg = await self.safe_send_message(channel,
-                    'Gathering playlist information for {} songs{}'.format(
-                        num_songs,
-                        ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
-
-                # We don't have a pretty way of doing this yet.  We need either a loop
-                # that sends these every 10 seconds or a nice context manager.
-                await self.send_typing(channel)
-
-                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
-                entry = entry_list[0]
-
-                tnow = time.time()
-                ttime = tnow - t0
-                listlen = len(entry_list)
-
-                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-                    listlen,
-                    self._fixg(ttime),
-                    ttime/listlen,
-                    ttime/listlen - wait_per_song,
-                    self._fixg(wait_per_song*num_songs))
-                )
-
-                await self.delete_message(procmesg)
-
-                reply_text = "Enqueued **%s** songs to be played. Position in queue: %s"
-                btext = listlen
-
-            else:
-                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
-
-                reply_text = "Enqueued **%s** to be played. Position in queue: %s"
-                btext = entry.title
-
-            if position == 1 and player.is_stopped:
-                position = 'Up next!'
-                reply_text %= (btext, position)
-
-            else:
-                time_until = await player.playlist.estimate_time_until(position, player)
-
-                reply_text += ' - estimated time until playing: %s'
-                reply_text %= (btext, position, time_until)
-
-            return Response(reply_text, delete_after=25)
-
         except Exception as e:
             traceback.print_exc()
-            raise CommandError('Unable to queue up song "%s" to be played.' % song_url)
+            return CommandError("Error looking up %s:\n%s" % (song_url, e))
+
+        if info.get('url', '').startswith('ytsearch'):
+            # print("[Command:play] Searching for \"%s\"" % song_url)
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
+            song_url = info['entries'][0]['webpage_url']
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+            # Now I could just do: return await self.handle_play(player, channel, author, song_url)
+            # But this is probably fine
+
+            # TODO: Add prompt where bot says "is this what you want: link" and user replies y/n in wait_for_message
+
+        is_playlist = 'entries' in info
+
+        if is_playlist and info['extractor'] == 'youtube:playlist':
+            try:
+                return await self._handle_ytplaylist(player, channel, author, song_url)
+            except Exception as e:
+                traceback.print_exc()
+                return CommandError("Error queuing playlist:\n%s" % e)
+
+        if is_playlist:
+            t0 = time.time()
+
+            # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+            # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+            # I don't think we can hook into it anyways, so this will have to do.
+            # It would probably be a thread to check a few playlists and get the speed from that
+            # Different playlists might download at different speeds though
+            wait_per_song = 1.2
+
+             # The only reason we would use this over ;en(info['entries']) is if we add `if _` to this one
+            num_songs = sum(1 for _ in info['entries'])
+
+            procmesg = await self.safe_send_message(channel,
+                'Gathering playlist information for {} songs{}'.format(
+                    num_songs,
+                    ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
+
+            # We don't have a pretty way of doing this yet.  We need either a loop
+            # that sends these every 10 seconds or a nice context manager.
+            await self.send_typing(channel)
+
+            entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+            entry = entry_list[0]
+
+            tnow = time.time()
+            ttime = tnow - t0
+            listlen = len(entry_list)
+
+            print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                listlen,
+                self._fixg(ttime),
+                ttime/listlen,
+                ttime/listlen - wait_per_song,
+                self._fixg(wait_per_song*num_songs))
+            )
+
+            await self.safe_delete_message(procmesg)
+
+            reply_text = "Enqueued **%s** songs to be played. Position in queue: %s"
+            btext = listlen
+
+        else:
+            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+            btext = entry.title
+
+        if position == 1 and player.is_stopped:
+            position = 'Up next!'
+            reply_text %= (btext, position)
+
+        else:
+            try:
+                time_until = await player.playlist.estimate_time_until(position, player)
+                reply_text += ' - estimated time until playing: %s'
+            except:
+                traceback.print_exc()
+                time_until = ''
+
+            reply_text %= (btext, position, time_until)
+
+        return Response(reply_text, delete_after=25)
+
 
     async def _handle_ytplaylist(self, player, channel, author, playlist_url):
         """
