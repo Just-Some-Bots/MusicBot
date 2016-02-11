@@ -123,10 +123,8 @@ class MusicBot(discord.Client):
 
     # TODO: autosummon option to a specific channel
     async def _auto_summon(self, channel=None):
-        owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
-
-        if owner:
-            await self.handle_summon(owner.voice_channel, owner)
+        if self.owner:
+            await self.handle_summon(self.owner.voice_channel, self.owner)
             return True
         else:
             print("Owner not found in a voice channel, could not autosummon.")
@@ -349,9 +347,7 @@ class MusicBot(discord.Client):
             as_ok = await self._auto_summon()
 
             if self.config.auto_playlist and as_ok:
-                # TODO: Clean this up
-                owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
-                await self.on_finished_playing(await self.get_player(owner.voice_channel))
+                await self.on_finished_playing(await self.get_player(self.owner.voice_channel))
 
 
     async def handle_help(self):
