@@ -708,8 +708,9 @@ class MusicBot(discord.Client):
             if response_message.content.lower().startswith('y'):
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
-                await self.send_message(channel, "Alright, comming up!")
+                ok_message = await self.send_message(channel, "Alright, comming up!")
                 await self.handle_play(player, channel, author, [], e['webpage_url'])
+                await self.safe_delete_message(ok_message)
                 return
             else:
                 await self.safe_delete_message(result_message)
