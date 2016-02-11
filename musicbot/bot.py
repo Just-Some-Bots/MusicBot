@@ -706,8 +706,11 @@ class MusicBot(discord.Client):
                 return
 
             if response_message.content.lower().startswith('y'):
+                await self.safe_delete_message(confirm_message)
+                await self.safe_delete_message(response_message)
+                await self.send_message(channel, "Alright, comming up!")
                 await self.handle_play(player, channel, author, [], e['webpage_url'])
-                return Response("Alright, comming up!", delete_after=10)
+                return
             else:
                 await self.safe_delete_message(result_message)
                 await self.safe_delete_message(confirm_message)
@@ -723,15 +726,23 @@ class MusicBot(discord.Client):
         """
 
         if player.current_entry:
+            if self.last_np_msg:
+                await self.safe_delete_message(self.last_np_msg)
+                self.last_np_msg = None
+
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
             prog_str = '`[%s/%s]`' % (song_progress, song_total)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                return Response("Now Playing: **%s** added by **%s** %s\n" % (
-                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str), delete_after=25)
+                np_text = "Now Playing: **%s** added by **%s** %s\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str)
             else:
-                return Response("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str), delete_after=25)
+                np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
+
+            self.last_np_msg = await self.safe_send_message(channel, np_text)
+        else:
+            return Response('There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
     @ignore_non_voice
     async def handle_summon(self, channel, author):
@@ -996,6 +1007,8 @@ class MusicBot(discord.Client):
                     delete_invokes = False
                 else:
                     msgs += 1
+
+        # Becuase of how this works, you can do `clean 20` and <20 messages will get deleted
 
         return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=20)
 
