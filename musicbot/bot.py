@@ -218,7 +218,7 @@ class MusicBot(discord.Client):
             if self.last_np_msg and self.last_np_msg.channel == channel:
 
                 async for lmsg in self.logs_from(channel, limit=1):
-                    if lmsg.author != self.user:
+                    if lmsg != self.last_np_msg:
                         await self.safe_delete_message(self.last_np_msg)
                         self.last_np_msg = None
                     break # This is probably redundant
