@@ -1,27 +1,27 @@
 import time
 import inspect
-import traceback
-import asyncio
 import discord
+import asyncio
+import traceback
 
 from discord import utils
-from discord.enums import ChannelType
 from discord.object import Object
+from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 
 from random import choice
 from functools import wraps
 from datetime import timedelta
 
-from musicbot.config import Config, ConfigDefaults
-from musicbot.player import MusicPlayer
 from musicbot.playlist import Playlist
+from musicbot.player import MusicPlayer
+from musicbot.config import Config, ConfigDefaults
 from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
-from .exceptions import CommandError, HelpfulError
-from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
+from .constants import DISCORD_MSG_CHAR_LIMIT
+from .exceptions import CommandError, HelpfulError
 
 
 VERSION = '1.9.5'
