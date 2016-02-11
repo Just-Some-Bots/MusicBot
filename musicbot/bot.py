@@ -614,7 +614,7 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_search(self, player, channel, author, leftover_args):
         """
-        Usage {command_prefix}search [service] <query>
+        Usage {command_prefix}search [service] [number] <query>
         Searches a service for a video and adds it to the queue.
         - service: any one of the following services:
             - youtube (yt) (default if unspecified)
