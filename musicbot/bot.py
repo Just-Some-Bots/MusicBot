@@ -833,7 +833,7 @@ class MusicBot(discord.Client):
         return Response(message, delete_after=30)
 
     @owner_only
-    async def handle_clean(self, channel, author, amount=100):
+    async def handle_clean(self, message, channel, author, amount=100):
         """
         Usage {command_prefix}clean [amount=100]
         Removes [amount] messages the bot has posted in chat.
@@ -841,13 +841,15 @@ class MusicBot(discord.Client):
 
         try:
             float(amount) # lazy check
-            amount = int(amount) + 1 # because we want to clean the invoking command, but not count it
+            amount = int(amount)
         except:
             return Response("that's not real number", reply=True, delete_after=15)
 
         def is_possible_command_invoke(entry):
             valid_call = any(entry.content.startswith(prefix) for prefix in [self.config.command_prefix]) # can be expanded
             return valid_call and not entry.content[1:2].isspace()
+
+        await self.safe_delete_message(message)
 
         msgs = 0
         delete_invokes = True
