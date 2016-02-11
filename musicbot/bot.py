@@ -716,6 +716,23 @@ class MusicBot(discord.Client):
         return Response("Oh well :frowning:")
 
 
+    async def handle_np(self, player, channel):
+        """
+        Usage {command_prefix}np
+        Displays the current song in chat.
+        """
+
+        if player.current_entry:
+            song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
+            song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+                return Response("Now Playing: **%s** added by **%s** %s\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str), delete_after=25)
+            else:
+                return Response("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str), delete_after=25)
+
     @ignore_non_voice
     async def handle_summon(self, channel, author):
         """
