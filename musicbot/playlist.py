@@ -184,7 +184,7 @@ class Playlist(EventEmitter):
         return iter(self.entries)
 
 
-class PlaylistEntry(object):
+class PlaylistEntry:
     def __init__(self, playlist, url, id, title, duration=0, **meta):
         self.playlist = playlist
         self.url = url
