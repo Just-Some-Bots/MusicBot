@@ -308,7 +308,7 @@ class MusicBot(discord.Client):
 
         print("Bot: %s/%s" % (self.user.id, self.user.name))
 
-        self.owner = discord.utils.get(self.get_all_members(), id=self.config.owner_id)
+        self.owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
         if not self.owner:
             print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
         else:
