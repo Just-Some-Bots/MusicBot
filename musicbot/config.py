@@ -7,6 +7,7 @@ class ConfigDefaults(object):
 
     owner_id = None
     command_prefix = '!'
+    bound_channels = set()
 
     default_volume = 0.15
     white_list_check = False
@@ -38,6 +39,7 @@ class Config(object):
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
+        self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=ConfigDefaults.white_list_check)
@@ -60,6 +62,13 @@ class Config(object):
 
         if not self.owner_id:
             raise ValueError("An owner is not specified in the configuration file")
+
+        if self.bound_channels:
+            try:
+                self.bound_channels = set(self.bound_channels.split())
+            except:
+                print("[Warning] BindToChannels data invalid, will not bind to any channels")
+                self.bound_channels = set()
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
