@@ -322,6 +322,8 @@ class MusicBot(discord.Client):
                   "bot's account (the bot needs its own account to work properly).")
         print()
 
+        print("Bound to channels: %s" % self.config.bound_channels) # TODO: Print list of channels
+
         # TODO: Make this prettier and easier to read (in the console)
         print("Command prefix is %s" % self.config.command_prefix)
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
@@ -1026,6 +1028,9 @@ class MusicBot(discord.Client):
         if message.channel.is_private:
             await self.send_message(message.channel, 'You cannot use this bot in private messages.')
             return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
+            return # if I want to log this I just move it under the prefix check
 
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
