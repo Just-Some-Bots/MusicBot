@@ -1,11 +1,10 @@
 class CommandError(Exception):
     def __init__(self, message):
-        super().__init__(message)
-
+        self.message = message
 
 class ExtractionError(Exception):
     def __init__(self, message):
-        super().__init__(message)
+        self.message = message
 
 class HelpfulError(Exception):
     def __init__(self, issue, solution):
