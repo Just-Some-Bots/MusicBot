@@ -1,7 +1,7 @@
 import configparser
 
 
-class ConfigDefaults(object):
+class ConfigDefaults:
     username = None
     password = None
 
@@ -26,7 +26,7 @@ class ConfigDefaults(object):
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
 
-class Config(object):
+class Config:
     def __init__(self, config_file):
         self.config_file = config_file
         config = configparser.ConfigParser()
@@ -79,8 +79,8 @@ class Config(object):
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
-class Blacklist(object):
+class Blacklist:
     pass
 
-class Whitelist(object):
+class Whitelist:
     pass

@@ -9,7 +9,7 @@ from enum import Enum
 from .lib.event_emitter import EventEmitter
 
 
-class PatchedBuff(object):
+class PatchedBuff:
     """
         PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
