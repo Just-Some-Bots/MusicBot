@@ -244,7 +244,7 @@ class MusicBot(discord.Client):
         await self.update_now_playing()
 
     async def on_finished_playing(self, player, **_):
-        if not (player.playlist.entries and player.current_entry) and self.config.auto_playlist:
+        if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
                 info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
