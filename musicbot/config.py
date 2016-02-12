@@ -65,7 +65,7 @@ class Config(object):
 
         if self.bound_channels:
             try:
-                self.bound_channels = set(self.bound_channels.split())
+                self.bound_channels = set(x for x in self.bound_channels.split() if x)
             except:
                 print("[Warning] BindToChannels data invalid, will not bind to any channels")
                 self.bound_channels = set()
