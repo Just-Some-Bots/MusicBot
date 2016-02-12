@@ -1,3 +1,4 @@
+import sys
 import time
 import shlex
 import inspect
@@ -306,7 +307,7 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('Connected!\n')
 
-        print("Bot: %s/%s" % (self.user.id, self.user.name))
+        print("Bot:   %s/%s" % (self.user.id, self.user.name))
 
         self.owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
         if not self.owner:
@@ -322,7 +323,22 @@ class MusicBot(discord.Client):
                   "bot's account (the bot needs its own account to work properly).")
         print()
 
-        print("Bound to channels: %s" % self.config.bound_channels) # TODO: Print list of channels
+        if self.servers:
+            print('Server List:')
+            [print(' - ' + s.name) for s in self.servers]
+        else:
+            print("No servers have been joined yet.")
+
+        print()
+
+        if self.config.bound_channels:
+            print("Bound to channels:")
+            chlist = [self.get_channel(i) for i in self.config.bound_channels if i]
+            [print(' - %s/%s' % (ch.server.name.rstrip(), ch.name.lstrip())) for ch in chlist if ch]
+        else:
+            print("Not bound to any channels")
+
+        print()
 
         # TODO: Make this prettier and easier to read (in the console)
         print("Command prefix is %s" % self.config.command_prefix)
@@ -334,22 +350,23 @@ class MusicBot(discord.Client):
         print("Downloaded songs will be %s after playback" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
-        if self.servers:
-            print('--Server List--')
-            [print(s) for s in self.servers]
-        else:
-            print("No servers have been joined yet.")
-
-        print()
-
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
 
         if self.config.auto_summon:
+            print("Attempting to autosummon... ", end='')
+            sys.stdout.flush() # Don't question it
+
             as_ok = await self._auto_summon()
 
-            if self.config.auto_playlist and as_ok:
-                await self.on_finished_playing(await self.get_player(self.owner.voice_channel))
+            if as_ok:
+                print("Done!")
+                if self.config.auto_playlist:
+                    print("Starting auto-playlist")
+                    await self.on_finished_playing(await self.get_player(self.owner.voice_channel))
+
+        print()
+        # t-t-th-th-that's all folks!
 
 
     async def handle_help(self):
