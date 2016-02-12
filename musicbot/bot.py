@@ -32,7 +32,7 @@ VERSION = '1.9.5'
 load_opus_lib()
 
 
-class SkipState(object):
+class SkipState:
     def __init__(self):
         self.skippers = set()
 
@@ -48,7 +48,7 @@ class SkipState(object):
         return self.skip_count
 
 
-class Response(object):
+class Response:
     def __init__(self, content, reply=False, delete_after=0):
         self.content = content
         self.reply = reply

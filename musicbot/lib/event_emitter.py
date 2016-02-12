@@ -3,7 +3,7 @@ import traceback
 import collections
 
 
-class EventEmitter(object):
+class EventEmitter:
     def __init__(self):
         self._events = collections.defaultdict(list)
         self.loop = asyncio.get_event_loop()
