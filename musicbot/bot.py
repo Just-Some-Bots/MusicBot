@@ -1016,7 +1016,7 @@ class MusicBot(discord.Client):
 
         # Becuase of how this works, you can do `clean 20` and <20 messages will get deleted
 
-        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=20)
+        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=15)
 
 
     async def on_message(self, message):
