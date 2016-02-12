@@ -667,8 +667,9 @@ class MusicBot(discord.Client):
         # Because that eats both quotes if they're there
         # where I only want to eat the outermost ones
         if leftover_args[0][0] in '\'"':
-            leftover_args[0] = leftover_args[0].lstrip(leftover_args[0][0])
-            leftover_args[-1] = leftover_args[-1].rstrip(leftover_args[0][0])
+            lchar = leftover_args[0][0]
+            leftover_args[0] = leftover_args[0].lstrip(lchar)
+            leftover_args[-1] = leftover_args[-1].rstrip(lchar)
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
