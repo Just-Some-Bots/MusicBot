@@ -8,6 +8,7 @@ class Config(object):
 
         self.username = config.get('Credentials', 'Username', fallback=None)
         self.password = config.get('Credentials', 'Password', fallback=None)
+        self.youtube_api_key = config.get('Credentials', 'YoutubeAPIKey', fallback=None)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=None)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback='!')
