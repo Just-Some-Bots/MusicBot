@@ -22,7 +22,7 @@ rem ECHO ERROR: Git has either not been installed or not added to your PATH.
 rem GOTO end
 
 :nopython
-ECHO ERROR: Git has either not been installed or not added to your PATH.
+ECHO ERROR: Python has either not been installed or not added to your PATH.
 
 :end
 PAUSE
