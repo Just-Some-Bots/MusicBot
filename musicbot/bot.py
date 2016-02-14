@@ -4,6 +4,9 @@ import traceback
 import asyncio
 import discord
 import sys
+import urllib
+from urllib import request
+import json
 
 from discord import utils
 from discord.enums import ChannelType
@@ -445,6 +448,30 @@ class MusicBot(discord.Client):
         except Exception as e:
             traceback.print_exc()
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def handle_search(self, player, channel, author, message):
+        """
+        Usage {command_prefix}search [message]
+        Plays the first song found on Youtube with this query
+        """
+
+        try:
+            message = message.content[8:]
+            query_url_encoded = urllib.parse.quote_plus(message)
+            api_key = self.config.youtube_api_key
+            song_url = "https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&maxResults=1&key=%s" % (query_url_encoded, api_key)
+
+            req = request.urlopen(song_url)
+            encoding = req.headers.get_content_charset()
+            yt_json = json.loads(req.read().decode(encoding))
+
+            video_id = yt_json['items'][0]['id']['videoId']
+
+            song_url = 'http://youtube.com/watch?v=%s' % video_id
+
+            return await self.handle_play(player, channel, author, song_url)
+        except:
+            raise CommandError('Unable to search for %s' % message)
 
     async def handle_summon(self, channel, author):
         """
