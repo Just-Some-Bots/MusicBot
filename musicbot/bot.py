@@ -127,13 +127,19 @@ class MusicBot(discord.Client):
     def _fixg(self, x, dp=2):
         return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
+    def _get_owner(self, voice=False):
+        if voice:
+            return discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
+        else:
+            return discord.utils.find(lambda m: m.id == self.config.owner_id, self.get_all_members())
+
     # TODO: autosummon option to a specific channel
     async def _auto_summon(self, channel=None):
-        if self.owner:
-            await self.handle_summon(self.owner.voice_channel, self.owner)
+        owner = self._get_owner(voice=True)
+        if owner:
+            await self.handle_summon(owner.voice_channel, owner)
             return True
         else:
-            print("Owner not found in a voice channel, could not autosummon.")
             return False
 
     async def _wait_delete_msg(self, message, after):
@@ -327,11 +333,11 @@ class MusicBot(discord.Client):
 
         print("Bot:   %s/%s" % (self.user.id, self.user.name))
 
-        self.owner = discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
-        if not self.owner:
-            print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
+        owner = self._get_owner(voice=True) or self._get_owner()
+        if owner:
+            print("Owner: %s/%s" % (owner.id, owner.name))
         else:
-            print("Owner: %s/%s" % (self.owner.id, self.owner.name))
+            print("Owner could not be found on any server (id: %s)" % config.owner_id)
 
 
         if self.config.owner_id == self.user.id:
@@ -372,7 +378,7 @@ class MusicBot(discord.Client):
         # wait_for_message is pretty neato
 
         if self.config.auto_summon:
-            print("Attempting to autosummon... ", end='')
+            print("Attempting to autosummon...")
             sys.stdout.flush() # Don't question it
 
             as_ok = await self._auto_summon()
@@ -381,7 +387,9 @@ class MusicBot(discord.Client):
                 print("Done!") # TODO: Change this to "Joined server/channel"
                 if self.config.auto_playlist:
                     print("Starting auto-playlist")
-                    await self.on_finished_playing(await self.get_player(self.owner.voice_channel))
+                    await self.on_finished_playing(await self.get_player(owner.voice_channel))
+            else:
+                print("Owner not found in a voice channel, could not autosummon.")
 
         print()
         # t-t-th-th-that's all folks!
@@ -542,7 +550,7 @@ class MusicBot(discord.Client):
              # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
             num_songs = sum(1 for _ in info['entries'])
 
-            if if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
+            if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
                 raise PermissionsError("Playlist entries + your already queued songs exceed limit (%s + %s > %s)" %
                     layer.playlist.count_for_user(author), num_songs, permissions.max_songs)
 
