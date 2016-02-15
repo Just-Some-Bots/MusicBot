@@ -19,12 +19,13 @@ from datetime import timedelta
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
+from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
 from .opus_loader import load_opus_lib
 from .constants import DISCORD_MSG_CHAR_LIMIT
-from .exceptions import CommandError, HelpfulError
+from .exceptions import CommandError, PermissionsError, HelpfulError
 
 
 VERSION = '1.9.5'
@@ -56,13 +57,14 @@ class Response:
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=ConfigDefaults.options_file):
+    def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         super().__init__()
 
         self.players = {}
         self.voice_clients = {}
         self.voice_client_connect_lock = asyncio.Lock()
         self.config = Config(config_file)
+        self.permissions = Permissions(perms_file)
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.whitelist = set(load_file(self.config.whitelist_file))
@@ -499,11 +501,14 @@ class MusicBot(discord.Client):
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
     @ignore_non_voice
-    async def handle_play(self, player, channel, author, leftover_args, song_url):
+    async def handle_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage {command_prefix}play [song link]
         Adds the song to the playlist.
         """
+
+        if player.playlist.count_for_user(author) > permissions.max_songs:
+            raise PermissionsError("You have reached your playlist item limit (%s)" % permissions.max_songs)
 
         await self.send_typing(channel)
 
@@ -529,16 +534,27 @@ class MusicBot(discord.Client):
 
             # TODO: Add prompt where bot says "is this what you want: link" and user replies y/n in wait_for_message
 
-        is_playlist = 'entries' in info
 
-        if is_playlist and info['extractor'] == 'youtube:playlist':
-            try:
-                return await self._handle_ytplaylist(player, channel, author, song_url)
-            except Exception as e:
-                traceback.print_exc()
-                return CommandError("Error queuing playlist:\n%s" % e)
+        if 'entries' in info:
+            if not permissions.allow_playlists:
+                raise PermissionsError("You are not allowed to request playlists")
 
-        if is_playlist:
+             # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
+            num_songs = sum(1 for _ in info['entries'])
+
+            if if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
+                raise PermissionsError("Playlist entries + your already queued songs exceed limit (%s + %s > %s)" %
+                    layer.playlist.count_for_user(author), num_songs, permissions.max_songs)
+
+            # TODO: Add checking for song duration in playlists
+
+            if info['extractor'] == 'youtube:playlist':
+                try:
+                    return await self._handle_ytplaylist(player, channel, author, song_url)
+                except Exception as e:
+                    traceback.print_exc()
+                    return CommandError("Error queuing playlist:\n%s" % e)
+
             t0 = time.time()
 
             # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
@@ -547,9 +563,6 @@ class MusicBot(discord.Client):
             # It would probably be a thread to check a few playlists and get the speed from that
             # Different playlists might download at different speeds though
             wait_per_song = 1.2
-
-             # The only reason we would use this over ;en(info['entries']) is if we add `if _` to this one
-            num_songs = sum(1 for _ in info['entries'])
 
             procmesg = await self.safe_send_message(channel,
                 'Gathering playlist information for {} songs{}'.format(
@@ -581,6 +594,9 @@ class MusicBot(discord.Client):
             btext = listlen
 
         else:
+            if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
+                raise PermissionsError("Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length))
+
             entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
@@ -649,7 +665,7 @@ class MusicBot(discord.Client):
             songs_added, self._fixg(ttime, 1)), delete_after=25)
 
     @ignore_non_voice
-    async def handle_search(self, player, channel, author, leftover_args):
+    async def handle_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage {command_prefix}search [service] [number] <query>
         Searches a service for a video and adds it to the queue.
@@ -662,6 +678,9 @@ class MusicBot(discord.Client):
                   you must put your query in quotes
             - ex: {command_prefix}search 2 "3 minutes clapping"
         """
+
+        if player.playlist.count_for_user(author) > permissions.max_songs:
+            raise PermissionsError("User has reached their playlist item limit (%s)" % permissions.max_songs)
 
         def argch():
             if not leftover_args:
@@ -1057,6 +1076,31 @@ class MusicBot(discord.Client):
         return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=15)
 
 
+    @owner_only
+    async def handle_listroles(self, server):
+        """
+        Usage {command_prefix}listroles
+        Lists the roles on the server for setting up permissions
+        """
+
+        lines = ['```']
+        for role in server.roles:
+            role.name = role.name.replace('@everyone', '\u200Beveryone') # ZWS for sneaky names
+            lines.append(role.id + " " + role.name)
+
+        lines.append('```')
+
+        return Response('\n'.join(lines))
+
+    async def handle_perms(self, author, channel):
+        '''
+        testing command for permissions
+        '''
+
+        import pprint
+        raise CommandError(pprint.pformat(self.permissions.for_user(author).__dict__))
+
+
     async def on_message(self, message):
         if message.author == self.user:
             if message.content.startswith(self.config.command_prefix):
@@ -1093,6 +1137,7 @@ class MusicBot(discord.Client):
         else:
             print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
+        user_permissions = self.permissions.for_user(message.author)
 
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
@@ -1114,6 +1159,9 @@ class MusicBot(discord.Client):
 
             if params.pop('player', None):
                 handler_kwargs['player'] = await self.get_player(message.channel)
+
+            if params.pop('permissions', None):
+                handler_kwargs['permissions'] = user_permissions
 
             if params.pop('user_mentions', None):
                 handler_kwargs['user_mentions'] = list(map(message.server.get_member, message.raw_mentions))
@@ -1137,6 +1185,13 @@ class MusicBot(discord.Client):
                     arg_value = args.pop(0)
                     handler_kwargs[key] = arg_value
                     params.pop(key)
+
+            if message.author.id != self.config.owner_id:
+                if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
+                    raise PermissionsError("Reason: Command not whitelisted.", expire_in=20)
+
+                elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
+                    raise PermissionsError("Reason: Command blacklisted.", expire_in=20)
 
             if params:
                 docs = getattr(handler, '__doc__', None)
@@ -1164,17 +1219,17 @@ class MusicBot(discord.Client):
                 sentmsg = await self.safe_send_message(message.channel, content, expire_in=response.delete_after) # also_delete=message
 
                 # TODO: Add options for deletion toggling
-                if sentmsg and response.delete_after > 0:
-                    try:
-                        await asyncio.sleep(response.delete_after)
-                        await self.delete_message(sentmsg)
-                    except discord.NotFound:
-                        print("[Warning] Message slated for deletion has already been deleted")
-                    except discord.Forbidden:
-                        pass
+                # if sentmsg and response.delete_after > 0:
+                #     try:
+                #         await asyncio.sleep(response.delete_after)
+                #         await self.delete_message(sentmsg)
+                #     except discord.NotFound:
+                #         print("[Warning] Message slated for deletion has already been deleted")
+                #     except discord.Forbidden:
+                #         pass
 
-        except CommandError as e:
-            await self.safe_send_message(message.channel, '```\n%s\n```' % e.message)
+        except (CommandError, PermissionsError) as e:
+            await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
 
         except Exception as e:
             if self.config.debug_mode:
