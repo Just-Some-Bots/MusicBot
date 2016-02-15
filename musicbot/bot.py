@@ -515,7 +515,7 @@ class MusicBot(discord.Client):
         Adds the song to the playlist.
         """
 
-        if player.playlist.count_for_user(author) > permissions.max_songs:
+        if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
             raise PermissionsError("You have reached your playlist item limit (%s)" % permissions.max_songs)
 
         await self.send_typing(channel)
@@ -687,8 +687,8 @@ class MusicBot(discord.Client):
             - ex: {command_prefix}search 2 "3 minutes clapping"
         """
 
-        if player.playlist.count_for_user(author) > permissions.max_songs:
-            raise PermissionsError("User has reached their playlist item limit (%s)" % permissions.max_songs)
+        if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
+            raise PermissionsError("You have reached your playlist item limit (%s)" % permissions.max_songs)
 
         def argch():
             if not leftover_args:
@@ -1073,7 +1073,7 @@ class MusicBot(discord.Client):
 
             if is_possible_command_invoke(entry) and delete_invokes:
                 try:
-                    await self.delete_message(entry)
+                    await self.safe_delete_message(entry)
                 except discord.Forbidden:
                     delete_invokes = False
                 else:
