@@ -1,0 +1,93 @@
+import configparser
+
+
+class PermissionsDefaults:
+    perms_file = 'config/permissions.ini'
+
+    CommandWhiteList = set()
+    CommandBlackList = set()
+    GrantToRoles = set()
+    UserList = set()
+
+    MaxSongLength = 0
+    MaxSongs = 0
+
+    AllowPlaylists = True
+
+
+class Permissions:
+    def __init__(self, config_file):
+        self.config_file = config_file
+        config = configparser.ConfigParser(default_section='Default')
+        config.read(config_file)
+
+        self.default_group = PermissionGroup('Default', config[config.default_section])
+        self.groups = []
+
+        for section in config.sections():
+            self.groups.append(PermissionGroup(section, config[section]))
+
+    def save(self):
+        with open(self.config_file, 'w') as f:
+            self.config.write(f)
+
+    def for_user(self, user):
+        '''
+        Returns the first PermissionGroup a user belongs to
+        :param user: A discord User or Member object
+        '''
+
+        for group in self.groups:
+            if user.id in group.user_list:
+                return group
+
+        # We loop again so that we don't return a role based group before we find an assigned one
+        for group in self.groups:
+            for role in user.roles:
+                if role.id in group.granted_to_roles:
+                    return group
+
+        return self.default_group
+
+
+class PermissionGroup:
+    def __init__(self, name, section_data):
+        self.name = name
+
+        self.command_whitelist = section_data.get('CommandWhiteList', fallback=PermissionsDefaults.CommandWhiteList)
+        self.command_blacklist = section_data.get('CommandBlackList', fallback=PermissionsDefaults.CommandBlackList)
+
+        self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
+        self.user_list = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
+
+        self.max_song_length = section_data.getint('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
+        self.max_songs = section_data.getint('MaxSongs', fallback=PermissionsDefaults.MaxSongs)
+
+        self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
+
+        if self.command_whitelist:
+            self.command_whitelist = set(self.command_whitelist.lower().split())
+
+        if self.command_blacklist:
+            self.command_blacklist = set(self.command_blacklist.lower().split())
+
+        if self.granted_to_roles:
+            self.granted_to_roles = set(self.granted_to_roles.split())
+
+        if self.user_list:
+            self.user_list = set(self.user_list.split())
+
+    def add_user(self, uid):
+        self.user_list.add(uid)
+
+
+    def remove_user(self, uid):
+        if uid in self.user_list:
+            self.user_list.pop(uid)
+
+
+    def __repr__(self):
+        return "<PermissionGroup: %s>" % self.name
+
+    def __str__(self):
+        return "<PermissionGroup: %s: %s>" % (self.name, self.__dict__)

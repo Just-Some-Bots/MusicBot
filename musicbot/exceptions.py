@@ -7,6 +7,12 @@ class ExtractionError(Exception):
     def __init__(self, message):
         self.message = message
 
+class PermissionsError(CommandError):
+    def __init__(self, reason, expire_in=0):
+        self.reason = reason
+        self.expire_in = expire_in
+        self.message = "You don't have permission to use that command.\nReason: " + reason
+
 class HelpfulError(Exception):
     def __init__(self, issue, solution, expire_in=0):
         self.issue = issue
