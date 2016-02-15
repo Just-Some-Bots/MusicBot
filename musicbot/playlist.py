@@ -24,6 +24,9 @@ class Playlist(EventEmitter):
         self.loop = loop
         self.entries = deque()
 
+    def __iter__(self):
+        return iter(self.entries)
+
     def shuffle(self):
         shuffle(self.entries)
 
@@ -180,8 +183,8 @@ class Playlist(EventEmitter):
 
         return datetime.timedelta(seconds=estimated_time)
 
-    def __iter__(self):
-        return iter(self.entries)
+    def count_for_user(self, user):
+        return sum(1 for e in self.entries if e.meta.get('author', None) == user)
 
 
 class PlaylistEntry:
