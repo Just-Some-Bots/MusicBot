@@ -397,7 +397,9 @@ class MusicBot(discord.Client):
 
     async def handle_help(self):
         """
-        Usage: {command_prefix}help
+        Usage:
+            {command_prefix}help
+
         Prints a help message
         """
 
@@ -419,7 +421,9 @@ class MusicBot(discord.Client):
     @owner_only
     async def handle_whitelist(self, message, option, username):
         """
-        Usage: {command_prefix}whitelist [ + | - | add | remove ] @UserName
+        Usage:
+            {command_prefix}whitelist [ + | - | add | remove ] @UserName
+
         Adds or removes the user to the whitelist.
         When the whitelist is enabled, whitelisted users are permitted to use bot commands.
         """
@@ -450,7 +454,9 @@ class MusicBot(discord.Client):
     @owner_only
     async def handle_blacklist(self, message, option, username):
         """
-        Usage: {command_prefix}blacklist [ + | - | add | remove ] @UserName
+        Usage:
+            {command_prefix}blacklist [ + | - | add | remove ] @UserName
+
         Adds or removes the user to the blacklist.
         Blacklisted users are forbidden from using bot commands. Blacklisting a user also removes them from the whitelist.
         """
@@ -489,7 +495,9 @@ class MusicBot(discord.Client):
 
     async def handle_id(self, author):
         """
-        Usage: {command_prefix}id
+        Usage:
+            {command_prefix}id
+
         Tells the user their id.
         """
 
@@ -498,12 +506,15 @@ class MusicBot(discord.Client):
     @owner_only
     async def handle_joinserver(self, message, server_link):
         """
-        Usage {command_prefix}joinserver [Server Link]
-        Asks the bot to join a server. [todo: add info about if it breaks or whatever]
+        Usage:
+            {command_prefix}joinserver invite_link
+
+        Asks the bot to join a server.
         """
 
         try:
             await self.accept_invite(server_link)
+            return Response(":+1:")
 
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
@@ -511,8 +522,12 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
-        Usage {command_prefix}play [song link]
-        Adds the song to the playlist.
+        Usage:
+            {command_prefix}play song_link
+            {command_prefix}play text to search for
+
+        Adds the song to the playlist.  If a link is not provided, the first
+        result from a youtube search is added to the queue.
         """
 
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
@@ -675,7 +690,9 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_search(self, player, channel, author, permissions, leftover_args):
         """
-        Usage {command_prefix}search [service] [number] <query>
+        Usage:
+            {command_prefix}search [service] [number] query
+
         Searches a service for a video and adds it to the queue.
         - service: any one of the following services:
             - youtube (yt) (default if unspecified)
@@ -692,7 +709,7 @@ class MusicBot(discord.Client):
 
         def argch():
             if not leftover_args:
-                raise CommandError("Please specify a search query\n%s" % dedent(
+                raise CommandError("Please specify a search query.\n%s" % dedent(
                     self.handle_search.__doc__.format(command_prefix=self.config.command_prefix)))
         argch()
 
@@ -774,7 +791,7 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
                 ok_message = await self.send_message(channel, "Alright, comming up!")
-                await self.handle_play(player, channel, author, [], e['webpage_url'])
+                await self.handle_play(player, channel, author, permissions, [], e['webpage_url'])
                 await self.safe_delete_message(ok_message)
                 return
             else:
@@ -787,7 +804,9 @@ class MusicBot(discord.Client):
 
     async def handle_np(self, player, channel):
         """
-        Usage {command_prefix}np
+        Usage:
+            {command_prefix}np
+
         Displays the current song in chat.
         """
 
@@ -810,21 +829,30 @@ class MusicBot(discord.Client):
         else:
             return Response('There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
-    @ignore_non_voice
     async def handle_summon(self, channel, author):
         """
-        Usage {command_prefix}summon
+        Usage:
+            {command_prefix}summon
+
         Call the bot to the summoner's voice channel.
         """
 
         if self.voice_clients:
-            raise CommandError("Multiple servers not supported at this time.")
+            vc = self.voice_clients[list(self.voice_clients.keys())[0]]
 
-        # moving = False
-        # if channel.server.id in self.players:
-        #     moving = True
-        #     print("Already in channel, moving")
+            if vc.channel.server == channel.server:
+                owner = self._get_owner(voice=True)
 
+                if owner.voice_channel:
+                    await self.move_member(channel.server.me, owner.voice_channel)
+                    return
+                else:
+                    return CommandError("Owner not found in a voice channel.")
+
+                return CommandError("Moving voice channels is not supported yet.")
+
+            raise CommandError("Multiple servers not supported at this time.  Already connected to:\n    %s/%s" % (
+                vc.channel.server.name.strip(), vc.channel.name.strip()))
 
         server = channel.server
 
@@ -846,9 +874,6 @@ class MusicBot(discord.Client):
             print("Will not join channel \"%s\", no permission to speak." % channel.name)
             return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
 
-        # if moving:
-        #     await self.move_member(channel.server.me, channel)
-        #     return Response('ok?')
 
         player = await self.get_player(channel, create=True)
 
@@ -856,13 +881,14 @@ class MusicBot(discord.Client):
             player.play()
 
         if self.config.auto_playlist:
-            # TODO: Clean this up
-            await self.on_finished_playing(await self.get_player(author.voice_channel))
+            await self.on_finished_playing(player)
 
     @ignore_non_voice
     async def handle_pause(self, player):
         """
-        Usage {command_prefix}pause
+        Usage:
+            {command_prefix}pause
+
         Pauses playback of the current song. [todo: should make sure it works fine when used inbetween songs]
         """
 
@@ -875,7 +901,9 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_resume(self, player):
         """
-        Usage {command_prefix}resume
+        Usage:
+            {command_prefix}resume
+
         Resumes playback of a paused song.
         """
 
@@ -888,7 +916,9 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_shuffle(self, player):
         """
-        Usage {command_prefix}shuffle
+        Usage:
+            {command_prefix}shuffle
+
         Shuffles the playlist.
         """
 
@@ -898,7 +928,9 @@ class MusicBot(discord.Client):
     @owner_only
     async def handle_clear(self, player, author):
         """
-        Usage {command_prefix}clear
+        Usage:
+            {command_prefix}clear
+
         Clears the playlist.
         """
 
@@ -908,7 +940,9 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_skip(self, player, channel, author):
         """
-        Usage {command_prefix}skip
+        Usage:
+            {command_prefix}skip
+
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
@@ -960,7 +994,9 @@ class MusicBot(discord.Client):
     @ignore_non_voice
     async def handle_volume(self, message, player, new_volume=None):
         """
-        Usage {command_prefix}volume (+/-)[volume]
+        Usage:
+            {command_prefix}volume (+/-)[volume]
+
         Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
@@ -1000,7 +1036,9 @@ class MusicBot(discord.Client):
 
     async def handle_queue(self, channel, player):
         """
-        Usage {command_prefix}queue
+        Usage:
+            {command_prefix}queue
+
         Prints the current song queue.
         """
 
@@ -1048,7 +1086,9 @@ class MusicBot(discord.Client):
     @owner_only
     async def handle_clean(self, message, channel, author, amount=100):
         """
-        Usage {command_prefix}clean [amount=100]
+        Usage:
+            {command_prefix}clean [amount=100]
+
         Removes [amount] messages the bot has posted in chat.
         """
 
@@ -1087,7 +1127,9 @@ class MusicBot(discord.Client):
     @owner_only
     async def handle_listroles(self, server):
         """
-        Usage {command_prefix}listroles
+        Usage:
+            {command_prefix}listroles
+
         Lists the roles on the server for setting up permissions
         """
 
