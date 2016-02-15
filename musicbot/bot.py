@@ -605,7 +605,7 @@ class MusicBot(discord.Client):
 
     async def _handle_ytplaylist(self, player, channel, author, playlist_url):
         """
-        I hope this shit works
+        Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
 
         await self.send_typing(channel)
