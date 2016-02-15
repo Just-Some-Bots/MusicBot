@@ -843,7 +843,6 @@ class MusicBot(discord.Client):
             raise CommandError('You are not in a voice channel!')
 
         if self.voice_clients:
-            print(self.voice_clients)
             voice_client = list(self.voice_clients.values())[0]
         else:
             voice_client = None
