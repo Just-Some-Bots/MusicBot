@@ -837,45 +837,35 @@ class MusicBot(discord.Client):
         Call the bot to the summoner's voice channel.
         """
 
-        if self.voice_clients:
-            vc = self.voice_clients[list(self.voice_clients.keys())[0]]
-
-            if vc.channel.server == channel.server:
-                owner = self._get_owner(voice=True)
-
-                if owner.voice_channel:
-                    await self.move_member(channel.server.me, owner.voice_channel)
-                    return
-                else:
-                    return CommandError("Owner not found in a voice channel.")
-
-                return CommandError("Moving voice channels is not supported yet.")
-
-            raise CommandError("Multiple servers not supported at this time.  Already connected to:\n    %s/%s" % (
-                vc.channel.server.name.strip(), vc.channel.name.strip()))
-
         server = channel.server
 
-        channel = None
-        for channel in server.channels:
-            if discord.utils.get(channel.voice_members, id=author.id):
-                break
-
-        if not channel:
+        if not author.voice_channel:
             raise CommandError('You are not in a voice channel!')
 
-        chperms = channel.permissions_for(channel.server.me)
+        if self.voice_clients:
+            print(self.voice_clients)
+            voice_client = list(self.voice_clients.values())[0]
+        else:
+            voice_client = None
+
+        if voice_client and voice_client.channel.server == channel.server:
+            await self.move_member(channel.server.me, author.voice_channel)
+            return
+        elif voice_client:
+            raise CommandError("Multiple servers not supported at this time.  Already connected to:\n    %s/%s" % (
+                voice_client.channel.server.name.strip(), voice_client.channel.name.strip()))
+
+        chperms = author.voice_channel.permissions_for(author.voice_channel.server.me)
 
         if not chperms.connect:
-            print("Cannot join channel \"%s\", no permission." % channel.name)
-            return Response("```Cannot join channel \"%s\", no permission.```" % channel.name, delete_after=15)
+            print("Cannot join channel \"%s\", no permission." % author.voice_channel.name)
+            return Response("```Cannot join channel \"%s\", no permission.```" % author.voice_channel.name, delete_after=25)
 
         elif not chperms.speak:
-            print("Will not join channel \"%s\", no permission to speak." % channel.name)
-            return Response("```Will not join channel \"%s\", no permission to speak.```" % channel.name, delete_after=15)
+            print("Will not join channel \"%s\", no permission to speak." % author.voice_channel.name)
+            return Response("```Will not join channel \"%s\", no permission to speak.```" % author.voice_channel.name, delete_after=25)
 
-
-        player = await self.get_player(channel, create=True)
+        player = await self.get_player(author.voice_channel, create=True)
 
         if player.is_stopped:
             player.play()
