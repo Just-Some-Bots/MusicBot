@@ -128,6 +128,9 @@ class Playlist(EventEmitter):
                     gooditems += 1
                 except ExtractionError:
                     baditems += 1
+                except Exception as e:
+                    baditems += 1
+                    print("There was an error adding the song %s: %s: %s" % (entry_data['id'], e.__class__, e))
 
             else:
                 baditems += 1

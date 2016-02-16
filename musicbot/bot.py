@@ -540,12 +540,12 @@ class MusicBot(discord.Client):
 
         try:
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
-
-            if not info:
-                raise CommandError("That video cannot be played.")
         except Exception as e:
             traceback.print_exc()
-            return CommandError("Error looking up %s:\n%s" % (song_url, e))
+            raise CommandError("Error looking up %s:\n%s" % (song_url, e))
+
+        if not info:
+            raise CommandError("That video cannot be played.")
 
         if info.get('url', '').startswith('ytsearch'):
             # print("[Command:play] Searching for \"%s\"" % song_url)
@@ -576,7 +576,7 @@ class MusicBot(discord.Client):
                     return await self._handle_ytplaylist(player, channel, author, song_url)
                 except Exception as e:
                     traceback.print_exc()
-                    return CommandError("Error queuing playlist:\n%s" % e)
+                    raise CommandError("Error queuing playlist:\n%s" % e)
 
             t0 = time.time()
 
@@ -1267,7 +1267,7 @@ class MusicBot(discord.Client):
                 #     except discord.Forbidden:
                 #         pass
 
-        except (CommandError, PermissionsError) as e:
+        except CommandError as e:
             await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
 
         except Exception as e:
