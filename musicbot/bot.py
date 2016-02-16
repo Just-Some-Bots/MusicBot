@@ -129,9 +129,14 @@ class MusicBot(discord.Client):
 
     def _get_owner(self, voice=False):
         if voice:
-            return discord.utils.find(lambda m: m.id == self.config.owner_id and m.voice_channel, self.get_all_members())
+            for server in self.servers:
+                for channel in server.channels:
+                    for m in channel.voice_members:
+                        if m.id == self.config.owner_id:
+                            return m
         else:
             return discord.utils.find(lambda m: m.id == self.config.owner_id, self.get_all_members())
+
 
     # TODO: autosummon option to a specific channel
     async def _auto_summon(self, channel=None):
