@@ -572,9 +572,10 @@ class MusicBot(discord.Client):
 
             if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
                 raise PermissionsError("Playlist entries + your already queued songs exceed limit (%s + %s > %s)" %
-                    layer.playlist.count_for_user(author), num_songs, permissions.max_songs)
+                    num_songs, player.playlist.count_for_user(author), permissions.max_songs)
 
             # TODO: Add checking for song duration in playlists
+            #       I think how I do this is let them add the playlist, then scan the entries and remove the overtime ones
 
             if info['extractor'] == 'youtube:playlist':
                 try:
