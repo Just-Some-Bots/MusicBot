@@ -1,6 +1,8 @@
+import os
 import sys
 import time
 import shlex
+import shutil
 import inspect
 import discord
 import asyncio
@@ -24,7 +26,7 @@ from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
 from .opus_loader import load_opus_lib
-from .constants import DISCORD_MSG_CHAR_LIMIT
+from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 from .exceptions import CommandError, PermissionsError, HelpfulError
 
 
@@ -390,6 +392,10 @@ class MusicBot(discord.Client):
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
 
+        if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
+            print("Deleting old audio cache")
+            shutil.rmtree(AUDIO_CACHE_PATH)
+
         if self.config.auto_summon:
             print("Attempting to autosummon...")
             sys.stdout.flush() # Don't question it
@@ -403,8 +409,6 @@ class MusicBot(discord.Client):
                     await self.on_finished_playing(await self.get_player(owner.voice_channel))
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
-
-        # TODO: If not save_videos, clear audio cache
 
         print()
         # t-t-th-th-that's all folks!
