@@ -1079,12 +1079,12 @@ class MusicBot(discord.Client):
         return Response(message, delete_after=30)
 
     @owner_only
-    async def handle_clean(self, message, channel, author, amount=100):
+    async def handle_clean(self, message, channel, author, amount):
         """
         Usage:
-            {command_prefix}clean [amount=100]
+            {command_prefix}clean amount
 
-        Removes [amount] messages the bot has posted in chat.
+        Removes amount messages the bot has posted in chat.
         """
 
         try:
