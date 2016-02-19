@@ -404,6 +404,8 @@ class MusicBot(discord.Client):
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
 
+        # TODO: If not save_videos, clear audio cache
+
         print()
         # t-t-th-th-that's all folks!
 
@@ -1005,8 +1007,8 @@ class MusicBot(discord.Client):
         if player.is_stopped or player.is_paused:
             raise CommandError("Can't skip! The player is not playing!")
 
-        if not player.current_entry:
-            raise CommandError("Something strange is happening.  You might want to restart the bot.")
+        if not player.current_entry: # Do more checks here to see
+            raise CommandError("Something strange is happening.  You might want to restart the bot if its not working.")
 
         if author.id == self.config.owner_id:
             player.skip()
