@@ -116,7 +116,7 @@ class Playlist(EventEmitter):
         if not info:
             raise ExtractionError('Could not extract information from %s' % playlist_url)
 
-        gooditems = 0
+        gooditems = []
         baditems = 0
         for entry_data in info['entries']:
             if entry_data:
@@ -125,7 +125,7 @@ class Playlist(EventEmitter):
 
                 try:
                     entry, elen = await self.add_entry(song_url, **meta)
-                    gooditems += 1
+                    gooditems.append(entry)
                 except ExtractionError:
                     baditems += 1
                 except Exception as e:
