@@ -36,6 +36,7 @@ load_opus_lib()
 class SkipState:
     def __init__(self):
         self.skippers = set()
+        self.skip_msgs = set()
 
     @property
     def skip_count(self):
@@ -43,9 +44,11 @@ class SkipState:
 
     def reset(self):
         self.skippers.clear()
+        self.skip_msgs.clear()
 
-    def add_skipper(self, skipper):
+    def add_skipper(self, skipper, msg):
         self.skippers.add(skipper)
+        self.skip_msgs.add(msg)
         return self.skip_count
 
 
@@ -985,7 +988,7 @@ class MusicBot(discord.Client):
         return Response(':put_litter_in_its_place:', delete_after=10)
 
     @ignore_non_voice
-    async def handle_skip(self, player, channel, author):
+    async def handle_skip(self, player, channel, author, message):
         """
         Usage:
             {command_prefix}skip
@@ -998,7 +1001,7 @@ class MusicBot(discord.Client):
             raise CommandError("Can't skip! The player is not playing!")
 
         if not player.current_entry:
-            raise CommandError("Something strange is happening.")
+            raise CommandError("Something strange is happening.  You might want to restart the bot.")
 
         if author.id == self.config.owner_id:
             player.skip()
@@ -1009,7 +1012,7 @@ class MusicBot(discord.Client):
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
 
-        num_skips = player.skip_state.add_skipper(author.id)
+        num_skips = player.skip_state.add_skipper(author.id, message)
 
         skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
 
