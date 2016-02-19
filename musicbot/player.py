@@ -1,9 +1,9 @@
 import os
 import time
+import asyncio
 import traceback
 
 from array import array
-from asyncio import Lock
 from enum import Enum
 
 from .lib.event_emitter import EventEmitter
@@ -56,7 +56,7 @@ class MusicPlayer(EventEmitter):
         self.playlist.on('entry-added', self.on_entry_added)
         self.volume = bot.config.default_volume
 
-        self._play_lock = Lock()
+        self._play_lock = asyncio.Lock()
         self._current_player = None
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
@@ -98,27 +98,25 @@ class MusicPlayer(EventEmitter):
 
             else:
                 # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
-
-                try:
-                    os.unlink(entry.filename)
-                except PermissionError as e:
-                    if e.winerror == 32: # File is in use
-                        print("File is locked")
-
-                        for x in range(25):
-                            try:
-                                os.unlink(entry.filename)
-                                break
-                            except PermissionError as e:
-                                if e.winerror == 32:
-                                    time.sleep(0.2)
-                                    if x == 24:
-                                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                                            os.path.relpath(entry.filename)))
-                    else:
-                        traceback.print_exc()
+                asyncio.ensure_future(self._delete_file(entry.filename))
 
         self.emit('finished-playing', player=self, entry=entry)
+
+    async def _delete_file(self, filename):
+        for x in range(30):
+            try:
+                os.unlink(filename)
+                break
+            except PermissionError as e:
+                if e.winerror == 32: # File is in use
+                    await asyncio.sleep(0.25)
+            except Exception as e:
+                traceback.print_exc()
+                print("Error trying to delete " + filename)
+                break
+        else:
+            print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                os.path.relpath(filename)))
 
     def play(self, _continue=False):
         self.loop.create_task(self._play(_continue=_continue))
