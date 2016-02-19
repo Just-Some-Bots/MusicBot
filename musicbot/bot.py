@@ -570,16 +570,17 @@ class MusicBot(discord.Client):
              # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
             num_songs = sum(1 for _ in info['entries'])
 
+            # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
             if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
                 raise PermissionsError("Playlist entries + your already queued songs exceed limit (%s + %s > %s)" %
                     (num_songs, player.playlist.count_for_user(author), permissions.max_songs))
 
-            # TODO: Add checking for song duration in playlists
-            #       I think how I do this is let them add the playlist, then scan the entries and remove the overtime ones
 
             if info['extractor'] == 'youtube:playlist':
                 try:
-                    return await self._handle_ytplaylist(player, channel, author, song_url)
+                    return await self._handle_ytplaylist(player, channel, author, permissions, song_url)
+                except CommandError as e:
+                    raise
                 except Exception as e:
                     traceback.print_exc()
                     raise CommandError("Error queuing playlist:\n%s" % e)
@@ -602,12 +603,27 @@ class MusicBot(discord.Client):
             # that sends these every 10 seconds or a nice context manager.
             await self.send_typing(channel)
 
+            # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
+            #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
+
             entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
-            entry = entry_list[0]
 
             tnow = time.time()
             ttime = tnow - t0
             listlen = len(entry_list)
+            drop_count = 0
+
+            if permissions.max_song_length:
+                for e in entry_list.copy():
+                    if e.duration > permissions.max_song_length:
+                        player.playlist.entries.remove(e)
+                        entry_list.remove(e)
+                        drop_count += 1
+                        # Im pretty sure there's no situation where this would ever break
+                        # Unless the first entry starts being played, which would make this a race condition
+                if drop_count:
+                    print("Dropped %s songs" % drop_count)
+
 
             print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
                 listlen,
@@ -619,8 +635,11 @@ class MusicBot(discord.Client):
 
             await self.safe_delete_message(procmesg)
 
+            if not listlen - drop_count:
+                raise CommandError("No songs were added, all songs were over max duration (%ss)" % permissions.max_song_length)
+
             reply_text = "Enqueued **%s** songs to be played. Position in queue: %s"
-            btext = listlen
+            btext = str(listlen - drop_count)
 
         else:
             if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
@@ -648,7 +667,7 @@ class MusicBot(discord.Client):
         return Response(reply_text, delete_after=25)
 
 
-    async def _handle_ytplaylist(self, player, channel, author, playlist_url):
+    async def _handle_ytplaylist(self, player, channel, author, permissions, playlist_url):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
@@ -666,15 +685,41 @@ class MusicBot(discord.Client):
         await self.send_typing(channel)
 
         try:
-            songs_added = await player.playlist.async_process_youtube_playlist(playlist_url, channel=channel, author=author)
+            entries_added = await player.playlist.async_process_youtube_playlist(playlist_url, channel=channel, author=author)
             # TODO: Add hook to be called after each song
+            # TODO: Add permissions
 
         except Exception as e:
             traceback.print_exc()
             raise CommandError('Error handling playlist %s queuing.' % playlist_url)
 
+        songs_processed = len(entries_added)
+        drop_count = 0
+        skipped = False
+
+        if permissions.max_song_length:
+            for e in entries_added.copy():
+                if e.duration > permissions.max_song_length:
+                    try:
+                        player.playlist.entries.remove(e)
+                        entries_added.remove(e)
+                        drop_count += 1
+                    except:
+                        pass
+
+            if drop_count:
+                print("Dropped %s songs" % drop_count)
+
+            if player.current_entry and player.current_entry.duration > permissions.max_song_length:
+                await self.safe_delete_message(self.last_np_msg)
+                self.last_np_msg = None
+                skipped = True
+                player.skip()
+                entries_added.pop()
+
         await self.safe_delete_message(busymsg)
 
+        songs_added = len(entries_added)
         tnow = time.time()
         ttime = tnow - t0
         wait_per_song = 1.2
@@ -682,13 +727,20 @@ class MusicBot(discord.Client):
 
         # This is technically inaccurate since bad songs are ignored but still take up time
         print("Processed {}/{} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-            songs_added,
+            songs_processed,
             num_songs,
             self._fixg(ttime),
             ttime/num_songs,
             ttime/num_songs - wait_per_song,
             self._fixg(wait_per_song*num_songs))
         )
+
+        if not songs_added:
+            basetext = "No songs were added, all songs were over max duration (%ss)" % permissions.max_song_length
+            if skipped:
+                basetext += "\nAdditionally, the current song was skipped for being too long."
+
+            raise CommandError(basetext)
 
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=25)
