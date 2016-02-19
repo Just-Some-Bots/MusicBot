@@ -142,6 +142,22 @@ class MusicBot(discord.Client):
         else:
             return discord.utils.find(lambda m: m.id == self.config.owner_id, self.get_all_members())
 
+    def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
+        try:
+            shutil.rmtree(path)
+            return True
+        except:
+            try:
+                os.rename(path, path + '__')
+            except:
+                return False
+            try:
+                shutil.rmtree(path)
+            except:
+                os.rename(path + '__', path)
+                return False
+
+        return True
 
     # TODO: autosummon option to a specific channel
     async def _auto_summon(self, channel=None):
@@ -393,8 +409,10 @@ class MusicBot(discord.Client):
         # wait_for_message is pretty neato
 
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
-            print("Deleting old audio cache")
-            shutil.rmtree(AUDIO_CACHE_PATH)
+            if self._delete_old_audiocache():
+                print("Deleting old audio cache")
+            else:
+                print("Could not delete old audio cache, moving on.")
 
         if self.config.auto_summon:
             print("Attempting to autosummon...")
