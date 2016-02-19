@@ -65,8 +65,8 @@ class PermissionGroup:
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
         self.user_list = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
 
-        self.max_song_length = section_data.getint('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
-        self.max_songs = section_data.getint('MaxSongs', fallback=PermissionsDefaults.MaxSongs)
+        self.max_song_length = max(0, section_data.getint('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength))
+        self.max_songs = max(0, section_data.getint('MaxSongs', fallback=PermissionsDefaults.MaxSongs))
 
         self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
 
@@ -82,9 +82,9 @@ class PermissionGroup:
         if self.user_list:
             self.user_list = set(self.user_list.split())
 
+
     def add_user(self, uid):
         self.user_list.add(uid)
-
 
     def remove_user(self, uid):
         if uid in self.user_list:
