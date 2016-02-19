@@ -18,14 +18,14 @@ class PermissionsDefaults:
 class Permissions:
     def __init__(self, config_file):
         self.config_file = config_file
-        config = configparser.ConfigParser(default_section='Default')
-        config.read(config_file)
+        self.config = configparser.ConfigParser(default_section='Default')
+        self.config.read(config_file)
 
-        self.default_group = PermissionGroup('Default', config[config.default_section])
-        self.groups = []
+        self.default_group = PermissionGroup('Default', self.config[self.config.default_section])
+        self.groups = set()
 
-        for section in config.sections():
-            self.groups.append(PermissionGroup(section, config[section]))
+        for section in self.config.sections():
+            self.groups.add(PermissionGroup(section, self.config[section]))
 
     def save(self):
         with open(self.config_file, 'w') as f:
@@ -48,6 +48,11 @@ class Permissions:
                     return group
 
         return self.default_group
+
+    def create_group(self, name, **kwargs):
+        self.config.read_dict({name:kwargs})
+        self.groups.add(PermissionGroup(name, self.config[name]))
+        # TODO: Test this
 
 
 class PermissionGroup:
