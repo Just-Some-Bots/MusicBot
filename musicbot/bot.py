@@ -275,6 +275,10 @@ class MusicBot(discord.Client):
                     write_file(self.config.auto_playlist_file, self.autoplaylist)
                     continue
 
+                if info.get('entries', None): # or .get('_type', '') == 'playlist'
+                    pass # Wooo playlist
+                    # Blarg how do I want to do this
+
                 await player.playlist.add_entry(song_url, channel=None, author=None)
                 break
 
@@ -294,6 +298,7 @@ class MusicBot(discord.Client):
         await self.change_status(game)
 
     # TODO: Change these to check then send
+    # TODO: Add quiet=False argument for no console output
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None):
         try:
             msg = None
@@ -1015,6 +1020,8 @@ class MusicBot(discord.Client):
         num_skips = player.skip_state.add_skipper(author.id, message)
 
         skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
+
+        # TODO: Fix title check
 
         if skips_remaining <= 0:
             player.skip()
