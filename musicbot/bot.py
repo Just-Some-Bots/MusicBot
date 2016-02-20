@@ -407,6 +407,7 @@ class MusicBot(discord.Client):
         print("Command prefix is %s" % self.config.command_prefix)
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
         print("Skip threshold at %s votes or %s%%" % (self.config.skips_required, self._fixg(self.config.skip_ratio_required*100)))
+        print("Repeat mode is %s" % ['disabled', 'enabled'][self.config.repeat])
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
         print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
@@ -1013,6 +1014,18 @@ class MusicBot(discord.Client):
         return Response('*shuffleshuffleshuffle*', delete_after=10)
 
     @owner_only
+    async def handle_repeat(self, player):
+        """
+        Usage {command_prefix}repeat
+        Toggles playlist repeat.
+        """
+        self.config.repeat = not self.config.repeat
+        if self.config.repeat:
+            return Response('Repeat enabled!', delete_after=10)
+        else:
+            return Response('Repeat disabled!', delete_after=10)
+
+    @owner_only
     async def handle_clear(self, player, author):
         """
         Usage:
@@ -1168,6 +1181,10 @@ class MusicBot(discord.Client):
         if not lines:
             lines.append(
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
+        if self.config.repeat:
+            lines.append("Repeat mode is **on**")
+        else:
+            lines.append("Repeat mode is **off**")
 
         message = '\n'.join(lines)
         return Response(message, delete_after=30)

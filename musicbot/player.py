@@ -92,6 +92,10 @@ class MusicPlayer(EventEmitter):
         if not self.is_stopped:
             self.play(_continue=True)
 
+        # Put song back on the queue for repeat
+        if self.bot.config.repeat:
+            self.playlist._add_entry(entry)
+
         if not self.bot.config.save_videos:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
                 print("[Config:SaveVideos] Skipping deletion, found song in queue")
