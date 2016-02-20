@@ -237,7 +237,8 @@ class MusicBot(discord.Client):
                 .on('resume', self.on_resume) \
                 .on('pause', self.on_pause) \
                 .on('stop', self.on_stop) \
-                .on('finished-playing', self.on_finished_playing)
+                .on('finished-playing', self.on_finished_playing) \
+                .on('entry-added', self.on_entry_added)
 
             player.skip_state = SkipState()
             self.players[server.id] = player
@@ -304,6 +305,8 @@ class MusicBot(discord.Client):
                 print("[Warning] No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
+    async def on_entry_added(self, playlist, entry, **_):
+        pass
 
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None
@@ -315,9 +318,8 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
-    # TODO: Change these to check then send
     # TODO: Add quiet=False argument for no console output
-    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None):
+    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         try:
             msg = None
             msg = await self.send_message(dest, content, tts=tts)
@@ -329,29 +331,35 @@ class MusicBot(discord.Client):
                 asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
         except discord.Forbidden:
-            print("Error: Cannot send message to %s, no permission" % dest.name)
+            if not quiet:
+                print("Error: Cannot send message to %s, no permission" % dest.name)
         except discord.NotFound:
-            print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+            if not quiet:
+                print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
         finally:
             if msg: return msg
 
-    async def safe_delete_message(self, message):
+    async def safe_delete_message(self, message, *, quiet=False):
         try:
             return await self.delete_message(message)
 
         except discord.Forbidden:
-            print("Error: Cannot delete message \"%s\", no permission" % message.clean_content)
+            if not quiet:
+                print("Error: Cannot delete message \"%s\", no permission" % message.clean_content)
         except discord.NotFound:
-            print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+            if not quiet:
+                print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
-    async def safe_edit_message(self, message, new, *, send_if_fail=False):
+    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
         try:
             return await self.edit_message(message, new)
 
         except discord.NotFound:
-            print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
+            if not quiet:
+                print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
             if send_if_fail:
-                print("Sending instead")
+                if not quiet:
+                    print("Sending instead")
                 return await self.safe_send_message(message.channel, new)
 
 
