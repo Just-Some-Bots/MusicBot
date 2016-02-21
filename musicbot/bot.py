@@ -258,7 +258,6 @@ class MusicBot(discord.Client):
     def _fixg(self, x, dp=2):
         return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
-
     async def handle_help(self):
         """
         Usage: {command_prefix}help
@@ -673,9 +672,8 @@ class MusicBot(discord.Client):
         """
         pass
 
-
-
     async def on_message(self, message):
+
         if message.author == self.user:
             if message.content.startswith(self.config.command_prefix):
                 print("Ignoring command from myself (%s)" % message.content)
@@ -688,6 +686,12 @@ class MusicBot(discord.Client):
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
             return
+
+        if self.config.exclusive_text_channel:
+            if not message.channel.name == self.config.exclusive_text_channel:
+                print("Ignoring command from channel #{0}, because I am using exclusive channel #{1}"
+                        .format(message.channel.name, self.config.exclusive_text_channel))
+                return
 
         command, *args = message_content.split()
         command = command[len(self.config.command_prefix):].lower().strip()
