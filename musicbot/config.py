@@ -10,7 +10,9 @@ class Config(object):
         self.password = config.get('Credentials', 'Password', fallback=None)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=None)
+
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback='!')
+        self.exclusive_text_channel = config.get('Chat', 'ExclusiveTextChannel', fallback=None)
 
         self.days_active = config.getint('MusicBot', 'DaysActive', fallback=0)
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=False)
