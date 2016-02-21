@@ -17,6 +17,7 @@ from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
 from .exceptions import CommandError
+from .exceptions import CommandInfo #X4: Custom exception for non-warning end of function
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .opus_loader import load_opus_lib
 
@@ -31,6 +32,7 @@ VERSION = '2.0'
 
 load_opus_lib()
 
+undoentry = None #X4: Used dor undo tracks
 
 class SkipState(object):
     def __init__(self):
@@ -144,6 +146,9 @@ class MusicBot(discord.Client):
     async def on_play(self, player, entry):
         self.update_now_playing(entry)
         player.skip_state.reset()
+        if entry.url not in self.backuplist: #X4: Check that URL not exist in our playlist
+            self.backuplist.append(entry.url.replace("http://", "https://")) #X4: Add URL in our playlist
+            write_file(self.config.backup_playlist_file, self.backuplist) #X4: Save and close file backuplist.txt (with new track)
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
@@ -182,7 +187,6 @@ class MusicBot(discord.Client):
         if not player.playlist.entries and self.config.auto_playlist:
             song_url = choice(self.backuplist)
             await player.playlist.add_entry(song_url, channel=None, author=None)
-
 
     def update_now_playing(self, entry=None, is_paused=False):
         game = None
@@ -446,6 +450,306 @@ class MusicBot(discord.Client):
             traceback.print_exc()
             raise CommandError('Unable to queue up song at %s to be played.' % song_url)
 
+    # X4: Additional functions as link
+    async def handle_p(self, player, channel, author, song_url):
+        """
+        Usage {command_prefix}p [song link]
+        Adds the song to the playlist.
+        """
+
+        try:
+            await self.send_typing(channel)
+
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+            if not info:
+                raise CommandError("That video cannot be played.")
+
+            if 'entries' in info:
+                t0 = time.time()
+
+                wait_per_song = 1.2
+
+                num_songs = sum(1 for _ in info['entries'])
+
+                procmesg = await self.send_message(channel,
+                    'Gathering playlist information for {} songs{}'.format(
+                        num_songs,
+                        ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
+
+                await self.send_typing(channel)
+
+                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                entry = entry_list[0]
+
+                tnow = time.time()
+                ttime = tnow - t0
+                listlen = len(entry_list)
+
+                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                    listlen,
+                    self._fixg(ttime),
+                    ttime/listlen,
+                    ttime/listlen - wait_per_song,
+                    self._fixg(wait_per_song*num_songs))
+                )
+
+                await self.delete_message(procmesg)
+
+            else:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            time_until = await player.playlist.estimate_time_until(position, player)
+
+            if position == 1 and player.is_stopped:
+                position = 'Up next!'
+                reply_text = reply_text % (entry.title, position)
+            else:
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (entry.title, position, time_until)
+
+            return Response(reply_text, reply=True, delete_after=15)
+
+        except Exception as e:
+            traceback.print_exc()
+            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def handle_add(self, player, channel, author, song_url):
+        """
+        Usage {command_prefix}add [song link]
+        Adds the song to the playlist.
+        """
+
+        try:
+            await self.send_typing(channel)
+
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+            if not info:
+                raise CommandError("That video cannot be played.")
+
+            if 'entries' in info:
+                t0 = time.time()
+
+                wait_per_song = 1.2
+
+                num_songs = sum(1 for _ in info['entries'])
+
+                procmesg = await self.send_message(channel,
+                    'Gathering playlist information for {} songs{}'.format(
+                        num_songs,
+                        ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
+
+                await self.send_typing(channel)
+
+                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                entry = entry_list[0]
+
+                tnow = time.time()
+                ttime = tnow - t0
+                listlen = len(entry_list)
+
+                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                    listlen,
+                    self._fixg(ttime),
+                    ttime/listlen,
+                    ttime/listlen - wait_per_song,
+                    self._fixg(wait_per_song*num_songs))
+                )
+
+                await self.delete_message(procmesg)
+
+            else:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            time_until = await player.playlist.estimate_time_until(position, player)
+
+            if position == 1 and player.is_stopped:
+                position = 'Up next!'
+                reply_text = reply_text % (entry.title, position)
+            else:
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (entry.title, position, time_until)
+
+            return Response(reply_text, reply=True, delete_after=15)
+
+        except Exception as e:
+            traceback.print_exc()
+            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def handle_music(self, player, channel, author, song_url):
+        """
+        Usage {command_prefix}music [song link]
+        Adds the song to the playlist.
+        """
+
+        try:
+            await self.send_typing(channel)
+
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+            if not info:
+                raise CommandError("That video cannot be played.")
+
+            if 'entries' in info:
+                t0 = time.time()
+
+                wait_per_song = 1.2
+
+                num_songs = sum(1 for _ in info['entries'])
+
+                procmesg = await self.send_message(channel,
+                    'Gathering playlist information for {} songs{}'.format(
+                        num_songs,
+                        ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
+
+                await self.send_typing(channel)
+
+                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                entry = entry_list[0]
+
+                tnow = time.time()
+                ttime = tnow - t0
+                listlen = len(entry_list)
+
+                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                    listlen,
+                    self._fixg(ttime),
+                    ttime/listlen,
+                    ttime/listlen - wait_per_song,
+                    self._fixg(wait_per_song*num_songs))
+                )
+
+                await self.delete_message(procmesg)
+
+            else:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            time_until = await player.playlist.estimate_time_until(position, player)
+
+            if position == 1 and player.is_stopped:
+                position = 'Up next!'
+                reply_text = reply_text % (entry.title, position)
+            else:
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (entry.title, position, time_until)
+
+            return Response(reply_text, reply=True, delete_after=15)
+
+        except Exception as e:
+            traceback.print_exc()
+            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def handle_m(self, player, channel, author, song_url):
+        """
+        Usage {command_prefix}m [song link]
+        Adds the song to the playlist.
+        """
+
+        try:
+            await self.send_typing(channel)
+
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+
+            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+            if not info:
+                raise CommandError("That video cannot be played.")
+
+            if 'entries' in info:
+                t0 = time.time()
+
+                wait_per_song = 1.2
+
+                num_songs = sum(1 for _ in info['entries'])
+
+                procmesg = await self.send_message(channel,
+                    'Gathering playlist information for {} songs{}'.format(
+                        num_songs,
+                        ', ETA: {} seconds'.format(self._fixg(num_songs*wait_per_song)) if num_songs >= 10 else '.'))
+
+                await self.send_typing(channel)
+
+                entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+                entry = entry_list[0]
+
+                tnow = time.time()
+                ttime = tnow - t0
+                listlen = len(entry_list)
+
+                print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                    listlen,
+                    self._fixg(ttime),
+                    ttime/listlen,
+                    ttime/listlen - wait_per_song,
+                    self._fixg(wait_per_song*num_songs))
+                )
+
+                await self.delete_message(procmesg)
+
+            else:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            time_until = await player.playlist.estimate_time_until(position, player)
+
+            if position == 1 and player.is_stopped:
+                position = 'Up next!'
+                reply_text = reply_text % (entry.title, position)
+            else:
+                reply_text += ' - estimated time until playing: %s'
+                reply_text = reply_text % (entry.title, position, time_until)
+
+            return Response(reply_text, reply=True, delete_after=15)
+
+        except Exception as e:
+            traceback.print_exc()
+            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    """async def handle_p(self, player, channel, author, song_url): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}p [song link]
+        Adds the song to the playlist.
+        "" "
+
+        try:
+            await self.handle_play(player, channel, author, song_url) #X4: Use shorcut to main function
+
+            return Response("Enqueued **%s** to be played. Position in queue: %s", reply=True, delete_after=15)
+
+        except Exception as e:
+            traceback.print_exc()
+            raise CommandError('Unable to queue up song at %s to be played.' % song_url)
+
+    async def handle_add(self, player, channel, author, song_url): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}add [song link]
+        Adds the song to the playlist.
+        "" "
+
+        await self.handle_play(player, channel, author, song_url) #X4: Use shorcut to main function
+
+    async def handle_music(self, player, channel, author, song_url): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}music [song link]
+        Adds the song to the playlist.
+        "" "
+
+        await self.handle_play(player, channel, author, song_url) #X4: Use shorcut to main function
+
+    async def handle_m(self, player, channel, author, song_url): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}m [song link]
+        Adds the song to the playlist.
+        "" "
+
+        await self.handle_play(player, channel, author, song_url) #X4: Use shorcut to main function"""
+
     async def handle_summon(self, channel, author):
         """
         Usage {command_prefix}summon
@@ -453,6 +757,23 @@ class MusicBot(discord.Client):
         """
         if self.voice_clients:
             raise CommandError("Multiple servers not supported at this time.")
+            """
+            server = channel.server #X4: Define server
+            channel = None #X4: Set null, because undefined
+            for channel in server.channels: #X4: List of channels on the server
+                if discord.utils.get(channel.voice_members, id=author.id): #X4: Searching user in channels
+                    break #X4: Stop at current seleced channel and go next
+            player = await self.get_player(channel, create=True) #X4: Check player
+            if channel.server.id in self.players: #X4: Check same server (true) or other (else)
+                await self.get_voice_client(channel) #X4: This does not work on same server, need to fix!
+            else: #X4: Else
+                await self.get_voice_client(channel) #X4: Move bot to other new server and in new channel
+            if player.is_stopped: #X4: Check if player stopped (practically almost stopped)
+                player.play() #X4: Send "play" state
+            if not player.playlist.entries and self.config.auto_playlist: #X4: Check player for tracks. New summoned player is empty.
+                song_url = choice(self.backuplist) #X4: Choose random track from auto playlist
+                await player.playlist.add_entry(song_url, channel=None, author=None) #X4: Send chosen track to player and start playing music
+            """
 
         # moving = False
         # if channel.server.id in self.players:
@@ -575,6 +896,14 @@ class MusicBot(discord.Client):
                 reply=True
             )
 
+    async def handle_s(self, player, channel, author): #X4: Add shorcut command
+        """
+        Usage {command_prefix}s
+        Skips the current song when enough votes are cast, or by the bot owner.
+        """
+
+        await self.handle_skip(player, channel, author) #X4: Use shorcut to main function
+
     async def handle_volume(self, message, new_volume=None):
         """
         Usage {command_prefix}volume (+/-)[volume]
@@ -665,15 +994,140 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
+    async def handle_q(self, channel):
+        """
+        Usage {command_prefix}q
+        Prints the current song queue.
+        """
+        player = await self.get_player(channel)
+
+        lines = []
+        unlisted = 0
+        andmoretext = '* ... and %s more*' % ('x'*len(player.playlist.entries))
+
+        if player.current_entry:
+            song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
+            song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+                lines.append("Now Playing: **%s** added by **%s** %s\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
+            else:
+                lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
+
+
+        for i, item in enumerate(player.playlist, 1):
+            if item.meta.get('channel', False) and item.meta.get('author', False):
+                nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+            else:
+                nextline = '`{}.` **{}**'.format(i, item.title).strip()
+
+            currentlinesum = sum([len(x)+1 for x in lines]) # +1 is for newline char
+
+            if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
+                if currentlinesum + len(andmoretext):
+                    unlisted += 1
+                    continue
+
+            lines.append(nextline)
+
+        if unlisted:
+            lines.append('\n*... and %s more*' % unlisted)
+
+        if not lines:
+            lines.append(
+                'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
+
+        message = '\n'.join(lines)
+        return Response(message, delete_after=30)
+
+    """async def handle_q(self, channel): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}q
+        Prints the current song queue.
+        "" "
+
+        await self.handle_queue(channel) #X4: Use shorcut to main function"""
+
+    async def handle_remove(self, player, channel): #X4: New command REMOVE to remove trash in auto playlist
+        """
+        Usage {command_prefix}remove
+        Remove this URL into auto playlist.
+        """
+        player = await self.get_player(channel) #X4: Initialize player
+
+        #if entry.url in self.backuplist: #X4: Check that URL exist in our playlist
+        self.backuplist.remove(player.current_entry.url) #X4: Remove URL from autoplaylist (because it don't interesting or trash or too long or else...)
+        write_file(self.config.backup_playlist_file, self.backuplist) #X4: Save and close our autoplaylist without current playing song
+
+        return Response("Song **%s** **__removed__** from rotation. Use command `undo` to back this track." % player.current_entry.title, delete_after=25) #X4: End REMOVE
+
+    async def handle_rem(self, player, channel): #X4: New command REM (copy of REMOVE) to remove trash in auto playlist
+        """
+        Usage {command_prefix}rem
+        Remove this URL into auto playlist.
+        """
+        player = await self.get_player(channel) #X4: Initialize player
+
+        #if entry.url in self.backuplist: #X4: Check that URL exist in our playlist
+        self.backuplist.remove(player.current_entry.url) #X4: Remove URL from autoplaylist (because it don't interesting or trash or too long or else...)
+        write_file(self.config.backup_playlist_file, self.backuplist) #X4: Save and close our autoplaylist without current playing song
+
+        return Response("Song **%s** **__removed__** from rotation. Use command `undo` to back this track." % player.current_entry.title, delete_after=25) #X4: End REMOVE
+
+    """async def handle_rem(self, player, channel): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}rem
+        Remove this URL into auto playlist.
+        "" "
+
+        await self.handle_remove(player, channel) #X4: Use shorcut to main function"""
+
+    async def handle_undo(self, player, channel): #X4: New command UNDO to undo remove command
+        """
+        Usage {command_prefix}undo
+        Undo removed URL.
+        """
+        player = await self.get_player(channel) #X4: Initialize player
+
+        if player.current_entry.url not in self.backuplist: #X4: Check that URL not exist in our playlist
+            self.backuplist.append(player.current_entry.url) #X4: Add URL in our playlist
+            write_file(self.config.backup_playlist_file, self.backuplist) #X4: Save and close file backuplist.txt (with new track)
+        else:
+            raise CommandInfo('No need to undo. **%s** Already have in playlist.' % player.current_entry.title)
+
+        return Response("**Undo successful.** Song **%s** is back from rotation." % player.current_entry.title, delete_after=15) #X4: End UNDO
+
+    async def handle_u(self, player, channel): #X4: New command U (copy of UNDO) to undo remove command
+        """
+        Usage {command_prefix}u
+        Undo removed URL.
+        """
+        player = await self.get_player(channel) #X4: Initialize player
+
+        if player.current_entry.url not in self.backuplist: #X4: Check that URL not exist in our playlist
+            self.backuplist.append(player.current_entry.url) #X4: Add URL in our playlist
+            write_file(self.config.backup_playlist_file, self.backuplist) #X4: Save and close file backuplist.txt (with new track)
+        else:
+            raise CommandInfo('No need to undo. **%s** Already have in playlist.' % player.current_entry.title)
+
+        return Response("**Undo successful.** Song **%s** is back from rotation." % player.current_entry.title, delete_after=15) #X4: End UNDO
+
+    """async def handle_u(self, player, channel): #X4: Add shorcut command
+        "" "
+        Usage {command_prefix}u
+        Undo removed URL.
+        "" "
+
+        await self.handle_undo(player, channel) #X4: Use shorcut to main function"""
 
     async def handle_clean(self, message, author, amount):
         """
-        Usage {command_prefix}clean amount
+        Usage {command_prefix}clean [amount]
         Removes [amount] messages the bot has posted in chat.
         """
         pass
-
-
 
     async def on_message(self, message):
         if message.author == self.user:
@@ -772,6 +1226,9 @@ class MusicBot(discord.Client):
 
         except CommandError as e:
             await self.send_message(message.channel, '```\n%s\n```' % e.message)
+
+        except CommandInfo as e: #X4: Custom exception for non-warning end of function
+            await self.send_message(message.channel, '%s' % e.message) #X4: Style of ounput message
 
         except:
             await self.send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
