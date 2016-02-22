@@ -1187,7 +1187,7 @@ class MusicBot(discord.Client):
             float(amount) # lazy check
             amount = int(amount)
         except:
-            return Response("that's not real number", reply=True, delete_after=15)
+            return Response("enter a number.  NUMBER.  That means digits.  `5`.  Etc.", reply=True, delete_after=5)
 
         def is_possible_command_invoke(entry):
             valid_call = any(entry.content.startswith(prefix) for prefix in [self.config.command_prefix]) # can be expanded
@@ -1212,7 +1212,7 @@ class MusicBot(discord.Client):
 
         # Becuase of how this works, you can do `clean 20` and <20 messages will get deleted
 
-        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=15)
+        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=10)
 
 
     @owner_only
@@ -1357,16 +1357,7 @@ class MusicBot(discord.Client):
                     content = '%s, %s' % (message.author.mention, content)
 
                 sentmsg = await self.safe_send_message(message.channel, content, expire_in=response.delete_after) # also_delete=message
-
                 # TODO: Add options for deletion toggling
-                # if sentmsg and response.delete_after > 0:
-                #     try:
-                #         await asyncio.sleep(response.delete_after)
-                #         await self.delete_message(sentmsg)
-                #     except discord.NotFound:
-                #         print("[Warning] Message slated for deletion has already been deleted")
-                #     except discord.Forbidden:
-                #         pass
 
         except CommandError as e:
             await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
