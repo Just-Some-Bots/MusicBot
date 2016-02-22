@@ -163,7 +163,7 @@ class MusicBot(discord.Client):
     async def _auto_summon(self, channel=None):
         owner = self._get_owner(voice=True)
         if owner:
-            await self.handle_summon(owner.voice_channel, owner)
+            await self.cmd_summon(owner.voice_channel, owner)
             return True
         else:
             return False
@@ -442,7 +442,7 @@ class MusicBot(discord.Client):
         # t-t-th-th-that's all folks!
 
 
-    async def handle_help(self):
+    async def cmd_help(self):
         """
         Usage:
             {command_prefix}help
@@ -455,8 +455,8 @@ class MusicBot(discord.Client):
 
         # TODO: Get this to format nicely
         for att in dir(self):
-            if att.startswith('handle_') and att != 'handle_help':
-                command_name = att.replace('handle_', '').lower()
+            if att.startswith('cmd_') and att != 'cmd_help':
+                command_name = att.replace('cmd_', '').lower()
                 commands.append("{}{}".format(self.config.command_prefix, command_name))
 
         helpmsg += ", ".join(commands)
@@ -466,7 +466,7 @@ class MusicBot(discord.Client):
         return Response(helpmsg, reply=True, delete_after=60)
 
     @owner_only
-    async def handle_whitelist(self, message, option, username):
+    async def cmd_whitelist(self, message, option, username):
         """
         Usage:
             {command_prefix}whitelist [ + | - | add | remove ] @UserName
@@ -499,7 +499,7 @@ class MusicBot(discord.Client):
                 return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
     @owner_only
-    async def handle_blacklist(self, message, option, username):
+    async def cmd_blacklist(self, message, option, username):
         """
         Usage:
             {command_prefix}blacklist [ + | - | add | remove ] @UserName
@@ -540,7 +540,7 @@ class MusicBot(discord.Client):
 
                 return Response('user has been removed from the blacklist', reply=True, delete_after=10)
 
-    async def handle_id(self, author):
+    async def cmd_id(self, author):
         """
         Usage:
             {command_prefix}id
@@ -551,7 +551,7 @@ class MusicBot(discord.Client):
         return Response('your id is `%s`' % author.id, reply=True)
 
     @owner_only
-    async def handle_joinserver(self, message, server_link):
+    async def cmd_joinserver(self, message, server_link):
         """
         Usage:
             {command_prefix}joinserver invite_link
@@ -567,7 +567,7 @@ class MusicBot(discord.Client):
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
     @ignore_non_voice
-    async def handle_play(self, player, channel, author, permissions, leftover_args, song_url):
+    async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
             {command_prefix}play song_link
@@ -599,7 +599,7 @@ class MusicBot(discord.Client):
             info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
             song_url = info['entries'][0]['webpage_url']
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
-            # Now I could just do: return await self.handle_play(player, channel, author, song_url)
+            # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
             # But this is probably fine
 
             # TODO: Add prompt where bot says "is this what you want: link" and user replies y/n in wait_for_message
@@ -620,7 +620,7 @@ class MusicBot(discord.Client):
 
             if info['extractor'] == 'youtube:playlist':
                 try:
-                    return await self._handle_ytplaylist(player, channel, author, permissions, song_url)
+                    return await self._cmd_ytplaylist(player, channel, author, permissions, song_url)
                 except CommandError as e:
                     raise
                 except Exception as e:
@@ -709,7 +709,7 @@ class MusicBot(discord.Client):
         return Response(reply_text, delete_after=25)
 
 
-    async def _handle_ytplaylist(self, player, channel, author, permissions, playlist_url):
+    async def _cmd_ytplaylist(self, player, channel, author, permissions, playlist_url):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
@@ -788,7 +788,7 @@ class MusicBot(discord.Client):
             songs_added, self._fixg(ttime, 1)), delete_after=25)
 
     @ignore_non_voice
-    async def handle_search(self, player, channel, author, permissions, leftover_args):
+    async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
             {command_prefix}search [service] [number] query
@@ -810,7 +810,7 @@ class MusicBot(discord.Client):
         def argch():
             if not leftover_args:
                 raise CommandError("Please specify a search query.\n%s" % dedent(
-                    self.handle_search.__doc__.format(command_prefix=self.config.command_prefix)))
+                    self.cmd_search.__doc__.format(command_prefix=self.config.command_prefix)))
         argch()
 
         try:
@@ -891,7 +891,7 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
                 ok_message = await self.send_message(channel, "Alright, comming up!")
-                await self.handle_play(player, channel, author, permissions, [], e['webpage_url'])
+                await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
                 await self.safe_delete_message(ok_message)
                 return
             else:
@@ -902,7 +902,7 @@ class MusicBot(discord.Client):
         return Response("Oh well :frowning:")
 
 
-    async def handle_np(self, player, channel):
+    async def cmd_np(self, player, channel):
         """
         Usage:
             {command_prefix}np
@@ -929,7 +929,7 @@ class MusicBot(discord.Client):
         else:
             return Response('There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
-    async def handle_summon(self, channel, author):
+    async def cmd_summon(self, channel, author):
         """
         Usage:
             {command_prefix}summon
@@ -973,7 +973,7 @@ class MusicBot(discord.Client):
             await self.on_finished_playing(player)
 
     @ignore_non_voice
-    async def handle_pause(self, player):
+    async def cmd_pause(self, player):
         """
         Usage:
             {command_prefix}pause
@@ -988,7 +988,7 @@ class MusicBot(discord.Client):
             raise CommandError('Player is not playing.')
 
     @ignore_non_voice
-    async def handle_resume(self, player):
+    async def cmd_resume(self, player):
         """
         Usage:
             {command_prefix}resume
@@ -1003,7 +1003,7 @@ class MusicBot(discord.Client):
             raise CommandError('Player is not paused.')
 
     @ignore_non_voice
-    async def handle_shuffle(self, player):
+    async def cmd_shuffle(self, player):
         """
         Usage:
             {command_prefix}shuffle
@@ -1015,7 +1015,7 @@ class MusicBot(discord.Client):
         return Response('*shuffleshuffleshuffle*', delete_after=10)
 
     @owner_only
-    async def handle_clear(self, player, author):
+    async def cmd_clear(self, player, author):
         """
         Usage:
             {command_prefix}clear
@@ -1027,7 +1027,7 @@ class MusicBot(discord.Client):
         return Response(':put_litter_in_its_place:', delete_after=10)
 
     @ignore_non_voice
-    async def handle_skip(self, player, channel, author, message):
+    async def cmd_skip(self, player, channel, author, message):
         """
         Usage:
             {command_prefix}skip
@@ -1083,7 +1083,7 @@ class MusicBot(discord.Client):
 
     @owner_only
     @ignore_non_voice
-    async def handle_volume(self, message, player, new_volume=None):
+    async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
             {command_prefix}volume (+/-)[volume]
@@ -1125,7 +1125,7 @@ class MusicBot(discord.Client):
                 raise CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume))
 
-    async def handle_queue(self, channel, player):
+    async def cmd_queue(self, channel, player):
         """
         Usage:
             {command_prefix}queue
@@ -1175,7 +1175,7 @@ class MusicBot(discord.Client):
         return Response(message, delete_after=30)
 
     @owner_only
-    async def handle_clean(self, message, channel, author, amount):
+    async def cmd_clean(self, message, channel, author, amount):
         """
         Usage:
             {command_prefix}clean amount
@@ -1216,7 +1216,7 @@ class MusicBot(discord.Client):
 
 
     @owner_only
-    async def handle_listroles(self, server):
+    async def cmd_listroles(self, server):
         """
         Usage:
             {command_prefix}listroles
@@ -1233,7 +1233,7 @@ class MusicBot(discord.Client):
 
         return Response('\n'.join(lines))
 
-    async def handle_perms(self, author, channel):
+    async def cmd_perms(self, author, channel):
         '''
         testing command for permissions
         '''
@@ -1262,7 +1262,7 @@ class MusicBot(discord.Client):
         command, *args = message_content.split() # Uh, doesn't this break prefixes with spaces in them
         command = command[len(self.config.command_prefix):].lower().strip()
 
-        handler = getattr(self, 'handle_%s' % command, None)
+        handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
             return
 
