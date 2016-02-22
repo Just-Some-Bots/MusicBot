@@ -288,7 +288,7 @@ class MusicBot(discord.Client):
 
                 if not info:
                     self.autoplaylist.remove(song_url)
-                    print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+                    self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
                     write_file(self.config.auto_playlist_file, self.autoplaylist)
                     continue
 
@@ -330,10 +330,10 @@ class MusicBot(discord.Client):
 
         except discord.Forbidden:
             if not quiet:
-                print("Error: Cannot send message to %s, no permission" % dest.name)
+                self.safe_print("Warning: Cannot send message to %s, no permission" % dest.name)
         except discord.NotFound:
             if not quiet:
-                print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+                self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
         finally:
             if msg: return msg
 
@@ -343,10 +343,10 @@ class MusicBot(discord.Client):
 
         except discord.Forbidden:
             if not quiet:
-                print("Error: Cannot delete message \"%s\", no permission" % message.clean_content)
+                self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
         except discord.NotFound:
             if not quiet:
-                print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+                self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
     async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
         try:
@@ -354,7 +354,7 @@ class MusicBot(discord.Client):
 
         except discord.NotFound:
             if not quiet:
-                print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
+                self.safe_print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
             if send_if_fail:
                 if not quiet:
                     print("Sending instead")
@@ -371,7 +371,7 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('Connected!\n')
 
-        print("Bot:   %s/%s" % (self.user.id, self.user.name))
+        self.safe_print("Bot:   %s/%s" % (self.user.id, self.user.name))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner:
@@ -955,11 +955,11 @@ class MusicBot(discord.Client):
         chperms = author.voice_channel.permissions_for(author.voice_channel.server.me)
 
         if not chperms.connect:
-            print("Cannot join channel \"%s\", no permission." % author.voice_channel.name)
+            self.safe_print("Cannot join channel \"%s\", no permission." % author.voice_channel.name)
             return Response("```Cannot join channel \"%s\", no permission.```" % author.voice_channel.name, delete_after=25)
 
         elif not chperms.speak:
-            print("Will not join channel \"%s\", no permission to speak." % author.voice_channel.name)
+            self.safe_print("Will not join channel \"%s\", no permission to speak." % author.voice_channel.name)
             return Response("```Will not join channel \"%s\", no permission to speak.```" % author.voice_channel.name, delete_after=25)
 
         player = await self.get_player(author.voice_channel, create=True)
@@ -1243,7 +1243,7 @@ class MusicBot(discord.Client):
     async def on_message(self, message):
         if message.author == self.user:
             if message.content.startswith(self.config.command_prefix):
-                print("Ignoring command from myself (%s)" % message.content)
+                self.safe_print("Ignoring command from myself (%s)" % message.content)
             return
 
         if message.channel.is_private:
@@ -1265,15 +1265,15 @@ class MusicBot(discord.Client):
             return
 
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
-            print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
 
         elif self.config.white_list_check and int(message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
-            print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
 
         else:
-            print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
         user_permissions = self.permissions.for_user(message.author)
 
