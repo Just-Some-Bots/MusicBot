@@ -30,8 +30,6 @@ from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 from .exceptions import CommandError, PermissionsError, HelpfulError
 
 
-VERSION = '1.9.5'
-
 load_opus_lib()
 
 
