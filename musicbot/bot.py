@@ -362,6 +362,9 @@ class MusicBot(discord.Client):
                     print("Sending instead")
                 return await self.safe_send_message(message.channel, new)
 
+    def safe_print(self, content, *, end='\n', flush=False):
+        sys.stdout.buffer.write((content+end).encode('utf-8', 'replace'))
+        if flush: sys.stdout.flush()
 
     # noinspection PyMethodOverriding
     def run(self):
@@ -374,7 +377,7 @@ class MusicBot(discord.Client):
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner:
-            print("Owner: %s/%s" % (owner.id, owner.name))
+            self.safe_print("Owner: %s/%s" % (owner.id, owner.name))
         else:
             print("Owner could not be found on any server (id: %s)" % config.owner_id)
 
@@ -388,7 +391,7 @@ class MusicBot(discord.Client):
 
         if self.servers:
             print('Server List:')
-            [print(' - ' + s.name) for s in self.servers]
+            [self.safe_print(' - ' + s.name) for s in self.servers]
         else:
             print("No servers have been joined yet.")
 
@@ -397,14 +400,14 @@ class MusicBot(discord.Client):
         if self.config.bound_channels:
             print("Bound to channels:")
             chlist = [self.get_channel(i) for i in self.config.bound_channels if i]
-            [print(' - %s/%s' % (ch.server.name.rstrip(), ch.name.lstrip())) for ch in chlist if ch]
+            [self.safe_print(' - %s/%s' % (ch.server.name.rstrip(), ch.name.lstrip())) for ch in chlist if ch]
         else:
             print("Not bound to any channels")
 
         print()
 
         # TODO: Make this prettier and easier to read (in the console)
-        print("Command prefix is %s" % self.config.command_prefix)
+        self.safe_print("Command prefix is %s" % self.config.command_prefix)
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
         print("Skip threshold at %s votes or %s%%" % (self.config.skips_required, self._fixg(self.config.skip_ratio_required*100)))
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
@@ -423,8 +426,7 @@ class MusicBot(discord.Client):
                 print("Could not delete old audio cache, moving on.")
 
         if self.config.auto_summon:
-            print("Attempting to autosummon...")
-            sys.stdout.flush() # Don't question it
+            print("Attempting to autosummon...", flush=True)
 
             as_ok = await self._auto_summon()
 
@@ -1263,7 +1265,6 @@ class MusicBot(discord.Client):
         handler = getattr(self, 'handle_%s' % command, None)
         if not handler:
             return
-
 
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
