@@ -605,7 +605,7 @@ class MusicBot(discord.Client):
             if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
                 raise PermissionsError("You are not allowed to request playlists")
 
-             # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
+            # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
             num_songs = sum(1 for _ in info['entries'])
 
             # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
