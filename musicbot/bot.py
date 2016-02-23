@@ -229,7 +229,7 @@ class MusicBot(discord.Client):
 
             voice_client = await self.get_voice_client(channel)
 
-            playlist = Playlist(self.loop)
+            playlist = Playlist(self)
             player = MusicPlayer(self, voice_client, playlist) \
                 .on('play', self.on_play) \
                 .on('resume', self.on_resume) \
