@@ -601,8 +601,8 @@ class MusicBot(discord.Client):
             # But this is probably fine
 
         if 'entries' in info:
-            # I have to do this check anyways because you can request an arbritrary number of search results
-            if not permissions.allow_playlists and ':search' not in info['extractor'] and len(info['entries']) > 1:
+            # I have to do exe extra checks anyways because you can request an arbritrary number of search results
+            if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
                 raise PermissionsError("You are not allowed to request playlists")
 
              # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
