@@ -3,12 +3,13 @@ import asyncio
 import datetime
 import traceback
 
+from hashlib import md5
 from random import shuffle
 from itertools import islice
 from collections import deque
 
 from .constants import AUDIO_CACHE_PATH
-from .downloader import extract_info
+from .downloader import extract_info, ytdl
 from .exceptions import ExtractionError
 from .utils import slugify
 from .lib.event_emitter import EventEmitter
@@ -19,9 +20,10 @@ class Playlist(EventEmitter):
         A playlist is manages the list of songs that will be played.
     """
 
-    def __init__(self, loop):
+    def __init__(self, bot):
         super().__init__()
-        self.loop = loop
+        self.bot = bot
+        self.loop = bot.loop
         self.entries = deque()
 
     def __iter__(self):
@@ -49,7 +51,6 @@ class Playlist(EventEmitter):
         entry = PlaylistEntry(
             self,
             song_url,
-            info['id'],
             info['title'],
             info.get('duration', 0),
             **meta
@@ -81,7 +82,6 @@ class Playlist(EventEmitter):
                     entry = PlaylistEntry(
                         self,
                         items['webpage_url'],
-                        items['id'],
                         items['title'],
                         items.get('duration', 0),
                         **meta
@@ -191,13 +191,13 @@ class Playlist(EventEmitter):
 
 
 class PlaylistEntry:
-    def __init__(self, playlist, url, id, title, duration=0, **meta):
+    def __init__(self, playlist, url, title, duration=0, **meta):
         self.playlist = playlist
         self.url = url
-        self.id = id
         self.title = title
         self.duration = duration
         self.meta = meta
+        self.filename = None
         self._is_downloading = False
         self._waiting_futures = []
 
@@ -206,21 +206,7 @@ class PlaylistEntry:
         if self._is_downloading:
             return False
 
-        return os.path.isfile(self.filename)
-
-    @property
-    def filename(self):
-        """
-        The filename of where this playlist entry will exist.
-        """
-        return os.path.join(AUDIO_CACHE_PATH, '%s.mp3' % self.slug)
-
-    @property
-    def slug(self):
-        """
-        Returns a slug generated from the ID and title of this PlaylistEntry
-        """
-        return slugify('%s-%s' % (self.id, self.title))
+        return bool(self.filename)
 
     async def _download(self):
         if self._is_downloading:
@@ -229,19 +215,19 @@ class PlaylistEntry:
         self._is_downloading = True
         try:
             result = await extract_info(self.playlist.loop, self.url, download=True)
-            filename = self.filename
 
-            # If the file existed, we're going to remove it to overwrite.
-            if os.path.isfile(filename):
-                os.unlink(filename)
+            unmoved_filename = ytdl.prepare_filename(result)
+            unmoved_filename = md5sum(unmoved_filename, 8).join('-.').join(unmoved_filename.rsplit('.',1))
+
+            self.filename = os.path.join(AUDIO_CACHE_PATH, unmoved_filename)
 
             # Ensure the folder that we're going to move into exists.
-            directory = os.path.dirname(filename)
+            directory = os.path.dirname(self.filename)
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
             # Move the temporary file to it's final location.
-            os.rename(result['id'], self.filename)
+            os.replace(ytdl.prepare_filename(result), self.filename)
 
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
@@ -291,3 +277,11 @@ class PlaylistEntry:
 
     def __hash__(self):
         return id(self)
+
+
+def md5sum(filename, limit=0):
+    fhash = md5()
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            fhash.update(chunk)
+    return fhash.hexdigest()[-limit:]

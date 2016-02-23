@@ -7,7 +7,8 @@ ytdl_format_options = {
     'format': 'bestaudio/best',
     'extractaudio': True,
     'audioformat': 'mp3',
-    'outtmpl': '%(id)s', # part file temp name
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
     'ignoreerrors': True,
