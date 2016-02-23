@@ -224,7 +224,7 @@ class MusicBot(discord.Client):
         if server.id not in self.players:
             if not create:
                 raise CommandError(
-                    'Player does not exist. It has not been summoned yet into a voice channel.  '
+                    'The bot is not in a voice channel.  '
                     'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
 
             voice_client = await self.get_voice_client(channel)
@@ -429,7 +429,7 @@ class MusicBot(discord.Client):
             as_ok = await self._auto_summon()
 
             if as_ok:
-                print("Done!") # TODO: Change this to "Joined server/channel"
+                print("Done!", flush=True) # TODO: Change this to "Joined server/channel"
                 if self.config.auto_playlist:
                     print("Starting auto-playlist")
                     await self.on_finished_playing(await self.get_player(owner.voice_channel))
