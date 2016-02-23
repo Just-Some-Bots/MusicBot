@@ -600,11 +600,9 @@ class MusicBot(discord.Client):
             # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
             # But this is probably fine
 
-            # TODO: Add prompt where bot says "is this what you want: link" and user replies y/n in wait_for_message
-
-
         if 'entries' in info:
-            if not permissions.allow_playlists:
+            # I have to do this check anyways because you can request an arbritrary number of search results
+            if not permissions.allow_playlists and ':search' not in info['extractor'] and len(info['entries']) > 1:
                 raise PermissionsError("You are not allowed to request playlists")
 
              # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
@@ -796,7 +794,8 @@ class MusicBot(discord.Client):
             - youtube (yt) (default if unspecified)
             - soundcloud (sc)
             - yahoo (yh)
-        - number: return a number of video results and choose one
+        - number: return a number of video results and waits for user to choose one
+          - defaults to 1 if unspecified
           - note: If your search query starts with a number,
                   you must put your query in quotes
             - ex: {command_prefix}search 2 "3 minutes clapping"
@@ -835,6 +834,7 @@ class MusicBot(discord.Client):
         if leftover_args[0].isdigit():
             items_requested = int(leftover_args.pop(0))
             argch()
+
             if items_requested > max_items:
                 raise CommandError("You cannot request more than %s videos" % max_items)
 
@@ -852,6 +852,7 @@ class MusicBot(discord.Client):
 
         m = await self.send_message(channel, "Searching for videos...")
         await self.send_typing(channel)
+
         info = await extract_info(player.playlist.loop, search_query, download=False, process=True)
         await self.safe_delete_message(m)
 
@@ -866,10 +867,10 @@ class MusicBot(discord.Client):
                 m.content.lower().startswith('exit'))
 
         for e in info['entries']:
-            result_message = await self.send_message(channel, "Result %s/%s: %s" % (
+            result_message = await self.safe_send_message(channel, "Result %s/%s: %s" % (
                 info['entries'].index(e)+1, len(info['entries']), e['webpage_url']))
 
-            confirm_message = await self.send_message(channel, "Is this ok? (y/n/exit)")
+            confirm_message = await self.safe_send_message(channel, "Is this ok? Type `y`, `n` or `exit`")
             response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
 
             if not response_message:
@@ -886,18 +887,22 @@ class MusicBot(discord.Client):
                 return
 
             if response_message.content.lower().startswith('y'):
+                await self.safe_delete_message(result_message)
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
-                ok_message = await self.send_message(channel, "Alright, comming up!")
+
+                ok_message = await self.safe_send_message(channel, "Alright, comming up!")
+
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
                 await self.safe_delete_message(ok_message)
+
                 return
             else:
                 await self.safe_delete_message(result_message)
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
 
-        return Response("Oh well :frowning:")
+        return Response("Oh well :frowning:", delete_after=25)
 
 
     async def cmd_np(self, player, channel):
@@ -976,7 +981,7 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}pause
 
-        Pauses playback of the current song. [todo: should make sure it works fine when used inbetween songs]
+        Pauses playback of the current song.
         """
 
         if player.is_playing:
@@ -1233,6 +1238,9 @@ class MusicBot(discord.Client):
 
     async def cmd_perms(self, author, channel):
         '''
+        Usage:
+            {command_prefix}perms
+
         testing command for permissions
         '''
 
