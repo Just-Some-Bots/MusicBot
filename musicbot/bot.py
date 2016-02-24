@@ -80,29 +80,6 @@ class MusicBot(discord.Client):
         self.last_np_msg = None
 
 
-    def ignore_non_voice(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # if bot is in a voice channel, user is in the same voice channel, OK
-            # else, return Response saying "ignoring"
-
-            # Ye olde hack to dig up the origional message argument
-            orig_msg = self._get_variable('message')
-
-            # There is no "message" var, lets get outta here
-            if not orig_msg:
-                return await func(self, *args, **kwargs)
-
-            vc = self.voice_clients.get(orig_msg.server.id, None)
-
-            # If we've connected to a voice chat and we're in the same voice channel
-            if not vc or (vc and vc.channel == orig_msg.author.voice_channel):
-                return await func(self, *args, **kwargs)
-            else:
-                return Response("you cannot use this command when not in the voice channel", reply=True, delete_after=20)
-
-        return wrapper
-
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
@@ -169,6 +146,16 @@ class MusicBot(discord.Client):
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
         await self.safe_delete_message(message)
+
+    async def _check_ignore_non_voice(self, msg):
+        vc = self.voice_clients.get(msg.server.id, None)
+
+        # If we've connected to a voice chat and we're in the same voice channel
+        if not vc or (vc and vc.channel == msg.author.voice_channel):
+            return True
+        else:
+            raise PermissionsError(
+                "you cannot use this command when not in the voice channel (%s)" % vc.channel.name, expire_in=30)
 
 
     async def get_voice_client(self, channel):
@@ -463,7 +450,6 @@ class MusicBot(discord.Client):
 
         return Response(helpmsg, reply=True, delete_after=60)
 
-    @owner_only
     async def cmd_whitelist(self, message, option, username):
         """
         Usage:
@@ -496,7 +482,6 @@ class MusicBot(discord.Client):
 
                 return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
-    @owner_only
     async def cmd_blacklist(self, message, option, username):
         """
         Usage:
@@ -564,7 +549,6 @@ class MusicBot(discord.Client):
         except:
             raise CommandError('Invalid URL provided:\n{}\n'.format(server_link))
 
-    @ignore_non_voice
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
@@ -783,7 +767,6 @@ class MusicBot(discord.Client):
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=25)
 
-    @ignore_non_voice
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
@@ -975,7 +958,6 @@ class MusicBot(discord.Client):
         if self.config.auto_playlist:
             await self.on_finished_playing(player)
 
-    @ignore_non_voice
     async def cmd_pause(self, player):
         """
         Usage:
@@ -990,7 +972,6 @@ class MusicBot(discord.Client):
         else:
             raise CommandError('Player is not playing.')
 
-    @ignore_non_voice
     async def cmd_resume(self, player):
         """
         Usage:
@@ -1005,7 +986,6 @@ class MusicBot(discord.Client):
         else:
             raise CommandError('Player is not paused.')
 
-    @ignore_non_voice
     async def cmd_shuffle(self, player):
         """
         Usage:
@@ -1017,7 +997,6 @@ class MusicBot(discord.Client):
         player.playlist.shuffle()
         return Response('*shuffleshuffleshuffle*', delete_after=10)
 
-    @owner_only
     async def cmd_clear(self, player, author):
         """
         Usage:
@@ -1029,7 +1008,6 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=10)
 
-    @ignore_non_voice
     async def cmd_skip(self, player, channel, author, message):
         """
         Usage:
@@ -1084,8 +1062,6 @@ class MusicBot(discord.Client):
                 reply=True
             )
 
-    @owner_only
-    @ignore_non_voice
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
@@ -1177,7 +1153,7 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
-    @owner_only
+    @owner_only # TODO: improve this (users only clean up theirs, arg for all messages, etc, more control)
     async def cmd_clean(self, message, channel, author, amount):
         """
         Usage:
@@ -1217,8 +1193,6 @@ class MusicBot(discord.Client):
 
         return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=10)
 
-
-    @owner_only
     async def cmd_listroles(self, server):
         """
         Usage:
@@ -1290,6 +1264,9 @@ class MusicBot(discord.Client):
 
         # noinspection PyBroadException
         try:
+            if command in user_permissions.ignore_non_voice:
+                await self._check_ignore_non_voice(message)
+
             handler_kwargs = {}
             if params.pop('message', None):
                 handler_kwargs['message'] = message

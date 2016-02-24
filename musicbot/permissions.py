@@ -6,6 +6,7 @@ class PermissionsDefaults:
 
     CommandWhiteList = set()
     CommandBlackList = set()
+    IgnoreNonVoice = set()
     GrantToRoles = set()
     UserList = set()
 
@@ -61,7 +62,7 @@ class PermissionGroup:
 
         self.command_whitelist = section_data.get('CommandWhiteList', fallback=PermissionsDefaults.CommandWhiteList)
         self.command_blacklist = section_data.get('CommandBlackList', fallback=PermissionsDefaults.CommandBlackList)
-
+        self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=PermissionsDefaults.IgnoreNonVoice)
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
         self.user_list = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
 
@@ -70,18 +71,23 @@ class PermissionGroup:
 
         self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
 
+        self.verify()
+
+    def verify(self):
         if self.command_whitelist:
             self.command_whitelist = set(self.command_whitelist.lower().split())
 
         if self.command_blacklist:
             self.command_blacklist = set(self.command_blacklist.lower().split())
 
+        if self.ignore_non_voice:
+            self.ignore_non_voice = set(self.ignore_non_voice.lower().split())
+
         if self.granted_to_roles:
             self.granted_to_roles = set(self.granted_to_roles.split())
 
         if self.user_list:
             self.user_list = set(self.user_list.split())
-
 
     def add_user(self, uid):
         self.user_list.add(uid)
