@@ -90,7 +90,7 @@ class MusicBot(discord.Client):
             if not orig_msg or orig_msg.author.id == self.config.owner_id:
                 return await func(self, *args, **kwargs)
             else:
-                return Response("only the owner can use this command", reply=True, delete_after=20)
+                raise PermissionsError("only the owner can use this command", expire_in=30)
 
         return wrapper
 
@@ -1311,10 +1311,12 @@ class MusicBot(discord.Client):
 
             if message.author.id != self.config.owner_id:
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
-                    raise PermissionsError("Reason: Command not whitelisted.", expire_in=20)
+                    raise PermissionsError(
+                        "Reason: This command is not whitelisted for your group (%s)." % user_permissions.name, expire_in=20)
 
                 elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
-                    raise PermissionsError("Reason: Command blacklisted.", expire_in=20)
+                    raise PermissionsError(
+                        "Reason: This command is blacklisted for your group (%s)." % user_permissions.name, expire_in=20)
 
             if params:
                 docs = getattr(handler, '__doc__', None)
