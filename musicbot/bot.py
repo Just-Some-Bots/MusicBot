@@ -592,6 +592,10 @@ class MusicBot(discord.Client):
             # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
             num_songs = sum(1 for _ in info['entries'])
 
+            if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
+                raise PermissionsError("Playlist has too many entries (%s > %s)" %
+                    (num_songs, permissions.max_playlist_length))
+
             # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
             if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
                 raise PermissionsError("Playlist entries + your already queued songs exceed limit (%s + %s > %s)" %
