@@ -10,8 +10,9 @@ class PermissionsDefaults:
     GrantToRoles = set()
     UserList = set()
 
-    MaxSongLength = 0
     MaxSongs = 0
+    MaxSongLength = 0
+    MaxPlaylistLength = 0
 
     AllowPlaylists = True
 
@@ -66,8 +67,9 @@ class PermissionGroup:
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
         self.user_list = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
 
-        self.max_song_length = max(0, section_data.getint('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength))
         self.max_songs = max(0, section_data.getint('MaxSongs', fallback=PermissionsDefaults.MaxSongs))
+        self.max_song_length = max(0, section_data.getint('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength))
+        self.max_playlist_length = max(0, section_data.getint('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength))
 
         self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
 
