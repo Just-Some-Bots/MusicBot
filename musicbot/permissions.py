@@ -46,7 +46,7 @@ class Permissions:
                 return group
 
         # The only way I could search for roles is if I add a `server=None` param and pass that too
-        if isinstance(user, discord_User):
+        if type(user) == discord_User:
             return self.default_group
 
         # We loop again so that we don't return a role based group before we find an assigned one
