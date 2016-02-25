@@ -4,12 +4,20 @@ Username = my@email
 Password = your_password
 
 [Permissions]
-; This need to be your id, not the bot's id.  The bot does not own the bot.  You do.
+; This need to be your id, not the bot's id.  The bot does not own the bot. You do.
 OwnerID = 000000000000000000
 
 [Chat]
 ; Change this if you don't want commands to trigger another bot
 CommandPrefix = !
+
+; This tells the bot to read this text channel only
+; If not set, it will read commands from all channel the bot has access
+; example: ExclusiveTextChannel = music
+ExclusiveTextChannel = 
+
+; X4: Server language mode - default language for most of people, who used bot. Also bot have personal settings if user use special command to configure it. If not set or default is en (English). Used lang.##.txt
+ServerLanguageMode = en
 
 [MusicBot]
 ; This option is not implemented yet
