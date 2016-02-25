@@ -22,10 +22,10 @@ class PermissionsDefaults:
 class Permissions:
     def __init__(self, config_file):
         self.config_file = config_file
-        self.config = configparser.ConfigParser(default_section='Default')
+        self.config = configparser.ConfigParser()
         self.config.read(config_file)
 
-        self.default_group = PermissionGroup('Default', self.config[self.config.default_section])
+        self.default_group = PermissionGroup('Default', self.config['Default'])
         self.groups = set()
 
         for section in self.config.sections():
@@ -73,15 +73,18 @@ class PermissionGroup:
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
         self.user_list = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
 
-        self.max_songs = max(0, section_data.getint('MaxSongs', fallback=PermissionsDefaults.MaxSongs))
-        self.max_song_length = max(0, section_data.getint('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength))
-        self.max_playlist_length = max(0, section_data.getint('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength))
+        self.max_songs = section_data.get('MaxSongs', fallback=PermissionsDefaults.MaxSongs)
+        self.max_song_length = section_data.get('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
+        self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength)
 
-        self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
+        try:
+            self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
+        except:
+            self.allow_playlists = PermissionsDefaults.AllowPlaylists
 
-        self.verify()
+        self.validate()
 
-    def verify(self):
+    def validate(self):
         if self.command_whitelist:
             self.command_whitelist = set(self.command_whitelist.lower().split())
 
@@ -96,6 +99,22 @@ class PermissionGroup:
 
         if self.user_list:
             self.user_list = set(self.user_list.split())
+
+        try:
+            self.max_songs = max(0, int(self.max_songs))
+        except:
+            self.max_songs = PermissionsDefaults.MaxSongs
+
+        try:
+            self.max_song_length = max(0, int(self.max_song_length))
+        except:
+            self.max_song_length = PermissionsDefaults.MaxSongLength
+
+        try:
+            self.max_playlist_length = max(0, int(self.max_playlist_length))
+        except:
+            self.max_playlist_length = PermissionsDefaults.MaxPlaylistLength
+
 
     def add_user(self, uid):
         self.user_list.add(uid)
