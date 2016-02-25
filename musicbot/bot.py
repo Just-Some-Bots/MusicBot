@@ -1272,7 +1272,7 @@ class MusicBot(discord.Client):
 
         # noinspection PyBroadException
         try:
-            if command in user_permissions.ignore_non_voice:
+            if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
                 await self._check_ignore_non_voice(message)
 
             handler_kwargs = {}
