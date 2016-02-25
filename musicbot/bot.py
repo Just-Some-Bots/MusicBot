@@ -1197,7 +1197,7 @@ class MusicBot(discord.Client):
 
         return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=10)
 
-    async def cmd_listroles(self, server):
+    async def cmd_listroles(self, server, author):
         """
         Usage:
             {command_prefix}listroles
@@ -1205,14 +1205,19 @@ class MusicBot(discord.Client):
         Lists the roles on the server for setting up permissions
         """
 
-        lines = ['```']
+        lines = ['Role list for %s' % server.name, '```', '```']
         for role in server.roles:
-            role.name = role.name.replace('@everyone', '\u200Beveryone') # ZWS for sneaky names
-            lines.append(role.id + " " + role.name)
+            role.name = role.name.replace('@everyone', '@\u200Beveryone') # ZWS for sneaky names
+            nextline = role.id + " " + role.name
 
-        lines.append('```')
+            if len('\n'.join(lines)) + len(nextline) < DISCORD_MSG_CHAR_LIMIT:
+                lines.insert(len(lines)-1, nextline)
+            else:
+                await self.send_message(author, '\n'.join(lines))
+                lines = ['```', '```']
 
-        return Response('\n'.join(lines))
+        await self.send_message(author, '\n'.join(lines))
+        return Response(":mailbox_with_mail:")
 
     async def cmd_perms(self, author, channel):
         '''
