@@ -1227,27 +1227,26 @@ class MusicBot(discord.Client):
 
 
     async def on_message(self, message):
-        if message.author == self.user:
-            if message.content.startswith(self.config.command_prefix):
-                self.safe_print("Ignoring command from myself (%s)" % message.content)
-            return
-
-        if message.channel.is_private:
-            await self.send_message(message.channel, 'You cannot use this bot in private messages.')
-            return
-
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
-            return # if I want to log this I just move it under the prefix check
-
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
             return
 
-        command, *args = message_content.split() # Uh, doesn't this break prefixes with spaces in them
+        if message.author == self.user:
+            self.safe_print("Ignoring command from myself (%s)" % message.content)
+            return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
+            return # if I want to log this I just move it under the prefix check
+
+        command, *args = message_content.split() # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
 
         handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
+            return
+
+        if message.channel.is_private and command != 'joinserver' and message.author.id != self.config.owner_id:
+            await self.send_message(message.channel, 'You cannot use this bot in private messages.')
             return
 
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
@@ -1358,9 +1357,13 @@ class MusicBot(discord.Client):
 
 
 
+    # TODO: if the bot is the only one in the voice chat, pause the player and set an autopause flag to true
+    #       when someone joins and autopause is true, unpause and unset flag
+
     # async def on_voice_state_update(self, before, after):
     #     print("Voice status update for", after)
     #     print(before.voice_channel, '->', after.voice_channel)
+
 
 
 if __name__ == '__main__':
