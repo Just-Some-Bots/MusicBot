@@ -77,7 +77,9 @@ class MusicBot(discord.Client):
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
 
+        # These aren't multiserver comptable, which is ok for now, but will have to be redone when multiserver is possible
         self.last_np_msg = None
+        self.auto_paused = False
 
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
@@ -201,6 +203,8 @@ class MusicBot(discord.Client):
 
             voice_client = VoiceClient(**kwargs)
             self.voice_clients[server.id] = voice_client
+
+            # TODO: Bug: the channel doesn't get updated when the bot is moved
 
             await voice_client.connect()
             return voice_client
@@ -347,7 +351,7 @@ class MusicBot(discord.Client):
                     print("Sending instead")
                 return await self.safe_send_message(message.channel, new)
 
-    def safe_print(self, content, *, end='\n', flush=False):
+    def safe_print(self, content, *, end='\n', flush=True):
         sys.stdout.buffer.write((content+end).encode('utf-8', 'replace'))
         if flush: sys.stdout.flush()
 
@@ -579,6 +583,10 @@ class MusicBot(discord.Client):
         if info.get('url', '').startswith('ytsearch'):
             # print("[Command:play] Searching for \"%s\"" % song_url)
             info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
+
+            if not info:
+                raise CommandError("Error extracting info from search string, youtubedl returned no data.")
+
             song_url = info['entries'][0]['webpage_url']
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
             # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
@@ -1040,8 +1048,6 @@ class MusicBot(discord.Client):
 
         skips_remaining = min(self.config.skips_required, round(num_voice * self.config.skip_ratio_required)) - num_skips
 
-        # TODO: Fix title check
-
         if skips_remaining <= 0:
             player.skip()
             return Response(
@@ -1361,14 +1367,33 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
 
+    async def on_voice_state_update(self, before, after):
+        if before.voice_channel == after.voice_channel:
+            return # they didn't move channels
 
-    # TODO: if the bot is the only one in the voice chat, pause the player and set an autopause flag to true
-    #       when someone joins and autopause is true, unpause and unset flag
+        my_voice_channel = after.server.me.voice_channel # This should always work, right?
 
-    # async def on_voice_state_update(self, before, after):
-    #     print("Voice status update for", after)
-    #     print(before.voice_channel, '->', after.voice_channel)
+        if before.voice_channel == my_voice_channel:
+            joining = False
+        elif after.voice_channel == my_voice_channel:
+            joining = True
+        else:
+            return # Not my channel
 
+        moving = before == before.server.me
+
+        if [m for m in my_voice_channel.voice_members if m != after.server.me]:
+            if self.auto_paused:
+                print("[config:autopause] Unpausing")
+                self.auto_paused = False
+                player = await self.get_player(my_voice_channel)
+                player.resume()
+        else:
+            if not self.auto_paused:
+                print("[config:autopause] Pausing")
+                self.auto_paused = True
+                player = await self.get_player(my_voice_channel)
+                player.pause()
 
 
 if __name__ == '__main__':
