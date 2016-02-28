@@ -573,8 +573,6 @@ class MusicBot(discord.Client):
 
         try:
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
-            print("Info 1")
-            print(info)
         except Exception as e:
             traceback.print_exc()
             raise CommandError("Error looking up %s:\n%s" % (song_url, e))
@@ -587,9 +585,9 @@ class MusicBot(discord.Client):
             info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
 
             if not info:
-                print("Info 2")
-                print(info)
-                raise CommandError("Error extracting info from search string, youtubedl returned no data.")
+                raise CommandError(
+                    "Error extracting info from search string, youtubedl returned no data.  "
+                    "You may need to restart the bot if this continues to happen.")
 
             song_url = info['entries'][0]['webpage_url']
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
@@ -1032,8 +1030,7 @@ class MusicBot(discord.Client):
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
-        # pausing and skipping a song breaks /something/, i'm not sure what
-        if player.is_stopped or player.is_paused:
+        if player.is_stopped:
             raise CommandError("Can't skip! The player is not playing!")
 
         if not player.current_entry: # Do more checks here to see
