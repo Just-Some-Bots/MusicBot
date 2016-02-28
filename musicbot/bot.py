@@ -153,11 +153,11 @@ class MusicBot(discord.Client):
         vc = msg.server.me.voice_channel
 
         # If we've connected to a voice chat and we're in the same voice channel
-        if not vc or (vc and vc.channel == msg.author.voice_channel):
+        if not vc or vc == msg.author.voice_channel:
             return True
         else:
             raise PermissionsError(
-                "you cannot use this command when not in the voice channel (%s)" % vc.channel.name, expire_in=30)
+                "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
 
 
     async def get_voice_client(self, channel):
