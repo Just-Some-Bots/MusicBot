@@ -527,15 +527,18 @@ class MusicBot(discord.Client):
 
                 return Response('user has been removed from the blacklist', reply=True, delete_after=10)
 
-    async def cmd_id(self, author):
+    async def cmd_id(self, author, user_mentions):
         """
         Usage:
-            {command_prefix}id
+            {command_prefix}id [@user]
 
-        Tells the user their id.
+        Tells the user their id or the id of another user.
         """
-
-        return Response('your id is `%s`' % author.id, reply=True)
+        if not user_mentions:
+            return Response('your id is `%s`' % author.id, reply=True, delete_after=35)
+        else:
+            usr = user_mentions[0]
+            return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
 
     @owner_only
     async def cmd_joinserver(self, message, server_link):
