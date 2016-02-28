@@ -140,7 +140,7 @@ class MusicBot(discord.Client):
     async def _auto_summon(self, channel=None):
         owner = self._get_owner(voice=True)
         if owner:
-            await self.cmd_summon(owner.voice_channel, owner)
+            await self.cmd_summon(owner.voice_channel, owner, None)
             return True
         else:
             return False
@@ -150,7 +150,7 @@ class MusicBot(discord.Client):
         await self.safe_delete_message(message)
 
     async def _check_ignore_non_voice(self, msg):
-        vc = self.voice_clients.get(msg.server.id, None)
+        vc = msg.server.me.voice_channel
 
         # If we've connected to a voice chat and we're in the same voice channel
         if not vc or (vc and vc.channel == msg.author.voice_channel):
@@ -931,7 +931,7 @@ class MusicBot(discord.Client):
         else:
             return Response('There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
-    async def cmd_summon(self, channel, author):
+    async def cmd_summon(self, channel, author, voice_channel):
         """
         Usage:
             {command_prefix}summon
@@ -954,7 +954,7 @@ class MusicBot(discord.Client):
             return
         elif voice_client:
             raise CommandError("Multiple servers not supported at this time.  Already connected to:\n    %s/%s" % (
-                voice_client.channel.server.name.strip(), voice_client.channel.name.strip()))
+                voice_channel.server.name.strip(), voice_channel.name.strip()))
 
         chperms = author.voice_channel.permissions_for(author.voice_channel.server.me)
 
@@ -1401,7 +1401,7 @@ class MusicBot(discord.Client):
                 self.auto_paused = False
                 player.resume()
         else:
-            if not self.auto_paused and not player.is_paused:
+            if not self.auto_paused and player.is_playing:
                 print("[config:autopause] Pausing")
                 self.auto_paused = True
                 player.pause()
