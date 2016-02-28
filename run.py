@@ -183,6 +183,8 @@ def main():
             break # check if restart? replace process?
 
         except ImportError as e:
+            print(e)
+
             if not tried_requirementstxt:
                 tried_requirementstxt = True
                 # TODO: Better output
