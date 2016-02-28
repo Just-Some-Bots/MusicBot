@@ -79,7 +79,7 @@ class MusicBot(discord.Client):
 
         # These aren't multiserver comptable, which is ok for now, but will have to be redone when multiserver is possible
         self.last_np_msg = None
-        self.auto_paused = False
+        self.auto_paused = None
 
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
@@ -573,6 +573,8 @@ class MusicBot(discord.Client):
 
         try:
             info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+            print("Info 1")
+            print(info)
         except Exception as e:
             traceback.print_exc()
             raise CommandError("Error looking up %s:\n%s" % (song_url, e))
@@ -585,6 +587,8 @@ class MusicBot(discord.Client):
             info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
 
             if not info:
+                print("Info 2")
+                print(info)
                 raise CommandError("Error extracting info from search string, youtubedl returned no data.")
 
             song_url = info['entries'][0]['webpage_url']
@@ -1020,7 +1024,7 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=10)
 
-    async def cmd_skip(self, player, channel, author, message):
+    async def cmd_skip(self, player, channel, author, message, voice_channel):
         """
         Usage:
             {command_prefix}skip
@@ -1038,8 +1042,6 @@ class MusicBot(discord.Client):
         if author.id == self.config.owner_id:
             player.skip()
             return
-
-        voice_channel = player.voice_client.channel
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
@@ -1306,6 +1308,9 @@ class MusicBot(discord.Client):
             if params.pop('channel_mentions', None):
                 handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
 
+            if params.pop('voice_channel', None):
+                handler_kwargs['voice_channel'] = message.server.me.voice_channel
+
             if params.pop('leftover_args', None):
                 handler_kwargs['leftover_args'] = args
 
@@ -1373,6 +1378,9 @@ class MusicBot(discord.Client):
 
         my_voice_channel = after.server.me.voice_channel # This should always work, right?
 
+        if not my_voice_channel:
+            return
+
         if before.voice_channel == my_voice_channel:
             joining = False
         elif after.voice_channel == my_voice_channel:
@@ -1380,19 +1388,22 @@ class MusicBot(discord.Client):
         else:
             return # Not my channel
 
-        moving = before == before.server.me
+        if self.auto_paused is None:
+            self.auto_paused = False
+            return
 
-        if [m for m in my_voice_channel.voice_members if m != after.server.me]:
-            if self.auto_paused:
+        moving = before == before.server.me
+        player = await self.get_player(my_voice_channel)
+
+        if sum(1 for m in my_voice_channel.voice_members if m != after.server.me):
+            if self.auto_paused and player.is_paused:
                 print("[config:autopause] Unpausing")
                 self.auto_paused = False
-                player = await self.get_player(my_voice_channel)
                 player.resume()
         else:
-            if not self.auto_paused:
+            if not self.auto_paused and not player.is_paused:
                 print("[config:autopause] Pausing")
                 self.auto_paused = True
-                player = await self.get_player(my_voice_channel)
                 player.pause()
 
 
