@@ -795,7 +795,7 @@ class MusicBot(discord.Client):
           - defaults to 1 if unspecified
           - note: If your search query starts with a number,
                   you must put your query in quotes
-            - ex: {command_prefix}search 2 "3 minutes clapping"
+            - ex: {command_prefix}search 2 "I ran seagulls"
         """
 
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
@@ -1222,18 +1222,26 @@ class MusicBot(discord.Client):
                 lines = ['```', '```']
 
         await self.send_message(author, '\n'.join(lines))
-        return Response(":mailbox_with_mail:")
+        return Response(":mailbox_with_mail:", delete_after=20)
 
-    async def cmd_perms(self, author, channel):
+    async def cmd_perms(self, author, channel, server, permissions):
         '''
         Usage:
             {command_prefix}perms
 
-        testing command for permissions
+        Sends the user a list of their permissions.
         '''
 
-        import pprint
-        raise CommandError(pprint.pformat(self.permissions.for_user(author).__dict__))
+        lines = ['Command permissions in %s\n' % server.name, '```', '```']
+
+        for perm in permissions.__dict__:
+            if perm in ['user_list'] or permissions.__dict__[perm] == set():
+                continue
+
+            lines.insert(len(lines)-1, "%s: %s" % (perm, permissions.__dict__[perm]))
+
+        await self.send_message(author, '\n'.join(lines))
+        return Response(":mailbox_with_mail:", delete_after=20)
 
 
     async def on_message(self, message):
