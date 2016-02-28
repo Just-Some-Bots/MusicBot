@@ -84,6 +84,21 @@ class MusicPlayer(EventEmitter):
 
         raise ValueError('Cannot resume playback from state %s' % self.state)
 
+    def pause(self):
+        if self.is_playing:
+            self.state = MusicPlayerState.PAUSED
+
+            if self._current_player:
+                self._current_player.pause()
+
+            self.emit('pause', player=self, entry=self.current_entry)
+            return
+
+        elif self.is_paused:
+            return
+
+        raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
+
     def _playback_finished(self):
         entry = self._current_entry
         self._current_entry = None
@@ -92,7 +107,7 @@ class MusicPlayer(EventEmitter):
         if not self.is_stopped:
             self.play(_continue=True)
 
-        if not self.bot.config.save_videos:
+        if not self.bot.config.save_videos and entry:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
                 print("[Config:SaveVideos] Skipping deletion, found song in queue")
 
@@ -101,6 +116,15 @@ class MusicPlayer(EventEmitter):
                 asyncio.ensure_future(self._delete_file(entry.filename))
 
         self.emit('finished-playing', player=self, entry=entry)
+
+    def _kill_current_player(self):
+        if self._current_player:
+            self.resume()
+            self._current_player.stop()
+            self._current_player = None
+            return True
+
+        return False
 
     async def _delete_file(self, filename):
         for x in range(30):
@@ -145,9 +169,6 @@ class MusicPlayer(EventEmitter):
                     self.stop()
                     return
 
-                self.state = MusicPlayerState.PLAYING
-                self._current_entry = entry
-
                 # In-case there was a player, kill it. RIP.
                 self._kill_current_player()
 
@@ -156,8 +177,12 @@ class MusicPlayer(EventEmitter):
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
-                self._current_player.start()
 
+                # I need to add ytdl hooks and set a DOWNLOADING state
+                self.state = MusicPlayerState.PLAYING
+                self._current_entry = entry
+
+                self._current_player.start()
                 self.emit('play', player=self, entry=entry)
 
     def _monkeypatch_player(self, player):
@@ -188,29 +213,6 @@ class MusicPlayer(EventEmitter):
         #       Correct calculation should be bytes_read/192k
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
         #       Change frame_count to bytes_read in the PatchedBuff
-
-    def pause(self):
-        if self.is_playing:
-            self.state = MusicPlayerState.PAUSED
-
-            if self._current_player:
-                self._current_player.pause()
-
-            self.emit('pause', player=self, entry=self.current_entry)
-            return
-
-        elif self.is_paused:
-            return
-
-        raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
-
-    def _kill_current_player(self):
-        if self._current_player:
-            self._current_player.stop()
-            self._current_player = None
-            return True
-
-        return False
 
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:
