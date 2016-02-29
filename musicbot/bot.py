@@ -368,7 +368,7 @@ class MusicBot(discord.Client):
         if owner:
             self.safe_print("Owner: %s/%s" % (owner.id, owner.name))
         else:
-            print("Owner could not be found on any server (id: %s)" % config.owner_id)
+            print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
 
 
         if self.config.owner_id == self.user.id:
