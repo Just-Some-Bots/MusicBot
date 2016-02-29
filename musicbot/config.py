@@ -29,7 +29,26 @@ class Config:
     def __init__(self, config_file):
         self.config_file = config_file
         config = configparser.ConfigParser()
-        config.read(config_file)
+
+        if not config.read(config_file):
+            print('[config] Config file not found, copying example_options.ini')
+            import os, shutil, traceback
+
+            try:
+                shutil.copy('config/example_options.ini', config_file)
+
+                print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                os._exit(1)
+
+            except FileNotFoundError as e:
+                traceback.print_exc()
+                print("\nWhat happened to your configs?", flush=True)
+                os._exit(2)
+
+            except Exception as e:
+                traceback.print_exc()
+                print("\nUnable to copy config/example_options.ini to %s: %s" % (config_file, e), flush=True)
+                os._exit(3)
 
         # Maybe wrap these in a helper and change ConfigDefaults names to their config value
 
