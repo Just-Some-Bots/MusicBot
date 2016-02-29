@@ -119,7 +119,9 @@ class MusicPlayer(EventEmitter):
 
     def _kill_current_player(self):
         if self._current_player:
-            self.resume()
+            if self.player.is_paused:
+                self.resume()
+
             self._current_player.stop()
             self._current_player = None
             return True
