@@ -1,4 +1,2 @@
-git+https://github.com/Rapptz/discord.py@async#egg=discord.py >= 0.10.0
-youtube_dl >= 2016.01.01
-
-# win-unicode-console >= 0.4
+https://github.com/Rapptz/discord.py/archive/async.zip
+youtube_dl >= 2016.2.22
