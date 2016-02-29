@@ -23,7 +23,18 @@ class Permissions:
     def __init__(self, config_file):
         self.config_file = config_file
         self.config = configparser.ConfigParser()
-        self.config.read(config_file)
+
+        if not self.config.read(config_file):
+            print('[permissions] Config file not found, copying example_permissions.ini')
+            import shutil, traceback
+
+            try:
+                shutil.copy('config/example_permissions.ini', config_file)
+                self.config.read(config_file)
+
+            except Exception as e:
+                traceback.print_exc()
+                raise RuntimeError("Unable to copy config/example_permissions.ini to %s: %s" % (config_file, e))
 
         self.default_group = PermissionGroup('Default', self.config['Default'])
         self.groups = set()
