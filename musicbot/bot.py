@@ -892,7 +892,7 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
 
-                ok_message = await self.safe_send_message(channel, "Alright, comming up!")
+                ok_message = await self.safe_send_message(channel, "Alright, coming up!")
 
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
                 await self.safe_delete_message(ok_message)
@@ -1034,7 +1034,7 @@ class MusicBot(discord.Client):
             raise CommandError("Something strange is happening.  You might want to restart the bot if its not working.")
 
         if author.id == self.config.owner_id:
-            player.skip()
+            player.skip() # check autopause stuff here
             return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
@@ -1046,7 +1046,7 @@ class MusicBot(discord.Client):
                               round(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
-            player.skip()
+            player.skip() # check autopause stuff here
             return Response(
                 'your skip for **{}** was acknowledged.'
                 '\nThe vote to skip has been passed.{}'.format(

@@ -208,6 +208,25 @@ class PlaylistEntry:
 
         return bool(self.filename)
 
+    @classmethod
+    def from_json(cls, data):
+        pass
+
+    def to_json(self):
+        data = {
+            'url': self.url,
+            'title': self.title,
+            'duration': self.duration,
+            # I think filename might have to be regenerated
+
+            # I think these are only channels and members (author)
+            'meta': {i:{'type': self.meta[i].__class__.__name__, 'id': self.meta[i].id} for i in self.meta}
+            # Actually I think I can just getattr instead, getattr(discord, type)
+
+            # I do need to test if these can be pickled properly
+        }
+        return data
+
     async def _download(self):
         if self._is_downloading:
             return

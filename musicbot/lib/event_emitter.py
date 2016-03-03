@@ -34,3 +34,5 @@ class EventEmitter:
             del self._events[event]
 
         return self
+
+    # TODO: add .once
