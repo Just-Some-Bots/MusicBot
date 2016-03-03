@@ -25,7 +25,7 @@ class Permissions:
         self.config = configparser.ConfigParser()
 
         if not self.config.read(config_file):
-            print('[permissions] Config file not found, copying example_permissions.ini')
+            print('[permissions] Permissions file not found, copying example_permissions.ini')
             import shutil, traceback
 
             try:
