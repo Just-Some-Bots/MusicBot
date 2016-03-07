@@ -17,9 +17,6 @@ rem IF %ERRORLEVEL% NEQ 0 GOTO nogit
 CMD /k python run.py
 GOTO end
 
-:nogit
-ECHO ERROR: Git has either not been installed or not added to your PATH.
-GOTO end
 
 :nopython
 ECHO ERROR: Python has either not been installed or not added to your PATH.
