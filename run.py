@@ -183,11 +183,11 @@ def main():
             break # check if restart? replace process?
 
         except ImportError as e:
-            print(e)
-
             if not tried_requirementstxt:
                 tried_requirementstxt = True
+
                 # TODO: Better output
+                print(e)
                 print("Attempting to install dependencies...")
 
                 err = PIP.run_install('-r requirements.txt')
@@ -198,6 +198,10 @@ def main():
                     break
                 else:
                     print("\nOk lets hope it worked\n")
+            else:
+                traceback.print_exc()
+                print("Unknown ImportError, exiting.")
+                break
 
 
 if __name__ == '__main__':
