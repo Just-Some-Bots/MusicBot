@@ -52,7 +52,7 @@ class Playlist(EventEmitter):
             self,
             song_url,
             info['title'],
-            info.get('duration', 0),
+            info.get('duration', 0) or 0,
             **meta
         )
         self._add_entry(entry)
@@ -83,7 +83,7 @@ class Playlist(EventEmitter):
                         self,
                         items['webpage_url'],
                         items['title'],
-                        items.get('duration', 0),
+                        items.get('duration', 0) or 0,
                         **meta
                     )
 
