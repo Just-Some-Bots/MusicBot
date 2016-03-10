@@ -14,7 +14,7 @@ CMD /k python -m pip install --upgrade -r requirements.txt
 GOTO end
 
 :nopython
-ECHO ERROR: Git has either not been installed or not added to your PATH.
+ECHO ERROR: Python has either not been installed or not added to your PATH.
 
 :end
 PAUSE
