@@ -1,4 +1,8 @@
-import sys, os, traceback, subprocess, webbrowser
+import sys
+import os
+import traceback
+import subprocess
+import webbrowser
 
 
 class GIT(object):
@@ -152,35 +156,20 @@ def main():
 
         return
 
-
-    if '--update' in sys.argv:
-        if PIP.works():
-            try:
-                err = PIP.run_install('--upgrade -r requirements.txt')
-            except subprocess.CalledProcessError as err:
-                print("\nUpgrade failed, you may need to run it as admin/root")
-                input("Press enter to continue . . .")
-                return
-
-        else:
-            # TODO: Make this text less questionable
-            print("\n"
-                "Could not locate PIP. If you're sure you have it, run this:\n"
-                "  your_pip_command install --upgrade -r requirements.txt"
-                "\n\n")
-
-            input("Press enter to continue . . .")
-            return
-
-
     tried_requirementstxt = False
     tryagain = True
 
     while tryagain:
         try:
             from musicbot import MusicBot
+            from musicbot.exceptions import HelpfulError
+
             MusicBot().run()
             break # check if restart? replace process?
+
+        except HelpfulError as e:
+            print(e.message)
+            break
 
         except ImportError as e:
             if not tried_requirementstxt:

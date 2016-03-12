@@ -307,7 +307,6 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
-    # TODO: Add quiet=False argument for no console output
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None
         try:
@@ -357,7 +356,14 @@ class MusicBot(discord.Client):
 
     # noinspection PyMethodOverriding
     def run(self):
-        return super().run(self.config.username, self.config.password)
+        try:
+            return super().run(self.config.username, self.config.password)
+
+        except discord.errors.LoginFailure:
+            raise HelpfulError("Bot cannot login, bad credentials.",
+                               "Fix your Username or Password in the options file.  "
+                               "Remember that each field should be on their own line.")
+
 
     async def on_ready(self):
         print('Connected!\n')
