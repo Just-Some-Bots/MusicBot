@@ -37,18 +37,30 @@ class Config:
             try:
                 shutil.copy('config/example_options.ini', config_file)
 
-                print("\nPlease configure config/options.ini and restart the bot.", flush=True)
-                os._exit(1)
+                # load the config again and check to see if the user edited that one
+                c = configparser.ConfigParser()
+                c.read(config_file)
+
+                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
+                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                    os._exit(1)
 
             except FileNotFoundError as e:
                 traceback.print_exc()
                 print("\nWhat happened to your configs?", flush=True)
-                os._exit(2)
+                os._exit(3)
+
+            except ValueError as e: # Config id value was changed but its not valid
+                print("\nInvalid value for OwnerID, config cannot be loaded.")
+                os._exit(4)
 
             except Exception as e:
                 traceback.print_exc()
                 print("\nUnable to copy config/example_options.ini to %s: %s" % (config_file, e), flush=True)
-                os._exit(3)
+                os._exit(2)
+
+        config = configparser.ConfigParser()
+        config.read(config_file)
 
         # Maybe wrap these in a helper and change ConfigDefaults names to their config value
 
