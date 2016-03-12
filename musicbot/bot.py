@@ -26,6 +26,7 @@ from musicbot.utils import load_file, extract_user_id, write_file
 
 from .downloader import extract_info
 from .opus_loader import load_opus_lib
+from .version import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 from .exceptions import CommandError, PermissionsError, HelpfulError
 
@@ -61,6 +62,8 @@ class Response:
 class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         super().__init__()
+
+        self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
         self.players = {}
         self.voice_clients = {}
