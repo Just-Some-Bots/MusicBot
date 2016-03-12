@@ -325,9 +325,8 @@ class MusicBot(discord.Client):
         except discord.NotFound:
             if not quiet:
                 self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
-        finally:
-            if msg:
-                return msg
+
+        return msg
 
     async def safe_delete_message(self, message, *, quiet=False):
         try:
