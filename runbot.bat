@@ -11,8 +11,8 @@ IF EXIST %SYSTEMROOT%\py.exe (
 python --version > NUL 2>&1
 IF %ERRORLEVEL% NEQ 0 GOTO nopython
 
-git --version > NUL 2>&1
-IF %ERRORLEVEL% NEQ 0 GOTO nogit
+rem git --version > NUL 2>&1
+rem IF %ERRORLEVEL% NEQ 0 GOTO nogit
 
 CMD /k python run.py
 GOTO end
