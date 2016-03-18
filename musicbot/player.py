@@ -101,6 +101,11 @@ class MusicPlayer(EventEmitter):
 
     def _playback_finished(self):
         entry = self._current_entry
+
+        if self._current_player:
+            self._current_player.after = None
+            self._current_player.stop()
+
         self._current_entry = None
         self._current_player = None
 
