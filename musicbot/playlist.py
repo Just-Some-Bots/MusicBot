@@ -11,7 +11,6 @@ from collections import deque
 from .constants import AUDIO_CACHE_PATH
 from .downloader import extract_info, ytdl
 from .exceptions import ExtractionError
-from .utils import slugify
 from .lib.event_emitter import EventEmitter
 
 
@@ -233,6 +232,9 @@ class PlaylistEntry:
 
         self._is_downloading = True
         try:
+
+            # TODO: Check to see if we have a file already named what this would be named
+
             result = await extract_info(self.playlist.loop, self.url, download=True)
 
             unmoved_filename = ytdl.prepare_filename(result)

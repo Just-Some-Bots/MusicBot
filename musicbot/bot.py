@@ -245,7 +245,7 @@ class MusicBot(discord.Client):
             if self.last_np_msg and self.last_np_msg.channel == channel:
 
                 async for lmsg in self.logs_from(channel, limit=1):
-                    if lmsg != self.last_np_msg:
+                    if lmsg != self.last_np_msg and self.last_np_msg:
                         await self.safe_delete_message(self.last_np_msg)
                         self.last_np_msg = None
                     break  # This is probably redundant
@@ -1039,7 +1039,7 @@ class MusicBot(discord.Client):
             raise CommandError("Can't skip! The player is not playing!")
 
         if not player.current_entry:  # Do more checks here to see
-            raise CommandError("Something strange is happening.  You might want to restart the bot if its not working.")
+            print("Something strange is happening.  You might want to restart the bot if its not working.")
 
         if author.id == self.config.owner_id:
             player.skip() # check autopause stuff here
@@ -1342,12 +1342,12 @@ class MusicBot(discord.Client):
             if message.author.id != self.config.owner_id:
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
                     raise PermissionsError(
-                        "Reason: This command is not whitelisted for your group (%s)." % user_permissions.name,
+                        "This command is not whitelisted for your group (%s)." % user_permissions.name,
                         expire_in=20)
 
                 elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
                     raise PermissionsError(
-                        "Reason: This command is blacklisted for your group (%s)." % user_permissions.name,
+                        "This command is blacklisted for your group (%s)." % user_permissions.name,
                         expire_in=20)
 
             if params:
