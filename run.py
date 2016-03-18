@@ -167,6 +167,10 @@ def main():
             MusicBot().run()
             break # check if restart? replace process?
 
+        except SyntaxError:
+            traceback.print_exc()
+            break
+
         except HelpfulError as e:
             print(e.message)
             break
