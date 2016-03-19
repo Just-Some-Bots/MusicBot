@@ -28,3 +28,10 @@ class HelpfulError(Exception):
             ).format(self.preface, self.issue, self.solution)
         # TODO: textwrap magic
 
+# signal to restart the bot
+class RestartSignal(Exception):
+    pass
+
+# signal to end the bot "gracefully"
+class TerminateSignal(Exception):
+    pass
