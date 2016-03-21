@@ -22,7 +22,7 @@ class PermissionsDefaults:
 class Permissions:
     def __init__(self, config_file):
         self.config_file = config_file
-        self.config = configparser.ConfigParser()
+        self.config = configparser.ConfigParser(interpolation=None)
 
         if not self.config.read(config_file):
             print('[permissions] Permissions file not found, copying example_permissions.ini')

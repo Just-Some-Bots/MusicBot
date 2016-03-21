@@ -59,7 +59,7 @@ class Config:
                 print("\nUnable to copy config/example_options.ini to %s: %s" % (config_file, e), flush=True)
                 os._exit(2)
 
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.read(config_file)
 
         # Maybe wrap these in a helper and change ConfigDefaults names to their config value
