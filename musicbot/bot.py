@@ -68,6 +68,7 @@ class MusicBot(discord.Client):
         self.players = {}
         self.voice_clients = {}
         self.voice_client_connect_lock = asyncio.Lock()
+        self.voice_client_move_lock = asyncio.Lock()
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file)
 
@@ -208,6 +209,30 @@ class MusicBot(discord.Client):
 
             await voice_client.connect()
             return voice_client
+
+    async def move_voice_client(self, channel):
+        if isinstance(channel, Object):
+            channel = self.get_channel(channel.id)
+
+        if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
+            raise AttributeError('Channel passed must be a voice channel')
+
+        with await self.voice_client_move_lock:
+            server = channel.server
+
+            payload = {
+                "op": 4,
+                "d": {
+                    "guild_id": server.id,
+                    "channel_id": channel.id,
+                    "self_mute": False,
+                    "self_deaf": False
+                }
+            }
+
+            await self.ws.send(utils.to_json(payload))
+            self.voice_clients[server.id].channel = channel
+
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -954,7 +979,7 @@ class MusicBot(discord.Client):
 
         voice_client = self.voice_clients.get(channel.server.id, None)
         if voice_client:
-            await self.move_member(channel.server.me, author.voice_channel)
+            await self.move_voice_client(author.voice_channel)
             return
 
         chperms = author.voice_channel.permissions_for(author.voice_channel.server.me)
