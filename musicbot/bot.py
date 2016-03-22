@@ -978,7 +978,7 @@ class MusicBot(discord.Client):
             raise CommandError('You are not in a voice channel!')
 
         voice_client = self.voice_clients.get(channel.server.id, None)
-        if voice_client:
+        if voice_client and voice_client.channel.server == author.voice_channel.server:
             await self.move_voice_client(author.voice_channel)
             return
 
