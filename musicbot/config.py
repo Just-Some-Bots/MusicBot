@@ -1,3 +1,6 @@
+import os
+import shutil
+import traceback
 import configparser
 
 
@@ -30,16 +33,14 @@ class Config:
         self.config_file = config_file
         config = configparser.ConfigParser()
 
-        if not config.read(config_file):
+        if not config.read(config_file, encoding='utf-8'):
             print('[config] Config file not found, copying example_options.ini')
-            import os, shutil, traceback
-
             try:
                 shutil.copy('config/example_options.ini', config_file)
 
                 # load the config again and check to see if the user edited that one
                 c = configparser.ConfigParser()
-                c.read(config_file)
+                c.read(config_file, encoding='utf-8')
 
                 if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
                     print("\nPlease configure config/options.ini and restart the bot.", flush=True)
@@ -60,7 +61,7 @@ class Config:
                 os._exit(2)
 
         config = configparser.ConfigParser(interpolation=None)
-        config.read(config_file)
+        config.read(config_file, encoding='utf-8')
 
         # Maybe wrap these in a helper and change ConfigDefaults names to their config value
 

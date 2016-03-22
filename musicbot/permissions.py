@@ -26,12 +26,12 @@ class Permissions:
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
-        if not self.config.read(config_file):
+        if not self.config.read(config_file, encoding='utf-8'):
             print('[permissions] Permissions file not found, copying example_permissions.ini')
 
             try:
                 shutil.copy('config/example_permissions.ini', config_file)
-                self.config.read(config_file)
+                self.config.read(config_file, encoding='utf-8')
 
             except Exception as e:
                 traceback.print_exc()
