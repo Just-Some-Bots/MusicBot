@@ -171,10 +171,6 @@ def main():
             traceback.print_exc()
             break
 
-        except HelpfulError as e:
-            print(e.message)
-            break
-
         except ImportError as e:
             if not tried_requirementstxt:
                 tried_requirementstxt = True
@@ -195,6 +191,10 @@ def main():
                 traceback.print_exc()
                 print("Unknown ImportError, exiting.")
                 break
+
+        except HelpfulError as e:
+            print(e.message)
+            break
 
 
 if __name__ == '__main__':
