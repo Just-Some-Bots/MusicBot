@@ -1,4 +1,5 @@
 import re
+import decimal
 import unicodedata
 
 _USER_ID_MATCH = re.compile(r'<@(\d+)>')
@@ -38,3 +39,7 @@ def slugify(value):
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
     value = re.sub('[^\w\s-]', '', value).strip().lower()
     return re.sub('[-\s]+', '-', value)
+
+
+def sane_round_int(x):
+    return int(decimal.Decimal(x).quantize(1, rounding=decimal.ROUND_HALF_UP))
