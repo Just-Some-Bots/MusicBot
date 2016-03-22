@@ -80,7 +80,7 @@ class MusicBot(discord.Client):
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
 
-        # These aren't multiserver comptable, which is ok for now, but will have to be redone when multiserver is possible
+        # These aren't multiserver compatible, which is ok for now, but will have to be redone when multiserver is possible
         self.last_np_msg = None
         self.auto_paused = None
 
