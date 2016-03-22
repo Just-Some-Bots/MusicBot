@@ -70,7 +70,7 @@ class MusicBot(discord.Client):
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
         self.config = Config(config_file)
-        self.permissions = Permissions(perms_file)
+        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.whitelist = set(load_file(self.config.whitelist_file))
