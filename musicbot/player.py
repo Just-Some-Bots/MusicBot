@@ -61,7 +61,6 @@ class MusicPlayer(EventEmitter):
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
 
-
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
             self.loop.call_later(2, self.play)
@@ -139,7 +138,7 @@ class MusicPlayer(EventEmitter):
                 os.unlink(filename)
                 break
             except PermissionError as e:
-                if e.winerror == 32: # File is in use
+                if e.winerror == 32:  # File is in use
                     await asyncio.sleep(0.25)
             except Exception as e:
                 traceback.print_exc()
@@ -220,7 +219,6 @@ class MusicPlayer(EventEmitter):
         #       Correct calculation should be bytes_read/192k
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
         #       Change frame_count to bytes_read in the PatchedBuff
-
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:
 #  - http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z
