@@ -52,6 +52,7 @@ class Playlist(EventEmitter):
             song_url,
             info['title'],
             info.get('duration', 0) or 0,
+            ytdl.prepare_filename(info),
             **meta
         )
         self._add_entry(entry)
@@ -66,7 +67,7 @@ class Playlist(EventEmitter):
             :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
             :param meta: Any additional metadata to add to the playlist entry
         """
-        position = len(self.entries)+1
+        position = len(self.entries) + 1
         entry_list = []
 
         info = await extract_info(self.loop, playlist_url, download=False)
@@ -83,6 +84,7 @@ class Playlist(EventEmitter):
                         items['webpage_url'],
                         items['title'],
                         items.get('duration', 0) or 0,
+                        ytdl.prepare_filename(info),
                         **meta
                     )
 
@@ -139,7 +141,6 @@ class Playlist(EventEmitter):
 
         return gooditems
 
-
     def _add_entry(self, entry):
         self.entries.append(entry)
         self.emit('entry-added', playlist=self, entry=entry)
@@ -177,7 +178,7 @@ class Playlist(EventEmitter):
         """
             (very) Roughly estimates the time till the queue will 'position'
         """
-        estimated_time = sum([e.duration for e in islice(self.entries, position-1)])
+        estimated_time = sum([e.duration for e in islice(self.entries, position - 1)])
 
         # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped and player.current_entry:
@@ -190,12 +191,14 @@ class Playlist(EventEmitter):
 
 
 class PlaylistEntry:
-    def __init__(self, playlist, url, title, duration=0, **meta):
+    def __init__(self, playlist, url, title, duration=0, expected_filename=None, **meta):
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
+        self.expected_filename = expected_filename
         self.meta = meta
+
         self.filename = None
         self._is_downloading = False
         self._waiting_futures = []
@@ -219,7 +222,7 @@ class PlaylistEntry:
             # I think filename might have to be regenerated
 
             # I think these are only channels and members (author)
-            'meta': {i:{'type': self.meta[i].__class__.__name__, 'id': self.meta[i].id} for i in self.meta}
+            'meta': {i: {'type': self.meta[i].__class__.__name__, 'id': self.meta[i].id} for i in self.meta}
             # Actually I think I can just getattr instead, getattr(discord, type)
 
             # I do need to test if these can be pickled properly
@@ -232,23 +235,35 @@ class PlaylistEntry:
 
         self._is_downloading = True
         try:
+            # figure out if the filename without the hash is already in the cache folder
+            wouldbe_fname_noex = self.expected_filename.rsplit('.', 1)[0]
+            flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(AUDIO_CACHE_PATH)]
 
-            # TODO: Check to see if we have a file already named what this would be named
+            # we don't check for files downloaded with the generic extractor (direct links) since they're
+            # the entire reason we're adding a hash to the filename to begin with (filename uniqueness)
+            if wouldbe_fname_noex in flistdir and not wouldbe_fname_noex.startswith('generic'):
+                self.filename = os.path.join(
+                    AUDIO_CACHE_PATH,
+                    os.listdir(AUDIO_CACHE_PATH)[flistdir.index(wouldbe_fname_noex)])
+                # print("Found:\n    {}\nFor:\n    {}".format(self.filename, self.expected_filename))
 
-            result = await extract_info(self.playlist.loop, self.url, download=True)
+            else:
+                print("[Download] Started:", self.url)
+                result = await extract_info(self.playlist.loop, self.url, download=True)
+                print("[Download] Complete:", self.url)
 
-            unmoved_filename = ytdl.prepare_filename(result)
-            unmoved_filename = md5sum(unmoved_filename, 8).join('-.').join(unmoved_filename.rsplit('.',1))
+                # insert the 8 last characters of the file hash to the file name to ensure uniqueness
+                unhashed_fname = ytdl.prepare_filename(result)
+                unmoved_fname = md5sum(unhashed_fname, 8).join('-.').join(unhashed_fname.rsplit('.', 1))
+                self.filename = os.path.join(AUDIO_CACHE_PATH, unmoved_fname)
 
-            self.filename = os.path.join(AUDIO_CACHE_PATH, unmoved_filename)
+                # Ensure the folder that we're going to move into exists.
+                directory = os.path.dirname(self.filename)
+                if not os.path.exists(directory):
+                    os.makedirs(directory)
 
-            # Ensure the folder that we're going to move into exists.
-            directory = os.path.dirname(self.filename)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-
-            # Move the temporary file to it's final location.
-            os.replace(ytdl.prepare_filename(result), self.filename)
+                # Move the temporary file to it's final location.
+                os.replace(ytdl.prepare_filename(result), self.filename)
 
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
