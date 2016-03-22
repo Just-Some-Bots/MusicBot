@@ -1,3 +1,5 @@
+import shutil
+import traceback
 import configparser
 
 from discord import User as discord_User
@@ -20,13 +22,12 @@ class PermissionsDefaults:
 
 
 class Permissions:
-    def __init__(self, config_file):
+    def __init__(self, config_file, grant_all=None):
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
         if not self.config.read(config_file):
             print('[permissions] Permissions file not found, copying example_permissions.ini')
-            import shutil, traceback
 
             try:
                 shutil.copy('config/example_permissions.ini', config_file)
@@ -41,6 +42,14 @@ class Permissions:
 
         for section in self.config.sections():
             self.groups.add(PermissionGroup(section, self.config[section]))
+
+        # Create a fake section to fallback onto the permissive default values to grant to the owner
+        owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
+        if hasattr(grant_all, '__iter__'):
+            owner_group.user_list = set(grant_all)
+
+        self.groups.add(owner_group)
+
 
     def save(self):
         with open(self.config_file, 'w') as f:
