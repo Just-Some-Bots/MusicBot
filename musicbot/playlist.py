@@ -235,6 +235,10 @@ class PlaylistEntry:
 
         self._is_downloading = True
         try:
+            # Ensure the folder that we're going to move into exists.
+            if not os.path.exists(AUDIO_CACHE_PATH):
+                os.makedirs(AUDIO_CACHE_PATH)
+
             # figure out if the filename without the hash is already in the cache folder
             wouldbe_fname_noex = self.expected_filename.rsplit('.', 1)[0]
             flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(AUDIO_CACHE_PATH)]
@@ -256,11 +260,6 @@ class PlaylistEntry:
                 unhashed_fname = ytdl.prepare_filename(result)
                 unmoved_fname = md5sum(unhashed_fname, 8).join('-.').join(unhashed_fname.rsplit('.', 1))
                 self.filename = os.path.join(AUDIO_CACHE_PATH, unmoved_fname)
-
-                # Ensure the folder that we're going to move into exists.
-                directory = os.path.dirname(self.filename)
-                if not os.path.exists(directory):
-                    os.makedirs(directory)
 
                 # Move the temporary file to it's final location.
                 os.replace(ytdl.prepare_filename(result), self.filename)
