@@ -22,7 +22,7 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, extract_user_id, write_file
+from musicbot.utils import load_file, extract_user_id, write_file, sane_round_int
 
 from .downloader import extract_info
 from .opus_loader import load_opus_lib
@@ -1076,7 +1076,7 @@ class MusicBot(discord.Client):
         num_skips = player.skip_state.add_skipper(author.id, message)
 
         skips_remaining = min(self.config.skips_required,
-                              round(num_voice * self.config.skip_ratio_required)) - num_skips
+                              sane_round_int(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
             player.skip() # check autopause stuff here
