@@ -75,16 +75,22 @@ class Playlist(EventEmitter):
         if not info:
             raise ExtractionError('Could not extract information from %s' % playlist_url)
 
+        # Once again, the generic extractor fucks things up.
+        if info.get('extractor', None) == 'generic':
+            url_field = 'url'
+        else:
+            url_field = 'webpage_url'
+
         baditems = 0
         for items in info['entries']:
             if items:
                 try:
                     entry = PlaylistEntry(
                         self,
-                        items['webpage_url'],
+                        items[url_field],
                         items['title'],
                         items.get('duration', 0) or 0,
-                        ytdl.prepare_filename(info),
+                        ytdl.prepare_filename(items),
                         **meta
                     )
 
@@ -243,12 +249,16 @@ class PlaylistEntry:
             wouldbe_fname_noex = self.expected_filename.rsplit('.', 1)[0]
             flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(AUDIO_CACHE_PATH)]
 
+            # TODO: Remove the generic extractor special case and do a HEAD check for the filesize
+            #       Turns out I also need to remove hashes from non generic files too
+
             # we don't check for files downloaded with the generic extractor (direct links) since they're
             # the entire reason we're adding a hash to the filename to begin with (filename uniqueness)
             if wouldbe_fname_noex in flistdir and not wouldbe_fname_noex.startswith('generic'):
                 self.filename = os.path.join(
                     AUDIO_CACHE_PATH,
                     os.listdir(AUDIO_CACHE_PATH)[flistdir.index(wouldbe_fname_noex)])
+                print("[Download] Cached:", self.url)
                 # print("Found:\n    {}\nFor:\n    {}".format(self.filename, self.expected_filename))
 
             else:
@@ -261,8 +271,12 @@ class PlaylistEntry:
                 unmoved_fname = md5sum(unhashed_fname, 8).join('-.').join(unhashed_fname.rsplit('.', 1))
                 self.filename = os.path.join(AUDIO_CACHE_PATH, unmoved_fname)
 
-                # Move the temporary file to it's final location.
-                os.replace(ytdl.prepare_filename(result), self.filename)
+                if os.path.isfile(self.filename):
+                    # Oh bother it was actually there.
+                    os.unlink(unhashed_fname)
+                else:
+                    # Move the temporary file to it's final location.
+                    os.replace(unhashed_fname, self.filename)
 
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
