@@ -103,7 +103,10 @@ class MusicPlayer(EventEmitter):
 
         if self._current_player:
             self._current_player.after = None
-            self._current_player.stop()
+            try:
+                self._current_player.stop()
+            except OSError:
+                pass
 
         self._current_entry = None
         self._current_player = None
@@ -126,7 +129,10 @@ class MusicPlayer(EventEmitter):
             if self.is_paused:
                 self.resume()
 
-            self._current_player.stop()
+            try:
+                self._current_player.stop()
+            except OSError:
+                pass
             self._current_player = None
             return True
 
@@ -230,3 +236,6 @@ class MusicPlayer(EventEmitter):
 # I can't imagine the user is so incompetent that they can't pull 3 files out of it...
 # ...
 # ...right?
+
+
+# ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
