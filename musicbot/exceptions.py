@@ -1,3 +1,7 @@
+import shutil
+import textwrap
+
+
 class CommandError(Exception):
     def __init__(self, message, *, expire_in=0):
         self.message = message
@@ -22,11 +26,19 @@ class HelpfulError(Exception):
         self.message = self._construct_msg()
 
     def _construct_msg(self):
-        return ("\n{}"
-            "  Cause: {}\n"
-            "  Solution: {}\n"
-            ).format(self.preface, self.issue, self.solution)
-        # TODO: textwrap magic
+        return ("\n{}\n{}\n{}\n").format(
+            self.preface,
+            self._pretty_wrap(self.issue,    "  Problem:  "),
+            self._pretty_wrap(self.solution, "  Solution: "))
+
+    def _pretty_wrap(self, text, pretext):
+        w = shutil.get_terminal_size().columns
+        l1, *lx = textwrap.wrap(text, width=w - 1 - len(pretext))
+
+        lx = [((' ' * len(pretext)) + l).rstrip().ljust(w) for l in lx]
+        l1 = (pretext + l1).ljust(w)
+
+        return ''.join([l1, *lx])
 
 # signal to restart the bot
 class RestartSignal(Exception):
