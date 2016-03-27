@@ -3,6 +3,8 @@ import shutil
 import traceback
 import configparser
 
+from .exceptions import HelpfulError
+
 
 class ConfigDefaults:
     username = None
@@ -35,6 +37,7 @@ class Config:
 
         if not config.read(config_file, encoding='utf-8'):
             print('[config] Config file not found, copying example_options.ini')
+
             try:
                 shutil.copy('config/example_options.ini', config_file)
 
@@ -86,12 +89,47 @@ class Config:
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
-        # Validation logic for bot settings.
-        if not self.username or not self.password:
-            raise ValueError('A username or password was not specified in the configuration file.')
+        self.run_checks()
 
-        if not self.owner_id:
-            raise ValueError("An owner is not specified in the configuration file")
+
+    def run_checks(self):
+        """
+        Validation logic for bot settings.
+        """
+        confpreface = "An error has occured reading the config:\n"
+
+        if not self.username:
+            raise HelpfulError(
+                "The username was not specified in the config.",
+
+                "Please put your bot account credentials in the config.  "
+                "Remember that the Username is the email address of the bot account.",
+                preface=confpreface)
+
+        if not self.password:
+            raise HelpfulError(
+                "The password was not specified in the config.",
+
+                "Please put your bot account credentials in the config.",
+                preface=confpreface)
+
+        if self.owner_id and self.owner_id.isdigit():
+            if int(self.owner_id) == 0:
+                raise HelpfulError(
+                    "OwnerID was not set.",
+
+                    "Please set your OwnerID in the config.  If you "
+                    "don't know what that is, use the %sid command" % self.command_prefix,
+                    preface=confpreface)
+
+        else:
+            raise HelpfulError(
+                "An invalid OwnerID was set.",
+
+                "Correct your OwnerID.  The ID should be just a number, approximately "
+                "18 characters long.  If you don't know what your ID is, "
+                "use the %sid command." % self.command_prefix,
+                preface=confpreface)
 
         if self.bound_channels:
             try:
