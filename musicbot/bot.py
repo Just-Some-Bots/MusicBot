@@ -385,12 +385,34 @@ class MusicBot(discord.Client):
             return super().run(self.config.username, self.config.password)
 
         except discord.errors.LoginFailure:
-            raise HelpfulError("Bot cannot login, bad credentials.",
-                               "Fix your Username or Password in the options file.  "
-                               "Remember that each field should be on their own line.")
+            raise HelpfulError(
+                "Bot cannot login, bad credentials.",
+                "Fix your Username or Password in the options file.  "
+                "Remember that each field should be on their own line.")
+
+    async def on_error(self, event, *args, **kwargs):
+        ex_type, ex, stack = sys.exc_info()
+
+        if ex_type == HelpfulError:
+            print("Exception in", event)
+            print(ex.message)
+
+            await asyncio.sleep(2) # don't ask
+            await self.logout()
+
+        else:
+            super().on_error(event, *args, **kwargs)
 
 
     async def on_ready(self):
+        if self.config.owner_id == self.user.id:
+            raise HelpfulError(
+                "Your OwnerID is incorrect or you've used the wrong credentials.",
+
+                "The bot needs its own account to function.  "
+                "The OwnerID is the id of the owner, not the bot.  "
+                "Figure out which one is which and use the correct information.")
+
         print('Connected!\n')
 
         self.safe_print("Bot:   %s/%s" % (self.user.id, self.user.name))
@@ -401,11 +423,6 @@ class MusicBot(discord.Client):
         else:
             print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
 
-        if self.config.owner_id == self.user.id:
-            print("\n"
-                  "[NOTICE] You have either set the OwnerID config option to the bot's id instead "
-                  "of yours, or you've used your own credentials to log the bot in instead of the "
-                  "bot's account (the bot needs its own account to work properly).")
         print()
 
         if self.servers:
