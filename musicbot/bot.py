@@ -61,9 +61,6 @@ class Response:
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
-        super().__init__()
-
-        self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
         self.players = {}
         self.voice_clients = {}
@@ -79,6 +76,10 @@ class MusicBot(discord.Client):
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
+
+        super().__init__()
+
+        self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
         # These aren't multiserver compatible, which is ok for now, but will have to be redone when multiserver is possible
         self.last_np_msg = None
