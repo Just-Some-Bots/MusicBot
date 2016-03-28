@@ -1,10 +1,13 @@
 import os
 import time
 import asyncio
+import audioop
 import traceback
 
-from array import array
 from enum import Enum
+from array import array
+from collections import deque
+from shutil import get_terminal_size
 
 from .lib.event_emitter import EventEmitter
 
@@ -19,22 +22,55 @@ class PatchedBuff:
         self.buff = buff
         self.frame_count = 0
 
+        self.draw = False
+        self.use_audioop = True
+        self.frame_skip = 2
+        self.rmss = deque([2048], maxlen=90)
+
+    def __del__(self):
+        print(' ' * (get_terminal_size().columns-1), end='\r')
+
     def read(self, frame_size):
         self.frame_count += 1
-        frame = self.buff.read(frame_size)
 
+        frame = self.buff.read(frame_size)
         volume = self.player.volume
-        # Only make volume go down. Never up.
-        if volume < 1.0:
-            # Ffmpeg returns s16le pcm frames.
+        frame = self._frame_vol(frame, volume, maxv=2)
+
+        rms = audioop.rms(frame, 2)
+        self.rmss.append(rms)
+
+        if self.draw and not self.frame_count % self.frame_skip:
+            max_rms = sorted(self.rmss)[-1]
+            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(self._avg(self.rmss), max_rms)
+            self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
+
+        return frame
+
+    def _frame_vol(self, frame, mult, *, maxv=2, use_audioop=True):
+        if use_audioop:
+            return audioop.mul(frame, 2, min(mult, maxv))
+        else:
+            # ffmpeg returns s16le pcm frames.
             frame_array = array('h', frame)
 
             for i in range(len(frame_array)):
-                frame_array[i] = int(frame_array[i] * volume)
+                frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
 
-            frame = frame_array.tobytes()
+            return frame_array.tobytes()
 
-        return frame
+    def _avg(self, i):
+        return sum(i) / len(i)
+
+    def _pprint_meter(self, perc, *, char='#', text='', shift=True):
+        tx, ty = get_terminal_size()
+
+        if shift:
+            outstr = text + "{}".format(char * (int((tx - len(text)) * perc) - 1))
+        else:
+            outstr = text + "{}".format(char * (int(tx * perc) - 1))[len(text):]
+
+        print(outstr.ljust(tx - 1), end='\r')
 
 
 class MusicPlayerState(Enum):
@@ -143,9 +179,11 @@ class MusicPlayer(EventEmitter):
             try:
                 os.unlink(filename)
                 break
+
             except PermissionError as e:
                 if e.winerror == 32:  # File is in use
                     await asyncio.sleep(0.25)
+
             except Exception as e:
                 traceback.print_exc()
                 print("Error trying to delete " + filename)
@@ -190,7 +228,7 @@ class MusicPlayer(EventEmitter):
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
 
-                # I need to add ytdl hooks and set a DOWNLOADING state
+                # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
 
@@ -239,3 +277,5 @@ class MusicPlayer(EventEmitter):
 
 
 # ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
+
+# -af dynaudnorm
