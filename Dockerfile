@@ -1,6 +1,6 @@
 FROM ubuntu:14.04
 
-MAINTAINER SexualRhinoceros, SideSplitter
+MAINTAINER https://github.com/SexualRhinoceros/MusicBot
 
 RUN sudo apt-get install software-properties-common -y \
     && sudo add-apt-repository ppa:fkrull/deadsnakes -y \
