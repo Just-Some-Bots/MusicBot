@@ -206,9 +206,31 @@ class MusicBot(discord.Client):
             voice_client = VoiceClient(**kwargs)
             self.voice_clients[server.id] = voice_client
 
-            # TODO: Bug: the channel doesn't get updated when the bot is moved
+            try:
+                await asyncio.wait_for(voice_client.connect(), timeout=6, loop=self.loop)
+            except:
+                voice_client.keep_alive.cancel()
+                await voice_client.ws.close()
 
-            await voice_client.connect()
+                await self.ws.send(utils.to_json({
+                    'op': 4,
+                    'd': {
+                        'guild_id': channel.server.id,
+                        'channel_id': None,
+                        'self_mute': True,
+                        'self_deaf': False
+                    }
+                }))
+
+                # print("Unable to fully connect to voice chat.")
+                raise HelpfulError(
+                    "Cannot establish connection to voice chat.  "
+                    "Something is blocking outgoing UDP packets.",
+
+                    "Figure out what is blocking UDP and disable it.  "
+                    "It's most likely a system firewall or overbearing anti-virus firewall."
+                )
+
             return voice_client
 
     async def move_voice_client(self, channel):
