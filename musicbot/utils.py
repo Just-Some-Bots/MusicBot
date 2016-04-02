@@ -7,7 +7,7 @@ _USER_ID_MATCH = re.compile(r'<@(\d+)>')
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
-        with open(filename) as f:
+        with open(filename, encoding='utf8') as f:
             results = []
             for line in f:
                 line = line.strip()
@@ -23,7 +23,7 @@ def load_file(filename, skip_commented_lines=True, comment_char='#'):
 
 
 def write_file(filename, contents):
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf8') as f:
         for item in contents:
             f.write(str(item))
             f.write('\n')
