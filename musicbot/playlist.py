@@ -282,6 +282,7 @@ class PlaylistEntry:
             self._for_each_future(lambda future: future.set_result(self))
 
         except Exception as e:
+            traceback.print_exc()
             self._for_each_future(lambda future: future.set_exception(e))
 
         finally:

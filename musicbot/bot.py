@@ -666,7 +666,7 @@ class MusicBot(discord.Client):
             if info['extractor'] == 'youtube:playlist':
                 try:
                     return await self._cmd_ytplaylist(player, channel, author, permissions, song_url)
-                except CommandError as e:
+                except CommandError:
                     raise
                 except Exception as e:
                     traceback.print_exc()
@@ -1420,10 +1420,11 @@ class MusicBot(discord.Client):
                                                        expire_in=response.delete_after)  # also_delete=message
                 # TODO: Add options for deletion toggling
 
-        except CommandError as e:
+        except (CommandError, HelpfulError) as e:
+            print(e.message)
             await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
 
-        except Exception as e:
+        except Exception:
             if self.config.debug_mode:
                 await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
             traceback.print_exc()
