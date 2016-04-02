@@ -1,42 +1,67 @@
 import shutil
 import textwrap
 
-
-class CommandError(Exception):
+# Base class for exceptions
+class MusicbotException(Exception):
     def __init__(self, message, *, expire_in=0):
-        self.message = message
+        self._message = message
         self.expire_in = expire_in
 
-class ExtractionError(Exception):
-    def __init__(self, message):
-        self.message = message
+    @property
+    def message(self):
+        return self._message
 
+    @property
+    def message_no_format(self):
+        return self._message
+
+# Something went wrong during the processing of a command
+class CommandError(MusicbotException):
+    pass
+
+# Something went wrong during the processing of a song/ytdl stuff
+class ExtractionError(MusicbotException):
+    pass
+
+# The user doesn't have permission to use a command
 class PermissionsError(CommandError):
-    def __init__(self, reason, *, expire_in=0):
-        self.reason = reason
-        self.expire_in = expire_in
-        self.message = "You don't have permission to use that command.\nReason: " + reason
+    @property
+    def message(self):
+        return "You don't have permission to use that command.\nReason: " + self._message
 
-class HelpfulError(Exception):
+# Error with pretty formatting for hand-holding users through various errors
+class HelpfulError(MusicbotException):
     def __init__(self, issue, solution, *, preface="An error has occured:\n", expire_in=0):
         self.issue = issue
         self.solution = solution
         self.preface = preface
         self.expire_in = expire_in
-        self.message = self._construct_msg()
 
-    def _construct_msg(self):
+    @property
+    def message(self):
         return ("\n{}\n{}\n{}\n").format(
             self.preface,
             self._pretty_wrap(self.issue,    "  Problem:  "),
             self._pretty_wrap(self.solution, "  Solution: "))
 
-    def _pretty_wrap(self, text, pretext):
-        w = shutil.get_terminal_size().columns
-        l1, *lx = textwrap.wrap(text, width=w - 1 - len(pretext))
+    @property
+    def message_no_format(self):
+        return "\n{}\n{}\n{}\n".format(
+            self.preface,
+            self._pretty_wrap(self.issue,    "  Problem:  ", width=None),
+            self._pretty_wrap(self.solution, "  Solution: ", width=None))
 
-        lx = [((' ' * len(pretext)) + l).rstrip().ljust(w) for l in lx]
-        l1 = (pretext + l1).ljust(w)
+    @staticmethod
+    def _pretty_wrap(text, pretext, *, width=-1):
+        if width is None:
+            return pretext + text
+        elif width == -1:
+            width = shutil.get_terminal_size().columns
+
+        l1, *lx = textwrap.wrap(text, width=width - 1 - len(pretext))
+
+        lx = [((' ' * len(pretext)) + l).rstrip().ljust(width) for l in lx]
+        l1 = (pretext + l1).ljust(width)
 
         return ''.join([l1, *lx])
 
