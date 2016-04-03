@@ -65,10 +65,14 @@ class HelpfulError(MusicbotException):
 
         return ''.join([l1, *lx])
 
+# Base class for control signals
+class Signal(Exception):
+    pass
+
 # signal to restart the bot
-class RestartSignal(Exception):
+class RestartSignal(Signal):
     pass
 
 # signal to end the bot "gracefully"
-class TerminateSignal(Exception):
+class TerminateSignal(Signal):
     pass
