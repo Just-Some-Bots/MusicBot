@@ -228,6 +228,7 @@ class MusicPlayer(EventEmitter):
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
+                self._current_player.setDaemon(True)
 
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
