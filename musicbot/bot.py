@@ -109,7 +109,8 @@ class MusicBot(discord.Client):
         finally:
             del stack
 
-    def _fixg(self, x, dp=2):
+    @staticmethod
+    def _fixg(x, dp=2):
         return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
     def _get_owner(self, voice=False):
@@ -420,12 +421,11 @@ class MusicBot(discord.Client):
             print("Exception in", event)
             print(ex.message)
 
-            await asyncio.sleep(2) # don't ask
+            await asyncio.sleep(2)  # don't ask
             await self.logout()
 
         else:
             super().on_error(event, *args, **kwargs)
-
 
     async def on_ready(self):
         if self.config.owner_id == self.user.id:
@@ -469,7 +469,7 @@ class MusicBot(discord.Client):
         self.safe_print("Command prefix is %s" % self.config.command_prefix)
         print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
         print("Skip threshold at %s votes or %s%%" % (
-        self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
+            self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
         print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
         print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
         print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
@@ -669,7 +669,7 @@ class MusicBot(discord.Client):
             # But this is probably fine
 
         if 'entries' in info:
-            # I have to do exe extra checks anyways because you can request an arbritrary number of search results
+            # I have to do exe extra checks anyways because you can request an arbitrary number of search results
             if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
                 raise PermissionsError("You are not allowed to request playlists")
 
@@ -703,11 +703,12 @@ class MusicBot(discord.Client):
             # Different playlists might download at different speeds though
             wait_per_song = 1.2
 
-            procmesg = await self.safe_send_message(channel,
-                                                    'Gathering playlist information for {} songs{}'.format(
-                                                        num_songs,
-                                                        ', ETA: {} seconds'.format(self._fixg(
-                                                            num_songs * wait_per_song)) if num_songs >= 10 else '.'))
+            procmesg = await self.safe_send_message(
+                channel,
+                'Gathering playlist information for {} songs{}'.format(
+                    num_songs,
+                    ', ETA: {} seconds'.format(self._fixg(
+                        num_songs * wait_per_song)) if num_songs >= 10 else '.'))
 
             # We don't have a pretty way of doing this yet.  We need either a loop
             # that sends these every 10 seconds or a nice context manager.
@@ -1107,7 +1108,7 @@ class MusicBot(discord.Client):
             print("Something strange is happening.  You might want to restart the bot if its not working.")
 
         if author.id == self.config.owner_id:
-            player.skip() # check autopause stuff here
+            player.skip()  # check autopause stuff here
             return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
@@ -1119,7 +1120,7 @@ class MusicBot(discord.Client):
                               sane_round_int(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
-            player.skip() # check autopause stuff here
+            player.skip()  # check autopause stuff here
             return Response(
                 'your skip for **{}** was acknowledged.'
                 '\nThe vote to skip has been passed.{}'.format(
@@ -1296,12 +1297,12 @@ class MusicBot(discord.Client):
         return Response(":mailbox_with_mail:", delete_after=20)
 
     async def cmd_perms(self, author, channel, server, permissions):
-        '''
+        """
         Usage:
             {command_prefix}perms
 
         Sends the user a list of their permissions.
-        '''
+        """
 
         lines = ['Command permissions in %s\n' % server.name, '```', '```']
 
@@ -1438,8 +1439,8 @@ class MusicBot(discord.Client):
                 if response.reply:
                     content = '%s, %s' % (message.author.mention, content)
 
-                sentmsg = await self.safe_send_message(message.channel, content,
-                                                       expire_in=response.delete_after)  # also_delete=message
+                sentmsg = await self.safe_send_message(
+                    message.channel, content, expire_in=response.delete_after)  # also_delete=message
                 # TODO: Add options for deletion toggling
 
         except (CommandError, HelpfulError) as e:
