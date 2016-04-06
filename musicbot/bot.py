@@ -637,7 +637,7 @@ class MusicBot(discord.Client):
         result from a youtube search is added to the queue.
         """
 
-        if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
             raise PermissionsError("You have reached your playlist item limit (%s)" % permissions.max_songs)
 
         await self.send_typing(channel)
