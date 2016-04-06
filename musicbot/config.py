@@ -66,7 +66,16 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        # Maybe wrap these in a helper and change ConfigDefaults names to their config value
+        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
+        if confsections:
+            raise HelpfulError(
+                "One or more required config sections are missing.",
+                "Fix your config.  Each [Section] should be on its own line with "
+                "nothing else on it.  The following sections are missing: {}".format(
+                    ', '.join(['[%s]' % s for s in confsections])
+                ),
+                preface="An error has occured parsing the config:\n"
+            )
 
         self.username = config.get('Credentials', 'Username', fallback=ConfigDefaults.username)
         self.password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
@@ -128,7 +137,7 @@ class Config:
 
                 "Correct your OwnerID.  The ID should be just a number, approximately "
                 "18 characters long.  If you don't know what your ID is, "
-                "use the %sid command." % self.command_prefix,
+                "use the %sid command.  Current invalid OwnerID: %s" % (self.command_prefix, self.owner_id),
                 preface=confpreface)
 
         if self.bound_channels:
