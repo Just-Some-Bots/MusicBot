@@ -1408,12 +1408,12 @@ class MusicBot(discord.Client):
             if message.author.id != self.config.owner_id:
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
                     raise PermissionsError(
-                        "This command is not whitelisted for your group (%s)." % user_permissions.name,
+                        "This command is not enabled for your group (%s)." % user_permissions.name,
                         expire_in=20)
 
                 elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
                     raise PermissionsError(
-                        "This command is blacklisted for your group (%s)." % user_permissions.name,
+                        "This command is disabled for your group (%s)." % user_permissions.name,
                         expire_in=20)
 
             if params:
