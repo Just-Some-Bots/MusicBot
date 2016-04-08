@@ -17,10 +17,10 @@ class PatchedBuff:
         PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
 
-    def __init__(self, player, buff):
-        self.player = player
+    def __init__(self, buff):
         self.buff = buff
         self.frame_count = 0
+        self.volume = 1.0
 
         self.draw = False
         self.use_audioop = True
@@ -34,13 +34,15 @@ class PatchedBuff:
         self.frame_count += 1
 
         frame = self.buff.read(frame_size)
-        volume = self.player.volume
-        frame = self._frame_vol(frame, volume, maxv=2)
 
-        rms = audioop.rms(frame, 2)
-        self.rmss.append(rms)
+        if self.volume != 1:
+            frame = self._frame_vol(frame, self.volume, maxv=2)
 
         if self.draw and not self.frame_count % self.frame_skip:
+            # these should be processed for every frame, but "overhead"
+            rms = audioop.rms(frame, 2)
+            self.rmss.append(rms)
+
             max_rms = sorted(self.rmss)[-1]
             meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(self._avg(self.rmss), max_rms)
             self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
@@ -90,12 +92,22 @@ class MusicPlayer(EventEmitter):
         self.voice_client = voice_client
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
-        self.volume = bot.config.default_volume
+        self._volume = bot.config.default_volume
 
         self._play_lock = asyncio.Lock()
         self._current_player = None
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
+
+    @property
+    def volume(self):
+        return self._volume
+
+    @volume.setter
+    def volume(self, value):
+        self._volume = value
+        if self._current_player:
+            self._current_player.buff.volume = value
 
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
@@ -229,6 +241,7 @@ class MusicPlayer(EventEmitter):
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
                 self._current_player.setDaemon(True)
+                self._current_player.buff.volume = self.volume
 
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
@@ -239,7 +252,7 @@ class MusicPlayer(EventEmitter):
 
     def _monkeypatch_player(self, player):
         original_buff = player.buff
-        player.buff = PatchedBuff(self, original_buff)
+        player.buff = PatchedBuff(original_buff)
         return player
 
     @property
@@ -277,7 +290,8 @@ class MusicPlayer(EventEmitter):
 # ...
 # ...right?
 
+# Get duration with ffprobe
+#   ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
 
-# ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
-
+# Normalization filter
 # -af dynaudnorm
