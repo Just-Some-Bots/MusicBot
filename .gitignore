@@ -1,5 +1,6 @@
 .idea/
 audio_cache/
+dectalk/
 config/options.ini
 
 *.pyc
