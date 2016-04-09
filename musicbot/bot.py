@@ -356,7 +356,8 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
-    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
+
+    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False, _retrying=False):
         msg = None
         try:
             msg = await self.send_message(dest, content, tts=tts)
@@ -370,24 +371,42 @@ class MusicBot(discord.Client):
         except discord.Forbidden:
             if not quiet:
                 self.safe_print("Warning: Cannot send message to %s, no permission" % dest.name)
+
         except discord.NotFound:
             if not quiet:
                 self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
 
+        except discord.HTTPException as e:
+            if e.response.status == 502:
+                if not _retrying:
+                    await self.safe_send_message(
+                        dest, content, tts=tts, expire_in=expire_in, also_delete=also_delete, quiet=quiet, _retrying=True)
+                elif not quiet:
+                    self.safe_print("Warning: Giving up on sending message to %s, discord returned 502 twice." % dest.name)
+
         return msg
 
-    async def safe_delete_message(self, message, *, quiet=False):
+    async def safe_delete_message(self, message, *, quiet=False, _retrying=False):
         try:
             return await self.delete_message(message)
 
         except discord.Forbidden:
             if not quiet:
                 self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
+
         except discord.NotFound:
             if not quiet:
                 self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
-    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
+        except discord.HTTPException as e:
+            if e.response.status == 502:
+                if not _retrying:
+                    await self.safe_delete_message(message, quiet=quiet, _retrying=True)
+                elif not quiet:
+                    self.safe_print(
+                        "Warning: Giving up on deleting message in %s, discord returned 502 twice." % message.channel.name)
+
+    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False, _retrying=False):
         try:
             return await self.edit_message(message, new)
 
@@ -398,6 +417,14 @@ class MusicBot(discord.Client):
                 if not quiet:
                     print("Sending instead")
                 return await self.safe_send_message(message.channel, new)
+
+        except discord.HTTPException as e:
+            if e.response.status == 502:
+                if not _retrying:
+                    await self.safe_edit_message(message, new, send_if_fail=send_if_fail, quiet=quiet, _retrying=True)
+                elif not quiet:
+                    self.safe_print("Warning: Giving up on editing message in %s, discord returned 502 twice." % message.channel.name)
+
 
     def safe_print(self, content, *, end='\n', flush=True):
         sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
