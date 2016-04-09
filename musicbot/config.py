@@ -7,7 +7,7 @@ from .exceptions import HelpfulError
 
 
 class ConfigDefaults:
-    username = None
+    email = None
     password = None
     token = None
 
@@ -78,7 +78,7 @@ class Config:
                 preface="An error has occured parsing the config:\n"
             )
 
-        self._username = config.get('Credentials', 'Username', fallback=ConfigDefaults.username)
+        self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
         self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
 
@@ -111,13 +111,13 @@ class Config:
         """
         confpreface = "An error has occured reading the config:\n"
 
-        if self._username or self._password:
-            if not self._username:
+        if self._email or self._password:
+            if not self._email:
                 raise HelpfulError(
-                    "The username was not specified in the config.",
+                    "The login email was not specified in the config.",
 
                     "Please put your bot account credentials in the config.  "
-                    "Remember that the Username is the email address of the bot account.",
+                    "Remember that the Email is the email address used to register the bot account.",
                     preface=confpreface)
 
             if not self._password:
@@ -127,13 +127,13 @@ class Config:
                     "Please put your bot account credentials in the config.",
                     preface=confpreface)
 
-            self.auth = (self._username, self._password)
+            self.auth = (self._email, self._password)
 
         elif not self._login_token:
             raise HelpfulError(
                 "No login credentials were specified in the config.",
 
-                "Please fill in either the Username and Password fields, or "
+                "Please fill in either the Email and Password fields, or "
                 "the Token field.  The Token field is for Bot accounts only.",
                 preface=confpreface
             )
