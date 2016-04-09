@@ -26,7 +26,7 @@ from musicbot.utils import load_file, extract_user_id, write_file, sane_round_in
 
 from .downloader import extract_info
 from .opus_loader import load_opus_lib
-from .version import VERSION as BOTVERSION
+from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 from . import exceptions
 
