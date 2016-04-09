@@ -698,6 +698,8 @@ class MusicBot(discord.Client):
         if not info:
             raise CommandError("That video cannot be played.")
 
+        # abstract the search handling away from the user
+        # our ytdl options allow us to use search strings as input urls
         if info.get('url', '').startswith('ytsearch'):
             # print("[Command:play] Searching for \"%s\"" % song_url)
             info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
@@ -721,13 +723,14 @@ class MusicBot(discord.Client):
             num_songs = sum(1 for _ in info['entries'])
 
             if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
-                raise PermissionsError("Playlist has too many entries (%s > %s)" %
-                                       (num_songs, permissions.max_playlist_length))
+                raise exceptions.PermissionsError(
+                    "Playlist has too many entries (%s > %s)" % (num_songs, permissions.max_playlist_length))
 
             # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
             if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
-                raise PermissionsError("Playlist entries + your already queued songs exceed limit (%s + %s > %s)" %
-                                       (num_songs, player.playlist.count_for_user(author), permissions.max_songs))
+                raise exceptions.PermissionsError(
+                    "Playlist entries + your already queued songs reached limit (%s + %s > %s)" % (
+                        num_songs, player.playlist.count_for_user(author), permissions.max_songs))
 
             if info['extractor'] == 'youtube:playlist':
                 try:
@@ -836,17 +839,17 @@ class MusicBot(discord.Client):
         num_songs = sum(1 for _ in info['entries'])
         t0 = time.time()
 
-        busymsg = await self.safe_send_message(channel,
-                                               "Processing %s songs..." % num_songs)  # TODO: From playlist_title
+        busymsg = await self.safe_send_message(
+            channel, "Processing %s songs..." % num_songs)  # TODO: From playlist_title
         await self.send_typing(channel)
 
         try:
-            entries_added = await player.playlist.async_process_youtube_playlist(playlist_url, channel=channel,
-                                                                                 author=author)
+            entries_added = await player.playlist.async_process_youtube_playlist(
+                playlist_url, channel=channel, author=author)
             # TODO: Add hook to be called after each song
             # TODO: Add permissions
 
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             raise CommandError('Error handling playlist %s queuing.' % playlist_url)
 
