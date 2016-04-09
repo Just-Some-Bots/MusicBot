@@ -73,6 +73,8 @@ class MusicBot(discord.Client):
         self.whitelist = set(load_file(self.config.whitelist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
 
+        self.exit_signal = None
+
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
@@ -442,16 +444,44 @@ class MusicBot(discord.Client):
         sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
         if flush: sys.stdout.flush()
 
+    def _cleanup(self):
+        self.loop.run_until_complete(self.logout())
+
+        pending = asyncio.Task.all_tasks()
+        gathered = asyncio.gather(*pending)
+
+        try:
+            gathered.cancel()
+            self.loop.run_forever()
+            gathered.exception()
+        except:
+            pass
+
     # noinspection PyMethodOverriding
     def run(self):
         try:
-            return super().run(self.config.username, self.config.password)
+            # self.loop.run_until_complete(self.start(self.config.username, self.config.password))
+            self.loop.run_until_complete(self.start(*self.config.auth))
+            try:
+                self._cleanup()
+            except:
+                pass
 
         except discord.errors.LoginFailure:
+            # Add if token, else
             raise exceptions.HelpfulError(
                 "Bot cannot login, bad credentials.",
-                "Fix your Username or Password in the options file.  "
+                "Fix your Username or Password or Token in the options file.  "
                 "Remember that each field should be on their own line.")
+
+        finally:
+            self.loop.close()
+            if self.exit_signal:
+                raise self.exit_signal
+
+    def logout(self):
+        self.exit_signal = exceptions.TerminateSignal()
+        return super().logout()
 
     async def on_error(self, event, *args, **kwargs):
         ex_type, ex, stack = sys.exc_info()
@@ -461,6 +491,10 @@ class MusicBot(discord.Client):
             print(ex.message)
 
             await asyncio.sleep(2)  # don't ask
+            await self.logout()
+
+        elif issubclass(ex_type, exceptions.Signal):
+            self.exit_signal = ex_type()
             await self.logout()
 
         else:

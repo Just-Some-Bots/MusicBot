@@ -2,6 +2,7 @@ import os
 import gc
 import sys
 import time
+import asyncio
 import traceback
 import subprocess
 
@@ -146,15 +147,20 @@ def main():
     tried_requirementstxt = False
     tryagain = True
 
-    wait_time = 2
+    loops = -1
     max_wait_time = 60
 
     while tryagain:
+        loops += 1
+
+        # Maybe I need to try to import stuff first, then actually import stuff
+        # It'd save me a lot of pain with all that awful exception type checking
+
         try:
-            from musicbot import exceptions
             from musicbot import MusicBot
 
-            MusicBot().run()
+            m = MusicBot()
+            m.run()
 
         except SyntaxError:
             traceback.print_exc()
@@ -181,26 +187,27 @@ def main():
                 print("Unknown ImportError, exiting.")
                 break
 
-        except exceptions.HelpfulError as e:
-            print(e.message)
-            break
+        except Exception as e:
+            if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
+                if e.__class__.__name__ == 'HelpfulError':
+                    print(e.message)
+                    break
 
-        except exceptions.Signal as s:
-            if isinstance(s, exceptions.RestartSignal):
-                pass
-            elif isinstance(s, exceptions.TerminateSignal):
-                break
+                elif e.__class__.__name__ == "TerminateSignal":
+                    break
 
-        except Exception:
-            traceback.print_exc()
+                elif e.__class__.__name__ == "RestartSignal":
+                    loops = 0
+            else:
+                traceback.print_exc()
+
+            asyncio.set_event_loop(asyncio.new_event_loop())
 
         print("Cleaning up...")
         gc.collect()
 
-        print("Restarting in %s seconds..." % wait_time)
-        time.sleep(wait_time)
-
-        wait_time = min(wait_time * 2, max_wait_time)
+        print("Restarting in {} seconds...".format(loops*2))
+        time.sleep(min(loops * 2, max_wait_time))
 
 
 if __name__ == '__main__':
