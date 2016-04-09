@@ -1133,7 +1133,7 @@ class MusicBot(discord.Client):
                     ' Next song coming up!' if player.playlist.peek() else ''
                 ),
                 reply=True,
-                delete_after=10
+                delete_after=15
             )
 
         else:
@@ -1145,7 +1145,8 @@ class MusicBot(discord.Client):
                     skips_remaining,
                     'person is' if skips_remaining == 1 else 'people are'
                 ),
-                reply=True
+                reply=True,
+                delete_after=15
             )
 
     async def cmd_volume(self, message, player, new_volume=None):
