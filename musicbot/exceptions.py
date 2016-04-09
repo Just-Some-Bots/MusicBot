@@ -65,6 +65,9 @@ class HelpfulError(MusicbotException):
 
         return ''.join([l1, *lx])
 
+class HelpfulWarning(HelpfulError):
+    pass
+
 # Base class for control signals
 class Signal(Exception):
     pass
