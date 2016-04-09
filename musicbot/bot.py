@@ -234,29 +234,41 @@ class MusicBot(discord.Client):
 
             return voice_client
 
+    async def mute_voice_client(self, channel, mute):
+        await self._update_voice_state(channel, mute=mute)
+
+    async def deafen_voice_client(self, channel, deaf):
+        await self._update_voice_state(channel, deaf=deaf)
+
     async def move_voice_client(self, channel):
+        await self._update_voice_state(channel)
+
+    async def disconnect_voice_client(self, server):
+        await self.voice_clients[server.id].disconnect()
+
+    async def _update_voice_state(self, channel, *, mute=False, deaf=False):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
 
         if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
             raise AttributeError('Channel passed must be a voice channel')
 
+        # I'm not sure if this lock is actually needed
         with await self.voice_client_move_lock:
             server = channel.server
 
             payload = {
-                "op": 4,
-                "d": {
-                    "guild_id": server.id,
-                    "channel_id": channel.id,
-                    "self_mute": False,
-                    "self_deaf": False
+                'op': 4,
+                'd': {
+                    'guild_id': server.id,
+                    'channel_id': channel.id,
+                    'self_mute': mute,
+                    'self_deaf': deaf
                 }
             }
 
             await self.ws.send(utils.to_json(payload))
             self.voice_clients[server.id].channel = channel
-
 
     async def get_player(self, channel, create=False):
         server = channel.server
