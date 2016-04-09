@@ -428,6 +428,13 @@ class MusicBot(discord.Client):
             super().on_error(event, *args, **kwargs)
 
     async def on_ready(self):
+        print('Connected!\n')
+
+        if len(self.config.auth) == 1:
+            # budget server chunking fix
+            print("Waiting for servers...")
+            await asyncio.sleep(3)
+
         if self.config.owner_id == self.user.id:
             raise HelpfulError(
                 "Your OwnerID is incorrect or you've used the wrong credentials.",
