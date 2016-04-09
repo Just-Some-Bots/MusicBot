@@ -9,6 +9,7 @@ from .exceptions import HelpfulError
 class ConfigDefaults:
     username = None
     password = None
+    token = None
 
     owner_id = None
     command_prefix = '!'
@@ -77,8 +78,11 @@ class Config:
                 preface="An error has occured parsing the config:\n"
             )
 
-        self.username = config.get('Credentials', 'Username', fallback=ConfigDefaults.username)
-        self.password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
+        self._username = config.get('Credentials', 'Username', fallback=ConfigDefaults.username)
+        self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
+        self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
+
+        self.auth = None
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
@@ -107,20 +111,36 @@ class Config:
         """
         confpreface = "An error has occured reading the config:\n"
 
-        if not self.username:
+        if self._username or self._password:
+            if not self._username:
+                raise HelpfulError(
+                    "The username was not specified in the config.",
+
+                    "Please put your bot account credentials in the config.  "
+                    "Remember that the Username is the email address of the bot account.",
+                    preface=confpreface)
+
+            if not self._password:
+                raise HelpfulError(
+                    "The password was not specified in the config.",
+
+                    "Please put your bot account credentials in the config.",
+                    preface=confpreface)
+
+            self.auth = (self._username, self._password)
+
+        elif not self._login_token:
             raise HelpfulError(
-                "The username was not specified in the config.",
+                "No login credentials were specified in the config.",
 
-                "Please put your bot account credentials in the config.  "
-                "Remember that the Username is the email address of the bot account.",
-                preface=confpreface)
+                "Please fill in either the Username and Password fields, or "
+                "the Token field.  The Token field is for Bot accounts only.",
+                preface=confpreface
+            )
 
-        if not self.password:
-            raise HelpfulError(
-                "The password was not specified in the config.",
+        else:
+            self.auth = (self._login_token,)
 
-                "Please put your bot account credentials in the config.",
-                preface=confpreface)
 
         if self.owner_id and self.owner_id.isdigit():
             if int(self.owner_id) == 0:
