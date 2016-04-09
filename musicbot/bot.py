@@ -443,13 +443,11 @@ class MusicBot(discord.Client):
                 "The OwnerID is the id of the owner, not the bot.  "
                 "Figure out which one is which and use the correct information.")
 
-        print('Connected!\n')
-
-        self.safe_print("Bot:   %s/%s" % (self.user.id, self.user.name))
+        self.safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner:
-            self.safe_print("Owner: %s/%s" % (owner.id, owner.name))
+            self.safe_print("Owner: %s/%s#%s" % (owner.id, owner.name, owner.discriminator))
         else:
             print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
 
@@ -501,7 +499,7 @@ class MusicBot(discord.Client):
                 print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
                 if self.config.auto_playlist:
                     print("Starting auto-playlist")
-                    await self.on_finished_playing(await self.get_player(owner.voice_channel))
+                    await self.on_finished_playing(await self.get_player(owner.voice_channel, create=True))
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
 
