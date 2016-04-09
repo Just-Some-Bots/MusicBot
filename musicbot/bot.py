@@ -460,7 +460,6 @@ class MusicBot(discord.Client):
     # noinspection PyMethodOverriding
     def run(self):
         try:
-            # self.loop.run_until_complete(self.start(self.config.username, self.config.password))
             self.loop.run_until_complete(self.start(*self.config.auth))
             try:
                 self._cleanup()
@@ -471,7 +470,7 @@ class MusicBot(discord.Client):
             # Add if token, else
             raise exceptions.HelpfulError(
                 "Bot cannot login, bad credentials.",
-                "Fix your Username or Password or Token in the options file.  "
+                "Fix your Email or Password or Token in the options file.  "
                 "Remember that each field should be on their own line.")
 
         finally:
