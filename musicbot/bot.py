@@ -1395,6 +1395,14 @@ class MusicBot(discord.Client):
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
 
+    @owner_only
+    async def cmd_restart(self):
+        raise exceptions.RestartSignal()
+
+    @owner_only
+    async def cmd_shutdown(self):
+        raise exceptions.TerminateSignal()
+
     async def on_message(self, message):
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
