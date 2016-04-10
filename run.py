@@ -203,11 +203,14 @@ def main():
 
             asyncio.set_event_loop(asyncio.new_event_loop())
 
-        print("Cleaning up...")
+        print("Cleaning up... ", end='')
         gc.collect()
+        print("Done.")
 
-        print("Restarting in {} seconds...".format(loops*2))
-        time.sleep(min(loops * 2, max_wait_time))
+        sleeptime = min(loops * 2, max_wait_time)
+        if sleeptime:
+            print("Restarting in {} seconds...".format(loops*2))
+            time.sleep(sleeptime)
 
 
 if __name__ == '__main__':

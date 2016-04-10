@@ -478,10 +478,6 @@ class MusicBot(discord.Client):
             if self.exit_signal:
                 raise self.exit_signal
 
-    def logout(self):
-        self.exit_signal = exceptions.TerminateSignal()
-        return super().logout()
-
     async def on_error(self, event, *args, **kwargs):
         ex_type, ex, stack = sys.exc_info()
 
@@ -493,7 +489,7 @@ class MusicBot(discord.Client):
             await self.logout()
 
         elif issubclass(ex_type, exceptions.Signal):
-            self.exit_signal = ex_type()
+            self.exit_signal = ex_type
             await self.logout()
 
         else:
@@ -501,11 +497,6 @@ class MusicBot(discord.Client):
 
     async def on_ready(self):
         print('Connected!\n')
-
-        if len(self.config.auth) == 1:
-            # budget server chunking fix
-            print("Waiting for servers...")
-            await asyncio.sleep(3)
 
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
@@ -1397,11 +1388,11 @@ class MusicBot(discord.Client):
 
     @owner_only
     async def cmd_restart(self):
-        raise exceptions.RestartSignal()
+        raise exceptions.RestartSignal
 
     @owner_only
     async def cmd_shutdown(self):
-        raise exceptions.TerminateSignal()
+        raise exceptions.TerminateSignal
 
     async def on_message(self, message):
         message_content = message.content.strip()
