@@ -149,7 +149,8 @@ class Playlist(EventEmitter):
                     baditems += 1
                 except Exception as e:
                     baditems += 1
-                    print("There was an error adding the song %s: %s: %s" % (entry_data['id'], e.__class__, e))
+                    print("There was an error adding the song {}: {}: {}\n".format(
+                        entry_data['id'], e.__class__.__name__, e))
 
             else:
                 baditems += 1
@@ -248,6 +249,7 @@ class PlaylistEntry:
         }
         return data
 
+    # noinspection PyTypeChecker
     async def _download(self):
         if self._is_downloading:
             return
