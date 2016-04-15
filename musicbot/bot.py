@@ -439,7 +439,6 @@ class MusicBot(discord.Client):
     # noinspection PyMethodOverriding
     def run(self):
         try:
-            self.loop.set_debug(True)
             self.loop.run_until_complete(self.start(*self.config.auth))
 
         except discord.errors.LoginFailure:
