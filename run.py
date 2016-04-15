@@ -147,12 +147,10 @@ def main():
     tried_requirementstxt = False
     tryagain = True
 
-    loops = -1
+    loops = 0
     max_wait_time = 60
 
     while tryagain:
-        loops += 1
-
         # Maybe I need to try to import stuff first, then actually import stuff
         # It'd save me a lot of pain with all that awful exception type checking
 
@@ -160,6 +158,7 @@ def main():
             from musicbot import MusicBot
 
             m = MusicBot()
+            print("Connecting... ", end='\r')
             m.run()
 
         except SyntaxError:
@@ -197,11 +196,14 @@ def main():
                     break
 
                 elif e.__class__.__name__ == "RestartSignal":
-                    loops = 0
+                    loops = -1
             else:
                 traceback.print_exc()
 
             asyncio.set_event_loop(asyncio.new_event_loop())
+
+        finally:
+            loops += 1
 
         print("Cleaning up... ", end='')
         gc.collect()
