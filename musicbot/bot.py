@@ -84,7 +84,8 @@ class MusicBot(discord.Client):
 
         self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
-        # These aren't multiserver compatible, which is ok for now, but will have to be redone when multiserver is possible
+        # TODO: Fix these
+        # These aren't multi-server compatible, which is ok for now, but will have to be redone when multi-server is possible
         self.last_np_msg = None
         self.auto_paused = None
 
@@ -503,6 +504,7 @@ class MusicBot(discord.Client):
             self.safe_print("Owner: %s/%s#%s" % (owner.id, owner.name, owner.discriminator))
         else:
             print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
+            # TODO: Add a different message when the bot is on no servers
 
         print()
 
@@ -729,6 +731,10 @@ class MusicBot(discord.Client):
                     "Error extracting info from search string, youtubedl returned no data.  "
                     "You may need to restart the bot if this continues to happen.")
 
+            if not all(info.get('entries', [])):
+                # empty list, no data
+                return
+
             song_url = info['entries'][0]['webpage_url']
             info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
             # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
@@ -945,12 +951,12 @@ class MusicBot(discord.Client):
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
             raise exceptions.PermissionsError("You have reached your playlist item limit (%s)" % permissions.max_songs)
 
-        def argch():
+        def argcheck():
             if not leftover_args:
                 raise exceptions.CommandError("Please specify a search query.\n%s" % dedent(
                     self.cmd_search.__doc__.format(command_prefix=self.config.command_prefix)))
 
-        argch()
+        argcheck()
 
         try:
             leftover_args = shlex.split(' '.join(leftover_args))
@@ -971,11 +977,11 @@ class MusicBot(discord.Client):
 
         if leftover_args[0] in services:
             service = leftover_args.pop(0)
-            argch()
+            argcheck()
 
         if leftover_args[0].isdigit():
             items_requested = int(leftover_args.pop(0))
-            argch()
+            argcheck()
 
             if items_requested > max_items:
                 raise exceptions.CommandError("You cannot request more than %s videos" % max_items)

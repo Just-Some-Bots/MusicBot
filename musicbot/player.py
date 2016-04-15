@@ -1,5 +1,4 @@
 import os
-import time
 import asyncio
 import audioop
 import traceback

@@ -51,17 +51,19 @@ class Config:
                     os._exit(1)
 
             except FileNotFoundError as e:
-                traceback.print_exc()
-                print("\nWhat happened to your configs?", flush=True)
-                os._exit(3)
+                raise HelpfulError(
+                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
+                    "Grab the files back from the archive or remake them yourself and copy paste the content "
+                    "from the repo.  Stop removing important files!"
+                )
 
-            except ValueError as e: # Config id value was changed but its not valid
+            except ValueError: # Config id value was changed but its not valid
                 print("\nInvalid value for OwnerID, config cannot be loaded.")
                 os._exit(4)
 
             except Exception as e:
                 traceback.print_exc()
-                print("\nUnable to copy config/example_options.ini to %s: %s" % (config_file, e), flush=True)
+                print("\nUnable to copy config/example_options.ini to %s" % config_file, flush=True)
                 os._exit(2)
 
         config = configparser.ConfigParser(interpolation=None)
