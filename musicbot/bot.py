@@ -421,26 +421,26 @@ class MusicBot(discord.Client):
         if flush: sys.stdout.flush()
 
     def _cleanup(self):
-        self.loop.run_until_complete(self.logout())
+        try:
+            self.loop.run_until_complete(self.logout())
+        except: # Can be ignored
+            pass
 
         pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
 
         try:
             gathered.cancel()
-            self.loop.run_forever()
+            # self.loop.run_forever() # wtf even is this for
             gathered.exception()
-        except:
+        except: # Can be ignored
             pass
 
     # noinspection PyMethodOverriding
     def run(self):
         try:
+            self.loop.set_debug(True)
             self.loop.run_until_complete(self.start(*self.config.auth))
-            try:
-                self._cleanup()
-            except:
-                pass
 
         except discord.errors.LoginFailure:
             # Add if token, else
@@ -450,9 +450,23 @@ class MusicBot(discord.Client):
                 "Remember that each field should be on their own line.")
 
         finally:
+            try:
+                self._cleanup()
+            except Exception as e:
+                print("Error in cleanup:", e)
+
             self.loop.close()
             if self.exit_signal:
                 raise self.exit_signal
+
+    async def logout(self):
+        for vc in self.voice_clients.values():
+            try:
+                await vc.disconnect()
+            except:
+                continue
+
+        return await super().logout()
 
     async def on_error(self, event, *args, **kwargs):
         ex_type, ex, stack = sys.exc_info()
