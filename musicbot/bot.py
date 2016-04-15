@@ -24,7 +24,7 @@ from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, extract_user_id, write_file, sane_round_int
 
-from .downloader import extract_info
+from . import downloader
 from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -72,6 +72,7 @@ class MusicBot(discord.Client):
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.whitelist = set(load_file(self.config.whitelist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.downloader = downloader.Downloader(download_folder='audio_cache')
 
         self.exit_signal = None
 
@@ -338,7 +339,7 @@ class MusicBot(discord.Client):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
-                info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+                info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
 
                 if not info:
                     self.autoplaylist.remove(song_url)
@@ -703,7 +704,7 @@ class MusicBot(discord.Client):
             song_url = ' '.join([song_url, *leftover_args])
 
         try:
-            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
         except Exception as e:
             raise exceptions.CommandError(e)
 
@@ -714,7 +715,14 @@ class MusicBot(discord.Client):
         # our ytdl options allow us to use search strings as input urls
         if info.get('url', '').startswith('ytsearch'):
             # print("[Command:play] Searching for \"%s\"" % song_url)
-            info = await extract_info(player.playlist.loop, song_url, download=False, process=True)
+            info = await self.downloader.extract_info(
+                player.playlist.loop,
+                song_url,
+                download=False,
+                process=True,    # ASYNC LAMBDAS WHEN
+                on_error=lambda e: asyncio.ensure_future(self.send_message(channel, "```\n%s\n```" % e), loop=self.loop),
+                retry_on_error=True
+            )
 
             if not info:
                 raise exceptions.CommandError(
@@ -722,7 +730,7 @@ class MusicBot(discord.Client):
                     "You may need to restart the bot if this continues to happen.")
 
             song_url = info['entries'][0]['webpage_url']
-            info = await extract_info(player.playlist.loop, song_url, download=False, process=False)
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
             # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
             # But this is probably fine
 
@@ -843,7 +851,7 @@ class MusicBot(discord.Client):
         """
 
         await self.send_typing(channel)
-        info = await extract_info(player.playlist.loop, playlist_url, download=False, process=False)
+        info = await self.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
 
         if not info:
             raise exceptions.CommandError("That playlist cannot be played.")
@@ -984,11 +992,17 @@ class MusicBot(discord.Client):
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
-        m = await self.send_message(channel, "Searching for videos...")
+        search_msg = await self.send_message(channel, "Searching for videos...")
         await self.send_typing(channel)
 
-        info = await extract_info(player.playlist.loop, search_query, download=False, process=True)
-        await self.safe_delete_message(m)
+        try:
+            info = await self.downloader.extract_info(player.playlist.loop, search_query, download=False, process=True)
+
+        except Exception as e:
+            await self.safe_edit_message(search_msg, str(e), send_if_fail=True)
+            return
+        else:
+            await self.safe_delete_message(search_msg)
 
         if not info:
             return Response("No videos found")
@@ -1384,6 +1398,8 @@ class MusicBot(discord.Client):
         raise exceptions.TerminateSignal
 
     async def on_message(self, message):
+        await self.wait_until_ready()
+
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
             return
