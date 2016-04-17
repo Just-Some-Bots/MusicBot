@@ -1549,6 +1549,9 @@ class MusicBot(discord.Client):
         if before.voice_channel == after.voice_channel:
             return  # they didn't move channels
 
+        if not self.config.auto_pause:
+            return
+
         my_voice_channel = after.server.me.voice_channel  # This should always work, right?
 
         if not my_voice_channel:
