@@ -1424,9 +1424,10 @@ class MusicBot(discord.Client):
         if not handler:
             return
 
-        if message.channel.is_private and command != 'joinserver' and message.author.id != self.config.owner_id:
-            await self.send_message(message.channel, 'You cannot use this bot in private messages.')
-            return
+        if message.channel.is_private:
+            if command != 'joinserver' and message.author.id != self.config.owner_id:
+                await self.send_message(message.channel, 'You cannot use this bot in private messages.')
+                return
 
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
@@ -1546,8 +1547,11 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
     async def on_voice_state_update(self, before, after):
+        if not all([before, after]):
+            return
+
         if before.voice_channel == after.voice_channel:
-            return  # they didn't move channels
+            return
 
         if not self.config.auto_pause:
             return

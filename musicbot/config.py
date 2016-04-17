@@ -60,10 +60,11 @@ class Config:
 
             except ValueError: # Config id value was changed but its not valid
                 print("\nInvalid value for OwnerID, config cannot be loaded.")
+                # TODO: HelpfulError
                 os._exit(4)
 
             except Exception as e:
-                traceback.print_exc()
+                print(e)
                 print("\nUnable to copy config/example_options.ini to %s" % config_file, flush=True)
                 os._exit(2)
 
