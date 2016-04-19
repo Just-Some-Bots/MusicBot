@@ -55,7 +55,7 @@ class Playlist(EventEmitter):
         entry = PlaylistEntry(
             self,
             song_url,
-            info['title'],
+            info.get('title', 'Untitled'),
             info.get('duration', 0) or 0,
             self.downloader.ytdl.prepare_filename(info),
             **meta
