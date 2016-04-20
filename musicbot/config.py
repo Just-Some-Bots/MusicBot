@@ -14,6 +14,7 @@ class ConfigDefaults:
     owner_id = None
     command_prefix = '!'
     bound_channels = set()
+    autojoin_channels = set()
 
     default_volume = 0.15
     white_list_check = False
@@ -91,6 +92,7 @@ class Config:
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
+        self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=ConfigDefaults.white_list_check)
@@ -171,6 +173,13 @@ class Config:
             except:
                 print("[Warning] BindToChannels data invalid, will not bind to any channels")
                 self.bound_channels = set()
+
+        if self.autojoin_channels:
+            try:
+                self.autojoin_channels = set(x for x in self.autojoin_channels.split() if x)
+            except:
+                print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
+                self.autojoin_channels = set()
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
