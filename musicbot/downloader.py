@@ -11,6 +11,7 @@ ytdl_format_options = {
     'audioformat': 'mp3',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
+    'proxy': '',
     'noplaylist': True,
     'nocheckcertificate': True,
     'ignoreerrors': False,
