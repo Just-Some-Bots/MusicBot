@@ -200,9 +200,8 @@ def main():
             else:
                 traceback.print_exc()
 
-            asyncio.set_event_loop(asyncio.new_event_loop())
-
         finally:
+            asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
         print("Cleaning up... ", end='')
