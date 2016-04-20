@@ -148,11 +148,11 @@ class Config:
 
 
         if self.owner_id and self.owner_id.isdigit():
-            if int(self.owner_id) == 0:
+            if int(self.owner_id) < 10000:
                 raise HelpfulError(
                     "OwnerID was not set.",
 
-                    "Please set your OwnerID in the config.  If you "
+                    "Please set the OwnerID in the config.  If you "
                     "don't know what that is, use the %sid command" % self.command_prefix,
                     preface=confpreface)
 
