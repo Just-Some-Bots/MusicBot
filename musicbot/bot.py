@@ -1186,9 +1186,15 @@ class MusicBot(discord.Client):
         if not player.current_entry:  # Do more checks here to see
             print("Something strange is happening.  You might want to restart the bot if its not working.")
 
-        if author.id == self.config.owner_id or author.id == player.current_entry.meta['author'].id:
+        if author.id == self.config.owner_id:
             player.skip()  # check autopause stuff here
             return
+
+        if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
+            player.current_entry.meta.get('author', False)
+            if author.id == player.current_entry.meta['author'].id:
+                player.skip()  # check autopause stuff here
+                return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
