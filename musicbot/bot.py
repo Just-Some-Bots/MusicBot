@@ -1186,7 +1186,7 @@ class MusicBot(discord.Client):
         if not player.current_entry:  # Do more checks here to see
             print("Something strange is happening.  You might want to restart the bot if its not working.")
 
-        if author.id == self.config.owner_id:
+        if author.id == self.config.owner_id or author.name == player.current_entry.meta['author'].name:
             player.skip()  # check autopause stuff here
             return
 
