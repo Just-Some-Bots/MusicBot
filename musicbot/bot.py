@@ -1385,6 +1385,7 @@ class MusicBot(discord.Client):
             else:
                 lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
 
+        if player.playlist.peek():       
             item = player.playlist.peek()
             if item.meta.get('channel', False) and item.meta.get('author', False):
                 nextline = 'Next: **{}** added by **{}**'.format(item.title, item.meta['author'].name).strip()
@@ -1399,7 +1400,8 @@ class MusicBot(discord.Client):
 
         if unlisted:
             lines.append('\n*... and %s more*' % unlisted)
-
+        if len(lines) == 1:
+            lines.append('Nothing else queued! Queue something with {}play.'.format(self.config.command_prefix))    
         if not lines:
             lines.append(
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
