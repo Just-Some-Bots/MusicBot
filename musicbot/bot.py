@@ -1393,7 +1393,6 @@ class MusicBot(discord.Client):
 
             if currentlinesum + len(andmoretext):
                     unlisted += 1
-                    continue
 
             lines.append(nextline)
 
