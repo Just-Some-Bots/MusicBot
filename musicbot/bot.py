@@ -1219,7 +1219,7 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}skip
 
-        Skips the current song when enough votes are cast, or by the bot owner.
+        Skips the current song when enough votes are cast.
         """
 
         if player.is_stopped:
@@ -1228,10 +1228,6 @@ class MusicBot(discord.Client):
         if not player.current_entry:  # Do more checks here to see
             print("Something strange is happening.  You might want to restart the bot if its not working.")
 
-        if author.id == self.config.owner_id:
-            player.skip()  # check autopause stuff here
-            return
-
         if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
             player.current_entry.meta.get('author', False)
             if author.id == player.current_entry.meta['author'].id: #If person that requested the song skips, skip instantly
@@ -1239,7 +1235,7 @@ class MusicBot(discord.Client):
                 return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
+            m.deaf or m.self_deaf))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
@@ -1271,6 +1267,23 @@ class MusicBot(discord.Client):
                 delete_after=15
             )
 
+    async def cmd_instantskip(self, player):
+        """
+        Usage:
+            {command_prefix}instantskip
+
+        Instantly skips the current song.
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't skip! The player is not playing!")
+
+        if not player.current_entry:  # Do more checks here to see
+            print("Something strange is happening.  You might want to restart the bot if its not working.")
+
+        player.skip()  # check autopause stuff here
+        return
+            
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
