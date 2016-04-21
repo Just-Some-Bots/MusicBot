@@ -1238,10 +1238,17 @@ class MusicBot(discord.Client):
             m.deaf or m.self_deaf))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
-
-        skips_remaining = min(self.config.skips_required,
+        
+        if num_voice > 2:
+            skips_remaining = min(self.config.skips_required,
                               sane_round_int(num_voice * self.config.skip_ratio_required)) - num_skips
-
+        else:
+            if numvoice == 2:
+                skips_remaining = 2 - num_skips
+            
+            else:
+                skips_remaining = 0
+              
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
             return Response(
