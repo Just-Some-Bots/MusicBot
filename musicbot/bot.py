@@ -1361,16 +1361,17 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
         
-    async def cmd_nextsong(self, channel, player):
+    async def cmd_next(self, channel, player):
         """
         Usage:
-            {command_prefix}nextsong
+            {command_prefix}next
 
         Prints the next song in the queue.
         """
 
         lines = []
         unlisted = 0
+        z = 0
         andmoretext = '* ... and %s more*' % ('x' * len(player.playlist.entries))
 
         if player.current_entry:
@@ -1384,15 +1385,15 @@ class MusicBot(discord.Client):
             else:
                 lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
 
+            item = player.playlist.peek()
             if item.meta.get('channel', False) and item.meta.get('author', False):
-                nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
+                nextline = 'Next: **{}** added by **{}**'.format(item.title, item.meta['author'].name).strip()
             else:
-                nextline = '`{}.` **{}**'.format(i, item.title).strip()
-
-            currentlinesum = sum([len(x) + 1 for x in lines])  # +1 is for newline char
-
-            if currentlinesum + len(andmoretext):
-                    unlisted += 1
+                nextline = '`Next:` **{}**'.format(item.title).strip()
+             
+            while z < len(player.playlist.entries) - 1:    
+                unlisted += 1
+                z = z + 1
 
             lines.append(nextline)
 
@@ -1404,7 +1405,7 @@ class MusicBot(discord.Client):
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
         message = '\n'.join(lines)
-        return Response(message, delete_after=30)
+        return Response(message, delete_after=60)
 
     @owner_only  # TODO: improve this (users only clean up theirs, arg for all messages, etc, more control)
     async def cmd_clean(self, message, channel, author, amount):
