@@ -1361,7 +1361,7 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
         
-   async def cmd_nextsong(self, channel, player):
+    async def cmd_nextsong(self, channel, player):
         """
         Usage:
             {command_prefix}nextsong
