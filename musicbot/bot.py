@@ -1527,7 +1527,7 @@ class MusicBot(discord.Client):
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
 
-    @owner_only
+
     async def cmd_restart(self):
         raise exceptions.RestartSignal
 
