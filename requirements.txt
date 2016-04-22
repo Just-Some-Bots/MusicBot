@@ -1,3 +1,2 @@
-cffi == 1.5.2
 https://github.com/Rapptz/discord.py/archive/async.zip
 youtube_dl >= 2016.3.6
