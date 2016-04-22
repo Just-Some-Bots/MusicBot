@@ -1,7 +1,10 @@
 .idea/
+*.pyc
+~*/
+
 audio_cache/
 dectalk/
-config/options.ini
 
-*.pyc
+discord.log
+config/options.ini
 config/permissions.ini
