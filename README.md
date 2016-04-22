@@ -1,6 +1,6 @@
 # MusicBot gfrew Editon
 
-## Please use the Version from Rhino preferred. This Version is under heavy development and can break anytime.
+## Please use the Version from Rhino instead of this one. This Version is under heavy development and can break anytime.
 
 MusicBot is a Discord music bot written in [Python](https://www.python.org "Python homepage"). It plays requested songs and if the queue becomes empty it will play through a list of existing songs.
 
