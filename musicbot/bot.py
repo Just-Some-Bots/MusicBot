@@ -1355,46 +1355,51 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
-    @owner_only  # TODO: improve this (users only clean up theirs, arg for all messages, etc, more control)
-    async def cmd_clean(self, message, channel, author, amount):
+    async def cmd_clean(self, message, channel, author, search_range=50):
         """
         Usage:
-            {command_prefix}clean amount
+            {command_prefix}clean [range]
 
-        Removes amount messages the bot has posted in chat.
+        Removes up to [range] messages the bot has posted in chat. Default: 50, Max: 1000
         """
 
+        # if not channel.permissions_for(channel.server.me).manage_messages:
+        #     return Response("I don't have Manage Messages permission in this channel.", reply=True, delete_after=15)
+
         try:
-            float(amount)  # lazy check
-            amount = int(amount)
+            float(search_range)  # lazy check
+            search_range = min(int(search_range), 1000)
         except:
-            return Response("enter a number.  NUMBER.  That means digits.  `5`.  Etc.", reply=True, delete_after=5)
+            return Response("enter a number.  NUMBER.  That means digits.  `15`.  Etc.", reply=True, delete_after=8)
+
+        await self.safe_delete_message(message, quiet=True)
 
         def is_possible_command_invoke(entry):
             valid_call = any(
                 entry.content.startswith(prefix) for prefix in [self.config.command_prefix])  # can be expanded
             return valid_call and not entry.content[1:2].isspace()
 
-        await self.safe_delete_message(message)
-
         msgs = 0
         delete_invokes = True
-        async for entry in self.logs_from(channel, limit=int(amount)):
-            if entry.author == self.user and entry != self.last_np_msg:
+        delete_all = channel.permissions_for(author).manage_messages or self.config.owner_id == author.id
+
+        async for entry in self.logs_from(channel, search_range, before=message):
+            if entry == self.last_np_msg:
+                continue
+
+            if entry.author == self.user:
                 await self.safe_delete_message(entry)
                 msgs += 1
 
             if is_possible_command_invoke(entry) and delete_invokes:
-                try:
-                    await self.safe_delete_message(entry)
-                except discord.Forbidden:
-                    delete_invokes = False
-                else:
-                    msgs += 1
+                if delete_all or entry.author == author:
+                    try:
+                        await self.delete_message(entry)
+                        msgs += 1
+                    except discord.Forbidden:
+                        delete_invokes = False
 
-        # Becuase of how this works, you can do `clean 20` and <20 messages will get deleted
-
-        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=10)
+        return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=15)
 
     async def cmd_listids(self, server, author, leftover_args, cat='all'):
         """
