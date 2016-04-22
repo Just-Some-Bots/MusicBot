@@ -1611,8 +1611,10 @@ class MusicBot(discord.Client):
                     content = '%s, %s' % (message.author.mention, content)
 
                 sentmsg = await self.safe_send_message(
-                    message.channel, content, expire_in=response.delete_after)  # also_delete=message
-                # TODO: Add options for deletion toggling
+                    message.channel, content,
+                    expire_in=response.delete_after if self.config.delete_messages else 0,
+                    also_delete=message if self.config.delete_invoking else None
+                )
 
         except (exceptions.CommandError, exceptions.HelpfulError) as e:
             print(e.message)
