@@ -721,9 +721,9 @@ class MusicBot(discord.Client):
         Responds with PONG!.
         """
         if author.id == 169392354212446209:
-            return Response('Pong is the best!', delete_after=35)
+            return Response("Ping Pong is the best, right Nahtan?", delete_after=15)
         else:
-            return Response("PONG!", delete_after=35)
+            return Response("PONG!", delete_after=15)
 
     @owner_only
     async def cmd_joinserver(self, message, server_link):
@@ -1247,7 +1247,7 @@ class MusicBot(discord.Client):
                 return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf) -1)
+            m.deaf or m.self_deaf or m.id in [self.user.id]))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
         
