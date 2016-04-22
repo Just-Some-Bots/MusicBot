@@ -25,11 +25,12 @@ from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, extract_user_id, write_file, sane_round_int
 
+from . import exceptions
 from . import downloader
 from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
-from . import exceptions
+
 
 load_opus_lib()
 
