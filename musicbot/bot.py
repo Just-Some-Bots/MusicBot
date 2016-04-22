@@ -713,6 +713,18 @@ class MusicBot(discord.Client):
             usr = user_mentions[0]
             return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
 
+    async def cmd_ping(self, author,):
+        """
+        Usage:
+            {command_prefix}ping
+
+        Responds with PONG!.
+        """
+        if author.id == 169392354212446209:
+            return Response('Pong is the best!', delete_after=35)
+        else:
+            return Response("PONG!", delete_after=35)
+
     @owner_only
     async def cmd_joinserver(self, message, server_link):
         """
