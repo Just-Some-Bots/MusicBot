@@ -526,7 +526,7 @@ class MusicBot(discord.Client):
             super().on_error(event, *args, **kwargs)
 
     async def on_ready(self):
-        print('Connected!  Musicbot v%s\n' % BOTVERSION)
+        print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
