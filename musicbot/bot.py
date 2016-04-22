@@ -719,8 +719,15 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}joinserver invite_link
 
-        Asks the bot to join a server.
+        Asks the bot to join a server.  Note: Bot accounts cannot use invite links.
         """
+
+        if self.user.bot:
+            return Response(
+                "Bot accounts can't use invite links!  See: "
+                "https://discordapp.com/developers/docs/topics/oauth2#adding-bots-to-guilds",
+                reply=True, delete_after=30
+            )
 
         try:
             await self.accept_invite(server_link)
@@ -1192,7 +1199,7 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError('Player is not paused.')
 
-    async def cmd_shuffle(self, player):
+    async def cmd_shuffle(self, channel, player):
         """
         Usage:
             {command_prefix}shuffle
@@ -1201,7 +1208,18 @@ class MusicBot(discord.Client):
         """
 
         player.playlist.shuffle()
-        return Response('*shuffleshuffleshuffle*', delete_after=10)
+
+        cards = [':spades:',':clubs:',':hearts:',':diamonds:']
+        hand = await self.send_message(channel, ' '.join(cards))
+        await asyncio.sleep(0.6)
+
+        for x in range(4):
+            shuffle(cards)
+            await self.safe_edit_message(hand, ' '.join(cards))
+            await asyncio.sleep(0.6)
+
+        await self.safe_delete_message(hand, quiet=True)
+        return Response(":ok_hand:", delete_after=15)
 
     async def cmd_clear(self, player, author):
         """
@@ -1226,7 +1244,8 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Can't skip! The player is not playing!")
 
         if not player.current_entry:  # Do more checks here to see
-            print("Something strange is happening.  You might want to restart the bot if its not working.")
+            print("Either Something strange is happening or a song is downloading.  "
+                  "You might want to restart the bot if it doesn't start working.")
 
         if author.id == self.config.owner_id:
             player.skip()  # check autopause stuff here
@@ -1336,7 +1355,7 @@ class MusicBot(discord.Client):
             else:
                 nextline = '`{}.` **{}**'.format(i, item.title).strip()
 
-            currentlinesum = sum([len(x) + 1 for x in lines])  # +1 is for newline char
+            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
 
             if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
                 if currentlinesum + len(andmoretext):
@@ -1480,11 +1499,11 @@ class MusicBot(discord.Client):
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
 
-    @owner_only
+
     async def cmd_restart(self):
         raise exceptions.RestartSignal
 
-    @owner_only
+
     async def cmd_shutdown(self):
         raise exceptions.TerminateSignal
 
