@@ -1260,7 +1260,7 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
 
-    async def cmd_skip(self, player, channel, author, message, voice_channel):
+    async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
             {command_prefix}skip
@@ -1275,7 +1275,7 @@ class MusicBot(discord.Client):
             print("Either Something strange is happening or a song is downloading.  "
                   "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id:
+        if author.id == self.config.owner_id or permissions.instaskip:
             player.skip()  # check autopause stuff here
             return
 

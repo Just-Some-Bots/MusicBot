@@ -19,6 +19,7 @@ class PermissionsDefaults:
     MaxPlaylistLength = 0
 
     AllowPlaylists = True
+    InstaSkip = False
 
 
 class Permissions:
@@ -44,6 +45,7 @@ class Permissions:
             self.groups.add(PermissionGroup(section, self.config[section]))
 
         # Create a fake section to fallback onto the permissive default values to grant to the owner
+        # noinspection PyTypeChecker
         owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
@@ -56,10 +58,10 @@ class Permissions:
             self.config.write(f)
 
     def for_user(self, user):
-        '''
+        """
         Returns the first PermissionGroup a user belongs to
         :param user: A discord User or Member object
-        '''
+        """
 
         for group in self.groups:
             if user.id in group.user_list:
@@ -97,10 +99,8 @@ class PermissionGroup:
         self.max_song_length = section_data.get('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
         self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength)
 
-        try:
-            self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
-        except:
-            self.allow_playlists = PermissionsDefaults.AllowPlaylists
+        self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
+        self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
 
         self.validate()
 
@@ -134,6 +134,14 @@ class PermissionGroup:
             self.max_playlist_length = max(0, int(self.max_playlist_length))
         except:
             self.max_playlist_length = PermissionsDefaults.MaxPlaylistLength
+
+        self.allow_playlists = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.allow_playlists, PermissionsDefaults.AllowPlaylists
+        )
+
+        self.instaskip = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.instaskip, PermissionsDefaults.InstaSkip
+        )
 
 
     def add_user(self, uid):
