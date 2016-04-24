@@ -540,40 +540,48 @@ class MusicBot(discord.Client):
         self.safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
 
         owner = self._get_owner(voice=True) or self._get_owner()
-        if owner:
-            self.safe_print("Owner: %s/%s#%s" % (owner.id, owner.name, owner.discriminator))
-        else:
-            print("Owner could not be found on any server (id: %s)" % self.config.owner_id)
-            # TODO: Add a different message when the bot is on no servers
+        if owner and self.servers:
+            self.safe_print("Owner: %s/%s#%s\n" % (owner.id, owner.name, owner.discriminator))
 
-        print()
-
-        if self.servers:
             print('Server List:')
             [self.safe_print(' - ' + s.name) for s in self.servers]
+
+        elif self.servers:
+            print("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
+
+            print('Server List:')
+            [self.safe_print(' - ' + s.name) for s in self.servers]
+
         else:
-            print("No servers have been joined yet.")
+            print("Owner unavailable, bot is not on any servers.")
+            # if bot: post help link, else post something about invite links
 
         print()
 
         if self.config.bound_channels:
             print("Bound to text channels:")
             chlist = [self.get_channel(i) for i in self.config.bound_channels if i]
-            [self.safe_print(' - %s/%s' % (ch.server.name.rstrip(), ch.name.lstrip())) for ch in chlist if ch]
+            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
         else:
             print("Not bound to any text channels")
 
         print()
+        print("Options:")
 
-        # TODO: Make this prettier and easier to read (in the console)
-        self.safe_print("Command prefix is %s" % self.config.command_prefix)
-        print("Whitelist check is %s" % ['disabled', 'enabled'][self.config.white_list_check])
-        print("Skip threshold at %s votes or %s%%" % (
+        self.safe_print("  Command prefix: " + self.config.command_prefix)
+        print("  Default volume: %s%%" % int(self.config.default_volume * 100))
+        print("  Skip threshold: %s votes or %s%%" % (
             self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
-        print("Now Playing message @mentions are %s" % ['disabled', 'enabled'][self.config.now_playing_mentions])
-        print("Autosummon is %s" % ['disabled', 'enabled'][self.config.auto_summon])
-        print("Auto-playlist is %s" % ['disabled', 'enabled'][self.config.auto_playlist])
-        print("Downloaded songs will be %s after playback" % ['deleted', 'saved'][self.config.save_videos])
+        print("  Whitelist: " + ['Disabled', 'Enabled'][self.config.white_list_check])
+        print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
+        print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
+        print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
+        print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
+        print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
+        if self.config.delete_messages:
+            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+        print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
+        print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
