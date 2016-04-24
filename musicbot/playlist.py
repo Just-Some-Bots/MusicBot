@@ -56,6 +56,22 @@ class Playlist(EventEmitter):
         # if info.get('_type', None) == 'playlist':
         #     return await self.import_from(song_url, **meta)
 
+        try:
+            content_type = await get_content_type(self.bot.session, info['url'])
+            print("Got content type", content_type)
+
+        except Exception as e:
+            print("[Warning] Failed to get content type for url " + song_url)
+            print(e)
+            content_type = None
+
+        if content_type:
+            if content_type.startswith(('application/', 'image/', 'text/')):
+                raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
+
+            elif not content_type.startswith(('audio/', 'video/')):
+                print("[Warning] Questionable content type \"%s\" for url %s" % (content_type, song_url))
+
         entry = PlaylistEntry(
             self,
             song_url,
@@ -395,3 +411,8 @@ def md5sum(filename, limit=0):
         for chunk in iter(lambda: f.read(8192), b""):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
+
+async def get_content_type(session, url):
+    with aiohttp.Timeout(5):
+        async with session.head(url) as response:
+            return response.headers.get('CONTENT-TYPE')
