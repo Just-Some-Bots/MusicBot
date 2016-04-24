@@ -476,7 +476,7 @@ class MusicBot(discord.Client):
             # self.loop.run_forever() # wtf even is this for
             gathered.exception()
         except: # Can be ignored
-            pass
+            traceback.print_exc()
 
     # noinspection PyMethodOverriding
     def run(self):
@@ -1066,7 +1066,7 @@ class MusicBot(discord.Client):
             argcheck()
 
             if items_requested > max_items:
-                raise exceptions.CommandError("You cannot request more than %s videos" % max_items)
+                raise exceptions.CommandError("You cannot search for more than %s videos" % max_items)
 
         # Look jake, if you see this and go "what the fuck are you doing"
         # and have a better idea on how to do this, i'd be delighted to know.
@@ -1418,9 +1418,6 @@ class MusicBot(discord.Client):
         Removes up to [range] messages the bot has posted in chat. Default: 50, Max: 1000
         """
 
-        # if not channel.permissions_for(channel.server.me).manage_messages:
-        #     return Response("I don't have Manage Messages permission in this channel.", reply=True, delete_after=15)
-
         try:
             float(search_range)  # lazy check
             search_range = min(int(search_range), 1000)
@@ -1735,14 +1732,3 @@ class MusicBot(discord.Client):
 if __name__ == '__main__':
     bot = MusicBot()
     bot.run()
-
-'''
-TODOs:
-  Deleting messages
-    Maybe Response objects can have a parameter that deletes the message
-    Probably should have an section for it in the options file
-    If not, we should have a cleanup command, or maybe have one anyways
-
-  Command to clear the queue, either a `!skip all` argument or a `!clear` or `!queue clear` or whatever
-
-'''

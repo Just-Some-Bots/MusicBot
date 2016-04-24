@@ -52,6 +52,10 @@ class Playlist(EventEmitter):
         if not info:
             raise ExtractionError('Could not extract information from %s' % song_url)
 
+        # TODO: Sort out what happens next when this happens
+        # if info.get('_type', None) == 'playlist':
+        #     return await self.import_from(song_url, **meta)
+
         entry = PlaylistEntry(
             self,
             song_url,
