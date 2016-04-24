@@ -196,6 +196,11 @@ class MusicBot(discord.Client):
         await asyncio.sleep(after)
         await self.safe_delete_message(message)
 
+    # TODO: Check to see if I can just move this to on_message after the response check
+    async def _manual_delete_check(self, message, *, quiet=False):
+        if self.config.delete_invoking:
+            await self.safe_delete_message(message, quiet=quiet)
+
     async def _check_ignore_non_voice(self, msg):
         vc = msg.server.me.voice_channel
 
@@ -1138,7 +1143,7 @@ class MusicBot(discord.Client):
 
         return Response("Oh well :frowning:", delete_after=30)
 
-    async def cmd_np(self, player, channel):
+    async def cmd_np(self, player, channel, message):
         """
         Usage:
             {command_prefix}np
@@ -1162,6 +1167,7 @@ class MusicBot(discord.Client):
                 np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
 
             self.last_np_msg = await self.safe_send_message(channel, np_text)
+            await self._manual_delete_check(message)
         else:
             return Response(
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix),
@@ -1286,6 +1292,7 @@ class MusicBot(discord.Client):
 
         if author.id == self.config.owner_id or permissions.instaskip:
             player.skip()  # check autopause stuff here
+            await self._manual_delete_check(message)
             return
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
@@ -1536,6 +1543,7 @@ class MusicBot(discord.Client):
 
     async def cmd_disconnect(self, server, message):
         await self.disconnect_voice_client(server)
+        await self._manual_delete_check(message)
 
     async def cmd_restart(self):
         raise exceptions.RestartSignal
