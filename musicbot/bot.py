@@ -1695,6 +1695,9 @@ class MusicBot(discord.Client):
         if before.voice_channel == after.voice_channel:
             return
 
+        if before.server.id not in self.players:
+            return
+
         if not self.config.auto_pause:
             return
 
