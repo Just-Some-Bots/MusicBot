@@ -288,6 +288,7 @@ class MusicBot(discord.Client):
 
     async def disconnect_voice_client(self, server):
         await self.voice_clients[server.id].disconnect()
+        self.voice_clients[server.id] = None
 
     async def _update_voice_state(self, channel, *, mute=False, deaf=False):
         if isinstance(channel, Object):
@@ -1532,6 +1533,9 @@ class MusicBot(discord.Client):
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
 
+
+    async def cmd_disconnect(self, server, message):
+        await self.disconnect_voice_client(server)
 
     async def cmd_restart(self):
         raise exceptions.RestartSignal
