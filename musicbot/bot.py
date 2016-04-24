@@ -466,7 +466,7 @@ class MusicBot(discord.Client):
         try:
             self.loop.run_until_complete(self.logout())
         except: # Can be ignored
-            pass
+            traceback.print_exc()
 
         pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
@@ -476,7 +476,7 @@ class MusicBot(discord.Client):
             # self.loop.run_forever() # wtf even is this for
             gathered.exception()
         except: # Can be ignored
-            traceback.print_exc()
+            pass
 
     # noinspection PyMethodOverriding
     def run(self):
@@ -1673,8 +1673,8 @@ class MusicBot(discord.Client):
                     also_delete=message if self.config.delete_invoking else None
                 )
 
-        except (exceptions.CommandError, exceptions.HelpfulError) as e:
-            print(e.message)
+        except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
+            print("{0.__class__}: {0.message}".format(e))
             await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
 
         except exceptions.Signal:
