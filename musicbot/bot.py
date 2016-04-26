@@ -328,7 +328,7 @@ class MusicBot(discord.Client):
         channel = self.config.log_channel
 
         if self.config.log_channel:
-            await self.safe_send_message(self.get_channel(channel), string)
+            await self.safe_send_message(self.get_channel(channel), "`{}` ".format(time.strftime("%H:%M:%S")) + string)
 
     async def get_player(self, channel, create=False):
         server = channel.server
