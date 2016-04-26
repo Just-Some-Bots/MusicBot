@@ -324,6 +324,12 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.voice_clients[server.id].channel = channel
 
+    async def log_to_channel(self, string):
+        channel = self.config.log_channel
+
+        if self.config.log_channel:
+            await self.safe_send_message(self.get_channel(channel), string)
+
     async def get_player(self, channel, create=False):
         server = channel.server
 
@@ -371,6 +377,8 @@ class MusicBot(discord.Client):
             else:
                 newmsg = 'Now playing in %s: **%s**' % (
                     player.voice_client.channel.name, entry.title)
+
+            await self.log_to_channel(":notes: `%s` is now playing in **%s**" % (entry.title, player.voice_client.channel.name))
 
             if self.last_np_msg:
                 self.last_np_msg = await self.safe_edit_message(self.last_np_msg, newmsg, send_if_fail=True)
@@ -540,6 +548,8 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
+        await self.log_to_channel(":computer: MusicBot started at `{}` on `{}`".format(time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
                 "Your OwnerID is incorrect or you've used the wrong credentials.",
@@ -577,6 +587,15 @@ class MusicBot(discord.Client):
             print("Not bound to any text channels")
 
         print()
+
+        if self.config.log_channel:
+            print("Logging to channel:")
+            channel = self.get_channel(self.config.log_channel)
+            self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
+        else:
+            print("Not logging to a text channel")
+
+        print()
         print("Options:")
 
         self.safe_print("  Command prefix: " + self.config.command_prefix)
@@ -591,7 +610,6 @@ class MusicBot(discord.Client):
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
             print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
-        print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
@@ -1583,17 +1601,24 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
+        print("IT GOT THIS FAR X1")
+
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            await self.log_to_channel(":no_pedestrians: {0.name} tried to use `{1}` but is blacklisted".format(message.author, message_content))
             return
 
         elif self.config.white_list_check and int(
                 message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            await self.log_to_channel(":no_pedestrians: {0.name} tried to use `{1}` but is not whitelisted".format(message.author, message_content))
             return
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            await self.log_to_channel(":notepad_spiral: {0.name} used `{1}`".format(message.author, message_content))
+
+        print("IT GOT THIS FAR x2")
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -1698,9 +1723,8 @@ class MusicBot(discord.Client):
             raise
 
         except Exception:
-            if self.config.debug_mode:
-                await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
             traceback.print_exc()
+            await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc())
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
