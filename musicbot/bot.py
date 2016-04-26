@@ -1601,8 +1601,6 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        print("IT GOT THIS FAR X1")
-
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             await self.log_to_channel(":no_pedestrians: {0.name} tried to use `{1}` but is blacklisted".format(message.author, message_content))
@@ -1617,8 +1615,6 @@ class MusicBot(discord.Client):
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
             await self.log_to_channel(":notepad_spiral: {0.name} used `{1}`".format(message.author, message_content))
-
-        print("IT GOT THIS FAR x2")
 
         user_permissions = self.permissions.for_user(message.author)
 
