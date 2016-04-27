@@ -15,7 +15,6 @@ class ConfigDefaults:
     command_prefix = '!'
     bound_channels = set()
     autojoin_channels = set()
-    log_channel = None
 
     default_volume = 0.15
     white_list_check = False
@@ -34,6 +33,10 @@ class ConfigDefaults:
     whitelist_file = 'config/whitelist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
+    log_channel = None
+    log_exceptions = True
+    log_queue_changes = True
+    log_commands = True
 
 class Config:
     def __init__(self, config_file):
@@ -95,7 +98,6 @@ class Config:
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
-        self.log_channel = config.get('Chat', 'LoggingChannel', fallback=ConfigDefaults.log_channel)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=ConfigDefaults.white_list_check)
@@ -112,6 +114,11 @@ class Config:
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+
+        self.log_channel = config.get('Logging', 'LoggingChannel', fallback=ConfigDefaults.log_channel)
+        self.log_exceptions = config.getboolean('Logging', 'LogExceptions', fallback=ConfigDefaults.log_exceptions)
+        self.log_queue_changes = config.getboolean('Logging', 'LogQueue', fallback=ConfigDefaults.log_queue_changes)
+        self.log_commands = config.getboolean('Logging', 'LogCommands', fallback=ConfigDefaults.log_commands)
 
         self.run_checks()
 

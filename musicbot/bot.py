@@ -378,7 +378,8 @@ class MusicBot(discord.Client):
                 newmsg = 'Now playing in %s: **%s**' % (
                     player.voice_client.channel.name, entry.title)
 
-            await self.log_to_channel(":notes: `%s` is now playing in **%s**" % (entry.title, player.voice_client.channel.name))
+            if self.config.log_queue_changes:
+                await self.log_to_channel(":notes: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name))
 
             if self.last_np_msg:
                 self.last_np_msg = await self.safe_edit_message(self.last_np_msg, newmsg, send_if_fail=True)
@@ -592,6 +593,9 @@ class MusicBot(discord.Client):
             print("Logging to channel:")
             channel = self.get_channel(self.config.log_channel)
             self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
+            print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
+            print("  Queue: " + ['Disabled', 'Enabled'][self.config.log_queue_changes])
+            print("  Commands: " + ['Disabled', 'Enabled'][self.config.log_commands])
         else:
             print("Not logging to a text channel")
 
@@ -609,7 +613,7 @@ class MusicBot(discord.Client):
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
-            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+            print("  Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
         print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
@@ -1603,18 +1607,21 @@ class MusicBot(discord.Client):
 
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            await self.log_to_channel(":no_pedestrians: {0.name} tried to use `{1}` but is blacklisted".format(message.author, message_content))
+            if self.config.log_commands:
+                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is blacklisted".format(message.author, message_content))
             return
 
         elif self.config.white_list_check and int(
                 message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            await self.log_to_channel(":no_pedestrians: {0.name} tried to use `{1}` but is not whitelisted".format(message.author, message_content))
+            if self.config.log_commands:
+                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is not whitelisted".format(message.author, message_content))
             return
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
-            await self.log_to_channel(":notepad_spiral: {0.name} used `{1}`".format(message.author, message_content))
+            if self.config.log_commands:
+                await self.log_to_channel(":notepad_spiral: `{0.name}#{0.discriminator}` used `{1}`".format(message.author, message_content))
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -1720,7 +1727,8 @@ class MusicBot(discord.Client):
 
         except Exception:
             traceback.print_exc()
-            await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc())
+            if self.config.log_exceptions:
+                await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc())
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
