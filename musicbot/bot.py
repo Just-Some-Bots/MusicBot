@@ -414,6 +414,9 @@ class MusicBot(discord.Client):
         pass
 
     async def update_now_playing(self, entry=None, is_paused=False):
+        if not self.config.now_playing_status:
+            return
+
         game = None
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
@@ -591,6 +594,11 @@ class MusicBot(discord.Client):
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
             print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+        print("  Now Playing Status: " + ['Disabled', 'Enabled'][self.config.now_playing_status])
+        if not self.config.now_playing_status:
+            print("    Custom Status: " + ['Disabled', 'Enabled'][self.config.custom_status])
+            if self.config.custom_status:
+                print("    Status: " + self.config.status)
         print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
@@ -603,6 +611,11 @@ class MusicBot(discord.Client):
                 print("Deleting old audio cache")
             else:
                 print("Could not delete old audio cache, moving on.")
+
+        if not self.config.now_playing_status and self.config.custom_status:
+            name = u'{}'.format(self.config.status)
+            game = discord.Game(name=name)
+            await self.change_status(game)
 
         if self.config.autojoin_channels:
             await self._autojoin_channels()
