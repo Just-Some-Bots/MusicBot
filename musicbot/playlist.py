@@ -67,7 +67,7 @@ class Playlist(EventEmitter):
                 content_type = None
 
             if content_type:
-                if content_type.startswith(('application/', 'image/', 'text/')):
+                if content_type.startswith(('application/', 'image/')):
                     raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
                 elif not content_type.startswith(('audio/', 'video/')):
