@@ -33,10 +33,11 @@ class ConfigDefaults:
     whitelist_file = 'config/whitelist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
-    log_channel = None
-    log_exceptions = True
-    log_queue_changes = True
-    log_commands = True
+    log_masterchannel = None
+    log_subchannels = set()
+    log_exceptions = False
+    log_queue_changes = False
+    log_commands = False
 
 class Config:
     def __init__(self, config_file):
@@ -77,7 +78,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
+        confsections = {"Credentials", "Permissions", "Chat", "MusicBot", "Logging"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -115,7 +116,8 @@ class Config:
         self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
-        self.log_channel = config.get('Logging', 'LoggingChannel', fallback=ConfigDefaults.log_channel)
+        self.log_masterchannel = config.get('Logging', 'LogMasterChannel', fallback=ConfigDefaults.log_masterchannel)
+        self.log_subchannels = config.get('Logging', 'LogSubChannels', fallback=ConfigDefaults.log_subchannels)
         self.log_exceptions = config.getboolean('Logging', 'LogExceptions', fallback=ConfigDefaults.log_exceptions)
         self.log_queue_changes = config.getboolean('Logging', 'LogQueue', fallback=ConfigDefaults.log_queue_changes)
         self.log_commands = config.getboolean('Logging', 'LogCommands', fallback=ConfigDefaults.log_commands)
@@ -191,6 +193,12 @@ class Config:
             except:
                 print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
+
+        if self.log_subchannels:
+            try:
+                self.log_subchannels = set(x for x in self.log_subchannels.split() if x)
+            except:
+                print("[Warning] LogSubChannels data invalid, will not log to any subchannels")
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 

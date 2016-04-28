@@ -324,11 +324,22 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.voice_clients[server.id].channel = channel
 
-    async def log_to_channel(self, string):
-        channel = self.config.log_channel
+    async def log_to_channel(self, string, channel):
+        if self.config.log_subchannels:
+            for i in self.config.log_subchannels:
+                subchannel = self.get_channel(i)
+                server = subchannel.server
+                if channel in server.channels:
+                    await self.safe_send_message(subchannel, "`{}` ".format(time.strftime("%H:%M:%S")) + string)
 
-        if self.config.log_channel:
-            await self.safe_send_message(self.get_channel(channel), "`{}` ".format(time.strftime("%H:%M:%S")) + string)
+        if self.config.log_masterchannel:
+            master = self.get_channel(self.config.log_masterchannel)
+            await self.safe_send_message(master, "`{}` `{}` ".format(time.strftime("%H:%M:%S"), channel.server.name) + string)
+
+    async def log_to_master(self, string):
+        if self.config.log_masterchannel:
+            master = self.get_channel(self.config.log_masterchannel)
+            await self.safe_send_message(master, "`{}` ".format(time.strftime("%H:%M:%S")) + string)
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -379,7 +390,8 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title)
 
             if self.config.log_queue_changes:
-                await self.log_to_channel(":notes: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name))
+                channel = player.voice_client.channel
+                await self.log_to_channel(":notes: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name), channel)
 
             if self.last_np_msg:
                 self.last_np_msg = await self.safe_edit_message(self.last_np_msg, newmsg, send_if_fail=True)
@@ -549,7 +561,7 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
-        await self.log_to_channel(":computer: MusicBot started at `{}` on `{}`".format(time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+        await self.log_to_master(":computer: MusicBot started at `{}` on `{}`".format(time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
 
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
@@ -589,10 +601,13 @@ class MusicBot(discord.Client):
 
         print()
 
-        if self.config.log_channel:
-            print("Logging to channel:")
-            channel = self.get_channel(self.config.log_channel)
+        if self.config.log_masterchannel:
+            print("Logging to master channel:")
+            channel = self.get_channel(self.config.log_masterchannel)
             self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
+            print("Logging to subchannels:")
+            chlist = [self.get_channel(i) for i in self.config.log_subchannels if i]
+            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
             print("  Queue: " + ['Disabled', 'Enabled'][self.config.log_queue_changes])
             print("  Commands: " + ['Disabled', 'Enabled'][self.config.log_commands])
@@ -1608,20 +1623,20 @@ class MusicBot(discord.Client):
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_commands:
-                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is blacklisted".format(message.author, message_content))
+                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is blacklisted".format(message.author, message_content), message.channel)
             return
 
         elif self.config.white_list_check and int(
                 message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_commands:
-                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is not whitelisted".format(message.author, message_content))
+                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is not whitelisted".format(message.author, message_content), message.channel)
             return
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_commands:
-                await self.log_to_channel(":notepad_spiral: `{0.name}#{0.discriminator}` used `{1}`".format(message.author, message_content))
+                await self.log_to_channel(":notepad_spiral: `{0.name}#{0.discriminator}` used `{1}`".format(message.author, message_content), message.channel)
 
         user_permissions = self.permissions.for_user(message.author)
 
