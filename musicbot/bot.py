@@ -236,14 +236,14 @@ class MusicBot(discord.Client):
             }
 
             await self.ws.send(utils.to_json(payload))
-            await asyncio.wait_for(self._session_id_found.wait(), timeout=5.0, loop=self.loop)
-            await asyncio.wait_for(self._voice_data_found.wait(), timeout=5.0, loop=self.loop)
 
-            session_id = self.session_id
-            voice_data = self._voice_data_found.data
+            s_id = self.ws.wait_for('VOICE_STATE_UPDATE', lambda d: d.get('user_id') == self.user.id)
+            s_id_data = await asyncio.wait_for(s_id, timeout=7.0, loop=self.loop)
 
-            self._session_id_found.clear()
-            self._voice_data_found.clear()
+            _voice_data = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: True)
+
+            session_id = s_id_data.get('session_id')
+            voice_data = await asyncio.wait_for(_voice_data, timeout=7.0, loop=self.loop)
 
             kwargs = {
                 'user': self.user,
