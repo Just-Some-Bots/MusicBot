@@ -390,7 +390,6 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title)
 
             if self.config.log_queue_changes:
-                channel = player.voice_client.channel
                 await self.log_to_channel(":notes: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name), channel)
 
             if self.last_np_msg:
@@ -605,9 +604,11 @@ class MusicBot(discord.Client):
             print("Logging to master channel:")
             channel = self.get_channel(self.config.log_masterchannel)
             self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
+        if self.config.log_subchannels:
             print("Logging to subchannels:")
             chlist = [self.get_channel(i) for i in self.config.log_subchannels if i]
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+        if self.config.log_masterchannel or self.config.log_subchannels:
             print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
             print("  Queue: " + ['Disabled', 'Enabled'][self.config.log_queue_changes])
             print("  Commands: " + ['Disabled', 'Enabled'][self.config.log_commands])
