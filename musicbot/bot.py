@@ -639,8 +639,10 @@ class MusicBot(discord.Client):
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
                 print("Deleting old audio cache")
+                await self.log_to_master(":information_source: Deleting old audio cache")
             else:
                 print("Could not delete old audio cache, moving on.")
+                await self.log_to_master(":information_source: Could not delete audio cache")
 
         if self.config.autojoin_channels:
             await self._autojoin_channels()
@@ -1745,6 +1747,12 @@ class MusicBot(discord.Client):
             traceback.print_exc()
             if self.config.log_exceptions:
                 await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc(), message.channel)
+
+    async def on_server_join(self, server):
+        await self.log_to_master(":door: MusicBot joined: `%s`" % server.name)
+
+    async def on_server_remove(self, server):
+        await self.log_to_master(":door: MusicBot left: `%s`" % server.name)
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
