@@ -260,7 +260,11 @@ class MusicBot(discord.Client):
             try:
                 await asyncio.wait_for(voice_client.connect(), timeout=6, loop=self.loop)
             except:
-                voice_client.keep_alive.cancel()
+                try:
+                    voice_client.socket.close()
+                except:
+                    pass
+
                 await voice_client.ws.close()
 
                 await self.ws.send(utils.to_json({
@@ -276,10 +280,11 @@ class MusicBot(discord.Client):
                 # print("Unable to fully connect to voice chat.")
                 raise exceptions.HelpfulError(
                     "Cannot establish connection to voice chat.  "
-                    "Something is blocking outgoing UDP packets.",
+                    "Something may be blocking outgoing UDP packets.",
 
+                    "This may be an issue with a firewall blocking UDP.  "
                     "Figure out what is blocking UDP and disable it.  "
-                    "It's most likely a system firewall or overbearing anti-virus firewall."
+                    "It's most likely a system firewall or overbearing anti-virus firewall.  "
                 )
 
             return voice_client
