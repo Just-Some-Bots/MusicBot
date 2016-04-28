@@ -1743,7 +1743,7 @@ class MusicBot(discord.Client):
         except Exception:
             traceback.print_exc()
             if self.config.log_exceptions:
-                await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc())
+                await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc(), message.channel)
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
