@@ -1,2 +1,3 @@
-https://github.com/Rapptz/discord.py/archive/async.zip
+# https://github.com/Rapptz/discord.py/archive/async.zip
+https://github.com/Rapptz/discord.py/archive/e0ca746ad4d32059ef5f48f9124ed5523a077821.zip
 youtube_dl >= 2016.3.6
