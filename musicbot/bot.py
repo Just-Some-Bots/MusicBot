@@ -272,8 +272,6 @@ class MusicBot(discord.Client):
                 except:
                     pass
 
-                await voice_client.ws.close()
-
                 await self.ws.send(utils.to_json({
                     'op': 4,
                     'd': {
