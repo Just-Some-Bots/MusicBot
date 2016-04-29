@@ -1478,6 +1478,7 @@ class MusicBot(discord.Client):
                 if delete_all or entry.author == author:
                     try:
                         await self.delete_message(entry)
+                        await asyncio.sleep(0.21)
                         msgs += 1
                     except discord.Forbidden:
                         delete_invokes = False
