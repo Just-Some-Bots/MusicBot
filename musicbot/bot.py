@@ -178,15 +178,20 @@ class MusicBot(discord.Client):
                     self.safe_print("Will not join channel \"%s\", no permission to speak." % channel.name)
                     continue
 
-                player = await self.get_player(channel, create=True)
+                try:
+                    player = await self.get_player(channel, create=True)
 
-                if player.is_stopped:
-                    player.play()
+                    if player.is_stopped:
+                        player.play()
 
-                if self.config.auto_playlist:
-                    await self.on_finished_playing(player)
+                    if self.config.auto_playlist:
+                        await self.on_finished_playing(player)
 
-                joined_servers.append(channel.server)
+                    joined_servers.append(channel.server)
+                except Exception as e:
+                    if self.config.debug_mode:
+                        traceback.print_exc()
+                    print("Failed to join", channel.name)
 
             elif channel:
                 print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
@@ -238,12 +243,14 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
 
             s_id = self.ws.wait_for('VOICE_STATE_UPDATE', lambda d: d.get('user_id') == self.user.id)
-            s_id_data = await asyncio.wait_for(s_id, timeout=7.0, loop=self.loop)
-
             _voice_data = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: True)
 
-            session_id = s_id_data.get('session_id')
+            await self.ws.voice_state(server.id, channel.id)
+
+            s_id_data = await asyncio.wait_for(s_id, timeout=7.0, loop=self.loop)
             voice_data = await asyncio.wait_for(_voice_data, timeout=7.0, loop=self.loop)
+
+            session_id = s_id_data.get('session_id')
 
             kwargs = {
                 'user': self.user,
