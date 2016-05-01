@@ -89,7 +89,7 @@ class MusicBot(discord.Client):
 
         # TODO: Fix these
         # These aren't multi-server compatible, which is ok for now, but will have to be redone when multi-server is possible
-        ssd_defaults = {'last_np_msg': None, 'auto_paused': None}
+        ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
@@ -1754,10 +1754,6 @@ class MusicBot(discord.Client):
 
         moving = before == before.server.me
         auto_paused = self.server_specific_data[after.server]['auto_paused']
-
-        if auto_paused is None:
-            self.server_specific_data[after.server]['auto_paused'] = False
-            return
 
         player = await self.get_player(my_voice_channel)
 
