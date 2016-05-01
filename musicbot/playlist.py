@@ -58,12 +58,14 @@ class Playlist(EventEmitter):
 
         if info['extractor'] == 'generic':
             try:
+                # unfortunately this is literally broken
+                # https://github.com/KeepSafe/aiohttp/issues/758
+                # https://github.com/KeepSafe/aiohttp/issues/852
                 content_type = await get_content_type(self.bot.session, info['url'])
                 print("Got content type", content_type)
 
             except Exception as e:
-                print("[Warning] Failed to get content type for url " + song_url)
-                print(e)
+                print("[Warning] Failed to get content type for url %s (%s)" % (song_url, e))
                 content_type = None
 
             if content_type:
@@ -117,7 +119,7 @@ class Playlist(EventEmitter):
                     entry = PlaylistEntry(
                         self,
                         items[url_field],
-                        items['title'],
+                        items.get('title', 'Untitled'),
                         items.get('duration', 0) or 0,
                         self.downloader.ytdl.prepare_filename(items),
                         **meta
@@ -337,6 +339,7 @@ class PlaylistEntry:
         finally:
             self._is_downloading = False
 
+    # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
         print("[Download] Started:", self.url)
 
