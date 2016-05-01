@@ -305,6 +305,10 @@ class MusicBot(discord.Client):
 
         await self.voice_clients.pop(server.id).disconnect()
 
+    async def disconnect_all_voice_clients(self):
+        for vc in self.voice_clients.copy():
+            await self.disconnect_voice_client(self.voice_clients[vc].channel.server)
+
     async def _update_voice_state(self, channel, *, mute=False, deaf=False):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
@@ -1580,10 +1584,12 @@ class MusicBot(discord.Client):
         await self._manual_delete_check(message)
 
     async def cmd_restart(self):
+        await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
 
 
     async def cmd_shutdown(self):
+        await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
     async def on_message(self, message):
