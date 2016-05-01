@@ -263,19 +263,20 @@ class MusicBot(discord.Client):
             voice_client = VoiceClient(**kwargs)
             self.voice_clients[server.id] = voice_client
 
-
-            for x in range(3):
+            retries = 3
+            for x in range(retries):
                 try:
                     print("Attempting connection...")
                     await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
+                    print("Connection established.")
                     break
                 except:
-                    print("Failed to connect, retrying...")
+                    print("Failed to connect, retrying (%s/%s)..." % (x+1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
                     await asyncio.sleep(1)
 
-                    if x == 2:
+                    if x == retries-1:
                         raise exceptions.HelpfulError(
                             "Cannot establish connection to voice chat.  "
                             "Something may be blocking outgoing UDP connections.",
