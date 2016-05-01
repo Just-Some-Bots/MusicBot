@@ -319,13 +319,21 @@ class PlaylistEntry:
                     await self._really_download(hash=True)
 
             else:
-                # print("Handling " + extractor)
-                flistdir = [f.rsplit('.', 1)[0] for f in os.listdir(self.download_folder)]
+                ldir = os.listdir(self.download_folder)
+                flistdir = [f.rsplit('.', 1)[0] for f in ldir]
                 expected_fname_noex = os.path.basename(self.expected_filename.rsplit('.', 1)[0])
 
-                if expected_fname_noex in flistdir:
-                    self.filename = self.expected_filename
+                # idk wtf this is but its probably legacy code
+                # or i have youtube to blame for changing shit again
+
+                if self.expected_filename in ldir:
+                    self.filename = ldir.index(expected_fname_noex)
                     print("[Download] Cached:", self.url)
+
+                elif expected_fname_noex in flistdir:
+                    self.filename = ldir.index(expected_fname_noex)
+                    print("[Download] Cached (different extension):", self.url)
+
                 else:
                     await self._really_download()
 
