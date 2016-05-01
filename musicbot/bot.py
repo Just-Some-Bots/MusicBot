@@ -1723,6 +1723,7 @@ class MusicBot(discord.Client):
             raise
 
         except Exception:
+            traceback.print_exc()
             if self.config.debug_mode:
                 await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
 
