@@ -614,7 +614,7 @@ class MusicBot(discord.Client):
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
-            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+            print("  Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
         print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
