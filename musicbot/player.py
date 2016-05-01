@@ -295,6 +295,7 @@ class MusicPlayer(EventEmitter):
 
 # Get duration with ffprobe
 #   ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
+# This is also how I fix the format checking issue for now
 
 # Normalization filter
 # -af dynaudnorm

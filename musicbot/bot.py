@@ -14,10 +14,11 @@ from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 
 from io import BytesIO
-from random import choice, shuffle
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
+from random import choice, shuffle
+from collections import defaultdict
 
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
@@ -88,8 +89,8 @@ class MusicBot(discord.Client):
 
         # TODO: Fix these
         # These aren't multi-server compatible, which is ok for now, but will have to be redone when multi-server is possible
-        self.last_np_msg = None
-        self.auto_paused = None
+        ssd_defaults = {'last_np_msg': None, 'auto_paused': None}
+        self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
@@ -247,9 +248,8 @@ class MusicBot(discord.Client):
 
             await self.ws.voice_state(server.id, channel.id)
 
-            s_id_data = await asyncio.wait_for(s_id, timeout=7.0, loop=self.loop)
-            voice_data = await asyncio.wait_for(_voice_data, timeout=7.0, loop=self.loop)
-
+            s_id_data = await asyncio.wait_for(s_id, timeout=10, loop=self.loop)
+            voice_data = await asyncio.wait_for(_voice_data, timeout=10, loop=self.loop)
             session_id = s_id_data.get('session_id')
 
             kwargs = {
@@ -260,37 +260,30 @@ class MusicBot(discord.Client):
                 'session_id': session_id,
                 'main_ws': self.ws
             }
-
             voice_client = VoiceClient(**kwargs)
             self.voice_clients[server.id] = voice_client
 
-            try:
-                await asyncio.wait_for(voice_client.connect(), timeout=6, loop=self.loop)
-            except:
+
+            for x in range(3):
                 try:
-                    voice_client.socket.close()
+                    print("Attempting connection...")
+                    await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
+                    break
                 except:
-                    pass
+                    print("Failed to connect, retrying...")
+                    await asyncio.sleep(1)
+                    await self.ws.voice_state(server.id, None, self_mute=True)
+                    await asyncio.sleep(1)
 
-                await self.ws.send(utils.to_json({
-                    'op': 4,
-                    'd': {
-                        'guild_id': channel.server.id,
-                        'channel_id': None,
-                        'self_mute': True,
-                        'self_deaf': False
-                    }
-                }))
+                    if x == 2:
+                        raise exceptions.HelpfulError(
+                            "Cannot establish connection to voice chat.  "
+                            "Something may be blocking outgoing UDP connections.",
 
-                # print("Unable to fully connect to voice chat.")
-                raise exceptions.HelpfulError(
-                    "Cannot establish connection to voice chat.  "
-                    "Something may be blocking outgoing UDP packets.",
-
-                    "This may be an issue with a firewall blocking UDP.  "
-                    "Figure out what is blocking UDP and disable it.  "
-                    "It's most likely a system firewall or overbearing anti-virus firewall.  "
-                )
+                            "This may be an issue with a firewall blocking UDP.  "
+                            "Figure out what is blocking UDP and disable it.  "
+                            "It's most likely a system firewall or overbearing anti-virus firewall.  "
+                        )
 
             return voice_client
 
@@ -369,12 +362,13 @@ class MusicBot(discord.Client):
         author = entry.meta.get('author', None)
 
         if channel and author:
-            if self.last_np_msg and self.last_np_msg.channel == channel:
+            last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
+            if last_np_msg and last_np_msg.channel == channel:
 
                 async for lmsg in self.logs_from(channel, limit=1):
-                    if lmsg != self.last_np_msg and self.last_np_msg:
-                        await self.safe_delete_message(self.last_np_msg)
-                        self.last_np_msg = None
+                    if lmsg != last_np_msg and last_np_msg:
+                        await self.safe_delete_message(last_np_msg)
+                        self.server_specific_data[channel.server]['last_np_msg'] = None
                     break  # This is probably redundant
 
             if self.config.now_playing_mentions:
@@ -384,10 +378,10 @@ class MusicBot(discord.Client):
                 newmsg = 'Now playing in %s: **%s**' % (
                     player.voice_client.channel.name, entry.title)
 
-            if self.last_np_msg:
-                self.last_np_msg = await self.safe_edit_message(self.last_np_msg, newmsg, send_if_fail=True)
+            if self.server_specific_data[channel.server]['last_np_msg']:
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
             else:
-                self.last_np_msg = await self.safe_send_message(channel, newmsg)
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
     async def on_resume(self, entry, **_):
         await self.update_now_playing(entry)
@@ -489,6 +483,14 @@ class MusicBot(discord.Client):
     def safe_print(self, content, *, end='\n', flush=True):
         sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
         if flush: sys.stdout.flush()
+
+    async def send_typing(self, destination):
+        try:
+            return await super().send_typing(destination)
+        except discord.Forbidden:
+            if self.config.debug_mode:
+                print("Could not send typing to %s, no permssion" % destination)
+
 
     def _cleanup(self):
         try:
@@ -1002,8 +1004,8 @@ class MusicBot(discord.Client):
                 print("Dropped %s songs" % drop_count)
 
             if player.current_entry and player.current_entry.duration > permissions.max_song_length:
-                await self.safe_delete_message(self.last_np_msg)
-                self.last_np_msg = None
+                await self.safe_delete_message(self.server_specific_data[channel.server]['last_np_msg'])
+                self.server_specific_data[channel.server]['last_np_msg'] = None
                 skipped = True
                 player.skip()
                 entries_added.pop()
@@ -1166,7 +1168,7 @@ class MusicBot(discord.Client):
 
         return Response("Oh well :frowning:", delete_after=30)
 
-    async def cmd_np(self, player, channel, message):
+    async def cmd_np(self, player, channel, server, message):
         """
         Usage:
             {command_prefix}np
@@ -1175,9 +1177,9 @@ class MusicBot(discord.Client):
         """
 
         if player.current_entry:
-            if self.last_np_msg:
-                await self.safe_delete_message(self.last_np_msg)
-                self.last_np_msg = None
+            if self.server_specific_data[server]['last_np_msg']:
+                await self.safe_delete_message(self.server_specific_data[server]['last_np_msg'])
+                self.server_specific_data[server]['last_np_msg'] = None
 
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
@@ -1189,7 +1191,7 @@ class MusicBot(discord.Client):
             else:
                 np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
 
-            self.last_np_msg = await self.safe_send_message(channel, np_text)
+            self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
             await self._manual_delete_check(message)
         else:
             return Response(
@@ -1213,6 +1215,7 @@ class MusicBot(discord.Client):
             await self.move_voice_client(author.voice_channel)
             return
 
+        # move to _verify_vc_perms?
         chperms = author.voice_channel.permissions_for(author.voice_channel.server.me)
 
         if not chperms.connect:
@@ -1317,6 +1320,9 @@ class MusicBot(discord.Client):
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return
+
+        # TODO: ignore person if they're deaf or take them out of the list or something?
+        # Currently is recounted if they vote, deafen, then vote
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
             m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
@@ -1467,7 +1473,7 @@ class MusicBot(discord.Client):
         delete_all = channel.permissions_for(author).manage_messages or self.config.owner_id == author.id
 
         async for entry in self.logs_from(channel, search_range, before=message):
-            if entry == self.last_np_msg:
+            if entry == self.server_specific_data[channel.server]['last_np_msg']:
                 continue
 
             if entry.author == self.user:
@@ -1746,22 +1752,24 @@ class MusicBot(discord.Client):
         else:
             return  # Not my channel
 
-        if self.auto_paused is None:
-            self.auto_paused = False
+        moving = before == before.server.me
+        auto_paused = self.server_specific_data[after.server]['auto_paused']
+
+        if auto_paused is None:
+            self.server_specific_data[after.server]['auto_paused'] = False
             return
 
-        moving = before == before.server.me
         player = await self.get_player(my_voice_channel)
 
         if sum(1 for m in my_voice_channel.voice_members if m != after.server.me):
-            if self.auto_paused and player.is_paused:
+            if auto_paused and player.is_paused:
                 print("[config:autopause] Unpausing")
-                self.auto_paused = False
+                self.server_specific_data[after.server]['auto_paused'] = False
                 player.resume()
         else:
-            if not self.auto_paused and player.is_playing:
+            if not auto_paused and player.is_playing:
                 print("[config:autopause] Pausing")
-                self.auto_paused = True
+                self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
 
 
