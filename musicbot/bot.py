@@ -1725,7 +1725,6 @@ class MusicBot(discord.Client):
         except Exception:
             if self.config.debug_mode:
                 await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
-            traceback.print_exc()
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
