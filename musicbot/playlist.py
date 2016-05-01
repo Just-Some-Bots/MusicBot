@@ -56,7 +56,7 @@ class Playlist(EventEmitter):
         # if info.get('_type', None) == 'playlist':
         #     return await self.import_from(song_url, **meta)
 
-        if info['extractor'] == 'generic':
+        if info['extractor'] in ['generic', 'Dropbox']:
             try:
                 # unfortunately this is literally broken
                 # https://github.com/KeepSafe/aiohttp/issues/758
