@@ -190,11 +190,13 @@ class MusicBot(discord.Client):
 
                     joined_servers.append(channel.server)
                 except Exception as e:
-                    if self.config.debug_mode:
-                        traceback.print_exc()
+                    if self.config.log_exceptions:
+                        await self.log_to_channel(":warning: Could not join %s" % channel.name, channel)
                     print("Failed to join", channel.name)
 
             elif channel:
+                if self.config.log_exceptions:
+                    await self.log_to_channel(":warning: Could not join %s because it is a text channel" % channel.name, channel)
                 print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
 
             else:
@@ -501,8 +503,8 @@ class MusicBot(discord.Client):
         try:
             return await super().send_typing(destination)
         except discord.Forbidden:
-            if self.config.debug_mode:
-                print("Could not send typing to %s, no permssion" % destination)
+            if self.config.log_exceptions:
+                await self.log_to_channel(":warning: Could not send typing to %s, no permission" % destination.name, destination)
 
 
     def _cleanup(self):
@@ -572,7 +574,7 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
-        await self.log_to_master(":computer: MusicBot started at `{}` on `{}`".format(time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+        await self.log_to_master(":computer: {} started at `{}` on `{}`".format(self.user.name, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
 
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
@@ -671,6 +673,8 @@ class MusicBot(discord.Client):
                     print("Starting auto-playlist")
                     await self.on_finished_playing(await self.get_player(owner_vc))
             else:
+                if self.config.log_exceptions:
+                    await self.log_to_master("Owner not found in a voice channel, could not autosumm")
                 print("Owner not found in a voice channel, could not autosummon.")
 
         print()
@@ -1761,6 +1765,7 @@ class MusicBot(discord.Client):
                 )
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
+            await self
             print("{0.__class__}: {0.message}".format(e))
             await self.safe_send_message(message.channel, '```\n%s\n```' % e.message, expire_in=e.expire_in)
 
@@ -1771,13 +1776,13 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
             if self.config.log_exceptions:
-                await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc(), message.channel)
+                await self.log_to_channel(":warning: %s caused an exception:\n```python\n%s\n```" % (self.user.name, traceback.format_exc()), message.channel)
 
     async def on_server_join(self, server):
-        await self.log_to_master(":door: MusicBot joined: `%s`" % server.name)
+        await self.log_to_master(":door: %s joined: `%s`" % (self.user.name, server.name))
 
     async def on_server_remove(self, server):
-        await self.log_to_master(":door: MusicBot left: `%s`" % server.name)
+        await self.log_to_master(":door: %s left: `%s`" % (self.user.name, server.name))
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
