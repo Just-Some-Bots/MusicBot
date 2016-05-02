@@ -1,3 +1,5 @@
+# Hey don't use this version it doesn't work.  Read the tutorial on the wiki.
+
 # RhinoBot: The music bot for Discord.
 
 ### What is this and what does it do?
