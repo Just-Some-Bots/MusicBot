@@ -1305,9 +1305,16 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
 
         if not player.current_entry:
-            if player.playlist.peek()._is_downloading and player.playlist.peek():
-                print(player.playlist.peek()._waiting_futures[0].__dict__)
-                return Response("The next song (%s) is downloading, please wait." % player.playlist.peek())
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek())
+
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    print("Something odd is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
             else:
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
