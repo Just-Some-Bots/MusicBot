@@ -56,14 +56,16 @@ class Playlist(EventEmitter):
         # if info.get('_type', None) == 'playlist':
         #     return await self.import_from(song_url, **meta)
 
-        if info['extractor'] == 'generic':
+        if info['extractor'] in ['generic', 'Dropbox']:
             try:
-                content_type = await get_content_type(self.bot.session, info['url'])
+                # unfortunately this is literally broken
+                # https://github.com/KeepSafe/aiohttp/issues/758
+                # https://github.com/KeepSafe/aiohttp/issues/852
+                content_type = await get_header(self.bot.session, info['url'], 'CONTENT-TYPE')
                 print("Got content type", content_type)
 
             except Exception as e:
-                print("[Warning] Failed to get content type for url " + song_url)
-                print(e)
+                print("[Warning] Failed to get content type for url %s (%s)" % (song_url, e))
                 content_type = None
 
             if content_type:
@@ -117,7 +119,7 @@ class Playlist(EventEmitter):
                     entry = PlaylistEntry(
                         self,
                         items[url_field],
-                        items['title'],
+                        items.get('title', 'Untitled'),
                         items.get('duration', 0) or 0,
                         self.downloader.ytdl.prepare_filename(items),
                         **meta
@@ -292,9 +294,7 @@ class PlaylistEntry:
 
                 if expected_fname_noex in flistdir:
                     try:
-                        with aiohttp.Timeout(5):
-                            async with self.playlist.bot.session.head(self.url) as resp:
-                                rsize = int(resp.headers['CONTENT-LENGTH'])
+                        rsize = int(await get_header(self.playlist.bot.session, self.url, 'CONTENT-LENGTH'))
                     except:
                         rsize = 0
 
@@ -310,20 +310,29 @@ class PlaylistEntry:
                     if lsize != rsize:
                         await self._really_download(hash=True)
                     else:
-                        print("[Download] Cached:", self.url)
+                        # print("[Download] Cached:", self.url)
                         self.filename = lfile
 
                 else:
+                    # print("File not found in cache (%s)" % expected_fname_noex)
                     await self._really_download(hash=True)
 
             else:
-                # print("Handling " + extractor)
-                flistdir = [f.rsplit('.', 1)[0] for f in os.listdir(self.download_folder)]
+                ldir = os.listdir(self.download_folder)
+                flistdir = [f.rsplit('.', 1)[0] for f in ldir]
                 expected_fname_noex = os.path.basename(self.expected_filename.rsplit('.', 1)[0])
 
-                if expected_fname_noex in flistdir:
-                    self.filename = self.expected_filename
+                # idk wtf this is but its probably legacy code
+                # or i have youtube to blame for changing shit again
+
+                if self.expected_filename in ldir:
+                    self.filename = ldir.index(self.expected_filename)
                     print("[Download] Cached:", self.url)
+
+                elif expected_fname_noex in flistdir:
+                    self.filename = ldir.index(expected_fname_noex)
+                    print("[Download] Cached (different extension):", self.url)
+
                 else:
                     await self._really_download()
 
@@ -337,6 +346,7 @@ class PlaylistEntry:
         finally:
             self._is_downloading = False
 
+    # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
         print("[Download] Started:", self.url)
 
@@ -413,7 +423,10 @@ def md5sum(filename, limit=0):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
 
-async def get_content_type(session, url):
-    with aiohttp.Timeout(5):
+async def get_header(session, url, headerfield=None, *, timeout=5):
+    with aiohttp.Timeout(timeout):
         async with session.head(url) as response:
-            return response.headers.get('CONTENT-TYPE')
+            if headerfield:
+                return response.headers.get(headerfield)
+            else:
+                return response.headers
