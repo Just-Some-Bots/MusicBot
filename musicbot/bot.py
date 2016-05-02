@@ -1571,14 +1571,12 @@ class MusicBot(discord.Client):
             if rawudata:
                 data.extend(rawudata)
 
-        bdata = b'\n'.join(d.encode('utf-8') for d in data)
+        with BytesIO() as sdata:
+            sdata.writelines(d.encode('utf8') + b'\n' for d in data)
+            sdata.seek(0)
 
-        bd = BytesIO()
-        bd.write(bdata)
-        bd.seek(0)
-
-        # TODO: Fix naming (Discord20API-ids.txt)
-        await self.send_file(author, bd, filename='%s-ids-%s.txt' % (server.name.replace(' ', '_'), cat))
+            # TODO: Fix naming (Discord20API-ids.txt)
+            await self.send_file(author, sdata, filename='%s-ids-%s.txt' % (server.name.replace(' ', '_'), cat))
 
         return Response(":mailbox_with_mail:", delete_after=20)
 
