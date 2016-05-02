@@ -1523,6 +1523,51 @@ class MusicBot(discord.Client):
 
         return Response('Cleaned up {} message{}.'.format(msgs, '' if msgs == 1 else 's'), delete_after=15)
 
+    async def cmd_pldump(self, channel, song_url):
+        """
+        Usage:
+            {command_prefix}pldump url
+
+        Dumps the individual urls of a playlist
+        """
+
+        try:
+            info = await self.downloader.extract_info(self.loop, song_url.strip('<>'), download=False, process=False)
+        except Exception as e:
+            raise exceptions.CommandError("Could not extract info from input url\n%s\n" % e, expire_in=25)
+
+        if not info:
+            raise exceptions.CommandError("Could not extract info from input url, no data.", expire_in=25)
+
+        if not info.get('entries', None):
+            # TODO: Retarded playlist checking
+            # set(url, webpageurl).difference(set(url))
+
+            if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
+                raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
+            else:
+                return await self.cmd_pldump(channel, info.get(''))
+
+        linegens = defaultdict(lambda: None, **{
+            "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
+            "soundcloud": lambda d: d['url'],
+            "bandcamp":   lambda d: d['url']
+        })
+
+        exfunc = linegens[info['extractor'].split(':')[0]]
+
+        if not exfunc:
+            raise exceptions.CommandError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
+
+        with BytesIO() as fcontent:
+            for item in info['entries']:
+                fcontent.write(exfunc(item).encode('utf8') + b'\n')
+
+            fcontent.seek(0)
+            await self.send_file(channel, fcontent, filename='playlist.txt', content="Here's the url dump for <%s>" % song_url)
+
+        return Response(":mailbox_with_mail:", delete_after=20)
+
     async def cmd_listids(self, server, author, leftover_args, cat='all'):
         """
         Usage:
