@@ -330,7 +330,7 @@ class PlaylistEntry:
                     print("[Download] Cached:", self.url)
 
                 elif expected_fname_noex in flistdir:
-                    self.filename = ldir.index(expected_fname_noex)
+                    self.filename = flistdir.index(expected_fname_noex)
                     print("[Download] Cached (different extension):", self.url)
 
                 else:
