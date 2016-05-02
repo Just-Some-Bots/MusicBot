@@ -326,7 +326,7 @@ class PlaylistEntry:
                 # or i have youtube to blame for changing shit again
 
                 if self.expected_filename in ldir:
-                    self.filename = ldir.index(expected_fname_noex)
+                    self.filename = ldir.index(self.expected_filename)
                     print("[Download] Cached:", self.url)
 
                 elif expected_fname_noex in flistdir:
