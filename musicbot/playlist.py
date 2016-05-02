@@ -9,7 +9,7 @@ from random import shuffle
 from itertools import islice
 from collections import deque
 
-from .exceptions import ExtractionError
+from .exceptions import ExtractionError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
 
 
@@ -53,8 +53,8 @@ class Playlist(EventEmitter):
             raise ExtractionError('Could not extract information from %s' % song_url)
 
         # TODO: Sort out what happens next when this happens
-        # if info.get('_type', None) == 'playlist':
-        #     return await self.import_from(song_url, **meta)
+        if info.get('_type', None) == 'playlist':
+            raise WrongEntryTypeError("This is a playlist.", True, info.get('webpage_url', None) or info.get('url', None))
 
         if info['extractor'] in ['generic', 'Dropbox']:
             try:
@@ -70,7 +70,8 @@ class Playlist(EventEmitter):
 
             if content_type:
                 if content_type.startswith(('application/', 'image/')):
-                    raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
+                    if '/ogg' not in content_type: # How does a server say `application/ogg` what the actual fuck
+                        raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
                 elif not content_type.startswith(('audio/', 'video/')):
                     print("[Warning] Questionable content type \"%s\" for url %s" % (content_type, song_url))
@@ -174,7 +175,45 @@ class Playlist(EventEmitter):
                     baditems += 1
                     print("There was an error adding the song {}: {}: {}\n".format(
                         entry_data['id'], e.__class__.__name__, e))
+            else:
+                baditems += 1
 
+        if baditems:
+            print("Skipped %s bad entries" % baditems)
+
+        return gooditems
+
+    async def async_process_sc_bc_playlist(self, playlist_url, **meta):
+        """
+            Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
+
+            :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+            :param meta: Any additional metadata to add to the playlist entry
+        """
+
+        try:
+            info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False, process=False)
+        except Exception as e:
+            raise ExtractionError('Could not extract information from {}\n\n{}'.format(playlist_url, e))
+
+        if not info:
+            raise ExtractionError('Could not extract information from %s' % playlist_url)
+
+        gooditems = []
+        baditems = 0
+        for entry_data in info['entries']:
+            if entry_data:
+                song_url = entry_data['url']
+
+                try:
+                    entry, elen = await self.add_entry(song_url, **meta)
+                    gooditems.append(entry)
+                except ExtractionError:
+                    baditems += 1
+                except Exception as e:
+                    baditems += 1
+                    print("There was an error adding the song {}: {}: {}\n".format(
+                        entry_data['id'], e.__class__.__name__, e))
             else:
                 baditems += 1
 

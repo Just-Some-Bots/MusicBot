@@ -831,6 +831,9 @@ class MusicBot(discord.Client):
             # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
             # But this is probably fine
 
+        # TODO: Possibly add another check here to see about things like the bandcamp issue
+        # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
+
         if 'entries' in info:
             # I have to do exe extra checks anyways because you can request an arbitrary number of search results
             if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
@@ -853,9 +856,9 @@ class MusicBot(discord.Client):
                     expire_in=30
                 )
 
-            if info['extractor'] == 'youtube:playlist':
+            if info['extractor'].lower() in ['youtube:playlist', 'soundcloud:set', 'bandcamp:album']:
                 try:
-                    return await self._cmd_ytplaylist(player, channel, author, permissions, song_url)
+                    return await self._cmd_play_playlist_async(player, channel, author, permissions, song_url, info['extractor'])
                 except exceptions.CommandError:
                     raise
                 except Exception as e:
@@ -929,7 +932,18 @@ class MusicBot(discord.Client):
                     expire_in=30
                 )
 
-            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+            try:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
+            except exceptions.WrongEntryTypeError as e:
+                if e.use_url == song_url:
+                    print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
+
+                if self.config.debug_mode:
+                    print("[Info] Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
+                    print("[Info] Using \"%s\" instead" % e.use_url)
+
+                return await self.cmd_play(player, channel, author, permissions, leftover_args, e.use_url)
 
             reply_text = "Enqueued **%s** to be played. Position in queue: %s"
             btext = entry.title
@@ -950,7 +964,7 @@ class MusicBot(discord.Client):
 
         return Response(reply_text, delete_after=30)
 
-    async def _cmd_ytplaylist(self, player, channel, author, permissions, playlist_url):
+    async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
@@ -968,15 +982,28 @@ class MusicBot(discord.Client):
             channel, "Processing %s songs..." % num_songs)  # TODO: From playlist_title
         await self.send_typing(channel)
 
-        try:
-            entries_added = await player.playlist.async_process_youtube_playlist(
-                playlist_url, channel=channel, author=author)
-            # TODO: Add hook to be called after each song
-            # TODO: Add permissions
+        if extractor_type == 'youtube:playlist':
+            try:
+                entries_added = await player.playlist.async_process_youtube_playlist(
+                    playlist_url, channel=channel, author=author)
+                # TODO: Add hook to be called after each song
+                # TODO: Add permissions
 
-        except Exception:
-            traceback.print_exc()
-            raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
+            except Exception:
+                traceback.print_exc()
+                raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
+
+        elif extractor_type.lower() in ['soundcloud:set', 'bandcamp:album']:
+            try:
+                entries_added = await player.playlist.async_process_sc_bc_playlist(
+                    playlist_url, channel=channel, author=author)
+                # TODO: Add hook to be called after each song
+                # TODO: Add permissions
+
+            except Exception:
+                traceback.print_exc()
+                raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
+
 
         songs_processed = len(entries_added)
         drop_count = 0
