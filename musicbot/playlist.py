@@ -61,7 +61,7 @@ class Playlist(EventEmitter):
                 # unfortunately this is literally broken
                 # https://github.com/KeepSafe/aiohttp/issues/758
                 # https://github.com/KeepSafe/aiohttp/issues/852
-                content_type = await get_content_type(self.bot.session, info['url'])
+                content_type = await get_header(self.bot.session, info['url'], 'CONTENT-TYPE')
                 print("Got content type", content_type)
 
             except Exception as e:
@@ -294,9 +294,7 @@ class PlaylistEntry:
 
                 if expected_fname_noex in flistdir:
                     try:
-                        with aiohttp.Timeout(5):
-                            async with self.playlist.bot.session.head(self.url) as resp:
-                                rsize = int(resp.headers['CONTENT-LENGTH'])
+                        rsize = int(await get_header(self.playlist.bot.session, self.url, 'CONTENT-LENGTH'))
                     except:
                         rsize = 0
 
@@ -312,10 +310,11 @@ class PlaylistEntry:
                     if lsize != rsize:
                         await self._really_download(hash=True)
                     else:
-                        print("[Download] Cached:", self.url)
+                        # print("[Download] Cached:", self.url)
                         self.filename = lfile
 
                 else:
+                    # print("File not found in cache (%s)" % expected_fname_noex)
                     await self._really_download(hash=True)
 
             else:
@@ -424,7 +423,10 @@ def md5sum(filename, limit=0):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
 
-async def get_content_type(session, url):
-    with aiohttp.Timeout(5):
+async def get_header(session, url, headerfield=None, *, timeout=5):
+    with aiohttp.Timeout(timeout):
         async with session.head(url) as response:
-            return response.headers.get('CONTENT-TYPE')
+            if headerfield:
+                return response.headers.get(headerfield)
+            else:
+                return response.headers
