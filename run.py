@@ -1,8 +1,9 @@
+from __future__ import print_function
+
 import os
 import gc
 import sys
 import time
-import asyncio
 import traceback
 import subprocess
 
@@ -143,6 +144,8 @@ def main():
         input("Press enter to continue . . .")
 
         return
+
+    import asyncio
 
     tried_requirementstxt = False
     tryagain = True
