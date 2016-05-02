@@ -191,7 +191,7 @@ class MusicBot(discord.Client):
                     joined_servers.append(channel.server)
                 except Exception as e:
                     if self.config.log_exceptions:
-                        await self.log_to_channel(":warning: Could not join %s" % channel.name, channel)
+                        await self.log_to_channel(":warning: Could not join %s\n```python\n%s\n```" % (channel.name, traceback.print_exc()), channel)
                     print("Failed to join", channel.name)
 
             elif channel:
@@ -674,7 +674,7 @@ class MusicBot(discord.Client):
                     await self.on_finished_playing(await self.get_player(owner_vc))
             else:
                 if self.config.log_exceptions:
-                    await self.log_to_master("Owner not found in a voice channel, could not autosumm")
+                    await self.log_to_master("Owner not found in a voice channel, could not autosummon")
                 print("Owner not found in a voice channel, could not autosummon.")
 
         print()
