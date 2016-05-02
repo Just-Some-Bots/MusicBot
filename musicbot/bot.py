@@ -322,6 +322,23 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.voice_clients[server.id].channel = channel
 
+    async def log_to_channel(self, string, channel):
+        if self.config.log_subchannels:
+            for i in self.config.log_subchannels:
+                subchannel = self.get_channel(i)
+                server = subchannel.server
+                if channel in server.channels:
+                    await self.safe_send_message(subchannel, "`{}` ".format(time.strftime("%H:%M:%S")) + string)
+
+        if self.config.log_masterchannel:
+            master = self.get_channel(self.config.log_masterchannel)
+            await self.safe_send_message(master, "`{}` `{}` ".format(time.strftime("%H:%M:%S"), channel.server.name) + string)
+
+    async def log_to_master(self, string):
+        if self.config.log_masterchannel:
+            master = self.get_channel(self.config.log_masterchannel)
+            await self.safe_send_message(master, "`{}` ".format(time.strftime("%H:%M:%S")) + string)
+
     async def get_player(self, channel, create=False):
         server = channel.server
 
@@ -375,6 +392,9 @@ class MusicBot(discord.Client):
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
+
+            if self.config.log_queue_changes:
+                await self.log_to_channel(":notes: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name), channel)
 
     async def on_resume(self, entry, **_):
         await self.update_now_playing(entry)
@@ -552,6 +572,8 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
+        await self.log_to_master(":computer: MusicBot started at `{}` on `{}`".format(time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
                 "Your OwnerID is incorrect or you've used the wrong credentials.",
@@ -589,6 +611,23 @@ class MusicBot(discord.Client):
             print("Not bound to any text channels")
 
         print()
+
+        if self.config.log_masterchannel:
+            print("Logging to master channel:")
+            channel = self.get_channel(self.config.log_masterchannel)
+            self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
+        if self.config.log_subchannels:
+            print("Logging to subchannels:")
+            chlist = [self.get_channel(i) for i in self.config.log_subchannels if i]
+            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+        if self.config.log_masterchannel or self.config.log_subchannels:
+            print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
+            print("  Queue: " + ['Disabled', 'Enabled'][self.config.log_queue_changes])
+            print("  Commands: " + ['Disabled', 'Enabled'][self.config.log_commands])
+        else:
+            print("Not logging to a text channel")
+
+        print()
         print("Options:")
 
         self.safe_print("  Command prefix: " + self.config.command_prefix)
@@ -602,8 +641,7 @@ class MusicBot(discord.Client):
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
-            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
-        print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
+            print("  Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
         print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
         print()
 
@@ -613,8 +651,10 @@ class MusicBot(discord.Client):
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
                 print("Deleting old audio cache")
+                await self.log_to_master(":information_source: Deleting old audio cache")
             else:
                 print("Could not delete old audio cache, moving on.")
+                await self.log_to_master(":information_source: Could not delete audio cache")
 
         if self.config.autojoin_channels:
             await self._autojoin_channels()
@@ -1609,15 +1649,21 @@ class MusicBot(discord.Client):
 
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            if self.config.log_commands:
+                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is blacklisted".format(message.author, message_content), message.channel)
             return
 
         elif self.config.white_list_check and int(
                 message.author.id) not in self.whitelist and message.author.id != self.config.owner_id:
             self.safe_print("[User not whitelisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            if self.config.log_commands:
+                await self.log_to_channel(":no_pedestrians: `{0.name}#{0.discriminator}` tried to use `{1}` but is not whitelisted".format(message.author, message_content), message.channel)
             return
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            if self.config.log_commands:
+                await self.log_to_channel(":notepad_spiral: `{0.name}#{0.discriminator}` used `{1}`".format(message.author, message_content), message.channel)
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -1723,8 +1769,15 @@ class MusicBot(discord.Client):
 
         except Exception:
             traceback.print_exc()
-            if self.config.debug_mode:
-                await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+
+            if self.config.log_exceptions:
+                await self.log_to_channel(":warning: MusicBot caused an exception:\n```python\n%s\n```" % traceback.format_exc(), message.channel)
+
+    async def on_server_join(self, server):
+        await self.log_to_master(":door: MusicBot joined: `%s`" % server.name)
+
+    async def on_server_remove(self, server):
+        await self.log_to_master(":door: MusicBot left: `%s`" % server.name)
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
