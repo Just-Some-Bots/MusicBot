@@ -231,18 +231,6 @@ class MusicBot(discord.Client):
             if server.id in self.voice_clients:
                 return self.voice_clients[server.id]
 
-            payload = {
-                'op': 4,
-                'd': {
-                    'guild_id': channel.server.id,
-                    'channel_id': channel.id,
-                    'self_mute': False,
-                    'self_deaf': False
-                }
-            }
-
-            await self.ws.send(utils.to_json(payload))
-
             s_id = self.ws.wait_for('VOICE_STATE_UPDATE', lambda d: d.get('user_id') == self.user.id)
             _voice_data = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: True)
 
