@@ -167,6 +167,7 @@ class MusicBot(discord.Client):
                 continue
 
             if channel and channel.type == discord.ChannelType.voice:
+                await self.log_to_master(":microphone: Attempting to autojoin %s in `%s`" % (channel.name, channel.server.name))
                 self.safe_print("Attempting to autojoin %s in %s" % (channel.name, channel.server.name))
 
                 chperms = channel.permissions_for(channel.server.me)
@@ -256,8 +257,10 @@ class MusicBot(discord.Client):
             retries = 3
             for x in range(retries):
                 try:
+                    await self.log_to_master(":microphone: Attempting connection to `%s`" % server.name)
                     print("Attempting connection...")
                     await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
+                    await self.log_to_master(":microphone: Connection established to `%s`" % server.name)
                     print("Connection established.")
                     break
                 except:
