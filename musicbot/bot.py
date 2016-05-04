@@ -1808,9 +1808,6 @@ class MusicBot(discord.Client):
         if not all([before, after]):
             return
 
-        if before.voice_channel == after.voice_channel:
-            return
-
         if before.server.id not in self.players:
             return
 
@@ -1818,6 +1815,26 @@ class MusicBot(discord.Client):
             return
 
         my_voice_channel = after.server.me.voice_channel  # This should always work, right?
+        auto_paused = self.server_specific_data[after.server]['auto_paused']
+
+        player = await self.get_player(my_voice_channel)
+
+        num_deaf = sum(1 for m in my_voice_channel.voice_members if (
+            m.deaf or m.self_deaf))
+
+        if (len(my_voice_channel.voice_members) - 1) != num_deaf:
+            if auto_paused and player.is_paused:
+                print("[config:autopause] Unpausing")
+                self.server_specific_data[after.server]['auto_paused'] = False
+                player.resume()
+        else:
+            if not auto_paused and player.is_playing:
+                print("[config:autopause] Pausing")
+                self.server_specific_data[after.server]['auto_paused'] = True
+                player.pause()
+
+        if before.voice_channel == after.voice_channel:
+            return
 
         if not my_voice_channel:
             return
@@ -1830,9 +1847,6 @@ class MusicBot(discord.Client):
             return  # Not my channel
 
         moving = before == before.server.me
-        auto_paused = self.server_specific_data[after.server]['auto_paused']
-
-        player = await self.get_player(my_voice_channel)
 
         if sum(1 for m in my_voice_channel.voice_members if m != after.server.me):
             if auto_paused and player.is_paused:
