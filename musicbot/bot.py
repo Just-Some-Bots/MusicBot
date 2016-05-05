@@ -495,7 +495,7 @@ class MusicBot(discord.Client):
 
         try:
             gathered.cancel()
-            # self.loop.run_forever() # wtf even is this for
+            self.loop.run_until_complete(gathered)
             gathered.exception()
         except: # Can be ignored
             pass
