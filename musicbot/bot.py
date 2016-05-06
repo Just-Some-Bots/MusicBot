@@ -326,8 +326,8 @@ class MusicBot(discord.Client):
         await self.the_voice_clients.pop(server.id).disconnect()
 
     async def disconnect_all_voice_clients(self):
-        for vc in self.the_voice_clients.copy():
-            await self.disconnect_voice_client(self.the_voice_clients[vc].channel.server)
+        for vc in self.the_voice_clients.copy().values():
+            await self.disconnect_voice_client(vc.channel.server)
 
     async def _update_voice_state(self, channel, *, mute=False, deaf=False):
         if isinstance(channel, Object):
