@@ -1537,6 +1537,7 @@ class MusicBot(discord.Client):
 
             if entry.author == self.user:
                 await self.safe_delete_message(entry)
+                await asyncio.sleep(0.21)
                 msgs += 1
 
             if is_possible_command_invoke(entry) and delete_invokes:
