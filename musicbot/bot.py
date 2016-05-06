@@ -523,12 +523,7 @@ class MusicBot(discord.Client):
                 raise self.exit_signal
 
     async def logout(self):
-        for vc in self.the_voice_clients.values():
-            try:
-                await vc.disconnect()
-            except:
-                continue
-
+        await self.disconnect_all_voice_clients()
         return await super().logout()
 
     async def on_error(self, event, *args, **kwargs):
@@ -1337,7 +1332,7 @@ class MusicBot(discord.Client):
             if player.playlist.peek():
                 if player.playlist.peek()._is_downloading:
                     print(player.playlist.peek()._waiting_futures[0].__dict__)
-                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek())
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
 
                 elif player.playlist.peek().is_downloaded:
                     print("The next song will be played shortly.  Please wait.")
