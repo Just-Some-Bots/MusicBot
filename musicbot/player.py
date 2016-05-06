@@ -77,7 +77,9 @@ class PatchedBuff:
 class MusicPlayerState(Enum):
     STOPPED = 0  # When the player isn't playing anything
     PLAYING = 1  # The player is actively playing music.
-    PAUSED = 2  # The player is paused on a song.
+    PAUSED = 2   # The player is paused on a song.
+    WAITING = 3  # The player has finished its song but is still downloading the next one
+    DEAD = 4     # The player has been killed.
 
     def __str__(self):
         return self.name
@@ -146,23 +148,21 @@ class MusicPlayer(EventEmitter):
         raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
 
     def kill(self):
-        self._kill_current_player()
+        self.state = MusicPlayerState.DEAD
         self.playlist.clear()
+        self._events.clear()
+        self._kill_current_player()
 
     def _playback_finished(self):
         entry = self._current_entry
 
         if self._current_player:
             self._current_player.after = None
-            try:
-                self._current_player.stop()
-            except OSError:
-                pass
+            self._kill_current_player()
 
         self._current_entry = None
-        self._current_player = None
 
-        if not self.is_stopped:
+        if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
 
         if not self.bot.config.save_videos and entry:
@@ -216,6 +216,9 @@ class MusicPlayer(EventEmitter):
         """
         if self.is_paused:
             return self.resume()
+
+        if self.is_dead:
+            return
 
         with await self._play_lock:
             if self.is_stopped or _continue:
@@ -273,6 +276,10 @@ class MusicPlayer(EventEmitter):
     @property
     def is_stopped(self):
         return self.state == MusicPlayerState.STOPPED
+
+    @property
+    def is_dead(self):
+        return self.state == MusicPlayerState.DEAD
 
     @property
     def progress(self):
