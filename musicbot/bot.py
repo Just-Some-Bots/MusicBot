@@ -147,10 +147,10 @@ class MusicBot(discord.Client):
         return True
 
     # TODO: autosummon option to a specific channel
-    async def _auto_summon(self, channel=None):
+    async def _auto_summon(self):
         owner = self._get_owner(voice=True)
         if owner:
-            self.safe_print("Found owner in voice channel \"%s\", attempting to join..." % owner.voice_channel.name)
+            self.safe_print("Found owner in \"%s\", attempting to join..." % owner.voice_channel.name)
             # TODO: Effort
             await self.cmd_summon(owner.voice_channel, owner, None)
             return owner.voice_channel
@@ -283,6 +283,38 @@ class MusicBot(discord.Client):
 
     async def move_voice_client(self, channel):
         await self._update_voice_state(channel)
+
+    async def reconnect_voice_client(self, server):
+        if server.id not in self.the_voice_clients:
+            return
+
+        vc = self.the_voice_clients.pop(server.id)
+        _paused = False
+
+        player = None
+        if server.id in self.players:
+            player = self.players[server.id]
+            if player.is_playing:
+                player.pause()
+                _paused = True
+
+        try:
+            await vc.disconnect()
+        except:
+            pass
+
+        await asyncio.sleep(0.1)
+
+        if player:
+            player.voice_client = await self.get_voice_client(vc.channel)
+
+            if player._current_player:
+                player._current_player.player = player.voice_client.play_audio
+                player._current_player._resumed.clear()
+                player._current_player._connected.set()
+
+            if player.is_paused and not _paused:
+                player.resume()
 
     async def disconnect_voice_client(self, server):
         if server.id not in self.the_voice_clients:
@@ -1839,6 +1871,12 @@ class MusicBot(discord.Client):
                 print("[config:autopause] Pausing")
                 self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
+
+    async def on_server_update(self, before:discord.Server, after:discord.Server):
+        if before.region != after.region:
+            self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
+
+            await self.reconnect_voice_client(after)
 
 
 if __name__ == '__main__':
