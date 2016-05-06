@@ -1,4 +1,5 @@
 import os
+import json
 import asyncio
 import aiohttp
 import datetime
@@ -70,7 +71,7 @@ class Playlist(EventEmitter):
 
             if content_type:
                 if content_type.startswith(('application/', 'image/')):
-                    if '/ogg' not in content_type: # How does a server say `application/ogg` what the actual fuck
+                    if '/ogg' not in content_type:  # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
                 elif not content_type.startswith(('audio/', 'video/')):
@@ -149,7 +150,6 @@ class Playlist(EventEmitter):
             :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
             :param meta: Any additional metadata to add to the playlist entry
         """
-
 
         try:
             info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False, process=False)
@@ -293,23 +293,45 @@ class PlaylistEntry:
         return bool(self.filename)
 
     @classmethod
-    def from_json(cls, data):
-        pass
+    def from_json(cls, playlist, jsonstring):
+        data = json.loads(jsonstring)
+        print(data)
+        # TODO: version check
+        url = data['url']
+        title = data['title']
+        duration = data['duration']
+        downloaded = data['downloaded']
+        filename = data['filename'] if downloaded else None
+        meta = {}
+
+        # TODO: Better [name] fallbacks
+        if 'channel' in data['meta']:
+            ch = playlist.bot.get_channel(data['meta']['channel']['id'])
+            meta['channel'] = ch or data['meta']['channel']['name']
+
+        if 'author' in data['meta']:
+            meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+
+        return cls(playlist, url, title, duration, filename, **meta)
 
     def to_json(self):
         data = {
+            'version': 1,
             'url': self.url,
             'title': self.title,
             'duration': self.duration,
-            # I think filename might have to be regenerated
-
-            # I think these are only channels and members (author)
-            'meta': {i: {'type': self.meta[i].__class__.__name__, 'id': self.meta[i].id} for i in self.meta}
+            'downloaded': self.is_downloaded,
+            'filename': self.filename,
+            'meta': {
+                i: {
+                    'type': self.meta[i].__class__.__name__,
+                    'id': self.meta[i].id,
+                    'name': self.meta[i].name
+                    } for i in self.meta
+                }
             # Actually I think I can just getattr instead, getattr(discord, type)
-
-            # I do need to test if these can be pickled properly
         }
-        return data
+        return json.dumps(data, indent=2)
 
     # noinspection PyTypeChecker
     async def _download(self):
@@ -413,7 +435,6 @@ class PlaylistEntry:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
 
-
     def get_ready_future(self):
         """
         Returns a future that will fire when the song is ready to be played. The future will either fire with the result (being the entry) or an exception
@@ -461,6 +482,7 @@ def md5sum(filename, limit=0):
         for chunk in iter(lambda: f.read(8192), b""):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
+
 
 async def get_header(session, url, headerfield=None, *, timeout=5):
     with aiohttp.Timeout(timeout):
