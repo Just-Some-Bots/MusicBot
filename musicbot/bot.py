@@ -313,7 +313,7 @@ class MusicBot(discord.Client):
                 player._current_player._resumed.clear()
                 player._current_player._connected.set()
 
-            if player.is_paused and not _paused:
+            if player.is_paused and _paused:
                 player.resume()
 
     async def disconnect_voice_client(self, server):
