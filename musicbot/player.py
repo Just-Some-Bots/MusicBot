@@ -16,12 +16,12 @@ class PatchedBuff:
         PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
 
-    def __init__(self, buff):
+    def __init__(self, buff, *, draw=False):
         self.buff = buff
         self.frame_count = 0
         self.volume = 1.0
 
-        self.draw = False
+        self.draw = draw
         self.use_audioop = True
         self.frame_skip = 2
         self.rmss = deque([2048], maxlen=90)
@@ -303,6 +303,7 @@ class MusicPlayer(EventEmitter):
 # Get duration with ffprobe
 #   ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
 # This is also how I fix the format checking issue for now
+# ffprobe -v quiet -print_format json -show_format stream
 
 # Normalization filter
 # -af dynaudnorm
