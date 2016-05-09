@@ -719,51 +719,52 @@ class MusicBot(discord.Client):
 
                 return Response('user has been removed from the whitelist', reply=True, delete_after=10)
 
-    async def cmd_blacklist(self, message, option, username):
+    async def cmd_blacklist(self, message, user_mentions, option, something):
         """
         Usage:
-            {command_prefix}blacklist [ + | - | add | remove ] @UserName
+            {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
 
-        Adds or removes the user to the blacklist.
+        Add or remove users to the blacklist.
         Blacklisted users are forbidden from using bot commands. Blacklisting a user also removes them from the whitelist.
         """
 
-        user_id = extract_user_id(username)
-        if not user_id:
-            raise exceptions.CommandError('Invalid user specified', expire_in=30)
-
-        if str(user_id) == self.config.owner_id:
-            return Response("The owner cannot be blacklisted.", delete_after=10)
+        if not user_mentions:
+            raise exceptions.CommandError("No users listed.", expire_in=20)
 
         if option not in ['+', '-', 'add', 'remove']:
             raise exceptions.CommandError(
                 'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
             )
 
+        for user in user_mentions.copy():
+            if user.id == self.config.owner_id:
+                print("[Commands:Blacklist] The owner cannot be blacklisted.")
+                user_mentions.remove(user)
+
+        old_len = len(self.blacklist)
+
         if option in ['+', 'add']:
-            self.blacklist.add(user_id)
+            self.blacklist.update(user.id for user in user_mentions)
+            self.whitelist.difference_update(user.id for user in user_mentions)
+
             write_file(self.config.blacklist_file, self.blacklist)
+            write_file(self.config.whitelist_file, self.whitelist)
 
-            if user_id in self.whitelist:
-                self.whitelist.remove(user_id)
-                write_file(self.config.whitelist_file, self.whitelist)
-                return Response(
-                    'user has been added to the blacklist and removed from the whitelist',
-                    reply=True, delete_after=10
-                )
-
-            else:
-                return Response('user has been added to the blacklist', reply=True, delete_after=10)
+            return Response(
+                '%s users have been added to the blacklist' % (len(self.blacklist) - old_len),
+                reply=True, delete_after=10
+            )
 
         else:
-            if user_id not in self.blacklist:
-                return Response('user is not in the blacklist', reply=True, delete_after=10)
+            if self.blacklist.isdisjoint(user.id for user in user_mentions):
+                return Response('none of those users are in the blacklist.', reply=True, delete_after=10)
 
             else:
-                self.blacklist.remove(user_id)
+                self.blacklist.difference_update(user.id for user in user_mentions)
                 write_file(self.config.blacklist_file, self.blacklist)
 
-                return Response('user has been removed from the blacklist', reply=True, delete_after=10)
+                return Response(
+                    '%s users have been removed from the blacklist' % (old_len - len(self.blacklist)), reply=True, delete_after=10)
 
     async def cmd_id(self, author, user_mentions):
         """
