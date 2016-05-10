@@ -660,28 +660,43 @@ class MusicBot(discord.Client):
         print()
         # t-t-th-th-that's all folks!
 
-    async def cmd_help(self):
+    async def cmd_help(self, command=None):
         """
         Usage:
-            {command_prefix}help
+            {command_prefix}help [command]
 
-        Prints a help message
+        Prints a help message.
+        If a command is specified, it prints a help message for that command.
+        Otherwise, it lists the available commands.
         """
 
-        helpmsg = "**Commands**\n```"
-        commands = []
+        if command:
+            cmd = getattr(self, 'cmd_' + command, None)
+            if cmd:
+                return Response(
+                    "```\n{}```".format(
+                        dedent(cmd.__doc__),
+                        command_prefix=self.config.command_prefix
+                    ),
+                    delete_after=60
+                )
+            else:
+                return Response("No such command", delete_after=10)
 
-        # TODO: Get this to format nicely
-        for att in dir(self):
-            if att.startswith('cmd_') and att != 'cmd_help':
-                command_name = att.replace('cmd_', '').lower()
-                commands.append("{}{}".format(self.config.command_prefix, command_name))
+        else:
+            helpmsg = "**Commands**\n```"
+            commands = []
 
-        helpmsg += ", ".join(commands)
-        helpmsg += "```"
-        helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+            for att in dir(self):
+                if att.startswith('cmd_') and att != 'cmd_help':
+                    command_name = att.replace('cmd_', '').lower()
+                    commands.append("{}{}".format(self.config.command_prefix, command_name))
 
-        return Response(helpmsg, reply=True, delete_after=60)
+            helpmsg += ", ".join(commands)
+            helpmsg += "```"
+            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+
+            return Response(helpmsg, reply=True, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
