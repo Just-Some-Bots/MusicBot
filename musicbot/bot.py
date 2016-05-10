@@ -1530,17 +1530,15 @@ class MusicBot(discord.Client):
         delete_invokes = True
         delete_all = channel.permissions_for(author).manage_messages or self.config.owner_id == author.id
 
-        def selfcheck(message):
-            return message.author == self.user
-        def othercheck(message):
+        def check(message):
             if is_possible_command_invoke(message) and delete_invokes:
                 return delete_all or message.author == author
+            return message.author == self.user
 
         # For some reason you need manage messages perm to bulk delete any msg at all, even the client's own
         if self.user.bot:
             if channel.permissions_for(channel.server.get_member(self.user.id)).manage_messages:
-                deleted = await self.purge_from(channel, check=selfcheck, limit=search_range, before=message)
-                deleted += await self.purge_from(channel, check=othercheck, limit=search_range, before=message)
+                deleted = await self.purge_from(channel, check=check, limit=search_range, before=message)
                 return Response('Cleaned up {} message{}.'.format(len(deleted), '' if len(deleted) == 1 else 's'), delete_after=15)
 
         deleted = 0
