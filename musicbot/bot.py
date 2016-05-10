@@ -1537,30 +1537,31 @@ class MusicBot(discord.Client):
                 return delete_all or message.author == author
 
         # For some reason you need manage messages perm to bulk delete any msg at all, even the client's own
-        if channel.permissions_for(channel.server.get_member(self.user.id)).manage_messages:
-            deleted = await self.purge_from(channel, check=selfcheck, limit=search_range, before=message)
-            deleted += await self.purge_from(channel, check=othercheck, limit=search_range, before=message)
-            return Response('Cleaned up {} message{}.'.format(len(deleted), '' if len(deleted) == 1 else 's'), delete_after=15)
-        else:
-            deleted = 0
-            async for entry in self.logs_from(channel, search_range, before=message):
-                if entry == self.server_specific_data[channel.server]['last_np_msg']:
-                    continue
+        if self.user.bot:
+            if channel.permissions_for(channel.server.get_member(self.user.id)).manage_messages:
+                deleted = await self.purge_from(channel, check=selfcheck, limit=search_range, before=message)
+                deleted += await self.purge_from(channel, check=othercheck, limit=search_range, before=message)
+                return Response('Cleaned up {} message{}.'.format(len(deleted), '' if len(deleted) == 1 else 's'), delete_after=15)
 
-                if entry.author == self.user:
-                    await self.safe_delete_message(entry)
-                    await asyncio.sleep(0.21)
-                    deleted += 1
+        deleted = 0
+        async for entry in self.logs_from(channel, search_range, before=message):
+            if entry == self.server_specific_data[channel.server]['last_np_msg']:
+                continue
 
-                if is_possible_command_invoke(entry) and delete_invokes:
-                    if delete_all or entry.author == author:
-                        try:
-                            await self.safe_delete_message(entry)
-                            await asyncio.sleep(0.21)
-                            deleted += 1
-                        except discord.Forbidden:
-                            delete_invokes = False
-            return Response('Cleaned up {} message{}.'.format(deleted, '' if deleted == 1 else 's'), delete_after=15)
+            if entry.author == self.user:
+                await self.safe_delete_message(entry)
+                await asyncio.sleep(0.21)
+                deleted += 1
+
+            if is_possible_command_invoke(entry) and delete_invokes:
+                if delete_all or entry.author == author:
+                    try:
+                        await self.safe_delete_message(entry)
+                        await asyncio.sleep(0.21)
+                        deleted += 1
+                    except discord.Forbidden:
+                        delete_invokes = False
+        return Response('Cleaned up {} message{}.'.format(deleted, '' if deleted == 1 else 's'), delete_after=15)
 
     async def cmd_pldump(self, channel, song_url):
         """
