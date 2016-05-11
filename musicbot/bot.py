@@ -4,6 +4,7 @@ import time
 import shlex
 import shutil
 import inspect
+import aiohttp
 import discord
 import asyncio
 import traceback
@@ -70,6 +71,8 @@ class MusicBot(discord.Client):
         self.the_voice_clients = {}
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
+        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
