@@ -364,19 +364,34 @@ class MusicBot(discord.Client):
         """
         if channel:
             if self.config.log_subchannels:
-                for i in self.config.log_subchannels:
+                for i in set(self.config.log_subchannels):
                     subchannel = self.get_channel(i)
-                    server = subchannel.server
-                    if channel in server.channels:
-                        await self.safe_send_message(subchannel, ":stopwatch: `{}` ".format(time.strftime("%H:%M:%S")) + string)
+                    if not subchannel:
+                        self.config.log_subchannels.remove(i)
+                        print("[Warning] Bot can't find logging subchannel: {}".format(i))
+                    else:
+                        server = subchannel.server
+                        if channel in server.channels:
+                            await self.safe_send_message(subchannel, ":stopwatch: `{}` ".format(time.strftime("%H:%M:%S")) + string)
 
             if self.config.log_masterchannel:
-                master = self.get_channel(self.config.log_masterchannel)
-                await self.safe_send_message(master, ":stopwatch: `{}` :mouse_three_button: `{}` ".format(time.strftime("%H:%M:%S"), channel.server.name) + string)
+                id = self.config.log_masterchannel
+                master = self.get_channel(id)
+                if not master:
+                    self.config.log_masterchannel = None
+                    print("[Warning] Bot can't find logging master channel: {}".format(id))
+                else:
+                    await self.safe_send_message(master, ":stopwatch: `{}` :mouse_three_button: `{}` ".format(time.strftime("%H:%M:%S"), channel.server.name) + string)
+
         else:
             if self.config.log_masterchannel:
-                master = self.get_channel(self.config.log_masterchannel)
-                await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime("%H:%M:%S")) + string)
+                id = self.config.log_masterchannel
+                master = self.get_channel(id)
+                if not master:
+                    self.config.log_masterchannel = None
+                    print("[Warning] Bot can't find logging master channel: {}".format(id))
+                else:
+                    await self.safe_send_message(master, ":stopwatch: `{}` ".format(time.strftime("%H:%M:%S")) + string)
 
     async def get_player(self, channel, create=False):
         server = channel.server
@@ -605,8 +620,6 @@ class MusicBot(discord.Client):
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
-        await self._log(":mega: `{}#{}` started at `{}` on `{}`".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
-
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
                 "Your OwnerID is incorrect or you've used the wrong credentials.",
@@ -648,7 +661,8 @@ class MusicBot(discord.Client):
         if self.config.log_masterchannel:
             print("Logging to master channel:")
             channel = self.get_channel(self.config.log_masterchannel)
-            self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
+            if channel:
+                self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
         if self.config.log_subchannels:
             print("Logging to subchannels:")
             chlist = [self.get_channel(i) for i in self.config.log_subchannels if i]
@@ -687,6 +701,8 @@ class MusicBot(discord.Client):
             else:
                 print("Could not delete old audio cache, moving on.")
                 await self._log(":mega: Tried to clear audio cache, encountered a problem")
+
+        await self._log(":mega: `{}#{}` started at `{}` on `{}`".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
 
         if self.config.autojoin_channels:
             await self._autojoin_channels()
