@@ -194,6 +194,7 @@ class Config:
                 self.log_subchannels = set(x for x in self.log_subchannels.split() if x)
             except:
                 print("[Warning] LogSubChannels data invalid, will not log to any subchannels")
+                self.log_subchannels = set()
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
