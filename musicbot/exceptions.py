@@ -23,6 +23,13 @@ class CommandError(MusicbotException):
 class ExtractionError(MusicbotException):
     pass
 
+# The no processing entry type failed and an entry was a playlist/vice versa
+class WrongEntryTypeError(ExtractionError):
+    def __init__(self, message, is_playlist, use_url):
+        super().__init__(message)
+        self.is_playlist = is_playlist
+        self.use_url = use_url
+
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
     @property

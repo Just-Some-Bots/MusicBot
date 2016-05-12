@@ -17,7 +17,6 @@ class ConfigDefaults:
     autojoin_channels = set()
 
     default_volume = 0.15
-    white_list_check = False
     skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
@@ -30,7 +29,6 @@ class ConfigDefaults:
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-    whitelist_file = 'config/whitelist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
     log_masterchannel = None
@@ -101,7 +99,6 @@ class Config:
         self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
-        self.white_list_check = config.getboolean('MusicBot', 'WhiteListCheck', fallback=ConfigDefaults.white_list_check)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
         self.skip_ratio_required = config.getfloat('MusicBot', 'SkipRatio', fallback=ConfigDefaults.skip_ratio_required)
         self.save_videos = config.getboolean('MusicBot', 'SaveVideos', fallback=ConfigDefaults.save_videos)
@@ -113,7 +110,6 @@ class Config:
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
-        self.whitelist_file = config.get('Files', 'WhitelistFile', fallback=ConfigDefaults.whitelist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
         self.log_masterchannel = config.get('Logging', 'LogMasterChannel', fallback=ConfigDefaults.log_masterchannel)
@@ -160,7 +156,6 @@ class Config:
 
         else:
             self.auth = (self._login_token,)
-
 
         if self.owner_id and self.owner_id.isdigit():
             if int(self.owner_id) < 10000:
