@@ -34,8 +34,8 @@ class ConfigDefaults:
     log_masterchannel = None
     log_subchannels = set()
     log_exceptions = False
-    log_queue_changes = False
-    log_commands = False
+    log_interaction = False
+    log_timeformat = '%H:%M:%S'
 
 class Config:
     def __init__(self, config_file):
@@ -112,11 +112,11 @@ class Config:
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
-        self.log_masterchannel = config.get('Logging', 'LogMasterChannel', fallback=ConfigDefaults.log_masterchannel)
-        self.log_subchannels = config.get('Logging', 'LogSubChannels', fallback=ConfigDefaults.log_subchannels)
-        self.log_exceptions = config.getboolean('Logging', 'LogExceptions', fallback=ConfigDefaults.log_exceptions)
-        self.log_queue_changes = config.getboolean('Logging', 'LogQueue', fallback=ConfigDefaults.log_queue_changes)
-        self.log_commands = config.getboolean('Logging', 'LogCommands', fallback=ConfigDefaults.log_commands)
+        self.log_masterchannel = config.get('Logging', 'MasterChannel', fallback=ConfigDefaults.log_masterchannel)
+        self.log_subchannels = config.get('Logging', 'SubChannels', fallback=ConfigDefaults.log_subchannels)
+        self.log_exceptions = config.getboolean('Logging', 'Exceptions', fallback=ConfigDefaults.log_exceptions)
+        self.log_interaction = config.getboolean('Logging', 'Interaction', fallback=ConfigDefaults.log_interaction)
+        self.log_timeformat = config.get('Logging', 'TimeFormat', fallback=ConfigDefaults.log_timeformat)
 
         self.run_checks()
 
@@ -125,7 +125,7 @@ class Config:
         """
         Validation logic for bot settings.
         """
-        confpreface = "An error has occured reading the config:\n"
+        confpreface = "An error has occurred reading the config:\n"
 
         if self._email or self._password:
             if not self._email:
