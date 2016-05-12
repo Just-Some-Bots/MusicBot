@@ -16,12 +16,12 @@ class PatchedBuff:
         PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
 
-    def __init__(self, buff):
+    def __init__(self, buff, *, draw=False):
         self.buff = buff
         self.frame_count = 0
         self.volume = 1.0
 
-        self.draw = False
+        self.draw = draw
         self.use_audioop = True
         self.frame_skip = 2
         self.rmss = deque([2048], maxlen=90)
@@ -77,7 +77,9 @@ class PatchedBuff:
 class MusicPlayerState(Enum):
     STOPPED = 0  # When the player isn't playing anything
     PLAYING = 1  # The player is actively playing music.
-    PAUSED = 2  # The player is paused on a song.
+    PAUSED = 2   # The player is paused on a song.
+    WAITING = 3  # The player has finished its song but is still downloading the next one
+    DEAD = 4     # The player has been killed.
 
     def __str__(self):
         return self.name
@@ -146,23 +148,21 @@ class MusicPlayer(EventEmitter):
         raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
 
     def kill(self):
-        self.stop()
+        self.state = MusicPlayerState.DEAD
         self.playlist.clear()
+        self._events.clear()
+        self._kill_current_player()
 
     def _playback_finished(self):
         entry = self._current_entry
 
         if self._current_player:
             self._current_player.after = None
-            try:
-                self._current_player.stop()
-            except OSError:
-                pass
+            self._kill_current_player()
 
         self._current_entry = None
-        self._current_player = None
 
-        if not self.is_stopped:
+        if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
 
         if not self.bot.config.save_videos and entry:
@@ -216,6 +216,9 @@ class MusicPlayer(EventEmitter):
         """
         if self.is_paused:
             return self.resume()
+
+        if self.is_dead:
+            return
 
         with await self._play_lock:
             if self.is_stopped or _continue:
@@ -275,6 +278,10 @@ class MusicPlayer(EventEmitter):
         return self.state == MusicPlayerState.STOPPED
 
     @property
+    def is_dead(self):
+        return self.state == MusicPlayerState.DEAD
+
+    @property
     def progress(self):
         return round(self._current_player.buff.frame_count * 0.02)
         # TODO: Properly implement this
@@ -295,6 +302,8 @@ class MusicPlayer(EventEmitter):
 
 # Get duration with ffprobe
 #   ffprobe.exe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal filename.mp3
+# This is also how I fix the format checking issue for now
+# ffprobe -v quiet -print_format json -show_format stream
 
 # Normalization filter
 # -af dynaudnorm

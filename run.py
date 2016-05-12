@@ -1,8 +1,9 @@
+from __future__ import print_function
+
 import os
 import gc
 import sys
 import time
-import asyncio
 import traceback
 import subprocess
 
@@ -144,6 +145,8 @@ def main():
 
         return
 
+    import asyncio
+
     tried_requirementstxt = False
     tryagain = True
 
@@ -158,7 +161,7 @@ def main():
             from musicbot import MusicBot
 
             m = MusicBot()
-            print("Connecting... ", end='')
+            print("Connecting...", end='', flush=True)
             m.run()
 
         except SyntaxError:
@@ -173,7 +176,7 @@ def main():
                 print(e)
                 print("Attempting to install dependencies...")
 
-                err = PIP.run_install('-r requirements.txt')
+                err = PIP.run_install('--upgrade -r requirements.txt')
 
                 if err:
                     print("\nYou may need to %s to install dependencies." %
