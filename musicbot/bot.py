@@ -1943,6 +1943,8 @@ class MusicBot(discord.Client):
     async def on_server_update(self, before:discord.Server, after:discord.Server):
         if before.region != after.region:
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
+            if self.config.log_interaction:
+                await self._log(":house: `{}` changed regions: `{}` to `{}`".format(after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
 
