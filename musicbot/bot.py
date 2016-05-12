@@ -20,10 +20,10 @@ from datetime import timedelta
 from random import choice, shuffle
 from collections import defaultdict
 
-from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
+from musicbot.playlist import Playlist
 from musicbot.utils import load_file, extract_user_id, write_file, sane_round_int
 
 from . import exceptions
@@ -189,12 +189,12 @@ class MusicBot(discord.Client):
                     joined_servers.append(channel.server)
                 except Exception as e:
                     if self.config.log_exceptions:
-                        await self._log(":warning: Could not join %s\n```python\n%s\n```" % (channel.name, traceback.print_exc()), channel)
+                        await self.log(":warning: Could not join %s\n```python\n%s\n```" % (channel.name, traceback.print_exc()), channel)
                     print("Failed to join", channel.name)
 
             elif channel:
                 if self.config.log_exceptions:
-                    await self._log(":warning: Could not join %s because it is a text channel" % channel.name, channel)
+                    await self.log(":warning: Could not join %s because it is a text channel" % channel.name, channel)
                 print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
 
             else:
@@ -254,10 +254,10 @@ class MusicBot(discord.Client):
             retries = 3
             for x in range(retries):
                 try:
-                    await self._log(":mega: Attempting connection: `%s`" % server.name)
+                    await self.log(":mega: Attempting connection: `%s`" % server.name)
                     print("Attempting connection...")
                     await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
-                    await self._log(":mega: Connected to: `%s`" % server.name)
+                    await self.log(":mega: Connected to: `%s`" % server.name)
                     print("Connection established.")
                     break
                 except:
@@ -267,7 +267,7 @@ class MusicBot(discord.Client):
                     await asyncio.sleep(1)
 
                     if x == retries-1:
-                        await self._log(":warning: `%s`: Failed to connect" % server.name)
+                        await self.log(":warning: `%s`: Failed to connect" % server.name)
                         raise exceptions.HelpfulError(
                             "Cannot establish connection to voice chat.  "
                             "Something may be blocking outgoing UDP connections.",
@@ -357,7 +357,7 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
 
-    async def _log(self, string, channel=None):
+    async def log(self, string, channel=None):
         """
             Logs information to a Discord text channel
             :param channel: - The channel the information originates from
@@ -448,7 +448,7 @@ class MusicBot(discord.Client):
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
             if self.config.log_interaction:
-                await self._log(":microphone: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name), channel)
+                await self.log(":microphone: `%s` (requested by `%s`) is now playing in **%s**" % (entry.title, entry.meta['author'], player.voice_client.channel.name), channel)
 
     async def on_resume(self, entry, **_):
         await self.update_now_playing(entry)
@@ -556,7 +556,7 @@ class MusicBot(discord.Client):
             return await super().send_typing(destination)
         except discord.Forbidden:
             if self.config.log_exceptions:
-                await self._log(":warning: No permission to send typing to %s" % destination.name, destination)
+                await self.log(":warning: No permission to send typing to %s" % destination.name, destination)
 
     def _cleanup(self):
         try:
@@ -697,12 +697,12 @@ class MusicBot(discord.Client):
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
                 print("Deleting old audio cache")
-                await self._log(":mega: The audio cache was cleared")
+                await self.log(":mega: The audio cache was cleared")
             else:
                 print("Could not delete old audio cache, moving on.")
-                await self._log(":mega: Tried to clear audio cache, encountered a problem")
+                await self.log(":mega: Tried to clear audio cache, encountered a problem")
 
-        await self._log(":mega: `{}#{}` ready".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+        await self.log(":mega: `{}#{}` ready".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
 
         if self.config.autojoin_channels:
             await self._autojoin_channels()
@@ -721,7 +721,7 @@ class MusicBot(discord.Client):
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
                 if self.config.log_exceptions:
-                    await self._log(":mega: Tried to autosummon, owner not found in a channel")
+                    await self.log(":mega: Tried to autosummon, owner not found in a channel")
 
         print()
         # t-t-th-th-that's all folks!
@@ -1775,12 +1775,12 @@ class MusicBot(discord.Client):
         if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_interaction:
-                await self._log(":no_pedestrians: `{0.name}#{0.discriminator}`: `{1}`".format(message.author, message_content), message.channel)
+                await self.log(":no_pedestrians: `{0.name}#{0.discriminator}`: `{1}`".format(message.author, message_content), message.channel)
             return
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
             if self.config.log_interaction:
-                await self._log(":writing_hand::skin-tone-3: `{0.name}#{0.discriminator}`: `{1}`".format(message.author, message_content), message.channel)
+                await self.log(":writing_hand::skin-tone-3: `{0.name}#{0.discriminator}`: `{1}`".format(message.author, message_content), message.channel)
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -1889,15 +1889,15 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
             if self.config.log_exceptions:
-                await self._log(":warning: `%s#%s` encountered an Exception:\n```python\n%s\n```" % (self.user.name, self.user.discriminator, traceback.format_exc()), message.channel)
+                await self.log(":warning: `%s#%s` encountered an Exception:\n```python\n%s\n```" % (self.user.name, self.user.discriminator, traceback.format_exc()), message.channel)
 
     async def on_server_join(self, server):
         if self.config.log_interaction:
-            await self._log(":performing_arts: `%s#%s` joined: `%s`" % (self.user.name, self.user.discriminator, server.name))
+            await self.log(":performing_arts: `%s#%s` joined: `%s`" % (self.user.name, self.user.discriminator, server.name))
 
     async def on_server_remove(self, server):
         if self.config.log_interaction:
-            await self._log(":performing_arts: `%s#%s` left: `%s`" % (self.user.name, self.user.discriminator, server.name))
+            await self.log(":performing_arts: `%s#%s` left: `%s`" % (self.user.name, self.user.discriminator, server.name))
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
@@ -1944,7 +1944,7 @@ class MusicBot(discord.Client):
         if before.region != after.region:
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
             if self.config.log_interaction:
-                await self._log(":house: `{}` changed regions: `{}` to `{}`".format(after.name, before.region, after.region))
+                await self.log(":house: `{}` changed regions: `{}` to `{}`".format(after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
 
