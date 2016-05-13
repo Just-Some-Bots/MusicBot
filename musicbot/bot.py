@@ -670,9 +670,10 @@ class MusicBot(discord.Client):
         if self.config.log_masterchannel or self.config.log_subchannels:
             print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
             print("  Interaction: " + ['Disabled', 'Enabled'][self.config.log_interaction])
+            print("  Downloads: " + ['Disabled', 'Enabled'][self.config.log_downloads])
             print("  Time Format: {}".format(self.config.log_timeformat))
         else:
-            print("Not logging to a text channel")
+            print("Not logging to any text channels")
 
         print()
         print("Options:")
@@ -694,15 +695,15 @@ class MusicBot(discord.Client):
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
 
+        await self.log(":mega: `{}#{}` ready".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
                 print("Deleting old audio cache")
                 await self.log(":mega: The audio cache was cleared")
             else:
                 print("Could not delete old audio cache, moving on.")
-                await self.log(":mega: Tried to clear audio cache, encountered a problem")
-
-        await self.log(":mega: `{}#{}` ready".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
+                await self.log(":warning: Tried to clear audio cache, encountered a problem")
 
         if self.config.autojoin_channels:
             await self._autojoin_channels()
@@ -721,7 +722,7 @@ class MusicBot(discord.Client):
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
                 if self.config.log_exceptions:
-                    await self.log(":mega: Tried to autosummon, owner not found in a channel")
+                    await self.log(":warning: Tried to autosummon, owner not found in a channel")
 
         print()
         # t-t-th-th-that's all folks!
