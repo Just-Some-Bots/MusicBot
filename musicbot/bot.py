@@ -1584,6 +1584,8 @@ class MusicBot(discord.Client):
         if self.user.bot:
             if channel.permissions_for(server.me).manage_messages:
                 deleted = await self.purge_from(channel, check=check, limit=search_range, before=message)
+                if self.config.log_interaction:
+                    await self.log(':bomb: Purged `{}` message{} in #`{}`'.format(len(deleted), 's' * bool(deleted), channel.name), channel)
                 return Response('Cleaned up {} message{}.'.format(len(deleted), 's' * bool(deleted)), delete_after=15)
 
         deleted = 0
@@ -1608,6 +1610,8 @@ class MusicBot(discord.Client):
                     except discord.HTTPException:
                         pass
 
+        if self.config.log_interaction:
+            await self.log(':bomb: Purged `{}` message{} in #`{}`'.format(deleted, 's' * bool(deleted), channel.name), channel)
         return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=15)
 
     async def cmd_pldump(self, channel, song_url):
