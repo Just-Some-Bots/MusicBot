@@ -1677,7 +1677,7 @@ class MusicBot(discord.Client):
 
 
     @owner_only
-    async def setname(self, name):
+    async def cmd_setname(self, name):
         """
         Usage:
             {command_prefix}setname name
@@ -1694,7 +1694,7 @@ class MusicBot(discord.Client):
         return Response(":ok_hand:", delete_after=20)
 
     @owner_only
-    async def setnick(self, server, channel, nick):
+    async def cmd_setnick(self, server, channel, nick):
         """
         Usage:
             {command_prefix}setnick nick
@@ -1713,7 +1713,7 @@ class MusicBot(discord.Client):
         return Response(":ok_hand:", delete_after=20)
 
     @owner_only
-    async def setavatar(self, message, url=None):
+    async def cmd_setavatar(self, message, url=None):
         """
         Usage:
             {command_prefix}setavatar [url]
@@ -1745,7 +1745,6 @@ class MusicBot(discord.Client):
     async def cmd_restart(self):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
-
 
     async def cmd_shutdown(self):
         await self.disconnect_all_voice_clients()
