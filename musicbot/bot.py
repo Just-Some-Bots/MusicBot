@@ -1677,7 +1677,7 @@ class MusicBot(discord.Client):
 
 
     @owner_only
-    async def cmd_setname(self, name):
+    async def cmd_setname(self, leftover_args, name):
         """
         Usage:
             {command_prefix}setname name
@@ -1685,6 +1685,8 @@ class MusicBot(discord.Client):
         Changes the bot's username.
         Note: This operation is limited by discord to twice per hour.
         """
+
+        name = ' '.join([name, *leftover_args])
 
         try:
             await self.edit_profile(username=name)
@@ -1694,7 +1696,7 @@ class MusicBot(discord.Client):
         return Response(":ok_hand:", delete_after=20)
 
     @owner_only
-    async def cmd_setnick(self, server, channel, nick):
+    async def cmd_setnick(self, server, channel, leftover_args, nick):
         """
         Usage:
             {command_prefix}setnick nick
@@ -1704,6 +1706,8 @@ class MusicBot(discord.Client):
 
         if not channel.permissions_for(server.me).change_nicknames:
             raise exceptions.CommandError("Unable to change nickname: no permission.")
+
+        nick = ' '.join([nick, *leftover_args])
 
         try:
             await self.change_nickname(server.me, nick)
