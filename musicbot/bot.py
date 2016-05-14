@@ -1729,11 +1729,11 @@ class MusicBot(discord.Client):
         if message.attachments:
             thing = message.attachments[0]['url']
         else:
-            thing = url
+            thing = url.strip('<>')
 
         try:
             with aiohttp.Timeout(10):
-                with self.aiosession.get(thing) as f:
+                async with self.aiosession.get(thing) as f:
                     await self.edit_profile(avatar=f.read())
 
         except Exception as e:
