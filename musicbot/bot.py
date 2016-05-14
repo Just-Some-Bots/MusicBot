@@ -518,6 +518,12 @@ class MusicBot(discord.Client):
                 print("Could not send typing to %s, no permssion" % destination)
 
 
+    async def edit_profile(self, **fields):
+        if self.user.bot:
+            return await super().edit_profile(**fields)
+        else:
+            return await super().edit_profile(self.config._password,**fields)
+
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
@@ -1668,6 +1674,68 @@ class MusicBot(discord.Client):
 
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
+
+
+    @owner_only
+    async def setname(self, name):
+        """
+        Usage:
+            {command_prefix}setname name
+
+        Changes the bot's username.
+        Note: This operation is limited by discord to twice per hour.
+        """
+
+        try:
+            await self.edit_profile(username=name)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=20)
+
+        return Response(":ok_hand:", delete_after=20)
+
+    @owner_only
+    async def setnick(self, server, channel, nick):
+        """
+        Usage:
+            {command_prefix}setnick nick
+
+        Changes the bot's nickname.
+        """
+
+        if not channel.permissions_for(server.me).change_nicknames:
+            raise exceptions.CommandError("Unable to change nickname: no permission.")
+
+        try:
+            await self.change_nickname(server.me, nick)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=20)
+
+        return Response(":ok_hand:", delete_after=20)
+
+    @owner_only
+    async def setavatar(self, message, url=None):
+        """
+        Usage:
+            {command_prefix}setavatar [url]
+
+        Changes the bot's avatar.
+        Attaching a file and leaving the url parameter blank also works.
+        """
+
+        if message.attachments:
+            thing = message.attachments[0]['url']
+        else:
+            thing = url
+
+        try:
+            with aiohttp.Timeout(10):
+                with self.aiosession.get(thing) as f:
+                    await self.edit_profile(avatar=f.read())
+
+        except Exception as e:
+            raise exceptions.CommandError("Unable to change avatar: %s" % e, expire_in=20)
+
+        return Response(":ok_hand:", delete_after=20)
 
 
     async def cmd_disconnect(self, server, message):
