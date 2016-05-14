@@ -25,7 +25,7 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, extract_user_id, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int
 
 from . import exceptions
 from . import downloader
@@ -69,6 +69,7 @@ class MusicBot(discord.Client):
 
         self.players = {}
         self.the_voice_clients = {}
+        self.locks = defaultdict(asyncio.Lock)
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
@@ -88,8 +89,7 @@ class MusicBot(discord.Client):
 
         self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
-        # TODO: Fix these
-        # These aren't multi-server compatible, which is ok for now, but will have to be redone when multi-server is possible
+        # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
 

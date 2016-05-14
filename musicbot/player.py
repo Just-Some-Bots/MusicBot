@@ -27,7 +27,8 @@ class PatchedBuff:
         self.rmss = deque([2048], maxlen=90)
 
     def __del__(self):
-        print(' ' * (get_terminal_size().columns-1), end='\r')
+        if self.draw:
+            print(' ' * (get_terminal_size().columns-1), end='\r')
 
     def read(self, frame_size):
         self.frame_count += 1
