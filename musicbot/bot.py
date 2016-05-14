@@ -1733,8 +1733,8 @@ class MusicBot(discord.Client):
 
         try:
             with aiohttp.Timeout(10):
-                async with self.aiosession.get(thing) as f:
-                    await self.edit_profile(avatar=f.read())
+                async with self.aiosession.get(thing) as res:
+                    await self.edit_profile(avatar=await res.read())
 
         except Exception as e:
             raise exceptions.CommandError("Unable to change avatar: %s" % e, expire_in=20)
