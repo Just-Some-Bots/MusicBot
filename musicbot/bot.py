@@ -4,6 +4,7 @@ import time
 import shlex
 import shutil
 import inspect
+import aiohttp
 import discord
 import asyncio
 import traceback
@@ -24,7 +25,7 @@ from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.playlist import Playlist
-from musicbot.utils import load_file, extract_user_id, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int
 
 from . import exceptions
 from . import downloader
@@ -68,8 +69,11 @@ class MusicBot(discord.Client):
 
         self.players = {}
         self.the_voice_clients = {}
+        self.locks = defaultdict(asyncio.Lock)
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
+        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
@@ -85,8 +89,7 @@ class MusicBot(discord.Client):
 
         self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
-        # TODO: Fix these
-        # These aren't multi-server compatible, which is ok for now, but will have to be redone when multi-server is possible
+        # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults))
 
@@ -493,6 +496,13 @@ class MusicBot(discord.Client):
 
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None
+
+        if self.user.bot:
+            activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+            if activeplayers > 1:
+                game = discord.Game(name="music on %s servers" % activeplayers)
+                entry = None
+
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
 
@@ -557,6 +567,12 @@ class MusicBot(discord.Client):
         except discord.Forbidden:
             if self.config.log_exceptions:
                 await self.log(":warning: No permission to send typing to %s" % destination.name, destination)
+
+    async def edit_profile(self, **fields):
+        if self.user.bot:
+            return await super().edit_profile(**fields)
+        else:
+            return await super().edit_profile(self.config._password,**fields)
 
     def _cleanup(self):
         try:
@@ -1172,7 +1188,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Please quote your search query properly.", expire_in=30)
 
         service = 'youtube'
-        items_requested = 1
+        items_requested = 3
         max_items = 10  # this can be whatever, but since ytdl uses about 1000, a small number might be better
         services = {
             'youtube': 'ytsearch',
@@ -1738,6 +1754,72 @@ class MusicBot(discord.Client):
         return Response(":mailbox_with_mail:", delete_after=20)
 
 
+    @owner_only
+    async def cmd_setname(self, leftover_args, name):
+        """
+        Usage:
+            {command_prefix}setname name
+
+        Changes the bot's username.
+        Note: This operation is limited by discord to twice per hour.
+        """
+
+        name = ' '.join([name, *leftover_args])
+
+        try:
+            await self.edit_profile(username=name)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=20)
+
+        return Response(":ok_hand:", delete_after=20)
+
+    @owner_only
+    async def cmd_setnick(self, server, channel, leftover_args, nick):
+        """
+        Usage:
+            {command_prefix}setnick nick
+
+        Changes the bot's nickname.
+        """
+
+        if not channel.permissions_for(server.me).change_nicknames:
+            raise exceptions.CommandError("Unable to change nickname: no permission.")
+
+        nick = ' '.join([nick, *leftover_args])
+
+        try:
+            await self.change_nickname(server.me, nick)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=20)
+
+        return Response(":ok_hand:", delete_after=20)
+
+    @owner_only
+    async def cmd_setavatar(self, message, url=None):
+        """
+        Usage:
+            {command_prefix}setavatar [url]
+
+        Changes the bot's avatar.
+        Attaching a file and leaving the url parameter blank also works.
+        """
+
+        if message.attachments:
+            thing = message.attachments[0]['url']
+        else:
+            thing = url.strip('<>')
+
+        try:
+            with aiohttp.Timeout(10):
+                async with self.aiosession.get(thing) as res:
+                    await self.edit_profile(avatar=await res.read())
+
+        except Exception as e:
+            raise exceptions.CommandError("Unable to change avatar: %s" % e, expire_in=20)
+
+        return Response(":ok_hand:", delete_after=20)
+
+
     async def cmd_disconnect(self, server, message):
         await self.disconnect_voice_client(server)
         await self._manual_delete_check(message)
@@ -1745,7 +1827,6 @@ class MusicBot(discord.Client):
     async def cmd_restart(self):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
-
 
     async def cmd_shutdown(self):
         await self.disconnect_all_voice_clients()
