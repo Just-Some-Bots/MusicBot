@@ -1114,7 +1114,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Please quote your search query properly.", expire_in=30)
 
         service = 'youtube'
-        items_requested = 1
+        items_requested = 3
         max_items = 10  # this can be whatever, but since ytdl uses about 1000, a small number might be better
         services = {
             'youtube': 'ytsearch',
