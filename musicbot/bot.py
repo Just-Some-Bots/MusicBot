@@ -452,6 +452,13 @@ class MusicBot(discord.Client):
 
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None
+
+        if self.user.bot:
+            activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+            if activeplayers > 1:
+                game = discord.Game(name="music on %s servers" % activeplayers)
+                entry = None
+
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
 
