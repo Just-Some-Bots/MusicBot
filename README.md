@@ -4,10 +4,10 @@ MusicBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### How do I set it up?
 
-- [Windows Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions")
-- [Linux Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions")
-- [Docker Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Docker)
-- OSX Tutorial - coming soon, whenever someone decides to make one.
+- [Windows Tutorial](docs/windows.md)
+- [Linux Tutorial](docs/linux.md)
+- [Docker Tutorial](docs/docker.md)
+- [OSX Tutorial](docs/osx.md)
 
 ### Commands
 
