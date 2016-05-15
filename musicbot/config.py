@@ -6,33 +6,6 @@ import configparser
 from .exceptions import HelpfulError
 
 
-class ConfigDefaults:
-    email = None
-    password = None
-    token = None
-
-    owner_id = None
-    command_prefix = '!'
-    bound_channels = set()
-    autojoin_channels = set()
-
-    default_volume = 0.15
-    skips_required = 4
-    skip_ratio_required = 0.5
-    save_videos = True
-    now_playing_mentions = False
-    auto_summon = True
-    auto_playlist = True
-    auto_pause = True
-    delete_messages = True
-    delete_invoking = False
-    debug_mode = False
-
-    options_file = 'config/options.ini'
-    blacklist_file = 'config/blacklist.txt'
-    auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
-
-
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
@@ -192,6 +165,32 @@ class Config:
     def write_default_config(self, location):
         pass
 
+
+class ConfigDefaults:
+    email = None    #
+    password = None # This is not where you put your login info, go away.
+    token = None    #
+
+    owner_id = None
+    command_prefix = '!'
+    bound_channels = set()
+    autojoin_channels = set()
+
+    default_volume = 0.15
+    skips_required = 4
+    skip_ratio_required = 0.5
+    save_videos = True
+    now_playing_mentions = False
+    auto_summon = True
+    auto_playlist = True
+    auto_pause = True
+    delete_messages = True
+    delete_invoking = False
+    debug_mode = False
+
+    options_file = 'config/options.ini'
+    blacklist_file = 'config/blacklist.txt'
+    auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
