@@ -1787,7 +1787,7 @@ class MusicBot(discord.Client):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        if int(message.author.id) in self.blacklist and message.author.id != self.config.owner_id:
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
             self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
 
