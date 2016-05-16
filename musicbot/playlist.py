@@ -398,7 +398,6 @@ class PlaylistEntry:
                         self.expected_filename.rsplit('.', 1)[-1],
                         self.filename.rsplit('.', 1)[-1]
                     ))
-                    pass
 
                 else:
                     await self._really_download()
