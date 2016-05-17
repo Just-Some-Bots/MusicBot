@@ -20,7 +20,7 @@ RUN apt-get update -y && apt-get upgrade -y \
 #Install Pip
 RUN  apt-get install wget \
     && wget https://bootstrap.pypa.io/get-pip.py \
-    &&  python3.5 get-pip.py
+    && python3.5 get-pip.py
 
 #Clone the bot into /musicBot
 RUN  git clone https://github.com/SexualRhinoceros/MusicBot.git musicBot \
