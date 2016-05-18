@@ -623,11 +623,42 @@ class MusicBot(discord.Client):
         print()
 
         if self.config.bound_channels:
+            chlist = set(self.get_channel(i) for i in self.config.bound_channels if i)
+            invalids = set()
+
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            chlist.difference_update(invalids)
+            self.config.bound_channels.difference_update(invalids)
+
             print("Bound to text channels:")
-            chlist = [self.get_channel(i) for i in self.config.bound_channels if i]
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+
+            if invalids and self.config.debug_mode:
+                print("Not binding to voice channels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+
+            print()
+
         else:
             print("Not bound to any text channels")
+
+        if self.config.autojoin_channels:
+            chlist = set(self.get_channel(i) for i in self.config.autojoin_channels if i)
+            invalids = set()
+
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            chlist.difference_update(invalids)
+            self.config.autojoin_channels.difference_update(invalids)
+
+            print("Autojoining voice chanels:")
+            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+
+            if invalids and self.config.debug_mode:
+                print("Cannot join text channels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+
+        else:
+            print("Not autojoining any voice channels")
 
         print()
         print("Options:")
