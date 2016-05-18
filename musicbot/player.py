@@ -267,6 +267,13 @@ class MusicPlayer(EventEmitter):
         player.buff = PatchedBuff(original_buff)
         return player
 
+    def reload_voice(self, voice_client):
+        self.voice_client = voice_client
+        if self._current_player:
+            self._current_player.player = voice_client.play_audio
+            self._current_player._resumed.clear()
+            self._current_player._connected.set()
+
     @property
     def current_entry(self):
         return self._current_entry
