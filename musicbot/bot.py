@@ -308,12 +308,8 @@ class MusicBot(discord.Client):
         await asyncio.sleep(0.1)
 
         if player:
-            player.voice_client = await self.get_voice_client(vc.channel)
-
-            if player._current_player:
-                player._current_player.player = player.voice_client.play_audio
-                player._current_player._resumed.clear()
-                player._current_player._connected.set()
+            new_vc = await self.get_voice_client(vc.channel)
+            player.reload_voice(new_vc)
 
             if player.is_paused and _paused:
                 player.resume()
