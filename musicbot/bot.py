@@ -1784,7 +1784,7 @@ class MusicBot(discord.Client):
         await self.safe_send_message(
             message.channel,
             'Disconnecting from %s...' % message.server.me.voice_channel,
-            expire_in=30,
+            expire_in=30 if self.config.delete_messages else None,
             also_delete=message if self.config.delete_invoking else None
             )
         await self.disconnect_voice_client(server)
