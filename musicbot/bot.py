@@ -1780,15 +1780,17 @@ class MusicBot(discord.Client):
         return Response(":ok_hand:", delete_after=20)
 
 
-    async def cmd_disconnect(self, server, message):
+    async def cmd_disconnect(self, server):
         await self.disconnect_voice_client(server)
-        await self._manual_delete_check(message)
+        return Response(":hear_no_evil:", delete_after=20)
 
-    async def cmd_restart(self):
+    async def cmd_restart(self, channel):
+        await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
 
-    async def cmd_shutdown(self):
+    async def cmd_shutdown(self, channel):
+        await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
