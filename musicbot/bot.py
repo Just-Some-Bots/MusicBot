@@ -1781,14 +1781,32 @@ class MusicBot(discord.Client):
 
 
     async def cmd_disconnect(self, server, message):
+        await self.safe_send_message(
+            message.channel,
+            'Disconnecting from %s...' % server,
+            expire_in=30,
+            also_delete=message if self.config.delete_invoking else None
+            )
         await self.disconnect_voice_client(server)
         await self._manual_delete_check(message)
 
     async def cmd_restart(self):
+        await self.safe_send_message(
+            message.channel,
+            'Restarting...',
+            expire_in=30,
+            also_delete=message if self.config.delete_invoking else None
+            )
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
 
     async def cmd_shutdown(self):
+        await self.safe_send_message(
+            message.channel,
+            'Shutting Down...',
+            expire_in=30,
+            also_delete=message if self.config.delete_invoking else None
+            )
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
