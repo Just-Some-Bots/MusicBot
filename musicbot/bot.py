@@ -997,12 +997,12 @@ class MusicBot(discord.Client):
 
                 return await self.cmd_play(player, channel, author, permissions, leftover_args, e.use_url)
 
-            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+            reply_text = self.strings.play_enqueuedsong
             btext = entry.title
 
         if position == 1 and player.is_stopped:
             position = self.strings.play_playingnext
-            reply_text %= (btext, position)
+            reply_text = reply_text.format(song=btext, position=position)
 
         else:
             try:
@@ -1012,7 +1012,7 @@ class MusicBot(discord.Client):
                 traceback.print_exc()
                 time_until = ''
 
-            reply_text = reply_text.format(songs=btext, position=position, eta=time_until)
+            reply_text = reply_text.format(songs=btext, song=btext, position=position, eta=time_until)
 
         return Response(reply_text, delete_after=30)
 

@@ -40,6 +40,7 @@ class Strings:
         self.play_enqueuedplaylistfuture = config.get('Commands', 'Play_EnqueuedPlaylistFuture', fallback=StringDefaults.play_enqueuedplaylistfuture)
         self.play_playingnext = config.get('Commands', 'Play_PlayingNext', fallback=StringDefaults.play_playingnext)
         self.play_exceedduration = config.get('Commands', 'Play_ExceedDuration', fallback=StringDefaults.play_exceedduration)
+        self.play_enqueuedsong = config.get('Commands', 'Play_EnqueuedSong', fallback=StringDefaults.play_enqueuedsong)
 
 
 class StringDefaults:
@@ -68,5 +69,6 @@ class StringDefaults:
     play_enqueuedplaylistfuture = " - estimated time until playing: {eta}"
     play_playingnext = "Up next!"
     play_exceedduration = "Song duration exceeds limit ({duration} > {max})"
+    play_enqueuedsong = "Enqueued **{song}** to be played. Position in queue: {position}"
 
     strings_file = 'config/strings.ini'
