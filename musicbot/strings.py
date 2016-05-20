@@ -50,6 +50,8 @@ class Strings:
         self.search_reachedmax = config.get('Commands', 'Search_ReachedMax', fallback=StringDefaults.search_reachedmax)
         self.search_searching = config.get('Commands', 'Search_Searching', fallback=StringDefaults.search_searching)
         self.search_notfound = config.get('Commands', 'Search_NotFound', fallback=StringDefaults.search_notfound)
+        self.search_end = config.get('Commands', 'Search_End', fallback=StringDefaults.search_end)
+        self.search_success = config.get('Commands', 'Search_Success', fallback=StringDefaults.search_success)
 
 
 class StringDefaults:
@@ -88,5 +90,7 @@ class StringDefaults:
     search_searching = "Searching for videos..."
     search_reachedmax = "You cannot search for more than {max} videos"
     search_notfound = "No videos found."
+    search_end = "Oh well :frowning:"
+    search_success = "Alright, coming right up!"
 
     strings_file = 'config/strings.ini'

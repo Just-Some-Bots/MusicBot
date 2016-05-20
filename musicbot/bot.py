@@ -1214,7 +1214,7 @@ class MusicBot(discord.Client):
             if not response_message:
                 await self.safe_delete_message(result_message)
                 await self.safe_delete_message(confirm_message)
-                return Response("Ok nevermind.", delete_after=30)
+                return Response(self.strings.search_end, delete_after=30)
 
             # They started a new search query so lets clean up and bugger off
             elif response_message.content.startswith(self.config.command_prefix) or \
@@ -1231,13 +1231,13 @@ class MusicBot(discord.Client):
 
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
 
-                return Response("Alright, coming right up!", delete_after=30)
+                return Response(self.strings.search_success, delete_after=30)
             else:
                 await self.safe_delete_message(result_message)
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
 
-        return Response("Oh well :frowning:", delete_after=30)
+        return Response(self.strings.search_end, delete_after=30)
 
     async def cmd_np(self, player, channel, server, message):
         """
