@@ -55,9 +55,17 @@ class Strings:
         self.nowplaying_author = config.get('Commands', 'NowPlaying_Author', fallback=StringDefaults.nowplaying_author)
         self.nowplaying_noauthor = config.get('Commands', 'NowPlaying_NoAuthor', fallback=StringDefaults.nowplaying_noauthor)
         self.nowplaying_none = config.get('Commands', 'NowPlaying_None', fallback=StringDefaults.nowplaying_none)
+        self.summon_novoice = config.get('Commands', 'Summon_NoVoice', fallback=StringDefaults.summon_novoice)
+        self.summon_noperms = config.get('Commands', 'Summon_NoPerms', fallback=StringDefaults.summon_noperms)
+        self.summon_nopermsvoice = config.get('Commands', 'Summon_NoPermsVoice', fallback=StringDefaults.summon_nopermsvoice)
 
 
 class StringDefaults:
+    """
+        These are the default, English strings for the bot.
+        Do not edit strings here. Use strings.ini in the config folder.
+    """
+
     help_header = "Commands"
     help_notfound = "No such command"
 
@@ -66,11 +74,14 @@ class StringDefaults:
     blacklist_usersadded = "{users} users have been added to the blacklist"
     blacklist_notfound = "None of those users are in the blacklist"
     blacklist_usersremoved = "{users} users have been removed from the blacklist"
+
     id_yourid = "Your ID is {id}"
     id_otherid = "{name}'s ID is {id}"
+
     joinserver_bot = "Bot account's can't use invite links! See: {url}"
     joinserver_done = ":+1:"
     joinserver_invalid = "Invalid URL provided:\n{url}\n"
+
     play_pllimitreached = "You have reached your playlist item limit ({limit})"
     play_cantplay = "That video cannot be played"
     play_cantplayplaylist = "That playlist cannot be played"
@@ -89,14 +100,20 @@ class StringDefaults:
     play_processing = "Processing {songs} songs..."
     play_errorqueuingpl = "Error handling playlist {link} queuing"
     play_currentexceedduration = "\nAdditionally, the current song was skipped for being too long."
+
     search_valueerror = "Please quote your search query properly."
     search_searching = "Searching for videos..."
     search_reachedmax = "You cannot search for more than {max} videos"
     search_notfound = "No videos found."
     search_end = "Oh well :frowning:"
     search_success = "Alright, coming right up!"
+
     nowplaying_author = "Now Playing: **{song}** added by **{author}** {progress}\n"
     nowplaying_noauthor = "Now Playing: **{song}** {progress}\n"
     nowplaying_none = "There are no songs queued! Queue something with {prefix}play."
+
+    summon_novoice = "You are not in a voice channel!"
+    summon_noperms = "Cannot join channel {channel}, no permission."
+    summon_nopermsvoice = "Will not join channel {channel}, no permission to speak."
 
     strings_file = 'config/strings.ini'
