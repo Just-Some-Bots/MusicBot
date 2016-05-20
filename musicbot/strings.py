@@ -69,6 +69,9 @@ class Strings:
         self.skip_comingup = config.get('Commands', 'Skip_ComingUp', fallback=StringDefaults.skip_comingup)
         self.skip_single = config.get('Commands', 'Skip_Single', fallback=StringDefaults.skip_single)
         self.skip_multiple = config.get('Commands', 'Skip_Multiple', fallback=StringDefaults.skip_multiple)
+        self.volume_current = config.get('Commands', 'Volume_Current', fallback=StringDefaults.volume_current)
+        self.volume_valueerror = config.get('Commands', 'Volume_ValueError', fallback=StringDefaults.volume_valueerror)
+        self.volume_updated = config.get('Commands', 'Volume_Updated', fallback=StringDefaults.volume_updated)
 
 
 class StringDefaults:
@@ -139,5 +142,9 @@ class StringDefaults:
     skip_comingup = " Next song coming up!"
     skip_single = "person is"
     skip_multiple = "people are"
+
+    volume_current = "Current volume: `{volume}`"
+    volume_valueerror = "{volume} is not a valid number"
+    volume_updated = "updated volume from {old} to {new}"
 
     strings_file = 'config/strings.ini'
