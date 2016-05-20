@@ -32,6 +32,14 @@ class Strings:
         self.play_cantplay = config.get('Commands', 'Play_CantPlay', fallback=StringDefaults.play_cantplay)
         self.play_noplaylists = config.get('Commands', 'Play_NoPlaylists', fallback=StringDefaults.play_noplaylists)
         self.play_pltoomanyentries = config.get('Commands', 'Play_PlTooManyEntries', fallback=StringDefaults.play_pltoomanyentries)
+        self.play_pltoomanyentriestotal = config.get('Commands', 'Play_PlTooManyEntriesTotal', fallback=StringDefaults.play_pltoomanyentriestotal)
+        self.play_plerror = config.get('Commands', 'Play_PlError', fallback=StringDefaults.play_plerror)
+        self.play_plinfo = config.get('Commands', 'Play_PlInfo', fallback=StringDefaults.play_plinfo)
+        self.play_plexceedduration = config.get('Commands', 'Play_PlExceedDuration', fallback=StringDefaults.play_plexceedduration)
+        self.play_enqueuedplaylist = config.get('Commands', 'Play_EnqueuedPlaylist', fallback=StringDefaults.play_enqueuedplaylist)
+        self.play_enqueuedplaylistfuture = config.get('Commands', 'Play_EnqueuedPlaylistFuture', fallback=StringDefaults.play_enqueuedplaylistfuture)
+        self.play_playingnext = config.get('Commands', 'Play_PlayingNext', fallback=StringDefaults.play_playingnext)
+        self.play_exceedduration = config.get('Commands', 'Play_ExceedDuration', fallback=StringDefaults.play_exceedduration)
 
 
 class StringDefaults:
@@ -52,5 +60,13 @@ class StringDefaults:
     play_cantplay = "That video cannot be played"
     play_noplaylists = "You are not allowed to request playlists"
     play_pltoomanyentries = "Playlist has too many entries ({songs} > {max})"
+    play_pltoomanyentriestotal = "Playlist entries + your already queued songs reached limit ({songs} + {queued} > {max})"
+    play_plerror = "Error queuing playlist:\n{exception}"
+    play_plinfo = "Gathering playlist information for {songs} songs"
+    play_plexceedduration = "No songs were added, all songs were over max duration ({max})"
+    play_enqueuedplaylist = "Enqueued **{songs}** songs to be played. Position in queue: {position}"
+    play_enqueuedplaylistfuture = " - estimated time until playing: {eta}"
+    play_playingnext = "Up next!"
+    play_exceedduration = "Song duration exceeds limit ({duration} > {max})"
 
     strings_file = 'config/strings.ini'

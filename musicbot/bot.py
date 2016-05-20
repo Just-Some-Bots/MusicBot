@@ -905,8 +905,7 @@ class MusicBot(discord.Client):
             # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
             if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
                 raise exceptions.PermissionsError(
-                    "Playlist entries + your already queued songs reached limit (%s + %s > %s)" % (
-                        num_songs, player.playlist.count_for_user(author), permissions.max_songs),
+                    self.strings.play_pltoomanyentriestotal.format(songs=num_songs, queued=player.playlist.count_for_user(author), max=permissions.max_songs),
                     expire_in=30
                 )
 
@@ -917,7 +916,7 @@ class MusicBot(discord.Client):
                     raise
                 except Exception as e:
                     traceback.print_exc()
-                    raise exceptions.CommandError("Error queuing playlist:\n%s" % e, expire_in=30)
+                    raise exceptions.CommandError(self.strings.play_plerror.format(exception=e), expire_in=30)
 
             t0 = time.time()
 
@@ -930,8 +929,7 @@ class MusicBot(discord.Client):
 
             procmesg = await self.safe_send_message(
                 channel,
-                'Gathering playlist information for {} songs{}'.format(
-                    num_songs,
+                self.strings.play_plinfo.format(songs=num_songs) + "{}".format(
                     ', ETA: {} seconds'.format(self._fixg(
                         num_songs * wait_per_song)) if num_songs >= 10 else '.'))
 
@@ -972,17 +970,17 @@ class MusicBot(discord.Client):
 
             if not listlen - drop_count:
                 raise exceptions.CommandError(
-                    "No songs were added, all songs were over max duration (%ss)" % permissions.max_song_length,
+                    self.strings.play_plexceedduration.format(max=permissions.max_song_length),
                     expire_in=30
                 )
 
-            reply_text = "Enqueued **%s** songs to be played. Position in queue: %s"
+            reply_text = self.strings.play_enqueuedplaylist
             btext = str(listlen - drop_count)
 
         else:
             if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
                 raise exceptions.PermissionsError(
-                    "Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length),
+                    self.strings.play_exceedduration.format(duration=info['duration'], max=permissions.max_song_length),
                     expire_in=30
                 )
 
@@ -1003,18 +1001,18 @@ class MusicBot(discord.Client):
             btext = entry.title
 
         if position == 1 and player.is_stopped:
-            position = 'Up next!'
+            position = self.strings.play_playingnext
             reply_text %= (btext, position)
 
         else:
             try:
                 time_until = await player.playlist.estimate_time_until(position, player)
-                reply_text += ' - estimated time until playing: %s'
+                reply_text += self.strings.play_enqueuedplaylistfuture
             except:
                 traceback.print_exc()
                 time_until = ''
 
-            reply_text %= (btext, position, time_until)
+            reply_text = reply_text.format(songs=btext, position=position, eta=time_until)
 
         return Response(reply_text, delete_after=30)
 
