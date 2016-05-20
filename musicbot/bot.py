@@ -24,6 +24,7 @@ from collections import defaultdict
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
+from musicbot.strings import Strings, StringDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, write_file, sane_round_int
 
@@ -64,7 +65,7 @@ class Response:
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
+    def __init__(self, config_file=ConfigDefaults.options_file, strings_file=StringDefaults.strings_file, perms_file=PermissionsDefaults.perms_file):
         super().__init__()
 
         self.players = {}
@@ -75,6 +76,7 @@ class MusicBot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
 
         self.config = Config(config_file)
+        self.strings = Strings(strings_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
@@ -728,10 +730,10 @@ class MusicBot(discord.Client):
                     delete_after=60
                 )
             else:
-                return Response("No such command", delete_after=10)
+                return Response(self.strings.help_notfound, delete_after=10)
 
         else:
-            helpmsg = "**Commands**\n```"
+            helpmsg = "**{}**\n```".format(self.strings.help_header)
             commands = []
 
             for att in dir(self):
@@ -755,11 +757,11 @@ class MusicBot(discord.Client):
         """
 
         if not user_mentions:
-            raise exceptions.CommandError("No users listed.", expire_in=20)
+            raise exceptions.CommandError(self.strings.blacklist_nousers, expire_in=20)
 
         if option not in ['+', '-', 'add', 'remove']:
             raise exceptions.CommandError(
-                'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
+                str(self.strings.blacklist_invalidarg).format(option=option), expire_in=20
             )
 
         for user in user_mentions.copy():
@@ -775,22 +777,19 @@ class MusicBot(discord.Client):
             write_file(self.config.blacklist_file, self.blacklist)
 
             return Response(
-                '%s users have been added to the blacklist' % (len(self.blacklist) - old_len),
+                str(self.strings.blacklist_usersadded).format(users=len(self.blacklist) - old_len),
                 reply=True, delete_after=10
             )
 
         else:
             if self.blacklist.isdisjoint(user.id for user in user_mentions):
-                return Response('none of those users are in the blacklist.', reply=True, delete_after=10)
+                return Response(self.strings.blacklist_notfound, reply=True, delete_after=10)
 
             else:
                 self.blacklist.difference_update(user.id for user in user_mentions)
                 write_file(self.config.blacklist_file, self.blacklist)
 
-                return Response(
-                    '%s users have been removed from the blacklist' % (old_len - len(self.blacklist)),
-                    reply=True, delete_after=10
-                )
+                return Response(self.strings.blacklist_usersremoved.format(users=old_len - len(self.blacklist)), reply=True, delete_after=10)
 
     async def cmd_id(self, author, user_mentions):
         """
@@ -800,10 +799,10 @@ class MusicBot(discord.Client):
         Tells the user their id or the id of another user.
         """
         if not user_mentions:
-            return Response('your id is `%s`' % author.id, reply=True, delete_after=35)
+            return Response(self.strings.id_yourid.format(id=author.id), reply=True, delete_after=35)
         else:
             usr = user_mentions[0]
-            return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
+            return Response(self.strings.id_otherid.format(name=usr.name, id=usr.id), reply=True, delete_after=35)
 
     @owner_only
     async def cmd_joinserver(self, message, server_link):
@@ -816,17 +815,16 @@ class MusicBot(discord.Client):
 
         if self.user.bot:
             return Response(
-                "Bot accounts can't use invite links!  See: "
-                "https://discordapp.com/developers/docs/topics/oauth2#adding-bots-to-guilds",
+                self.strings.joinserver_bot.format(url="https://discordapp.com/developers/docs/topics/oauth2#adding-bots-to-guilds"),
                 reply=True, delete_after=30
             )
 
         try:
             await self.accept_invite(server_link)
-            return Response(":+1:")
+            return Response(self.strings.joinserver_done)
 
         except:
-            raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
+            raise exceptions.CommandError(self.strings.joinserver_invalid.format(url=server_link), expire_in=30)
 
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
@@ -842,7 +840,7 @@ class MusicBot(discord.Client):
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
             raise exceptions.PermissionsError(
-                "You have reached your playlist item limit (%s)" % permissions.max_songs, expire_in=30
+                self.strings.play_pllimitreached.replace(limit=permissions.max_songs), expire_in=30
             )
 
         await self.send_typing(channel)
@@ -856,7 +854,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(e, expire_in=30)
 
         if not info:
-            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+            raise exceptions.CommandError(self.strings.play_cantplay, expire_in=30)
 
         # abstract the search handling away from the user
         # our ytdl options allow us to use search strings as input urls
@@ -893,14 +891,14 @@ class MusicBot(discord.Client):
         if 'entries' in info:
             # I have to do exe extra checks anyways because you can request an arbitrary number of search results
             if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
-                raise exceptions.PermissionsError("You are not allowed to request playlists", expire_in=30)
+                raise exceptions.PermissionsError(self.strings.play_noplaylists, expire_in=30)
 
             # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
             num_songs = sum(1 for _ in info['entries'])
 
             if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
                 raise exceptions.PermissionsError(
-                    "Playlist has too many entries (%s > %s)" % (num_songs, permissions.max_playlist_length),
+                    self.strings.play_pltoomanyentries.format(songs=num_songs, max=permissions.max_playlist_length),
                     expire_in=30
                 )
 
