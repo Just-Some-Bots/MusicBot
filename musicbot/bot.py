@@ -717,7 +717,7 @@ class MusicBot(discord.Client):
         if self.config.log_masterchannel or self.config.log_subchannels:
             print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
             print("  Interaction: " + ['Disabled', 'Enabled'][self.config.log_interaction])
-            print("  Downloads: " + ['Disabled', 'Enabled'][self.config.log_downloads])
+            print("  Debug: " + ['Disabled', 'Enabled'][self.config.log_debug])
             print("  Time Format: {}".format(self.config.log_timeformat))
         else:
             print("Not logging to any text channels")

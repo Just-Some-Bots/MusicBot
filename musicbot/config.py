@@ -84,7 +84,7 @@ class Config:
         self.log_subchannels = config.get('Logging', 'SubChannels', fallback=ConfigDefaults.log_subchannels)
         self.log_exceptions = config.getboolean('Logging', 'Exceptions', fallback=ConfigDefaults.log_exceptions)
         self.log_interaction = config.getboolean('Logging', 'Interaction', fallback=ConfigDefaults.log_interaction)
-        self.log_downloads = config.getboolean('Logging', 'Downloads', fallback=ConfigDefaults.log_downloads)
+        self.log_debug = config.getboolean('Logging', 'Debug', fallback=ConfigDefaults.log_debug)
         self.log_timeformat = config.get('Logging', 'TimeFormat', fallback=ConfigDefaults.log_timeformat)
 
         self.run_checks()
@@ -208,7 +208,7 @@ class ConfigDefaults:
     log_subchannels = set()
     log_exceptions = False
     log_interaction = False
-    log_downloads = False
+    log_debug = False
     log_timeformat = '%H:%M:%S'
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
