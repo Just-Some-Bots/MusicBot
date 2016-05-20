@@ -52,6 +52,9 @@ class Strings:
         self.search_notfound = config.get('Commands', 'Search_NotFound', fallback=StringDefaults.search_notfound)
         self.search_end = config.get('Commands', 'Search_End', fallback=StringDefaults.search_end)
         self.search_success = config.get('Commands', 'Search_Success', fallback=StringDefaults.search_success)
+        self.nowplaying_author = config.get('Commands', 'NowPlaying_Author', fallback=StringDefaults.nowplaying_author)
+        self.nowplaying_noauthor = config.get('Commands', 'NowPlaying_NoAuthor', fallback=StringDefaults.nowplaying_noauthor)
+        self.nowplaying_none = config.get('Commands', 'NowPlaying_None', fallback=StringDefaults.nowplaying_none)
 
 
 class StringDefaults:
@@ -92,5 +95,8 @@ class StringDefaults:
     search_notfound = "No videos found."
     search_end = "Oh well :frowning:"
     search_success = "Alright, coming right up!"
+    nowplaying_author = "Now Playing: **{song}** added by **{author}** {progress}\n"
+    nowplaying_noauthor = "Now Playing: **{song}** {progress}\n"
+    nowplaying_none = "There are no songs queued! Queue something with {prefix}play."
 
     strings_file = 'config/strings.ini'
