@@ -101,6 +101,8 @@ class MusicPlayer(EventEmitter):
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
 
+        self.loop.create_task(self.websocket_check())
+
     @property
     def volume(self):
         return self._volume
@@ -267,6 +269,29 @@ class MusicPlayer(EventEmitter):
         player.buff = PatchedBuff(original_buff)
         return player
 
+    def reload_voice(self, voice_client):
+        self.voice_client = voice_client
+        if self._current_player:
+            self._current_player.player = voice_client.play_audio
+            self._current_player._resumed.clear()
+            self._current_player._connected.set()
+
+    async def websocket_check(self):
+        if self.bot.config.debug_mode:
+            print("[Debug] Creating websocket check loop")
+
+        while not self.is_dead:
+            try:
+                self.voice_client.ws.ensure_open()
+                assert self.voice_client.ws.open
+            except:
+                if self.bot.config.debug_mode:
+                    print("[Debug] Voice websocket is %s, reconnecting" % self.voice_client.ws.state_name)
+                await self.bot.reconnect_voice_client(self.voice_client.channel.server)
+                await asyncio.sleep(4)
+            finally:
+                await asyncio.sleep(1)
+
     @property
     def current_entry(self):
         return self._current_entry
@@ -294,6 +319,7 @@ class MusicPlayer(EventEmitter):
         #       Correct calculation should be bytes_read/192k
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
         #       Change frame_count to bytes_read in the PatchedBuff
+
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:
 #  - http://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-latest-win32-static.7z
