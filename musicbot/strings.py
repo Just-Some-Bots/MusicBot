@@ -60,6 +60,8 @@ class Strings:
         self.summon_nopermsvoice = config.get('Commands', 'Summon_NoPermsVoice', fallback=StringDefaults.summon_nopermsvoice)
         self.pause_failure = config.get('Commands', 'Pause_Failure', fallback=StringDefaults.pause_failure)
         self.resume_failure = config.get('Commands', 'Resume_Failure', fallback=StringDefaults.resume_failure)
+        self.shuffle_done = config.get('Commands', 'Shuffle_Done', fallback=StringDefaults.shuffle_done)
+        self.clear_done = config.get('Commands', 'Clear_Done', fallback=StringDefaults.clear_done)
 
 
 class StringDefaults:
@@ -120,5 +122,7 @@ class StringDefaults:
 
     pause_failure = "Player is not playing."
     resume_failure = "Player is not paused."
+    shuffle_done = ":ok_hand:"
+    clear_done = ":put_litter_in_its_place:"
 
     strings_file = 'config/strings.ini'
