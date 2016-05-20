@@ -62,7 +62,7 @@ class Playlist(EventEmitter):
                 # unfortunately this is literally broken
                 # https://github.com/KeepSafe/aiohttp/issues/758
                 # https://github.com/KeepSafe/aiohttp/issues/852
-                content_type = await get_header(self.bot.session, info['url'], 'CONTENT-TYPE')
+                content_type = await get_header(self.bot.aiosession, info['url'], 'CONTENT-TYPE')
                 print("Got content type", content_type)
 
             except Exception as e:
@@ -355,7 +355,7 @@ class PlaylistEntry:
 
                 if expected_fname_noex in flistdir:
                     try:
-                        rsize = int(await get_header(self.playlist.bot.session, self.url, 'CONTENT-LENGTH'))
+                        rsize = int(await get_header(self.playlist.bot.aiosession, self.url, 'CONTENT-LENGTH'))
                     except:
                         rsize = 0
 

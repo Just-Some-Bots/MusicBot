@@ -21,6 +21,9 @@ ytdl_format_options = {
     'source_address': '0.0.0.0'
 }
 
+# Fuck your useless bugreports message that gets two link embeds and confuses users
+youtube_dl.utils.bug_reports_message = lambda: ''
+
 '''
     Alright, here's the problem.  To catch youtube-dl errors for their useful information, I have to
     catch the exceptions with `ignoreerrors` off.  To not break when ytdl hits a dumb video
