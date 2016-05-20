@@ -58,6 +58,8 @@ class Strings:
         self.summon_novoice = config.get('Commands', 'Summon_NoVoice', fallback=StringDefaults.summon_novoice)
         self.summon_noperms = config.get('Commands', 'Summon_NoPerms', fallback=StringDefaults.summon_noperms)
         self.summon_nopermsvoice = config.get('Commands', 'Summon_NoPermsVoice', fallback=StringDefaults.summon_nopermsvoice)
+        self.pause_failure = config.get('Commands', 'Pause_Failure', fallback=StringDefaults.pause_failure)
+        self.resume_failure = config.get('Commands', 'Resume_Failure', fallback=StringDefaults.resume_failure)
 
 
 class StringDefaults:
@@ -115,5 +117,8 @@ class StringDefaults:
     summon_novoice = "You are not in a voice channel!"
     summon_noperms = "Cannot join channel {channel}, no permission."
     summon_nopermsvoice = "Will not join channel {channel}, no permission to speak."
+
+    pause_failure = "Player is not playing."
+    resume_failure = "Player is not paused."
 
     strings_file = 'config/strings.ini'

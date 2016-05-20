@@ -1322,7 +1322,7 @@ class MusicBot(discord.Client):
             player.pause()
 
         else:
-            raise exceptions.CommandError('Player is not playing.', expire_in=30)
+            raise exceptions.CommandError(self.strings.pause_failure, expire_in=30)
 
     async def cmd_resume(self, player):
         """
@@ -1336,7 +1336,7 @@ class MusicBot(discord.Client):
             player.resume()
 
         else:
-            raise exceptions.CommandError('Player is not paused.', expire_in=30)
+            raise exceptions.CommandError(self.strings.resume_failure, expire_in=30)
 
     async def cmd_shuffle(self, channel, player):
         """
