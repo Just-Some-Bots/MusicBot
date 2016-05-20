@@ -21,10 +21,10 @@ from datetime import timedelta
 from random import choice, shuffle
 from collections import defaultdict
 
+from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.playlist import Playlist
 from musicbot.utils import load_file, write_file, sane_round_int
 
 from . import exceptions
