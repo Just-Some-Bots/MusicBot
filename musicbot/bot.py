@@ -1805,6 +1805,16 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
+    @owner_only
+    async def cmd_sendall(self, leftover_args):      
+        chlist = [self.get_channel(i) for i in self.config.bound_channels if i]
+        args = ""
+        args = ' '.join([args, *leftover_args])
+        for ch in chlist:
+            server = self.get_server(ch.server.id)
+            channel = discord.utils.get(server.channels, name=ch.name, type=ChannelType.text)
+            await self.safe_send_message(channel, "[OWNER] " + args)
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
