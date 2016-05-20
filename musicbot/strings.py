@@ -30,6 +30,7 @@ class Strings:
         self.joinserver_invalid = config.get('Commands', 'Joinserver_Invalid', fallback=StringDefaults.joinserver_invalid)
         self.play_pllimitreached = config.get('Commands', 'Play_PlLimitReached', fallback=StringDefaults.play_pllimitreached)
         self.play_cantplay = config.get('Commands', 'Play_CantPlay', fallback=StringDefaults.play_cantplay)
+        self.play_cantplayplaylist = config.get('Commands', 'Play_CantPlayPlaylist', fallback=StringDefaults.play_cantplayplaylist)
         self.play_noplaylists = config.get('Commands', 'Play_NoPlaylists', fallback=StringDefaults.play_noplaylists)
         self.play_pltoomanyentries = config.get('Commands', 'Play_PlTooManyEntries', fallback=StringDefaults.play_pltoomanyentries)
         self.play_pltoomanyentriestotal = config.get('Commands', 'Play_PlTooManyEntriesTotal', fallback=StringDefaults.play_pltoomanyentriestotal)
@@ -38,9 +39,13 @@ class Strings:
         self.play_plexceedduration = config.get('Commands', 'Play_PlExceedDuration', fallback=StringDefaults.play_plexceedduration)
         self.play_enqueuedplaylist = config.get('Commands', 'Play_EnqueuedPlaylist', fallback=StringDefaults.play_enqueuedplaylist)
         self.play_enqueuedplaylistfuture = config.get('Commands', 'Play_EnqueuedPlaylistFuture', fallback=StringDefaults.play_enqueuedplaylistfuture)
+        self.play_enqueuedplaylisttime = config.get('Commands', 'Play_EnqueuedPlaylistTime', fallback=StringDefaults.play_enqueuedplaylisttime)
         self.play_playingnext = config.get('Commands', 'Play_PlayingNext', fallback=StringDefaults.play_playingnext)
         self.play_exceedduration = config.get('Commands', 'Play_ExceedDuration', fallback=StringDefaults.play_exceedduration)
         self.play_enqueuedsong = config.get('Commands', 'Play_EnqueuedSong', fallback=StringDefaults.play_enqueuedsong)
+        self.play_processing = config.get('Commands', 'Play_Processing', fallback=StringDefaults.play_processing)
+        self.play_errorqueuingpl = config.get('Commands', 'Play_ErrorQueuingPl', fallback=StringDefaults.play_errorqueuingpl)
+        self.play_currentexceedduration = config.get('Commands', 'Play_CurrentExceedDuration', fallback=StringDefaults.play_currentexceedduration)
 
 
 class StringDefaults:
@@ -59,6 +64,7 @@ class StringDefaults:
     joinserver_invalid = "Invalid URL provided:\n{url}\n"
     play_pllimitreached = "You have reached your playlist item limit ({limit})"
     play_cantplay = "That video cannot be played"
+    play_cantplayplaylist = "That playlist cannot be played"
     play_noplaylists = "You are not allowed to request playlists"
     play_pltoomanyentries = "Playlist has too many entries ({songs} > {max})"
     play_pltoomanyentriestotal = "Playlist entries + your already queued songs reached limit ({songs} + {queued} > {max})"
@@ -66,9 +72,13 @@ class StringDefaults:
     play_plinfo = "Gathering playlist information for {songs} songs"
     play_plexceedduration = "No songs were added, all songs were over max duration ({max})"
     play_enqueuedplaylist = "Enqueued **{songs}** songs to be played. Position in queue: {position}"
+    play_enqueuedplaylisttime = "Enqueued **{songs}** songs to be played in {secs} seconds"
     play_enqueuedplaylistfuture = " - estimated time until playing: {eta}"
     play_playingnext = "Up next!"
     play_exceedduration = "Song duration exceeds limit ({duration} > {max})"
     play_enqueuedsong = "Enqueued **{song}** to be played. Position in queue: {position}"
+    play_processing = "Processing {songs} songs..."
+    play_errorqueuingpl = "Error handling playlist {link} queuing"
+    play_currentexceedduration = "\nAdditionally, the current song was skipped for being too long."
 
     strings_file = 'config/strings.ini'

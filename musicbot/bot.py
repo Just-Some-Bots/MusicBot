@@ -1025,13 +1025,13 @@ class MusicBot(discord.Client):
         info = await self.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
 
         if not info:
-            raise exceptions.CommandError("That playlist cannot be played.")
+            raise exceptions.CommandError(self.strings.play_cantplayplaylist)
 
         num_songs = sum(1 for _ in info['entries'])
         t0 = time.time()
 
         busymsg = await self.safe_send_message(
-            channel, "Processing %s songs..." % num_songs)  # TODO: From playlist_title
+            channel, self.strings.play_processing.format(songs=num_songs))  # TODO: From playlist_title
         await self.send_typing(channel)
 
         if extractor_type == 'youtube:playlist':
@@ -1043,7 +1043,7 @@ class MusicBot(discord.Client):
 
             except Exception:
                 traceback.print_exc()
-                raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
+                raise exceptions.CommandError(self.strings.play_errorqueuingpl.format(link=playlist_url), expire_in=30)
 
         elif extractor_type.lower() in ['soundcloud:set', 'bandcamp:album']:
             try:
@@ -1054,7 +1054,7 @@ class MusicBot(discord.Client):
 
             except Exception:
                 traceback.print_exc()
-                raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
+                raise exceptions.CommandError(self.strings.play_errorqueuingpl.format(link=playlist_url), expire_in=30)
 
 
         songs_processed = len(entries_added)
@@ -1100,14 +1100,14 @@ class MusicBot(discord.Client):
         )
 
         if not songs_added:
-            basetext = "No songs were added, all songs were over max duration (%ss)" % permissions.max_song_length
+            basetext = self.strings.play_plexceedduration.format(max=permissions.max_song_length)
             if skipped:
-                basetext += "\nAdditionally, the current song was skipped for being too long."
+                basetext += self.strings.play_currentexceedduration
 
             raise exceptions.CommandError(basetext, expire_in=30)
 
-        return Response("Enqueued {} songs to be played in {} seconds".format(
-            songs_added, self._fixg(ttime, 1)), delete_after=30)
+        return Response(self.strings.play_enqueuedplaylisttime.format(
+            songs=songs_added, secs=self._fixg(ttime, 1)), delete_after=30)
 
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
