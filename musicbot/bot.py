@@ -1380,16 +1380,16 @@ class MusicBot(discord.Client):
         """
 
         if player.is_stopped:
-            raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
+            raise exceptions.CommandError(self.strings.skip_failure, expire_in=20)
 
         if not player.current_entry:
             if player.playlist.peek():
                 if player.playlist.peek()._is_downloading:
                     print(player.playlist.peek()._waiting_futures[0].__dict__)
-                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
+                    return Response(self.strings.skip_wait.format(song=player.playlist.peek().title))
 
                 elif player.playlist.peek().is_downloaded:
-                    print("The next song will be played shortly.  Please wait.")
+                    print("The next song will be played shortly. Please wait.")
                 else:
                     print("Something odd is happening.  "
                           "You might want to restart the bot if it doesn't start working.")
@@ -1416,10 +1416,9 @@ class MusicBot(discord.Client):
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
             return Response(
-                'your skip for **{}** was acknowledged.'
-                '\nThe vote to skip has been passed.{}'.format(
-                    player.current_entry.title,
-                    ' Next song coming up!' if player.playlist.peek() else ''
+                self.strings.skip_acknowledge.format(
+                    song=player.current_entry.title) + "{}".format(
+                    self.strings.skip_comingup if player.playlist.peek() else ''
                 ),
                 reply=True,
                 delete_after=20
@@ -1428,11 +1427,10 @@ class MusicBot(discord.Client):
         else:
             # TODO: When a song gets skipped, delete the old x needed to skip messages
             return Response(
-                'your skip for **{}** was acknowledged.'
-                '\n**{}** more {} required to vote to skip this song.'.format(
-                    player.current_entry.title,
-                    skips_remaining,
-                    'person is' if skips_remaining == 1 else 'people are'
+                self.strings.skip_acknowledgemore.format(
+                    people=self.strings.skip_single if skips_remaining == 1 else self.strings.skip_multiple,
+                    song=player.current_entry.title,
+                    number=skips_remaining
                 ),
                 reply=True,
                 delete_after=20

@@ -62,6 +62,13 @@ class Strings:
         self.resume_failure = config.get('Commands', 'Resume_Failure', fallback=StringDefaults.resume_failure)
         self.shuffle_done = config.get('Commands', 'Shuffle_Done', fallback=StringDefaults.shuffle_done)
         self.clear_done = config.get('Commands', 'Clear_Done', fallback=StringDefaults.clear_done)
+        self.skip_failure = config.get('Commands', 'Skip_Failure', fallback=StringDefaults.skip_failure)
+        self.skip_wait = config.get('Commands', 'Skip_Wait', fallback=StringDefaults.skip_wait)
+        self.skip_acknowledge = config.get('Commands', 'Skip_Acknowledge', fallback=StringDefaults.skip_acknowledge)
+        self.skip_acknowledgemore = config.get('Commands', 'Skip_AcknowledgeMore', fallback=StringDefaults.skip_acknowledgemore)
+        self.skip_comingup = config.get('Commands', 'Skip_ComingUp', fallback=StringDefaults.skip_comingup)
+        self.skip_single = config.get('Commands', 'Skip_Single', fallback=StringDefaults.skip_single)
+        self.skip_multiple = config.get('Commands', 'Skip_Multiple', fallback=StringDefaults.skip_multiple)
 
 
 class StringDefaults:
@@ -124,5 +131,13 @@ class StringDefaults:
     resume_failure = "Player is not paused."
     shuffle_done = ":ok_hand:"
     clear_done = ":put_litter_in_its_place:"
+
+    skip_failure = "Can't skip! The player is not playing!"
+    skip_wait = "The next song ({song}) is downloading, please wait."
+    skip_acknowledge = "your skip for **{song}** was acknowledged.\nThe vote to skip has been passed."
+    skip_acknowledgemore = "your skip for **{song}** was acknowledged.\n**{number}** more {people} required to vote to skip this song."
+    skip_comingup = " Next song coming up!"
+    skip_single = "person is"
+    skip_multiple = "people are"
 
     strings_file = 'config/strings.ini'
