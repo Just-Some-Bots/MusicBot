@@ -46,6 +46,10 @@ class Strings:
         self.play_processing = config.get('Commands', 'Play_Processing', fallback=StringDefaults.play_processing)
         self.play_errorqueuingpl = config.get('Commands', 'Play_ErrorQueuingPl', fallback=StringDefaults.play_errorqueuingpl)
         self.play_currentexceedduration = config.get('Commands', 'Play_CurrentExceedDuration', fallback=StringDefaults.play_currentexceedduration)
+        self.search_valueerror = config.get('Commands', 'Search_ValueError', fallback=StringDefaults.search_valueerror)
+        self.search_reachedmax = config.get('Commands', 'Search_ReachedMax', fallback=StringDefaults.search_reachedmax)
+        self.search_searching = config.get('Commands', 'Search_Searching', fallback=StringDefaults.search_searching)
+        self.search_notfound = config.get('Commands', 'Search_NotFound', fallback=StringDefaults.search_notfound)
 
 
 class StringDefaults:
@@ -80,5 +84,9 @@ class StringDefaults:
     play_processing = "Processing {songs} songs..."
     play_errorqueuingpl = "Error handling playlist {link} queuing"
     play_currentexceedduration = "\nAdditionally, the current song was skipped for being too long."
+    search_valueerror = "Please quote your search query properly."
+    search_searching = "Searching for videos..."
+    search_reachedmax = "You cannot search for more than {max} videos"
+    search_notfound = "No videos found."
 
     strings_file = 'config/strings.ini'
