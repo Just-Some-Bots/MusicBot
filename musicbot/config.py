@@ -4,6 +4,7 @@ import configparser
 
 from .exceptions import HelpfulError
 
+
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
@@ -209,7 +210,6 @@ class ConfigDefaults:
     log_interaction = False
     log_downloads = False
     log_timeformat = '%H:%M:%S'
-
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
 class Blacklist:
