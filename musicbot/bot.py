@@ -840,7 +840,7 @@ class MusicBot(discord.Client):
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
             raise exceptions.PermissionsError(
-                self.strings.play_pllimitreached.replace(limit=permissions.max_songs), expire_in=30
+                self.strings.play_pllimitreached.format(limit=permissions.max_songs), expire_in=30
             )
 
         await self.send_typing(channel)
