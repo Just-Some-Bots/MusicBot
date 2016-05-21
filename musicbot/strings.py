@@ -16,6 +16,10 @@ class Strings:
         config = configparser.ConfigParser(interpolation=None)
         config.read(strings_file, encoding='utf-8')
 
+        self.done = config.get('General', 'Done', fallback=StringDefaults.done)
+        self.pm_sent = config.get('General', 'PM_Sent', fallback=StringDefaults.pm_sent)
+        self.no_pm = config.get('General', 'No_PM', fallback=StringDefaults.no_pm)
+
         self.help_header = config.get('Commands', 'Help_Header', fallback=StringDefaults.help_header)
         self.help_notfound = config.get('Commands', 'Help_NotFound', fallback=StringDefaults.help_notfound)
         self.blacklist_nousers = config.get('Commands', 'Blacklist_NoUsers', fallback=StringDefaults.blacklist_nousers)
@@ -52,6 +56,12 @@ class Strings:
         self.search_notfound = config.get('Commands', 'Search_NotFound', fallback=StringDefaults.search_notfound)
         self.search_end = config.get('Commands', 'Search_End', fallback=StringDefaults.search_end)
         self.search_success = config.get('Commands', 'Search_Success', fallback=StringDefaults.search_success)
+        self.search_noquery = config.get('Commands', 'Search_NoQuery', fallback=StringDefaults.search_noquery)
+        self.search_result = config.get('Commands', 'Search_Result', fallback=StringDefaults.search_result)
+        self.search_resultend = config.get('Commands', 'Search_ResultEnd', fallback=StringDefaults.search_resultend)
+        self.search_yes = config.get('Commands', 'Search_Yes', fallback=StringDefaults.search_yes)
+        self.search_no = config.get('Commands', 'Search_No', fallback=StringDefaults.search_no)
+        self.search_exit = config.get('Commands', 'Search_Exit', fallback=StringDefaults.search_exit)
         self.nowplaying_author = config.get('Commands', 'NowPlaying_Author', fallback=StringDefaults.nowplaying_author)
         self.nowplaying_noauthor = config.get('Commands', 'NowPlaying_NoAuthor', fallback=StringDefaults.nowplaying_noauthor)
         self.nowplaying_none = config.get('Commands', 'NowPlaying_None', fallback=StringDefaults.nowplaying_none)
@@ -72,6 +82,19 @@ class Strings:
         self.volume_current = config.get('Commands', 'Volume_Current', fallback=StringDefaults.volume_current)
         self.volume_valueerror = config.get('Commands', 'Volume_ValueError', fallback=StringDefaults.volume_valueerror)
         self.volume_updated = config.get('Commands', 'Volume_Updated', fallback=StringDefaults.volume_updated)
+        self.queue_andmore = config.get('Commands', 'Queue_AndMore', fallback=StringDefaults.queue_andmore)
+        self.queue_author = config.get('Commands', 'Queue_Author', fallback=StringDefaults.queue_author)
+        self.queue_noauthor = config.get('Commands', 'Queue_NoAuthor', fallback=StringDefaults.queue_noauthor)
+        self.clean_valueerror = config.get('Commands', 'Clean_ValueError', fallback=StringDefaults.clean_valueerror)
+        self.clean_success = config.get('Commands', 'Clean_Success', fallback=StringDefaults.clean_success)
+        self.pldump_nodata = config.get('Commands', 'Pldump_NoData', fallback=StringDefaults.pldump_nodata)
+        self.pldump_noplaylist = config.get('Commands', 'Pldump_NoPlaylist', fallback=StringDefaults.pldump_noplaylist)
+        self.pldump_unsupported = config.get('Commands', 'Pldump_Unsupported', fallback=StringDefaults.pldump_unsupported)
+        self.pldump_exception = config.get('Commands', 'Pldump_Exception', fallback=StringDefaults.pldump_exception)
+        self.nick_noperms = config.get('Commands', 'Nick_NoPerms', fallback=StringDefaults.nick_noperms)
+        self.avatar_error = config.get('Commands', 'Avatar_Error', fallback=StringDefaults.avatar_error)
+        self.notenabled = config.get('Permissions', 'NotEnabled', fallback=StringDefaults.notenabled)
+        self.disabled = config.get('Permissions', 'Disabled', fallback=StringDefaults.disabled)
 
 
 class StringDefaults:
@@ -79,6 +102,9 @@ class StringDefaults:
         These are the default, English strings for the bot.
         Do not edit strings here. Use strings.ini in the config folder.
     """
+    done = ":ok_hand:"
+    pm_sent = ":mailbox_with_mail:"
+    no_pm = "You cannot use this bot in private messages."
 
     help_header = "Commands"
     help_notfound = "No such command"
@@ -121,6 +147,12 @@ class StringDefaults:
     search_notfound = "No videos found."
     search_end = "Oh well :frowning:"
     search_success = "Alright, coming right up!"
+    search_noquery = "Please specify a search query.\n{doc}"
+    search_result = "Result {current}/{max}: {url}"
+    search_resultend = "Is this ok? Type `{yes}`, `{no}` or `{exit}`"
+    search_yes = "y"
+    search_no = "n"
+    search_exit = "exit"
 
     nowplaying_author = "Now Playing: **{song}** added by **{author}** {progress}\n"
     nowplaying_noauthor = "Now Playing: **{song}** {progress}\n"
@@ -146,5 +178,23 @@ class StringDefaults:
     volume_current = "Current volume: `{volume}`"
     volume_valueerror = "{volume} is not a valid number"
     volume_updated = "updated volume from {old} to {new}"
+
+    queue_andmore = "* ... and {num} more*"
+    queue_author = "`{num}.` **{song}** added by **{author}**"
+    queue_noauthor = "`{num}.` **{author}**"
+
+    clean_valueerror = "enter a number.  NUMBER.  That means digits.  `15`.  Etc."
+    clean_success = "Cleaned up {num} message{s}."
+
+    pldump_nodata = "Could not extract info from input url, no data."
+    pldump_noplaylist = "This does not seem to be a playlist."
+    pldump_unsupported = "Could not extract info from input url, unsupported playlist type."
+    pldump_exception = "Could not extract info from input url\n{exception}\n"
+
+    nick_noperms = "Unable to change nickname: no permission."
+    avatar_error = "Unable to change avatar: {exception}"
+
+    notenabled = "This command is not enabled for your group ({group})."
+    disabled = "This command is disabled for your group ({group})."
 
     strings_file = 'config/strings.ini'
