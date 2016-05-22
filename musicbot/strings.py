@@ -96,6 +96,10 @@ class Strings:
         self.notenabled = config.get('Permissions', 'NotEnabled', fallback=StringDefaults.notenabled).replace('\\n', '\n')
         self.disabled = config.get('Permissions', 'Disabled', fallback=StringDefaults.disabled).replace('\\n', '\n')
 
+        self.expiry_success = config.getint('Expiry', 'Success', fallback=StringDefaults.expiry_success)
+        self.expiry_error = config.getint('Expiry', 'Error', fallback=StringDefaults.expiry_error)
+        self.expiry_help = config.getint('Expiry', 'Help', fallback=StringDefaults.expiry_help)
+
 
 class StringDefaults:
     """
@@ -105,6 +109,10 @@ class StringDefaults:
     done = ":ok_hand:"
     pm_sent = ":mailbox_with_mail:"
     no_pm = "You cannot use this bot in private messages."
+
+    expiry_success = 30
+    expiry_error = 15
+    expiry_help = 60
 
     help_header = "Commands"
     help_notfound = "No such command"
