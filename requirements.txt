@@ -1,0 +1,2 @@
+https://github.com/Rapptz/discord.py/archive/async.zip
+youtube_dl >= 2016.4.24
