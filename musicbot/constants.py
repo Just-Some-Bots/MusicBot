@@ -1,5 +1,8 @@
 import os.path
 
-DEFAULT_VOLUME = .15
+MAIN_VERSION = '1.9.5'
+SUB_VERSION = ''
+VERSION = MAIN_VERSION + SUB_VERSION
+
 AUDIO_CACHE_PATH = os.path.join(os.getcwd(), 'audio_cache')
 DISCORD_MSG_CHAR_LIMIT = 2000

@@ -1,8 +1,14 @@
-import sys, os, traceback, subprocess, webbrowser
+from __future__ import print_function
+
+import os
+import gc
+import sys
+import time
+import traceback
+import subprocess
 
 
 class GIT(object):
-
     @classmethod
     def works(cls):
         try:
@@ -12,7 +18,6 @@ class GIT(object):
 
 
 class PIP(object):
-
     @classmethod
     def run(cls, command, check_output=False):
         if not cls.works():
@@ -77,6 +82,7 @@ class PIP(object):
         except ImportError:
             return False
 
+    # noinspection PyTypeChecker
     @classmethod
     def get_module_version(cls, mod):
         try:
@@ -94,18 +100,6 @@ class PIP(object):
                 return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
         except:
             pass
-
-
-def open_in_wb(text, printanyways=True, indents=4):
-    import webbrowser
-    # TODO: Figure out console browser stuff
-    # also check GenericBrowser
-    if isinstance(webbrowser.get(), webbrowser.BackgroundBrowser):
-        print('%s%s' % (' ' * indents , text))
-    else:
-        webbrowser.open_new_tab(text)
-        if printanyways:
-            print('%s%s' % (' ' * indents , text))
 
 
 def main():
@@ -146,56 +140,81 @@ def main():
 
                 os.execlp(pycom, pycom, 'run.py')
 
-
         print("Please run the bot using python 3.5")
         input("Press enter to continue . . .")
 
         return
 
-
-    if '--update' in sys.argv:
-        if PIP.works():
-            try:
-                err = PIP.run_install('--upgrade -r requirements.txt')
-            except subprocess.CalledProcessError as err:
-                print("\nUpgrade failed, you may need to run it as admin/root")
-                input("Press enter to continue . . .")
-                return
-
-        else:
-            # TODO: Make this text less questionable
-            print("\n"
-                "Could not locate PIP. If you're sure you have it, run this:\n"
-                "  your_pip_command install --upgrade -r requirements.txt"
-                "\n\n")
-
-            input("Press enter to continue . . .")
-            return
-
+    import asyncio
 
     tried_requirementstxt = False
     tryagain = True
 
+    loops = 0
+    max_wait_time = 60
+
     while tryagain:
+        # Maybe I need to try to import stuff first, then actually import stuff
+        # It'd save me a lot of pain with all that awful exception type checking
+
         try:
             from musicbot import MusicBot
-            MusicBot().run()
-            break # check if restart? replace process?
+
+            m = MusicBot()
+            print("Connecting...", end='', flush=True)
+            m.run()
+
+        except SyntaxError:
+            traceback.print_exc()
+            break
 
         except ImportError as e:
             if not tried_requirementstxt:
                 tried_requirementstxt = True
+
                 # TODO: Better output
+                print(e)
                 print("Attempting to install dependencies...")
 
-                err = PIP.run_install('-r requirements.txt')
+                err = PIP.run_install('--upgrade -r requirements.txt')
 
                 if err:
                     print("\nYou may need to %s to install dependencies." %
-                        ['use sudo', 'run as admin'][sys.platform.startswith('win')])
+                          ['use sudo', 'run as admin'][sys.platform.startswith('win')])
                     break
                 else:
                     print("\nOk lets hope it worked\n")
+            else:
+                traceback.print_exc()
+                print("Unknown ImportError, exiting.")
+                break
+
+        except Exception as e:
+            if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
+                if e.__class__.__name__ == 'HelpfulError':
+                    print(e.message)
+                    break
+
+                elif e.__class__.__name__ == "TerminateSignal":
+                    break
+
+                elif e.__class__.__name__ == "RestartSignal":
+                    loops = -1
+            else:
+                traceback.print_exc()
+
+        finally:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            loops += 1
+
+        print("Cleaning up... ", end='')
+        gc.collect()
+        print("Done.")
+
+        sleeptime = min(loops * 2, max_wait_time)
+        if sleeptime:
+            print("Restarting in {} seconds...".format(loops*2))
+            time.sleep(sleeptime)
 
 
 if __name__ == '__main__':
