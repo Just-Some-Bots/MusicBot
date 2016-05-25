@@ -890,6 +890,10 @@ class MusicBot(discord.Client):
         # TODO: Possibly add another check here to see about things like the bandcamp issue
         # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
 
+            if song_url not in self.autoplaylist:
+                self.autoplaylist.append(song_url)
+                write_file('./config/autoplaylist.txt', self.autoplaylist)
+
         if 'entries' in info:
             # I have to do exe extra checks anyways because you can request an arbitrary number of search results
             if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
@@ -1403,6 +1407,9 @@ class MusicBot(discord.Client):
                       "You might want to restart the bot if it doesn't start working.")
 
         if author.id == self.config.owner_id or permissions.instaskip:
+            if player.current_entry.url in self.autoplaylist:
+                self.autoplaylist.remove(player.current_entry.url)
+                write_file('./config/autoplaylist.txt', self.autoplaylist)
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return
@@ -1419,6 +1426,9 @@ class MusicBot(discord.Client):
                               sane_round_int(num_voice * self.config.skip_ratio_required)) - num_skips
 
         if skips_remaining <= 0:
+            if player.current_entry.url in self.autoplaylist:
+                self.autoplaylist.remove(player.current_entry.url)
+                write_file('./config/autoplaylist.txt', self.autoplaylist)
             player.skip()  # check autopause stuff here
             return Response(
                 'your skip for **{}** was acknowledged.'
