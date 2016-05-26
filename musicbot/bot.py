@@ -890,9 +890,12 @@ class MusicBot(discord.Client):
         # TODO: Possibly add another check here to see about things like the bandcamp issue
         # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
 
-            if song_url not in self.autoplaylist:
-                self.autoplaylist.append(song_url)
-                write_file('./config/autoplaylist.txt', self.autoplaylist)
+        if song_url not in self.autoplaylist:
+            self.autoplaylist.append(song_url)
+            self.safe_print("[Info] Writing song to autoplaylist on disk: %s" % song_url)
+            write_file(self.config.auto_playlist_file, self.autoplaylist)
+        else:
+            self.safe_print("[Info] Song already in playlist: %s" % song_url)
 
         if 'entries' in info:
             # I have to do exe extra checks anyways because you can request an arbitrary number of search results
@@ -1408,8 +1411,11 @@ class MusicBot(discord.Client):
 
         if author.id == self.config.owner_id or permissions.instaskip:
             if player.current_entry.url in self.autoplaylist:
+                self.safe_print("[Info] Removing song from playlist on disk: %s" % player.current_entry.url)
                 self.autoplaylist.remove(player.current_entry.url)
-                write_file('./config/autoplaylist.txt', self.autoplaylist)
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
+            else:
+                self.safe_print("[Info] Song already absent from playlist: %s" % player.current_entry.url)
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return
@@ -1427,8 +1433,11 @@ class MusicBot(discord.Client):
 
         if skips_remaining <= 0:
             if player.current_entry.url in self.autoplaylist:
+                self.safe_print("[Info] Removing song from playlist on disk: %s" % player.current_entry.url)
                 self.autoplaylist.remove(player.current_entry.url)
-                write_file('./config/autoplaylist.txt', self.autoplaylist)
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
+            else:
+                self.safe_print("[Info] Song already absent from playlist: %s" % player.current_entry.url)
             player.skip()  # check autopause stuff here
             return Response(
                 'your skip for **{}** was acknowledged.'
