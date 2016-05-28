@@ -1364,7 +1364,7 @@ class MusicBot(discord.Client):
             player.resume()
         else:
             raise exceptions.CommandError('Player is not paused.', expire_in=30)
-        return Response(":play_button:", delete_after=15)
+        return Response(":play_pause:", delete_after=15)
             
     async def cmd_shuffle(self, channel, player):
         """
