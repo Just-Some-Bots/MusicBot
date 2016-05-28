@@ -828,16 +828,21 @@ class MusicBot(discord.Client):
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
 
-    async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
+    async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url=None):
         """
         Usage:
             {command_prefix}play song_link
             {command_prefix}play text to search for
-
-        Adds the song to the playlist.  If a link is not provided, the first
-        result from a youtube search is added to the queue.
+            {command_prefix}play
+            
+        Adds the song to the playlist.  
+        If a link is not provided, the first result from a youtube search is added to the queue.
+        If no arguments at all are provided, simply play from the playlist.
         """
-
+        if not song_url:
+            await self.start_playback(author)
+            return
+        
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -1314,12 +1319,22 @@ class MusicBot(discord.Client):
                 delete_after=25
             )
 
+        await self.start_playback(author)
+            
+    async def start_playback(self, author):
         player = await self.get_player(author.voice_channel, create=True)
 
         if player.is_stopped:
+            self.safe_print("[Info] Player is stopped. Playing.")
             player.play()
+        elif player.is_paused:
+            self.safe_print("[Info] Player paused. Resuming.")
+            player.resume()
+        elif player.is_playing:
+            self.safe_print("[Info] Player already playing. Doing nothing.")
 
         if self.config.auto_playlist:
+            self.safe_print("[Info] Awaiting playback completion.")
             await self.on_finished_playing(player)
 
     async def cmd_pause(self, player):
@@ -1335,6 +1350,7 @@ class MusicBot(discord.Client):
 
         else:
             raise exceptions.CommandError('Player is not playing.', expire_in=30)
+        return Response(":pause_button:", delete_after=15)
 
     async def cmd_resume(self, player):
         """
@@ -1346,10 +1362,10 @@ class MusicBot(discord.Client):
 
         if player.is_paused:
             player.resume()
-
         else:
             raise exceptions.CommandError('Player is not paused.', expire_in=30)
-
+        return Response(":play_button:", delete_after=15)
+            
     async def cmd_shuffle(self, channel, player):
         """
         Usage:
