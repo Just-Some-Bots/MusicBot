@@ -1386,10 +1386,22 @@ class MusicBot(discord.Client):
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
-            {command_prefix}skip
-
-        Skips the current song when enough votes are cast, or by the bot owner.
+            (command_prefix)skip
+            
+        Stops player the current song, but leaves it in the current playlist for later.
         """
+        await self.stop_song(player, channel, author, message, permissions, voice_channel, False)
+        
+    async def cmd_purge(self, player, channel, author, message, permissions, voice_channel):
+        """
+        Usage:
+            {command_prefix}purge
+
+        Stops playing the current song, and removes it permanently from the playlist.
+        """
+        await self.stop_song(player, channel, author, message, permissions, voice_channel, True)
+
+    async def stop_song(self, player, channel, author, message, permissions, voice_channel, remove):
 
         if player.is_stopped:
             raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
@@ -1410,12 +1422,15 @@ class MusicBot(discord.Client):
                       "You might want to restart the bot if it doesn't start working.")
 
         if author.id == self.config.owner_id or permissions.instaskip:
-            if player.current_entry.url in self.autoplaylist:
-                self.safe_print("[Info] Removing song from playlist on disk: %s" % player.current_entry.url)
-                self.autoplaylist.remove(player.current_entry.url)
-                write_file(self.config.auto_playlist_file, self.autoplaylist)
+            if remove:
+                if player.current_entry.url in self.autoplaylist:
+                    self.safe_print("[Info] Removing song from playlist on disk: %s" % player.current_entry.url)
+                    self.autoplaylist.remove(player.current_entry.url)
+                    write_file(self.config.auto_playlist_file, self.autoplaylist)
+                else:
+                    self.safe_print("[Info] Song already absent from playlist: %s" % player.current_entry.url)
             else:
-                self.safe_print("[Info] Song already absent from playlist: %s" % player.current_entry.url)
+                self.safe_print("[Info] Skipped song, but did not remove from playlist. %s" % player.current_entry.url)
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return
