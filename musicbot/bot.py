@@ -1956,9 +1956,6 @@ class MusicBot(discord.Client):
         if before.server.id not in self.players:
             return
 
-        if not self.config.auto_pause:
-            return
-
         my_voice_channel = after.server.me.voice_channel  # This should always work, right?
 
         if not my_voice_channel:
@@ -1972,9 +1969,15 @@ class MusicBot(discord.Client):
             return  # Not my channel
 
         moving = before == before.server.me
-        auto_paused = self.server_specific_data[after.server]['auto_paused']
 
+        auto_paused = self.server_specific_data[after.server]['auto_paused']
         player = await self.get_player(my_voice_channel)
+
+        if after == after.server.me and after.voice_channel:
+            player.voice_client.channel = after.voice_channel
+
+        if not self.config.auto_pause:
+            return
 
         if sum(1 for m in my_voice_channel.voice_members if m != after.server.me):
             if auto_paused and player.is_paused:
