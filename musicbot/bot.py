@@ -157,12 +157,10 @@ class MusicBot(discord.Client):
             await self.cmd_summon(owner.voice_channel, owner, None)
             return owner.voice_channel
 
-    async def _autojoin_channels(self):
+    async def _autojoin_channels(self, channels):
         joined_servers = []
 
-        for chid in self.config.autojoin_channels:
-            channel = self.get_channel(chid)
-
+        for channel in channels:
             if channel.server in joined_servers:
                 print("Already joined a channel in %s, skipping" % channel.server.name)
                 continue
@@ -199,7 +197,7 @@ class MusicBot(discord.Client):
                 print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
 
             else:
-                print("Invalid channel id: " + chid)
+                print("Invalid channel thing: " + channel)
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
@@ -351,7 +349,7 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
 
-    async def get_player(self, channel, create=False):
+    async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
 
         if server.id not in self.players:
@@ -624,6 +622,7 @@ class MusicBot(discord.Client):
 
         if self.config.bound_channels:
             chlist = set(self.get_channel(i) for i in self.config.bound_channels if i)
+            chlist.discard(None)
             invalids = set()
 
             invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
@@ -634,7 +633,7 @@ class MusicBot(discord.Client):
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
-                print("Not binding to voice channels:")
+                print("\nNot binding to voice channels:")
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             print()
@@ -644,9 +643,10 @@ class MusicBot(discord.Client):
 
         if self.config.autojoin_channels:
             chlist = set(self.get_channel(i) for i in self.config.autojoin_channels if i)
+            chlist.discard(None)
             invalids = set()
 
-            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.text)
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
@@ -654,11 +654,14 @@ class MusicBot(discord.Client):
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
-                print("Cannot join text channels:")
+                print("\nCannot join text channels:")
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+
+            autojoin_channels = chlist
 
         else:
             print("Not autojoining any voice channels")
+            autojoin_channels = set()
 
         print()
         print("Options:")
@@ -688,7 +691,7 @@ class MusicBot(discord.Client):
                 print("Could not delete old audio cache, moving on.")
 
         if self.config.autojoin_channels:
-            await self._autojoin_channels()
+            await self._autojoin_channels(autojoin_channels)
 
         elif self.config.auto_summon:
             print("Attempting to autosummon...", flush=True)
