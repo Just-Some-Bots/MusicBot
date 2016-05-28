@@ -586,7 +586,7 @@ class MusicBot(discord.Client):
             await self.logout()
 
         else:
-            super().on_error(event, *args, **kwargs)
+            traceback.print_exc()
 
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
