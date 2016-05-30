@@ -1819,7 +1819,7 @@ class MusicBot(discord.Client):
             return
 
         if message.channel.is_private:
-            if not (message.author.id == self.config.owner_id and command == 'joinserver'):
+            if not (message.author.id == self.config.owner_id and command == 'joinserver') or message.author.id == self.config.owner_id:
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
