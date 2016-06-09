@@ -176,7 +176,7 @@ class MusicBot(discord.Client):
                         player.play()
 
                     if self.config.auto_playlist:
-                        await self.on_finished_playing(player)
+                        await self.on_player_finished_playing(player)
 
                     joined_servers.append(channel.server)
                 except Exception as e:
@@ -353,19 +353,19 @@ class MusicBot(discord.Client):
 
             playlist = Playlist(self)
             player = MusicPlayer(self, voice_client, playlist) \
-                .on('play', self.on_play) \
-                .on('resume', self.on_resume) \
-                .on('pause', self.on_pause) \
-                .on('stop', self.on_stop) \
-                .on('finished-playing', self.on_finished_playing) \
-                .on('entry-added', self.on_entry_added)
+                .on('play', self.on_player_play) \
+                .on('resume', self.on_player_resume) \
+                .on('pause', self.on_player_pause) \
+                .on('stop', self.on_player_stop) \
+                .on('finished-playing', self.on_player_finished_playing) \
+                .on('entry-added', self.on_player_entry_added)
 
             player.skip_state = SkipState()
             self.players[server.id] = player
 
         return self.players[server.id]
 
-    async def on_play(self, player, entry):
+    async def on_player_play(self, player, entry):
         await self.update_now_playing(entry)
         player.skip_state.reset()
 
@@ -394,16 +394,16 @@ class MusicBot(discord.Client):
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
-    async def on_resume(self, entry, **_):
+    async def on_player_resume(self, entry, **_):
         await self.update_now_playing(entry)
 
-    async def on_pause(self, entry, **_):
+    async def on_player_pause(self, entry, **_):
         await self.update_now_playing(entry, True)
 
-    async def on_stop(self, **_):
+    async def on_player_stop(self, **_):
         await self.update_now_playing()
 
-    async def on_finished_playing(self, player, **_):
+    async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
@@ -432,7 +432,7 @@ class MusicBot(discord.Client):
                 print("[Warning] No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
-    async def on_entry_added(self, playlist, entry, **_):
+    async def on_player_entry_added(self, playlist, entry, **_):
         pass
 
     async def update_now_playing(self, entry=None, is_paused=False):
@@ -579,6 +579,10 @@ class MusicBot(discord.Client):
         else:
             traceback.print_exc()
 
+    async def on_resume(self):
+        for vc in self.the_voice_clients:
+            vc.main_ws = self.ws
+
     async def on_ready(self):
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
@@ -694,7 +698,7 @@ class MusicBot(discord.Client):
                 print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
                 if self.config.auto_playlist:
                     print("Starting auto-playlist")
-                    await self.on_finished_playing(await self.get_player(owner_vc))
+                    await self.on_player_finished_playing(await self.get_player(owner_vc))
             else:
                 print("Owner not found in a voice channel, could not autosummon.")
 
@@ -1307,7 +1311,7 @@ class MusicBot(discord.Client):
             player.play()
 
         if self.config.auto_playlist:
-            await self.on_finished_playing(player)
+            await self.on_player_finished_playing(player)
 
     async def cmd_pause(self, player):
         """
