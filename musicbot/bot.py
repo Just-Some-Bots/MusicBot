@@ -581,8 +581,8 @@ class MusicBot(discord.Client):
         else:
             traceback.print_exc()
 
-    async def on_resume(self):
-        for vc in self.the_voice_clients:
+    async def on_resumed(self):
+        for vc in self.the_voice_clients.values():
             vc.main_ws = self.ws
 
     async def on_ready(self):
