@@ -13,6 +13,7 @@ from discord import utils
 from discord.object import Object
 from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
+from discord.ext.commands.bot import _get_variable
 
 from io import BytesIO
 from functools import wraps
@@ -98,7 +99,7 @@ class MusicBot(discord.Client):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             # Only allow the owner to use these commands
-            orig_msg = self._get_variable('message')
+            orig_msg = _get_variable('message')
 
             if not orig_msg or orig_msg.author.id == self.config.owner_id:
                 return await func(self, *args, **kwargs)
@@ -110,16 +111,6 @@ class MusicBot(discord.Client):
     @staticmethod
     def _fixg(x, dp=2):
         return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
-
-    def _get_variable(self, name):
-        stack = inspect.stack()
-        try:
-            for frames in stack:
-                current_locals = frames[0].f_locals
-                if name in current_locals:
-                    return current_locals[name]
-        finally:
-            del stack
 
     def _get_owner(self, voice=False):
         if voice:
