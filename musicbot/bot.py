@@ -512,7 +512,9 @@ class MusicBot(discord.Client):
         except discord.Forbidden:
             if self.config.debug_mode:
                 print("Could not send typing to %s, no permssion" % destination)
-
+        except discord.HTTPException as e:
+            if e.response.status == 502:
+                await self.send_typing(destination)
 
     async def edit_profile(self, **fields):
         if self.user.bot:
