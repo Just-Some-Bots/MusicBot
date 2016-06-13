@@ -249,6 +249,7 @@ class MusicBot(discord.Client):
                     print("Connection established.")
                     break
                 except:
+                    traceback.print_exc()
                     print("Failed to connect, retrying (%s/%s)..." % (x+1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
@@ -292,7 +293,8 @@ class MusicBot(discord.Client):
         try:
             await vc.disconnect()
         except:
-            pass
+            print("Error disconnecting during reconnect")
+            traceback.print_exc()
 
         await asyncio.sleep(0.1)
 
