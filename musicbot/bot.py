@@ -88,7 +88,7 @@ class MusicBot(discord.Client):
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
 
-        self.http.user_agent += ' MusicBot/%s' % BOTVERSION
+        self.headers['user-agent'] += ' MusicBot/%s' % BOTVERSION
 
         # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
