@@ -3,7 +3,8 @@ FROM ubuntu:14.04
 MAINTAINER Sidesplitter, https://github.com/SexualRhinoceros/MusicBot
 
 #Install dependencies
-RUN sudo apt-get install software-properties-common -y \
+RUN sudo apt-get update \
+    && sudo apt-get install software-properties-common -y \
     && sudo add-apt-repository ppa:fkrull/deadsnakes -y \
     && sudo add-apt-repository ppa:mc3man/trusty-media -y \
     && sudo apt-get update -y \
