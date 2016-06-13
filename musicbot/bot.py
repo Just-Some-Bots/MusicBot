@@ -806,7 +806,7 @@ class MusicBot(discord.Client):
             return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
 
     @owner_only
-    async def cmd_joinserver(self, message, server_link):
+    async def cmd_joinserver(self, message, server_link=None):
         """
         Usage:
             {command_prefix}joinserver invite_link
@@ -815,15 +815,17 @@ class MusicBot(discord.Client):
         """
 
         if self.user.bot:
+            appinfo = await self.application_info()
+            url = discord.utils.oauth_url(appinfo.id)
             return Response(
-                "Bot accounts can't use invite links!  See: "
-                "https://discordapp.com/developers/docs/topics/oauth2#adding-bots-to-guilds",
+                "Bot accounts can't use invite links!  Click here to invite me: \n%s" % url,
                 reply=True, delete_after=30
             )
 
         try:
-            await self.accept_invite(server_link)
-            return Response(":+1:")
+            if server_link:
+                await self.accept_invite(server_link)
+                return Response(":+1:")
 
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
