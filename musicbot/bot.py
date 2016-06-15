@@ -823,7 +823,7 @@ class MusicBot(discord.Client):
         try:
             if server_link:
                 await self.accept_invite(server_link)
-                return Response(str(self.strings.joinserver_done))
+                return Response(":+1:")
 
         except:
             raise exceptions.CommandError(str(self.strings.joinserver_invalid).format(url=server_link), expire_in=self.strings.expiry_error)
