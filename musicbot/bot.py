@@ -299,7 +299,7 @@ class MusicBot(discord.Client):
         except:
             print("Error disconnecting during reconnect")
             traceback.print_exc()
-            await self.log(":warning: Error disconnecting during reconnect: {}\n```py\n{}\n```".format(server.name, traceback.))
+            await self.log(":warning: Error disconnecting during reconnect: {}\n```py\n{}\n```".format(server.name, traceback.format_exc()))
 
         await asyncio.sleep(0.1)
 
@@ -690,7 +690,7 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
-            print("Autojoining voice chanels:")
+            print("Autojoining voice channels:")
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
@@ -723,7 +723,7 @@ class MusicBot(discord.Client):
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
-                print("\nCannot join text channels:")
+                print("\nNot logging to subchannels:")
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
         if self.config.log_masterchannel or self.config.log_subchannels:
             print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
