@@ -3,6 +3,7 @@ import aiohttp
 import decimal
 import unicodedata
 
+from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
 _USER_ID_MATCH = re.compile(r'<@(\d+)>')
@@ -82,3 +83,11 @@ async def get_header(session, url, headerfield=None, *, timeout=5):
                 return response.headers.get(headerfield)
             else:
                 return response.headers
+
+
+def md5sum(filename, limit=0):
+    fhash = md5()
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            fhash.update(chunk)
+    return fhash.hexdigest()[-limit:]

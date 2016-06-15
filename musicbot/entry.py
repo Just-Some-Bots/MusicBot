@@ -2,10 +2,9 @@ import asyncio
 import json
 import os
 import traceback
-from hashlib import md5
 
 from .exceptions import ExtractionError
-from .utils import get_header
+from .utils import get_header, md5sum
 
 
 class BasePlaylistEntry:
@@ -235,9 +234,4 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 os.rename(unhashed_fname, self.filename)
 
 
-def md5sum(filename, limit=0):
-    fhash = md5()
-    with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            fhash.update(chunk)
-    return fhash.hexdigest()[-limit:]
+
