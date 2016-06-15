@@ -80,6 +80,7 @@ class MusicBot(discord.Client):
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
         self.exit_signal = None
+        self.init_ok = False
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
@@ -593,6 +594,8 @@ class MusicBot(discord.Client):
                 "The bot needs its own account to function.  "
                 "The OwnerID is the id of the owner, not the bot.  "
                 "Figure out which one is which and use the correct information.")
+
+        self.init_ok = True
 
         self.safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
 
