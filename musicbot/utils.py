@@ -1,4 +1,5 @@
 import re
+import aiohttp
 import decimal
 import unicodedata
 
@@ -72,3 +73,12 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
         chunks.append(currentchunk)
 
     return chunks
+
+
+async def get_header(session, url, headerfield=None, *, timeout=5):
+    with aiohttp.Timeout(timeout):
+        async with session.head(url) as response:
+            if headerfield:
+                return response.headers.get(headerfield)
+            else:
+                return response.headers
