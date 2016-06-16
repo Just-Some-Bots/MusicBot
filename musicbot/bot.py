@@ -153,6 +153,7 @@ class MusicBot(discord.Client):
         owner = self._get_owner(voice=True)
         if owner:
             self.safe_print("Found owner in \"%s\", attempting to join..." % owner.voice_channel.name)
+            self.safe_print("Channel id is %s" % owner.voice_channel.id)
             # TODO: Effort
             await self.cmd_summon(owner.voice_channel, owner, None)
             return owner.voice_channel
@@ -1843,6 +1844,10 @@ class MusicBot(discord.Client):
         await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
+        
+    async def cmd_reconnect(self, server):
+        await self.reconnect_voice_client(server)
+        return Response(":pray:", delete_after=20)
 
     async def on_message(self, message):
         await self.wait_until_ready()
