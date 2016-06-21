@@ -6,8 +6,6 @@ import unicodedata
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
-_USER_ID_MATCH = re.compile(r'<@(\d+)>')
-
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
@@ -31,12 +29,6 @@ def write_file(filename, contents):
         for item in contents:
             f.write(str(item))
             f.write('\n')
-
-
-def extract_user_id(argument):
-    match = _USER_ID_MATCH.match(argument)
-    if match:
-        return int(match.group(1))
 
 
 def slugify(value):
