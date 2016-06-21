@@ -81,6 +81,7 @@ class MusicBot(discord.Client):
 
         self.exit_signal = None
         self.init_ok = False
+        self.cached_client_id = None
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
@@ -208,6 +209,13 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.PermissionsError(
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
+
+    async def generate_invite_link(self, *, permissions=None, server=None):
+        if not self.cached_client_id:
+            appinfo = await self.application_info()
+            self.cached_client_id = appinfo.id
+
+        return discord.utils.oauth_url(self.cached_client_id, permissions=permissions, server=server)
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
@@ -613,8 +621,12 @@ class MusicBot(discord.Client):
             [self.safe_print(' - ' + s.name) for s in self.servers]
 
         else:
-            print("Owner unavailable, bot is not on any servers.")
-            # if bot: post help link, else post something about invite links
+            print("Owner unknown, bot is not on any servers.")
+            if self.user.bot:
+                print("\nTo make the bot join a server, paste this link in your browser.")
+                print("Note: You should be logged into your main account and have \n"
+                      "manage server permissions on the server you want the bot to join.\n")
+                print("    " + await self.generate_invite_link())
 
         print()
 
@@ -816,10 +828,9 @@ class MusicBot(discord.Client):
         """
 
         if self.user.bot:
-            appinfo = await self.application_info()
-            url = discord.utils.oauth_url(appinfo.id)
+            url = await self.generate_invite_link()
             return Response(
-                "Bot accounts can't use invite links!  Click here to invite me: \n%s" % url,
+                "Bot accounts can't use invite links!  Click here to invite me: \n{}".format(url),
                 reply=True, delete_after=30
             )
 
