@@ -856,7 +856,7 @@ class MusicBot(discord.Client):
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
             raise exceptions.PermissionsError(
-                "You have reached your playlist item limit (%s)" % permissions.max_songs, expire_in=30
+                "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
             )
 
         await self.send_typing(channel)
@@ -1052,6 +1052,7 @@ class MusicBot(discord.Client):
             channel, "Processing %s songs..." % num_songs)  # TODO: From playlist_title
         await self.send_typing(channel)
 
+        entries_added = 0
         if extractor_type == 'youtube:playlist':
             try:
                 entries_added = await player.playlist.async_process_youtube_playlist(
