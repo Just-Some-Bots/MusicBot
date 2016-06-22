@@ -1404,7 +1404,7 @@ class MusicBot(discord.Client):
         if not player.current_entry:
             if player.playlist.peek():
                 if player.playlist.peek()._is_downloading:
-                    print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    # print(player.playlist.peek()._waiting_futures[0].__dict__)
                     return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
 
                 elif player.playlist.peek().is_downloaded:
@@ -1416,7 +1416,10 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id or permissions.instaskip:
+        if author.id == self.config.owner_id \
+                or permissions.instaskip \
+                or author == player.current_entry.meta.get('author', None):
+
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return
