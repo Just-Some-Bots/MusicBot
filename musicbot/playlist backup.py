@@ -36,18 +36,10 @@ class Playlist(EventEmitter):
         self.entries.clear()
 
     def undo(self):
-        try:
-            self.entries.pop()
-            return True
-        except:
-            return False
+        self.entries.pop()
 
-    def removeAtIndex(self, index):
-        try:
-            del self.entries[index]
-            return True
-        except:
-            return False
+    def remove(self, index):
+        del self.entries[index]
 
     async def add_entry(self, song_url, playnext=False, **meta):
         """
@@ -309,7 +301,6 @@ class PlaylistEntry:
         self._is_downloading = False
         self._waiting_futures = []
         self.download_folder = self.playlist.downloader.download_folder
-        self.addedByUserId = 0
 
     @property
     def is_downloaded(self):

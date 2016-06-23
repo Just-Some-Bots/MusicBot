@@ -81,6 +81,8 @@ class MusicBot(discord.Client):
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
+        self.undo = False
+
         self.exit_signal = None
 
         if not self.autoplaylist:
@@ -828,20 +830,177 @@ class MusicBot(discord.Client):
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
 
-
-
     async def cmd_playnext(self, player, channel, author, permissions, leftover_args, song_url):
-        """
-        Usage:
-            {command_prefix}play song_link
-            {command_prefix}play text to search for
+        '''Adds a song to the top of the playlist to play next.'''
 
-        Adds a song to the top of the playlist to play next.  If a link is not provided, the first
-        result from a youtube search is added to the queue.
-        """
+        song_url = song_url.strip('<>')
+        
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
+            raise exceptions.PermissionsError(
+                "You have reached your playlist item limit (%s)" % permissions.max_songs, expire_in=30
+            )
 
-        return await self.internalCmdPlay(player, channel, author, permissions, leftover_args, song_url, True)			
+        await self.send_typing(channel)
 
+        if leftover_args:
+            song_url = ' '.join([song_url, *leftover_args])
+
+        try:
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=30)
+
+        if not info:
+            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+
+        # abstract the search handling away from the user
+        # our ytdl options allow us to use search strings as input urls
+        if info.get('url', '').startswith('ytsearch'):
+            # print("[Command:play] Searching for \"%s\"" % song_url)
+            info = await self.downloader.extract_info(
+                player.playlist.loop,
+                song_url,
+                download=False,
+                process=True,    # ASYNC LAMBDAS WHEN
+                on_error=lambda e: asyncio.ensure_future(
+                    self.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=self.loop),
+                retry_on_error=True
+            )
+
+            if not info:
+                raise exceptions.CommandError(
+                    "Error extracting info from search string, youtubedl returned no data.  "
+                    "You may need to restart the bot if this continues to happen.", expire_in=30
+                )
+
+            if not all(info.get('entries', [])):
+                # empty list, no data
+                return
+
+            song_url = info['entries'][0]['webpage_url']
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+            # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
+            # But this is probably fine
+
+        if 'entries' in info:
+            # I have to do exe extra checks anyways because you can request an arbitrary number of search results
+            if not permissions.allow_playlists and ':search' in info['extractor'] and len(info['entries']) > 1:
+                raise exceptions.PermissionsError("You are not allowed to request playlists", expire_in=30)
+
+            # The only reason we would use this over `len(info['entries'])` is if we add `if _` to this one
+            num_songs = sum(1 for _ in info['entries'])
+
+            if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
+                raise exceptions.PermissionsError(
+                    "Playlist has too many entries (%s > %s)" % (num_songs, permissions.max_playlist_length),
+                    expire_in=30
+                )
+
+            # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
+            if permissions.max_songs and player.playlist.count_for_user(author) + num_songs > permissions.max_songs:
+                raise exceptions.PermissionsError(
+                    "Playlist entries + your already queued songs reached limit (%s + %s > %s)" % (
+                        num_songs, player.playlist.count_for_user(author), permissions.max_songs),
+                    expire_in=30
+                )
+
+            if info['extractor'] == 'youtube:playlist':
+                try:
+                    return await self._cmd_ytplaylist(player, channel, author, permissions, song_url)
+                except exceptions.CommandError:
+                    raise
+                except Exception as e:
+                    traceback.print_exc()
+                    raise exceptions.CommandError("Error queuing playlist:\n%s" % e, expire_in=30)
+
+            t0 = time.time()
+
+            # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+            # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+            # I don't think we can hook into it anyways, so this will have to do.
+            # It would probably be a thread to check a few playlists and get the speed from that
+            # Different playlists might download at different speeds though
+            wait_per_song = 1.2
+
+            procmesg = await self.safe_send_message(
+                channel,
+                'Gathering playlist information for {} songs{}'.format(
+                    num_songs,
+                    ', ETA: {} seconds'.format(self._fixg(
+                        num_songs * wait_per_song)) if num_songs >= 10 else '.'))
+
+            # We don't have a pretty way of doing this yet.  We need either a loop
+            # that sends these every 10 seconds or a nice context manager.
+            await self.send_typing(channel)
+
+            # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
+            #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
+
+            entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+
+            tnow = time.time()
+            ttime = tnow - t0
+            listlen = len(entry_list)
+            drop_count = 0
+
+            if permissions.max_song_length:
+                for e in entry_list.copy():
+                    if e.duration > permissions.max_song_length:
+                        player.playlist.entries.remove(e)
+                        entry_list.remove(e)
+                        drop_count += 1
+                        # Im pretty sure there's no situation where this would ever break
+                        # Unless the first entry starts being played, which would make this a race condition
+                if drop_count:
+                    print("Dropped %s songs" % drop_count)
+
+            print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                listlen,
+                self._fixg(ttime),
+                ttime / listlen,
+                ttime / listlen - wait_per_song,
+                self._fixg(wait_per_song * num_songs))
+            )
+
+            await self.safe_delete_message(procmesg)
+
+            if not listlen - drop_count:
+                raise exceptions.CommandError(
+                    "No songs were added, all songs were over max duration (%ss)" % permissions.max_song_length,
+                    expire_in=30
+                )
+
+            reply_text = "Enqueued **%s** songs to be played. Position in queue: %s"
+            btext = str(listlen - drop_count)
+
+        else:
+            if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
+                raise exceptions.PermissionsError(
+                    "Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length),
+                    expire_in=30
+                )
+
+            entry, position = await player.playlist.add_entry(song_url, playnext=True, channel=channel, author=author, )
+
+            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+            btext = entry.title
+
+        if position == 1 and player.is_stopped:
+            position = 'Up next!'
+            reply_text %= (btext, position)
+
+        else:
+            try:
+                time_until = await player.playlist.estimate_time_until(position, player)
+                reply_text += ' - estimated time until playing: %s'
+            except:
+                traceback.print_exc()
+                time_until = ''
+
+            reply_text %= (btext, position, time_until)
+
+        self.undo = False
+        return Response(reply_text, delete_after=30)
 
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
@@ -853,9 +1012,6 @@ class MusicBot(discord.Client):
         result from a youtube search is added to the queue.
         """
 
-        return await self.internalCmdPlay(player, channel, author, permissions, leftover_args, song_url)
-
-    async def internalCmdPlay(self, player, channel, author, permissions, leftover_args, song_url, playnext=False):
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -1007,8 +1163,8 @@ class MusicBot(discord.Client):
                 )
 
             try:
-                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author, playnext=playnext)
-                entry.addedByUserId = author.id
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+
             except exceptions.WrongEntryTypeError as e:
                 if e.use_url == song_url:
                     print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
@@ -1036,6 +1192,7 @@ class MusicBot(discord.Client):
 
             reply_text %= (btext, position, time_until)
 
+        self.undo = True
         return Response(reply_text, delete_after=30)
 
     async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
@@ -1394,38 +1551,26 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
 
-    async def cmd_undo(self, player, author):
+    async def cmd_undosong(self, player, author):
         """
         Usage:
-            {command_prefix}undo
+            {command_prefix}undosong
 
         Undo the last song queued.
         """
-        
-        for entry in reversed(player.playlist.entries):
-            if entry.addedByUserId == author.id:
-                player.playlist.entries.remove(entry)
-                return Response('Removed your last song: `{}`'.format(entry.title), delete_after=20)
-            
-        return Response('You did not add any new songs recently.', delete_after=20)
+
+        if self.undo == False:
+            return Response('No new song was added recently.', delete_after=20)
+        else:
+            self.undo = False
+            player.playlist.undo()
+            return Response('Removed last song.', delete_after=20)
 
     async def cmd_remove(self, message, player, index=None):
-        """
-        Usage:
-            {command_prefix}remove #
+        '''Removes song at index.'''
+        player.playlist.remove(int(index)-1)
+        return Response('Removed.', delete_after=20)
 
-        Removes the song at the specified index.
-        """
-        
-        entry = None
-        try:
-            entry = player.playlist.entries[int(index)-1]
-        except:
-            return Response('Index not found.', delete_after=20)
-        
-        player.playlist.entries.remove(entry)
-        return Response('Removed `{}`'.format(entry.title), delete_after=20)      
- 
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:

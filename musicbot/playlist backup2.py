@@ -309,7 +309,6 @@ class PlaylistEntry:
         self._is_downloading = False
         self._waiting_futures = []
         self.download_folder = self.playlist.downloader.download_folder
-        self.addedByUserId = 0
 
     @property
     def is_downloaded(self):

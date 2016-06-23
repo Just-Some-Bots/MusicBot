@@ -1008,7 +1008,7 @@ class MusicBot(discord.Client):
 
             try:
                 entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author, playnext=playnext)
-                entry.addedByUserId = author.id
+            
             except exceptions.WrongEntryTypeError as e:
                 if e.use_url == song_url:
                     print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
@@ -1401,30 +1401,18 @@ class MusicBot(discord.Client):
 
         Undo the last song queued.
         """
-        
-        for entry in reversed(player.playlist.entries):
-            if entry.addedByUserId == author.id:
-                player.playlist.entries.remove(entry)
-                return Response('Removed your last song: `{}`'.format(entry.title), delete_after=20)
-            
-        return Response('You did not add any new songs recently.', delete_after=20)
+
+        if player.playlist.undo():
+            return Response('Removed last song.', delete_after=20)
+        else:
+            return Response('No new song was added recently.', delete_after=20)
 
     async def cmd_remove(self, message, player, index=None):
-        """
-        Usage:
-            {command_prefix}remove #
-
-        Removes the song at the specified index.
-        """
-        
-        entry = None
-        try:
-            entry = player.playlist.entries[int(index)-1]
-        except:
+        '''Removes song at index.'''
+        if player.playlist.removeAtIndex(int(index)-1):
+            return Response('Removed.', delete_after=20)
+        else:
             return Response('Index not found.', delete_after=20)
-        
-        player.playlist.entries.remove(entry)
-        return Response('Removed `{}`'.format(entry.title), delete_after=20)      
  
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
