@@ -743,7 +743,6 @@ class MusicBot(discord.Client):
         1. If audio stops but the bot shows its playing the song. use the .disconnect command \n\
         2. Wait for the bot to leave, and then summon it back with .summon \n\
         3. Praise be to iMayHaveBoredIt ;) \n\
-       
 #Commands for musix are:- \n\
 [ .summon ]( summons the bot into voice chat. Dont use this to move the bot. ) \n\
 [ .play song/Link/PlaylistLink ]( takes YT,SoundCloud links and playlists. ) \n\
