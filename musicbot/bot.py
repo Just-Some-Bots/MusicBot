@@ -757,10 +757,10 @@ class MusicBot(discord.Client):
 [ .volume ]( To check the volume. ) \n\
 [ .volume 1-100 ]( changes the volume, change your own damn volume. ) \n\
 [ .clear ]( Admins only, Clears playlist, only when troll songs requested. ) \n\
-[ .blacklist add @UserName]( If someone is trolling much, only MusicMasters. ) "```
+[ .blacklist add @UserName]( If someone is trolling much, only MusicMasters. ) ```"
             
 
-            return Response(helpmsg, reply=True, delete_after=60)
+            return Response(helpmsg, reply=True)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
