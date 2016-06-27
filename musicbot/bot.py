@@ -913,7 +913,10 @@ class MusicBot(discord.Client):
                     expire_in=30
                 )
 
-            if info['extractor'].lower() in ['youtube:playlist', 'soundcloud:set', 'bandcamp:album']:
+
+            # youtubeDL treats extractors 'youtube:playlist', 'youtube:user', 'youtube:channel' like playlists
+            # this allows using /user/username, /channel/channelID without extracting playlist url for their uploads
+            if info['extractor'].lower() in ['youtube:playlist', 'youtube:user', 'youtube:channel', 'soundcloud:set', 'bandcamp:album']:
                 try:
                     return await self._cmd_play_playlist_async(player, channel, author, permissions, song_url, info['extractor'])
                 except exceptions.CommandError:
@@ -1039,7 +1042,7 @@ class MusicBot(discord.Client):
             channel, "Processing %s songs..." % num_songs)  # TODO: From playlist_title
         await self.send_typing(channel)
 
-        if extractor_type == 'youtube:playlist':
+        if extractor_type.lower() == 'youtube:playlist':
             try:
                 entries_added = await player.playlist.async_process_youtube_playlist(
                     playlist_url, channel=channel, author=author)
@@ -1612,7 +1615,8 @@ class MusicBot(discord.Client):
             # TODO: Retarded playlist checking
             # set(url, webpageurl).difference(set(url))
 
-            if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
+            # a playlist checking you needed^
+            if info['extractor'].lower() not in ['youtube:playlist', 'youtube:user', 'youtube:channel']:
                 raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
             else:
                 return await self.cmd_pldump(channel, info.get(''))
