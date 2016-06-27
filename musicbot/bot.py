@@ -730,7 +730,7 @@ class MusicBot(discord.Client):
                 return Response("No such command", delete_after=10)
 
         else:
-            helpmsg = "**Commands**\n```"
+            helpmsg = "**Commands**\n"
             commands = []
 
             for att in dir(self):
@@ -738,9 +738,28 @@ class MusicBot(discord.Client):
                     command_name = att.replace('cmd_', '').lower()
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
-            helpmsg += ", ".join(commands)
-            helpmsg += "```"
-            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+            helpmsg += "```md\n\
+            Note- \n\
+        1. If audio stops but the bot shows its playing the song. use the .disconnect command \n\
+        2. Wait for the bot to leave, and then summon it back with .summon \n\
+        3. Praise be to iMayHaveBoredIt ;) \n\
+       
+#Commands for musix are:- \n\
+[ .summon ]( summons the bot into voice chat. Dont use this to move the bot. ) \n\
+[ .play song/Link/PlaylistLink ]( takes YT,SoundCloud links and playlists. ) \n\
+[ .pause ]( Pauses the bot. ) \n\
+[ .resume ]( Resumes the bot duh. ) \n\
+[ .search songname ]( Use this incase your not sure of the song name. ) \n\
+[ .search 1-10 songname ]( Searches for top 1 to 10 YT results. ) \n\
+[ .queue ]( Shows the songs in queue. ) \n\
+[ .np ]( Now playing. ) \n\
+[ .shuffle ]( To shuffle the songlist. ) \n\
+[ .skip ]( Skips the song. Please let everyone have a chance, dont overskip. ) \n\
+[ .volume ]( To check the volume. ) \n\
+[ .volume 1-100 ]( changes the volume, change your own damn volume. ) \n\
+[ .clear ]( Admins only, Clears playlist, only when troll songs requested. ) \n\
+[ .blacklist add @UserName]( If someone is trolling much, only MusicMasters. ) "```
+            
 
             return Response(helpmsg, reply=True, delete_after=60)
 
