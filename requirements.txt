@@ -1,4 +1,5 @@
-https://github.com/Rapptz/discord.py/archive/async.zip
+discord.py[voice]
 youtube_dl
 pip
-cffi==1.6.0
+cffi --only-binary cffi; sys_platform == 'win32'
+cffi; sys_platform != 'win32'
