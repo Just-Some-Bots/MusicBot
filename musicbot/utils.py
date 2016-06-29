@@ -1,10 +1,10 @@
 import re
+import aiohttp
 import decimal
 import unicodedata
 
+from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
-
-_USER_ID_MATCH = re.compile(r'<@(\d+)>')
 
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
@@ -29,12 +29,6 @@ def write_file(filename, contents):
         for item in contents:
             f.write(str(item))
             f.write('\n')
-
-
-def extract_user_id(argument):
-    match = _USER_ID_MATCH.match(argument)
-    if match:
-        return int(match.group(1))
 
 
 def slugify(value):
@@ -72,3 +66,20 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
         chunks.append(currentchunk)
 
     return chunks
+
+
+async def get_header(session, url, headerfield=None, *, timeout=5):
+    with aiohttp.Timeout(timeout):
+        async with session.head(url) as response:
+            if headerfield:
+                return response.headers.get(headerfield)
+            else:
+                return response.headers
+
+
+def md5sum(filename, limit=0):
+    fhash = md5()
+    with open(filename, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            fhash.update(chunk)
+    return fhash.hexdigest()[-limit:]

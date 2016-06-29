@@ -157,9 +157,9 @@ def main():
         # Maybe I need to try to import stuff first, then actually import stuff
         # It'd save me a lot of pain with all that awful exception type checking
 
+        m = None
         try:
             from musicbot import MusicBot
-
             m = MusicBot()
             print("Connecting...", end='', flush=True)
             m.run()
@@ -204,6 +204,9 @@ def main():
                 traceback.print_exc()
 
         finally:
+            if not m or not m.init_ok:
+                break
+
             asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
