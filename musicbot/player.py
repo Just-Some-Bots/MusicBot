@@ -1,10 +1,13 @@
 import os
+import sys
 import asyncio
 import audioop
 import traceback
+import subprocess
 
 from enum import Enum
 from array import array
+from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
 
@@ -252,6 +255,7 @@ class MusicPlayer(EventEmitter):
                     entry.filename,
                     before_options="-nostdin",
                     options="-vn -b:a 128k",
+                    stderr=subprocess.PIPE,
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
@@ -262,7 +266,15 @@ class MusicPlayer(EventEmitter):
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
 
+                stderr_thread = Thread(
+                    target=filter_stderr,
+                    args=(self._current_player.process,),
+                    name="{} stderr reader".format(self._current_player.name)
+                )
+
+                stderr_thread.start()
                 self._current_player.start()
+
                 self.emit('play', player=self, entry=entry)
 
     def _monkeypatch_player(self, player):
@@ -320,6 +332,35 @@ class MusicPlayer(EventEmitter):
         #       Correct calculation should be bytes_read/192k
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
         #       Change frame_count to bytes_read in the PatchedBuff
+
+def filter_stderr(popen:subprocess.Popen):
+    while True:
+        data = popen.stderr.readline()
+        if data:
+            # print("received data:", data, flush=True)
+            if check_stderr(data):
+                sys.stderr.buffer.write(data)
+                sys.stderr.buffer.flush()
+        else:
+            break
+
+def check_stderr(data:bytes):
+    try:
+        data = data.decode('utf8')
+    except:
+        return True # fuck it
+
+    nopes = [
+        "Header missing",
+        "Invalid data found when processing input",
+        "Estimating duration from birate, this may be inaccurate",
+        "Using AVStream.codec to pass codec parameters to muxers is "
+            "deprecated, use AVStream.codecpar instead.",
+        "Application provided invalid, non monotonically "
+            "increasing dts to muxer in stream",
+    ]
+    # print("Ignoring output from ffmpeg: {}".format(data))
+    return not any(nope in data for nope in nopes)
 
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:
