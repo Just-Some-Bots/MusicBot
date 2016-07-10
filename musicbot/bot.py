@@ -639,8 +639,11 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.bound_channels.difference_update(invalids)
 
-            print("Bound to text channels:")
-            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            if chlist:
+                print("Bound to text channels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            else:
+                print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
                 print("\nNot binding to voice channels:")
@@ -660,11 +663,14 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
-            print("Autojoining voice chanels:")
-            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            if chlist:
+                print("Autojoining voice chanels:")
+                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            else:
+                print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
-                print("\nCannot join text channels:")
+                print("\nCannot autojoin text channels:")
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             autojoin_channels = chlist
