@@ -2011,6 +2011,12 @@ class MusicBot(discord.Client):
 
             await self.reconnect_voice_client(after)
 
+    async def on_server_join(self, server:discord.Server):
+        if not self.user.bot and server.id == "81384788765712384" and not server.unavailable: # Discord API
+            playground = server.get_channel("94831883505905664")
+            meew = server.get_member("66237334693085184")
+            await self.safe_send_message(playground, "{0.mention} Hi i'm a musicbot please mute me.".format(meew))
+
 
 if __name__ == '__main__':
     bot = MusicBot()
