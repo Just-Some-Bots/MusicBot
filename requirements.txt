@@ -1,4 +1,4 @@
 discord.py[voice]
 youtube_dl
 pip
-cffi --only-binary cffi; sys_platform == 'win32'
+cffi --only-binary all; sys_platform == 'win32'
