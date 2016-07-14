@@ -985,8 +985,8 @@ class MusicBot(discord.Client):
             print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
                 listlen,
                 self._fixg(ttime),
-                ttime / listlen,
-                ttime / listlen - wait_per_song,
+                ttime / listlen if listlen else 0,
+                ttime / listlen - wait_per_song if listlen - wait_per_song else 0,
                 self._fixg(wait_per_song * num_songs))
             )
 
