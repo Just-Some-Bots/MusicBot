@@ -467,16 +467,11 @@ class MusicBot(discord.Client):
         await self.change_status(game)
 
 
-    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
+    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False, allow_none=True):
         msg = None
         try:
-            msg = await self.send_message(dest, content, tts=tts)
-
-            if msg and expire_in:
-                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
-
-            if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+            if content is not None or allow_none:
+                msg = await self.send_message(dest, content, tts=tts)
 
         except discord.Forbidden:
             if not quiet:
@@ -485,6 +480,13 @@ class MusicBot(discord.Client):
         except discord.NotFound:
             if not quiet:
                 self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+
+        finally:
+            if msg and expire_in:
+                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+
+            if also_delete and isinstance(also_delete, discord.Message):
+                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
         return msg
 
@@ -1856,6 +1858,8 @@ class MusicBot(discord.Client):
         argspec = inspect.signature(handler)
         params = argspec.parameters.copy()
 
+        sentmsg = response = None
+
         # noinspection PyBroadException
         try:
             if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
@@ -1966,6 +1970,11 @@ class MusicBot(discord.Client):
             traceback.print_exc()
             if self.config.debug_mode:
                 await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+
+        finally:
+            if not sentmsg and not response and self.config.delete_invoking:
+                await asyncio.sleep(5)
+                await self.safe_delete_message(message, quiet=False)
 
     async def on_voice_state_update(self, before, after):
         if not all([before, after]):
