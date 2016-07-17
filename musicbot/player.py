@@ -175,10 +175,10 @@ class MusicPlayer(EventEmitter):
 
         self._current_entry = None
 
-        try:
-            self._stderr_future.result()
-        except Exception as e:
-            self.emit('error', entry=entry, ex=e)
+        if self._stderr_future.done() and self._stderr_future.exception:
+            # I'm not sure that this would ever not be done if it gets to this point
+            # unless ffmpeg is doing something highly questionable
+            self.emit('error', entry=entry, ex=self._stderr_future.exception)
 
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
