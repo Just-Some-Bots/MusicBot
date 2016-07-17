@@ -1,13 +1,18 @@
+import os.path
 import datetime
 import traceback
-from collections import deque
-from itertools import islice
+
 from random import shuffle
+from itertools import islice
+from collections import deque
+
+from urllib.error import URLError
+from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
 
 from .utils import get_header
-from .entry import URLPlaylistEntry
-from .exceptions import ExtractionError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
+from .exceptions import ExtractionError, WrongEntryTypeError
 
 
 class Playlist(EventEmitter):
@@ -53,6 +58,10 @@ class Playlist(EventEmitter):
         if info.get('_type', None) == 'playlist':
             raise WrongEntryTypeError("This is a playlist.", True, info.get('webpage_url', None) or info.get('url', None))
 
+        if info.get('is_live', False):
+            return await self.add_stream_entry(song_url, info=info, **meta)
+
+        # TODO: Extract this to its own function
         if info['extractor'] in ['generic', 'Dropbox']:
             try:
                 # unfortunately this is literally broken
@@ -79,6 +88,51 @@ class Playlist(EventEmitter):
             info.get('title', 'Untitled'),
             info.get('duration', 0) or 0,
             self.downloader.ytdl.prepare_filename(info),
+            **meta
+        )
+        self._add_entry(entry)
+        return entry, len(self.entries)
+
+    async def add_stream_entry(self, song_url, info=None, **meta):
+        if info is None:
+            try:
+                info = {'title': song_url, 'extractor': None}
+                info = await self.downloader.extract_info(self.loop, song_url, download=False)
+
+            except DownloadError as e:
+                if e.exc_info[0] == UnsupportedError: # ytdl doesn't like it but its probably a stream
+                    print("Assuming content is a direct stream")
+
+                elif e.exc_info[0] == URLError:
+                    if os.path.exists(os.path.abspath(song_url)):
+                        raise ExtractionError("This is not a stream, this is a file path.")
+
+                    else: # it might be a file path that just doesn't exist
+                        raise ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
+
+                else:
+                    traceback.print_exc()
+                    raise ExtractionError("Unknown error: {}".format(e))
+
+            except Exception as e:
+                traceback.print_exc()
+                print('Could not extract information from {} ({}), falling back to direct'.format(song_url, e))
+
+        if info.get('extractor', None) == 'twitch:stream': # may need to add other twitch types
+            title = info.get('description')
+        else:
+            title = info.get('title', 'Untitled')
+
+        # TODO: A bit more validation, "~stream some_url" should not be :ok_hand:
+
+        # TODO: You'd think that this would be able to play youtube videos and the like
+        # TODO: or rather anything ytdl can parse.  I'm not quite sure how to handle that yet.
+
+        entry = StreamPlaylistEntry(
+            self,
+            song_url,
+            title,
+            direct = not info.get('is_live', False),
             **meta
         )
         self._add_entry(entry)

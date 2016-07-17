@@ -24,6 +24,7 @@ from collections import defaultdict
 
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
+from musicbot.entry import StreamPlaylistEntry
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, write_file, sane_round_int
@@ -888,7 +889,11 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(e, expire_in=30)
 
         if not info:
-            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+            msg = "That video cannot be played."
+            raise exceptions.CommandError(
+                "That video cannot be played.  Try using the {}stream command.".format(self.config.command_prefix),
+                expire_in=30
+            )
 
         # abstract the search handling away from the user
         # our ytdl options allow us to use search strings as input urls
@@ -1146,6 +1151,29 @@ class MusicBot(discord.Client):
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=30)
 
+    async def cmd_stream(self, player, channel, author, permissions, song_url):
+        """
+        Usage:
+            {command_prefix}stream song_link
+
+        Enqueue a media stream.
+        This could mean an actual stream like Twitch or shoutcast, or simply streaming
+        media without predownloading it.  Note: FFmpeg is notoriously bad at handling
+        streams, especially on poor connections.  You have been warned.
+        """
+
+        song_url = song_url.strip('<>')
+
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
+            raise exceptions.PermissionsError(
+                "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
+            )
+
+        await self.send_typing(channel)
+        entry, entries = await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
+
+        return Response(":+1:", delete_after=6)
+
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
@@ -1171,6 +1199,7 @@ class MusicBot(discord.Client):
 
         def argcheck():
             if not leftover_args:
+                # noinspection PyUnresolvedReferences
                 raise exceptions.CommandError(
                     "Please specify a search query.\n%s" % dedent(
                         self.cmd_search.__doc__.format(command_prefix=self.config.command_prefix)),
@@ -1291,13 +1320,28 @@ class MusicBot(discord.Client):
 
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
-            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            streaming = isinstance(player.current_entry, StreamPlaylistEntry)
+            prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
+                progress=song_progress, total=song_total
+            )
+            action_text = 'Streaming' if streaming else 'Playing'
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                np_text = "Now Playing: **%s** added by **%s** %s\n" % (
-                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str)
+                np_text = "Now {action}: **{title}** added by **{author}** {progress}\n:point_right: <{url}>".format(
+                    action=action_text,
+                    title=player.current_entry.title,
+                    author=player.current_entry.meta['author'].name,
+                    progress=prog_str,
+                    url=player.current_entry.url
+                )
             else:
-                np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
+                np_text = "Now {action}: **{title}** {progress}\n:point_right: <{url}>".format(
+                    action=action_text,
+                    title=player.current_entry.title,
+                    progress=prog_str,
+                    url=player.current_entry.url
+                )
 
             self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
             await self._manual_delete_check(message)
@@ -1625,7 +1669,7 @@ class MusicBot(discord.Client):
                     except discord.HTTPException:
                         pass
 
-        return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=15)
+        return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=6)
 
     async def cmd_pldump(self, channel, song_url):
         """

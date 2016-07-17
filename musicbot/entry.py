@@ -3,11 +3,21 @@ import json
 import os
 import traceback
 
+from enum import Enum
 from .exceptions import ExtractionError
-from .utils import get_header, md5sum
+from .utils import get_header, md5sum, Serializable
 
 
-class BasePlaylistEntry:
+class EntryTypes(Enum):
+    URL = 1
+    STEAM = 2
+    FILE = 3
+
+    def __str__(self):
+        return self.name
+
+
+class BasePlaylistEntry(Serializable):
     def __init__(self):
         self.filename = None
         self._is_downloading = False
@@ -19,13 +29,6 @@ class BasePlaylistEntry:
             return False
 
         return bool(self.filename)
-
-    @classmethod
-    def from_json(cls, playlist, jsonstring):
-        raise NotImplementedError
-
-    def to_json(self):
-        raise NotImplementedError
 
     async def _download(self):
         raise NotImplementedError
@@ -85,28 +88,31 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.download_folder = self.playlist.downloader.download_folder
 
     @classmethod
-    def from_json(cls, playlist, jsonstring):
-        data = json.loads(jsonstring)
-        print(data)
-        # TODO: version check
-        url = data['url']
-        title = data['title']
-        duration = data['duration']
-        downloaded = data['downloaded']
-        filename = data['filename'] if downloaded else None
-        meta = {}
+    def deserialize(cls, playlist, jsonstr):
+        data = json.loads(jsonstr)
 
-        # TODO: Better [name] fallbacks
-        if 'channel' in data['meta']:
-            ch = playlist.bot.get_channel(data['meta']['channel']['id'])
-            meta['channel'] = ch or data['meta']['channel']['name']
+        try:
+            # TODO: version check
+            url = data['url']
+            title = data['title']
+            duration = data['duration']
+            downloaded = data['downloaded']
+            filename = data['filename'] if downloaded else None
+            meta = {}
 
-        if 'author' in data['meta']:
-            meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+            # TODO: Better [name] fallbacks
+            if 'channel' in data['meta']:
+                meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
 
-        return cls(playlist, url, title, duration, filename, **meta)
+            if 'author' in data['meta']:
+                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-    def to_json(self):
+            return cls(playlist, url, title, duration, filename, **meta)
+        except Exception as e:
+            print("Could not load {}: {}".format(cls.__name__, e))
+
+
+    def serialize(self):
         data = {
             'version': 1,
             'type': self.__class__.__name__,
@@ -115,13 +121,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
             'duration': self.duration,
             'downloaded': self.is_downloaded,
             'filename': self.filename,
+            # Todo: add server
             'meta': {
-                i: {
-                    'type': self.meta[i].__class__.__name__,
-                    'id': self.meta[i].id,
-                    'name': self.meta[i].name
-                    } for i in self.meta
-                }
+                name: {
+                    'type': obj.__class__.__name__,
+                    'id': obj.id,
+                    'name': obj.name
+                } for name, obj in self.meta.values()
+            }
             # Actually I think I can just getattr instead, getattr(discord, type)
         }
         return json.dumps(data, indent=2)
@@ -234,4 +241,73 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 os.rename(unhashed_fname, self.filename)
 
 
+class StreamPlaylistEntry(BasePlaylistEntry):
+    def __init__(self, playlist, url, title, direct=False, **meta):
+        super().__init__()
+
+        self.playlist = playlist
+        self.url = url
+        self.title = title
+        self.direct = direct
+        self.duration = 0
+        self.meta = meta
+
+        if self.direct:
+            self.filename = self.url
+
+    @classmethod
+    def deserialize(cls, playlist, jsonstr):
+        data = json.loads(jsonstr)
+
+        try:
+            # TODO: version check
+            url = data['url']
+            title = data['title']
+            direct = data['direct']
+            meta = {}
+
+            # TODO: Better [name] fallbacks
+            if 'channel' in data['meta']:
+                ch = playlist.bot.get_channel(data['meta']['channel']['id'])
+                meta['channel'] = ch or data['meta']['channel']['name']
+
+            if 'author' in data['meta']:
+                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+
+            return cls(playlist, url, title, direct ** meta)
+        except Exception as e:
+            print("Could not load {}: {}".format(cls.__name__, e))
+
+    def serialize(self):
+        data = {
+            'version': 1,
+            'type': self.__class__.__name__,
+            'url': self.url,
+            'title': self.title,
+            'direct': self.direct,
+            'meta': {
+                name: {
+                    'type': obj.__class__.__name__,
+                    'id': obj.id,
+                    'name': obj.name
+                } for name, obj in self.meta.values()
+            }
+            # Actually I think I can just getattr instead, getattr(discord, type)
+        }
+        return json.dumps(data, indent=2)
+
+    async def _download(self):
+        self._is_downloading = True
+
+        try:
+            result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=False)
+        except Exception as e:
+            raise ExtractionError(e)
+        else:
+            self.filename = result['url']
+            # I might need some sort of events or hooks or shit
+            # for when ffmpeg inevitebly fucks up and i have to restart
+            # although maybe that should be at a slightly lower level
+        finally:
+            self._is_downloading = False
 

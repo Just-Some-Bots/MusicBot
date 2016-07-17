@@ -7,6 +7,18 @@ from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
 
+
+class Serializable:
+    def serialize(self):
+        raise NotImplementedError
+
+    @classmethod
+    def deserialize(cls, playlist, jsonstr):
+        raise NotImplementedError
+
+
+
+
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
         with open(filename, encoding='utf8') as f:
