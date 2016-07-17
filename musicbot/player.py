@@ -12,6 +12,7 @@ from collections import deque
 from shutil import get_terminal_size
 
 from .lib.event_emitter import EventEmitter
+from .exceptions import FFmpegError, FFmpegWarning
 
 
 class PatchedBuff:
@@ -97,12 +98,13 @@ class MusicPlayer(EventEmitter):
         self.voice_client = voice_client
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
-        self._volume = bot.config.default_volume
+        self.state = MusicPlayerState.STOPPED
 
+        self._volume = bot.config.default_volume
         self._play_lock = asyncio.Lock()
         self._current_player = None
         self._current_entry = None
-        self.state = MusicPlayerState.STOPPED
+        self._stderr_future = None
 
         self.loop.create_task(self.websocket_check())
 
@@ -172,6 +174,11 @@ class MusicPlayer(EventEmitter):
             self._kill_current_player()
 
         self._current_entry = None
+
+        try:
+            self._stderr_future.result()
+        except Exception as e:
+            self.emit('error', entry=entry, ex=e)
 
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
@@ -265,10 +272,11 @@ class MusicPlayer(EventEmitter):
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
+                self._stderr_future = asyncio.Future()
 
                 stderr_thread = Thread(
                     target=filter_stderr,
-                    args=(self._current_player.process,),
+                    args=(self._current_player.process, self._stderr_future),
                     name="{} stderr reader".format(self._current_player.name)
                 )
 
@@ -333,16 +341,27 @@ class MusicPlayer(EventEmitter):
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
         #       Change frame_count to bytes_read in the PatchedBuff
 
-def filter_stderr(popen:subprocess.Popen):
+def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
     while True:
         data = popen.stderr.readline()
         if data:
-            # print("received data:", data, flush=True)
-            if check_stderr(data):
-                sys.stderr.buffer.write(data)
-                sys.stderr.buffer.flush()
+            # print("FFmpeg says:", data, flush=True)
+            try:
+                if check_stderr(data):
+                    sys.stderr.buffer.write(data)
+                    sys.stderr.buffer.flush()
+
+            except FFmpegError as e:
+                print("Error from FFmpeg:", e)
+                future.set_exception(e)
+
+            except FFmpegWarning:
+                pass # useless message
         else:
             break
+
+    if not future.done():
+        future.set_result(True)
 
 def check_stderr(data:bytes):
     try:
@@ -352,15 +371,21 @@ def check_stderr(data:bytes):
 
     nopes = [
         "Header missing",
-        "Invalid data found when processing input",
         "Estimating duration from birate, this may be inaccurate",
-        "Using AVStream.codec to pass codec parameters to muxers is "
-            "deprecated, use AVStream.codecpar instead.",
-        "Application provided invalid, non monotonically "
-            "increasing dts to muxer in stream",
+        "Using AVStream.codec to pass codec parameters to muxers is deprecated, use AVStream.codecpar instead.",
+        "Application provided invalid, non monotonically increasing dts to muxer in stream",
     ]
-    # print("Ignoring output from ffmpeg: {}".format(data))
-    return not any(nope in data for nope in nopes)
+    very_nopes = [
+        "Invalid data found when processing input",
+    ]
+
+    if any(nope in data for nope in nopes):
+        raise FFmpegWarning(data)
+
+    if any(nope in data for nope in very_nopes):
+        raise FFmpegError(data)
+
+    return True
 
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:

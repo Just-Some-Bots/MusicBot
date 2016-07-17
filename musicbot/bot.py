@@ -368,7 +368,8 @@ class MusicBot(discord.Client):
                 .on('pause', self.on_player_pause) \
                 .on('stop', self.on_player_stop) \
                 .on('finished-playing', self.on_player_finished_playing) \
-                .on('entry-added', self.on_player_entry_added)
+                .on('entry-added', self.on_player_entry_added) \
+                .on('error', self.on_player_error)
 
             player.skip_state = SkipState()
             self.players[server.id] = player
@@ -444,6 +445,15 @@ class MusicBot(discord.Client):
 
     async def on_player_entry_added(self, playlist, entry, **_):
         pass
+
+    async def on_player_error(self, entry, ex, **_):
+        if 'channel' in entry.meta:
+            await self.safe_send_message(
+                entry.meta['channel'],
+                "```\nError from FFmpeg:\n{}\n```".format(ex)
+            )
+        else:
+            traceback.print_exception(ex.__class__, ex, ex.__traceback__)
 
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None

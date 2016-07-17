@@ -4,6 +4,7 @@ import textwrap
 # Base class for exceptions
 class MusicbotException(Exception):
     def __init__(self, message, *, expire_in=0):
+        super().__init__(message) # ???
         self._message = message
         self.expire_in = expire_in
 
@@ -29,6 +30,14 @@ class WrongEntryTypeError(ExtractionError):
         super().__init__(message)
         self.is_playlist = is_playlist
         self.use_url = use_url
+
+# FFmpeg complained about something
+class FFmpegError(MusicbotException):
+    pass
+
+# FFmpeg complained about something but we don't care
+class FFmpegWarning(MusicbotException):
+    pass
 
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
