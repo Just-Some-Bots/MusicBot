@@ -29,7 +29,7 @@ from musicbot.player import MusicPlayer
 from musicbot.entry import StreamPlaylistEntry
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int, fixg
 
 from . import exceptions
 from . import downloader
@@ -112,9 +112,7 @@ class MusicBot(discord.Client):
 
         return wrapper
 
-    @staticmethod
-    def _fixg(x, dp=2):
-        return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
+    # @staticmethod
 
     def _get_owner(self, voice=False):
         if voice:
@@ -728,7 +726,7 @@ class MusicBot(discord.Client):
         self.safe_print("  Command prefix: " + self.config.command_prefix)
         print("  Default volume: %s%%" % int(self.config.default_volume * 100))
         print("  Skip threshold: %s votes or %s%%" % (
-            self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
+            self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
         print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
         print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
         print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
@@ -1001,7 +999,7 @@ class MusicBot(discord.Client):
                 channel,
                 'Gathering playlist information for {} songs{}'.format(
                     num_songs,
-                    ', ETA: {} seconds'.format(self._fixg(
+                    ', ETA: {} seconds'.format(fixg(
                         num_songs * wait_per_song)) if num_songs >= 10 else '.'))
 
             # We don't have a pretty way of doing this yet.  We need either a loop
@@ -1031,10 +1029,10 @@ class MusicBot(discord.Client):
 
             print("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
                 listlen,
-                self._fixg(ttime),
+                fixg(ttime),
                 ttime / listlen if listlen else 0,
                 ttime / listlen - wait_per_song if listlen - wait_per_song else 0,
-                self._fixg(wait_per_song * num_songs))
+                fixg(wait_per_song * num_songs))
             )
 
             await self.safe_delete_message(procmesg)
@@ -1165,10 +1163,10 @@ class MusicBot(discord.Client):
         print("Processed {}/{} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
             songs_processed,
             num_songs,
-            self._fixg(ttime),
+            fixg(ttime),
             ttime / num_songs,
             ttime / num_songs - wait_per_song,
-            self._fixg(wait_per_song * num_songs))
+            fixg(wait_per_song * num_songs))
         )
 
         if not songs_added:
@@ -1179,7 +1177,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(basetext, expire_in=30)
 
         return Response("Enqueued {} songs to be played in {} seconds".format(
-            songs_added, self._fixg(ttime, 1)), delete_after=30)
+            songs_added, fixg(ttime, 1)), delete_after=30)
 
     async def cmd_stream(self, player, channel, author, permissions, song_url):
         """

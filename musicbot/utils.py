@@ -95,3 +95,7 @@ def md5sum(filename, limit=0):
         for chunk in iter(lambda: f.read(8192), b""):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
+
+
+def fixg(x, dp=2):
+    return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
