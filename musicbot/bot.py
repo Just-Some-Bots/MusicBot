@@ -13,7 +13,9 @@ from discord import utils
 from discord.object import Object
 from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
+
 from discord.ext.commands.bot import _get_variable
+from discord.http import _func_
 
 from io import BytesIO
 from functools import wraps
@@ -69,7 +71,7 @@ class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         self.players = {}
         self.the_voice_clients = {}
-        self.locks = defaultdict(asyncio.Lock)
+        self.aiolocks = defaultdict(asyncio.Lock)
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
 
@@ -210,6 +212,20 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.PermissionsError(
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
+
+    async def remove_from_autoplaylist(self, song_url:str, *, ex:Exception=None):
+        if song_url not in self.autoplaylist:
+            return
+
+        self.autoplaylist.remove(song_url)
+        self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+
+        async with self.aiolocks[_func_()]:
+            with open(self.config.auto_playlist_file, 'a', encoding='utf8') as f:
+                f.write('# Entry removed {ctime}\n'
+                        '# Reason: {ex:s}\n'
+                        '{url}\n\n{sep}\n\n'.format(ctime=time.ctime(), ex=ex, url=song_url, sep='#' * 16)
+                )
 
     async def generate_invite_link(self, *, permissions=None, server=None):
         if not self.cached_client_id:
@@ -419,7 +435,27 @@ class MusicBot(discord.Client):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
-                info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
+                info = None
+
+                try:
+                    info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+                except downloader.youtube_dl.utils.DownloadError as e:
+                    if 'YouTube said:' in e.args[0]:
+                        # url is bork, remove from list and put in removed list
+                        self.safe_print("Error processing youtube url:\n" + e.args[0])
+
+                    else:
+                        # Probably an error from a different extractor, but I've only seen youtube's
+                        self.safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+
+                    await self.remove_from_autoplaylist(song_url, ex=e)
+
+                except Exception as e:
+                    if self.config.debug_mode:
+                        traceback.print_exc()
+
+                    self.safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+                    self.autoplaylist.remove(song_url)
 
                 if not info:
                     self.autoplaylist.remove(song_url)
