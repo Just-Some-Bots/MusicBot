@@ -457,12 +457,6 @@ class MusicBot(discord.Client):
                     self.safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
                     self.autoplaylist.remove(song_url)
 
-                if not info:
-                    self.autoplaylist.remove(song_url)
-                    self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
-                    write_file(self.config.auto_playlist_file, self.autoplaylist)
-                    continue
-
                 if info.get('entries', None):  # or .get('_type', '') == 'playlist'
                     pass  # Wooo playlist
                     # Blarg how do I want to do this
