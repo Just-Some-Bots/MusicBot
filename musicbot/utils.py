@@ -97,3 +97,7 @@ def fixg(x, dp=2):
 def safe_print(content, *, end='\n', flush=True):
     sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
     if flush: sys.stdout.flush()
+
+
+def avg(i):
+    return sum(i) / len(i)

@@ -11,6 +11,7 @@ from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
 
+from .utils import avg
 from .lib.event_emitter import EventEmitter
 from .exceptions import FFmpegError, FFmpegWarning
 
@@ -48,7 +49,7 @@ class PatchedBuff:
             self.rmss.append(rms)
 
             max_rms = sorted(self.rmss)[-1]
-            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(self._avg(self.rmss), max_rms)
+            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(avg(self.rmss), max_rms)
             self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
 
         return frame
@@ -64,9 +65,6 @@ class PatchedBuff:
                 frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
 
             return frame_array.tobytes()
-
-    def _avg(self, i):
-        return sum(i) / len(i)
 
     def _pprint_meter(self, perc, *, char='#', text='', shift=True):
         tx, ty = get_terminal_size()
