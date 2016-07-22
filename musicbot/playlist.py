@@ -118,6 +118,9 @@ class Playlist(EventEmitter):
                 traceback.print_exc()
                 print('Could not extract information from {} ({}), falling back to direct'.format(song_url, e))
 
+        if info:
+            song_url = info.get('url', song_url)
+
         if info.get('extractor', None) == 'twitch:stream': # may need to add other twitch types
             title = info.get('description')
         else:
