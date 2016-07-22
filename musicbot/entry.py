@@ -242,18 +242,23 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, direct=False, **meta):
+    def __init__(self, playlist, url, title, *, direct=False, source_url=None, **meta):
         super().__init__()
 
         self.playlist = playlist
-        self.url = url
+        self._url = url
+        self.source_url = source_url
         self.title = title
         self.direct = direct
         self.duration = 0
         self.meta = meta
 
         if self.direct:
-            self.filename = self.url
+            self.filename = self._url
+
+    @property
+    def url(self):
+        return self.source_url or self._url
 
     @classmethod
     def deserialize(cls, playlist, jsonstr):
@@ -282,7 +287,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         data = {
             'version': 1,
             'type': self.__class__.__name__,
-            'url': self.url,
+            'url': self._url,
             'title': self.title,
             'direct': self.direct,
             'meta': {
@@ -300,7 +305,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self._is_downloading = True
 
         try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=False)
+            result = await self.playlist.downloader.extract_info(self.playlist.loop, self._url, download=False)
         except Exception as e:
             raise ExtractionError(e)
         else:

@@ -119,7 +119,9 @@ class Playlist(EventEmitter):
                 print('Could not extract information from {} ({}), falling back to direct'.format(song_url, e))
 
         if info:
-            song_url = info.get('url', song_url)
+            url = info.get('url', song_url)
+        else:
+            url = song_url
 
         if info.get('extractor', None) == 'twitch:stream': # may need to add other twitch types
             title = info.get('description')
@@ -128,14 +130,12 @@ class Playlist(EventEmitter):
 
         # TODO: A bit more validation, "~stream some_url" should not be :ok_hand:
 
-        # TODO: You'd think that this would be able to play youtube videos and the like
-        # TODO: or rather anything ytdl can parse.  I'm not quite sure how to handle that yet.
-
         entry = StreamPlaylistEntry(
             self,
-            song_url,
+            url,
             title,
             direct = not info.get('is_live', False),
+            source_url = song_url,
             **meta
         )
         self._add_entry(entry)
