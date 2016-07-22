@@ -31,6 +31,7 @@ $.ajax({
   },
   "success": function(data) {
     alert(data);
+  }
 });
 ~~~
 {: title="jQuery" }
