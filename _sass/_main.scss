@@ -132,7 +132,6 @@ dl dt {
 	width: 30%;
 	float: left;
 	font-weight: bold;
-	text-align: right;
 	position: relative;
 	top: 20px;
 }
@@ -191,6 +190,7 @@ dl dd:after {
 		width: 100%;
 		text-overflow: ellipsis;
 		overflow: hidden;
+		padding: 2px 0;
 
 		&.active {
 			color: #2196F3;
@@ -532,8 +532,8 @@ header {
 
 .search-page {
 	max-width: 800px;
-	margin: 0 auto;
-	padding: 0 20px;
+	margin: 0 0 0 50px;
+	padding: 50px 20px 0 20px;
 }
 
 #search-results {
