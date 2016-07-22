@@ -29,7 +29,7 @@ from musicbot.player import MusicPlayer
 from musicbot.entry import StreamPlaylistEntry
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int, fixg
+from musicbot.utils import load_file, write_file, sane_round_int, fixg, safe_print
 
 from . import exceptions
 from . import downloader
@@ -145,7 +145,7 @@ class MusicBot(discord.Client):
     async def _auto_summon(self):
         owner = self._get_owner(voice=True)
         if owner:
-            self.safe_print("Found owner in \"%s\", attempting to join..." % owner.voice_channel.name)
+            safe_print("Found owner in \"%s\", attempting to join..." % owner.voice_channel.name)
             # TODO: Effort
             await self.cmd_summon(owner.voice_channel, owner, None)
             return owner.voice_channel
@@ -159,16 +159,16 @@ class MusicBot(discord.Client):
                 continue
 
             if channel and channel.type == discord.ChannelType.voice:
-                self.safe_print("Attempting to autojoin %s in %s" % (channel.name, channel.server.name))
+                safe_print("Attempting to autojoin %s in %s" % (channel.name, channel.server.name))
 
                 chperms = channel.permissions_for(channel.server.me)
 
                 if not chperms.connect:
-                    self.safe_print("Cannot join channel \"%s\", no permission." % channel.name)
+                    safe_print("Cannot join channel \"%s\", no permission." % channel.name)
                     continue
 
                 elif not chperms.speak:
-                    self.safe_print("Will not join channel \"%s\", no permission to speak." % channel.name)
+                    safe_print("Will not join channel \"%s\", no permission to speak." % channel.name)
                     continue
 
                 try:
@@ -216,7 +216,7 @@ class MusicBot(discord.Client):
             return
 
         self.autoplaylist.remove(song_url)
-        self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+        safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
 
         async with self.aiolocks[_func_()]:
             with open(self.config.auto_playlist_file, 'a', encoding='utf8') as f:
@@ -440,11 +440,11 @@ class MusicBot(discord.Client):
                 except downloader.youtube_dl.utils.DownloadError as e:
                     if 'YouTube said:' in e.args[0]:
                         # url is bork, remove from list and put in removed list
-                        self.safe_print("Error processing youtube url:\n" + e.args[0])
+                        safe_print("Error processing youtube url:\n" + e.args[0])
 
                     else:
                         # Probably an error from a different extractor, but I've only seen youtube's
-                        self.safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+                        safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
 
                     await self.remove_from_autoplaylist(song_url, ex=e)
 
@@ -452,7 +452,7 @@ class MusicBot(discord.Client):
                     if self.config.debug_mode:
                         traceback.print_exc()
 
-                    self.safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+                    safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
                     self.autoplaylist.remove(song_url)
 
                 if info.get('entries', None):  # or .get('_type', '') == 'playlist'
@@ -514,11 +514,11 @@ class MusicBot(discord.Client):
 
         except discord.Forbidden:
             if not quiet:
-                self.safe_print("Warning: Cannot send message to %s, no permission" % dest.name)
+                safe_print("Warning: Cannot send message to %s, no permission" % dest.name)
 
         except discord.NotFound:
             if not quiet:
-                self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+                safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
 
         finally:
             if msg and expire_in:
@@ -535,11 +535,11 @@ class MusicBot(discord.Client):
 
         except discord.Forbidden:
             if not quiet:
-                self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
+                safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
 
         except discord.NotFound:
             if not quiet:
-                self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+                safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
     async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
         try:
@@ -547,15 +547,11 @@ class MusicBot(discord.Client):
 
         except discord.NotFound:
             if not quiet:
-                self.safe_print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
+                safe_print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
             if send_if_fail:
                 if not quiet:
                     print("Sending instead")
                 return await self.safe_send_message(message.channel, new)
-
-    def safe_print(self, content, *, end='\n', flush=True):
-        sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
-        if flush: sys.stdout.flush()
 
     async def send_typing(self, destination):
         try:
@@ -646,20 +642,20 @@ class MusicBot(discord.Client):
 
         self.init_ok = True
 
-        self.safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
+        safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner and self.servers:
-            self.safe_print("Owner: %s/%s#%s\n" % (owner.id, owner.name, owner.discriminator))
+            safe_print("Owner: %s/%s#%s\n" % (owner.id, owner.name, owner.discriminator))
 
             print('Server List:')
-            [self.safe_print(' - ' + s.name) for s in self.servers]
+            [safe_print(' - ' + s.name) for s in self.servers]
 
         elif self.servers:
             print("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
 
             print('Server List:')
-            [self.safe_print(' - ' + s.name) for s in self.servers]
+            [safe_print(' - ' + s.name) for s in self.servers]
 
         else:
             print("Owner unknown, bot is not on any servers.")
@@ -682,13 +678,13 @@ class MusicBot(discord.Client):
 
             if chlist:
                 print("Bound to text channels:")
-                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
                 print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
                 print("\nNot binding to voice channels:")
-                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             print()
 
@@ -706,13 +702,13 @@ class MusicBot(discord.Client):
 
             if chlist:
                 print("Autojoining voice chanels:")
-                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
                 print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
                 print("\nCannot autojoin text channels:")
-                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             autojoin_channels = chlist
 
@@ -723,7 +719,7 @@ class MusicBot(discord.Client):
         print()
         print("Options:")
 
-        self.safe_print("  Command prefix: " + self.config.command_prefix)
+        safe_print("  Command prefix: " + self.config.command_prefix)
         print("  Default volume: %s%%" % int(self.config.default_volume * 100))
         print("  Skip threshold: %s votes or %s%%" % (
             self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
@@ -1399,14 +1395,14 @@ class MusicBot(discord.Client):
         chperms = author.voice_channel.permissions_for(author.voice_channel.server.me)
 
         if not chperms.connect:
-            self.safe_print("Cannot join channel \"%s\", no permission." % author.voice_channel.name)
+            safe_print("Cannot join channel \"%s\", no permission." % author.voice_channel.name)
             return Response(
                 "```Cannot join channel \"%s\", no permission.```" % author.voice_channel.name,
                 delete_after=25
             )
 
         elif not chperms.speak:
-            self.safe_print("Will not join channel \"%s\", no permission to speak." % author.voice_channel.name)
+            safe_print("Will not join channel \"%s\", no permission to speak." % author.voice_channel.name)
             return Response(
                 "```Will not join channel \"%s\", no permission to speak.```" % author.voice_channel.name,
                 delete_after=25
@@ -1910,7 +1906,7 @@ class MusicBot(discord.Client):
             return
 
         if message.author == self.user:
-            self.safe_print("Ignoring command from myself (%s)" % message.content)
+            safe_print("Ignoring command from myself (%s)" % message.content)
             return
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
@@ -1929,11 +1925,11 @@ class MusicBot(discord.Client):
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
-            self.safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
             return
 
         else:
-            self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -2104,7 +2100,7 @@ class MusicBot(discord.Client):
 
     async def on_server_update(self, before:discord.Server, after:discord.Server):
         if before.region != after.region:
-            self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
+            safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
 

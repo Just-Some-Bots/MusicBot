@@ -1,5 +1,6 @@
-import aiohttp
+import sys
 import decimal
+import aiohttp
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
@@ -91,3 +92,8 @@ def md5sum(filename, limit=0):
 
 def fixg(x, dp=2):
     return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
+
+
+def safe_print(content, *, end='\n', flush=True):
+    sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
+    if flush: sys.stdout.flush()
