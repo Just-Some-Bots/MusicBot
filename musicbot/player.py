@@ -367,20 +367,23 @@ def check_stderr(data:bytes):
     except:
         return True # fuck it
 
-    nopes = [
+    # TODO: Regex
+    warnings = [
         "Header missing",
         "Estimating duration from birate, this may be inaccurate",
         "Using AVStream.codec to pass codec parameters to muxers is deprecated, use AVStream.codecpar instead.",
         "Application provided invalid, non monotonically increasing dts to muxer in stream",
+        "Last message repeated",
+        "Failed to send close message",
     ]
-    very_nopes = [
+    errors = [
         "Invalid data found when processing input",
     ]
 
-    if any(nope in data for nope in nopes):
+    if any(msg in data for msg in warnings):
         raise FFmpegWarning(data)
 
-    if any(nope in data for nope in very_nopes):
+    if any(msg in data for msg in errors):
         raise FFmpegError(data)
 
     return True
