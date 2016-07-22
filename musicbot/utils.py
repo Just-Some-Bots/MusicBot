@@ -1,7 +1,5 @@
-import re
 import aiohttp
 import decimal
-import unicodedata
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
@@ -41,12 +39,6 @@ def write_file(filename, contents):
         for item in contents:
             f.write(str(item))
             f.write('\n')
-
-
-def slugify(value):
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub('[^\w\s-]', '', value).strip().lower()
-    return re.sub('[-\s]+', '-', value)
 
 
 def sane_round_int(x):
