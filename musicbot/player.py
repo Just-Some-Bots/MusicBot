@@ -340,6 +340,8 @@ class MusicPlayer(EventEmitter):
         #       Change frame_count to bytes_read in the PatchedBuff
 
 def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
+    last_ex = None
+
     while True:
         data = popen.stderr.readline()
         if data:
@@ -351,14 +353,16 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
 
             except FFmpegError as e:
                 print("Error from FFmpeg:", e)
-                future.set_exception(e)
+                last_ex = e
 
             except FFmpegWarning:
                 pass # useless message
         else:
             break
 
-    if not future.done():
+    if last_ex:
+        future.set_exception(last_ex)
+    else:
         future.set_result(True)
 
 def check_stderr(data:bytes):
