@@ -1,17 +1,21 @@
 <div id="sidebar" class="sidebar">
-  {% for collection in site.collections %}
-    {% if collection[1].render %}
-        <section>
-          <h6> {{collection[1].title}} </h6>
-          <ul>
-            {% for doc in collection[1].docs %}
-              <li><a href="#{{doc.url | replace: '/', '' | replace: '.', ''}}">
-                {{doc.title}}
-                {% if doc.type %}<span class="endpoint {{doc.type}}"></span> {% endif %}
-                </a></li>
-            {% endfor %}
-          </ul>
-        </section>
-    {% endif %}
-  {% endfor %}
+	{% assign sorted_collections = site.collections | sort: "position" %}
+	{% for collection in sorted_collections %}
+		{% if collection.label != "posts" %}
+			<section>
+				<h6>{{ collection.title }}</h6>
+				<ul>
+					{% assign sorted_docs = collection.docs | sort: "position" %}
+					{% for doc in sorted_docs %}
+						<li>
+							<a href="{% if page.url != '/' %}/{% endif %}#{{ doc.id | replace: '/', '' | replace: '.', ''}}">
+								{{ doc.title }}
+								{% if doc.type %}<span class="endpoint {{ doc.type }}"></span>{% endif %}
+							</a>
+						</li>
+					{% endfor %}
+				</ul>
+			</section>
+		{% endif %}
+	{% endfor %}
 </div>

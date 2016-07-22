@@ -1,55 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>{{page.title}}</title>
-  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
-  <link rel="stylesheet" href="/css/normalize.css">
-  <link rel="stylesheet" href="/css/style.css">
-  <!-- <link rel="icon" type="image/png" href="images/favicon.png"> -->
+	<head>
+		<meta charset="utf-8">
+		<title>{{ page.title }}</title>
+		<link rel="stylesheet" href="/css/style.css">
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
-  <script src="/js/main.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+		<script src="/js/main.js"></script>
+	</head>
+	<body>
+		<header>
+			<h1>
+				<a href="/"><img src="/images/emblem.svg" width="40" height="40" alt="{{ site.title }} logo"></a>
+				{{ site.title }}
+				<button type="button" class="open-nav" id="open-nav"></button>
+			</h1>
 
-  <link rel="stylesheet" href="/css/tomorrow.css">
-  <link rel="stylesheet" href="/css/railscasts.css">
-  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/highlight.min.js"></script>
-</head>
-<body class="{{page.body_class}}">
+			<form action="/search/" method="get">
+				<input type="text" name="q" id="search-input" placeholder="Search">
+				<input type="submit" value="Search" style="display: none;">
+			</form>
 
-  <nav class="nav-bar">
-    <div class="wrap">
-      <ul class="hor">
-        <li> <a href="/" class="logo"><img src="/img/logo.png" alt="logo" height="20" /></a> </li>
-        {% assign current = page.url %}
-        {% for main_link in site.main_links %}
-          <li> <a href="{{main_link.link}}"
-            {% if current == main_link.link %}
-              class="current"
-            {% endif %}
-            > {{ main_link.title }} </a> </li>
-        {% endfor %}
-      </ul>
-
-      <ul class="right hor">
-          <li><input type="text" name="search" id="search" class="search-box" placeholder="Search"><div id="search_results" class="search-results"></div></li>
-
-      </ul>
-    </div>
-  </nav>
-
-  <div class="wrap">
-    {% if page.sidebar %}
-
-      {% if page.body_class contains 'multi-page' %}
-          {% include sidebar_multi.html %}
-      {% else %}
-        {% include sidebar.html %}
-      {% endif %}
-    {% endif %}
-    <div class="main">
-      {{content}}
-    </div>
-  </div>
-</body>
+			{% include sidebar.html %}
+		</header>
+		<div class="main">
+			{{ content }}
+		</div>
+		<script>
+			document.getElementById("open-nav").addEventListener("click", function () {
+				document.body.classList.toggle("nav-open");
+			});
+		</script>
+	</body>
 </html>

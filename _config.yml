@@ -1,30 +1,32 @@
+# ----
+# Site
+
+title: Aviator
+description: Jekyll template for API documentation.
+url: https://example.com
+google_analytics_key:
+
 collections:
   documentation:
     title: Documentation
-    render: true
-    output: true
+    position: 1
   api:
     title: APIs
-    render: true
-    output: true
-main_links:
-  -
-    title: 1st layout
-    link: /index.html
-  -
-    title: 2nd layout
-    link: /index2.html
-  -
-    title: 3rd layout
-    link: /index3.html
-  -
-    title: 4th layout
-    link: /index4.html
+    position: 2
+
+
 defaults:
   -
     scope:
       path: ""
     values:
-      layout: multi
-      sidebar: true
-      body_class: docs fixed-width multi-page
+      layout: default
+
+# -----
+# Build
+
+
+# -----------
+# CloudCannon
+
+version: 3.0.3

@@ -3,71 +3,66 @@ jQuery(function() {
     $nav = $('.nav'),
     $main = $('.main');
 
-  $(window).on("scroll", function(evt) {
-    fixSidebar();
+  var found = true;
+
+  var $el;
+
+  $("section > div.highlighter-rouge:first-of-type").each(function(i) {
+
+    var $this = $(this).before("<ul class=\"languages\"></ul>"),
+    $languages = $this.prev(),
+    $notFirst = $this.nextUntil(":not(div.highlighter-rouge)"),
+    $all = $this.add($notFirst);
+
+    $all.add($languages).wrapAll("<div class=\"code-viewer\"></div>");
+
+
+    listLanguages($all, $languages);
+
+    $this.css('display', 'block');
+    $notFirst.css('display', 'none');
+
+    $languages.find('a').first().addClass('active');
+
+    $languages.find('a').click(function() {
+      $all.css('display', 'none');
+      $all.eq($(this).parent().index()).css('display', 'block');
+
+      $languages.find('a').removeClass('active');
+      $(this).addClass('active');
+      return false;
+    });
+
+    if ($languages.children().length === 0) {
+      $languages.remove();
+    }
+  });
+
+  function listLanguages($el, $insert) {
+    $el.each(function(i) {
+      var title = $(this).attr('title');
+      if (title) {
+        $insert.append("<li><a href=\"#\">" + title + "</a></li>");
+      }
+    });
+  }
+
+  var href = $('.sidebar a').first().attr("href");
+
+  if (href !== undefined && href.charAt(0) === "#") {
     setActiveSidebarLink();
-  });
 
-  $('pre').each(function(i, block) {
-    hljs.highlightBlock(block);
-  });
-
-  $('.code-viewer').each(function(i) {
-
-      $(this).prepend( "<ul class=\"languages\"></ul>" );
-      $el = $(this);
-      $languages = $el.find('.languages');
-      $el.find('pre').css('display', 'none');
-      $el.find('pre').first().css('display', 'block');
-
-      $el.find('pre').each(function(j){
-        $languages.append("<li><a href=\"#\">" + $(this).attr('data-language') + "</a></li>");
-      })
-
-      $languages.find('a').first().addClass('active');
-
-      $el.find('a').click(function() {
-        $el = $(this).closest('.code-viewer');
-        $el.find('pre').css('display', 'none');
-        $el.find('pre').eq($(this).parent().index()).css('display', 'block');
-
-        $el.find('.languages').find('a').removeClass('active');
-        $(this).addClass('active');
-
-        return false;
-      });
-  });
-
-  setActiveSidebarLink();
-
-  function fixSidebar() {
-    var top = window.scrollY,
-      nav_height = $('.nav-bar').height();
-
-    top = top - nav_height - 20;
-    if (top < nav_height - 32) {
-      top = 8;
-    }
-
-    if (top < $main.offset().top + $main.height() - $sidebar.height()) {
-      $sidebar.css('top', top);
-    }
-
-    $sidebar.css('height', window.innerHeight - 30);
-  };
-
+    $(window).on("scroll", function(evt) {
+      setActiveSidebarLink();
+    });
+  }
 
   function setActiveSidebarLink() {
-    if ($('.multi-page').length == 0) {
       $('.sidebar a').removeClass('active');
         var $closest = getClosestHeader();
         $closest.addClass('active');
         document.title = $closest.text();
-    } else {
-      if ($('.sidebar a.active').length == 0) {
-        $('.sidebar a:first').addClass('active');
-      }
-    }
+        
   }
 });
 
@@ -76,17 +71,19 @@ function getClosestHeader() {
   top = window.scrollY,
   $last = $links.first();
 
-
-
   if (top < 300) {
     return $last;
+  }
+
+  if (top + window.innerHeight >= $(".main").height()) {
+    return $links.last();
   }
 
   for (var i = 0; i < $links.length; i++) {
     var $link = $links.eq(i),
     href = $link.attr("href");
 
-    if (href != undefined && href.charAt(0) === "#" && href.length > 1) {
+    if (href !== undefined && href.charAt(0) === "#" && href.length > 1) {
       var $anchor = $(href);
 
       if ($anchor.length > 0) {
@@ -101,4 +98,4 @@ function getClosestHeader() {
     }
   }
   return $last;
-};
+}
