@@ -842,6 +842,32 @@ class MusicBot(discord.Client):
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
 
+    @owner_only
+    async def cmd_adduser(self, message, group, user_id, leftover_args):
+        """
+        Usage:
+            {command_prefix}adduser group userids
+
+        Adds the user(s) to the permission group
+        """
+
+        if not group:
+            return Response('The parameter "group" is required', reply=True, delete_after=20)
+
+        matching_groups = [x for x in self.permissions.groups if x.name == group]
+
+        if len(matching_groups) == 0:
+            return Response('The given group is not defined in permissions.ini', reply=True, delete_after=20)
+
+        if not user_id:
+            return Response('User ids not provided', reply=True, delete_after=20)
+
+        matching_groups[0].add_user(user_id)
+
+
+
+
+
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
