@@ -13,6 +13,7 @@ Learn Jekyll with step-by-step tutorials and videos at [Jekyll Tips](http://jeky
 ## Features
 
 * Three column layout
+* Fully responsive 
 * Full text search
 * Pre-styled components
 * Auto-generated navigation based on category
