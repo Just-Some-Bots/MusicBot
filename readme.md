@@ -1,24 +1,22 @@
-# Scholar
+# Aviator
 
-Product documentation template for Jekyll. Browse through a [live demo](#TODO).
-Start documenting your product, application, service or website with this configurable theme.
+API documentation template for Jekyll. Browse through a [live demo](#TODO).
+Start documenting your API with this configurable theme.
 
-![Scholar template screenshot](images/_screenshot.png)
+![Aviator template screenshot](images/_screenshot.png)
 
-Scholar was made by [CloudCannon](http://cloudcannon.com/), the Cloud CMS for Jekyll.
+Aviator was made by [CloudCannon](http://cloudcannon.com/), the Cloud CMS for Jekyll.
 Find more templates and themes at [Jekyll Tips](http://jekyll.tips/templates/).
 
 Learn Jekyll with step-by-step tutorials and videos at [Jekyll Tips](http://jekyll.tips/).
 
 ## Features
 
-* Two column layout
+* Three column layout
 * Full text search
 * Pre-styled components
 * Auto-generated navigation based on category
 * Optimised for editing in [CloudCannon](http://cloudcannon.com/)
-* Change log
-* RSS/Atom feed
 * SEO tags
 * Google Analytics
 
@@ -29,7 +27,7 @@ Learn Jekyll with step-by-step tutorials and videos at [Jekyll Tips](http://jeky
 
 ## Develop
 
-Scholar was built with [Jekyll](http://jekyllrb.com/) version 3.1.6, but should support newer versions as well.
+Aviator was built with [Jekyll](http://jekyllrb.com/) version 3.1.6, but should support newer versions as well.
 
 Install the dependencies with [Bundler](http://bundler.io/):
 
@@ -45,18 +43,13 @@ $ bundle exec jekyll serve
 
 ## Editing
 
-Scholar is already optimised for adding, updating and removing documentation pages in CloudCannon.
+Aviator is already optimised for adding, updating and removing documentation pages in CloudCannon.
 
-### Documentation pages
+### Usage
 
-* Add, update or remove a documentation page in the *Documentation* collection.
-* Change the category of a documentation page to move it to another section in the navigation.
-* Documentation pages are organised in the navigation by category, with URLs based on the path inside the `_docs` folder.
-
-### Change log
-
-* Add, update or remove change log entries from your posts.
-* Tag entries as minor or major in the front matter.
+* Each section is a different collection, this helps organise your content.
+* Set the order of the collections with the position field in collection configuration in `_config.yml`.
+* Set the order of the documents inside a collection by setting the position in front matter.
 
 ### Search
 
