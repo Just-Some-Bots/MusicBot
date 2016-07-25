@@ -53,8 +53,11 @@ class Permissions:
         self.groups.add(owner_group)
 
     def save_permissions(self):
+
         for group in self.groups:
-            self.config.set(group.name, 'UserList', " ".join(str(x) for x in group.user_list))
+
+            if group.name != "Owner (auto)":
+                self.config.set(group.name, 'UserList', " ".join(str(x) for x in group.user_list))
 
         self.save()
 
