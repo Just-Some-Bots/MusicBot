@@ -846,9 +846,9 @@ class MusicBot(discord.Client):
     async def cmd_adduser(self, message, group, user_id, leftover_args):
         """
         Usage:
-            {command_prefix}adduser group userids
+            {command_prefix}adduser <group> <userid>...
 
-        Adds the user(s) to the permission group
+        Adds the user ID(s) to the permission group
         """
 
         modify_count = 0
@@ -881,17 +881,39 @@ class MusicBot(discord.Client):
                 modify_count += 1
 
         self.permissions.save_permissions()
-        return Response('%i IDs added to permission group %s \n ids now: %s' %
-                        (modify_count, matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
+        return Response('%i IDs added to permission group %s' %
+                        (modify_count, matching_groups[0].name),
+                        reply=True, delete_after=20)
+
+    @owner_only
+    async def cmd_showpermissions(self, message, group):
+        """
+        Usage:
+            {command_prefix}showusers <group>
+
+        Shows the user ids in a permission group
+        """
+        if not group:
+            return Response('The parameter "group" is required', reply=True, delete_after=20)
+
+        matching_groups = [x for x in self.permissions.groups if x.name == group]
+
+        if len(matching_groups) == 0:
+            return Response('The given group is not defined in permissions.ini', reply=True, delete_after=20)
+
+        lines = "\n".join(matching_groups[0].user_list)
+
+        return Response('Permission group %s has IDs: \n%s' %
+                        (matching_groups[0].name, lines),
                         reply=True, delete_after=20)
 
     @owner_only
     async def cmd_removeuser(self, message, group, user_id, leftover_args):
         """
         Usage:
-            {command_prefix}adduser group userids
+            {command_prefix}removeuser <group> <userids>...
 
-        Adds the user(s) to the permission group
+        Remove the user ID(s) from the permission group
         """
         modify_count = 0
 
@@ -923,8 +945,8 @@ class MusicBot(discord.Client):
                 modify_count += 1
 
         self.permissions.save_permissions()
-        return Response('%i IDs removed from permission group %s \n IDs now: %s' %
-                        (modify_count, matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
+        return Response('%i IDs removed from permission group %s' %
+                        (modify_count, matching_groups[0].name),
                         reply=True, delete_after=20)
 
 
