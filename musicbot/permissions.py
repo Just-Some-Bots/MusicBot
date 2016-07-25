@@ -1,8 +1,7 @@
 import shutil
 import traceback
 import configparser
-
-from discord import User as discord_User
+import discord
 
 
 class PermissionsDefaults:
@@ -68,7 +67,7 @@ class Permissions:
                 return group
 
         # The only way I could search for roles is if I add a `server=None` param and pass that too
-        if type(user) == discord_User:
+        if type(user) == discord.User:
             return self.default_group
 
         # We loop again so that we don't return a role based group before we find an assigned one
@@ -149,7 +148,7 @@ class PermissionGroup:
 
     def remove_user(self, uid):
         if uid in self.user_list:
-            self.user_list.pop(uid)
+            self.user_list.remove(uid)
 
 
     def __repr__(self):
