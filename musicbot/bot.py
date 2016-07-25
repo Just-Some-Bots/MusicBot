@@ -851,6 +851,8 @@ class MusicBot(discord.Client):
         Adds the user(s) to the permission group
         """
 
+        modify_count = 0
+
         if not group:
             return Response('The parameter "group" is required', reply=True, delete_after=20)
 
@@ -863,22 +865,24 @@ class MusicBot(discord.Client):
             return Response('User ids not provided', reply=True, delete_after=20)
 
         try:
-            user_id = int(user_id)
-            matching_groups[0].add_user(user_id)
+            int(user_id)
+            if matching_groups[0].add_user(user_id):
+                modify_count += 1
         except ValueError:
             return Response('User id is not a number', reply=True, delete_after=20)
 
         for id in leftover_args:
             try:
-                parsed_id = int(id)
+                int(id)
             except ValueError:
                 return Response('id is not a number: %s' % id, reply=True, delete_after=20)
 
-            matching_groups[0].add_user(parsed_id)
+            if matching_groups[0].add_user(id):
+                modify_count += 1
 
         self.permissions.save_permissions()
-        return Response('id added to permission group %s \n ids now: %s' %
-                        (matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
+        return Response('%i IDs added to permission group %s \n ids now: %s' %
+                        (modify_count, matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
                         reply=True, delete_after=20)
 
     @owner_only
@@ -889,6 +893,7 @@ class MusicBot(discord.Client):
 
         Adds the user(s) to the permission group
         """
+        modify_count = 0
 
         if not group:
             return Response('The parameter "group" is required', reply=True, delete_after=20)
@@ -902,22 +907,24 @@ class MusicBot(discord.Client):
             return Response('User ids not provided', reply=True, delete_after=20)
 
         try:
-            user_id = int(user_id)
-            matching_groups[0].remove_user(user_id)
+            int(user_id)
+            if matching_groups[0].remove_user(user_id):
+                modify_count += 1
         except ValueError:
             return Response('User id is not a number', reply=True, delete_after=20)
 
         for id in leftover_args:
             try:
-                parsed_id = int(id)
+                int(id)
             except ValueError:
                 return Response('id is not a number: %s' % id, reply=True, delete_after=20)
 
-            matching_groups[0].remove_user(parsed_id)
+            if matching_groups[0].remove_user(id):
+                modify_count += 1
 
         self.permissions.save_permissions()
-        return Response('ID removed from permission group %s \n IDs now: %s' %
-                        (matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
+        return Response('%i IDs removed from permission group %s \n IDs now: %s' %
+                        (modify_count, matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
                         reply=True, delete_after=20)
 
 
