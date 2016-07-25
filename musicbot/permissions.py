@@ -52,6 +52,11 @@ class Permissions:
 
         self.groups.add(owner_group)
 
+    def save_permissions(self):
+        for group in self.groups:
+            self.config.set(group.name, 'UserList', " ".join(str(x) for x in group.user_list))
+
+        self.save()
 
     def save(self):
         with open(self.config_file, 'w') as f:

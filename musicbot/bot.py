@@ -862,10 +862,63 @@ class MusicBot(discord.Client):
         if not user_id:
             return Response('User ids not provided', reply=True, delete_after=20)
 
-        matching_groups[0].add_user(user_id)
+        try:
+            user_id = int(user_id)
+            matching_groups[0].add_user(user_id)
+        except ValueError:
+            return Response('User id is not a number', reply=True, delete_after=20)
 
+        for id in leftover_args:
+            try:
+                parsed_id = int(id)
+            except ValueError:
+                return Response('id is not a number: %s' % id, reply=True, delete_after=20)
 
+            matching_groups[0].add_user(parsed_id)
 
+        self.permissions.save_permissions()
+        return Response('id added to permission group %s \n ids now: %s' %
+                        (matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
+                        reply=True, delete_after=20)
+
+    @owner_only
+    async def cmd_removeuser(self, message, group, user_id, leftover_args):
+        """
+        Usage:
+            {command_prefix}adduser group userids
+
+        Adds the user(s) to the permission group
+        """
+
+        if not group:
+            return Response('The parameter "group" is required', reply=True, delete_after=20)
+
+        matching_groups = [x for x in self.permissions.groups if x.name == group]
+
+        if len(matching_groups) == 0:
+            return Response('The given group is not defined in permissions.ini', reply=True, delete_after=20)
+
+        if not user_id:
+            return Response('User ids not provided', reply=True, delete_after=20)
+
+        try:
+            user_id = int(user_id)
+            matching_groups[0].remove_user(user_id)
+        except ValueError:
+            return Response('User id is not a number', reply=True, delete_after=20)
+
+        for id in leftover_args:
+            try:
+                parsed_id = int(id)
+            except ValueError:
+                return Response('id is not a number: %s' % id, reply=True, delete_after=20)
+
+            matching_groups[0].remove_user(parsed_id)
+
+        self.permissions.save_permissions()
+        return Response('ID removed from permission group %s \n IDs now: %s' %
+                        (matching_groups[0].name, ', '.join(str(x) for x in matching_groups[0].user_list)),
+                        reply=True, delete_after=20)
 
 
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
