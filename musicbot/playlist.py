@@ -5,8 +5,6 @@ import traceback
 from random import shuffle
 from itertools import islice
 from collections import deque
-from itertools import islice
-from random import shuffle
 
 from urllib.error import URLError
 from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError

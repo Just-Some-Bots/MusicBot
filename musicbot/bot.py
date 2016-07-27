@@ -929,10 +929,10 @@ class MusicBot(discord.Client):
                         reply=True, delete_after=20)
 
     @owner_only
-    async def cmd_showpermissions(self, message, group):
+    async def cmd_showids(self, message, group):
         """
         Usage:
-            {command_prefix}showpermissions <group>
+            {command_prefix}showids <group>
 
         Shows the user ids in a permission group
         """
