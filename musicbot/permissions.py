@@ -52,6 +52,14 @@ class Permissions:
 
         self.groups.add(owner_group)
 
+    def save_permissions(self):
+
+        for group in self.groups:
+
+            if group.name != "Owner (auto)":
+                self.config.set(group.name, 'UserList', " ".join(str(x) for x in group.user_list))
+
+        self.save()
 
     def save(self):
         with open(self.config_file, 'w') as f:
@@ -143,14 +151,19 @@ class PermissionGroup:
             self.instaskip, PermissionsDefaults.InstaSkip
         )
 
-
     def add_user(self, uid):
+        if uid in self.user_list:
+            return False
+
         self.user_list.add(uid)
+        return True
 
     def remove_user(self, uid):
         if uid in self.user_list:
-            self.user_list.pop(uid)
+            self.user_list.remove(uid)
+            return True
 
+        return False
 
     def __repr__(self):
         return "<PermissionGroup: %s>" % self.name

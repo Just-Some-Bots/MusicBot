@@ -885,6 +885,114 @@ class MusicBot(discord.Client):
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
 
+    @owner_only
+    async def cmd_adduser(self, message, group, user_id, leftover_args):
+        """
+        Usage:
+            {command_prefix}adduser <group> <userid>...
+
+        Adds the user ID(s) to the permission group
+        """
+
+        modify_count = 0
+
+        if not group:
+            return Response('The parameter "group" is required', reply=True, delete_after=20)
+
+        matching_groups = [x for x in self.permissions.groups if x.name == group]
+
+        if len(matching_groups) == 0:
+            return Response('The given group is not defined in permissions.ini', reply=True, delete_after=20)
+
+        if not user_id:
+            return Response('User ids not provided', reply=True, delete_after=20)
+
+        try:
+            int(user_id)
+            if matching_groups[0].add_user(user_id):
+                modify_count += 1
+        except ValueError:
+            return Response('User id is not a number', reply=True, delete_after=20)
+
+        for id in leftover_args:
+            try:
+                int(id)
+            except ValueError:
+                return Response('id is not a number: %s' % id, reply=True, delete_after=20)
+
+            if matching_groups[0].add_user(id):
+                modify_count += 1
+
+        self.permissions.save_permissions()
+        return Response('%i IDs added to permission group %s' %
+                        (modify_count, matching_groups[0].name),
+                        reply=True, delete_after=20)
+
+    @owner_only
+    async def cmd_showids(self, message, group):
+        """
+        Usage:
+            {command_prefix}showids <group>
+
+        Shows the user ids in a permission group
+        """
+        if not group:
+            return Response('The parameter "group" is required', reply=True, delete_after=20)
+
+        matching_groups = [x for x in self.permissions.groups if x.name == group]
+
+        if len(matching_groups) == 0:
+            return Response('The given group is not defined in permissions.ini', reply=True, delete_after=20)
+
+        lines = "\n".join(matching_groups[0].user_list)
+
+        return Response('Permission group %s has IDs: \n%s' %
+                        (matching_groups[0].name, lines),
+                        reply=True, delete_after=20)
+
+    @owner_only
+    async def cmd_removeuser(self, message, group, user_id, leftover_args):
+        """
+        Usage:
+            {command_prefix}removeuser <group> <userids>...
+
+        Remove the user ID(s) from the permission group
+        """
+        modify_count = 0
+
+        if not group:
+            return Response('The parameter "group" is required', reply=True, delete_after=20)
+
+        matching_groups = [x for x in self.permissions.groups if x.name == group]
+
+        if len(matching_groups) == 0:
+            return Response('The given group is not defined in permissions.ini', reply=True, delete_after=20)
+
+        if not user_id:
+            return Response('User ids not provided', reply=True, delete_after=20)
+
+        try:
+            int(user_id)
+            if matching_groups[0].remove_user(user_id):
+                modify_count += 1
+        except ValueError:
+            return Response('User id is not a number', reply=True, delete_after=20)
+
+        for id in leftover_args:
+            try:
+                int(id)
+            except ValueError:
+                return Response('id is not a number: %s' % id, reply=True, delete_after=20)
+
+            if matching_groups[0].remove_user(id):
+                modify_count += 1
+
+        self.permissions.save_permissions()
+        return Response('%i IDs removed from permission group %s' %
+                        (modify_count, matching_groups[0].name),
+                        reply=True, delete_after=20)
+
+
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
