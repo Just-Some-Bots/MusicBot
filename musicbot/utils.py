@@ -1,10 +1,21 @@
-import re
-import aiohttp
+import sys
 import decimal
-import unicodedata
+import aiohttp
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
+
+
+
+class Serializable:
+    def serialize(self):
+        raise NotImplementedError
+
+    @classmethod
+    def deserialize(cls, playlist, jsonstr):
+        raise NotImplementedError
+
+
 
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
@@ -29,12 +40,6 @@ def write_file(filename, contents):
         for item in contents:
             f.write(str(item))
             f.write('\n')
-
-
-def slugify(value):
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-    value = re.sub('[^\w\s-]', '', value).strip().lower()
-    return re.sub('[-\s]+', '-', value)
 
 
 def sane_round_int(x):
@@ -83,3 +88,16 @@ def md5sum(filename, limit=0):
         for chunk in iter(lambda: f.read(8192), b""):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
+
+
+def fixg(x, dp=2):
+    return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
+
+
+def safe_print(content, *, end='\n', flush=True):
+    sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
+    if flush: sys.stdout.flush()
+
+
+def avg(i):
+    return sum(i) / len(i)
