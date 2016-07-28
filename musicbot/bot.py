@@ -84,7 +84,7 @@ class MusicBot(discord.Client):
 
         self.exit_signal = None
         self.init_ok = False
-        self.cached_client_id = None
+        self.cached_app_info = None
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
@@ -226,11 +226,10 @@ class MusicBot(discord.Client):
                 )
 
     async def generate_invite_link(self, *, permissions=None, server=None):
-        if not self.cached_client_id:
-            appinfo = await self.application_info()
-            self.cached_client_id = appinfo.id
+        if not self.cached_app_info:
+            self.cached_app_info = await self.application_info()
 
-        return discord.utils.oauth_url(self.cached_client_id, permissions=permissions, server=server)
+        return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
 
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
@@ -640,13 +639,24 @@ class MusicBot(discord.Client):
                 "The OwnerID is the id of the owner, not the bot.  "
                 "Figure out which one is which and use the correct information.")
 
+        await self.generate_invite_link() # lazy way to cache the app info
+
         self.init_ok = True
 
-        safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
+        safe_print("Bot:   {0}/{1}#{2}{3}".format(
+            self.user.id,
+            self.user.name,
+            self.user.discriminator,
+            ' [BOT]' if self.user.bot else ''
+        ))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner and self.servers:
-            safe_print("Owner: %s/%s#%s\n" % (owner.id, owner.name, owner.discriminator))
+            safe_print("Owner: {0}/{1}#{2}\n".format(
+                owner.id,
+                owner.name,
+                owner.discriminator
+            ))
 
             print('Server List:')
             [safe_print(' - ' + s.name) for s in self.servers]
