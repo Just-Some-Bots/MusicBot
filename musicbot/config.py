@@ -9,38 +9,7 @@ from .exceptions import HelpfulError
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
-        config = configparser.ConfigParser()
-
-        if not config.read(config_file, encoding='utf-8'):
-            print('[config] Config file not found, copying example_options.ini')
-
-            try:
-                shutil.copy('config/example_options.ini', config_file)
-
-                # load the config again and check to see if the user edited that one
-                c = configparser.ConfigParser()
-                c.read(config_file, encoding='utf-8')
-
-                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
-                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
-                    os._exit(1)
-
-            except FileNotFoundError as e:
-                raise HelpfulError(
-                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
-                    "Grab the files back from the archive or remake them yourself and copy paste the content "
-                    "from the repo.  Stop removing important files!"
-                )
-
-            except ValueError: # Config id value was changed but its not valid
-                print("\nInvalid value for OwnerID, config cannot be loaded.")
-                # TODO: HelpfulError
-                os._exit(4)
-
-            except Exception as e:
-                print(e)
-                print("\nUnable to copy config/example_options.ini to %s" % config_file, flush=True)
-                os._exit(2)
+        self.find_config()
 
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
@@ -83,6 +52,8 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
         self.run_checks()
+
+        self.find_autoplaylist()
 
 
     def run_checks(self):
@@ -161,6 +132,49 @@ class Config:
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
+
+    def find_config(self):
+        config = configparser.ConfigParser(interpolation=None)
+
+        if not config.read(self.config_file, encoding='utf-8'):
+            print('[config] Config file not found, copying example_options.ini')
+
+            try:
+                shutil.copy('config/example_options.ini', self.config_file)
+
+                # load the config again and check to see if the user edited that one
+                c = configparser.ConfigParser()
+                c.read(self.config_file, encoding='utf-8')
+
+                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
+                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                    os._exit(1)
+
+            except FileNotFoundError:
+                raise HelpfulError(
+                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
+                    "Grab the files back from the archive or remake them yourself and copy paste the content "
+                    "from the repo.  Stop removing important files!"
+                )
+
+            except ValueError: # Config id value was changed but its not valid
+                print("\nInvalid value for OwnerID, config cannot be loaded.")
+                # TODO: HelpfulError
+                os._exit(4)
+
+            except Exception as e:
+                print(e)
+                print("\nUnable to copy config/example_options.ini to %s" % self.config_file, flush=True)
+                os._exit(2)
+
+    def find_autoplaylist(self):
+        if not os.path.exists(self.auto_playlist_file):
+            if os.path.exists('config/_autoplaylist.txt'):
+                shutil.copy('config/_autoplaylist.txt', self.auto_playlist_file)
+                print("Copying _autoplaylist.txt to autoplaylist.txt")
+            else:
+                print("No autoplaylist file found.")
+
 
     def write_default_config(self, location):
         pass
