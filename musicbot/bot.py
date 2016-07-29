@@ -40,6 +40,9 @@ from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
 load_opus_lib()
 
+if sys.platform.startswith('win'):
+    sys.path.insert(1, os.path.abspath('bins/'))
+
 
 class SkipState:
     def __init__(self):
