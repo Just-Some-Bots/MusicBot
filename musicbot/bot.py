@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import discord
 
 from discord import utils
 from discord.object import Object
@@ -73,7 +74,7 @@ class MusicBot(discord.Client):
         self.voice_client_move_lock = asyncio.Lock()
 
         self.config = Config(config_file)
-        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
+        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id]) #self.config.owner_id
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
@@ -757,6 +758,42 @@ class MusicBot(discord.Client):
             helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
 
             return Response(helpmsg, reply=True, delete_after=60)
+
+
+    async def cmd_addrole(self, message, server, option):
+        """
+        Usage:
+            {command_prefix}addrole role name
+            
+        Add a role to the user, but only if the user group has permissions to manipulate that role
+        """
+        user_permissions = self.permissions.for_user(message.author)
+        if option in user_permissions.allowed_roles or message.author.id == self.config.owner_id:
+            role = discord.utils.get(server.roles, name=option)
+            await self.add_roles(message.author, role)
+            conf = "%s has been given the %s role" % (message.author, role.name)
+            return Response(conf, reply=True, delete_after=30)
+        else:
+            conf = "You do not have permissions to manipulate this role"
+            return Response(conf, reply=True, delete_after=30)
+
+    async def cmd_removerole(self, message, server, option):
+        """
+        Usage:
+            {command_prefix}addrole role name
+            
+        Remove a role from the user, but only if the user group has permissions to manipulate that role
+        """
+        user_permissions = self.permissions.for_user(message.author)
+        if option in user_permissions.allowed_roles or message.author.id == self.config.owner_id:
+            role = discord.utils.get(server.roles, name=option)
+            await self.remove_roles(message.author, role)
+            conf = "%s has lost the %s role" % (message.author, role.name)
+            return Response(conf, reply=True, delete_after=30)
+        else:
+            conf = "You do not have permissions to manipulate this role"
+            return Response(conf, reply=True, delete_after=30)
+
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
@@ -1832,7 +1869,6 @@ class MusicBot(discord.Client):
         handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
             return
-
         if message.channel.is_private:
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
@@ -1844,6 +1880,8 @@ class MusicBot(discord.Client):
 
         else:
             self.safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+		
+		
 
         user_permissions = self.permissions.for_user(message.author)
 
