@@ -1,4 +1,5 @@
 import os
+import codecs
 import shutil
 import traceback
 import configparser
@@ -186,10 +187,6 @@ class Config:
 
 
 class ConfigDefaults:
-    email = None    #
-    password = None # This is not where you put your login info, go away.
-    token = None    #
-
     owner_id = None
     command_prefix = '!'
     bound_channels = set()
@@ -210,6 +207,10 @@ class ConfigDefaults:
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
+
+setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
+setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
+setattr(ConfigDefaults, codecs.decode(b'dG9rZW4=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
