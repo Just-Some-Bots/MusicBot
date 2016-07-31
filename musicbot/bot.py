@@ -123,6 +123,14 @@ class MusicBot(discord.Client):
         return wrapper
 
     # @staticmethod
+    def ensure_appinfo(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            await self._cache_app_info()
+            # noinspection PyCallingNonCallable
+            return await func(self, *args, **kwargs)
+
+        return wrapper
 
     def _get_owner(self, voice=False):
         if voice:
@@ -221,6 +229,13 @@ class MusicBot(discord.Client):
             raise exceptions.PermissionsError(
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
 
+    async def _cache_app_info(self, *, update=False):
+        if not self.cached_app_info and not update:
+            self.cached_app_info = await self.application_info()
+
+        return self.cached_app_info
+
+
     async def remove_from_autoplaylist(self, song_url:str, *, ex:Exception=None, delete_from_ap=False):
         if song_url not in self.autoplaylist:
             # Info message
@@ -240,10 +255,8 @@ class MusicBot(discord.Client):
                 self.safe_print("[Info] Updating autoplaylist")
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
 
+    @ensure_appinfo
     async def generate_invite_link(self, *, permissions=None, server=None):
-        if not self.cached_app_info:
-            self.cached_app_info = await self.application_info()
-
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
 
     async def get_voice_client(self, channel):
