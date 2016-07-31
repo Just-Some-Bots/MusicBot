@@ -50,6 +50,7 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+        self.auto_playlist_removed_file = None
 
         self.run_checks()
 
@@ -129,6 +130,10 @@ class Config:
         self.bound_channels = set(item.replace(',', ' ').strip() for item in self.bound_channels)
 
         self.autojoin_channels = set(item.replace(',', ' ').strip() for item in self.autojoin_channels)
+
+        ap_path, ap_name = os.path.split(self.auto_playlist_file)
+        apn_name, apn_ext = os.path.splitext(ap_name)
+        self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file

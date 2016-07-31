@@ -221,19 +221,24 @@ class MusicBot(discord.Client):
             raise exceptions.PermissionsError(
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
 
-    async def remove_from_autoplaylist(self, song_url:str, *, ex:Exception=None):
+    async def remove_from_autoplaylist(self, song_url:str, *, ex:Exception=None, delete_from_ap=False):
         if song_url not in self.autoplaylist:
+            # Info message
             return
 
-        self.autoplaylist.remove(song_url)
-        safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
-
         async with self.aiolocks[_func_()]:
-            with open(self.config.auto_playlist_file, 'a', encoding='utf8') as f:
+            self.autoplaylist.remove(song_url)
+            safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+
+            with open(self.config.auto_playlist_removed_file, 'a', encoding='utf8') as f:
                 f.write('# Entry removed {ctime}\n'
                         '# Reason: {ex:s}\n'
                         '{url}\n\n{sep}\n\n'.format(ctime=time.ctime(), ex=ex, url=song_url, sep='#' * 16)
-                )
+                        )
+
+            if delete_from_ap:
+                self.safe_print("[Info] Updating autoplaylist")
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
 
     async def generate_invite_link(self, *, permissions=None, server=None):
         if not self.cached_app_info:
@@ -455,7 +460,7 @@ class MusicBot(discord.Client):
                         # Probably an error from a different extractor, but I've only seen youtube's
                         safe_print("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
 
-                    await self.remove_from_autoplaylist(song_url, ex=e)
+                    await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=True)
 
                 except Exception as e:
                     if self.config.debug_mode:
