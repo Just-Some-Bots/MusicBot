@@ -7,7 +7,7 @@ import inspect
 import aiohttp
 import discord
 import asyncio
-import tracebackcmd_shutdown
+import traceback
 
 from discord import utils
 from discord.object import Object
