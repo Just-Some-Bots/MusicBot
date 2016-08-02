@@ -1,4 +1,4 @@
-import os
+cmd_shutdownimport os
 import sys
 import time
 import shlex
@@ -7,7 +7,7 @@ import inspect
 import aiohttp
 import discord
 import asyncio
-import traceback
+import tracebackcmd_shutdown
 
 from discord import utils
 from discord.object import Object
@@ -1811,6 +1811,17 @@ class MusicBot(discord.Client):
         await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
+
+    async def cmd_playlist(self, player, channel, author, permissions, leftover_args, song_url):
+        try
+            if not permissions.allow_playlists:
+                raise exceptions.PermissionsError("You are not allowed to request playlists", expire_in=30)
+            for line in self.savedplaylist:
+                if song_url == line.split(',')[0]: #song_url should be the playlist name
+                    await cmd_play(self, player, channel, author, permissions, leftover_args, line.split(',')[1])
+                    return
+        except Exception as e:
+            raise exceptions.CommandError("DIDNT WORK.....: %s" % e, expire_in=0)
 
     async def on_message(self, message):
         await self.wait_until_ready()
