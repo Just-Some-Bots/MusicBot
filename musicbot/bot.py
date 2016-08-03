@@ -1731,6 +1731,73 @@ class MusicBot(discord.Client):
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
 
+    async def cmd_repeat(self, player):
+        """
+        Usage:
+            {command_prefix}repeat
+
+        Cycles through the repeat options. Default is no repeat, switchable to repeat all or repeat current song.
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't change repeat mode! The player is not playing!", expire_in=20)
+
+        player.repeat()
+
+        if player.is_repeatNone:
+            return Response(":play_pause: Repeat mode: None", delete_after=20)
+        if player.is_repeatAll:
+            return Response(":repeat: Repeat mode: All", delete_after=20)
+        if player.is_repeatSingle:
+            return Response(":repeat_one: Repeat mode: Single", delete_after=20)
+
+    async def cmd_promote(self, player, position=None):
+        """
+        Usage:
+            {command_prefix}promote
+            {command_prefix}promote [song position]
+
+        Promotes the last song in the queue to the front. 
+        If you specify a position in the queue, it promotes the song at that position to the front.
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't modify the queue! The player is not playing!", expire_in=20)
+        
+        length = len(player.playlist.entries)
+
+        if length < 2:
+            raise exceptions.CommandError("Can't promote! Please add at least 2 songs to the queue!", expire_in=20)
+
+        if not position:
+            entry = player.playlist.promote_last()
+        else:
+            try:
+                position = int(position)
+            except ValueError:
+                raise exceptions.CommandError("This is not a valid song number! Please choose a song \
+                    number between 2 and %s!" % length, expire_in=20)
+
+            if position == 1:
+                raise exceptions.CommandError("This song is already at the top of the queue!", expire_in=20)
+            if position < 1 or position > length:                
+                raise exceptions.CommandError("Can't promote a song not in the queue! Please choose a song \
+                    number between 2 and %s!" % length, expire_in=20)
+
+            entry = player.playlist.promote_position(position)
+
+        reply_text = "Promoted **%s** to the :top: of the queue. Estimated time until playing: %s"
+        btext = entry.title
+
+        try:
+            time_until = await player.playlist.estimate_time_until(1, player)
+        except:
+            traceback.print_exc()
+            time_until = ''
+
+        reply_text %= (btext, time_until)
+
+        return Response(reply_text, delete_after=30)
 
     @owner_only
     async def cmd_setname(self, leftover_args, name):
