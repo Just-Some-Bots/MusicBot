@@ -183,8 +183,10 @@ class MusicPlayer(EventEmitter):
     def _playback_finished(self):
         entry = self._current_entry
 
-        if self.is_repeatAll:
+        if not self.is_repeatNone:
             self.playlist._add_entry(entry)
+        if self.is_repeatSingle:            
+            self.playlist.promote_last()
 
         if self._current_player:
             self._current_player.after = None
