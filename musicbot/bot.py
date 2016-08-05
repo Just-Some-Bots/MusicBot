@@ -1760,7 +1760,7 @@ class MusicBot(discord.Client):
         Changes the bot's nickname.
         """
 
-        if not channel.permissions_for(server.me).change_nicknames:
+        if not channel.permissions_for(server.me).change_nickname:
             raise exceptions.CommandError("Unable to change nickname: no permission.")
 
         nick = ' '.join([nick, *leftover_args])
