@@ -3,9 +3,6 @@ import json
 import os
 import traceback
 
-import urllib.request as request
-import urllib.parse as parse
-
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
 
@@ -148,9 +145,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
             
             # Shorten thumbnail url with https://tny.im
             try:
-                params = parse.urlencode({'action':'shorturl', 'url':self.url_thumbnail, 'format':'simple'}).encode("utf-8")
-                response = request.urlopen('https://tny.im/yourls-api.php', params).read().decode("utf-8")
-                self.url_thumbnail = response
+                params = {'action':'shorturl', 'url':self.url_thumbnail, 'format':'simple'}
+                async with self.playlist.bot.aiosession.get('https://tny.im/yourls-api.php', params=params) as resp:
+                    self.url_thumbnail = await resp.text()
             except Exception as e:
                 pass
 
