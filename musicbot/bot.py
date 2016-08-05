@@ -247,9 +247,9 @@ class MusicBot(discord.Client):
 
             with open(self.config.auto_playlist_removed_file, 'a', encoding='utf8') as f:
                 f.write('# Entry removed {ctime}\n'
-                        '# Reason: {ex:s}\n'
+                        '# Reason: {ex}\n'
                         '{url}\n\n{sep}\n\n'.format(ctime=time.ctime(), ex=ex, url=song_url, sep='#' * 16)
-                        )
+                )
 
             if delete_from_ap:
                 self.safe_print("[Info] Updating autoplaylist")
@@ -1886,7 +1886,7 @@ class MusicBot(discord.Client):
         Changes the bot's nickname.
         """
 
-        if not channel.permissions_for(server.me).change_nicknames:
+        if not channel.permissions_for(server.me).change_nickname:
             raise exceptions.CommandError("Unable to change nickname: no permission.")
 
         nick = ' '.join([nick, *leftover_args])
