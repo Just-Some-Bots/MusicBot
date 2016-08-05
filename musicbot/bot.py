@@ -252,7 +252,7 @@ class MusicBot(discord.Client):
                 )
 
             if delete_from_ap:
-                self.safe_print("[Info] Updating autoplaylist")
+                safe_print("[Info] Updating autoplaylist")
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
 
     @ensure_appinfo
