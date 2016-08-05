@@ -101,6 +101,7 @@ class MusicPlayer(EventEmitter):
         self.voice_client = voice_client
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
+        self.playlist.on('entry-removed', self.on_entry_removed)
         self._volume = bot.config.default_volume
         self.repeatState = MusicPlayerRepeatState.NONE
 
@@ -124,6 +125,16 @@ class MusicPlayer(EventEmitter):
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
             self.loop.call_later(2, self.play)
+
+    def on_entry_removed(self, playlist, entry):
+        if not self.bot.config.save_videos and entry:
+            if any([entry.filename == e.filename for e in self.playlist.entries]):
+                print("[Config:SaveVideos] Skipping deletion, found song in queue")
+            elif entry.filename == self._current_entry.filename:                
+                print("[Config:SaveVideos] Skipping deletion, song removed from queue is currently playing")
+            else:
+                # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                asyncio.ensure_future(self._delete_file(entry.filename))
 
     def skip(self):
         self._kill_current_player()

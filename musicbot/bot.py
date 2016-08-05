@@ -1758,7 +1758,7 @@ class MusicBot(discord.Client):
             {command_prefix}promote [song position]
 
         Promotes the last song in the queue to the front. 
-        If you specify a position in the queue, it promotes the song at that position to the front.
+        If you specify a position, it promotes the song at that position to the front.
         """
 
         if player.is_stopped:
@@ -1796,6 +1796,45 @@ class MusicBot(discord.Client):
             time_until = ''
 
         reply_text %= (btext, time_until)
+
+        return Response(reply_text, delete_after=30)
+
+    async def cmd_remove(self, player, position=None):
+        """
+        Usage:
+            {command_prefix}remove
+            {command_prefix}remove [song position]
+
+        Removes the next song from the queue. 
+        If you specify a position, it removes the song at that position from the queue.
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't modify the queue! The player is not playing!", expire_in=20)
+        
+        length = len(player.playlist.entries)
+
+        if length < 1:
+            raise exceptions.CommandError("Can't remove! Please add at least 1 song to the queue!", expire_in=20)
+
+        if not position:
+            entry = player.playlist.remove_first()
+        else:
+            try:
+                position = int(position)
+            except ValueError:
+                raise exceptions.CommandError("This is not a valid song number! Please choose a song \
+                    number between 1 and %s!" % length, expire_in=20)
+
+            if position == 1:                
+                entry = player.playlist.remove_first()
+            elif position < 1 or position > length:                
+                raise exceptions.CommandError("Can't remove a song not in the queue! Please choose a song \
+                    number between 1 and %s!" % length, expire_in=20)
+            else:
+                entry = player.playlist.remove_position(position)
+
+        reply_text = ":x: Removed **%s** from the queue." % entry.title
 
         return Response(reply_text, delete_after=30)
 
