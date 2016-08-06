@@ -74,14 +74,13 @@ class BasePlaylistEntry:
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, duration=0, url_thumbnail=None, expected_filename=None, **meta):
+    def __init__(self, playlist, url, title, duration=0, expected_filename=None, **meta):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
-        self.url_thumbnail = url_thumbnail
         self.expected_filename = expected_filename
         self.meta = meta
 
@@ -95,7 +94,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
         url = data['url']
         title = data['title']
         duration = data['duration']
-        url_thumbnail = data['thumbnail']
         downloaded = data['downloaded']
         filename = data['filename'] if downloaded else None
         filename_thumbnail = data['filename_thumbnail'] if downloaded else None
@@ -109,7 +107,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         if 'author' in data['meta']:
             meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-        return cls(playlist, url, title, duration, url_thumbnail, filename, **meta)
+        return cls(playlist, url, title, duration, filename, **meta)
 
     def to_json(self):
         data = {
@@ -118,7 +116,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
             'url': self.url,
             'title': self.title,
             'duration': self.duration,
-            'thumbnail': self.url_thumbnail,
             'downloaded': self.is_downloaded,
             'filename': self.filename,
             'filename_thumbnail': self.filename_thumbnail,
@@ -146,14 +143,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             # self.expected_filename: audio_cache\youtube-9R8aSKwTEMg-NOMA_-_Brain_Power.m4a
             extractor = os.path.basename(self.expected_filename).split('-')[0]
-            
-            # Shorten thumbnail url with https://tny.im
-            try:
-                params = {'action':'shorturl', 'url':self.url_thumbnail, 'format':'simple'}
-                async with self.playlist.bot.aiosession.get('https://tny.im/yourls-api.php', params=params) as resp:
-                    self.url_thumbnail = await resp.text()
-            except Exception as e:
-                pass
 
             # the generic extractor requires special handling
             if extractor == 'generic':
