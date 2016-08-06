@@ -381,7 +381,7 @@ class MusicBot(discord.Client):
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
-        thumbnail = entry.url_thumbnail
+        thumbnail = entry.filename_thumbnail
 
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
@@ -394,14 +394,16 @@ class MusicBot(discord.Client):
                     break  # This is probably redundant
 
             if self.config.now_playing_mentions:
-                newmsg = '%s - your song **%s** is now playing in %s! %s' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name, thumbnail)
+                newmsg = '%s - your song **%s** is now playing in %s!' % (
+                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = 'Now playing in %s: **%s** %s' % (
-                    player.voice_client.channel.name, entry.title, thumbnail)
+                newmsg = 'Now playing in %s: **%s**' % (
+                    player.voice_client.channel.name, entry.title)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
-                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, fp=thumbnail, send_if_fail=True)
+            elif thumbnail:
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_file(channel, newmsg, thumbnail)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
@@ -489,6 +491,27 @@ class MusicBot(discord.Client):
 
         return msg
 
+    async def safe_send_file(self, dest, content, fp, *, tts=False, expire_in=0, also_delete=None, quiet=False, filename=None):
+        msg = None
+        try:
+            msg = await self.send_file(dest, fp, content=content, tts=tts)
+
+            if msg and expire_in:
+                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+
+            if also_delete and isinstance(also_delete, discord.Message):
+                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+
+        except discord.Forbidden:
+            if not quiet:
+                self.safe_print("Warning: Cannot send message or file to %s, no permission" % dest.name)
+
+        except discord.NotFound:
+            if not quiet:
+                self.safe_print("Warning: Cannot send message or file to %s, invalid channel?" % dest.name)
+
+        return msg
+
     async def safe_delete_message(self, message, *, quiet=False):
         try:
             return await self.delete_message(message)
@@ -501,7 +524,7 @@ class MusicBot(discord.Client):
             if not quiet:
                 self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
-    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
+    async def safe_edit_message(self, message, new, *, fp=None, send_if_fail=False, quiet=False):
         try:
             return await self.edit_message(message, new)
 
@@ -511,7 +534,10 @@ class MusicBot(discord.Client):
             if send_if_fail:
                 if not quiet:
                     print("Sending instead")
-                return await self.safe_send_message(message.channel, new)
+                if fp:
+                    return await self.safe_send_file(message.channel, new, fp)
+                else:
+                    return await self.safe_send_message(message.channel, new)
 
     def safe_print(self, content, *, end='\n', flush=True):
         sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
@@ -1275,15 +1301,18 @@ class MusicBot(discord.Client):
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
             prog_str = '`[%s/%s]`' % (song_progress, song_total)
-            thumbnail = player.current_entry.url_thumbnail
+            thumbnail = player.current_entry.filename_thumbnail
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                np_text = "Now Playing: **%s** added by **%s** %s %s\n" % (
-                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str, thumbnail)
+                np_text = "Now Playing: **%s** added by **%s** %s\n" % (
+                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str)
             else:
-                np_text = "Now Playing: **%s** %s %s\n" % (player.current_entry.title, prog_str, thumbnail)
+                np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
 
-            self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
+            if thumbnail:
+                self.server_specific_data[server]['last_np_msg'] = await self.safe_send_file(channel, np_text, thumbnail)
+            else:
+                self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
             await self._manual_delete_check(message)
         else:
             return Response(
