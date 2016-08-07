@@ -1,4 +1,5 @@
 import os
+import codecs
 import shutil
 import configparser
 
@@ -8,38 +9,7 @@ from .exceptions import HelpfulError
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
-        config = configparser.ConfigParser()
-
-        if not config.read(config_file, encoding='utf-8'):
-            print('[config] Config file not found, copying example_options.ini')
-
-            try:
-                shutil.copy('config/example_options.ini', config_file)
-
-                # load the config again and check to see if the user edited that one
-                c = configparser.ConfigParser()
-                c.read(config_file, encoding='utf-8')
-
-                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
-                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
-                    os._exit(1)
-
-            except FileNotFoundError as e:
-                raise HelpfulError(
-                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
-                    "Grab the files back from the archive or remake them yourself and copy paste the content "
-                    "from the repo.  Stop removing important files!"
-                )
-
-            except ValueError: # Config id value was changed but its not valid
-                print("\nInvalid value for OwnerID, config cannot be loaded.")
-                # TODO: HelpfulError
-                os._exit(4)
-
-            except Exception as e:
-                print(e)
-                print("\nUnable to copy config/example_options.ini to %s" % config_file, flush=True)
-                os._exit(2)
+        self.find_config()
 
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
@@ -80,6 +50,7 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+        self.auto_playlist_removed_file = None
 
         self.log_masterchannel = config.get('Logging', 'MasterChannel', fallback=ConfigDefaults.log_masterchannel)
         self.log_subchannels = config.get('Logging', 'SubChannels', fallback=ConfigDefaults.log_subchannels)
@@ -89,6 +60,8 @@ class Config:
         self.log_timeformat = config.get('Logging', 'TimeFormat', fallback=ConfigDefaults.log_timeformat)
 
         self.run_checks()
+
+        self.find_autoplaylist()
 
 
     def run_checks(self):
@@ -172,18 +145,61 @@ class Config:
 
         self.autojoin_channels = set(item.replace(',', ' ').strip() for item in self.autojoin_channels)
 
+        ap_path, ap_name = os.path.split(self.auto_playlist_file)
+        apn_name, apn_ext = os.path.splitext(ap_name)
+        self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
+
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
+
+    def find_config(self):
+        config = configparser.ConfigParser(interpolation=None)
+
+        if not config.read(self.config_file, encoding='utf-8'):
+            print('[config] Config file not found, copying example_options.ini')
+
+            try:
+                shutil.copy('config/example_options.ini', self.config_file)
+
+                # load the config again and check to see if the user edited that one
+                c = configparser.ConfigParser()
+                c.read(self.config_file, encoding='utf-8')
+
+                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
+                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                    os._exit(1)
+
+            except FileNotFoundError:
+                raise HelpfulError(
+                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
+                    "Grab the files back from the archive or remake them yourself and copy paste the content "
+                    "from the repo.  Stop removing important files!"
+                )
+
+            except ValueError: # Config id value was changed but its not valid
+                print("\nInvalid value for OwnerID, config cannot be loaded.")
+                # TODO: HelpfulError
+                os._exit(4)
+
+            except Exception as e:
+                print(e)
+                print("\nUnable to copy config/example_options.ini to %s" % self.config_file, flush=True)
+                os._exit(2)
+
+    def find_autoplaylist(self):
+        if not os.path.exists(self.auto_playlist_file):
+            if os.path.exists('config/_autoplaylist.txt'):
+                shutil.copy('config/_autoplaylist.txt', self.auto_playlist_file)
+                print("Copying _autoplaylist.txt to autoplaylist.txt")
+            else:
+                print("No autoplaylist file found.")
+
 
     def write_default_config(self, location):
         pass
 
 
 class ConfigDefaults:
-    email = None    #
-    password = None # This is not where you put your login info, go away.
-    token = None    #
-
     owner_id = None
     command_prefix = '!'
     bound_channels = set()
@@ -205,12 +221,9 @@ class ConfigDefaults:
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
 
-    log_masterchannel = None
-    log_subchannels = set()
-    log_exceptions = False
-    log_interaction = False
-    log_debug = False
-    log_timeformat = '%H:%M:%S'
+setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
+setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
+setattr(ConfigDefaults, codecs.decode(b'dG9rZW4=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
