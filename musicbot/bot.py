@@ -106,6 +106,7 @@ class MusicBot(discord.Client):
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
         self.time_last_update_check = None
+        self.time_last_update_notify = None
 
     def __del__(self):
         try:
@@ -143,6 +144,7 @@ class MusicBot(discord.Client):
             with urllib.request.urlopen(UPDATE_FILE) as f:
                 m = re.search("(VERSION = )('|\")((\d|.|_)+)('|\")", f.read())
                 ver = m.group(3)
+                self.time_last_update_check = datetime.now()
                 return version_is_newer(BOTVERSION, ver)
         except URLError:
             return False
@@ -673,7 +675,9 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
     async def on_resumed(self):
-        if self.last_update_check_time
+        if config.check_updates:
+            await self.check_and_notify_update()
+
         for vc in self.the_voice_clients.values():
             vc.main_ws = self.ws
 
@@ -1965,6 +1969,17 @@ class MusicBot(discord.Client):
         else:
             msg += "There is no update available."
         return Response(msg, reply=True, delete_after=60)
+
+    async def check_and_notify_update(self):
+        if self.time_last_update_check is None and \
+                    self.time_last_update_check + \
+                    timedelta(hours=self.config.update_interval) < datetime.now():
+            if self.time_last_update_notify is not None:
+                return
+
+            if await self._update_available():
+                self.send_message(self._get_owner(), "There is a MusicBot update available! https://github.com/SexualRhinoceros/MusicBot")
+                self.time_last_update_notify = datetime.now()
 
     async def on_message(self, message):
         await self.wait_until_ready()
