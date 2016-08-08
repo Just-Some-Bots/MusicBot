@@ -37,9 +37,9 @@ class Config:
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
-        self.check_updates = config.get('Updates', 'CheckForUpdates', fallback=ConfigDefaults.check_updates)
-        self.update_interval = config.get('Updates', 'UpdateInterval', fallback=ConfigDefaults.update_interval)
-        self.update_notification_interval = config.get('Updates', 'UpdateNotificationInterval', fallback=ConfigDefaults.update_notification_interval)
+        self.check_updates = config.getboolean('Updates', 'CheckForUpdates', fallback=ConfigDefaults.check_updates)
+        self.update_interval = config.getfloat('Updates', 'UpdateInterval', fallback=ConfigDefaults.update_interval)
+        self.update_notification_interval = config.getfloat('Updates', 'UpdateNotificationInterval', fallback=ConfigDefaults.update_notification_interval)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
