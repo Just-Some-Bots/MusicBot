@@ -56,6 +56,10 @@ class Logger:
         if self.config.channels and log_to_discord:
             await self._log_discord(msg)
 
+    async def log_traceback(self, traceback, log_to_file=True, log_to_discord=True):
+        await self.log("A traceback occurred:\n```python\n{}\n```".format(traceback), log_to_file=False)
+        await self.log("A traceback occurred:\n{}".format(traceback), log_to_discord=False)
+
     async def _log_file(self, msg):
         dt = datetime.now()
         with open(self.config.log_file, 'a') as f:
