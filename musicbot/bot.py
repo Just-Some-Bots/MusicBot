@@ -139,7 +139,7 @@ class MusicBot(discord.Client):
 
         return wrapper
 
-    async def _update_available():
+    async def _update_available(self):
         try:
             with urllib.request.urlopen(UPDATE_FILE) as f:
                 m = re.search("(VERSION = )('|\")((\d|.|_)+)('|\")", f.read())
