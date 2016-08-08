@@ -25,6 +25,7 @@ class Playlist(EventEmitter):
         self.bot = bot
         self.loop = bot.loop
         self.downloader = bot.downloader
+        self.config = bot.config
         self.entries = deque()
 
     def __iter__(self):

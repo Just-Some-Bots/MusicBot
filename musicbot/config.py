@@ -1,7 +1,6 @@
 import os
 import codecs
 import shutil
-import traceback
 import configparser
 
 from .exceptions import HelpfulError
@@ -35,7 +34,7 @@ class Config:
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
-        self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -62,7 +61,7 @@ class Config:
         """
         Validation logic for bot settings.
         """
-        confpreface = "An error has occured reading the config:\n"
+        confpreface = "An error has occurred reading the config:\n"
 
         if self._email or self._password:
             if not self._email:
