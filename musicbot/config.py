@@ -14,7 +14,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Permissions", "Chat", "MusicBot", "Logging"}.difference(config.sections())
+        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -51,13 +51,6 @@ class Config:
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.auto_playlist_removed_file = None
-
-        self.log_masterchannel = config.get('Logging', 'MasterChannel', fallback=ConfigDefaults.log_masterchannel)
-        self.log_subchannels = config.get('Logging', 'SubChannels', fallback=ConfigDefaults.log_subchannels)
-        self.log_exceptions = config.getboolean('Logging', 'Exceptions', fallback=ConfigDefaults.log_exceptions)
-        self.log_interaction = config.getboolean('Logging', 'Interaction', fallback=ConfigDefaults.log_interaction)
-        self.log_debug = config.getboolean('Logging', 'Debug', fallback=ConfigDefaults.log_debug)
-        self.log_timeformat = config.get('Logging', 'TimeFormat', fallback=ConfigDefaults.log_timeformat)
 
         self.run_checks()
 
@@ -131,13 +124,6 @@ class Config:
             except:
                 print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
-
-        if self.log_subchannels:
-            try:
-                self.log_subchannels = set(x for x in self.log_subchannels.split() if x)
-            except:
-                print("[Warning] LogSubChannels data invalid, will not log to any subchannels")
-                self.log_subchannels = set()
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 

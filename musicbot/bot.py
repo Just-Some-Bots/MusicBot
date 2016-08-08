@@ -29,6 +29,7 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.entry import StreamPlaylistEntry
 from musicbot.config import Config, ConfigDefaults
+from musicbot.logger import Logger
 from musicbot.permissions import Permissions, PermissionsDefaults
 from musicbot.utils import load_file, write_file, sane_round_int, fixg, safe_print
 
@@ -80,6 +81,7 @@ class MusicBot(discord.Client):
         self.voice_client_move_lock = asyncio.Lock()
 
         self.config = Config(config_file)
+        self.logger = Logger()
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
@@ -201,8 +203,6 @@ class MusicBot(discord.Client):
 
                     joined_servers.append(channel.server)
                 except Exception as e:
-                    if self.config.log_exceptions:
-                        await self.log(":warning: Could not join %s\n```python\n%s\n```" % (channel.name, traceback.format_exc()), channel)
                     print("Failed to join", channel.name)
 
             elif channel:
@@ -296,10 +296,8 @@ class MusicBot(discord.Client):
             retries = 3
             for x in range(retries):
                 try:
-                    await self.log(":mega: Attempting connection: `%s`" % server.name)
                     print("Attempting connection...")
                     await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
-                    await self.log(":mega: Connected to: `%s`" % server.name)
                     print("Connection established.")
                     break
                 except:
@@ -310,7 +308,6 @@ class MusicBot(discord.Client):
                     await asyncio.sleep(1)
 
                     if x == retries-1:
-                        await self.log(":warning: `%s`: Failed to connect" % server.name)
                         raise exceptions.HelpfulError(
                             "Cannot establish connection to voice chat.  "
                             "Something may be blocking outgoing UDP connections.",
@@ -591,8 +588,7 @@ class MusicBot(discord.Client):
         try:
             return await super().send_typing(destination)
         except discord.Forbidden:
-            if self.config.log_exceptions:
-                await self.log(":warning: No permission to send typing to %s" % destination)
+            pass
 
     async def edit_profile(self, **fields):
         if self.user.bot:
@@ -664,7 +660,8 @@ class MusicBot(discord.Client):
             vc.main_ws = self.ws
 
     async def on_ready(self):
-        print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
+        await self.logger.log('\rConnected!  MusicBot v%s' % BOTVERSION, print=True)
+        print()
 
         if self.config.owner_id == self.user.id:
             raise exceptions.HelpfulError(
@@ -678,37 +675,41 @@ class MusicBot(discord.Client):
 
         self.init_ok = True
 
-        safe_print("Bot:   {0}/{1}#{2}{3}".format(
+        await self.logger.log("Bot:   {0}/{1}#{2}{3}".format(
             self.user.id,
             self.user.name,
             self.user.discriminator,
             ' [BOT]' if self.user.bot else ''
-        ))
+        ), log_to_discord=False, print=True)
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner and self.servers:
-            safe_print("Owner: {0}/{1}#{2}\n".format(
+            await self.logger.log("Owner: {0}/{1}#{2}".format(
                 owner.id,
                 owner.name,
                 owner.discriminator
-            ))
+            ), log_to_discord=False, print=True)
 
+            print()
             print('Server List:')
             [safe_print(' - ' + s.name) for s in self.servers]
 
         elif self.servers:
-            print("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
+            await self.logger.log("Owner could not be found on any server (id: %s)\n" % self.config.owner_id, log_to_discord=False, print=True)
+            print()
 
             print('Server List:')
             [safe_print(' - ' + s.name) for s in self.servers]
 
         else:
-            print("Owner unknown, bot is not on any servers.")
+            await self.logger.log("Owner unknown, bot is not on any servers.", log_to_discord=False, print=True)
             if self.user.bot:
                 print("\nTo make the bot join a server, paste this link in your browser.")
                 print("Note: You should be logged into your main account and have \n"
                       "manage server permissions on the server you want the bot to join.\n")
-                print("    " + await self.generate_invite_link())
+                invlink = await self.generate_invite_link()
+                print("    " + invlink)
+                await self.logger.log("Invite URL: {}".format(invlink), log_to_discord=False)
 
         print()
 
@@ -726,10 +727,18 @@ class MusicBot(discord.Client):
                 [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
                 print("Not bound to any text channels")
+            await self.logger.log("Bound to {} text channel{}".format(
+                len(chlist),
+                "" if len(chlist) == 1 else "s"
+                ))
 
             if invalids and self.config.debug_mode:
                 print("\nNot binding to voice channels:")
                 [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+                await self.logger.log("Not binding to {} voice channel{}".format(
+                    len(invalids),
+                    "" if len(invalids) == 1 else "s"
+                    ))
 
             print()
 
@@ -746,50 +755,28 @@ class MusicBot(discord.Client):
             self.config.autojoin_channels.difference_update(invalids)
 
             if chlist:
-                print("Autojoining voice chanels:")
+                print("Autojoining voice channels:")
                 [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
                 print("Not bound to any text channels")
+            await self.logger.log("Autojoining {} voice channel{}".format(
+                len(chlist),
+                "" if len(chlist) == 1 else "s"
+                ))
 
             if invalids and self.config.debug_mode:
                 print("\nCannot autojoin text channels:")
                 [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+                await self.logger.log("Cannot autojoin {} text channel{}".format(
+                    len(chlist),
+                    "" if len(chlist) == 1 else "s"
+                    ))
 
             autojoin_channels = chlist
 
         else:
             print("Not autojoining any voice channels")
             autojoin_channels = set()
-
-        print()
-
-        if self.config.log_masterchannel:
-            print("Logging to master channel:")
-            channel = self.get_channel(self.config.log_masterchannel)
-            if channel:
-                self.safe_print(' - %s/%s' % (channel.server.name.strip(), channel.name.strip()))
-        if self.config.log_subchannels:
-            print("Logging to subchannels:")
-            chlist = set(self.get_channel(i) for i in self.config.log_subchannels if i)
-            chlist.discard(None)
-            invalids = set()
-
-            invalids.update(c for c in chlist if c.type == discord.ChannelType.text)
-            chlist.difference_update(invalids)
-            self.config.autojoin_channels.difference_update(invalids)
-            chlist = [self.get_channel(i) for i in self.config.log_subchannels if i]
-            [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
-
-            if invalids and self.config.debug_mode:
-                print("\nNot logging to subchannels:")
-                [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
-        if self.config.log_masterchannel or self.config.log_subchannels:
-            print("  Exceptions: " + ['Disabled', 'Enabled'][self.config.log_exceptions])
-            print("  Interaction: " + ['Disabled', 'Enabled'][self.config.log_interaction])
-            print("  Debug: " + ['Disabled', 'Enabled'][self.config.log_debug])
-            print("  Time Format: {}".format(self.config.log_timeformat))
-        else:
-            print("Not logging to any text channels")
 
         print()
         print("Options:")
@@ -812,34 +799,28 @@ class MusicBot(discord.Client):
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
 
-        await self.log(":mega: `{}#{}` ready".format(self.user.name, self.user.discriminator, time.strftime("%H:%M:%S"), time.strftime("%d/%m/%y")))
-
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
-                print("Deleting old audio cache")
-                await self.log(":mega: The audio cache was cleared")
+                await self.logger.log("Deleting old audio cache", print=True)
             else:
-                print("Could not delete old audio cache, moving on.")
-                await self.log(":warning: Tried to clear audio cache, encountered a problem")
+                await self.logger.log("Could not delete old audio cache, moving on.", print=True)
 
         if self.config.autojoin_channels:
             await self._autojoin_channels(autojoin_channels)
 
         elif self.config.auto_summon:
-            print("Attempting to autosummon...", flush=True)
+            await self.logger.log("Attempting to autosummon...", print=True)
 
             # waitfor + get value
             owner_vc = await self._auto_summon()
 
             if owner_vc:
-                print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
+                await self.logger.log("Done!", print=True)  # TODO: Change this to "Joined server/channel"
                 if self.config.auto_playlist:
-                    print("Starting auto-playlist")
+                    await self.logger.log("Starting autoplaylist", print=True)
                     await self.on_player_finished_playing(await self.get_player(owner_vc))
             else:
-                print("Owner not found in a voice channel, could not autosummon.")
-                if self.config.log_exceptions:
-                    await self.log(":warning: Tried to autosummon, owner not found in a channel")
+                await self.logger.log("Owner not found in a voice channel, could not autosummon.", print=True)
 
         print()
         # t-t-th-th-that's all folks!
@@ -1750,8 +1731,6 @@ class MusicBot(discord.Client):
         if self.user.bot:
             if channel.permissions_for(server.me).manage_messages:
                 deleted = await self.purge_from(channel, check=check, limit=search_range, before=message)
-                if self.config.log_interaction:
-                    await self.log(':bomb: Purged `{}` message{} in #`{}`'.format(len(deleted), 's' * bool(deleted), channel.name), channel)
                 return Response('Cleaned up {} message{}.'.format(len(deleted), 's' * bool(deleted)), delete_after=15)
 
         deleted = 0
