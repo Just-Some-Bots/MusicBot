@@ -19,13 +19,24 @@ class LoggerConfig:
                 "You are missing important files. Redownload the bot from the repo.")
 
         self.file = config.getboolean('General', 'File', fallback=LoggerDefaults.file)
-        self.discord = config.getboolean('General', 'Discord', fallback=LoggerDefaults.discord)
+        self.channels = config.get('General', 'Channels', fallback=LoggerDefaults.channels)
 
         self.timeformat = config.get('Advanced', 'TimeFormat', fallback=LoggerDefaults.timeformat)
 
+        self.checks()
+
+    def checks(self):
+        if self.channels:
+            try:
+                self.channels = set(x for x in self.channels.split() if x)
+            except:
+                print("[Warning] Logging channels data invalid, will not log to any channels")
+                self.channels = set()
+
 
 class Logger:
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.config = LoggerConfig(LoggerDefaults.config_file, LoggerDefaults.log_file)
 
         dt = datetime.now()
@@ -42,7 +53,7 @@ class Logger:
             msg = msg.replace('\r', '')
         if self.config.file and log_to_file:
             await self._log_file(msg)
-        if self.config.discord and log_to_discord:
+        if self.config.channels and log_to_discord:
             await self._log_discord(msg)
 
     async def _log_file(self, msg):
@@ -51,7 +62,13 @@ class Logger:
             f.write('\n{} - {}'.format(dt.strftime(self.config.timeformat), msg))
 
     async def _log_discord(self, msg):
-        pass
+        await self.bot.wait_until_ready()
+        dt = datetime.now()
+        for channel in self.config.channels:
+            channel = self.bot.get_channel(channel)
+            if not channel:
+                continue
+            await self.bot.safe_send_message(channel, "**{}**: {}".format(dt.strftime(self.config.timeformat), msg))
 
 
 class LoggerDefaults:
@@ -62,6 +79,7 @@ class LoggerDefaults:
     log_file = "bot.log"
 
     file = False
-    discord = True
+
+    channels = set()
 
     timeformat = '%Y/%m/%d %H:%M:%S'

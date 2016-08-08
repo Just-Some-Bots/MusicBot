@@ -81,7 +81,7 @@ class MusicBot(discord.Client):
         self.voice_client_move_lock = asyncio.Lock()
 
         self.config = Config(config_file)
-        self.logger = Logger()
+        self.logger = Logger(self)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
@@ -777,6 +777,27 @@ class MusicBot(discord.Client):
         else:
             print("Not autojoining any voice channels")
             autojoin_channels = set()
+
+        if self.logger.config.channels:
+            chlist = set(self.get_channel(i) for i in self.logger.config.channels if i)
+            chlist.discard(None)
+            invalids = set()
+
+            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            chlist.difference_update(invalids)
+            self.logger.config.channels.difference_update(invalids)
+
+            if chlist:
+                print("Logging to text channels:")
+                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+            else:
+                print("Not logging to any voice channels")
+            await self.logger.log("Logging to {} text channel{}".format(
+                len(chlist),
+                "" if len(chlist) == 1 else "s"
+                ))
+        else:
+            print("Not logging to any text channels")
 
         print()
         print("Options:")
@@ -1968,7 +1989,7 @@ class MusicBot(discord.Client):
             return
 
         if message.author == self.user:
-            safe_print("Ignoring command from myself (%s)" % message.content)
+            await self.logger.log("Ignoring command from myself (%s)" % message.content, print=True)
             return
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
@@ -1987,11 +2008,11 @@ class MusicBot(discord.Client):
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
-            safe_print("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            await self.logger.log("[User blacklisted] {0.id}/{0.name} ({1})".format(message.author, message_content), print=True)
             return
 
         else:
-            safe_print("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content))
+            await self.logger.log("[Command] {0.id}/{0.name} ({1})".format(message.author, message_content), print=True)
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -2108,6 +2129,7 @@ class MusicBot(discord.Client):
 
         except Exception:
             traceback.print_exc()
+            await self.logger.log("\n```python\n{}\n```".format(traceback.format_exc()))
 
         finally:
             if not sentmsg and not response and self.config.delete_invoking:
@@ -2149,18 +2171,18 @@ class MusicBot(discord.Client):
 
         if sum(1 for m in my_voice_channel.voice_members if m != after.server.me):
             if auto_paused and player.is_paused:
-                print("[config:autopause] Unpausing")
+                await self.logger.log("[config:autopause] Unpausing", print=True)
                 self.server_specific_data[after.server]['auto_paused'] = False
                 player.resume()
         else:
             if not auto_paused and player.is_playing:
-                print("[config:autopause] Pausing")
+                await self.logger.log("[config:autopause] Pausing", print=True)
                 self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
 
     async def on_server_update(self, before:discord.Server, after:discord.Server):
         if before.region != after.region:
-            safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
+            await self.logger.log("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region), print=True)
 
             await self.reconnect_voice_client(after)
 
