@@ -142,7 +142,7 @@ class MusicBot(discord.Client):
     async def _update_available(self):
         try:
             with urllib.request.urlopen(UPDATE_FILE) as f:
-                m = re.search("(VERSION = )('|\")((\d|.|_)+)('|\")", f.read())
+                m = re.search("(VERSION = )('|\")((\d|.|_)+)('|\")", f.read().decode('utf-8'))
                 ver = m.group(3)
                 self.time_last_update_check = datetime.now()
                 return version_is_newer(BOTVERSION, ver)
@@ -675,9 +675,6 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
     async def on_resumed(self):
-        if config.check_updates:
-            await self.check_and_notify_update()
-
         for vc in self.the_voice_clients.values():
             vc.main_ws = self.ws
 
@@ -1971,18 +1968,23 @@ class MusicBot(discord.Client):
         return Response(msg, reply=True, delete_after=60)
 
     async def check_and_notify_update(self):
-        if self.time_last_update_check is None and \
+        if self.time_last_update_check is None or \
                     self.time_last_update_check + \
                     timedelta(hours=self.config.update_interval) < datetime.now():
             if self.time_last_update_notify is not None:
                 return
 
             if await self._update_available():
-                self.send_message(self._get_owner(), "There is a MusicBot update available! https://github.com/SexualRhinoceros/MusicBot")
+                await self.safe_send_message(self._get_owner(), "There is a MusicBot update available! https://github.com/SexualRhinoceros/MusicBot")
                 self.time_last_update_notify = datetime.now()
 
     async def on_message(self, message):
         await self.wait_until_ready()
+
+        # Is there a better place to put this so it is run often?
+        if self.config.check_updates:
+            safe_print("Checking update")
+            await self.check_and_notify_update()
 
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
