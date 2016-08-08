@@ -15,7 +15,6 @@ from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 from discord.ext.commands.bot import _get_variable
 
-from discord.ext.commands.bot import _get_variable
 from discord.http import _func_
 
 from io import BytesIO
@@ -631,7 +630,7 @@ class MusicBot(discord.Client):
             try:
                 self._cleanup()
             except Exception as e:
-                await self.logger.log("Error in cleanup: {}".format(e), print=True)
+                safe_print("Error in cleanup: {}".format(e))
 
             self.loop.close()
             if self.exit_signal:
