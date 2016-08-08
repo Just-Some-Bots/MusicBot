@@ -101,3 +101,54 @@ def safe_print(content, *, end='\n', flush=True):
 
 def avg(i):
     return sum(i) / len(i)
+
+def version_is_newer(current, version):
+    """
+    Returns True if the given string in the format 'x.x.x[_x]' is newer
+    than the current version
+    """
+    if '_' in version:
+        main_ver, hotfix_ver = version.split('_', 1)
+    else:
+        main_ver = version
+        hotfix_ver = None
+
+    if '_' in current:
+        main_cur, hotfix_cur = current.split('_', 1)
+    else:
+        main_cur = current
+        hotfix_cur = None
+
+    major_ver, minor_ver, subminor_ver = main_ver.split('.', 2)
+    major_cur, minor_cur, subminor_cur = main_cur.split('.', 2)
+
+    if int(major_ver) > int(major_cur):
+        return True
+    elif int(minor_ver) > int(minor_cur):
+        return True
+    elif int(subminor_ver) > int(subminor_cur):
+        return True
+    
+    # At this point, all three parts of ver is <= cur. We only compare hotfixes
+    # if they are all equal
+    if int(major_ver) == int(major_cur) and int(minor_ver) == int(minor_cur) and \
+                    int(subminor_ver) == int(subminor_cur):
+        if hotfix_ver and not hotfix_cur:
+            return True
+        elif not hotfix_ver and not hotfix_cur:
+            return False
+        else: 
+            # Both have a hotfix number (it is not possible for there to be a 
+            # hotfix number for the current version but not the one fetched from
+            # online
+            return int(hotfix_ver) > int(hotfix_cur)
+    else:
+        return False
+
+
+    if hotfix_ver and not hotfix_cur:
+        return True
+    elif int(hotfix_ver) > int(hotfix_cur):
+        return True
+
+    return False

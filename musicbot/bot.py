@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import shlex
@@ -8,6 +9,9 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import urllib.request
+
+from urllib.request import URLError
 
 from discord import utils
 from discord.object import Object
@@ -20,7 +24,7 @@ from discord.http import _func_
 from io import BytesIO
 from functools import wraps
 from textwrap import dedent
-from datetime import timedelta
+from datetime import timedelta, datetime
 from random import choice, shuffle
 from collections import defaultdict
 
@@ -29,13 +33,13 @@ from musicbot.player import MusicPlayer
 from musicbot.entry import StreamPlaylistEntry
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int, fixg, safe_print
+from musicbot.utils import load_file, write_file, sane_round_int, fixg, safe_print, version_is_newer
 
 from . import exceptions
 from . import downloader
 from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
-from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH, UPDATE_FILE
 
 
 load_opus_lib()
@@ -101,6 +105,8 @@ class MusicBot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
+        self.time_last_update_check = None
+
     def __del__(self):
         try:
             if not self.http.session.closed:
@@ -132,6 +138,16 @@ class MusicBot(discord.Client):
 
         return wrapper
 
+    async def _update_available():
+        try:
+            with urllib.request.urlopen(UPDATE_FILE) as f:
+                m = re.search("(VERSION = )('|\")((\d|.|_)+)('|\")", f.read())
+                ver = m.group(3)
+                return version_is_newer(BOTVERSION, ver)
+        except URLError:
+            return False
+
+
     def _get_owner(self, voice=False):
         if voice:
             for server in self.servers:
@@ -158,6 +174,8 @@ class MusicBot(discord.Client):
                 return False
 
         return True
+
+
 
     # TODO: autosummon option to a specific channel
     async def _auto_summon(self):
@@ -655,6 +673,7 @@ class MusicBot(discord.Client):
             traceback.print_exc()
 
     async def on_resumed(self):
+        if self.last_update_check_time
         for vc in self.the_voice_clients.values():
             vc.main_ws = self.ws
 
@@ -1937,6 +1956,15 @@ class MusicBot(discord.Client):
         await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
+
+    async def cmd_version(self, channel):
+        await self.send_typing(channel)
+        msg = "MusicBot version  %s\n" % BOTVERSION
+        if await self._update_available():
+            msg += "There is an update available!"
+        else:
+            msg += "There is no update available."
+        return Response(msg, reply=True, delete_after=60)
 
     async def on_message(self, message):
         await self.wait_until_ready()
