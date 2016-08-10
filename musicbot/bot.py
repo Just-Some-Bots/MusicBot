@@ -174,8 +174,6 @@ class MusicBot(discord.Client):
 
         return True
 
-
-
     # TODO: autosummon option to a specific channel
     async def _auto_summon(self):
         owner = self._get_owner(voice=True)
