@@ -105,9 +105,6 @@ class MusicBot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
-        self.time_last_update_check = None
-        self.time_last_update_notify = None
-
     def __del__(self):
         try:
             if not self.http.session.closed:
@@ -139,7 +136,7 @@ class MusicBot(discord.Client):
 
         return wrapper
 
-    async def _update_available(self):
+    async def check_for_update(self):
         try:
             with urllib.request.urlopen(UPDATE_FILE) as f:
                 m = re.search("(VERSION = )('|\")((\d|.|_)+)('|\")", f.read().decode('utf-8'))
@@ -821,6 +818,10 @@ class MusicBot(discord.Client):
                 print("Owner not found in a voice channel, could not autosummon.")
 
         print()
+
+        if self.config.check_updates:
+            asyncio.ensure_future(self.check_and_notify_update())
+
         # t-t-th-th-that's all folks!
 
     async def cmd_help(self, command=None):
@@ -1961,30 +1962,35 @@ class MusicBot(discord.Client):
     async def cmd_version(self, channel):
         await self.send_typing(channel)
         msg = "MusicBot version  %s\n" % BOTVERSION
-        if await self._update_available():
+        if await self.check_for_update():
             msg += "There is an update available!"
         else:
             msg += "There is no update available."
         return Response(msg, reply=True, delete_after=60)
 
     async def check_and_notify_update(self):
-        if self.time_last_update_check is None or \
-                    self.time_last_update_check + \
-                    timedelta(hours=self.config.update_interval) < datetime.now():
-            if self.time_last_update_notify is not None:
-                return
+        update_available = False
 
-            if await self._update_available():
-                await self.safe_send_message(self._get_owner(), "There is a MusicBot update available! https://github.com/SexualRhinoceros/MusicBot")
-                self.time_last_update_notify = datetime.now()
+        while True:
+            safe_print("Checking for updates...")
+
+            # If we know an update is available, there is no point in checking
+            if not update_available:
+                update_available = self.check_for_update()
+
+            if update_available:
+                safe_print("Update found!")
+                asyncio.ensure_future(self.notify_update())
+
+            await asyncio.sleep(60 * self.config.update_interval)
+
+    async def notify_update(self):
+        while True:
+            await self.safe_send_message(self._get_owner(), "There is a MusicBot update available! https://github.com/SexualRhinoceros/MusicBot")
+            await asyncio.sleep(60 * 60 * self.config.update_notification_interval)
 
     async def on_message(self, message):
         await self.wait_until_ready()
-
-        # Is there a better place to put this so it is run often?
-        if self.config.check_updates:
-            safe_print("Checking update")
-            await self.check_and_notify_update()
 
         message_content = message.content.strip()
         if not message_content.startswith(self.config.command_prefix):
