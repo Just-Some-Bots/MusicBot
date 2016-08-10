@@ -105,6 +105,8 @@ class MusicBot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
+        self.update_check_running = False
+
     def __del__(self):
         try:
             if not self.http.session.closed:
@@ -817,7 +819,8 @@ class MusicBot(discord.Client):
 
         print()
 
-        if self.config.check_updates:
+        if self.config.check_updates and not self.update_check_running:
+            self.update_check_running = True
             asyncio.ensure_future(self.check_and_notify_update())
 
         # t-t-th-th-that's all folks!
@@ -1984,6 +1987,7 @@ class MusicBot(discord.Client):
 
     async def notify_update(self):
         while True:
+            await self.wait_until_ready()
             await self.safe_send_message(self._get_owner(), "There is a MusicBot update available! https://github.com/SexualRhinoceros/MusicBot")
             await asyncio.sleep(60 * 60 * self.config.update_notification_interval)
 
