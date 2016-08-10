@@ -15,7 +15,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
+        confsections = {"Credentials", "Permissions", "Updates", "Chat", "MusicBot"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -36,6 +36,10 @@ class Config:
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+
+        self.check_updates = config.getboolean('Updates', 'CheckForUpdates', fallback=ConfigDefaults.check_updates)
+        self.update_interval = config.getfloat('Updates', 'UpdateInterval', fallback=ConfigDefaults.update_interval)
+        self.update_notification_interval = config.getfloat('Updates', 'UpdateNotificationInterval', fallback=ConfigDefaults.update_notification_interval)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -191,6 +195,10 @@ class ConfigDefaults:
     command_prefix = '!'
     bound_channels = set()
     autojoin_channels = set()
+
+    check_updates = False
+    update_interval = 12
+    update_notification_interval = 48
 
     default_volume = 0.15
     skips_required = 4
