@@ -2017,8 +2017,10 @@ class MusicBot(discord.Client):
 
         if message.attachments:
             thing = message.attachments[0]['url']
-        else:
+        elif url:
             thing = url.strip('<>')
+        else:
+            raise exceptions.CommandError("Unable to change avatar! Please upload an image or provide a link to one.", expire_in=20)
 
         try:
             with aiohttp.Timeout(10):
