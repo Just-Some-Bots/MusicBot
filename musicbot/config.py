@@ -1,13 +1,14 @@
 import os
+import sys
 import codecs
 import shutil
-import traceback
 import configparser
 
 from .exceptions import HelpfulError
 
 
 class Config:
+    # noinspection PyUnresolvedReferences
     def __init__(self, config_file):
         self.config_file = config_file
         self.find_config()
@@ -25,6 +26,9 @@ class Config:
                 ),
                 preface="An error has occured parsing the config:\n"
             )
+
+        self._confpreface = "An error has occured reading the config:\n"
+        self._confpreface2 = "An error has occured validating the config:\n"
 
         self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
         self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
@@ -62,7 +66,7 @@ class Config:
         """
         Validation logic for bot settings.
         """
-        confpreface = "An error has occured reading the config:\n"
+
 
         if self._email or self._password:
             if not self._email:
@@ -71,14 +75,14 @@ class Config:
 
                     "Please put your bot account credentials in the config.  "
                     "Remember that the Email is the email address used to register the bot account.",
-                    preface=confpreface)
+                    preface=self._confpreface)
 
             if not self._password:
                 raise HelpfulError(
                     "The password was not specified in the config.",
 
                     "Please put your bot account credentials in the config.",
-                    preface=confpreface)
+                    preface=self._confpreface)
 
             self.auth = (self._email, self._password)
 
@@ -88,29 +92,38 @@ class Config:
 
                 "Please fill in either the Email and Password fields, or "
                 "the Token field.  The Token field is for Bot accounts only.",
-                preface=confpreface
+                preface=self._confpreface
             )
 
         else:
             self.auth = (self._login_token,)
 
-        if self.owner_id and self.owner_id.isdigit():
-            if int(self.owner_id) < 10000:
-                raise HelpfulError(
-                    "OwnerID was not set.",
+        if self.owner_id:
+            self.owner_id = self.owner_id.lower()
 
-                    "Please set the OwnerID in the config.  If you "
-                    "don't know what that is, use the %sid command" % self.command_prefix,
-                    preface=confpreface)
+            if self.owner_id.isdigit():
+                if int(self.owner_id) < 10000:
+                    raise HelpfulError(
+                        "An invalid OwnerID was set: {}".format(self.owner_id),
 
-        else:
+                        "Correct your OwnerID.  The ID should be just a number, approximately "
+                        "18 characters long.  If you don't know what your ID is, read the "
+                        "instructions in the options or ask in the help server.",
+                        preface=self._confpreface
+                    )
+
+            elif self.owner_id == 'auto':
+                pass # defer to async check
+
+            else:
+                self.owner_id = None
+
+        if not self.owner_id:
             raise HelpfulError(
-                "An invalid OwnerID was set.",
-
-                "Correct your OwnerID.  The ID should be just a number, approximately "
-                "18 characters long.  If you don't know what your ID is, "
-                "use the %sid command.  Current invalid OwnerID: %s" % (self.command_prefix, self.owner_id),
-                preface=confpreface)
+                "No OwnerID was set.",
+                "Please set the OwnerID option in {}".format(self.config_file),
+                preface=self._confpreface
+            )
 
         if self.bound_channels:
             try:
@@ -139,39 +152,82 @@ class Config:
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
 
+    async def async_validate(self, bot):
+        if self.debug_mode:
+            print("[config] Validating options...")
+
+        if self.owner_id == 'auto':
+            if not bot.user.bot:
+                raise HelpfulError(
+                    "Invalid parameter \"auto\" for OwnerID option.",
+
+                    "Only bot accounts can use the \"auto\" option.  Please "
+                    "set the OwnerID in the config.",
+
+                    preface=self._confpreface2
+                )
+
+            self.owner_id = bot.cached_app_info.owner.id
+            print("[config] Aquired owner id via api")
+
+        if self.owner_id == bot.user.id:
+            raise HelpfulError(
+                "Your OwnerID is incorrect or you've used the wrong credentials.",
+
+                "The bot's user ID and the id for OwnerID is identical.  "
+                "This is wrong.  The bot needs its own account to function, "
+                "meaning you cannot use your own account to run the bot on.  "
+                "The OwnerID is the id of the owner, not the bot.  "
+                "Figure out which one is which and use the correct information.",
+
+                preface=self._confpreface2
+            )
+
+        print()
+
     def find_config(self):
         config = configparser.ConfigParser(interpolation=None)
 
-        if not config.read(self.config_file, encoding='utf-8'):
-            print('[config] Config file not found, copying example_options.ini')
+        if not os.path.isfile(self.config_file):
+            if os.path.isfile(self.config_file + '.ini'):
+                shutil.move(self.config_file + '.ini', self.config_file)
+                print("Moving {0} to {1}, you should probably turn file extensions on.".format(
+                    self.config_file + '.ini', self.config_file
+                ))
 
-            try:
+            elif os.path.isfile('config/example_options.ini'):
                 shutil.copy('config/example_options.ini', self.config_file)
+                print('Options file not found, copying example_options.ini')
 
-                # load the config again and check to see if the user edited that one
-                c = configparser.ConfigParser()
-                c.read(self.config_file, encoding='utf-8')
-
-                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
-                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
-                    os._exit(1)
-
-            except FileNotFoundError:
+            else:
                 raise HelpfulError(
                     "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
                     "Grab the files back from the archive or remake them yourself and copy paste the content "
                     "from the repo.  Stop removing important files!"
                 )
 
+        if not config.read(self.config_file, encoding='utf-8'):
+            c = configparser.ConfigParser()
+            try:
+                # load the config again and check to see if the user edited that one
+                c.read(self.config_file, encoding='utf-8')
+
+                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
+                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                    sys.exit(1)
+
             except ValueError: # Config id value was changed but its not valid
-                print("\nInvalid value for OwnerID, config cannot be loaded.")
-                # TODO: HelpfulError
-                os._exit(4)
+                raise HelpfulError(
+                    'Invalid value "{}" for OwnerID, config cannot be loaded.'.format(
+                        c.get('Permissions', 'OwnerID', fallback=None)
+                    ),
+                    "The OwnerID option takes a user id, fuck it i'll finish this message later."
+                )
 
             except Exception as e:
                 print(e)
                 print("\nUnable to copy config/example_options.ini to %s" % self.config_file, flush=True)
-                os._exit(2)
+                sys.exit(2)
 
     def find_autoplaylist(self):
         if not os.path.exists(self.auto_playlist_file):

@@ -659,17 +659,13 @@ class MusicBot(discord.Client):
             vc.main_ws = self.ws
 
     async def on_ready(self):
+        if self.init_ok:
+            return # resume on_ready blah blah blah
+
         print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
 
-        if self.config.owner_id == self.user.id:
-            raise exceptions.HelpfulError(
-                "Your OwnerID is incorrect or you've used the wrong credentials.",
-
-                "The bot needs its own account to function.  "
-                "The OwnerID is the id of the owner, not the bot.  "
-                "Figure out which one is which and use the correct information.")
-
         await self.generate_invite_link() # lazy way to cache the app info
+        await self.config.async_validate(self)
 
         self.init_ok = True
 
