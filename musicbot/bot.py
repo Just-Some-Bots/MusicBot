@@ -105,8 +105,12 @@ class MusicBot(discord.Client):
         try:
             if not self.http.session.closed:
                 self.http.session.close()
-        except:
-            pass
+        except: pass
+
+        try:
+            if not self.aiosession.closed:
+                self.aiosession.close()
+        except: pass
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
