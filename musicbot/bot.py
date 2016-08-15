@@ -250,10 +250,15 @@ class MusicBot(discord.Client):
             safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
 
             with open(self.config.auto_playlist_removed_file, 'a', encoding='utf8') as f:
-                f.write('# Entry removed {ctime}\n'
-                        '# Reason: {ex}\n'
-                        '{url}\n\n{sep}\n\n'.format(ctime=time.ctime(), ex=ex, url=song_url, sep='#' * 16)
-                )
+                f.write(
+                    '# Entry removed {ctime}\n'
+                    '# Reason: {ex}\n'
+                    '{url}\n\n{sep}\n\n'.format(
+                        ctime=time.ctime(),
+                        ex=str(ex).replace('\n', '\n#' + ' ' * 10), # 10 spaces to line up with # Reason:
+                        url=song_url,
+                        sep='#' * 32
+                ))
 
             if delete_from_ap:
                 safe_print("[Info] Updating autoplaylist")
