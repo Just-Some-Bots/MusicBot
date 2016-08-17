@@ -413,7 +413,7 @@ class MusicBot(discord.Client):
 
             if self.server_specific_data[channel.server]['last_np_msg']:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, fp=thumbnail, send_if_fail=True)
-            elif thumbnail:
+            elif thumbnail and self.config.show_thumbnails:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_file(channel, newmsg, thumbnail)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
@@ -545,7 +545,7 @@ class MusicBot(discord.Client):
             if send_if_fail:
                 if not quiet:
                     print("Sending instead")
-                if fp:
+                if fp and self.config.show_thumbnails:
                     return await self.safe_send_file(message.channel, new, fp)
                 else:
                     return await self.safe_send_message(message.channel, new)
@@ -1320,7 +1320,7 @@ class MusicBot(discord.Client):
             else:
                 np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
 
-            if thumbnail:
+            if thumbnail and self.config.show_thumbnails:
                 self.server_specific_data[server]['last_np_msg'] = await self.safe_send_file(channel, np_text, thumbnail)
             else:
                 self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
