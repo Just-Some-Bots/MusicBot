@@ -68,6 +68,10 @@ class VoiceStateUpdate:
         return self.me.voice_channel
 
     @property
+    def is_about_my_voice_channel(self):
+        return self.voice_channel == self.my_voice_channel
+
+    @property
     def voice_channel(self) -> discord.Channel:
         return self.new_voice_channel or self.old_voice_channel
 

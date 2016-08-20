@@ -72,7 +72,7 @@ class MusicBot(discord.Client):
 
         # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
-        self.server_specific_data = defaultdict(lambda: ssd_defaults)
+        self.server_specific_data = defaultdict(lambda: dict(ssd_defaults)) # yes, this is supposed to be like this, dict(...)
 
         super().__init__()
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
@@ -2041,12 +2041,12 @@ class MusicBot(discord.Client):
         if state.broken:
             return
 
-        if not state.joining and state.is_about_me and not self.voice_client_in(after.server or before.server) and not state.change:
+        if not state.joining and state.is_about_me and not self.voice_client_in(state.server) and not state.change:
             if self.config.debug_mode:
                 print("[Debug] I *think* we have resumed connection to a voice channel")
             state.joining = True
 
-        if not state.my_voice_channel:
+        if not state.is_about_my_voice_channel:
             return # Irrelevant channel
 
         autopause_msg = "[config:autopause] {state} in {channel.server.name}/{channel.name} {reason}"
