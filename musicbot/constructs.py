@@ -72,11 +72,10 @@ class VoiceStateUpdate:
         return self.new_voice_channel or self.old_voice_channel
 
     @property
-    def moving(self):
-        # I had this as "... == before.server.me" and i'm not sure why, hope it wasn't important
-        return self.before == self.me
+    def server(self):
+        return self.after.server or self.before.server
 
-    def empty(self, *, excluding_me=False, excluding_deaf=False):
+    def empty(self, *, excluding_me=True, excluding_deaf=False):
         def check(member):
             if excluding_me and member == self.me:
                 return False
