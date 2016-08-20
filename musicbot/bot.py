@@ -136,27 +136,35 @@ class MusicBot(discord.Client):
 
         return True
 
-    # TODO: autosummon option to a specific channel
-    async def _auto_summon(self):
-        owner = self._get_owner(voice=True)
-        if owner:
-            safe_print("Found owner in \"%s\", attempting to join..." % owner.voice_channel.name)
-            # TODO: Effort
-            await self.cmd_summon(owner.voice_channel, owner.server, owner, None)
-            return owner.voice_channel
-
-    async def _autojoin_channels(self, channels):
+    async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = []
+        channel_map = {c.server: c for c in channels}
 
-        for channel in channels:
-            if channel.server in joined_servers:
-                print("Already joined a channel in {}, skipping".format(channel.server.name))
+        for server in self.servers:
+            if server.unavailable or server in channel_map:
+                continue
+
+            if server.me.voice_channel:
+                if self.config.debug_mode:
+                    safe_print("[Debug] Found resumable voice channel {0.server.name}/{0.name}".format(server.me.voice_channel))
+
+                channel_map[server] = server.me.voice_channel
+
+            if autosummon:
+                owner = self._get_owner(server=server, voice=True)
+                if owner:
+                    safe_print("Found owner in \"{}\"".format(owner.voice_channel.name))
+                    channel_map[server] = owner.voice_channel
+
+        for (server, channel) in channel_map.items():
+            if server in joined_servers:
+                safe_print("Already joined a channel in \"{}\", skipping".format(server.name))
                 continue
 
             if channel and channel.type == discord.ChannelType.voice:
-                safe_print("Attempting to autojoin {0.name} in {0.server.name}".format(channel))
+                safe_print("Attempting to join {0.name} in {0.server.name}".format(channel))
 
-                chperms = channel.permissions_for(channel.server.me)
+                chperms = channel.permissions_for(server.me)
 
                 if not chperms.connect:
                     safe_print("Cannot join channel \"{}\", no permission.".format(channel.name))
@@ -165,9 +173,6 @@ class MusicBot(discord.Client):
                 elif not chperms.speak:
                     safe_print("Will not join channel \"{}\", no permission to speak.".format(channel.name))
                     continue
-
-                # TODO: check if we're already in a voice channel on that server and set variable accordingly
-                # we can do this because of voice resume
 
                 try:
                     player = await self.get_player(channel, create=True)
@@ -180,8 +185,8 @@ class MusicBot(discord.Client):
                     if self.config.auto_playlist:
                         await self.on_player_finished_playing(player)
 
-                    # TODO: autopause
-                    # joined_servers.append(channel.server)
+                        # TODO: autopause
+                        # joined_servers.append(channel.server)
 
                 except Exception:
                     if self.config.debug_mode:
@@ -193,7 +198,7 @@ class MusicBot(discord.Client):
                 print("Not joining {0.name} on {0.server.name}, that's a text channel.".format(channel))
 
             else:
-                print("Invalid channel thing:", channel)
+                safe_print("Invalid channel thing: {}".format(channel))
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
@@ -729,22 +734,7 @@ class MusicBot(discord.Client):
                 print("Could not delete old audio cache, moving on.")
 
         if self.config.autojoin_channels:
-            await self._autojoin_channels(autojoin_channels)
-
-        elif self.config.auto_summon:
-            print("Attempting to autosummon...", flush=True)
-
-            # waitfor + get value
-            owner_vc = await self._auto_summon()
-
-            if owner_vc:
-                print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
-                if self.config.auto_playlist:
-                    print("Starting auto-playlist")
-                    # TODO: Check if channel is empty first
-                    await self.on_player_finished_playing(await self.get_player(owner_vc))
-            else:
-                print("Owner not found in a voice channel, could not autosummon.")
+            await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
         print()
         # t-t-th-th-that's all folks!
