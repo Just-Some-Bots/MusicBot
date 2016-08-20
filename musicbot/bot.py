@@ -103,7 +103,6 @@ class MusicBot(discord.Client):
 
         return wrapper
 
-                # noinspection PyCallingNonCallable
     def ensure_appinfo(func):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
