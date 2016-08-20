@@ -162,7 +162,7 @@ class MusicBot(discord.Client):
                 continue
 
             if channel and channel.type == discord.ChannelType.voice:
-                safe_print("Attempting to join {0.name} in {0.server.name}".format(channel))
+                safe_print("Attempting to join {0.server.name}/{0.name}".format(channel))
 
                 chperms = channel.permissions_for(server.me)
 
@@ -177,7 +177,7 @@ class MusicBot(discord.Client):
                 try:
                     player = await self.get_player(channel, create=True)
 
-                    safe_print("Joined {0.name} in {0.server.name}".format(channel))
+                    safe_print("Joined {0.server.name}/{0.name}".format(channel))
 
                     if player.is_stopped:
                         player.play()
@@ -195,7 +195,7 @@ class MusicBot(discord.Client):
                     print("Failed to join", channel.name)
 
             elif channel:
-                print("Not joining {0.name} on {0.server.name}, that's a text channel.".format(channel))
+                print("Not joining {0.server.name}/{0.name}, that's a text channel.".format(channel))
 
             else:
                 safe_print("Invalid channel thing: {}".format(channel))
