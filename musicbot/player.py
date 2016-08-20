@@ -339,6 +339,8 @@ class MusicPlayer(EventEmitter):
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
         #       Change frame_count to bytes_read in the PatchedBuff
 
+# TODO: I need to add a check for if the eventloop is closed
+
 def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
     last_ex = None
 
@@ -379,9 +381,10 @@ def check_stderr(data:bytes):
         "Application provided invalid, non monotonically increasing dts to muxer in stream",
         "Last message repeated",
         "Failed to send close message",
+        "decode_band_types: Input buffer exhausted before END element found"
     ]
     errors = [
-        "Invalid data found when processing input",
+        "Invalid data found when processing input", # need to regex this properly, its both a warning and an error
     ]
 
     if any(msg in data for msg in warnings):
