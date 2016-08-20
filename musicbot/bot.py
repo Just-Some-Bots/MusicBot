@@ -2042,73 +2042,68 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=False)
 
-    async def on_voice_state_update(self, before, after):
-        if not all([before, after]):
-            return # weird bug where args can be None
 
+    async def on_voice_state_update(self, before, after):
         if not self.init_ok:
             return # Ignore stuff before ready
 
         state = VoiceStateUpdate(before, after)
 
-        # print("voice state change:")
-        # print(state.change)
-        my_voice_channel = after.server.me.voice_channel  # This should always work, right?
+        if state.broken:
+            return
 
-        if not my_voice_channel:
-            return # not in a voice channel
+        if not state.joining and state.is_about_me and not self.voice_client_in(after.server or before.server) and not state.change:
+            if self.config.debug_mode:
+                print("[Debug] I *think* we have resumed connection to a voice channel")
+            state.joining = True
 
-        if before.voice_channel == my_voice_channel:
-            joining = False
-        elif after.voice_channel == my_voice_channel:
-            joining = True
-        else:
-            return  # Not my channel
-
-        moving = before == before.server.me
-
-        empty = not sum(1 for m in my_voice_channel.voice_members if m != after.server.me)
-        empty_deaf = None
+        if not state.my_voice_channel:
+            return # Irrelevant channel
 
         autopause_msg = "[config:autopause] {state} in {channel.server.name}/{channel.name} {reason}"
 
         auto_paused = self.server_specific_data[after.server]['auto_paused']
-        player = await self.get_player(my_voice_channel)
+        player = await self.get_player(state.my_voice_channel)
 
-        if joining and moving and empty and player.is_paused:
+        if state.joining and state.empty() and player.is_paused:
             safe_print(autopause_msg.format(
                 state = "Pausing",
-                channel = my_voice_channel,
+                channel = state.my_voice_channel,
                 reason = "(joining empty channel)"
-            ))
+            ).strip())
+
             self.server_specific_data[after.server]['auto_paused'] = True
             player.pause()
             return
 
-        if not empty:
+        if not state.empty():
             if auto_paused and player.is_paused:
                 safe_print(autopause_msg.format(
                     state = "Unpausing",
-                    channel = my_voice_channel,
+                    channel = state.my_voice_channel,
                     reason = ""
-                ))
+                ).strip())
+
                 self.server_specific_data[after.server]['auto_paused'] = False
                 player.resume()
         else:
             if not auto_paused and player.is_playing:
                 safe_print(autopause_msg.format(
                     state = "Pausing",
-                    channel = my_voice_channel,
+                    channel = state.my_voice_channel,
                     reason = ""
-                ))
+                ).strip())
+
                 self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
+
 
     async def on_server_update(self, before:discord.Server, after:discord.Server):
         if before.region != after.region:
             safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
+
 
     async def on_server_join(self, server:discord.Server):
         if not self.user.bot:
