@@ -733,8 +733,7 @@ class MusicBot(discord.Client):
             else:
                 print("Could not delete old audio cache, moving on.")
 
-        if self.config.autojoin_channels:
-            await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
+        await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
         print()
         # t-t-th-th-that's all folks!
