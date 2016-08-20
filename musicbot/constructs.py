@@ -56,7 +56,7 @@ class VoiceStateUpdate:
             self.joining = None
 
     @property
-    def me(self):
+    def me(self) -> discord.Member:
         return self.after.server.me
 
     @property
@@ -64,11 +64,11 @@ class VoiceStateUpdate:
         return self.after == self.me
 
     @property
-    def my_voice_channel(self):
+    def my_voice_channel(self) -> discord.Channel:
         return self.me.voice_channel
 
     @property
-    def voice_channel(self):
+    def voice_channel(self) -> discord.Channel:
         return self.new_voice_channel or self.old_voice_channel
 
     @property
