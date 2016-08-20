@@ -64,8 +64,12 @@ class VoiceStateUpdate:
         return self.after == self.me
 
     @property
-    def voice_channel(self):
+    def my_voice_channel(self):
         return self.me.voice_channel
+
+    @property
+    def voice_channel(self):
+        return self.new_voice_channel or self.old_voice_channel
 
     @property
     def moving(self):
