@@ -97,6 +97,7 @@ class MusicBot(discord.Client):
             orig_msg = _get_variable('message')
 
             if not orig_msg or orig_msg.author.id == self.config.owner_id:
+                # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
                 raise exceptions.PermissionsError("only the owner can use this command", expire_in=30)
