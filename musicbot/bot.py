@@ -190,7 +190,7 @@ class MusicBot(discord.Client):
                     print("Failed to join", channel.name)
 
             elif channel:
-                print("Not joining {0.name} on {0.server.name}, that's a text channel.".format(channel.name, channel.server.name))
+                print("Not joining {0.name} on {0.server.name}, that's a text channel.".format(channel))
 
             else:
                 print("Invalid channel thing:", channel)
