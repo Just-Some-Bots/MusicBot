@@ -11,7 +11,7 @@ from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
 
-from .utils import avg
+from .utils import avg, safe_print
 from .lib.event_emitter import EventEmitter
 from .exceptions import FFmpegError, FFmpegWarning
 
@@ -215,7 +215,7 @@ class MusicPlayer(EventEmitter):
                 if e.winerror == 32:  # File is in use
                     await asyncio.sleep(0.25)
 
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
                 print("Error trying to delete " + filename)
                 break
@@ -241,7 +241,7 @@ class MusicPlayer(EventEmitter):
                 try:
                     entry = await self.playlist.get_next_entry()
 
-                except Exception as e:
+                except Exception:
                     print("Failed to get entry.")
                     traceback.print_exc()
                     # Retry playing the next entry in a sec.
@@ -297,7 +297,7 @@ class MusicPlayer(EventEmitter):
 
     async def websocket_check(self):
         if self.bot.config.debug_mode:
-            print("[Debug] Creating websocket check loop")
+            safe_print("[Debug] Starting websocket check for {}".format(self.voice_client.channel.server))
 
         while not self.is_dead:
             try:
