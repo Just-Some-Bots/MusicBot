@@ -76,7 +76,7 @@ class VoiceStateUpdate:
         return self.new_voice_channel or self.old_voice_channel
 
     @property
-    def server(self):
+    def server(self) -> discord.Server:
         return self.after.server or self.before.server
 
     def empty(self, *, excluding_me=True, excluding_deaf=False):
@@ -96,3 +96,10 @@ class VoiceStateUpdate:
         return objdiff(self.before.voice, self.after.voice, access_attr='__slots__')
 
 
+class Serializable:
+    def serialize(self):
+        raise NotImplementedError
+
+    @classmethod
+    def deserialize(cls, playlist, jsonstr):
+        raise NotImplementedError

@@ -4,8 +4,9 @@ import os
 import traceback
 
 from enum import Enum
+from .constructs import Serializable
 from .exceptions import ExtractionError
-from .utils import get_header, md5sum, Serializable
+from .utils import get_header, md5sum
 
 
 class EntryTypes(Enum):
