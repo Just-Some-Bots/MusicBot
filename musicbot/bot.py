@@ -136,9 +136,31 @@ class MusicBot(discord.Client):
 
         return True
 
+    @staticmethod
+    def _check_if_empty(vchannel: discord.Channel, *, excluding_me=True, excluding_deaf=False):
+        def check(member):
+            if excluding_me and member == vchannel.server.me:
+                return False
+
+            if excluding_deaf and any([member.deaf, member.self_deaf]):
+                return False
+
+            return True
+
+        return not sum(1 for m in vchannel.voice_members if check(m))
+
+
     async def _join_startup_channels(self, channels, *, autosummon=True):
-        joined_servers = []
+        joined_servers = set()
         channel_map = {c.server: c for c in channels}
+
+        def _autopause(player):
+            if self._check_if_empty(player.voice_client.channel):
+                if self.config.debug_mode:
+                    print("[Debug] Initial autopause in empty channel")
+
+                player.pause()
+                self.server_specific_data[player.voice_client.channel.server]['auto_paused'] = True
 
         for server in self.servers:
             if server.unavailable or server in channel_map:
@@ -156,7 +178,7 @@ class MusicBot(discord.Client):
                     safe_print("Found owner in \"{}\"".format(owner.voice_channel.name))
                     channel_map[server] = owner.voice_channel
 
-        for (server, channel) in channel_map.items():
+        for server, channel in channel_map.items():
             if server in joined_servers:
                 safe_print("Already joined a channel in \"{}\", skipping".format(server.name))
                 continue
@@ -182,11 +204,12 @@ class MusicBot(discord.Client):
                     if player.is_stopped:
                         player.play()
 
+                    joined_servers.add(server)
+
                     if self.config.auto_playlist:
                         await self.on_player_finished_playing(player)
-
-                        # TODO: autopause
-                        # joined_servers.append(channel.server)
+                        if self.config.auto_pause:
+                            player.once('play', lambda player, **_: _autopause(player))
 
                 except Exception:
                     if self.config.debug_mode:
@@ -2035,6 +2058,9 @@ class MusicBot(discord.Client):
     async def on_voice_state_update(self, before, after):
         if not self.init_ok:
             return # Ignore stuff before ready
+
+        if not self.config.auto_pause:
+            return
 
         state = VoiceStateUpdate(before, after)
 
