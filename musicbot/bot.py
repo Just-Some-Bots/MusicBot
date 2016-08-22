@@ -361,7 +361,7 @@ class MusicBot(discord.Client):
         # I hope I don't have to set the channel here
         # instead of waiting for the event to update it
 
-    async def get_player_in(self, server: discord.Server) -> MusicPlayer:
+    def get_player_in(self, server: discord.Server) -> MusicPlayer:
         return self.players.get(server.id, None)
 
     async def get_player(self, channel, create=False) -> MusicPlayer:
@@ -2154,7 +2154,7 @@ class MusicBot(discord.Client):
 
     async def on_server_available(self, server: discord.Server):
         safe_print("Server \"{}\" has become available.".format(server.name))
-        player = await self.get_player_in(server)
+        player = self.get_player_in(server)
 
         if player and player.is_paused:
             av_paused = self.server_specific_data[server]['availability_paused']
@@ -2167,7 +2167,7 @@ class MusicBot(discord.Client):
 
     async def on_server_unavailable(self, server: discord.Server):
         safe_print("Server \"{}\" has become unavailable.".format(server.name))
-        player = await self.get_player_in(server)
+        player = self.get_player_in(server)
 
         if player and player.is_playing:
             safe_print("Pausing player in {}".format(server.name))
