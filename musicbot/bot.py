@@ -71,7 +71,11 @@ class MusicBot(discord.Client):
             self.config.auto_playlist = False
 
         # TODO: Do these properly
-        ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
+        ssd_defaults = {
+            'last_np_msg': None,
+            'auto_paused': False,
+            'availability_paused': False
+        }
         self.server_specific_data = defaultdict(lambda: dict(ssd_defaults)) # yes, this is supposed to be like this, dict(...)
 
         super().__init__()
@@ -356,6 +360,9 @@ class MusicBot(discord.Client):
         await self.ws.voice_state(vchannel.server.id, vchannel.id, mute, deaf)
         # I hope I don't have to set the channel here
         # instead of waiting for the event to update it
+
+    async def get_player_in(self, server: discord.Server) -> MusicPlayer:
+        return self.players.get(server.id, None)
 
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
@@ -2143,6 +2150,29 @@ class MusicBot(discord.Client):
 
         if server.id in self.players:
             self.players.pop(server.id).kill()
+
+
+    async def on_server_available(self, server: discord.Server):
+        safe_print("Server \"{}\" has become available.".format(server.name))
+        player = await self.get_player_in(server)
+
+        if player and player.is_paused:
+            av_paused = self.server_specific_data[server]['availability_paused']
+
+            if av_paused:
+                safe_print("Resuming player in {}".format(server.name))
+                self.server_specific_data[server]['availability_paused'] = False
+                player.resume()
+
+
+    async def on_server_unavailable(self, server: discord.Server):
+        safe_print("Server \"{}\" has become unavailable.".format(server.name))
+        player = await self.get_player_in(server)
+
+        if player and player.is_playing:
+            safe_print("Pausing player in {}".format(server.name))
+            self.server_specific_data[server]['availability_paused'] = True
+            player.pause()
 
 
 if __name__ == '__main__':
