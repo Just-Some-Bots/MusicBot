@@ -1962,9 +1962,7 @@ class MusicBot(discord.Client):
                 handler_kwargs['server'] = message.server
 
             if params.pop('player', None):
-                handler_kwargs['player'] = await self.get_player(
-                    message.server.me.voice_channel or message.author.voice_channel or message.channel
-                )
+                handler_kwargs['player'] = self.get_player_in(message.server)
 
             if params.pop('permissions', None):
                 handler_kwargs['permissions'] = user_permissions
