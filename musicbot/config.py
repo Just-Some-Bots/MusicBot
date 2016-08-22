@@ -37,6 +37,8 @@ class Config:
         self.auth = None
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
+        self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
+
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
@@ -244,6 +246,8 @@ class Config:
 
 class ConfigDefaults:
     owner_id = None
+    dev_ids = set()
+
     command_prefix = '!'
     bound_channels = set()
     autojoin_channels = set()

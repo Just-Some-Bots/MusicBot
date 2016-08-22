@@ -108,6 +108,20 @@ class MusicBot(discord.Client):
 
         return wrapper
 
+    def dev_only(func):
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            orig_msg = _get_variable('message')
+
+            if orig_msg.author.id in self.config.dev_ids:
+                # noinspection PyCallingNonCallable
+                return await func(self, *args, **kwargs)
+            else:
+                raise exceptions.PermissionsError("only dev users can use this command", expire_in=30)
+
+        wrapper.dev_cmd = True
+        return wrapper
+
     def ensure_appinfo(func):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -780,7 +794,7 @@ class MusicBot(discord.Client):
 
         if command:
             cmd = getattr(self, 'cmd_' + command, None)
-            if cmd:
+            if cmd and not hasattr(cmd, 'dev_cmd'):
                 return Response(
                     "```\n{}```".format(
                         dedent(cmd.__doc__),
@@ -796,7 +810,7 @@ class MusicBot(discord.Client):
             commands = []
 
             for att in dir(self):
-                if att.startswith('cmd_') and att != 'cmd_help':
+                if att.startswith('cmd_') and att != 'cmd_help' and not hasattr(getattr(self, att), 'dev_cmd'):
                     command_name = att.replace('cmd_', '').lower()
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
@@ -1902,6 +1916,29 @@ class MusicBot(discord.Client):
         await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
+
+    @dev_only
+    async def cmd_breakpoint(self, message):
+        print("activating breakpoint")
+
+    @dev_only
+    async def cmd_debug(self, message, player, leftover_args):
+        code = ' '.join(leftover_args).strip('` ')
+        codeblock = "```py\n{}\n```"
+        result = None
+
+        try:
+            result = eval(code)
+        except:
+            try:
+                exec(code)
+            except Exception as e:
+                return Response("{}: {}".format(type(e).__name__, e))
+
+        if asyncio.iscoroutine(result):
+            result = await result
+
+        return Response(codeblock.format(result))
 
     async def on_message(self, message):
         await self.wait_until_ready()
