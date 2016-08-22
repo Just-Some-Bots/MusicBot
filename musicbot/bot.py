@@ -2151,24 +2151,31 @@ class MusicBot(discord.Client):
 
 
     async def on_server_available(self, server: discord.Server):
-        safe_print("Server \"{}\" has become available.".format(server.name))
+        if not self.init_ok:
+            return # Ignore pre-ready events
+
+        if self.config.debug_mode:
+            safe_print("[Debug] Server \"{}\" has become available.".format(server.name))
+
         player = self.get_player_in(server)
 
         if player and player.is_paused:
             av_paused = self.server_specific_data[server]['availability_paused']
 
             if av_paused:
-                safe_print("Resuming player in {}".format(server.name))
+                safe_print("Resuming player in \"{}\" due to availability.".format(server.name))
                 self.server_specific_data[server]['availability_paused'] = False
                 player.resume()
 
 
     async def on_server_unavailable(self, server: discord.Server):
-        safe_print("Server \"{}\" has become unavailable.".format(server.name))
+        if self.config.debug_mode:
+            safe_print("[Debug] Server \"{}\" has become unavailable.".format(server.name))
+
         player = self.get_player_in(server)
 
         if player and player.is_playing:
-            safe_print("Pausing player in {}".format(server.name))
+            safe_print("Pausing player in \"{}\" due to unavailability.".format(server.name))
             self.server_specific_data[server]['availability_paused'] = True
             player.pause()
 
