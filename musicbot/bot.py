@@ -2121,6 +2121,8 @@ class MusicBot(discord.Client):
 
 
     async def on_server_join(self, server:discord.Server):
+        safe_print("Bot has been joined server: {}".format(server.name))
+
         if not self.user.bot:
             alertmsg = "<@{uid}> Hi I'm a musicbot please mute me."
 
@@ -2131,6 +2133,16 @@ class MusicBot(discord.Client):
             elif server.id == "129489631539494912" and not server.unavailable: # Rhino Bot Help
                 bot_testing = server.get_channel("134771894292316160") # or server
                 await self.safe_send_message(bot_testing, alertmsg.format(uid="98295630480314368")) # also fake abal
+
+
+    async def on_server_remove(self, server: discord.Server):
+        safe_print("Bot has been removed from server: {}".format(server.name))
+        if self.config.debug_mode:
+            print('[Debug] Updated server list:')
+            [safe_print(' - ' + s.name) for s in self.servers]
+
+        if server.id in self.players:
+            self.players.pop(server.id).kill()
 
 
 if __name__ == '__main__':
