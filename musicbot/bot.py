@@ -53,18 +53,18 @@ if sys.platform.startswith('win'):
 class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         self.players = {}
-        self.aiolocks = defaultdict(asyncio.Lock)
+        self.exit_signal = None
+        self.init_ok = False
+        self.cached_app_info = None
 
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
-        self.downloader = downloader.Downloader(download_folder='audio_cache')
 
-        self.exit_signal = None
-        self.init_ok = False
-        self.cached_app_info = None
+        self.aiolocks = defaultdict(asyncio.Lock)
+        self.downloader = downloader.Downloader(download_folder='audio_cache')
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
