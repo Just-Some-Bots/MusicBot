@@ -9,12 +9,6 @@ import discord
 import asyncio
 import traceback
 
-from discord.object import Object
-from discord.enums import ChannelType
-
-from discord.ext.commands.bot import _get_variable
-from discord.http import _func_
-
 from io import BytesIO
 from functools import wraps
 from textwrap import dedent
@@ -22,17 +16,22 @@ from datetime import timedelta
 from random import choice, shuffle
 from collections import defaultdict
 
-from musicbot.playlist import Playlist
-from musicbot.player import MusicPlayer
-from musicbot.entry import StreamPlaylistEntry
-from musicbot.config import Config, ConfigDefaults
-from musicbot.constructs import SkipState, Response, VoiceStateUpdate
-from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int, fixg, safe_print
+from discord.enums import ChannelType
+from discord.ext.commands.bot import _get_variable
+from discord.http import _func_
 
 from . import exceptions
 from . import downloader
+
+from .playlist import Playlist
+from .player import MusicPlayer
+from .entry import StreamPlaylistEntry
 from .opus_loader import load_opus_lib
+from .config import Config, ConfigDefaults
+from .permissions import Permissions, PermissionsDefaults
+from .constructs import SkipState, Response, VoiceStateUpdate
+from .utils import load_file, write_file, sane_round_int, fixg, safe_print
+
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
@@ -296,7 +295,7 @@ class MusicBot(discord.Client):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
 
     async def get_voice_client(self, channel):
-        if isinstance(channel, Object):
+        if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
 
         if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
@@ -365,7 +364,7 @@ class MusicBot(discord.Client):
             await self.disconnect_voice_client(vc.channel.server)
 
     async def set_voice_state(self, vchannel, *, mute=False, deaf=False):
-        if isinstance(vchannel, Object):
+        if isinstance(vchannel, discord.Object):
             vchannel = self.get_channel(vchannel.id)
 
         if getattr(vchannel, 'type', ChannelType.text) != ChannelType.voice:
