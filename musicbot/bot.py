@@ -313,41 +313,42 @@ class MusicBot(discord.Client):
             # TODO: Connection error check
 
     async def reconnect_voice_client(self, server, *, sleep=0.1, create_with_channel=None):
-        vc = self.voice_client_in(server)
+        async with self.aiolocks[_func_() + ':' + server.id]:
+            vc = self.voice_client_in(server)
 
-        if not (vc or create_with_channel):
-            return
+            if not (vc or create_with_channel):
+                return
 
-        _paused = False
+            _paused = False
 
-        player = None
-        if server.id in self.players:
-            player = self.players[server.id]
-            if player.is_playing:
-                player.pause()
-                _paused = True
+            player = None
+            if server.id in self.players:
+                player = self.players[server.id]
+                if player.is_playing:
+                    player.pause()
+                    _paused = True
 
-        if not create_with_channel:
-            try:
-                await vc.disconnect()
-            except:
-                print("Error disconnecting during reconnect")
-                traceback.print_exc()
-
-            if sleep:
-                await asyncio.sleep(sleep)
-
-        if player:
             if not create_with_channel:
-                new_vc = await self.get_voice_client(vc.channel)
-            else:
-                # noinspection PyTypeChecker
-                new_vc = await self.get_voice_client(create_with_channel)
+                try:
+                    await vc.disconnect()
+                except:
+                    print("Error disconnecting during reconnect")
+                    traceback.print_exc()
 
-            player.reload_voice(new_vc)
+                if sleep:
+                    await asyncio.sleep(sleep)
 
-            if player.is_paused and _paused:
-                player.resume()
+            if player:
+                if not create_with_channel:
+                    new_vc = await self.get_voice_client(vc.channel)
+                else:
+                    # noinspection PyTypeChecker
+                    new_vc = await self.get_voice_client(create_with_channel)
+
+                await player.reload_voice(new_vc)
+
+                if player.is_paused and _paused:
+                    player.resume()
 
     async def disconnect_voice_client(self, server):
         vc = self.voice_client_in(server)
@@ -402,9 +403,10 @@ class MusicBot(discord.Client):
                 player.skip_state = SkipState()
                 self.players[server.id] = player
 
-            if self.players[server.id].voice_client not in self.voice_clients:
-                print("oh no reconnect needed")
-                await self.reconnect_voice_client(server, create_with_channel=channel)
+            async with self.aiolocks[self.reconnect_voice_client.__name__ + ':' + server.id]:
+                if self.players[server.id].voice_client not in self.voice_clients:
+                    print("oh no reconnect needed")
+                    await self.reconnect_voice_client(server, create_with_channel=channel)
 
             return self.players[server.id]
 

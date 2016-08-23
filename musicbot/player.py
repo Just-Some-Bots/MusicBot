@@ -10,6 +10,9 @@ from array import array
 from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
+from websockets.exceptions import InvalidState
+
+from discord.http import _func_
 
 from .utils import avg, safe_print
 from .lib.event_emitter import EventEmitter
@@ -288,26 +291,35 @@ class MusicPlayer(EventEmitter):
         player.buff = PatchedBuff(original_buff)
         return player
 
-    def reload_voice(self, voice_client):
-        self.voice_client = voice_client
-        if self._current_player:
-            self._current_player.player = voice_client.play_audio
-            self._current_player._resumed.clear()
-            self._current_player._connected.set()
+    async def reload_voice(self, voice_client):
+        async with self.bot.aiolocks[_func_() + ':' + voice_client.channel.server.id]:
+            self.voice_client = voice_client
+            if self._current_player:
+                self._current_player.player = voice_client.play_audio
+                self._current_player._resumed.clear()
+                self._current_player._connected.set()
 
     async def websocket_check(self):
         if self.bot.config.debug_mode:
-            safe_print("[Debug] Starting websocket check for {}".format(self.voice_client.channel.server))
+            safe_print("[Debug] Starting websocket check for {}".format(self.voice_client.channel.server.name))
 
         while not self.is_dead:
             try:
-                self.voice_client.ws.ensure_open()
-                assert self.voice_client.ws.open
-            except:
+                async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + self.voice_client.channel.server.id]:
+                    self.voice_client.ws.ensure_open()
+                    assert self.voice_client.ws.open
+
+            except (InvalidState, AssertionError):
                 if self.bot.config.debug_mode:
                     print("[Debug] Voice websocket is %s, reconnecting" % self.voice_client.ws.state_name)
+
                 await self.bot.reconnect_voice_client(self.voice_client.channel.server)
-                await asyncio.sleep(4)
+                await asyncio.sleep(3)
+
+            except Exception:
+                print("Error in websocket check")
+                traceback.print_exc()
+
             finally:
                 await asyncio.sleep(1)
 
