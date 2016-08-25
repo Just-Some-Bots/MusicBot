@@ -132,7 +132,7 @@ class MusicBot(discord.Client):
 
     def _get_owner(self, *, server=None, voice=False):
             return discord.utils.find(
-                lambda m: m.id == self.config.owner_id and m.voice_channel if voice else True,
+                lambda m: m.id == self.config.owner_id and (m.voice_channel if voice else True),
                 server.members if server else self.get_all_members()
             )
 
@@ -541,6 +541,9 @@ class MusicBot(discord.Client):
             if not quiet:
                 safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
 
+        except discord.HTTPException:
+            pass
+
         finally:
             if msg and expire_in:
                 asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
@@ -807,7 +810,7 @@ class MusicBot(discord.Client):
                 return Response("No such command", delete_after=10)
 
         else:
-            helpmsg = "**Commands**\n```"
+            helpmsg = "**Available commands**\n```"
             commands = []
 
             for att in dir(self):
@@ -816,8 +819,8 @@ class MusicBot(discord.Client):
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
             helpmsg += ", ".join(commands)
-            helpmsg += "```"
-            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+            helpmsg += "```\n<https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list>"
+            helpmsg += "You can also use `{}help x` for more info about each command.".format(self.config.command_prefix)
 
             return Response(helpmsg, reply=True, delete_after=60)
 
@@ -1921,6 +1924,7 @@ class MusicBot(discord.Client):
     @dev_only
     async def cmd_breakpoint(self, message):
         print("activating breakpoint")
+        return
 
     @dev_only
     async def cmd_debug(self, message, player, leftover_args):
