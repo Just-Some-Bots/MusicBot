@@ -1540,11 +1540,9 @@ class MusicBot(discord.Client):
     async def cmd_alias(self, author, leftover_args, song_url):
         """
         Usage:
-            {command_prefix}play song_link
-            {command_prefix}play text to search for
-
-        Adds the song to the playlist.  If a link is not provided, the first
-        result from a youtube search is added to the queue.
+            {command_prefix}alias alias_name song_title/url
+            
+            Creates an alias with the alias_name that automatically changes the song_title/url when inputted in {command_prefix}play
         """
         aliases.append((song_url,leftover_args[0],str(author).split("#")[0]))
         return Response("Alias " + song_url + " added.")
