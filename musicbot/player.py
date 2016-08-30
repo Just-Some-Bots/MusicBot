@@ -313,7 +313,7 @@ class MusicPlayer(EventEmitter):
                 if self.bot.config.debug_mode:
                     print("[Debug] Voice websocket is %s, reconnecting" % self.voice_client.ws.state_name)
 
-                await self.bot.reconnect_voice_client(self.voice_client.channel.server)
+                await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
                 await asyncio.sleep(3)
 
             except Exception:
