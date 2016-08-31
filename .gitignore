@@ -6,6 +6,7 @@ audio_cache/
 dectalk/
 
 discord.log
+logs/
 config/options.ini
 config/permissions.ini
 config/autoplaylist.txt

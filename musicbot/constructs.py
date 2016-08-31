@@ -1,6 +1,8 @@
+import sys
 import discord
 
 from .utils import objdiff
+from logging import StreamHandler
 
 
 class SkipState:
@@ -103,3 +105,18 @@ class Serializable:
     @classmethod
     def deserialize(cls, playlist, jsonstr):
         raise NotImplementedError
+
+
+class SafeStreamHandler(StreamHandler):
+    def __init__(self, stderr=False):
+        super().__init__(sys.stderr if stderr else sys.stdout)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            stream = self.stream.buffer
+            stream.write(msg.encode('utf-8', 'replace'))
+            stream.write(self.terminator.encode('utf-8'))
+            self.flush()
+        except Exception:
+            self.handleError(record)
