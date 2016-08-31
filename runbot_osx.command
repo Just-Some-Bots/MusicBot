@@ -1,8 +1,8 @@
 #!/bin/bash
 
-cd "$(dirname "$BASH_SOURCE")" || {
-	echo "Python 3.5 doesn't seem to be installed" >&2
-exit 1
+python3.5 -V /dev/null 2>&1 ||{
+	echo >&2 "Python 3.5 doesn't seem to be installed."
 }
 
+cd "$(dirname "$BASH_SOURCE")"
 python3.5 run.py
