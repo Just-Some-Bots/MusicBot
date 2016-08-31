@@ -357,10 +357,14 @@ class MusicBot(discord.Client):
                 return self.voice_client_in(channel.server)
 
             vc = None
+            t0 = t1 = 0
             for attempt in range(1, 11):
                 print("Connection attempt", attempt)
+                t0 = time.time()
+
                 try:
                     vc = await self.join_voice_channel(channel)
+                    t1 = time.time()
                     break
 
                 except ConcurrentTimeoutError:
@@ -372,10 +376,11 @@ class MusicBot(discord.Client):
 
                 await asyncio.sleep(0.5)
 
+            print("Connected in {:0.1f}s".format(t1-t0))
+
             vc.ws._keep_alive.name = 'VoiceClient Keepalive'
 
             return vc
-            # TODO: Connection error check
 
     async def reconnect_voice_client(self, server, *, sleep=0.1, channel=None):
         async with self.aiolocks[_func_() + ':' + server.id]:
