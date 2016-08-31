@@ -45,13 +45,7 @@ load_opus_lib()
 if sys.platform.startswith('win'):
     sys.path.insert(1, os.path.abspath('bins/'))
 
-
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
-fhandler = logging.FileHandler(filename='logs/musicbot.log', encoding='utf-8', mode='w')
-fhandler.setFormatter(logging.Formatter('{asctime}:{levelname}:{name}: {message}', style='{'))
-log.addHandler(fhandler)
 
 
 class MusicBot(discord.Client):
@@ -164,8 +158,8 @@ class MusicBot(discord.Client):
         pathlib.Path('logs').mkdir(exist_ok=True)  # this will always be fine because sanity checks
 
         # shandler = SafeStreamHandler() # This might not be needed?
-        shandler = logging.StreamHandler()
-        shandler.setFormatter(logging.Formatter('[{module}] {message}', style='{'))
+        shandler = logging.StreamHandler(stream=sys.stdout)
+        shandler.setFormatter(logging.Formatter('[{levelname}:{module}] {message}', style='{'))
         shandler.setLevel(logging.ERROR)
         log.addHandler(shandler)
 
@@ -767,37 +761,39 @@ class MusicBot(discord.Client):
 
         ################################
 
-        safe_print("Bot:   {0}/{1}#{2}{3}".format(
+        log.info("Bot:   {0}/{1}#{2}{3}".format(
             self.user.id,
             self.user.name,
             self.user.discriminator,
-            ' [BOT]' if self.user.bot else ''
+            ' [BOT]' if self.user.bot else ' [User]'
         ))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner and self.servers:
-            safe_print("Owner: {0}/{1}#{2}\n".format(
+            log.info("Owner: {0}/{1}#{2}\n".format(
                 owner.id,
                 owner.name,
                 owner.discriminator
             ))
 
-            print('Server List:')
-            [safe_print(' - ' + s.name) for s in self.servers]
+            log.info('Server List:')
+            [log.info(' - ' + s.name) for s in self.servers]
 
         elif self.servers:
-            print("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
+            log.warning("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
 
-            print('Server List:')
-            [safe_print(' - ' + s.name) for s in self.servers]
+            log.info('Server List:')
+            [log.info(' - ' + s.name) for s in self.servers]
 
         else:
-            print("Owner unknown, bot is not on any servers.")
+            log.warning("Owner unknown, bot is not on any servers.")
             if self.user.bot:
-                print("\nTo make the bot join a server, paste this link in your browser.")
-                print("Note: You should be logged into your main account and have \n"
-                      "manage server permissions on the server you want the bot to join.\n")
-                print("    " + await self.generate_invite_link())
+                log.warning(
+                    "\nTo make the bot join a server, paste this link in your browser."
+                    "Note: You should be logged into your main account and have \n"
+                    "manage server permissions on the server you want the bot to join.\n"
+                    "    " + await self.generate_invite_link()
+                )
 
         print()
 
