@@ -15,6 +15,7 @@ from textwrap import dedent
 from datetime import timedelta
 from random import choice, shuffle
 from collections import defaultdict
+from concurrent.futures._base import TimeoutError as ConcurrentTimeoutError
 
 from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
@@ -294,19 +295,83 @@ class MusicBot(discord.Client):
     async def generate_invite_link(self, *, permissions=None, server=None):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
 
-    async def get_voice_client(self, channel):
+
+    async def join_voice_channel(self, channel):
+        if isinstance(channel, discord.Object):
+            channel = self.get_channel(channel.id)
+
+        if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
+            raise discord.InvalidArgument('Channel passed must be a voice channel')
+
+        server = channel.server
+
+        if self.is_voice_connected(server):
+            raise discord.ClientException('Already connected to a voice channel in this server')
+
+        def session_id_found(data):
+            user_id = data.get('user_id')
+            guild_id = data.get('guild_id')
+            return user_id == self.user.id and guild_id == server.id
+
+        # register the futures for waiting
+        session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
+        voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == server.id)
+
+        # request joining
+        await self.ws.voice_state(server.id, channel.id)
+        session_id_data = await asyncio.wait_for(session_id_future, timeout=30.0, loop=self.loop)
+        data = await asyncio.wait_for(voice_data_future, timeout=30.0, loop=self.loop)
+
+        kwargs = {
+            'user': self.user,
+            'channel': channel,
+            'data': data,
+            'loop': self.loop,
+            'session_id': session_id_data.get('session_id'),
+            'main_ws': self.ws
+        }
+
+        voice = discord.VoiceClient(**kwargs)
+        try:
+            await voice.connect()
+        except asyncio.TimeoutError as e:
+            try:
+                await voice.disconnect()
+            except:
+                pass
+            raise e
+
+        self.connection._add_voice_client(server.id, voice)
+        return voice
+
+
+    async def get_voice_client(self, channel: discord.Channel):
         if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
 
         if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
             raise AttributeError('Channel passed must be a voice channel')
 
-        async with self.aiolocks[_func_()]:
+        async with self.aiolocks[_func_() + ':' + channel.server.id]:
             if self.is_voice_connected(channel.server):
                 return self.voice_client_in(channel.server)
 
-            # noinspection PyUnresolvedReferences
-            vc = await self.join_voice_channel(channel)
+            vc = None
+            for attempt in range(1, 11):
+                print("Connection attempt", attempt)
+                try:
+                    vc = await self.join_voice_channel(channel)
+                    break
+
+                except ConcurrentTimeoutError:
+                    print("The fucking thing failed to connect")
+                    # well I hope retrying works
+
+                except:
+                    traceback.print_exc()
+
+                await asyncio.sleep(0.5)
+
             vc.ws._keep_alive.name = 'VoiceClient Keepalive'
 
             return vc
