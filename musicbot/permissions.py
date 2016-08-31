@@ -1,7 +1,11 @@
 import shutil
+import logging
 import traceback
 import configparser
+
 import discord
+
+log = logging.getLogger(__name__)
 
 
 class PermissionsDefaults:

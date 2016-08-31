@@ -1,12 +1,15 @@
-import asyncio
-import json
 import os
+import json
+import asyncio
+import logging
 import traceback
 
 from enum import Enum
 from .constructs import Serializable
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
+
+log = logging.getLogger(__name__)
 
 
 class EntryTypes(Enum):

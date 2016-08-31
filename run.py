@@ -161,7 +161,7 @@ def main():
         try:
             from musicbot import MusicBot
             m = MusicBot()
-            print("Connecting...", end='', flush=True)
+            print("Connecting...", flush=True)
             m.run()
 
         except SyntaxError:

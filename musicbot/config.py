@@ -2,9 +2,12 @@ import os
 import sys
 import codecs
 import shutil
+import logging
 import configparser
 
 from .exceptions import HelpfulError
+
+log = logging.getLogger(__name__)
 
 
 class Config:

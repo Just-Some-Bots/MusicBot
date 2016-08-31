@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 import asyncio
 import audioop
 import traceback
@@ -18,6 +19,7 @@ from .utils import avg, safe_print
 from .lib.event_emitter import EventEmitter
 from .exceptions import FFmpegError, FFmpegWarning
 
+log = logging.getLogger(__name__)
 
 class PatchedBuff:
     """

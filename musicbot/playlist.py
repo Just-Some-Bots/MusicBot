@@ -1,4 +1,5 @@
 import os.path
+import logging
 import datetime
 import traceback
 
@@ -14,6 +15,7 @@ from .lib.event_emitter import EventEmitter
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 
+log = logging.getLogger(__name__)
 
 class Playlist(EventEmitter):
     """
