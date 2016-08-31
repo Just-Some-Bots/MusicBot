@@ -34,7 +34,7 @@ class Playlist(EventEmitter):
     # TODO: finish this function and add input from chat functionality
     // Remove a specific song from your playlist based off of its number index
     def remove(self, index):
-        print "%s added by %s has been removed from the list"
+        print ("%s added by %s has been removed from the list")
         del self.entries[index]
 
     async def add_entry(self, song_url, **meta):
