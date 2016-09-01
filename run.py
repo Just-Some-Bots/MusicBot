@@ -4,6 +4,7 @@ import os
 import gc
 import sys
 import time
+import pathlib
 import traceback
 import subprocess
 
@@ -101,6 +102,10 @@ class PIP(object):
         except:
             pass
 
+# TODO: all of this
+def sanity_checks():
+    pathlib.Path('logs').mkdir(exist_ok=True)
+
 
 def main():
     if not sys.version_info >= (3, 5):
@@ -144,6 +149,8 @@ def main():
         input("Press enter to continue . . .")
 
         return
+
+    sanity_checks()
 
     import asyncio
 
