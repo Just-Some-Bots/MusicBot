@@ -11,7 +11,7 @@ MusicBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### Commands
 
-Commands are listed [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
+Commands are listed [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands "Commands list").
 
 ### Configuration
 
