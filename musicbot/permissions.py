@@ -31,7 +31,7 @@ class Permissions:
         self.config = configparser.ConfigParser(interpolation=None)
 
         if not self.config.read(config_file, encoding='utf-8'):
-            print('[permissions] Permissions file not found, copying example_permissions.ini')
+            log.info("Permissions file not found, copying example_permissions.ini")
 
             try:
                 shutil.copy('config/example_permissions.ini', config_file)
@@ -39,7 +39,7 @@ class Permissions:
 
             except Exception as e:
                 traceback.print_exc()
-                raise RuntimeError("Unable to copy config/example_permissions.ini to %s: %s" % (config_file, e))
+                raise RuntimeError("Unable to copy config/example_permissions.ini to {}: {}".format(config_file, e))
 
         self.default_group = PermissionGroup('Default', self.config['Default'])
         self.groups = set()
@@ -146,6 +146,21 @@ class PermissionGroup:
             self.instaskip, PermissionsDefaults.InstaSkip
         )
 
+    @staticmethod
+    def _process_list(seq, *, split=' ', lower=True, strip=', ', coerce=str, rcoerce=list):
+        lower = str.lower if lower else None
+        _strip = (lambda x: x.strip(strip)) if strip else None
+        coerce = coerce if callable(coerce) else None
+        rcoerce = rcoerce if callable(rcoerce) else None
+
+        for ch in strip:
+            seq = seq.replace(ch, split)
+
+        values = [i for i in seq.split(split) if i]
+        for fn in (_strip, lower, coerce):
+            if fn: values = map(fn, values)
+
+        return rcoerce(values)
 
     def add_user(self, uid):
         self.user_list.add(uid)

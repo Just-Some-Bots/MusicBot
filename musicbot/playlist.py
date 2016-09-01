@@ -1,7 +1,6 @@
 import os.path
 import logging
 import datetime
-import traceback
 
 from random import shuffle
 from itertools import islice
@@ -16,6 +15,7 @@ from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 
 log = logging.getLogger(__name__)
+
 
 class Playlist(EventEmitter):
     """
@@ -70,10 +70,10 @@ class Playlist(EventEmitter):
                 # https://github.com/KeepSafe/aiohttp/issues/758
                 # https://github.com/KeepSafe/aiohttp/issues/852
                 content_type = await get_header(self.bot.aiosession, info['url'], 'CONTENT-TYPE')
-                print("Got content type", content_type)
+                log.debug("Got content type {}".format(content_type))
 
             except Exception as e:
-                print("[Warning] Failed to get content type for url %s (%s)" % (song_url, e))
+                log.warning("Failed to get content type for url {} ({})".format(song_url, e))
                 content_type = None
 
             if content_type:
@@ -82,7 +82,7 @@ class Playlist(EventEmitter):
                         raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
                 elif not content_type.startswith(('audio/', 'video/')):
-                    print("[Warning] Questionable content type \"%s\" for url %s" % (content_type, song_url))
+                    log.warning("Questionable content type \"{}\" for url {}".format(content_type, song_url))
 
         entry = URLPlaylistEntry(
             self,
@@ -103,7 +103,7 @@ class Playlist(EventEmitter):
 
             except DownloadError as e:
                 if e.exc_info[0] == UnsupportedError: # ytdl doesn't like it but its probably a stream
-                    print("Assuming content is a direct stream")
+                    log.debug("Assuming content is a direct stream")
 
                 elif e.exc_info[0] == URLError:
                     if os.path.exists(os.path.abspath(song_url)):
@@ -113,12 +113,11 @@ class Playlist(EventEmitter):
                         raise ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
 
                 else:
-                    traceback.print_exc()
+                    # traceback.print_exc()
                     raise ExtractionError("Unknown error: {}".format(e))
 
             except Exception as e:
-                traceback.print_exc()
-                print('Could not extract information from {} ({}), falling back to direct'.format(song_url, e))
+                log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url, e), exc_info=True)
 
         if info:
             url = info.get('url', song_url)
@@ -130,7 +129,7 @@ class Playlist(EventEmitter):
         else:
             title = info.get('title', 'Untitled')
 
-        # TODO: A bit more validation, "~stream some_url" should not be :ok_hand:
+        # TODO: A bit more validation, "~stream some_url" should not just say :ok_hand:
 
         entry = StreamPlaylistEntry(
             self,
@@ -170,31 +169,29 @@ class Playlist(EventEmitter):
             url_field = 'webpage_url'
 
         baditems = 0
-        for items in info['entries']:
-            if items:
+        for item in info['entries']:
+            if item:
                 try:
                     entry = URLPlaylistEntry(
                         self,
-                        items[url_field],
-                        items.get('title', 'Untitled'),
-                        items.get('duration', 0) or 0,
-                        self.downloader.ytdl.prepare_filename(items),
+                        item[url_field],
+                        item.get('title', 'Untitled'),
+                        item.get('duration', 0) or 0,
+                        self.downloader.ytdl.prepare_filename(item),
                         **meta
                     )
 
                     self._add_entry(entry)
                     entry_list.append(entry)
-                except:
+                except Exception as e:
                     baditems += 1
-                    # Once I know more about what's happening here I can add a proper message
-                    traceback.print_exc()
-                    print(items)
-                    print("Could not add item")
+                    log.warning("Could not add item", exc_info=e)
+                    log.debug("Item: {}".format(item), exc_info=True)
             else:
                 baditems += 1
 
         if baditems:
-            print("Skipped %s bad entries" % baditems)
+            log.info("Skipped {} bad entries".format(baditems))
 
         return entry_list, position
 
@@ -216,6 +213,7 @@ class Playlist(EventEmitter):
 
         gooditems = []
         baditems = 0
+
         for entry_data in info['entries']:
             if entry_data:
                 baseurl = info['webpage_url'].split('playlist?list=')[0]
@@ -224,17 +222,18 @@ class Playlist(EventEmitter):
                 try:
                     entry, elen = await self.add_entry(song_url, **meta)
                     gooditems.append(entry)
+
                 except ExtractionError:
                     baditems += 1
+
                 except Exception as e:
                     baditems += 1
-                    print("There was an error adding the song {}: {}: {}\n".format(
-                        entry_data['id'], e.__class__.__name__, e))
+                    log.error("Error adding entry {}".format(entry_data['id']), exc_info=e)
             else:
                 baditems += 1
 
         if baditems:
-            print("Skipped %s bad entries" % baditems)
+            log.info("Skipped {} bad entries".format(baditems))
 
         return gooditems
 
@@ -256,6 +255,7 @@ class Playlist(EventEmitter):
 
         gooditems = []
         baditems = 0
+
         for entry_data in info['entries']:
             if entry_data:
                 song_url = entry_data['url']
@@ -263,17 +263,18 @@ class Playlist(EventEmitter):
                 try:
                     entry, elen = await self.add_entry(song_url, **meta)
                     gooditems.append(entry)
+
                 except ExtractionError:
                     baditems += 1
+
                 except Exception as e:
                     baditems += 1
-                    print("There was an error adding the song {}: {}: {}\n".format(
-                        entry_data['id'], e.__class__.__name__, e))
+                    log.error("Error adding entry {}".format(entry_data['id']), exc_info=e)
             else:
                 baditems += 1
 
         if baditems:
-            print("Skipped %s bad entries" % baditems)
+            log.info("Skipped {} bad entries".format(baditems))
 
         return gooditems
 
@@ -314,7 +315,7 @@ class Playlist(EventEmitter):
         """
             (very) Roughly estimates the time till the queue will 'position'
         """
-        estimated_time = sum([e.duration for e in islice(self.entries, position - 1)])
+        estimated_time = sum(e.duration for e in islice(self.entries, position - 1))
 
         # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped and player.current_entry:

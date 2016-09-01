@@ -113,7 +113,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             return cls(playlist, url, title, duration, filename, **meta)
         except Exception as e:
-            print("Could not load {}: {}".format(cls.__name__, e))
+            log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
 
     def serialize(self):
@@ -153,7 +153,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             # the generic extractor requires special handling
             if extractor == 'generic':
-                # print("Handling generic")
                 flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self.download_folder)]
                 expected_fname_noex, fname_ex = os.path.basename(self.expected_filename).rsplit('.', 1)
 
@@ -193,16 +192,15 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
                 if expected_fname_base in ldir:
                     self.filename = os.path.join(self.download_folder, expected_fname_base)
-                    print("[Download] Cached:", self.url)
+                    log.info("Download cached: {}".format(self.url))
 
                 elif expected_fname_noex in flistdir:
-                    print("[Download] Cached (different extension):", self.url)
+                    log.info("Download cached (different extension): {}".format(self.url))
                     self.filename = os.path.join(self.download_folder, ldir[flistdir.index(expected_fname_noex)])
-                    print("Expected %s, got %s" % (
+                    log.debug("Expected {}, got {}".format(
                         self.expected_filename.rsplit('.', 1)[-1],
                         self.filename.rsplit('.', 1)[-1]
                     ))
-
                 else:
                     await self._really_download()
 
@@ -218,16 +216,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
-        print("[Download] Started:", self.url)
+        log.info("Download started: {}".format(self.url))
 
         try:
             result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
         except Exception as e:
             raise ExtractionError(e)
 
-        print("[Download] Complete:", self.url)
+        log.info("Download complete: {}".format(self.url))
 
         if result is None:
+            log.critical("YTDL has failed, everyone panic")
             raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
@@ -285,7 +284,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
             return cls(playlist, url, title, direct ** meta)
         except Exception as e:
-            print("Could not load {}: {}".format(cls.__name__, e))
+            log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     def serialize(self):
         data = {

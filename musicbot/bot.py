@@ -5,7 +5,6 @@ import shlex
 import shutil
 import inspect
 import logging
-import pathlib
 import asyncio
 import traceback
 
@@ -155,13 +154,12 @@ class MusicBot(discord.Client):
         return True
 
     def _setup_logging(self):
-        pathlib.Path('logs').mkdir(exist_ok=True)  # this will always be fine because sanity checks
 
         # shandler = SafeStreamHandler() # This might not be needed?
         shandler = logging.StreamHandler(stream=sys.stdout)
         shandler.setFormatter(logging.Formatter('[{levelname}:{module}] {message}', style='{'))
         shandler.setLevel(logging.ERROR)
-        log.addHandler(shandler)
+        logging.getLogger(__package__).addHandler(shandler)
 
         # TODO: set logging level from value in config
 
@@ -331,13 +329,19 @@ class MusicBot(discord.Client):
             guild_id = data.get('guild_id')
             return user_id == self.user.id and guild_id == server.id
 
+        log.debug("(join_voice_channel) creating futures")
         # register the futures for waiting
         session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
         voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == server.id)
 
         # request joining
+        log.debug("(join_voice_channel) setting voice state")
         await self.ws.voice_state(server.id, channel.id)
+
+        log.debug("(join_voice_channel) waiting for session id")
         session_id_data = await asyncio.wait_for(session_id_future, timeout=30.0, loop=self.loop)
+
+        log.debug("(join_voice_channel) waiting for voice data")
         data = await asyncio.wait_for(voice_data_future, timeout=30.0, loop=self.loop)
 
         kwargs = {
@@ -351,13 +355,17 @@ class MusicBot(discord.Client):
 
         voice = discord.VoiceClient(**kwargs)
         try:
+            log.debug("(join_voice_channel) connecting...")
             await voice.connect()
         except asyncio.TimeoutError as e:
             try:
+                log.debug("(join_voice_channel) connection failed, disconnecting")
                 await voice.disconnect()
             except:
                 pass
             raise e
+
+        log.debug("(join_voice_channel) connection successful")
 
         self.connection._add_voice_client(server.id, voice)
         return voice
@@ -795,74 +803,78 @@ class MusicBot(discord.Client):
                     "    " + await self.generate_invite_link()
                 )
 
-        print()
+        print(flush=True)
 
         if self.config.bound_channels:
             chlist = set(self.get_channel(i) for i in self.config.bound_channels if i)
             chlist.discard(None)
-            invalids = set()
 
+            invalids = set()
             invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+
             chlist.difference_update(invalids)
             self.config.bound_channels.difference_update(invalids)
 
             if chlist:
-                print("Bound to text channels:")
-                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+                log.info("Bound to text channels:")
+                [log.info(' - {}/{}'.format(ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
                 print("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
-                print("\nNot binding to voice channels:")
-                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+                print(flush=True)
+                log.info("Not binding to voice channels:")
+                [log.info(' - {}/{}'.format(ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
-            print()
+            print(flush=True)
 
         else:
-            print("Not bound to any text channels")
+            log.info("Not bound to any text channels")
 
         if self.config.autojoin_channels:
             chlist = set(self.get_channel(i) for i in self.config.autojoin_channels if i)
             chlist.discard(None)
-            invalids = set()
 
+            invalids = set()
             invalids.update(c for c in chlist if c.type == discord.ChannelType.text)
+
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
             if chlist:
-                print("Autojoining voice chanels:")
-                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
+                log.info("Autojoining voice chanels:")
+                [log.info(' - {}/{}'.format(ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
-                print("Not bound to any text channels")
+                log.info("Not bound to any text channels")
 
             if invalids and self.config.debug_mode:
-                print("\nCannot autojoin text channels:")
-                [safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
+                print(flush=True)
+                log.info("Cannot autojoin text channels:")
+                [log.info(' - {}/{}'.format(ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             autojoin_channels = chlist
 
         else:
-            print("Not autojoining any voice channels")
+            log.info("Not autojoining any voice channels")
             autojoin_channels = set()
 
-        print()
-        print("Options:")
+        print(flush=True)
+        log.info("Options:")
 
-        safe_print("  Command prefix: " + self.config.command_prefix)
-        print("  Default volume: %s%%" % int(self.config.default_volume * 100))
-        print("  Skip threshold: %s votes or %s%%" % (
+        log.info("  Command prefix: " + self.config.command_prefix)
+        log.info("  Default volume: {}%".format(int(self.config.default_volume * 100)))
+        log.info("  Skip threshold: {} votes or {}%".format(
             self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
-        print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
-        print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-        print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
-        print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
-        print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
+        log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
+        log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
+        log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
+        log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
+        log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
-            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
-        print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
-        print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
-        print()
+            log.info("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+        log.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
+        log.info("  Downloaded songs will be " + ['deleted', 'saved'][self.config.save_videos])
+        print(flush=True)
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
@@ -2317,8 +2329,3 @@ class MusicBot(discord.Client):
             log.debug("Pausing player in \"{}\" due to unavailability.".format(server.name))
             self.server_specific_data[server]['availability_paused'] = True
             player.pause()
-
-
-if __name__ == '__main__':
-    bot = MusicBot()
-    bot.run()

@@ -134,14 +134,14 @@ class Config:
             try:
                 self.bound_channels = set(x for x in self.bound_channels.split() if x)
             except:
-                print("[Warning] BindToChannels data invalid, will not bind to any channels")
+                log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
                 self.autojoin_channels = set(x for x in self.autojoin_channels.split() if x)
             except:
-                print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
+                log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
@@ -158,8 +158,7 @@ class Config:
     #       Maybe add warnings about fields missing from the config file
 
     async def async_validate(self, bot):
-        if self.debug_mode:
-            print("[config] Validating options...")
+        log.debug("Validating options...")
 
         if self.owner_id == 'auto':
             if not bot.user.bot:
@@ -173,7 +172,7 @@ class Config:
                 )
 
             self.owner_id = bot.cached_app_info.owner.id
-            print("[config] Aquired owner id via api")
+            log.debug("Aquired owner id via API")
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(
@@ -188,7 +187,7 @@ class Config:
                 preface=self._confpreface2
             )
 
-        print()
+        print(flush=True)
 
     def find_config(self):
         config = configparser.ConfigParser(interpolation=None)
@@ -196,13 +195,13 @@ class Config:
         if not os.path.isfile(self.config_file):
             if os.path.isfile(self.config_file + '.ini'):
                 shutil.move(self.config_file + '.ini', self.config_file)
-                print("Moving {0} to {1}, you should probably turn file extensions on.".format(
+                log.info("Moving {0} to {1}, you should probably turn file extensions on.".format(
                     self.config_file + '.ini', self.config_file
                 ))
 
             elif os.path.isfile('config/example_options.ini'):
                 shutil.copy('config/example_options.ini', self.config_file)
-                print('Options file not found, copying example_options.ini')
+                log.warning('Options file not found, copying example_options.ini')
 
             else:
                 raise HelpfulError(
@@ -218,7 +217,8 @@ class Config:
                 c.read(self.config_file, encoding='utf-8')
 
                 if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
-                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                    print(flush=True)
+                    log.critical("Please configure config/options.ini and restart the bot.")
                     sys.exit(1)
 
             except ValueError: # Config id value was changed but its not valid
@@ -230,17 +230,17 @@ class Config:
                 )
 
             except Exception as e:
-                print(e)
-                print("\nUnable to copy config/example_options.ini to %s" % self.config_file, flush=True)
+                print(flush=True)
+                log.critical("Unable to copy config/example_options.ini to {}".format(self.config_file), exc_info=e)
                 sys.exit(2)
 
     def find_autoplaylist(self):
         if not os.path.exists(self.auto_playlist_file):
             if os.path.exists('config/_autoplaylist.txt'):
                 shutil.copy('config/_autoplaylist.txt', self.auto_playlist_file)
-                print("Copying _autoplaylist.txt to autoplaylist.txt")
+                log.debug("Copying _autoplaylist.txt to autoplaylist.txt")
             else:
-                print("No autoplaylist file found.")
+                log.warning("No autoplaylist file found.")
 
 
     def write_default_config(self, location):

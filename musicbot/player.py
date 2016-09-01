@@ -3,7 +3,6 @@ import sys
 import logging
 import asyncio
 import audioop
-import traceback
 import subprocess
 
 from enum import Enum
@@ -15,11 +14,12 @@ from websockets.exceptions import InvalidState
 
 from discord.http import _func_
 
-from .utils import avg, safe_print
+from .utils import avg
 from .lib.event_emitter import EventEmitter
 from .exceptions import FFmpegError, FFmpegWarning
 
 log = logging.getLogger(__name__)
+
 
 class PatchedBuff:
     """
@@ -188,10 +188,10 @@ class MusicPlayer(EventEmitter):
 
         if not self.bot.config.save_videos and entry:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
-                print("[Config:SaveVideos] Skipping deletion, found song in queue")
+                log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
 
             else:
-                # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
                 asyncio.ensure_future(self._delete_file(entry.filename))
 
         self.emit('finished-playing', player=self, entry=entry)
@@ -221,8 +221,7 @@ class MusicPlayer(EventEmitter):
                     await asyncio.sleep(0.25)
 
             except Exception:
-                traceback.print_exc()
-                print("Error trying to delete " + filename)
+                log.error("Error trying to delete {}".format(filename), exc_info=True)
                 break
         else:
             print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
@@ -247,9 +246,7 @@ class MusicPlayer(EventEmitter):
                     entry = await self.playlist.get_next_entry()
 
                 except Exception:
-                    print("Failed to get entry.")
-                    traceback.print_exc()
-                    # Retry playing the next entry in a sec.
+                    log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
                     return
 
@@ -302,8 +299,7 @@ class MusicPlayer(EventEmitter):
                 self._current_player._connected.set()
 
     async def websocket_check(self):
-        if self.bot.config.debug_mode:
-            safe_print("[Debug] Starting websocket check for {}".format(self.voice_client.channel.server.name))
+        log.debug("Starting websocket check loop for {}".format(self.voice_client.channel.server.name))
 
         while not self.is_dead:
             try:
@@ -312,15 +308,12 @@ class MusicPlayer(EventEmitter):
                     assert self.voice_client.ws.open
 
             except (InvalidState, AssertionError):
-                if self.bot.config.debug_mode:
-                    print("[Debug] Voice websocket is %s, reconnecting" % self.voice_client.ws.state_name)
-
+                log.debug("Voice websocket is {}, reconnecting".format(self.voice_client.ws.state_name))
                 await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
                 await asyncio.sleep(3)
 
             except Exception:
-                print("Error in websocket check")
-                traceback.print_exc()
+                log.error("Error in websocket check loop", exc_info=True)
 
             finally:
                 await asyncio.sleep(1)
@@ -361,14 +354,14 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
     while True:
         data = popen.stderr.readline()
         if data:
-            # print("FFmpeg says:", data, flush=True)
+            # ffmpeg logger goes here
             try:
                 if check_stderr(data):
                     sys.stderr.buffer.write(data)
                     sys.stderr.buffer.flush()
 
             except FFmpegError as e:
-                print("Error from FFmpeg:", e)
+                log.error("Error from ffmpeg", exc_info=True)
                 last_ex = e
 
             except FFmpegWarning:
@@ -385,6 +378,7 @@ def check_stderr(data:bytes):
     try:
         data = data.decode('utf8')
     except:
+        log.debug("Unknown error decoding message from ffmpeg", exc_info=True)
         return True # fuck it
 
     # TODO: Regex
