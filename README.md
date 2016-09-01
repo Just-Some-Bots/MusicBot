@@ -18,7 +18,7 @@ The main configuration file is located in the `config` folder of the MusicBot.  
 ### Great, now how do I use it?
 Download the bot, set the dependencies up, then run the appropriate `.bat, .sh, or .command` file for your operating system.  Refer to the relevant guide for your OS if you don't know what to do.
 
-If you have any errors, read the FAQ. If that didn't help, you can ask for assistance on the discord help server. Is is recommended to take screenshots so the developers can see errors.
+If you have any errors, read the FAQ. If that didn't help, you can ask for assistance on the discord help server. It is recommended to take screenshots so the developers can see errors.
 
 [Rhino Help Server](http://discord.me/rhinohelp "Discord link")
 
