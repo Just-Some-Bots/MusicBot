@@ -113,7 +113,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
             attrdir = lambda x: getattr(x, '__dict__')
 
         else:
-            log.debug("{}{} or {} has no slots or dict".format('-' * (depth+1), repr(obj1), repr(obj2)))
+            log.noise("{}{} or {} has no slots or dict".format('-' * (depth+1), repr(obj1), repr(obj2)))
             attrdir = dir
 
     elif isinstance(access_attr, str):
@@ -122,32 +122,33 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
     else:
         attrdir = dir
 
-    log.debug("Diffing {o1} and {o2} with {attr}".format(o1=obj1, o2=obj2, attr=access_attr))
+    log.noise("Diffing {o1} and {o2} with {attr}".format(o1=obj1, o2=obj2, attr=access_attr))
 
     for item in set(attrdir(obj1) + attrdir(obj2)):
         try:
             iobj1 = getattr(obj1, item, AttributeError("No such attr " + item))
             iobj2 = getattr(obj2, item, AttributeError("No such attr " + item))
 
-            log.debug("Checking {o1}.{attr} and {o2}.{attr}".format(attr=item, o1=repr(obj1), o2=repr(obj2)))
+            log.noise("Checking {o1}.{attr} and {o2}.{attr}".format(attr=item, o1=repr(obj1), o2=repr(obj2)))
 
             if depth:
-                log.debug("Inspecting level {}".format(depth))
+                log.noise("Inspecting level {}".format(depth))
                 idiff = objdiff(iobj1, iobj2, access_attr='auto', depth=depth - 1)
                 if idiff:
                     changes[item] = idiff
 
             elif iobj1 is not iobj2:
                 changes[item] = (iobj1, iobj2)
-                log.debug("{1}.{0} ({3}) is not {2}.{0} ({4}) ".format(item, repr(obj1), repr(obj2), iobj1, iobj2))
+                log.noise("{1}.{0} ({3}) is not {2}.{0} ({4}) ".format(item, repr(obj1), repr(obj2), iobj1, iobj2))
 
             else:
-                log.debug("{obj1}.{item} is {obj2}.{item} ({val1} and {val2})".format(obj1=obj1, obj2=obj2, item=item, val1=iobj1, val2=iobj2))
+                log.noise("{obj1}.{item} is {obj2}.{item} ({val1} and {val2})".format(obj1=obj1, obj2=obj2, item=item, val1=iobj1, val2=iobj2))
 
         except Exception as e:
-            log.debug("Error checking {o1}/{o2}.{item}".format(o1=obj1, o2=obj2, item=item), exc_info=e)
+            log.noise("Error checking {o1}/{o2}.{item}".format(o1=obj1, o2=obj2, item=item), exc_info=e)
             continue
 
-        print()
-
     return changes
+
+def color_supported():
+    return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()

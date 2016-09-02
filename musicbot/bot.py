@@ -10,6 +10,7 @@ import traceback
 
 import aiohttp
 import discord
+import colorlog
 
 from io import BytesIO
 from functools import wraps
@@ -154,17 +155,39 @@ class MusicBot(discord.Client):
         return True
 
     def _setup_logging(self):
-
-        # shandler = SafeStreamHandler() # This might not be needed?
         shandler = logging.StreamHandler(stream=sys.stdout)
-        shandler.setFormatter(logging.Formatter('[{levelname}:{module}] {message}', style='{'))
-        shandler.setLevel(logging.ERROR)
+        shandler.setFormatter(colorlog.LevelFormatter(
+            fmt = {
+                'DEBUG': '{log_color}[{levelname}:{module}] {message}',
+                'INFO': '{log_color}{message}',
+                'WARNING': '{log_color}{levelname}: {message}',
+                'ERROR': '{log_color}[{levelname}:{module}] {message}',
+                'CRITICAL': '{log_color}[{levelname}:{module}] {message}',
+
+                'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
+                'NOISY': '{log_color}[{levelname}:{module}] {message}',
+                'VOICEDEBUG': '{log_color}[{levelname}:{module}] {message}'
+            },
+            log_colors = {
+                'DEBUG':    'cyan',
+                'INFO':     'white',
+                'WARNING':  'yellow',
+                'ERROR':    'red',
+                'CRITICAL': 'bold_red',
+
+                'EVERYTHING': 'white',
+                'NOISY':      'white',
+                'VOICEDEBUG': 'purple'
+        },
+            style = '{'
+        ))
+        shandler.setLevel(logging.INFO)
         logging.getLogger(__package__).addHandler(shandler)
 
         # TODO: set logging level from value in config
 
         if self.config.debug_mode:
-            shandler.setLevel(logging.DEBUG)
+            shandler.setLevel(logging.VOICEDEBUG)
             log.debug("Set logging level to DEBUG")
 
             # setup discord logger
@@ -329,19 +352,19 @@ class MusicBot(discord.Client):
             guild_id = data.get('guild_id')
             return user_id == self.user.id and guild_id == server.id
 
-        log.debug("(join_voice_channel) creating futures")
+        log.voicedebug("(join_voice_channel) creating futures")
         # register the futures for waiting
         session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
         voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == server.id)
 
         # request joining
-        log.debug("(join_voice_channel) setting voice state")
+        log.voicedebug("(join_voice_channel) setting voice state")
         await self.ws.voice_state(server.id, channel.id)
 
-        log.debug("(join_voice_channel) waiting for session id")
+        log.voicedebug("(join_voice_channel) waiting for session id")
         session_id_data = await asyncio.wait_for(session_id_future, timeout=30.0, loop=self.loop)
 
-        log.debug("(join_voice_channel) waiting for voice data")
+        log.voicedebug("(join_voice_channel) waiting for voice data")
         data = await asyncio.wait_for(voice_data_future, timeout=30.0, loop=self.loop)
 
         kwargs = {
@@ -355,17 +378,17 @@ class MusicBot(discord.Client):
 
         voice = discord.VoiceClient(**kwargs)
         try:
-            log.debug("(join_voice_channel) connecting...")
+            log.voicedebug("(join_voice_channel) connecting...")
             await voice.connect()
         except asyncio.TimeoutError as e:
             try:
-                log.debug("(join_voice_channel) connection failed, disconnecting")
+                log.voicedebug("(join_voice_channel) connection failed, disconnecting")
                 await voice.disconnect()
             except:
                 pass
             raise e
 
-        log.debug("(join_voice_channel) connection successful")
+        log.voicedebug("(join_voice_channel) connection successful")
 
         self.connection._add_voice_client(server.id, voice)
         return voice
@@ -758,7 +781,7 @@ class MusicBot(discord.Client):
             log.debug("Received additional READY event, may have failed to resume")
             return
 
-        log.info('\rConnected!  Musicbot v{}\n'.format(BOTVERSION))
+        log.info('Connected!  Musicbot v{}\n'.format(BOTVERSION))
 
         if self.user.bot:
             await self._cache_app_info()
@@ -773,7 +796,7 @@ class MusicBot(discord.Client):
             self.user.id,
             self.user.name,
             self.user.discriminator,
-            ' [BOT]' if self.user.bot else ' [User]'
+            ' [BOT]' if self.user.bot else ' [Userbot]'
         ))
 
         owner = self._get_owner(voice=True) or self._get_owner()
