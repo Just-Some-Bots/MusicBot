@@ -1705,16 +1705,16 @@ class MusicBot(discord.Client):
     async def cmd_remove(self, message, player, index=None):
         """
         Usage:
-            (command_prefix)remove [number]
+            {command_prefix}remove [number]
 	    
-        Removes a song from the queue at the given position, where the position is a number from (command_prefix)queue.
+        Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
         """
 
         # if the queue has as many entries as the number they
         # input, we know there's a song there
         # if the user inputs 0, tell them to use skip instead
         if not index:
-            raise exceptions.CommandError("No input found. Try again with a position from (command_prefix)queue.", expire_in=20)
+            raise exceptions.CommandError("No input found. Try again with a position from {command_prefix}queue.", expire_in=20)
 
         try:
             index = int(index)
