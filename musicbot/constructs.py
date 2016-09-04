@@ -2,6 +2,7 @@ import sys
 import logging
 import discord
 
+from enum import Enum
 from .utils import objdiff
 
 
@@ -36,12 +37,31 @@ class AnimatedResponse(Response):
         super().__init__(content, delete_after=delete_after)
 
 
+
+
 class VoiceStateUpdate:
+    class StateChange(Enum):
+        RESUME = 0
+        JOIN = 1
+        LEAVE = 2
+        MUTE = 3
+        UNMUTE = 4
+        DEAFEN = 5
+        UNDEAFEN = 6
+        AFK = 7
+        UNAFK = 8
+
+        def __repr__(self):
+            return self.name
+
+    __slots__ = ['before', 'after', 'broken', 'joining', 'resuming', 'old_voice_channel', 'new_voice_channel']
+
     def __init__(self, before: discord.Member, after: discord.Member):
         self.before = before
         self.after = after
 
         self.broken = False
+        self.resuming = None
 
         if not all([before, after]):
             self.broken = True
@@ -81,6 +101,10 @@ class VoiceStateUpdate:
     def server(self) -> discord.Server:
         return self.after.server or self.before.server
 
+    @property
+    def member(self) -> discord.Member:
+        return self.after or self.before
+
     def empty(self, *, excluding_me=True, excluding_deaf=False):
         def check(member):
             if excluding_me and member == self.me:
@@ -94,8 +118,33 @@ class VoiceStateUpdate:
         return not sum(1 for m in self.voice_channel.voice_members if check(m))
 
     @property
-    def change(self):
+    def raw_change(self):
         return objdiff(self.before.voice, self.after.voice, access_attr='__slots__')
+
+    @property
+    def change(self):
+        changes = []
+        rchange = self.raw_change
+
+        if 'voice_channel' in rchange:
+            changes.append(self.StateChange.JOIN if self.joining else self.StateChange.LEAVE)
+
+        elif self.resuming or self.joining is None:
+            changes.append(self.StateChange.RESUME)
+
+        elif any(s in rchange for s in ['mute', 'self_mute']):
+            m = rchange.get('mute', None) or rchange.get('self_mute')
+            changes.append(self.StateChange.MUTE if m[1] else self.StateChange.UNMUTE)
+
+        elif any(s in rchange for s in ['deaf', 'self_deaf']):
+            d = rchange.get('deaf', None) or rchange.get('self_deaf')
+            changes.append(self.StateChange.DEAFEN if d[1] else self.StateChange.UNDEAFEN)
+
+        elif 'is_afk' in rchange:
+            m = rchange.get('mute', None) or rchange.get('self_mute')
+            changes.append(self.StateChange.MUTE if m[1] else self.StateChange.UNMUTE)
+
+        return changes
 
 
 class Serializable:

@@ -2246,11 +2246,12 @@ class MusicBot(discord.Client):
         state = VoiceStateUpdate(before, after)
 
         if state.broken:
+            log.voicedebug("Broken voice state update")
             return
 
-        if not state.joining and state.is_about_me and not self.voice_client_in(state.server) and not state.change:
+        if not state.joining and state.is_about_me and not self.voice_client_in(state.server) and not state.raw_change:
             log.debug("Resumed voice connection to {0.server.name}/{0.name}".format(state.voice_channel))
-            state.joining = True
+            state.joining = state.resuming = True
 
         if not state.is_about_my_voice_channel:
             return # Irrelevant channel
