@@ -129,18 +129,18 @@ class VoiceStateUpdate:
         if 'voice_channel' in rchange:
             changes.append(self.Change.JOIN if self.joining else self.Change.LEAVE)
 
-        elif self.resuming or self.joining is None:
+        if self.resuming or self.joining is None:
             changes.append(self.Change.RESUME)
 
-        elif any(s in rchange for s in ['mute', 'self_mute']):
+        if any(s in rchange for s in ['mute', 'self_mute']):
             m = rchange.get('mute', None) or rchange.get('self_mute')
             changes.append(self.Change.MUTE if m[1] else self.Change.UNMUTE)
 
-        elif any(s in rchange for s in ['deaf', 'self_deaf']):
+        if any(s in rchange for s in ['deaf', 'self_deaf']):
             d = rchange.get('deaf', None) or rchange.get('self_deaf')
             changes.append(self.Change.DEAFEN if d[1] else self.Change.UNDEAFEN)
 
-        elif 'is_afk' in rchange:
+        if 'is_afk' in rchange:
             m = rchange.get('mute', None) or rchange.get('self_mute')
             changes.append(self.Change.MUTE if m[1] else self.Change.UNMUTE)
 
