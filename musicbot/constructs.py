@@ -141,8 +141,7 @@ class VoiceStateUpdate:
             changes.append(self.Change.DEAFEN if d[1] else self.Change.UNDEAFEN)
 
         if 'is_afk' in rchange:
-            m = rchange.get('mute', None) or rchange.get('self_mute')
-            changes.append(self.Change.MUTE if m[1] else self.Change.UNMUTE)
+            changes.append(self.Change.MUTE if rchange['is_afk'][1] else self.Change.UNMUTE)
 
         return changes
 
