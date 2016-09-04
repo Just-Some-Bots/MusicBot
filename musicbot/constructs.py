@@ -40,7 +40,7 @@ class AnimatedResponse(Response):
 
 
 class VoiceStateUpdate:
-    class StateChange(Enum):
+    class Change(Enum):
         RESUME = 0
         JOIN = 1
         LEAVE = 2
@@ -127,22 +127,22 @@ class VoiceStateUpdate:
         rchange = self.raw_change
 
         if 'voice_channel' in rchange:
-            changes.append(self.StateChange.JOIN if self.joining else self.StateChange.LEAVE)
+            changes.append(self.Change.JOIN if self.joining else self.Change.LEAVE)
 
         elif self.resuming or self.joining is None:
-            changes.append(self.StateChange.RESUME)
+            changes.append(self.Change.RESUME)
 
         elif any(s in rchange for s in ['mute', 'self_mute']):
             m = rchange.get('mute', None) or rchange.get('self_mute')
-            changes.append(self.StateChange.MUTE if m[1] else self.StateChange.UNMUTE)
+            changes.append(self.Change.MUTE if m[1] else self.Change.UNMUTE)
 
         elif any(s in rchange for s in ['deaf', 'self_deaf']):
             d = rchange.get('deaf', None) or rchange.get('self_deaf')
-            changes.append(self.StateChange.DEAFEN if d[1] else self.StateChange.UNDEAFEN)
+            changes.append(self.Change.DEAFEN if d[1] else self.Change.UNDEAFEN)
 
         elif 'is_afk' in rchange:
             m = rchange.get('mute', None) or rchange.get('self_mute')
-            changes.append(self.StateChange.MUTE if m[1] else self.StateChange.UNMUTE)
+            changes.append(self.Change.MUTE if m[1] else self.Change.UNMUTE)
 
         return changes
 
