@@ -2253,10 +2253,25 @@ class MusicBot(discord.Client):
             log.debug("Resumed voice connection to {0.server.name}/{0.name}".format(state.voice_channel))
             state.joining = state.resuming = True
 
+        ################################
+
+        log.voicedebug("Voice state update for {mem.id}/{mem!s} on {ser.id}/{ser.name} -> {dif}".format(
+            mem = state.member,
+            ser = state.server,
+            dif = state.change
+        ))
+
         if not state.is_about_my_voice_channel:
             return # Irrelevant channel
 
-        # TODO: add joins and leaves
+        for change in state.change:
+            if change in [state.Change.JOIN, state.Change.LEAVE]:
+                log.info("{0.id}{0!s} has {1} {2}/{3}".format(
+                    state.member,
+                    'connected to' if state.joining else 'disconnected from',
+                    state.server,
+                    state.voice_channel
+                ))
 
         autopause_msg = "{state} in {channel.server.name}/{channel.name} {reason}"
 
