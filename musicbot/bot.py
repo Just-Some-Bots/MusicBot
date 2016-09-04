@@ -2255,9 +2255,10 @@ class MusicBot(discord.Client):
 
         ################################
 
-        log.voicedebug("Voice state update for {mem.id}/{mem!s} on {ser.id}/{ser.name} -> {dif}".format(
+        log.voicedebug("Voice state update for {mem.id}/{mem!s} on {ser.name}/{vch.name} -> {dif}".format(
             mem = state.member,
             ser = state.server,
+            vch = state.voice_channel,
             dif = state.change
         ))
 
