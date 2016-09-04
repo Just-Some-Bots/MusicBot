@@ -749,7 +749,7 @@ class MusicBot(discord.Client):
 
             self.loop.close()
             if self.exit_signal:
-                raise self.exit_signal
+                raise self.exit_signal()
 
     async def logout(self):
         await self.disconnect_all_voice_clients()
