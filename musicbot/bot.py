@@ -2266,7 +2266,7 @@ class MusicBot(discord.Client):
 
         for change in state.change:
             if change in [state.Change.JOIN, state.Change.LEAVE]:
-                log.info("{0.id}{0!s} has {1} {2}/{3}".format(
+                log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
                     state.member,
                     'connected to' if state.joining else 'disconnected from',
                     state.server,
