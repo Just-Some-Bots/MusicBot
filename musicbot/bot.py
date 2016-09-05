@@ -1725,7 +1725,16 @@ class MusicBot(discord.Client):
         if index <= len(player.playlist.entries):
             if index > 0:
                 song_title = player.playlist.entries[index-1].title
-                player.playlist.remove_entry((index)-1)
+                
+                try:
+                    player.playlist.remove_entry((index)-1)
+
+                # this catches the rare case where the player
+                # loads a song and we try to remove a position on
+                # the very end of the queue that no longer exists
+                except IndexError:
+                    raise exceptions.CommandError("Something went wrong. Please try again.", expire_in=20)
+                
                 return Response(':white_check_mark: **' + song_title + '** removed.', delete_after=20)
 
             else:
