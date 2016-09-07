@@ -28,9 +28,12 @@ def load_file(filename, skip_commented_lines=True, comment_char='#'):
 
 def write_file(filename, contents):
     with open(filename, 'w', encoding='utf8') as f:
-        for item in contents:
-            f.write(str(item))
-            f.write('\n')
+        if type(contents) == list:
+            for item in contents:
+                f.write(str(item))
+                f.write('\n')
+        else:
+            f.write(contents)
 
 
 def sane_round_int(x):
