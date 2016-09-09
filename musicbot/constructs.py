@@ -1,7 +1,14 @@
+import logging
 import discord
 
 from enum import Enum
 from .utils import objdiff
+
+
+class BetterLogRecord(logging.LogRecord):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.relativeCreated = round(self.relativeCreated, 5)
 
 
 class SkipState:

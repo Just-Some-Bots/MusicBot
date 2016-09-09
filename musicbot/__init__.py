@@ -1,9 +1,11 @@
 import logging
 
 from .bot import MusicBot
+from .constructs import BetterLogRecord
 
 __all__ = ['MusicBot']
 
+logging.setLogRecordFactory(BetterLogRecord)
 
 _func_prototype = "def {logger_func_name}(self, message, *args, **kwargs):\n" \
                   "    if self.isEnabledFor({levelname}):\n" \
