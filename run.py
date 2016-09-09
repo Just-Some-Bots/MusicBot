@@ -219,6 +219,8 @@ def main():
             asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
+        os.execvp(sys.executable, 'python', sys.argv)
+
         print("Cleaning up... ", end='')
         gc.collect()
         print("Done.")
@@ -227,6 +229,8 @@ def main():
         if sleeptime:
             print("Restarting in {} seconds...".format(loops*2))
             time.sleep(sleeptime)
+
+    print("\nAll done.")
 
 
 if __name__ == '__main__':
