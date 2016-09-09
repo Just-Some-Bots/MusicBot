@@ -131,11 +131,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'type': obj.__class__.__name__,
                     'id': obj.id,
                     'name': obj.name
-                } for name, obj in self.meta.values()
+                } for (name, obj) in self.meta.items()
             }
             # Actually I think I can just getattr instead, getattr(discord, type)
         }
-        return json.dumps(data, indent=2)
+        return json.dumps(data)
 
     # noinspection PyTypeChecker
     async def _download(self):
@@ -298,11 +298,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                     'type': obj.__class__.__name__,
                     'id': obj.id,
                     'name': obj.name
-                } for name, obj in self.meta.values()
+                } for name, obj in self.meta.items()
             }
             # Actually I think I can just getattr instead, getattr(discord, type)
         }
-        return json.dumps(data, indent=2)
+        return json.dumps(data)
 
     async def _download(self):
         self._is_downloading = True

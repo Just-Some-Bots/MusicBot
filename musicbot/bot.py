@@ -2070,6 +2070,7 @@ class MusicBot(discord.Client):
             try:
                 exec(code)
             except Exception as e:
+                traceback.print_exc()
                 return Response("{}: {}".format(type(e).__name__, e))
 
         if asyncio.iscoroutine(result):
