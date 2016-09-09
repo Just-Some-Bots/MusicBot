@@ -329,7 +329,7 @@ class MusicBot(discord.Client):
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
 
     @ensure_appinfo
-    async def generate_invite_link(self, *, permissions=None, server=None):
+    async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), server=None):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
 
 
@@ -821,7 +821,7 @@ class MusicBot(discord.Client):
                     "\nTo make the bot join a server, paste this link in your browser."
                     "Note: You should be logged into your main account and have \n"
                     "manage server permissions on the server you want the bot to join.\n"
-                    "    " + await self.generate_invite_link()
+                    "  " + await self.generate_invite_link()
                 )
 
         print(flush=True)
