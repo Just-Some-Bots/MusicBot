@@ -5,6 +5,8 @@ import unicodedata
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
+from . import downloader
+from . import exceptions
 
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
