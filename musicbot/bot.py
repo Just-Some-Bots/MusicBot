@@ -2272,7 +2272,7 @@ class MusicBot(discord.Client):
                     state.member,
                     'joined' if state.joining else 'left',
                     state.server,
-                    state.voice_channel
+                    state.my_voice_channel
                 ))
 
         if not self.config.auto_pause:
@@ -2294,26 +2294,27 @@ class MusicBot(discord.Client):
             player.pause()
             return
 
-        if not state.empty():
-            if auto_paused and player.is_paused:
-                log.info(autopause_msg.format(
-                    state = "Unpausing",
-                    channel = state.my_voice_channel,
-                    reason = ""
-                ).strip())
+        if not state.is_about_me:
+            if not state.empty(old_channel=state.leaving):
+                if auto_paused and player.is_paused:
+                    log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = state.my_voice_channel,
+                        reason = ""
+                    ).strip())
 
-                self.server_specific_data[after.server]['auto_paused'] = False
-                player.resume()
-        else:
-            if not auto_paused and player.is_playing:
-                log.info(autopause_msg.format(
-                    state = "Pausing",
-                    channel = state.my_voice_channel,
-                    reason = "(empty channel)"
-                ).strip())
+                    self.server_specific_data[after.server]['auto_paused'] = False
+                    player.resume()
+            else:
+                if not auto_paused and player.is_playing:
+                    log.info(autopause_msg.format(
+                        state = "Pausing",
+                        channel = state.my_voice_channel,
+                        reason = "(empty channel)"
+                    ).strip())
 
-                self.server_specific_data[after.server]['auto_paused'] = True
-                player.pause()
+                    self.server_specific_data[after.server]['auto_paused'] = True
+                    player.pause()
 
 
     async def on_server_update(self, before:discord.Server, after:discord.Server):

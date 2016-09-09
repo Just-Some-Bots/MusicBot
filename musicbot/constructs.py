@@ -166,7 +166,7 @@ class VoiceStateUpdate:
             not self.after.voice_channel
         ))
 
-    def empty(self, *, excluding_me=True, excluding_deaf=False):
+    def empty(self, *, excluding_me=True, excluding_deaf=False, old_channel=False):
         def check(member):
             if excluding_me and member == self.me:
                 return False
@@ -176,7 +176,11 @@ class VoiceStateUpdate:
 
             return True
 
-        return not sum(1 for m in self.voice_channel.voice_members if check(m))
+        channel = self.old_voice_channel if old_channel else self.voice_channel
+        if not channel:
+            return
+
+        return not sum(1 for m in channel.voice_members if check(m))
 
     @property
     def raw_change(self) -> dict:
