@@ -104,11 +104,27 @@ class PIP(object):
 
 # TODO: all of this
 def sanity_checks():
-    pathlib.Path('logs').mkdir(exist_ok=True)
+
+    ## Required
+
+    # Make sure we're on python3.5+
+    ensure_py3()
+
+    # This is disgusting but fuck python 2
+    # import pathlib
+    # global pathlib
+
+    # Make sure we're in a writeable env
+    ensure_env()
+
+    # Make our folders if needed
+    ensure_folders()
+
+    ## Optional
 
 
-def main():
-    if not sys.version_info >= (3, 5):
+def ensure_py3():
+    if sys.version_info < (3, 5):
         print("Python 3.5+ is required. This version is %s" % sys.version.split()[0])
         print("Attempting to locate python 3.5...")
 
@@ -150,6 +166,18 @@ def main():
 
         return
 
+def ensure_env():
+    # make sure we're in the right folder (import test?)
+    # make sure folder is writeable
+    pass
+
+
+def ensure_folders():
+    pathlib.Path('logs').mkdir(exist_ok=True)
+    pathlib.Path('data').mkdir(exist_ok=True)
+
+
+def main():
     sanity_checks()
 
     import asyncio
