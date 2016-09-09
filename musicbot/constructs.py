@@ -41,41 +41,36 @@ class AnimatedResponse(Response):
 
 class VoiceStateUpdate:
     class Change(Enum):
-        RESUME = 0
-        JOIN = 1
-        LEAVE = 2
-        MUTE = 3
-        UNMUTE = 4
-        DEAFEN = 5
-        UNDEAFEN = 6
-        AFK = 7
-        UNAFK = 8
+        RESUME   = 0
+        JOIN     = 1
+        LEAVE    = 2
+        MOVE     = 3
+        MUTE     = 4
+        UNMUTE   = 5
+        DEAFEN   = 6
+        UNDEAFEN = 7
+        AFK      = 8
+        UNAFK    = 9
 
         def __repr__(self):
             return self.name
 
-    __slots__ = ['before', 'after', 'broken', 'joining', 'resuming', 'old_voice_channel', 'new_voice_channel']
+    __slots__ = ['before', 'after', 'broken', 'resuming', 'old_voice_channel', 'new_voice_channel']
 
     def __init__(self, before: discord.Member, after: discord.Member):
-        self.before = before
-        self.after = after
-
         self.broken = False
-        self.resuming = None
-
         if not all([before, after]):
             self.broken = True
             return
 
+        self.before = before
+        self.after = after
+
+        self.resuming = None
+
         self.old_voice_channel = before.voice_channel
         self.new_voice_channel = after.voice_channel
 
-        if before.voice_channel == self.voice_channel:
-            self.joining = False
-        elif after.voice_channel == self.voice_channel:
-            self.joining = True
-        else:
-            self.joining = None
 
     @property
     def me(self) -> discord.Member:
@@ -105,6 +100,26 @@ class VoiceStateUpdate:
     def member(self) -> discord.Member:
         return self.after or self.before
 
+    @property
+    def joining(self):
+        return all((
+            not self.before.voice_channel,
+            self.before.voice_channel != self.voice_channel,
+            self.after.voice_channel == self.voice_channel
+        ))
+
+    @property
+    def leaving(self):
+        return not self.joining
+
+    @property
+    def moving(self):
+        return all((
+            self.before.voice_channel,
+            self.after.voice_channel,
+            self.before.voice_channel != self.after.voice_channel,
+        ))
+
     def empty(self, *, excluding_me=True, excluding_deaf=False):
         def check(member):
             if excluding_me and member == self.me:
@@ -127,9 +142,16 @@ class VoiceStateUpdate:
         rchange = self.raw_change
 
         if 'voice_channel' in rchange:
-            changes.append(self.Change.JOIN if self.joining else self.Change.LEAVE)
+            if self.joining:
+                changes.append(self.Change.JOIN)
 
-        if self.resuming or self.joining is None:
+            if self.leaving and not self.moving:
+                changes.append(self.Change.LEAVE)
+
+            if self.moving:
+                changes.append(self.Change.MOVE)
+
+        if self.resuming:
             changes.append(self.Change.RESUME)
 
         if any(s in rchange for s in ['mute', 'self_mute']):
