@@ -282,7 +282,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             if 'author' in data['meta']:
                 meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-            return cls(playlist, url, title, direct ** meta)
+            return cls(playlist, url, title, direct=direct, **meta)
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
