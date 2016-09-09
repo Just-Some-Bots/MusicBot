@@ -14,10 +14,10 @@ def _add_logger_level(levelname, level, *, func_name = None):
 
     :type levelname: str
         The reference name of the level, e.g. DEBUG, WARNING, etc
-    :type func_name: str
-        The name of the logger function to log to a level, e.g. "info" for log.info(...)
     :type level: int
         Numeric logging level
+    :type func_name: str
+        The name of the logger function to log to a level, e.g. "info" for log.info(...)
     """
 
     func_name = func_name or levelname.lower()
@@ -31,6 +31,7 @@ def _add_logger_level(levelname, level, *, func_name = None):
 
 _add_logger_level('EVERYTHING', 1)
 _add_logger_level('NOISY', 4, func_name='noise')
+_add_logger_level('FFMPEG', 5)
 _add_logger_level('VOICEDEBUG', 6)
 
 log = logging.getLogger(__name__)

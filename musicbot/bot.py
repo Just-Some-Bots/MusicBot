@@ -166,7 +166,8 @@ class MusicBot(discord.Client):
 
                 'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
                 'NOISY': '{log_color}[{levelname}:{module}] {message}',
-                'VOICEDEBUG': '{log_color}[{levelname}:{module}] {message}'
+                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated}] {message}',
+                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated}] {message}'
             },
             log_colors = {
                 'DEBUG':    'cyan',
@@ -177,20 +178,17 @@ class MusicBot(discord.Client):
 
                 'EVERYTHING': 'white',
                 'NOISY':      'white',
-                'VOICEDEBUG': 'purple'
+                'FFMPEG':     'bold_purple',
+                'VOICEDEBUG': 'purple',
         },
             style = '{'
         ))
-        shandler.setLevel(logging.INFO)
+        shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
 
-        # TODO: set logging level from value in config
+        log.debug("Set logging level to {}".format(self.config.debug_level_str))
 
         if self.config.debug_mode:
-            shandler.setLevel(logging.VOICEDEBUG)
-            log.debug("Set logging level to DEBUG")
-
-            # setup discord logger
             dlogger = logging.getLogger('discord')
             dlogger.setLevel(logging.DEBUG)
             dhandler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')

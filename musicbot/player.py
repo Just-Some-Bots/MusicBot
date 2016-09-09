@@ -258,10 +258,15 @@ class MusicPlayer(EventEmitter):
                 # In-case there was a player, kill it. RIP.
                 self._kill_current_player()
 
+                boptions = "-nostdin"
+                aoptions = "-vn -b:a 128k"
+
+                log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
+
                 self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
                     entry.filename,
-                    before_options="-nostdin",
-                    options="-vn -b:a 128k",
+                    before_options=boptions,
+                    options=aoptions,
                     stderr=subprocess.PIPE,
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
@@ -299,7 +304,7 @@ class MusicPlayer(EventEmitter):
                 self._current_player._connected.set()
 
     async def websocket_check(self):
-        log.debug("Starting websocket check loop for {}".format(self.voice_client.channel.server.name))
+        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.server))
 
         while not self.is_dead:
             try:
@@ -308,7 +313,10 @@ class MusicPlayer(EventEmitter):
                     assert self.voice_client.ws.open
 
             except (InvalidState, AssertionError):
-                log.debug("Voice websocket is {}, reconnecting".format(self.voice_client.ws.state_name))
+                log.debug("Voice websocket for \"{}\" is {}, reconnecting".format(
+                    self.voice_client.channel.server,
+                    self.voice_client.ws.state_name
+                ))
                 await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
                 await asyncio.sleep(3)
 
@@ -354,14 +362,14 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
     while True:
         data = popen.stderr.readline()
         if data:
-            # ffmpeg logger goes here
+            log.ffmpeg("Data from ffmpeg: {}".format(data))
             try:
                 if check_stderr(data):
                     sys.stderr.buffer.write(data)
                     sys.stderr.buffer.flush()
 
             except FFmpegError as e:
-                log.error("Error from ffmpeg", exc_info=True)
+                log.ffmpeg("Error from ffmpeg", exc_info=True)
                 last_ex = e
 
             except FFmpegWarning:
@@ -378,8 +386,10 @@ def check_stderr(data:bytes):
     try:
         data = data.decode('utf8')
     except:
-        log.debug("Unknown error decoding message from ffmpeg", exc_info=True)
+        log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
         return True # fuck it
+
+    log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
 
     # TODO: Regex
     warnings = [

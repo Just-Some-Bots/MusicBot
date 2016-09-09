@@ -56,7 +56,9 @@ class Config:
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
-        self.debug_mode = config.getboolean('MusicBot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
+        self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
+        self.debug_level_str = self.debug_level
+        self.debug_mode = False
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
@@ -154,6 +156,16 @@ class Config:
         apn_name, apn_ext = os.path.splitext(ap_name)
         self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
 
+        if hasattr(logging, self.debug_level.upper()):
+            self.debug_level = getattr(logging, self.debug_level.upper())
+        else:
+            log.warning("Invalid DebugLevel option \"{}\" given, falling back to INFO".format(self.debug_level_str))
+            self.debug_level = logging.INFO
+            self.debug_level_str = 'INFO'
+
+        self.debug_mode = self.debug_level <= logging.DEBUG
+
+
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
 
@@ -187,7 +199,6 @@ class Config:
                 preface=self._confpreface2
             )
 
-        print(flush=True)
 
     def find_config(self):
         config = configparser.ConfigParser(interpolation=None)
@@ -265,7 +276,7 @@ class ConfigDefaults:
     auto_pause = True
     delete_messages = True
     delete_invoking = False
-    debug_mode = False
+    debug_level = 'INFO'
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
