@@ -2270,10 +2270,10 @@ class MusicBot(discord.Client):
             return # Irrelevant channel
 
         for change in state.changes:
-            if change in [state.Change.JOIN, state.Change.LEAVE, state.Change.MOVE]:
+            if change in [state.Change.JOIN, state.Change.LEAVE]:
                 log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
                     state.member,
-                    'connected to' if state.joining else 'disconnected from',
+                    'joined' if state.joining else 'left',
                     state.server,
                     state.voice_channel
                 ))

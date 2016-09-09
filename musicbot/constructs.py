@@ -94,7 +94,11 @@ class VoiceStateUpdate:
 
     @property
     def is_about_my_voice_channel(self):
-        return self.voice_channel == self.my_voice_channel
+        return any((
+            self.joining,
+            self.leaving,
+            self.voice_channel == self.my_voice_channel
+        ))
 
     @property
     def voice_channel(self) -> discord.Channel:
