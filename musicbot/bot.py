@@ -2247,11 +2247,13 @@ class MusicBot(discord.Client):
             log.voicedebug("Broken voice state update")
             return
 
+        # I can't add this check to VoiceStateUpdate unless I can somehow reference client
+        # preferebly without using _get_variable()
         if not state.joining and state.is_about_me and not self.voice_client_in(state.server) and not state.raw_change:
             log.debug("Resumed voice connection to {0.server.name}/{0.name}".format(state.voice_channel))
             state.resuming = True
 
-        if not state.change:
+        if not state.changes:
             log.voicedebug("Empty voice state update, likely a session id change")
             return # Session id change, pointless event
 
@@ -2261,14 +2263,14 @@ class MusicBot(discord.Client):
             mem = state.member,
             ser = state.server,
             vch = state.voice_channel,
-            dif = state.change
+            dif = state.changes
         ))
 
         if not state.is_about_my_voice_channel:
             return # Irrelevant channel
 
-        for change in state.change:
-            if change in [state.Change.JOIN, state.Change.LEAVE]:
+        for change in state.changes:
+            if change in [state.Change.JOIN, state.Change.LEAVE, state.Change.MOVE]:
                 log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
                     state.member,
                     'connected to' if state.joining else 'disconnected from',

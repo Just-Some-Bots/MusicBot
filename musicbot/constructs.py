@@ -67,7 +67,7 @@ class VoiceStateUpdate:
         def __repr__(self):
             return self.name
 
-    __slots__ = ['before', 'after', 'broken', 'resuming', 'old_voice_channel', 'new_voice_channel']
+    __slots__ = ['before', 'after', 'broken', 'resuming']
 
     def __init__(self, before: discord.Member, after: discord.Member):
         self.broken = False
@@ -79,10 +79,6 @@ class VoiceStateUpdate:
         self.after = after
 
         self.resuming = None
-
-        self.old_voice_channel = before.voice_channel
-        self.new_voice_channel = after.voice_channel
-
 
     @property
     def me(self) -> discord.Member:
@@ -103,6 +99,14 @@ class VoiceStateUpdate:
     @property
     def voice_channel(self) -> discord.Channel:
         return self.new_voice_channel or self.old_voice_channel
+
+    @property
+    def old_voice_channel(self) -> discord.Channel:
+        return self.before.voice_channel
+
+    @property
+    def new_voice_channel(self) -> discord.Channel:
+        return self.after.voice_channel
 
     @property
     def server(self) -> discord.Server:
@@ -161,11 +165,11 @@ class VoiceStateUpdate:
         return not sum(1 for m in self.voice_channel.voice_members if check(m))
 
     @property
-    def raw_change(self):
+    def raw_change(self) -> dict:
         return objdiff(self.before.voice, self.after.voice, access_attr='__slots__')
 
     @property
-    def change(self):
+    def changes(self):
         changes = []
         rchange = self.raw_change
 
