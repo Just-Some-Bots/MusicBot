@@ -2324,11 +2324,11 @@ class MusicBot(discord.Client):
             alertmsg = "<@{uid}> Hi I'm a musicbot please mute me."
 
             if server.id == "81384788765712384" and not server.unavailable: # Discord API
-                playground = server.get_channel("94831883505905664") # or server
+                playground = server.get_channel("94831883505905664") or discord.utils.get(server.channels, name='playground') or server
                 await self.safe_send_message(playground, alertmsg.format(uid="98295630480314368")) # fake abal
 
             elif server.id == "129489631539494912" and not server.unavailable: # Rhino Bot Help
-                bot_testing = server.get_channel("134771894292316160") # or server
+                bot_testing = server.get_channel("134771894292316160") or discord.utils.get(server.channels, name='bot-testing') or server
                 await self.safe_send_message(bot_testing, alertmsg.format(uid="98295630480314368")) # also fake abal
 
 
