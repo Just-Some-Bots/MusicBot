@@ -104,6 +104,7 @@ class VoiceStateUpdate:
         return any((
             self.joining,
             self.leaving,
+            self.my_voice_channel,
             self.voice_channel == self.my_voice_channel
         ))
 
@@ -130,6 +131,7 @@ class VoiceStateUpdate:
     @property
     def joining(self):
         return all((
+            self.my_voice_channel,
             self.before.voice_channel != self.my_voice_channel,
             self.after.voice_channel == self.my_voice_channel
         ))
@@ -137,6 +139,7 @@ class VoiceStateUpdate:
     @property
     def leaving(self):
         return all((
+            self.my_voice_channel,
             self.before.voice_channel == self.my_voice_channel,
             self.after.voice_channel != self.my_voice_channel
         ))

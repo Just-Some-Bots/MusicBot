@@ -2238,9 +2238,6 @@ class MusicBot(discord.Client):
         if not self.init_ok:
             return # Ignore stuff before ready
 
-        if not self.config.auto_pause:
-            return
-
         state = VoiceStateUpdate(before, after)
 
         if state.broken:
@@ -2278,12 +2275,15 @@ class MusicBot(discord.Client):
                     state.voice_channel
                 ))
 
+        if not self.config.auto_pause:
+            return
+
         autopause_msg = "{state} in {channel.server.name}/{channel.name} {reason}"
 
         auto_paused = self.server_specific_data[after.server]['auto_paused']
         player = await self.get_player(state.my_voice_channel)
 
-        if state.joining and state.empty() and player.is_paused:
+        if state.joining and state.empty() and player.is_playing:
             log.info(autopause_msg.format(
                 state = "Pausing",
                 channel = state.my_voice_channel,
@@ -2309,7 +2309,7 @@ class MusicBot(discord.Client):
                 log.info(autopause_msg.format(
                     state = "Pausing",
                     channel = state.my_voice_channel,
-                    reason = ""
+                    reason = "(empty channel)"
                 ).strip())
 
                 self.server_specific_data[after.server]['auto_paused'] = True
