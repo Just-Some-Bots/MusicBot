@@ -1,5 +1,3 @@
-import sys
-import logging
 import discord
 
 from enum import Enum
@@ -7,6 +5,8 @@ from .utils import objdiff
 
 
 class SkipState:
+    __slots__ = ['skippers', 'skip_msgs']
+
     def __init__(self):
         self.skippers = set()
         self.skip_msgs = set()
@@ -26,6 +26,8 @@ class SkipState:
 
 
 class Response:
+    # TODO: Add slots and make sure there isn't any random attr setting anywhere
+
     def __init__(self, content, reply=False, delete_after=0):
         self.content = content
         self.reply = reply
@@ -37,6 +39,14 @@ class AnimatedResponse(Response):
         super().__init__(content, delete_after=delete_after)
 
 
+
+class Serializable:
+    def serialize(self):
+        raise NotImplementedError
+
+    @classmethod
+    def deserialize(cls, playlist, jsonstr):
+        raise NotImplementedError
 
 
 class VoiceStateUpdate:
@@ -166,12 +176,3 @@ class VoiceStateUpdate:
             changes.append(self.Change.MUTE if rchange['is_afk'][1] else self.Change.UNMUTE)
 
         return changes
-
-
-class Serializable:
-    def serialize(self):
-        raise NotImplementedError
-
-    @classmethod
-    def deserialize(cls, playlist, jsonstr):
-        raise NotImplementedError
