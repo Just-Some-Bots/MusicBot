@@ -51,16 +51,18 @@ class Serializable:
 
 class VoiceStateUpdate:
     class Change(Enum):
-        RESUME   = 0
-        JOIN     = 1
-        LEAVE    = 2
-        MOVE     = 3
-        MUTE     = 4
-        UNMUTE   = 5
-        DEAFEN   = 6
-        UNDEAFEN = 7
-        AFK      = 8
-        UNAFK    = 9
+        RESUME     = 0   # Reconnect to an existing voice session
+        JOIN       = 1   # User has joined the bot's voice channel
+        LEAVE      = 2   # User has left the bot's voice channel
+        MOVE       = 3   # User has moved voice channels on this server
+        CONNECT    = 4   # User has connected to voice chat on this server
+        DISCONNECT = 5   # User has disconnected from voice chat on this server
+        MUTE       = 6   # User is now mute
+        UNMUTE     = 7   # User is no longer mute
+        DEAFEN     = 8   # User is now deaf
+        UNDEAFEN   = 9   # User is no longer deaf
+        AFK        = 10  # User has gone afk
+        UNAFK      = 11  # User has come back from afk
 
         def __repr__(self):
             return self.name
@@ -113,14 +115,16 @@ class VoiceStateUpdate:
     @property
     def joining(self):
         return all((
-            not self.before.voice_channel,
-            self.before.voice_channel != self.voice_channel,
-            self.after.voice_channel == self.voice_channel
+            self.before.voice_channel != self.my_voice_channel,
+            self.after.voice_channel == self.my_voice_channel
         ))
 
     @property
     def leaving(self):
-        return not self.joining
+        return all((
+            self.before.voice_channel == self.my_voice_channel,
+            self.after.voice_channel != self.my_voice_channel
+        ))
 
     @property
     def moving(self):
@@ -128,6 +132,20 @@ class VoiceStateUpdate:
             self.before.voice_channel,
             self.after.voice_channel,
             self.before.voice_channel != self.after.voice_channel,
+        ))
+
+    @property
+    def connecting(self):
+        return all((
+            not self.before.voice_channel or self.resuming,
+            self.after.voice_channel
+        ))
+
+    @property
+    def disconnecting(self):
+        return all((
+            self.before.voice_channel,
+            not self.after.voice_channel
         ))
 
     def empty(self, *, excluding_me=True, excluding_deaf=False):
@@ -155,7 +173,7 @@ class VoiceStateUpdate:
             if self.joining:
                 changes.append(self.Change.JOIN)
 
-            if self.leaving and not self.moving:
+            if self.leaving:
                 changes.append(self.Change.LEAVE)
 
             if self.moving:
@@ -163,6 +181,12 @@ class VoiceStateUpdate:
 
         if self.resuming:
             changes.append(self.Change.RESUME)
+
+        if self.connecting:
+            changes.append(self.Change.CONNECT)
+
+        elif self.disconnecting:
+            changes.append(self.Change.DISCONNECT)
 
         if any(s in rchange for s in ['mute', 'self_mute']):
             m = rchange.get('mute', None) or rchange.get('self_mute')
