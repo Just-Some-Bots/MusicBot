@@ -284,7 +284,7 @@ class MusicBot(discord.Client):
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
-        await self.safe_delete_message(message)
+        await self.safe_delete_message(message, quiet=True)
 
     # TODO: Check to see if I can just move this to on_message after the response check
     async def _manual_delete_check(self, message, *, quiet=False):
@@ -2236,7 +2236,7 @@ class MusicBot(discord.Client):
         finally:
             if not sentmsg and not response and self.config.delete_invoking:
                 await asyncio.sleep(5)
-                await self.safe_delete_message(message, quiet=False)
+                await self.safe_delete_message(message, quiet=True)
 
 
     async def on_voice_state_update(self, before, after):
