@@ -247,7 +247,7 @@ def main():
             asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
-        os.execvp(sys.executable, 'python', sys.argv)
+        os.execlp(sys.executable, 'python', sys.argv)
 
         print("Cleaning up... ", end='')
         gc.collect()
