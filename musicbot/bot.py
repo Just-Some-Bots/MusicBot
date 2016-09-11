@@ -67,8 +67,13 @@ class MusicBot(discord.Client):
         self._setup_logging()
 
         if not self.autoplaylist:
-            log.info("Autoplaylist is empty, disabling.")
+            log.warning("Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
+        else:
+            log.info("Loaded autoplaylist with {} entries".format(len(self.autoplaylist)))
+
+        if self.blacklist:
+            log.debug("Loaded blacklist with {} entries".format(len(self.blacklist)))
 
         # TODO: Do these properly
         ssd_defaults = {
@@ -166,8 +171,8 @@ class MusicBot(discord.Client):
 
                 'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
                 'NOISY': '{log_color}[{levelname}:{module}] {message}',
-                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated}] {message}',
-                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated}] {message}'
+                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.6f}] {message}',
+                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.6f}] {message}'
             },
             log_colors = {
                 'DEBUG':    'cyan',
@@ -573,6 +578,7 @@ class MusicBot(discord.Client):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
+                # TODO: fix rng
                 info = None
 
                 try:
@@ -908,7 +914,6 @@ class MusicBot(discord.Client):
 
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
-        print()
         # t-t-th-th-that's all folks!
 
     async def cmd_help(self, command=None):
