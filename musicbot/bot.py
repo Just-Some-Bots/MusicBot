@@ -1991,12 +1991,17 @@ class MusicBot(discord.Client):
 
         try:
             await self.edit_profile(username=name)
+
+        except discord.HTTPException:
+            raise exceptions.CommandError(
+                "Failed to change name.  Did you change names too many times?  "
+                "Remember name changes are limited to twice per hour.")
+
         except Exception as e:
             raise exceptions.CommandError(e, expire_in=20)
 
         return Response("\N{OK HAND SIGN}", delete_after=20)
 
-    @owner_only
     async def cmd_setnick(self, server, channel, leftover_args, nick):
         """
         Usage:
