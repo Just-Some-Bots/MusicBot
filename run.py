@@ -175,6 +175,9 @@ def ensure_encoding():
         sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
         # os.system("chcp 65001 > NUL")
 
+        if os.environ.get('PYCHARM_HOSTED', None) not in (None, '0'):
+            sys.stdout.isatty = lambda: True
+
 
 def ensure_env():
     # make sure we're in the right folder (import test?)
