@@ -4,9 +4,13 @@ import os
 import gc
 import sys
 import time
-import pathlib
 import traceback
 import subprocess
+
+try:
+    import pathlib
+except ImportError:
+    pass # Not python3
 
 
 class GIT(object):
@@ -104,15 +108,13 @@ class PIP(object):
 
 # TODO: all of this
 def sanity_checks():
-
     ## Required
 
     # Make sure we're on python3.5+
     ensure_py3()
 
-    # This is disgusting but fuck python 2
-    # import pathlib
-    # global pathlib
+    # Fix windows encoding fuckery
+    ensure_encoding()
 
     # Make sure we're in a writeable env
     ensure_env()
@@ -165,6 +167,14 @@ def ensure_py3():
         input("Press enter to continue . . .")
 
         return
+
+
+def ensure_encoding():
+    if sys.platform.startswith('win') or sys.stdout.encoding.replace('-', '').lower() != 'utf8':
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
+        # os.system("chcp 65001 > NUL")
+
 
 def ensure_env():
     # make sure we're in the right folder (import test?)
