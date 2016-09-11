@@ -931,9 +931,8 @@ class MusicBot(discord.Client):
             if cmd and not hasattr(cmd, 'dev_cmd'):
                 return Response(
                     "```\n{}```".format(
-                        dedent(cmd.__doc__),
-                        command_prefix=self.config.command_prefix
-                    ),
+                        dedent(cmd.__doc__)
+                    ).format(command_prefix=self.config.command_prefix),
                     delete_after=60
                 )
             else:
