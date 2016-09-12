@@ -1,4 +1,4 @@
-FROM FROM python:3.5
+FROM python:3.5
 
 MAINTAINER Sidesplitter, https://github.com/SexualRhinoceros/MusicBot
 
