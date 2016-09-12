@@ -260,11 +260,7 @@ def main():
             asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
-        os.execlp(sys.executable, 'python', sys.argv)
-
-        print("Cleaning up... ", end='')
-        gc.collect()
-        print("Done.")
+        os.execlp(sys.executable, 'python', *sys.argv)
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
