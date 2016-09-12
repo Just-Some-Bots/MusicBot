@@ -1,23 +1,15 @@
-FROM ubuntu:14.04
+FROM python:3.5
 
 MAINTAINER Sidesplitter, https://github.com/SexualRhinoceros/MusicBot
 
-#Install dependencies
-RUN sudo apt-get update \
-    && sudo apt-get install software-properties-common -y \
-    && sudo add-apt-repository ppa:fkrull/deadsnakes -y \
-    && sudo add-apt-repository ppa:mc3man/trusty-media -y \
+#Install and update dependencies
+RUN sudo echo "deb http://httpredir.debian.org/debian jessie-backports main contrib non-free" >> /etc/apt/sources.list \
     && sudo apt-get update -y \
+    && sudo apt-get install software-properties-common -y \
     && sudo apt-get install build-essential unzip -y \
-    && sudo apt-get install python3.5 python3.5-dev -y \
     && sudo apt-get install ffmpeg -y \
     && sudo apt-get install libopus-dev -y \
     && sudo apt-get install libffi-dev -y
-
-#Install Pip
-RUN sudo apt-get install wget \
-    && wget https://bootstrap.pypa.io/get-pip.py \
-    && sudo python3.5 get-pip.py
 
 #Add musicBot
 ADD . /musicBot
@@ -29,4 +21,4 @@ RUN sudo pip install -r requirements.txt
 #Add volume for configuration
 VOLUME /musicBot/config
 
-CMD python3.5 run.py
+CMD ["python", "run.py"]
