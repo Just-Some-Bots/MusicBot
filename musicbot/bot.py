@@ -355,19 +355,19 @@ class MusicBot(discord.Client):
             guild_id = data.get('guild_id')
             return user_id == self.user.id and guild_id == server.id
 
-        log.voicedebug("(join_voice_channel) creating futures")
+        log.voicedebug("(%s) creating futures", _func_())
         # register the futures for waiting
         session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
         voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == server.id)
 
         # request joining
-        log.voicedebug("(join_voice_channel) setting voice state")
+        log.voicedebug("(%s) setting voice state", _func_())
         await self.ws.voice_state(server.id, channel.id)
 
-        log.voicedebug("(join_voice_channel) waiting for session id")
+        log.voicedebug("(%s) waiting for session id", _func_())
         session_id_data = await asyncio.wait_for(session_id_future, timeout=30.0, loop=self.loop)
 
-        log.voicedebug("(join_voice_channel) waiting for voice data")
+        log.voicedebug("(%s) waiting for voice data", _func_())
         data = await asyncio.wait_for(voice_data_future, timeout=30.0, loop=self.loop)
 
         kwargs = {
@@ -381,17 +381,17 @@ class MusicBot(discord.Client):
 
         voice = discord.VoiceClient(**kwargs)
         try:
-            log.voicedebug("(join_voice_channel) connecting...")
+            log.voicedebug("(%s) connecting...", _func_())
             await voice.connect()
         except asyncio.TimeoutError as e:
+            log.voicedebug("(%s) connection failed, disconnecting", _func_())
             try:
-                log.voicedebug("(join_voice_channel) connection failed, disconnecting")
                 await voice.disconnect()
             except:
                 pass
             raise e
 
-        log.voicedebug("(join_voice_channel) connection successful")
+        log.voicedebug("(%s) connection successful", _func_())
 
         self.connection._add_voice_client(server.id, voice)
         return voice
@@ -448,13 +448,15 @@ class MusicBot(discord.Client):
                 return
 
             _paused = False
+            player = self.get_player_in(server)
 
-            player = None
-            if server.id in self.players:
-                player = self.players[server.id]
-                if player.is_playing:
-                    player.pause()
-                    _paused = True
+            if player and player.is_playing:
+                log.voicedebug("(%s) Pausing", _func_())
+
+                player.pause()
+                _paused = True
+
+            log.voicedebug("(%s) Disconnecting", _func_())
 
             try:
                 await vc.disconnect()
@@ -462,19 +464,26 @@ class MusicBot(discord.Client):
                 pass
 
             if sleep:
+                log.voicedebug("(%s) Sleeping for %s", _func_(), sleep)
                 await asyncio.sleep(sleep)
 
             if player:
+                log.voicedebug("(%s) Getting voice client", _func_())
+
                 if not channel:
                     new_vc = await self.get_voice_client(vc.channel)
                 else:
-                    # noinspection PyTypeChecker
                     new_vc = await self.get_voice_client(channel)
 
+                log.voicedebug("(%s) Reloading voice client", _func_())
                 await player.reload_voice(new_vc)
 
                 if player.is_paused and _paused:
+                    log.voicedebug("Resuming")
                     player.resume()
+
+        log.debug("Reconnected voice client on \"{}\"{}".format(
+            server, ' to "{}"'.format(channel.name) if channel else ''))
 
     async def disconnect_voice_client(self, server):
         vc = self.voice_client_in(server)
@@ -507,7 +516,7 @@ class MusicBot(discord.Client):
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
 
-        async with self.aiolocks[_func_()]:
+        async with self.aiolocks[_func_() + ':' + server.id]:
             if server.id not in self.players:
                 if not create:
                     raise exceptions.CommandError(
@@ -534,7 +543,7 @@ class MusicBot(discord.Client):
                     log.debug("Reconnect required for voice client in {}".format(server.name))
                     await self.reconnect_voice_client(server, channel=channel)
 
-            return self.players[server.id]
+        return self.players[server.id]
 
     async def on_player_play(self, player, entry):
         await self.update_now_playing(entry)
