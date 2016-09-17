@@ -511,7 +511,7 @@ class MusicBot(discord.Client):
         # instead of waiting for the event to update it
 
     def get_player_in(self, server: discord.Server) -> MusicPlayer:
-        return self.players.get(server.id, None)
+        return self.players.get(server.id)
 
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
@@ -2077,10 +2077,16 @@ class MusicBot(discord.Client):
         return
 
     @dev_only
-    async def cmd_debug(self, message, player, leftover_args):
-        code = ' '.join(leftover_args).strip('` ')
+    async def cmd_debug(self, message, _player, *, data):
+        player = _player
         codeblock = "```py\n{}\n```"
+        code = None
         result = None
+
+        if data.startswith('```') and data.endswith('```'):
+            data = '\n'.join(data.rstrip('`\n').split('\n')[1:])
+
+        code = data.strip('` \n')
 
         try:
             result = eval(code)
@@ -2104,16 +2110,16 @@ class MusicBot(discord.Client):
             return
 
         if message.author == self.user:
-            log.warning("Ignoring command from myself (%s)" % message.content)
+            log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
             return  # if I want to log this I just move it under the prefix check
 
-        command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
+        command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
 
-        handler = getattr(self, 'cmd_%s' % command, None)
+        handler = getattr(self, 'cmd_' + command, None)
         if not handler:
             return
 
@@ -2123,11 +2129,11 @@ class MusicBot(discord.Client):
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
-            log.warning("User blacklisted: {0.id}/{0.name} ({1})".format(message.author, message_content))
+            log.warning("User blacklisted: {0.id}/{0.name} ({1})".format(message.author, command))
             return
 
         else:
-            log.info("{0.id}/{0.name}: {1}".format(message.author, message_content))
+            log.info("{0.id}/{0.name}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -2155,7 +2161,10 @@ class MusicBot(discord.Client):
                 handler_kwargs['server'] = message.server
 
             if params.pop('player', None):
-                handler_kwargs['player'] = self.get_player_in(message.server)
+                handler_kwargs['player'] = await self.get_player(message.channel)
+
+            if params.pop('_player', None):
+                handler_kwargs['_player'] = self.get_player_in(message.server)
 
             if params.pop('permissions', None):
                 handler_kwargs['permissions'] = user_permissions
@@ -2174,13 +2183,29 @@ class MusicBot(discord.Client):
 
             args_expected = []
             for key, param in list(params.items()):
-                doc_key = '[%s=%s]' % (key, param.default) if param.default is not inspect.Parameter.empty else key
-                args_expected.append(doc_key)
 
-                if not args and param.default is not inspect.Parameter.empty:
+                # parse (*args) as a list of args
+                if param.kind == param.VAR_POSITIONAL:
+                    handler_kwargs[key] = args
                     params.pop(key)
                     continue
 
+                # parse (*, args) as args rejoined as a string
+                # multiple of these arguments will have the same value
+                if param.kind == param.KEYWORD_ONLY and param.default == param.empty:
+                    handler_kwargs[key] = ' '.join(args)
+                    params.pop(key)
+                    continue
+
+                doc_key = '[{}={}]'.format(key, param.default) if param.default is not param.empty else key
+                args_expected.append(doc_key)
+
+                # Ignore keyword args with default values when the command had no arguments
+                if not args and param.default is not param.empty:
+                    params.pop(key)
+                    continue
+
+                # Assign given values to positional arguments
                 if args:
                     arg_value = args.pop(0)
                     handler_kwargs[key] = arg_value
@@ -2189,14 +2214,15 @@ class MusicBot(discord.Client):
             if message.author.id != self.config.owner_id:
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
                     raise exceptions.PermissionsError(
-                        "This command is not enabled for your group (%s)." % user_permissions.name,
+                        "This command is not enabled for your group ({}).".format(user_permissions.name),
                         expire_in=20)
 
                 elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
                     raise exceptions.PermissionsError(
-                        "This command is disabled for your group (%s)." % user_permissions.name,
+                        "This command is disabled for your group ({}).".format(user_permissions.name),
                         expire_in=20)
 
+            # Invalid usage, return docstring
             if params:
                 docs = getattr(handler, '__doc__', None)
                 if not docs:
@@ -2206,10 +2232,10 @@ class MusicBot(discord.Client):
                         ' '.join(args_expected)
                     )
 
-                docs = '\n'.join(l.strip() for l in docs.split('\n'))
+                docs = dedent(docs)
                 await self.safe_send_message(
                     message.channel,
-                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix),
+                    '```\n{}\n```'.format(docs.format(command_prefix=self.config.command_prefix)),
                     expire_in=60
                 )
                 return
@@ -2218,7 +2244,7 @@ class MusicBot(discord.Client):
             if response and isinstance(response, Response):
                 content = response.content
                 if response.reply:
-                    content = '%s, %s' % (message.author.mention, content)
+                    content = '{}, {}'.format(message.author.mention, content)
 
                 sentmsg = await self.safe_send_message(
                     message.channel, content,
@@ -2234,7 +2260,7 @@ class MusicBot(discord.Client):
 
             await self.safe_send_message(
                 message.channel,
-                '```\n%s\n```' % e.message,
+                '```\n{}\n```'.format(e.message),
                 expire_in=expirein,
                 also_delete=alsodelete
             )
@@ -2245,7 +2271,7 @@ class MusicBot(discord.Client):
         except Exception:
             log.error("Exception in on_message", exc_info=True)
             if self.config.debug_mode:
-                await self.safe_send_message(message.channel, '```\n%s\n```' % traceback.format_exc())
+                await self.safe_send_message(message.channel, '```\n{}\n```'.format(traceback.format_exc()))
 
         finally:
             if not sentmsg and not response and self.config.delete_invoking:
