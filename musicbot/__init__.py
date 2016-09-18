@@ -41,8 +41,8 @@ log.setLevel(logging.EVERYTHING)
 
 fhandler = logging.FileHandler(filename='logs/musicbot.log', encoding='utf-8', mode='w')
 fhandler.setFormatter(logging.Formatter(
-    "[{relativeCreated}] {asctime} - {levelname} - {name} | "
-    "In {filename}, thread {threadName} ({thread}), line {lineno} in {funcName}: {message}",
+    "[{relativeCreated:.16f}] {asctime} - {levelname} - {name} | "
+    "In {filename}::{threadName}({thread}), line {lineno} in {funcName}: {message}",
     style='{'
 ))
 log.addHandler(fhandler)
