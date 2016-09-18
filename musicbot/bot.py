@@ -186,7 +186,8 @@ class MusicBot(discord.Client):
                 'FFMPEG':     'bold_purple',
                 'VOICEDEBUG': 'purple',
         },
-            style = '{'
+            style = '{',
+            datefmt = ''
         ))
         shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
@@ -2080,7 +2081,6 @@ class MusicBot(discord.Client):
     async def cmd_debug(self, message, _player, *, data):
         player = _player
         codeblock = "```py\n{}\n```"
-        code = None
         result = None
 
         if data.startswith('```') and data.endswith('```'):
@@ -2129,11 +2129,11 @@ class MusicBot(discord.Client):
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
-            log.warning("User blacklisted: {0.id}/{0.name} ({1})".format(message.author, command))
+            log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(message.author, command))
             return
 
         else:
-            log.info("{0.id}/{0.name}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
+            log.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
 
         user_permissions = self.permissions.for_user(message.author)
 
