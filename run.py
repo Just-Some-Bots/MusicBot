@@ -132,7 +132,7 @@ log.addHandler(sh)
 
 tfh = logging.StreamHandler(stream=tmpfile)
 tfh.setFormatter(logging.Formatter(
-    fmt="[%(relativeCreated).6f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"
+    fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"
 ))
 tfh.setLevel(logging.DEBUG)
 log.addHandler(tfh)
@@ -163,7 +163,7 @@ def finalize_logging():
 
     fh = logging.FileHandler("logs/musicbot.log", mode='a')
     fh.setFormatter(logging.Formatter(
-        fmt="[%(relativeCreated).6f] %(name)s-%(levelname)s: %(message)s"
+        fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"
     ))
     fh.setLevel(logging.DEBUG)
     log.addHandler(fh)

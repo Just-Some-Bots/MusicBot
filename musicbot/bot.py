@@ -166,6 +166,10 @@ class MusicBot(discord.Client):
         return True
 
     def _setup_logging(self):
+        if len(logging.getLogger(__package__).handlers) > 1:
+            log.debug("Already setup loggers?")
+            return
+
         shandler = logging.StreamHandler(stream=sys.stdout)
         shandler.setFormatter(colorlog.LevelFormatter(
             fmt = {
@@ -177,8 +181,8 @@ class MusicBot(discord.Client):
 
                 'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
                 'NOISY': '{log_color}[{levelname}:{module}] {message}',
-                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.6f}] {message}',
-                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.6f}] {message}'
+                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}',
+                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}'
             },
             log_colors = {
                 'DEBUG':    'cyan',
