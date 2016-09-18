@@ -1,5 +1,6 @@
 discord.py[voice]
 youtube_dl
 pip
+pymongo
 cffi --only-binary cffi; sys_platform == 'win32'
 cffi; sys_platform != 'win32'

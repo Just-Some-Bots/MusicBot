@@ -62,6 +62,7 @@ class Config:
 
         self.auth = None
 
+        self.logging_server = config.get('Logman', 'MONGODB_URI', fallback=ConfigDefaults.logging_server)
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
@@ -171,6 +172,7 @@ class ConfigDefaults:
     password = None # This is not where you put your login info, go away.
     token = None    #
 
+    logging_server = None
     owner_id = None
     command_prefix = '!'
     bound_channels = set()

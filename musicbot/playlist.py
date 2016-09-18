@@ -8,6 +8,7 @@ from .utils import get_header
 from .entry import URLPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
+from .logman import Logman
 
 
 class Playlist(EventEmitter):
@@ -21,6 +22,9 @@ class Playlist(EventEmitter):
         self.loop = bot.loop
         self.downloader = bot.downloader
         self.entries = deque()
+        self.history = None
+        if bot.config.logging_server is not None:
+            self.history = Logman(bot.config.logging_server)
 
     def __iter__(self):
         return iter(self.entries)
@@ -237,6 +241,9 @@ class Playlist(EventEmitter):
 
         entry = self.entries.popleft()
 
+        if self.history:
+            self.history.log_song(entry)
+
         if predownload_next:
             next_entry = self.peek()
             if next_entry:
@@ -265,5 +272,3 @@ class Playlist(EventEmitter):
 
     def count_for_user(self, user):
         return sum(1 for e in self.entries if e.meta.get('author', None) == user)
-
-
