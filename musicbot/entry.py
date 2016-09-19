@@ -92,7 +92,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.download_folder = self.playlist.downloader.download_folder
 
     @classmethod
-    def deserialize(cls, playlist, jsonstr):
+    def deserialize(cls, jsonstr, playlist=None, **kwargs):
+        if playlist is None:
+            raise AttributeError('Argument "playlist" must not be None')
+
         data = json.loads(jsonstr)
 
         try:
@@ -264,7 +267,10 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         return self.source_url or self._url
 
     @classmethod
-    def deserialize(cls, playlist, jsonstr):
+    def deserialize(cls, jsonstr, playlist=None, **kwargs):
+        if playlist is None:
+            raise AttributeError('Argument "playlist" must not be None')
+
         data = json.loads(jsonstr)
 
         try:

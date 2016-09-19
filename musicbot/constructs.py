@@ -52,7 +52,7 @@ class Serializable:
         raise NotImplementedError
 
     @classmethod
-    def deserialize(cls, playlist, jsonstr):
+    def deserialize(cls, raw_json, **kwargs):
         raise NotImplementedError
 
 
