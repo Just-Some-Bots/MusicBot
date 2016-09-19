@@ -26,9 +26,10 @@ class Logman():
         time = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         song = {
-            'date': time,
+            'playedAt': time,
             'title': entry.title,
-            'url': entry.url
+            'url': entry.url,
+            'requestedBy': str(entry.meta['author'])
         }
 
         try:
