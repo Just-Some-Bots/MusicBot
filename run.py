@@ -253,9 +253,6 @@ def req_ensure_encoding():
     if sys.platform.startswith('win') or sys.stdout.encoding.replace('-', '').lower() != 'utf8':
         log.info("Setting console encoding to UTF-8")
 
-        if sys.platform.startswith('win'):
-            os.system("chcp 65001 > NUL")
-
         import io
         sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
         sh.stream = sys.stdout # I wish I didn't have to do this
