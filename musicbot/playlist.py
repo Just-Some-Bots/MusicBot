@@ -1,3 +1,4 @@
+import json
 import os.path
 import logging
 import datetime
@@ -10,14 +11,15 @@ from urllib.error import URLError
 from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
 
 from .utils import get_header
+from .constructs import Serializable
 from .lib.event_emitter import EventEmitter
-from .entry import URLPlaylistEntry, StreamPlaylistEntry
+from .entry import URLPlaylistEntry, StreamPlaylistEntry, BasePlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 
 log = logging.getLogger(__name__)
 
 
-class Playlist(EventEmitter):
+class Playlist(EventEmitter, Serializable):
     """
         A playlist is manages the list of songs that will be played.
     """
@@ -328,8 +330,40 @@ class Playlist(EventEmitter):
 
 
     def serialize(self):
-        return '[' + ','.join(entry.serialize() for entry in self) + ']'
+        data = {
+            'version': 1
+        }
+        entries = '[' + ','.join(entry.serialize() for entry in self.entries) + ']'
 
-    def deserialize(self):
-        raise NotImplementedError
+        data = json.dumps(data)
+        data = data.rsplit('}', 1)[0]
+        data += ', "entries": {}}}'.format(entries)
+        # This is better than data['entries'] = json.loads(','.join...) because speed
+
+        return data
+
+    @classmethod
+    def deserialize(cls, raw_json, bot=None, **kwargs):
+        if bot is None:
+            raise AttributeError('Argument "playlist" must not be None')
+
+        pl = cls(bot)
+        data = json.loads(raw_json)
+
+        if 'entries' not in data:
+            raise KeyError('JSON data must have an "entries" key')
+
+        subclasses = {sc.__name__: sc for sc in BasePlaylistEntry.__subclasses__()}
+
+        for jentry in data['entries']:
+            try:
+                entry = subclasses[jentry['type']].deserialize(jentry)
+            except:
+                log.exception("Failed to deserialize entry")
+                log.noise("Bad entry: %s", jentry)
+            else:
+                pl.entries.append(entry)
+
+        # TODO: create a function to init downloading (since we don't do it here)?
+        return pl
 
