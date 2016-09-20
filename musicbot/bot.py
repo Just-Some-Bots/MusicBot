@@ -12,7 +12,7 @@ import aiohttp
 import discord
 import colorlog
 
-from io import BytesIO
+from io import BytesIO, StringIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
@@ -2086,6 +2086,34 @@ class MusicBot(discord.Client):
     async def cmd_breakpoint(self, message):
         log.critical("Activating debug breakpoint")
         return
+
+    @dev_only
+    async def cmd_objgraph(self, channel, func='most_common_types()'):
+        import objgraph
+
+        await self.send_typing(channel)
+
+        if func == 'growth':
+            f = StringIO()
+            objgraph.show_growth(limit=10, file=f)
+            f.seek(0)
+            data = f.read()
+            f.close()
+
+        elif func == 'leaks':
+            f = StringIO()
+            objgraph.show_most_common_types(objects=objgraph.get_leaking_objects(), file=f)
+            f.seek(0)
+            data = f.read()
+            f.close()
+
+        elif func == 'leakstats':
+            data = objgraph.typestats(objects=objgraph.get_leaking_objects())
+
+        else:
+            data = eval('objgraph.' + func)
+
+        return Response(data, codeblock='py')
 
     @dev_only
     async def cmd_debug(self, message, _player, *, data):
