@@ -229,7 +229,7 @@ class Config:
 
                 if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
                     print(flush=True)
-                    log.critical("Please configure config/options.ini and restart the bot.")
+                    log.critical("Please configure config/options.ini and re-run the bot.")
                     sys.exit(1)
 
             except ValueError: # Config id value was changed but its not valid

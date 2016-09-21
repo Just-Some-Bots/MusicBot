@@ -368,7 +368,7 @@ class MusicBot(discord.Client):
         session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
         voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == server.id)
 
-        # request joining
+        # "join" the voice channel
         log.voicedebug("(%s) setting voice state", _func_())
         await self.ws.voice_state(server.id, channel.id)
 
@@ -1784,7 +1784,7 @@ class MusicBot(discord.Client):
             prog_str = '`[%s/%s]`' % (song_progress, song_total)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                lines.append("Now Playing: **%s** added by **%s** %s\n" % (
+                lines.append("Currently Playing: **%s** added by **%s** %s\n" % (
                     player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
             else:
                 lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
