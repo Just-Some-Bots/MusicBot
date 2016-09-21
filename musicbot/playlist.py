@@ -331,17 +331,7 @@ class Playlist(EventEmitter, Serializable):
 
 
     def serialize(self):
-        data = {
-            'version': 1
-        }
-        entries = '[' + ','.join(entry.serialize() for entry in self.entries) + ']'
-
-        data = json.dumps(data)
-        data = data.rsplit('}', 1)[0]
-        data += ', "entries": {}}}'.format(entries)
-        # This is better than data['entries'] = json.loads(','.join...) because speed
-
-        return data
+        return '[' + ','.join(entry.serialize() for entry in self.entries) + ']'
 
     @classmethod
     def deserialize(cls, raw_json, bot=None, **kwargs):
@@ -350,13 +340,9 @@ class Playlist(EventEmitter, Serializable):
 
         pl = cls(bot)
         data = json.loads(raw_json)
-
-        if 'entries' not in data:
-            raise KeyError('JSON data must have an "entries" key')
-
         subclasses = {sc.__name__: sc for sc in BasePlaylistEntry.__subclasses__()}
 
-        for jentry in data['entries']:
+        for jentry in data:
             try:
                 entry = subclasses[jentry['type']].deserialize(jentry)
             except:
