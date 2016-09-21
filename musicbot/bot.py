@@ -373,10 +373,11 @@ class MusicBot(discord.Client):
         await self.ws.voice_state(server.id, channel.id)
 
         log.voicedebug("(%s) waiting for session id", _func_())
-        session_id_data = await asyncio.wait_for(session_id_future, timeout=30.0, loop=self.loop)
+        session_id_data = await asyncio.wait_for(session_id_future, timeout=15, loop=self.loop)
 
+        # sometimes it gets stuck on this step.  Jake said to wait indefinitely.  To hell with that.
         log.voicedebug("(%s) waiting for voice data", _func_())
-        data = await asyncio.wait_for(voice_data_future, timeout=30.0, loop=self.loop)
+        data = await asyncio.wait_for(voice_data_future, timeout=15, loop=self.loop)
 
         kwargs = {
             'user': self.user,
@@ -390,7 +391,9 @@ class MusicBot(discord.Client):
         voice = discord.VoiceClient(**kwargs)
         try:
             log.voicedebug("(%s) connecting...", _func_())
-            await voice.connect()
+            with aiohttp.Timeout(15):
+                await voice.connect()
+
         except asyncio.TimeoutError as e:
             log.voicedebug("(%s) connection failed, disconnecting", _func_())
             try:
@@ -418,7 +421,7 @@ class MusicBot(discord.Client):
 
             vc = None
             t0 = t1 = 0
-            tries = 10
+            tries = 5
 
             for attempt in range(1, tries+1):
                 log.debug("Connection attempt {} to {}".format(attempt, channel.name))
@@ -431,13 +434,20 @@ class MusicBot(discord.Client):
 
                 except ConcurrentTimeoutError:
                     log.warning("Failed to connect, retrying ({}/{})".format(attempt, tries))
-                    # well I hope retrying works
+
+                    try:
+                        await self.ws.voice_state(channel.server.id, None)
+                    except:
+                        pass
 
                 except:
-                    log.critical("Unknown error attempting to connect to voice", exc_info=True)
-                    # traceback.print_exc()
+                    log.exception("Unknown error attempting to connect to voice")
 
                 await asyncio.sleep(0.5)
+
+            if not vc:
+                log.critical("Voice client is unable to connect")
+                raise exceptions.RestartSignal() # fuck it
 
             log.debug("Connected in {:0.1f}s".format(t1-t0))
 
