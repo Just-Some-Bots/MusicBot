@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import logging
 import asyncio
 import audioop
@@ -16,6 +17,7 @@ from discord.http import _func_
 
 from .utils import avg
 from .lib.event_emitter import EventEmitter
+from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning
 
 log = logging.getLogger(__name__)
@@ -93,7 +95,7 @@ class MusicPlayerState(Enum):
         return self.name
 
 
-class MusicPlayer(EventEmitter):
+class MusicPlayer(EventEmitter, Serializable):
     def __init__(self, bot, voice_client, playlist):
         super().__init__()
         self.bot = bot
@@ -326,6 +328,27 @@ class MusicPlayer(EventEmitter):
             finally:
                 await asyncio.sleep(1)
 
+    def __json__(self):
+        return self._enclose_json({
+            'current_entry': {
+                'entry': self.current_entry,
+                'progress': self.progress,
+                'progress_frames': self._current_player.buff.frame_count if self.progress is not None else None
+            },
+            'entries': self.playlist
+        })
+
+
+    @classmethod
+    def from_json(cls, jsondata, bot, vc, playlist):
+        data = json.loads(jsondata)
+
+        player = cls(bot, vc, playlist)
+        # player._current_entry
+
+        # TODO: Figure out what the hell to do
+
+
     @property
     def current_entry(self):
         return self._current_entry
@@ -348,11 +371,12 @@ class MusicPlayer(EventEmitter):
 
     @property
     def progress(self):
-        return round(self._current_player.buff.frame_count * 0.02)
-        # TODO: Properly implement this
-        #       Correct calculation should be bytes_read/192k
-        #       192k AKA sampleRate * (bitDepth / 8) * channelCount
-        #       Change frame_count to bytes_read in the PatchedBuff
+        if self._current_player:
+            return round(self._current_player.buff.frame_count * 0.02)
+            # TODO: Properly implement this
+            #       Correct calculation should be bytes_read/192k
+            #       192k AKA sampleRate * (bitDepth / 8) * channelCount
+            #       Change frame_count to bytes_read in the PatchedBuff
 
 # TODO: I need to add a check for if the eventloop is closed
 

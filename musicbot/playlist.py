@@ -330,8 +330,10 @@ class Playlist(EventEmitter, Serializable):
         return sum(1 for e in self.entries if e.meta.get('author', None) == user)
 
 
-    def serialize(self):
-        return '[' + ','.join(entry.serialize() for entry in self.entries) + ']'
+    def __json__(self):
+        return self._enclose_json({
+            'entries': list(self.entries)
+        })
 
     @classmethod
     def deserialize(cls, raw_json, bot=None, **kwargs):

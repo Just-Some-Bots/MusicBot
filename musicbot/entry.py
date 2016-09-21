@@ -119,10 +119,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
 
-    def serialize(self):
-        data = {
+    def __json__(self):
+        return self._enclose_json({
             'version': 1,
-            'type': self.__class__.__name__,
             'url': self.url,
             'title': self.title,
             'duration': self.duration,
@@ -136,9 +135,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'name': obj.name
                 } for (name, obj) in self.meta.items()
             }
-            # Actually I think I can just getattr instead, getattr(discord, type)
-        }
-        return json.dumps(data)
+            # Actually I think I can just getattr(discord, type)
+        })
 
     # noinspection PyTypeChecker
     async def _download(self):
@@ -292,10 +290,9 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
-    def serialize(self):
-        data = {
+    def __json__(self):
+        return self._enclose_json({
             'version': 1,
-            'type': self.__class__.__name__,
             'url': self._url,
             'title': self.title,
             'direct': self.direct,
@@ -306,9 +303,8 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                     'name': obj.name
                 } for name, obj in self.meta.items()
             }
-            # Actually I think I can just getattr instead, getattr(discord, type)
-        }
-        return json.dumps(data)
+            # Actually I think I can just getattr(discord, type)
+        })
 
     async def _download(self):
         self._is_downloading = True

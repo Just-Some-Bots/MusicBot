@@ -1,4 +1,6 @@
+import json
 import logging
+
 import discord
 
 from enum import Enum
@@ -53,11 +55,28 @@ class Response:
 class AnimatedResponse(Response):
     def __init__(self, content, *sequence, delete_after=0):
         super().__init__(content, delete_after=delete_after)
+        self.sequence = sequence
 
 
+class Serializer(json.JSONEncoder):
+    def default(self, o):
+        if hasattr(o, '__json__'):
+            return o.__json__()
+
+        return super().default(o)
 
 class Serializable:
-    def serialize(self):
+    def _enclose_json(self, data):
+        return {
+            '__class__': self.__class__.__name__,
+            '__module__': self.__module__,
+            'data': data
+        }
+
+    def serialize(self, *, cls=Serializer, **kwargs):
+        return json.dumps(self, cls=cls, **kwargs)
+
+    def __json__(self):
         raise NotImplementedError
 
     @classmethod
