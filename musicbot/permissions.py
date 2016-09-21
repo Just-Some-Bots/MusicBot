@@ -55,6 +55,13 @@ class Permissions:
 
         self.groups.add(owner_group)
 
+    async def async_validate(self, bot):
+        log.debug("Validating permissions...")
+
+        og = discord.utils.get(self.groups, name="Owner (auto)")
+        if 'auto' in og.user_list:
+            log.debug("Fixing automatic owner group")
+            og.user_list = {bot.config.owner_id}
 
     def save(self):
         with open(self.config_file, 'w') as f:

@@ -193,6 +193,11 @@ def sanity_checks(optional=True):
     # Make our folders if needed
     req_ensure_folders()
 
+    # Temp storage
+    if sys.platform.startswith('win'):
+        os.environ['PATH'] += ';' + os.path.abspath('bin/')
+        sys.path.append(os.path.abspath('bin/')) # might as well
+
     ## Optional
     if not optional:
         return
@@ -255,7 +260,8 @@ def req_ensure_encoding():
 
         import io
         sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
-        sh.stream = sys.stdout # I wish I didn't have to do this
+        # only slightly evil
+        sys.__stdout__ = sh.stream = sys.stdout
 
         if os.environ.get('PYCHARM_HOSTED', None) not in (None, '0'):
             log.info("Enabling colors in pycharm pseudoconsole")
