@@ -3,6 +3,7 @@ import sys
 import time
 import shlex
 import shutil
+import random
 import inspect
 import logging
 import asyncio
@@ -16,7 +17,6 @@ from io import BytesIO, StringIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
-from random import choice, shuffle
 from collections import defaultdict
 from concurrent.futures._base import TimeoutError as ConcurrentTimeoutError
 
@@ -594,7 +594,7 @@ class MusicBot(discord.Client):
     async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
-                song_url = choice(self.autoplaylist)
+                song_url = random.choice(self.autoplaylist)
                 # TODO: fix rng
                 info = None
 
@@ -1627,13 +1627,13 @@ class MusicBot(discord.Client):
         player.playlist.shuffle()
 
         cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
-        shuffle(cards)
+        random.shuffle(cards)
 
         hand = await self.send_message(channel, ' '.join(cards))
         await asyncio.sleep(0.6)
 
         for x in range(4):
-            shuffle(cards)
+            random.shuffle(cards)
             await self.safe_edit_message(hand, ' '.join(cards))
             await asyncio.sleep(0.6)
 
