@@ -33,12 +33,21 @@ class SkipState:
 
 
 class Response:
-    # TODO: Add slots and make sure there isn't any random attr setting anywhere
+    __slots__ = ['_content', 'reply', 'delete_after', 'codeblock', '_codeblock']
 
-    def __init__(self, content, reply=False, delete_after=0):
-        self.content = content
+    def __init__(self, content, reply=False, delete_after=0, codeblock=None):
+        self._content = content
         self.reply = reply
         self.delete_after = delete_after
+        self.codeblock = codeblock
+        self._codeblock = "```{!s}\n{{}}\n```".format('' if codeblock is True else codeblock)
+
+    @property
+    def content(self):
+        if self.codeblock:
+            return self._codeblock.format(self._content)
+        else:
+            return self._content
 
 # Alright this is going to take some actual thinking through
 class AnimatedResponse(Response):
