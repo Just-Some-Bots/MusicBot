@@ -338,15 +338,28 @@ class MusicPlayer(EventEmitter, Serializable):
             'entries': self.playlist
         })
 
+    @classmethod
+    def _deserialize(cls, data, bot=None, voice_client=None, playlist=None):
+        assert bot is not None, cls._bad('bot')
+        assert voice_client is not None, cls._bad('voice_client')
+        assert playlist is not None, cls._bad('playlist')
+
+        # log.debug("Deserializing player")
+        pl = cls(bot, voice_client, playlist)
+        current_entry_data = data['current_entry']
+
+        if current_entry_data['entry']:
+            cls._current_player = current_entry_data['entry']
+            # TODO: progress stuff
+
+        pl.playlist = data.get('entries')
+
+        return pl
 
     @classmethod
-    def from_json(cls, jsondata, bot, vc, playlist):
-        data = json.loads(jsondata)
-
-        player = cls(bot, vc, playlist)
-        # player._current_entry
-
-        # TODO: Figure out what the hell to do
+    def from_json(cls, raw_json, bot, voice_client, playlist):
+        # log.debug("Deserializing player from json")
+        return json.loads(raw_json, object_hook=Serializer.deserialize)
 
 
     @property

@@ -11,7 +11,7 @@ from urllib.error import URLError
 from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
 
 from .utils import get_header
-from .constructs import Serializable
+from .constructs import Serializable, Serializer
 from .lib.event_emitter import EventEmitter
 from .entry import URLPlaylistEntry, StreamPlaylistEntry, BasePlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
@@ -336,17 +336,14 @@ class Playlist(EventEmitter, Serializable):
         })
 
     @classmethod
-    def deserialize(cls, raw_json, bot=None, **kwargs):
-        if bot is None:
-            raise AttributeError('Argument "playlist" must not be None')
-
+    def _deserialize(cls, raw_json, bot=None):
+        assert bot is not None, cls._bad('bot')
+        # log.debug("Deserializing playlist")
         pl = cls(bot)
-        data = json.loads(raw_json)
-        subclasses = {sc.__name__: sc for sc in BasePlaylistEntry.__subclasses__()}
 
-        for jentry in data:
+        for jentry in raw_json['entries']:
             try:
-                entry = subclasses[jentry['type']].deserialize(jentry)
+                entry = json.loads(jentry, object_hook=Serializer)
             except:
                 log.exception("Failed to deserialize entry")
                 log.noise("Bad entry: %s", jentry)
