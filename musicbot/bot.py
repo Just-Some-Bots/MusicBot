@@ -681,6 +681,46 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
+    async def serialize_queue(self, server, *, dir=None):
+        """
+        Serialize the current queue for a server's player to json.
+        """
+
+        player = self.get_player_in(server)
+        if not player:
+            return
+
+        if dir is None:
+            dir = 'data/%s/queue.json' % server.id
+
+        async with self.aiolocks['queue_serialization'+':'+server.id]:
+            with open(dir, 'w', encoding='utf8') as f:
+                f.write(player.serialize())
+
+    async def deserialize_queue(self, server, voice_client, playlist=None, *, dir=None) -> MusicPlayer:
+        """
+        Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
+        """
+
+        player = self.get_player_in(server)
+        if not player:
+            return
+
+        if playlist is None:
+            playlist = Playlist(self)
+
+        if dir is None:
+            dir = 'data/%s/queue.json' % server.id
+
+        async with self.aiolocks['queue_serialization' + ':' + server.id]:
+            if not os.path.isfile(dir):
+                return None
+
+            with open(dir, 'r', encoding='utf8') as f:
+                data = f.read()
+
+        return MusicPlayer.from_json(data, self, voice_client, playlist)
+
 
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False, allow_none=True):
         msg = None
