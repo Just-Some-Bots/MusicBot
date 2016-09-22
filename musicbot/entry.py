@@ -102,6 +102,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             duration = data['duration']
             downloaded = data['downloaded']
             filename = data['filename'] if downloaded else None
+            expected_filename = data['expected_filename']
             meta = {}
 
             # TODO: Better [name] fallbacks
@@ -111,7 +112,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
             if 'author' in data['meta']:
                 meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-            return cls(playlist, url, title, duration, filename, **meta)
+            entry = cls(playlist, url, title, duration, expected_filename, **meta)
+            entry.filename = filename
+            entry._is_downloading = False
+
+            return entry
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
@@ -123,6 +128,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             'title': self.title,
             'duration': self.duration,
             'downloaded': self.is_downloaded,
+            'expected_filename': self.expected_filename,
             'filename': self.filename,
             # Todo: add server
             'meta': {

@@ -7,6 +7,7 @@ import random
 import inspect
 import logging
 import asyncio
+import pathlib
 import traceback
 
 import aiohttp
@@ -57,6 +58,7 @@ class MusicBot(discord.Client):
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
+        self.last_status = None
 
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
@@ -266,7 +268,7 @@ class MusicBot(discord.Client):
                     continue
 
                 try:
-                    player = await self.get_player(channel, create=True)
+                    player = await self.get_player(channel, create=True, deserialize=True)
 
                     log.info("Joined {0.server.name}/{0.name}".format(channel))
 
@@ -310,7 +312,7 @@ class MusicBot(discord.Client):
                 "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
 
     async def _cache_app_info(self, *, update=False):
-        if not self.cached_app_info and not update:
+        if not self.cached_app_info and not update and self.user.bot:
             log.debug("Caching app info")
             self.cached_app_info = await self.application_info()
 
@@ -531,10 +533,19 @@ class MusicBot(discord.Client):
     def get_player_in(self, server: discord.Server) -> MusicPlayer:
         return self.players.get(server.id)
 
-    async def get_player(self, channel, create=False) -> MusicPlayer:
+    async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
         server = channel.server
 
         async with self.aiolocks[_func_() + ':' + server.id]:
+            if deserialize:
+                voice_client = await self.get_voice_client(channel)
+                player = await self.deserialize_queue(server, voice_client)
+
+                if player:
+                    log.debug("Created player via deserialization for server %s", server.id)
+                    # Since deserializing only happens when the bot starts, I should never need to reconnect
+                    return self._init_player(player, server=server)
+
             if server.id not in self.players:
                 if not create:
                     raise exceptions.CommandError(
@@ -544,17 +555,8 @@ class MusicBot(discord.Client):
                 voice_client = await self.get_voice_client(channel)
 
                 playlist = Playlist(self)
-                player = MusicPlayer(self, voice_client, playlist) \
-                    .on('play', self.on_player_play) \
-                    .on('resume', self.on_player_resume) \
-                    .on('pause', self.on_player_pause) \
-                    .on('stop', self.on_player_stop) \
-                    .on('finished-playing', self.on_player_finished_playing) \
-                    .on('entry-added', self.on_player_entry_added) \
-                    .on('error', self.on_player_error)
-
-                player.skip_state = SkipState()
-                self.players[server.id] = player
+                player = MusicPlayer(self, voice_client, playlist)
+                self._init_player(player, server=server)
 
             async with self.aiolocks[self.reconnect_voice_client.__name__ + ':' + server.id]:
                 if self.players[server.id].voice_client not in self.voice_clients:
@@ -563,9 +565,27 @@ class MusicBot(discord.Client):
 
         return self.players[server.id]
 
+    def _init_player(self, player, *, server=None):
+        player = player.on('play', self.on_player_play) \
+                       .on('resume', self.on_player_resume) \
+                       .on('pause', self.on_player_pause) \
+                       .on('stop', self.on_player_stop) \
+                       .on('finished-playing', self.on_player_finished_playing) \
+                       .on('entry-added', self.on_player_entry_added) \
+                       .on('error', self.on_player_error)
+
+        player.skip_state = SkipState()
+
+        if server:
+            self.players[server.id] = player
+
+        return player
+
     async def on_player_play(self, player, entry):
         await self.update_now_playing(entry)
         player.skip_state.reset()
+
+        log.debug("Serialize queue in %s", _func_())
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
@@ -592,13 +612,14 @@ class MusicBot(discord.Client):
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
-    async def on_player_resume(self, entry, **_):
+    async def on_player_resume(self, player, entry, **_):
         await self.update_now_playing(entry)
 
-    async def on_player_pause(self, entry, **_):
+    async def on_player_pause(self, player, entry, **_):
         await self.update_now_playing(entry, True)
+        log.debug("Serialize queue in %s", _func_())
 
-    async def on_player_stop(self, **_):
+    async def on_player_stop(self, player, **_):
         await self.update_now_playing()
 
     async def on_player_finished_playing(self, player, **_):
@@ -647,18 +668,21 @@ class MusicBot(discord.Client):
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
-    async def on_player_entry_added(self, playlist, entry, **_):
-        pass
+        log.debug("Serialize queue in %s", _func_())
 
-    async def on_player_error(self, entry, ex, **_):
+    async def on_player_entry_added(self, player, playlist, entry, **_):
+        log.debug("Serialize queue in %s", _func_())
+
+    async def on_player_error(self, player, entry, ex, **_):
         if 'channel' in entry.meta:
             await self.safe_send_message(
                 entry.meta['channel'],
                 "```\nError from FFmpeg:\n{}\n```".format(ex)
             )
         else:
+            log.exception("Player error", exc_info=ex)
             # Maybe change to logging call with format_exception?
-            traceback.print_exception(ex.__class__, ex, ex.__traceback__)
+            # traceback.print_exception(ex.__class__, ex, ex.__traceback__)
 
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None
@@ -679,7 +703,12 @@ class MusicBot(discord.Client):
             name = u'{}{}'.format(prefix, entry.title)[:128]
             game = discord.Game(name=name)
 
-        await self.change_status(game)
+        async with self.aiolocks[_func_()]:
+            if game == self.last_status:
+                return
+
+            await self.change_status(game)
+            self.last_status = game
 
     async def serialize_queue(self, server, *, dir=None):
         """
@@ -694,17 +723,19 @@ class MusicBot(discord.Client):
             dir = 'data/%s/queue.json' % server.id
 
         async with self.aiolocks['queue_serialization'+':'+server.id]:
+            log.debug("Serializing queue for %s", server.id)
+
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(player.serialize())
+
+    async def serialize_all_queues(self, *, dir=None):
+        coros = [self.serialize_queue(s, dir=dir) for s in self.servers]
+        await asyncio.gather(*coros, return_exceptions=True)
 
     async def deserialize_queue(self, server, voice_client, playlist=None, *, dir=None) -> MusicPlayer:
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
         """
-
-        player = self.get_player_in(server)
-        if not player:
-            return
 
         if playlist is None:
             playlist = Playlist(self)
@@ -716,10 +747,62 @@ class MusicBot(discord.Client):
             if not os.path.isfile(dir):
                 return None
 
+            log.debug("Deserializing queue for %s", server.id)
+
             with open(dir, 'r', encoding='utf8') as f:
                 data = f.read()
 
         return MusicPlayer.from_json(data, self, voice_client, playlist)
+
+    @ensure_appinfo
+    async def _on_ready_sanity_checks(self):
+        # Ensure folders exist
+        await self._scheck_ensure_env()
+
+        # Server permissions check
+        await self._scheck_server_permissions()
+
+        # playlists in autoplaylist
+        await self._scheck_autoplaylist()
+
+        # config/permissions async validate?
+        await self._scheck_configs()
+
+
+    async def _scheck_ensure_env(self):
+        log.debug("Ensuring data folders exist")
+        for server in self.servers:
+            pathlib.Path('data/%s/' % server.id).mkdir(exist_ok=True)
+
+        with open('data/server_names.txt', 'w', encoding='utf8') as f:
+            for server in sorted(self.servers, key=lambda s:int(s.id)):
+                f.write('{:<22} {}\n'.format(server.id, server.name))
+
+        if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
+            if self._delete_old_audiocache():
+                log.debug("Deleted old audio cache")
+            else:
+                log.debug("Could not delete old audio cache, moving on.")
+
+
+    async def _scheck_server_permissions(self):
+        log.debug("Checking server permissions")
+        pass # TODO
+
+    async def _scheck_autoplaylist(self):
+        log.debug("Auditing autoplaylist")
+        pass # TODO
+
+    async def _scheck_configs(self):
+        log.debug("Validating config")
+        await self.config.async_validate(self)
+
+        log.debug("Validating permissions config")
+        await self.permissions.async_validate(self)
+
+
+
+#######################################################################################################################
 
 
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False, allow_none=True):
@@ -846,19 +929,18 @@ class MusicBot(discord.Client):
         log.info("\nReconnected to discord.\n")
 
     async def on_ready(self):
+        log.debug("Connection established, ready to go.")
+
         self.ws._keep_alive.name = 'Gateway Keepalive'
 
         if self.init_ok:
             log.debug("Received additional READY event, may have failed to resume")
             return
 
+        await self._on_ready_sanity_checks()
+        print()
+
         log.info('Connected!  Musicbot v{}\n'.format(BOTVERSION))
-
-        if self.user.bot:
-            await self._cache_app_info()
-
-        await self.config.async_validate(self)
-        await self.permissions.async_validate(self)
 
         self.init_ok = True
 
@@ -973,12 +1055,6 @@ class MusicBot(discord.Client):
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
-
-        if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
-            if self._delete_old_audiocache():
-                log.debug("Deleting old audio cache")
-            else:
-                log.debug("Could not delete old audio cache, moving on.")
 
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
@@ -1163,6 +1239,7 @@ class MusicBot(discord.Client):
                 log.debug("Got empty list, no data")
                 return
 
+            # TODO: handle 'webpage_url' being 'ytsearch:...' or extractor type
             song_url = info['entries'][0]['webpage_url']
             info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
             # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
@@ -2469,6 +2546,8 @@ class MusicBot(discord.Client):
                 bot_testing = server.get_channel("134771894292316160") or discord.utils.get(server.channels, name='bot-testing') or server
                 await self.safe_send_message(bot_testing, alertmsg.format(uid="98295630480314368")) # also fake abal
 
+        log.debug("Creating data folder for server %s", server.id)
+        pathlib.Path('data/%s/' % server.id).mkdir(exist_ok=True)
 
     async def on_server_remove(self, server: discord.Server):
         log.info("Bot has been removed from server: {}".format(server.name))

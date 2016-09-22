@@ -102,8 +102,8 @@ class MusicPlayer(EventEmitter, Serializable):
         self.loop = bot.loop
         self.voice_client = voice_client
         self.playlist = playlist
-        self.playlist.on('entry-added', self.on_entry_added)
         self.state = MusicPlayerState.STOPPED
+        self.skip_state = None
 
         self._volume = bot.config.default_volume
         self._play_lock = asyncio.Lock()
@@ -111,6 +111,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._current_entry = None
         self._stderr_future = None
 
+        self.playlist.on('entry-added', self.on_entry_added)
         self.loop.create_task(self.websocket_check())
 
     @property
@@ -126,6 +127,8 @@ class MusicPlayer(EventEmitter, Serializable):
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
             self.loop.call_later(2, self.play)
+
+        self.emit('entry-added', player=self, playlist=playlist, entry=entry)
 
     def skip(self):
         self._kill_current_player()
@@ -183,7 +186,7 @@ class MusicPlayer(EventEmitter, Serializable):
         if self._stderr_future.done() and self._stderr_future.exception():
             # I'm not sure that this would ever not be done if it gets to this point
             # unless ffmpeg is doing something highly questionable
-            self.emit('error', entry=entry, ex=self._stderr_future.exception())
+            self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
 
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
@@ -346,13 +349,13 @@ class MusicPlayer(EventEmitter, Serializable):
 
         # log.debug("Deserializing player")
         pl = cls(bot, voice_client, playlist)
-        current_entry_data = data['current_entry']
-
-        if current_entry_data['entry']:
-            cls._current_player = current_entry_data['entry']
-            # TODO: progress stuff
-
         pl.playlist = data.get('entries')
+
+        current_entry_data = data['current_entry']
+        if current_entry_data['entry']:
+            pl.playlist.entries.appendleft(current_entry_data['entry'])
+            # log.debug(pl.playlist.entries)
+            # TODO: progress stuff
 
         return pl
 

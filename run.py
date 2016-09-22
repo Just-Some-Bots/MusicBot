@@ -119,7 +119,7 @@ class PIP(object):
 # Setup initial loggers
 
 tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
-log = logging.getLogger('setup')
+log = logging.getLogger('launcher')
 log.setLevel(logging.DEBUG)
 
 sh = logging.StreamHandler(stream=sys.stdout)
@@ -199,6 +199,8 @@ def sanity_checks(optional=True):
 
     # check disk usage
     opt_check_disk_space()
+
+    log.info("Checks passed.")
 
 
 def req_ensure_py3():
