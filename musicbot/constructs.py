@@ -1,4 +1,5 @@
 import json
+import pydoc
 import logging
 
 import discord
@@ -65,10 +66,22 @@ class Serializer(json.JSONEncoder):
 
         return super().default(o)
 
+    @staticmethod
+    def deserialize(data):
+        if all(x in data for x in Serializable.signature):
+            cls = pydoc.locate(data['__module__'] + data['__class__'])
+            if cls and isinstance(cls, Serializable):
+                return cls.deserialize(data['data'])
+
+        return data
+
+
 class Serializable:
+    signature = ('__class__', '__module__', 'data')
+
     def _enclose_json(self, data):
         return {
-            '__class__': self.__class__.__name__,
+            '__class__': self.__class__.__qualname__,
             '__module__': self.__module__,
             'data': data
         }
