@@ -341,14 +341,8 @@ class Playlist(EventEmitter, Serializable):
         # log.debug("Deserializing playlist")
         pl = cls(bot)
 
-        for jentry in raw_json['entries']:
-            try:
-                entry = json.loads(jentry, object_hook=Serializer)
-            except:
-                log.exception("Failed to deserialize entry")
-                log.noise("Bad entry: %s", jentry)
-            else:
-                pl.entries.append(entry)
+        for entry in raw_json['entries']:
+            pl.entries.append(entry)
 
         # TODO: create a function to init downloading (since we don't do it here)?
         return pl
