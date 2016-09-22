@@ -193,11 +193,6 @@ def sanity_checks(optional=True):
     # Make our folders if needed
     req_ensure_folders()
 
-    # Temp storage
-    if sys.platform.startswith('win'):
-        os.environ['PATH'] += ';' + os.path.abspath('bin/')
-        sys.path.append(os.path.abspath('bin/')) # might as well
-
     ## Optional
     if not optional:
         return
@@ -277,21 +272,23 @@ def req_ensure_env():
         assert os.path.isfile('musicbot/__init__.py'), 'musicbot folder is not a python module'
 
         assert importlib.util.find_spec('musicbot'), "musicbot module is not importable"
-
     except AssertionError as e:
         log.critical("Failed environment check, %s", e)
         bugger_off()
 
     try:
         os.mkdir('musicbot-test-folder')
-
     except Exception:
         log.critical("Current working directory does not seem to be writable")
         log.critical("Please move the bot to a write")
         bugger_off()
-
     finally:
         rmtree('musicbot-test-folder', True)
+
+    if sys.platform.startswith('win'):
+        log.info("Adding local bins/ folder to path")
+        os.environ['PATH'] += ';' + os.path.abspath('bin/')
+        sys.path.append(os.path.abspath('bin/')) # might as well
 
 
 def req_ensure_folders():
