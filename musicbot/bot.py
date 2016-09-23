@@ -19,7 +19,6 @@ from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from collections import defaultdict
-from concurrent.futures._base import TimeoutError as ConcurrentTimeoutError
 
 from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
@@ -434,7 +433,7 @@ class MusicBot(discord.Client):
                     t1 = time.time()
                     break
 
-                except ConcurrentTimeoutError:
+                except asyncio.TimeoutError:
                     log.warning("Failed to connect, retrying ({}/{})".format(attempt, tries))
 
                     try:
