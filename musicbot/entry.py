@@ -134,7 +134,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'type': obj.__class__.__name__,
                     'id': obj.id,
                     'name': obj.name
-                } for (name, obj) in self.meta.items()
+                } for (name, obj) in self.meta.items() if obj
             }
             # Actually I think I can just getattr(discord, type)
         })
@@ -307,7 +307,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                     'type': obj.__class__.__name__,
                     'id': obj.id,
                     'name': obj.name
-                } for name, obj in self.meta.items()
+                } for name, obj in self.meta.items() if obj
             }
             # Actually I think I can just getattr(discord, type)
         })
