@@ -92,14 +92,10 @@ class MusicBot(discord.Client):
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
     def __del__(self):
-        try:
-            if not self.http.session.closed:
-                self.http.session.close()
+        try:    self.http.session.close()
         except: pass
 
-        try:
-            if not self.aiosession.closed:
-                self.aiosession.close()
+        try:    self.aiosession.close()
         except: pass
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
