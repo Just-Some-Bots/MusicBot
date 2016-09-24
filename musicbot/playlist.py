@@ -1,4 +1,3 @@
-import json
 import os.path
 import logging
 import datetime
@@ -11,9 +10,9 @@ from urllib.error import URLError
 from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
 
 from .utils import get_header
-from .constructs import Serializable, Serializer
+from .constructs import Serializable
 from .lib.event_emitter import EventEmitter
-from .entry import URLPlaylistEntry, StreamPlaylistEntry, BasePlaylistEntry
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 
 log = logging.getLogger(__name__)
@@ -33,6 +32,9 @@ class Playlist(EventEmitter, Serializable):
 
     def __iter__(self):
         return iter(self.entries)
+
+    def __len__(self):
+        return len(self.entries)
 
     def shuffle(self):
         shuffle(self.entries)

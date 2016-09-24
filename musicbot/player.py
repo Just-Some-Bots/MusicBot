@@ -435,7 +435,7 @@ def check_stderr(data:bytes):
         log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
         return True # fuck it
 
-    log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
+    # log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
 
     # TODO: Regex
     warnings = [

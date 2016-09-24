@@ -161,7 +161,7 @@ class MusicBot(discord.Client):
 
     def _setup_logging(self):
         if len(logging.getLogger(__package__).handlers) > 1:
-            log.debug("Already setup loggers?")
+            log.debug("Skipping logger setup, already set up")
             return
 
         shandler = logging.StreamHandler(stream=sys.stdout)
@@ -432,10 +432,11 @@ class MusicBot(discord.Client):
                 except asyncio.TimeoutError:
                     log.warning("Failed to connect, retrying ({}/{})".format(attempt, tries))
 
-                    try:
-                        await self.ws.voice_state(channel.server.id, None)
-                    except:
-                        pass
+                    # TODO: figure out if I need this or not
+                    # try:
+                    #     await self.ws.voice_state(channel.server.id, None)
+                    # except:
+                    #     pass
 
                 except:
                     log.exception("Unknown error attempting to connect to voice")
@@ -443,7 +444,7 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(0.5)
 
             if not vc:
-                log.critical("Voice client is unable to connect")
+                log.critical("Voice client is unable to connect, restarting...")
                 raise exceptions.RestartSignal() # fuck it
 
             log.debug("Connected in {:0.1f}s".format(t1-t0))
@@ -537,7 +538,7 @@ class MusicBot(discord.Client):
                 player = await self.deserialize_queue(server, voice_client)
 
                 if player:
-                    log.debug("Created player via deserialization for server %s", server.id)
+                    log.debug("Created player via deserialization for server %s with %s entries", server.id, len(player.playlist))
                     # Since deserializing only happens when the bot starts, I should never need to reconnect
                     return self._init_player(player, server=server)
 

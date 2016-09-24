@@ -1,5 +1,4 @@
 import os
-import json
 import asyncio
 import logging
 import traceback
