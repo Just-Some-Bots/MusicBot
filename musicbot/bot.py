@@ -581,7 +581,7 @@ class MusicBot(discord.Client):
         await self.update_now_playing(entry)
         player.skip_state.reset()
 
-        log.debug("Serialize queue in %s", _func_())
+        await self.serialize_queue(player.voice_client.channel.server)
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
@@ -613,7 +613,7 @@ class MusicBot(discord.Client):
 
     async def on_player_pause(self, player, entry, **_):
         await self.update_now_playing(entry, True)
-        log.debug("Serialize queue in %s", _func_())
+        await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_stop(self, player, **_):
         await self.update_now_playing()
@@ -664,10 +664,10 @@ class MusicBot(discord.Client):
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
-        log.debug("Serialize queue in %s", _func_())
+        await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
-        log.debug("Serialize queue in %s", _func_())
+        await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_error(self, player, entry, ex, **_):
         if 'channel' in entry.meta:
