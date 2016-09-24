@@ -56,6 +56,8 @@ class Config:
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
+        self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
+
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
         self.debug_mode = False
@@ -276,6 +278,7 @@ class ConfigDefaults:
     auto_pause = True
     delete_messages = True
     delete_invoking = False
+    persistent_queue = True
     debug_level = 'INFO'
 
     options_file = 'config/options.ini'

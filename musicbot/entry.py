@@ -114,7 +114,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
-            entry._is_downloading = False
 
             return entry
         except Exception as e:
@@ -276,6 +275,8 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             url = data['url']
             title = data['title']
             direct = data['direct']
+            source_url = data['source_url']
+            filename = data['filename']
             meta = {}
 
             # TODO: Better [name] fallbacks
@@ -286,7 +287,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             if 'author' in data['meta']:
                 meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-            return cls(playlist, url, title, direct=direct, **meta)
+            entry = cls(playlist, url, title, direct=direct, source_url=source_url, **meta)
+            if not direct and filename:
+                entry.filename = url
+
+            return entry
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
@@ -294,6 +299,8 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         return self._enclose_json({
             'version': 1,
             'url': self._url,
+            'source_url': self.source_url,
+            'filename': self.filename,
             'title': self.title,
             'direct': self.direct,
             'meta': {

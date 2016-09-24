@@ -263,7 +263,7 @@ class MusicBot(discord.Client):
                     continue
 
                 try:
-                    player = await self.get_player(channel, create=True, deserialize=True)
+                    player = await self.get_player(channel, create=True, deserialize=self.config.persistent_queue)
 
                     log.info("Joined {0.server.name}/{0.name}".format(channel))
 
@@ -1702,7 +1702,7 @@ class MusicBot(discord.Client):
 
         log.info("Joining {0.server.name}/{0.name}".format(author.voice_channel))
 
-        player = await self.get_player(author.voice_channel, create=True)
+        player = await self.get_player(author.voice_channel, create=True, deserialize=self.config.persistent_queue)
 
         if player.is_stopped:
             player.play()

@@ -347,22 +347,28 @@ class MusicPlayer(EventEmitter, Serializable):
         assert voice_client is not None, cls._bad('voice_client')
         assert playlist is not None, cls._bad('playlist')
 
-        # log.debug("Deserializing player")
-        pl = cls(bot, voice_client, playlist)
-        pl.playlist = data.get('entries')
+        player = cls(bot, voice_client, playlist)
+
+        data_pl = data.get('entries')
+        if data_pl and data_pl.entries:
+            player.playlist.entries = data_pl.entries
 
         current_entry_data = data['current_entry']
         if current_entry_data['entry']:
-            pl.playlist.entries.appendleft(current_entry_data['entry'])
-            # log.debug(pl.playlist.entries)
+            player.playlist.entries.appendleft(current_entry_data['entry'])
             # TODO: progress stuff
+            # how do I even do this
+            # this would have to be in the entry class right?
+            # some sort of progress indicator to skip ahead with ffmpeg (however that works, reading and ignoring frames?)
 
-        return pl
+        return player
 
     @classmethod
     def from_json(cls, raw_json, bot, voice_client, playlist):
-        # log.debug("Deserializing player from json")
-        return json.loads(raw_json, object_hook=Serializer.deserialize)
+        try:
+            return json.loads(raw_json, object_hook=Serializer.deserialize)
+        except:
+            log.exception("Failed to deserialize player")
 
 
     @property

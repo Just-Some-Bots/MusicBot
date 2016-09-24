@@ -281,8 +281,12 @@ class Playlist(EventEmitter, Serializable):
 
         return gooditems
 
-    def _add_entry(self, entry):
-        self.entries.append(entry)
+    def _add_entry(self, entry, *, head=False):
+        if head:
+            self.entries.appendleft(entry)
+        else:
+            self.entries.append(entry)
+
         self.emit('entry-added', playlist=self, entry=entry)
 
         if self.peek() is entry:
