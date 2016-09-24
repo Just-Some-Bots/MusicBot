@@ -613,7 +613,7 @@ class MusicBot(discord.Client):
 
     async def on_player_pause(self, player, entry, **_):
         await self.update_now_playing(entry, True)
-        await self.serialize_queue(player.voice_client.channel.server)
+        # await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_stop(self, player, **_):
         await self.update_now_playing()
