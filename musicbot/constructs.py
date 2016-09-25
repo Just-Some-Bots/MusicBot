@@ -71,7 +71,7 @@ class Serializer(json.JSONEncoder):
 
     @classmethod
     def deserialize(cls, data):
-        if all(x in data for x in Serializable.signature):
+        if all(x in data for x in Serializable._class_signature):
             # log.debug("Deserialization requested for %s", data)
             factory = pydoc.locate(data['__module__'] + '.' + data['__class__'])
             # log.debug("Found object %s", factory)
@@ -99,7 +99,7 @@ class Serializer(json.JSONEncoder):
 
 
 class Serializable:
-    signature = ('__class__', '__module__', 'data')
+    _class_signature = ('__class__', '__module__', 'data')
 
     def _enclose_json(self, data):
         return {
