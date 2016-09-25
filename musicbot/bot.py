@@ -801,7 +801,13 @@ class MusicBot(discord.Client):
 #######################################################################################################################
 
 
-    async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False, allow_none=True):
+    async def safe_send_message(self, dest, content, **kwargs):
+        tts = kwargs.pop('tts', False)
+        quiet = kwargs.pop('quiet', False)
+        expire_in = kwargs.pop('expire_in', 0)
+        allow_none = kwargs.pop('allow_none', True)
+        also_delete = kwargs.pop('also_delete', None)
+
         msg = None
         lfunc = log.debug if quiet else log.warning
 
@@ -810,13 +816,17 @@ class MusicBot(discord.Client):
                 msg = await self.send_message(dest, content, tts=tts)
 
         except discord.Forbidden:
-            lfunc("Cannot send message to \"{}\", no permission".format(dest.name))
+            lfunc("Cannot send message to \"%s\", no permission", dest.name)
 
         except discord.NotFound:
-            lfunc("Cannot send message to \"{}\", invalid channel?".format(dest.name))
+            lfunc("Cannot send message to \"%s\", invalid channel?", dest.name)
 
         except discord.HTTPException:
-            pass
+            if len(content) > DISCORD_MSG_CHAR_LIMIT:
+                lfunc("Message is over the message size limit (%s)", DISCORD_MSG_CHAR_LIMIT)
+            else:
+                lfunc("Failed to send message")
+                log.noise("Got HTTPException trying to send message to %s: %s", dest, content)
 
         finally:
             if msg and expire_in:
