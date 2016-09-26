@@ -85,13 +85,14 @@ class MusicBot(discord.Client):
             'auto_paused': False,
             'availability_paused': False
         }
-        self.server_specific_data = defaultdict(lambda: dict(ssd_defaults)) # yes, this is supposed to be like this, dict(...)
+        self.server_specific_data = defaultdict(ssd_defaults.copy)
 
         super().__init__()
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
     def __del__(self):
+        # These functions return futures but it doesn't matter
         try:    self.http.session.close()
         except: pass
 
@@ -448,6 +449,7 @@ class MusicBot(discord.Client):
                 raise exceptions.RestartSignal() # fuck it
 
             log.debug("Connected in {:0.1f}s".format(t1-t0))
+            log.info("Connected to {}/{}".format(channel.server, channel))
 
             vc.ws._keep_alive.name = 'VoiceClient Keepalive'
 
@@ -491,7 +493,7 @@ class MusicBot(discord.Client):
                 else:
                     new_vc = await self.get_voice_client(channel)
 
-                log.voicedebug("(%s) Reloading voice client", _func_())
+                log.voicedebug("(%s) Swapping voice client", _func_())
                 await player.reload_voice(new_vc)
 
                 if player.is_paused and _paused:
@@ -578,9 +580,10 @@ class MusicBot(discord.Client):
         return player
 
     async def on_player_play(self, player, entry):
-        await self.update_now_playing(entry)
+        await self.update_now_playing_status(entry)
         player.skip_state.reset()
 
+        # This is the one event where its ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.server)
 
         channel = entry.meta.get('channel', None)
@@ -608,22 +611,25 @@ class MusicBot(discord.Client):
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
+        # TODO: Check channel voice state?
+
     async def on_player_resume(self, player, entry, **_):
-        await self.update_now_playing(entry)
+        await self.update_now_playing_status(entry)
 
     async def on_player_pause(self, player, entry, **_):
-        await self.update_now_playing(entry, True)
+        await self.update_now_playing_status(entry, True)
         # await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_stop(self, player, **_):
-        await self.update_now_playing()
+        await self.update_now_playing_status()
 
     async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
+                random.shuffle(self.autoplaylist)
                 song_url = random.choice(self.autoplaylist)
-                # TODO: fix rng
-                info = None
+
+                info = {}
 
                 try:
                     info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
@@ -641,7 +647,7 @@ class MusicBot(discord.Client):
 
                 except Exception as e:
                     log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-                    log.debug('', exc_info=True)
+                    log.exception()
 
                     self.autoplaylist.remove(song_url)
                     continue
@@ -650,7 +656,9 @@ class MusicBot(discord.Client):
                     log.debug("Playlist found but is unsupported at this time, skipping.")
                     # TODO: Playlist expansion
 
-                # TODO: better checks here
+                # Do I check the initial conditions again?
+                # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+
                 try:
                     await player.playlist.add_entry(song_url, channel=None, author=None)
                 except exceptions.ExtractionError as e:
@@ -661,13 +669,16 @@ class MusicBot(discord.Client):
                 break
 
             if not self.autoplaylist:
+                # TODO: When I add playlist expansion, make sure that's not happening during this check
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
-        await self.serialize_queue(player.voice_client.channel.server)
+        else: # Don't serialize for autoplaylist events
+            await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
-        await self.serialize_queue(player.voice_client.channel.server)
+        if entry.meta.get('author') and entry.meta.get('channel'):
+            await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_error(self, player, entry, ex, **_):
         if 'channel' in entry.meta:
@@ -677,10 +688,8 @@ class MusicBot(discord.Client):
             )
         else:
             log.exception("Player error", exc_info=ex)
-            # Maybe change to logging call with format_exception?
-            # traceback.print_exception(ex.__class__, ex, ex.__traceback__)
 
-    async def update_now_playing(self, entry=None, is_paused=False):
+    async def update_now_playing_status(self, entry=None, is_paused=False):
         game = None
 
         if self.user.bot:
@@ -700,11 +709,41 @@ class MusicBot(discord.Client):
             game = discord.Game(name=name)
 
         async with self.aiolocks[_func_()]:
-            if game == self.last_status:
-                return
+            if game != self.last_status:
+                await self.change_status(game)
+                self.last_status = game
 
-            await self.change_status(game)
-            self.last_status = game
+    async def update_now_playing_message(self, server, message, *, channel=None):
+        lnp = self.server_specific_data[server]['last_np_msg']
+        m = None
+
+        if message is None and lnp:
+            await self.safe_delete_message(lnp, quiet=True)
+
+        elif lnp: # If there was a previous lp message
+            oldchannel = lnp.channel
+
+            if lnp.channel == oldchannel: # If we have a channel to update it in
+                async for lmsg in self.logs_from(channel, limit=1):
+                    if lmsg != lnp and lnp: # If we need to resend it
+                        await self.safe_delete_message(lnp, quiet=True)
+                        m = await self.safe_send_message(channel, message, quiet=True)
+                    else:
+                        m = await self.safe_edit_message(lnp, message, send_if_fail=True, quiet=False)
+
+            elif channel: # If we have a new channel to send it to
+                await self.safe_delete_message(lnp, quiet=True)
+                m = await self.safe_send_message(channel, message, quiet=True)
+
+            else: # we just resend it in the old channel
+                await self.safe_delete_message(lnp, quiet=True)
+                m = await self.safe_send_message(oldchannel, message, quiet=True)
+
+        elif channel: # No previous message
+            m = await self.safe_send_message(channel, message, quiet=True)
+
+        self.server_specific_data[server]['last_np_msg'] = m
+
 
     async def serialize_queue(self, server, *, dir=None):
         """
@@ -722,7 +761,7 @@ class MusicBot(discord.Client):
             log.debug("Serializing queue for %s", server.id)
 
             with open(dir, 'w', encoding='utf8') as f:
-                f.write(player.serialize())
+                f.write(player.serialize(sort_keys=True))
 
     async def serialize_all_queues(self, *, dir=None):
         coros = [self.serialize_queue(s, dir=dir) for s in self.servers]
@@ -2477,14 +2516,13 @@ class MusicBot(discord.Client):
         if not state.is_about_my_voice_channel:
             return # Irrelevant channel
 
-        for change in state.changes:
-            if change in [state.Change.JOIN, state.Change.LEAVE]:
-                log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
-                    state.member,
-                    'joined' if state.joining else 'left',
-                    state.server,
-                    state.my_voice_channel
-                ))
+        if state.joining or state.leaving:
+            log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
+                state.member,
+                'joined' if state.joining else 'left',
+                state.server,
+                state.my_voice_channel
+            ))
 
         if not self.config.auto_pause:
             return
