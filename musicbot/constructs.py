@@ -142,7 +142,7 @@ class VoiceStateUpdate:
         def __repr__(self):
             return self.name
 
-    __slots__ = ['before', 'after', 'broken', 'resuming']
+    __slots__ = ['before', 'after', 'broken']
 
     def __init__(self, before: discord.Member, after: discord.Member):
         self.broken = False
@@ -152,8 +152,6 @@ class VoiceStateUpdate:
 
         self.before = before
         self.after = after
-
-        self.resuming = None
 
     @property
     def me(self) -> discord.Member:
@@ -232,6 +230,15 @@ class VoiceStateUpdate:
         return all((
             self.before.voice_channel,
             not self.after.voice_channel
+        ))
+
+    @property
+    def resuming(self):
+        return all((
+            not self.joining,
+            self.is_about_me,
+            not self.server.voice_client,
+            not self.raw_change
         ))
 
     def empty(self, *, excluding_me=True, excluding_deaf=False, old_channel=False):
