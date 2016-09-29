@@ -1423,7 +1423,7 @@ class MusicBot(discord.Client):
 
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
-            return
+            return Response("Your request to skip " + str(player.current_entry.title) + " has passed.",reply=True,deleteafter=20)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
