@@ -314,10 +314,9 @@ class MusicPlayer(EventEmitter, Serializable):
         while not self.is_dead:
             try:
                 async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + self.voice_client.channel.server.id]:
-                    self.voice_client.ws.ensure_open()
-                    assert self.voice_client.ws.open
+                    await self.voice_client.ws.ensure_open()
 
-            except (InvalidState, AssertionError):
+            except InvalidState:
                 log.debug("Voice websocket for \"{}\" is {}, reconnecting".format(
                     self.voice_client.channel.server,
                     self.voice_client.ws.state_name
