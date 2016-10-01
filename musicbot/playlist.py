@@ -102,8 +102,9 @@ class Playlist(EventEmitter, Serializable):
 
     async def add_stream_entry(self, song_url, info=None, **meta):
         if info is None:
+            info = {'title': song_url, 'extractor': None}
+
             try:
-                info = {'title': song_url, 'extractor': None}
                 info = await self.downloader.extract_info(self.loop, song_url, download=False)
 
             except DownloadError as e:
@@ -124,10 +125,9 @@ class Playlist(EventEmitter, Serializable):
             except Exception as e:
                 log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url, e), exc_info=True)
 
-        if info:
-            url = info.get('url', song_url)
-        else:
-            url = song_url
+        dest_url = song_url
+        if info.get('extractor'):
+            dest_url = info.get('url')
 
         if info.get('extractor', None) == 'twitch:stream': # may need to add other twitch types
             title = info.get('description')
@@ -138,10 +138,9 @@ class Playlist(EventEmitter, Serializable):
 
         entry = StreamPlaylistEntry(
             self,
-            url,
+            song_url,
             title,
-            direct = not info.get('is_live', False),
-            source_url = song_url,
+            destination = dest_url,
             **meta
         )
         self._add_entry(entry)

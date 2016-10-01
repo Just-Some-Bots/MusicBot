@@ -245,32 +245,26 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, *, direct=False, source_url=None, **meta):
+    def __init__(self, playlist, url, title, *, destination=None, **meta):
         super().__init__()
 
         self.playlist = playlist
-        self._url = url
-        self.source_url = source_url
+        self.url = url
         self.title = title
-        self.direct = direct
+        self.destination = destination
         self.duration = 0
         self.meta = meta
 
-        if self.direct:
-            self.filename = self._url
-
-    @property
-    def url(self):
-        return self.source_url or self._url
+        if self.destination:
+            self.filename = self.destination
 
     def __json__(self):
         return self._enclose_json({
             'version': 1,
-            'url': self._url,
-            'source_url': self.source_url,
+            'url': self.url,
             'filename': self.filename,
             'title': self.title,
-            'direct': self.direct,
+            'destination': self.destination,
             'meta': {
                 name: {
                     'type': obj.__class__.__name__,
@@ -288,8 +282,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             # TODO: version check
             url = data['url']
             title = data['title']
-            direct = data['direct']
-            source_url = data['source_url']
+            destination = data['destination']
             filename = data['filename']
             meta = {}
 
@@ -301,20 +294,26 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             if 'author' in data['meta']:
                 meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-            entry = cls(playlist, url, title, direct=direct, source_url=source_url, **meta)
-            if not direct and filename:
-                entry.filename = url
+            entry = cls(playlist, url, title, destination=destination, **meta)
+            if not destination and filename:
+                entry.filename = destination
 
             return entry
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
-    async def _download(self):
+    # noinspection PyMethodOverriding
+    async def _download(self, *, fallback=False):
         self._is_downloading = True
 
+        url = self.destination if fallback else self.url
+
         try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, self._url, download=False)
+            result = await self.playlist.downloader.extract_info(self.playlist.loop, url, download=False)
         except Exception as e:
+            if not fallback and self.destination:
+                return await self._download(fallback=True)
+            log.warning("Bugger", exc_info=True)
             raise ExtractionError(e)
         else:
             self.filename = result['url']
