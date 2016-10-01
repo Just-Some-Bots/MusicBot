@@ -164,7 +164,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     if lsize != rsize:
                         await self._really_download(hash=True)
                     else:
-                        # print("[Download] Cached:", self.url)
+                        # print("[DOWNLOAD] Cached:", self.url)
                         self.filename = lfile
 
                 else:
@@ -182,10 +182,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
                 if expected_fname_base in ldir:
                     self.filename = os.path.join(self.download_folder, expected_fname_base)
-                    print("[Download] Cached:", self.url)
+                    print("[DOWNLOAD] Cached: ", self.url)
 
                 elif expected_fname_noex in flistdir:
-                    print("[Download] Cached (different extension):", self.url)
+                    print("[DOWNLOAD] Cached (different extension): ", self.url)
                     self.filename = os.path.join(self.download_folder, ldir[flistdir.index(expected_fname_noex)])
                     print("Expected %s, got %s" % (
                         self.expected_filename.rsplit('.', 1)[-1],
@@ -207,14 +207,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
-        print("[Download] Started:", self.url)
+        print("[DOWNLOAD] Started: ", self.url)
 
         try:
             result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
         except Exception as e:
             raise ExtractionError(e)
 
-        print("[Download] Complete:", self.url)
+        print("[DOWNLOAD] Complete: ", self.url)
 
         if result is None:
             raise ExtractionError("ytdl broke and hell if I know why")
