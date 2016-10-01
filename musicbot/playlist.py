@@ -70,10 +70,8 @@ class Playlist(EventEmitter, Serializable):
         # TODO: Extract this to its own function
         if info['extractor'] in ['generic', 'Dropbox']:
             try:
-                # unfortunately this is literally broken
-                # https://github.com/KeepSafe/aiohttp/issues/758
-                # https://github.com/KeepSafe/aiohttp/issues/852
-                content_type = await get_header(self.bot.aiosession, info['url'], 'CONTENT-TYPE')
+                headers = await get_header(self.bot.aiosession, info['url'])
+                content_type = headers.get('CONTENT-TYPE')
                 log.debug("Got content type {}".format(content_type))
 
             except Exception as e:
@@ -86,8 +84,12 @@ class Playlist(EventEmitter, Serializable):
                         # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
+                elif content_type.startswith('text/html'):
+                    log.warning("Got text/html for content-type, this might be a stream")
+                    pass # TODO: Check for shoutcast/icecast
+
                 elif not content_type.startswith(('audio/', 'video/')):
-                    log.warning("Questionable content type \"{}\" for url {}".format(content_type, song_url))
+                    log.warning("Questionable content-type \"{}\" for url {}".format(content_type, song_url))
 
         entry = URLPlaylistEntry(
             self,

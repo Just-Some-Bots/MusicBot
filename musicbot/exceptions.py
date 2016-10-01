@@ -25,6 +25,7 @@ class ExtractionError(MusicbotException):
     pass
 
 # The no processing entry type failed and an entry was a playlist/vice versa
+# TODO: Add typing options instead of is_playlist
 class WrongEntryTypeError(ExtractionError):
     def __init__(self, message, is_playlist, use_url):
         super().__init__(message)

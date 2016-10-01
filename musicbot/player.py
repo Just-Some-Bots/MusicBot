@@ -250,7 +250,7 @@ class MusicPlayer(EventEmitter, Serializable):
                 try:
                     entry = await self.playlist.get_next_entry()
 
-                except Exception:
+                except:
                     log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
                     return
@@ -264,7 +264,8 @@ class MusicPlayer(EventEmitter, Serializable):
                 self._kill_current_player()
 
                 boptions = "-nostdin"
-                aoptions = "-vn -b:a 128k"
+                # aoptions = "-vn -b:a 192k"
+                aoptions = "-vn"
 
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 
@@ -414,7 +415,7 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
                     sys.stderr.buffer.flush()
 
             except FFmpegError as e:
-                log.ffmpeg("Error from ffmpeg", exc_info=True)
+                log.ffmpeg("Error from ffmpeg: %s", str(e).strip())
                 last_ex = e
 
             except FFmpegWarning:

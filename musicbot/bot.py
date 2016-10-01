@@ -265,15 +265,14 @@ class MusicBot(discord.Client):
 
                 try:
                     player = await self.get_player(channel, create=True, deserialize=self.config.persistent_queue)
+                    joined_servers.add(server)
 
                     log.info("Joined {0.server.name}/{0.name}".format(channel))
 
                     if player.is_stopped:
                         player.play()
 
-                    joined_servers.add(server)
-
-                    if self.config.auto_playlist:
+                    if self.config.auto_playlist and not player.playlist.entries:
                         await self.on_player_finished_playing(player)
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
@@ -446,7 +445,7 @@ class MusicBot(discord.Client):
 
             if not vc:
                 log.critical("Voice client is unable to connect, restarting...")
-                raise exceptions.RestartSignal() # fuck it
+                await self.restart()
 
             log.debug("Connected in {:0.1f}s".format(t1-t0))
             log.info("Connected to {}/{}".format(channel.server, channel))
@@ -710,7 +709,7 @@ class MusicBot(discord.Client):
 
         async with self.aiolocks[_func_()]:
             if game != self.last_status:
-                await self.change_status(game)
+                await self.change_presence(game=game)
                 self.last_status = game
 
     async def update_now_playing_message(self, server, message, *, channel=None):
@@ -912,11 +911,18 @@ class MusicBot(discord.Client):
         else:
             return await super().edit_profile(self.config._password,**fields)
 
+
+    async def restart(self):
+        self.exit_signal = exceptions.RestartSignal()
+        await self.logout()
+
+    def restart_threadsafe(self):
+        asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
+
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
-        except: # Can be ignored
-            pass
+        except: pass
 
         pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
@@ -925,8 +931,7 @@ class MusicBot(discord.Client):
             gathered.cancel()
             self.loop.run_until_complete(gathered)
             gathered.exception()
-        except: # Can be ignored
-            pass
+        except: pass
 
     # noinspection PyMethodOverriding
     def run(self):
@@ -937,8 +942,10 @@ class MusicBot(discord.Client):
             # Add if token, else
             raise exceptions.HelpfulError(
                 "Bot cannot login, bad credentials.",
-                "Fix your Email or Password or Token in the options file.  "
-                "Remember that each field should be on their own line.")
+                "Fix your %s in the options file.  "
+                "Remember that each field should be on their own line."
+                % ['shit', 'Token', 'Email/Password', 'Credentials'][len(self.config.auth)]
+            ) #     ^^^^ In theory self.config.auth should never have no items
 
         finally:
             try:
@@ -948,7 +955,7 @@ class MusicBot(discord.Client):
 
             self.loop.close()
             if self.exit_signal:
-                raise self.exit_signal()
+                raise self.exit_signal
 
     async def logout(self):
         await self.disconnect_all_voice_clients()
@@ -1019,7 +1026,7 @@ class MusicBot(discord.Client):
             log.warning("Owner unknown, bot is not on any servers.")
             if self.user.bot:
                 log.warning(
-                    "\nTo make the bot join a server, paste this link in your browser."
+                    "To make the bot join a server, paste this link in your browser. \n"
                     "Note: You should be logged into your main account and have \n"
                     "manage server permissions on the server you want the bot to join.\n"
                     "  " + await self.generate_invite_link()
@@ -1067,7 +1074,7 @@ class MusicBot(discord.Client):
                 log.info("Autojoining voice chanels:")
                 [log.info(' - {}/{}'.format(ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
-                log.info("Not bound to any text channels")
+                log.info("Not autojoining any voice channels")
 
             if invalids and self.config.debug_mode:
                 print(flush=True)
