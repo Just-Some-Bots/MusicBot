@@ -313,7 +313,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         except Exception as e:
             if not fallback and self.destination:
                 return await self._download(fallback=True)
-            log.warning("Bugger", exc_info=True)
+
             raise ExtractionError(e)
         else:
             self.filename = result['url']
