@@ -981,6 +981,12 @@ class MusicBot(discord.Client):
         log.info("\nReconnected to discord.\n")
 
     async def on_ready(self):
+        dlogger = logging.getLogger('discord')
+        for h in dlogger.handlers:
+            if getattr(h, 'terminator', None) == '':
+                dlogger.removeHandler(h)
+                print()
+
         log.debug("Connection established, ready to go.")
 
         self.ws._keep_alive.name = 'Gateway Keepalive'

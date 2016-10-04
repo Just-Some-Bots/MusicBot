@@ -170,6 +170,12 @@ def finalize_logging():
 
     sh.setLevel(logging.INFO)
 
+    dlog = logging.getLogger('discord')
+    dlh = logging.StreamHandler(stream=sys.stdout)
+    dlh.terminator = ''
+    dlh.setFormatter(logging.Formatter('.'))
+    dlog.addHandler(dlh)
+
 
 def bugger_off(msg="Press enter to continue . . .", code=1):
     input(msg)
@@ -337,7 +343,11 @@ def main():
         try:
             from musicbot import MusicBot
             m = MusicBot()
-            log.info("Connecting...")
+
+            sh.terminator = ''
+            log.info("Connecting")
+            sh.terminator = '\n'
+
             m.run()
 
         except SyntaxError:
