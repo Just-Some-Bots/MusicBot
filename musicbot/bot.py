@@ -903,7 +903,7 @@ class MusicBot(discord.Client):
         try:
             return await super().send_typing(destination)
         except discord.Forbidden:
-            log.warning("Could not send typing to {}, no permssion".format(destination))
+            log.warning("Could not send typing to {}, no permission".format(destination))
 
     async def edit_profile(self, **fields):
         if self.user.bot:
@@ -1817,7 +1817,7 @@ class MusicBot(discord.Client):
             await asyncio.sleep(0.6)
 
         await self.safe_delete_message(hand, quiet=True)
-        return Response(":\N{OK HAND SIGN}:", delete_after=15)
+        return Response("\N{OK HAND SIGN}", delete_after=15)
 
     async def cmd_clear(self, player, author):
         """
