@@ -4,7 +4,7 @@ MusicBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### How do I set it up?
 
-[CLICK HERE](https://github.com/SexualRhinoceros/MusicBot/wiki) to find the guide that suites your operating system.
+[CLICK HERE](https://github.com/SexualRhinoceros/MusicBot/wiki) to find the guide that suits your operating system.
 
 ### Commands
 
