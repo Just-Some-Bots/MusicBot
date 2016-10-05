@@ -37,22 +37,21 @@ import platform
 import subprocess
 
 try:
-    import urllib.request
-    from urllib.request import Request
+    from urllib.request import urlopen, Request, urlretrieve
 except ImportError:
-    pass
-    # Doesn't matter, we'll be running python 3 by the time we use these
-    # Unless we need to download python, in which case i'll figure that out later
+    # Use urllib2 for Python 2.
+    from urllib2 import urlopen, Request
+    from urllib import urlretrieve
 
 # Logging setup goes here
 
 PY_VERSION = sys.version_info  # (3, 5, 1, ...)
 SYS_PLATFORM = sys.platform  # 'win32', 'linux', 'darwin'
 SYS_UNAME = platform.uname()
-SYS_ARCH = ('32', '64')[SYS_UNAME.machine.endswith('64')]
+SYS_ARCH = ('32', '64')[SYS_UNAME[4].endswith('64')]
 SYS_PKGMANAGER = None  # TODO: Figure this out
 
-PLATFORMS = ['win32', 'linux', 'darwin']
+PLATFORMS = ['win32', 'linux', 'darwin', 'linux2']
 
 MINIMUM_PY_VERSION = (3, 5)
 
@@ -62,6 +61,16 @@ if SYS_PLATFORM not in PLATFORMS:
 # python2 compat bollocks
 if PY_VERSION >= (3,):
     raw_input = input
+
+GET_PIP = "https://bootstrap.pypa.io/get-pip.py"
+
+
+def read_from_urllib(r):
+    # Reads data from urllib in a version-independant way.
+    if PY_VERSION[0] == 2:
+        return r.read()
+    else:
+        return r.read().decode("utf-8")
 
 
 def sudo_check_output(args, **kwargs):
@@ -203,7 +212,7 @@ class EnsureGit(SetupTask):
             url = "https://github.com/git-for-windows/git/releases/latest"
             req = Request(url, method='HEAD')
 
-            with urllib.request.urlopen(req) as resp:
+            with urlopen(req) as resp:
                 full_ver = os.path.basename(resp.url)
 
             match = re.match(r'v(\d+\.\d+\.\d+)', full_ver)
@@ -219,7 +228,7 @@ class EnsureGit(SetupTask):
         return url.format(full_ver=full_ver, ver=dist_ver, arch=SYS_ARCH)
 
     def download_win32(self):
-        result = urllib.request.urlretrieve(self._get_latest_win_get_download(), 'tmp/git-setup.exe')
+        result = urlretrieve(self._get_latest_win_get_download(), 'tmp/git-setup.exe')
         return result[0]
 
     def setup_win32(self, data):
@@ -269,7 +278,46 @@ class EnsureCompiler(SetupTask):
 
 
 class EnsurePip(SetupTask):
-    pass
+    def check(self):
+        # Check if pip is installed by importing it.
+        try:
+            import pip
+        except ImportError:
+            return False
+        else:
+            return True
+
+    def download(self):
+        # Try and use ensurepip.
+        try:
+            import ensurepip
+            return None
+        except ImportError:
+            # Download `get-pip.py`.
+            # We hope we have urllib.request, otherwise we're sort of fucked.
+            print("Downloading pip...")
+            r = urlopen(GET_PIP)
+            # Read data from the url.
+            data = read_from_urllib(r)
+            return data
+
+    def setup(self, data):
+        if data is None:
+            # It's safe to use ensurepip.
+            import ensurepip
+            print("Installing pip...")
+            ensurepip.bootstrap()
+            return
+
+        # Instead, we have to load get-pip.py into an exec() call, and execute main()
+        loc, glob = {}, {}
+        # Luckily, this works on Python 2, too.
+        exec(data, glob, loc)
+        # Pluck main from the globals.
+        main_f = glob["main"]
+        # Run it, to download pip.
+        print("Installing pip...")
+        main_f()
 
 
 class GitCloneMusicbot(SetupTask):
