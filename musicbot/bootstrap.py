@@ -31,6 +31,7 @@ from __future__ import print_function
 
 import os
 import re
+import shutil
 import sys
 import logging
 import platform
@@ -54,6 +55,9 @@ SYS_PKGMANAGER = None  # TODO: Figure this out
 PLATFORMS = ['win32', 'linux', 'darwin', 'linux2']
 
 MINIMUM_PY_VERSION = (3, 5)
+TARGET_PY_VERSION = "3.5.2"
+
+PY_BUILD_DIR = "/tmp/Python-%s" % TARGET_PY_VERSION
 
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
@@ -77,20 +81,20 @@ def sudo_check_output(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
 
-    return subprocess.check_output(('sudo',) + args, **kwargs)
+    return subprocess.check_output(('sudo',) + tuple(args), **kwargs)
 
 
 def sudo_check_call(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
 
-    return subprocess.check_call(('sudo',) + args, **kwargs)
+    return subprocess.check_call(('sudo',) + tuple(args), **kwargs)
 
 
 ###############################################################################
 
 
-class SetupTask:
+class SetupTask(object):
     def __getattribute__(self, item):
         try:
             # Check for platform variant of function first
@@ -115,6 +119,7 @@ class SetupTask:
     def run(cls):
         self = cls()
         if not self.check():
+            f = self.setup
             self.setup(self.download())
 
     def check(self):
@@ -138,10 +143,7 @@ class SetupTask:
 
 class EnsurePython(SetupTask):
     def check(self):
-        if PY_VERSION >= MINIMUM_PY_VERSION:
-            return True
-
-            # try to find python 3.5 and rerun with it
+        return PY_VERSION >= MINIMUM_PY_VERSION
 
     def download_win32(self):
         # https://www.python.org/ftp/python/3.5.2/python-3.5.2.exe
@@ -153,12 +155,40 @@ class EnsurePython(SetupTask):
 
     def download_linux(self):
         # https://www.python.org/ftp/python/3.5.2/Python-3.5.2.tgz
-        pass
+        print("Downloading Python...")
+        if not os.path.exists("/tmp/python.tar.gz"):
+            result = urlretrieve("https://www.python.org/ftp/python/3.5.2/Python-{}.tgz".format(TARGET_PY_VERSION),
+                                 '/tmp/python.tar.gz')
+        else:
+            result = ("/tmp/python.tar.gz",)
+        return result[0]
+
+    download_linux2 = download_linux
 
     def setup_linux(self, data):
         # tar -xf data
         # do build process
-        pass
+        if os.path.exists(PY_BUILD_DIR):
+            try:
+                shutil.rmtree(PY_BUILD_DIR)
+            except OSError:
+                sudo_check_call("rm -rf %s" % PY_BUILD_DIR)
+
+        subprocess.check_output("tar -xf {} -C /tmp".format(data).split())
+
+        olddir = os.getcwd()
+        # chdir into it
+        os.chdir(PY_BUILD_DIR)
+
+        # Configure and make.
+        subprocess.check_call('./configure --enable-ipv6 --enable-shared --with-system-ffi --without-ensurepip'.split())
+        subprocess.check_call('make')
+        sudo_check_call("make install")
+
+        # Change back.
+        os.chdir(olddir)
+
+    setup_linux2 = setup_linux
 
     def download_darwin(self):
         # https://www.python.org/ftp/python/3.5.2/python-3.5.2-macosx10.6.pkg
@@ -341,6 +371,8 @@ def preface():
 
 
 def main():
+    print("Bootstrapping MusicBot on Python %s." % '.'.join(list(map(str, PY_VERSION))))
+
     EnsurePython.run()
     EnsureBrew.run()
     EnsureGit.run()
