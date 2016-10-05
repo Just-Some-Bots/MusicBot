@@ -46,16 +46,15 @@ except ImportError:
 
 # Logging setup goes here
 
-PY_VERSION = sys.version_info # (3, 5, 1, ...)
-SYS_PLATFORM = sys.platform   # 'win32', 'linux', 'darwin'
+PY_VERSION = sys.version_info  # (3, 5, 1, ...)
+SYS_PLATFORM = sys.platform  # 'win32', 'linux', 'darwin'
 SYS_UNAME = platform.uname()
 SYS_ARCH = ('32', '64')[SYS_UNAME.machine.endswith('64')]
-SYS_PKGMANAGER = None # TODO: Figure this out
+SYS_PKGMANAGER = None  # TODO: Figure this out
 
 PLATFORMS = ['win32', 'linux', 'darwin']
 
 MINIMUM_PY_VERSION = (3, 5)
-
 
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
@@ -71,6 +70,7 @@ def sudo_check_output(args, **kwargs):
 
     return subprocess.check_output(('sudo',) + args, **kwargs)
 
+
 def sudo_check_call(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
@@ -82,7 +82,6 @@ def sudo_check_call(args, **kwargs):
 
 
 class SetupTask:
-
     def __getattribute__(self, item):
         try:
             # Check for platform variant of function first
@@ -133,7 +132,7 @@ class EnsurePython(SetupTask):
         if PY_VERSION >= MINIMUM_PY_VERSION:
             return True
 
-        # try to find python 3.5 and rerun with it
+            # try to find python 3.5 and rerun with it
 
     def download_win32(self):
         # https://www.python.org/ftp/python/3.5.2/python-3.5.2.exe
@@ -161,11 +160,11 @@ class EnsurePython(SetupTask):
         pass
 
     def _restart(self):
-        pass # Restart with 3.5 if needed
+        pass  # Restart with 3.5 if needed
 
 
 class EnsureEnv(SetupTask):
-    pass # basically the important checks from run.py
+    pass  # basically the important checks from run.py
 
 
 class EnsureBrew(SetupTask):
@@ -224,23 +223,24 @@ class EnsureGit(SetupTask):
         return result[0]
 
     def setup_win32(self, data):
-        pass # if I can't figure out silent setup i'll just run it via os.system or something
+        pass  # if I can't figure out silent setup i'll just run it via os.system or something
 
     def download_linux(self):
-        pass # need package manager abstraction
+        pass  # need package manager abstraction
 
     def setup_linux(self, data):
-        pass # nothing really needed, I don't think setting any git options is necessary
+        pass  # nothing really needed, I don't think setting any git options is necessary
 
     def download_darwin(self):
-        pass # brew install git
+        pass  # brew install git
 
     def setup_darwin(self, data):
-        pass # same as linux, probably can just delete these stubs
+        pass  # same as linux, probably can just delete these stubs
 
 
 class EnsureFFmpeg(SetupTask):
     pass
+
 
 class EnsureOpus(SetupTask):
     """
@@ -248,29 +248,37 @@ class EnsureOpus(SetupTask):
     """
     pass
 
+
 class EnsureFFI(SetupTask):
     """
     Check strategies include:
-        linux subprocess.check_output("find /usr[/local]/include -iname 'ffi.h'", shell=True) (find /usr/include /usr/local/include ...?)
+        linux subprocess.check_output("find /usr[/local]/include -iname 'ffi.h'", shell=True) (find /usr/include
+        /usr/local/include ...?)
         gcc -lffi (Fail: cannot find -lffi) vs (Success: ...  undefined reference to `main')
         "echo | gcc -xc++ -E -v -" and parse
     """
     pass
 
+
 class EnsureSodium(SetupTask):
-    pass # This one is going to be weird since sometimes its not needed (check python import)
+    pass  # This one is going to be weird since sometimes its not needed (check python import)
+
 
 class EnsureCompiler(SetupTask):
     pass
 
+
 class EnsurePip(SetupTask):
     pass
+
 
 class GitCloneMusicbot(SetupTask):
     pass
 
+
 class PipInstallRequirements(SetupTask):
     pass
+
 
 class SetupMusicbot(SetupTask):
     pass
@@ -282,6 +290,7 @@ class SetupMusicbot(SetupTask):
 def preface():
     print("This is where the text goes")
     raw_input("Press enter to begin. ")
+
 
 def main():
     EnsurePython.run()
@@ -300,4 +309,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
