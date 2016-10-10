@@ -188,6 +188,11 @@ class EnsurePython(SetupTask):
         # Change back.
         os.chdir(olddir)
 
+        # Restart into the new executable.
+        print("Rebooting into Python 3.5...")
+        # Use os.execl to switch program
+        os.execl("/usr/local/bin/python3.5", "python3.5", __file__)
+
     setup_linux2 = setup_linux
 
     def download_darwin(self):
@@ -334,9 +339,7 @@ class EnsurePip(SetupTask):
     def setup(self, data):
         if data is None:
             # It's safe to use ensurepip.
-            import ensurepip
             print("Installing pip...")
-            ensurepip.bootstrap()
             return
 
         # Instead, we have to load get-pip.py into an exec() call, and execute main()
