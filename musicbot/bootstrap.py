@@ -36,6 +36,7 @@ import sys
 import logging
 import platform
 import subprocess
+import tempfile
 
 try:
     from urllib.request import urlopen, Request, urlretrieve
@@ -326,31 +327,34 @@ class EnsurePip(SetupTask):
         # Try and use ensurepip.
         try:
             import ensurepip
-            return None
+            return False
         except ImportError:
             # Download `get-pip.py`.
             # We hope we have urllib.request, otherwise we're sort of fucked.
+            f = tempfile.NamedTemporaryFile(delete=False)
+            f.close()  # we only want the name
             print("Downloading pip...")
-            r = urlopen(GET_PIP)
-            # Read data from the url.
-            data = read_from_urllib(r)
-            return data
+            urlretrieve(GET_PIP, f.name)
+            return f.name
 
     def setup(self, data):
-        if data is None:
+        if not data:
             # It's safe to use ensurepip.
             print("Installing pip...")
+            try:
+                import ensurepip
+                ensurepip.bootstrap()
+            except PermissionError:
+                # panic and try and sudo it
+                sudo_check_call("python3.5 -m ensurepip")
             return
 
-        # Instead, we have to load get-pip.py into an exec() call, and execute main()
-        loc, glob = {}, {}
-        # Luckily, this works on Python 2, too.
-        exec(data, glob, loc)
-        # Pluck main from the globals.
-        main_f = glob["main"]
-        # Run it, to download pip.
+        # Instead, we have to run get-pip.py.
         print("Installing pip...")
-        main_f()
+        try:
+            sudo_check_call(["python3.5", "{}".format(data)])
+        except FileNotFoundError:
+            subprocess.check_call(["python3.5", "{}".format(data)])
 
 
 class GitCloneMusicbot(SetupTask):
