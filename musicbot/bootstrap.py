@@ -31,31 +31,34 @@ from __future__ import print_function
 
 import os
 import re
+import shutil
 import sys
 import logging
 import platform
 import subprocess
+import tempfile
 
 try:
-    import urllib.request
-    from urllib.request import Request
+    from urllib.request import urlopen, Request, urlretrieve
 except ImportError:
-    pass
-    # Doesn't matter, we'll be running python 3 by the time we use these
-    # Unless we need to download python, in which case i'll figure that out later
+    # Use urllib2 for Python 2.
+    from urllib2 import urlopen, Request
+    from urllib import urlretrieve
 
 # Logging setup goes here
 
-PY_VERSION = sys.version_info # (3, 5, 1, ...)
-SYS_PLATFORM = sys.platform   # 'win32', 'linux', 'darwin'
+PY_VERSION = sys.version_info  # (3, 5, 1, ...)
+SYS_PLATFORM = sys.platform  # 'win32', 'linux', 'darwin'
 SYS_UNAME = platform.uname()
-SYS_ARCH = ('32', '64')[SYS_UNAME.machine.endswith('64')]
-SYS_PKGMANAGER = None # TODO: Figure this out
+SYS_ARCH = ('32', '64')[SYS_UNAME[4].endswith('64')]
+SYS_PKGMANAGER = None  # TODO: Figure this out
 
-PLATFORMS = ['win32', 'linux', 'darwin']
+PLATFORMS = ['win32', 'linux', 'darwin', 'linux2']
 
 MINIMUM_PY_VERSION = (3, 5)
+TARGET_PY_VERSION = "3.5.2"
 
+PY_BUILD_DIR = "/tmp/Python-%s" % TARGET_PY_VERSION
 
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
@@ -64,25 +67,35 @@ if SYS_PLATFORM not in PLATFORMS:
 if PY_VERSION >= (3,):
     raw_input = input
 
+GET_PIP = "https://bootstrap.pypa.io/get-pip.py"
+
+
+def read_from_urllib(r):
+    # Reads data from urllib in a version-independant way.
+    if PY_VERSION[0] == 2:
+        return r.read()
+    else:
+        return r.read().decode("utf-8")
+
 
 def sudo_check_output(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
 
-    return subprocess.check_output(('sudo',) + args, **kwargs)
+    return subprocess.check_output(('sudo',) + tuple(args), **kwargs)
+
 
 def sudo_check_call(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
 
-    return subprocess.check_call(('sudo',) + args, **kwargs)
+    return subprocess.check_call(('sudo',) + tuple(args), **kwargs)
 
 
 ###############################################################################
 
 
-class SetupTask:
-
+class SetupTask(object):
     def __getattribute__(self, item):
         try:
             # Check for platform variant of function first
@@ -107,6 +120,7 @@ class SetupTask:
     def run(cls):
         self = cls()
         if not self.check():
+            f = self.setup
             self.setup(self.download())
 
     def check(self):
@@ -130,10 +144,7 @@ class SetupTask:
 
 class EnsurePython(SetupTask):
     def check(self):
-        if PY_VERSION >= MINIMUM_PY_VERSION:
-            return True
-
-        # try to find python 3.5 and rerun with it
+        return PY_VERSION >= MINIMUM_PY_VERSION
 
     def download_win32(self):
         # https://www.python.org/ftp/python/3.5.2/python-3.5.2.exe
@@ -145,12 +156,47 @@ class EnsurePython(SetupTask):
 
     def download_linux(self):
         # https://www.python.org/ftp/python/3.5.2/Python-3.5.2.tgz
-        pass
+        print("Downloading Python...")
+        if not os.path.exists("/tmp/python.tar.gz"):
+            result = urlretrieve("https://www.python.org/ftp/python/{0}/Python-{0}.tgz".format(TARGET_PY_VERSION),
+                                 '/tmp/python.tar.gz')
+        else:
+            result = ("/tmp/python.tar.gz",)
+        return result[0]
+
+    download_linux2 = download_linux
 
     def setup_linux(self, data):
         # tar -xf data
         # do build process
-        pass
+        if os.path.exists(PY_BUILD_DIR):
+            try:
+                shutil.rmtree(PY_BUILD_DIR)
+            except OSError:
+                sudo_check_call("rm -rf %s" % PY_BUILD_DIR)
+
+        subprocess.check_output("tar -xf {} -C /tmp".format(data).split())
+
+        olddir = os.getcwd()
+        # chdir into it
+        os.chdir(PY_BUILD_DIR)
+
+        # Configure and make.
+        subprocess.check_call('./configure --enable-ipv6 --enable-shared --with-system-ffi --without-ensurepip'.split())
+        subprocess.check_call('make')
+        sudo_check_call("make install")
+
+        # Change back.
+        os.chdir(olddir)
+
+        executable = "python{}".format(TARGET_PY_VERSION[0:3])
+
+        # Restart into the new executable.
+        print("Rebooting into Python {}...".format(TARGET_PY_VERSION))
+        # Use os.execl to switch program
+        os.execl("/usr/local/bin/{}".format(executable), "{}".format(executable), __file__)
+
+    setup_linux2 = setup_linux
 
     def download_darwin(self):
         # https://www.python.org/ftp/python/3.5.2/python-3.5.2-macosx10.6.pkg
@@ -161,11 +207,11 @@ class EnsurePython(SetupTask):
         pass
 
     def _restart(self):
-        pass # Restart with 3.5 if needed
+        pass  # Restart with 3.5 if needed
 
 
 class EnsureEnv(SetupTask):
-    pass # basically the important checks from run.py
+    pass  # basically the important checks from run.py
 
 
 class EnsureBrew(SetupTask):
@@ -204,7 +250,7 @@ class EnsureGit(SetupTask):
             url = "https://github.com/git-for-windows/git/releases/latest"
             req = Request(url, method='HEAD')
 
-            with urllib.request.urlopen(req) as resp:
+            with urlopen(req) as resp:
                 full_ver = os.path.basename(resp.url)
 
             match = re.match(r'v(\d+\.\d+\.\d+)', full_ver)
@@ -220,27 +266,28 @@ class EnsureGit(SetupTask):
         return url.format(full_ver=full_ver, ver=dist_ver, arch=SYS_ARCH)
 
     def download_win32(self):
-        result = urllib.request.urlretrieve(self._get_latest_win_get_download(), 'tmp/git-setup.exe')
+        result = urlretrieve(self._get_latest_win_get_download(), 'tmp/git-setup.exe')
         return result[0]
 
     def setup_win32(self, data):
-        pass # if I can't figure out silent setup i'll just run it via os.system or something
+        pass  # if I can't figure out silent setup i'll just run it via os.system or something
 
     def download_linux(self):
-        pass # need package manager abstraction
+        pass  # need package manager abstraction
 
     def setup_linux(self, data):
-        pass # nothing really needed, I don't think setting any git options is necessary
+        pass  # nothing really needed, I don't think setting any git options is necessary
 
     def download_darwin(self):
-        pass # brew install git
+        pass  # brew install git
 
     def setup_darwin(self, data):
-        pass # same as linux, probably can just delete these stubs
+        pass  # same as linux, probably can just delete these stubs
 
 
 class EnsureFFmpeg(SetupTask):
     pass
+
 
 class EnsureOpus(SetupTask):
     """
@@ -248,29 +295,77 @@ class EnsureOpus(SetupTask):
     """
     pass
 
+
 class EnsureFFI(SetupTask):
     """
     Check strategies include:
-        linux subprocess.check_output("find /usr[/local]/include -iname 'ffi.h'", shell=True) (find /usr/include /usr/local/include ...?)
+        linux subprocess.check_output("find /usr[/local]/include -iname 'ffi.h'", shell=True) (find /usr/include
+        /usr/local/include ...?)
         gcc -lffi (Fail: cannot find -lffi) vs (Success: ...  undefined reference to `main')
         "echo | gcc -xc++ -E -v -" and parse
     """
     pass
 
+
 class EnsureSodium(SetupTask):
-    pass # This one is going to be weird since sometimes its not needed (check python import)
+    pass  # This one is going to be weird since sometimes its not needed (check python import)
+
 
 class EnsureCompiler(SetupTask):
     pass
 
+
 class EnsurePip(SetupTask):
-    pass
+    def check(self):
+        # Check if pip is installed by importing it.
+        try:
+            import pip
+        except ImportError:
+            return False
+        else:
+            return True
+
+    def download(self):
+        # Try and use ensurepip.
+        try:
+            import ensurepip
+            return False
+        except ImportError:
+            # Download `get-pip.py`.
+            # We hope we have urllib.request, otherwise we're sort of fucked.
+            f = tempfile.NamedTemporaryFile(delete=False)
+            f.close()  # we only want the name
+            print("Downloading pip...")
+            urlretrieve(GET_PIP, f.name)
+            return f.name
+
+    def setup(self, data):
+        if not data:
+            # It's safe to use ensurepip.
+            print("Installing pip...")
+            try:
+                import ensurepip
+                ensurepip.bootstrap()
+            except PermissionError:
+                # panic and try and sudo it
+                sudo_check_call("python3.5 -m ensurepip")
+            return
+
+        # Instead, we have to run get-pip.py.
+        print("Installing pip...")
+        try:
+            sudo_check_call(["python3.5", "{}".format(data)])
+        except FileNotFoundError:
+            subprocess.check_call(["python3.5", "{}".format(data)])
+
 
 class GitCloneMusicbot(SetupTask):
     pass
 
+
 class PipInstallRequirements(SetupTask):
     pass
+
 
 class SetupMusicbot(SetupTask):
     pass
@@ -283,7 +378,10 @@ def preface():
     print("This is where the text goes")
     raw_input("Press enter to begin. ")
 
+
 def main():
+    print("Bootstrapping MusicBot on Python %s." % '.'.join(list(map(str, PY_VERSION))))
+
     EnsurePython.run()
     EnsureBrew.run()
     EnsureGit.run()
@@ -300,4 +398,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
