@@ -158,7 +158,7 @@ class EnsurePython(SetupTask):
         # https://www.python.org/ftp/python/3.5.2/Python-3.5.2.tgz
         print("Downloading Python...")
         if not os.path.exists("/tmp/python.tar.gz"):
-            result = urlretrieve("https://www.python.org/ftp/python/3.5.2/Python-{}.tgz".format(TARGET_PY_VERSION),
+            result = urlretrieve("https://www.python.org/ftp/python/{0}/Python-{0}.tgz".format(TARGET_PY_VERSION),
                                  '/tmp/python.tar.gz')
         else:
             result = ("/tmp/python.tar.gz",)
@@ -189,10 +189,12 @@ class EnsurePython(SetupTask):
         # Change back.
         os.chdir(olddir)
 
+        executable = "python{}".format(TARGET_PY_VERSION[0:3])
+
         # Restart into the new executable.
-        print("Rebooting into Python 3.5...")
+        print("Rebooting into Python {}...".format(TARGET_PY_VERSION))
         # Use os.execl to switch program
-        os.execl("/usr/local/bin/python3.5", "python3.5", __file__)
+        os.execl("/usr/local/bin/{}".format(executable), "{}".format(executable), __file__)
 
     setup_linux2 = setup_linux
 
