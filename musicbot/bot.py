@@ -1464,7 +1464,18 @@ class MusicBot(discord.Client):
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
-            {command_prefix}volume (+/-)[volume]
+            {command_prefix}volume
+
+        Shows the current volume.
+        """
+
+        if not new_volume:
+            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True)
+			
+    async def cmd_setvolume(self, message, player, permissions, new_volume=None):
+        """
+        Usage:
+            {command_prefix}setvolume (+/-)[volume]
 
         Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
@@ -1472,7 +1483,7 @@ class MusicBot(discord.Client):
 
         if not new_volume:
             return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True, delete_after=20)
-
+			
         relative = False
         if new_volume[0] in '+-':
             relative = True
@@ -1482,7 +1493,12 @@ class MusicBot(discord.Client):
 
         except ValueError:
             raise exceptions.CommandError('{} is not a valid number'.format(new_volume), expire_in=20)
-
+			
+        if permissions.max_volume and new_volume > permissions.max_volume:
+            raise exceptions.PermissionsError(
+                "[ERROR] You are not able to set the volume above (%s)" % permissions.max_volume
+            )
+			
         if relative:
             vol_change = new_volume
             new_volume += (player.volume * 100)
