@@ -1715,8 +1715,9 @@ class MusicBot(discord.Client):
             ■■■■■■■■■■□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□
             if for example the song has already played 25% of the songs duration
             """
-            for i in range(30):
-                if (percentage < 1 / 30 * i):
+            progress_bar_length = 30
+            for i in range(progress_bar_length):
+                if (percentage < 1 / progress_bar_length * i):
                     prog_bar_str += '□'
                 else:
                     prog_bar_str += '■'
