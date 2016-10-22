@@ -42,6 +42,7 @@ try:
     from urllib.request import urlopen, Request, urlretrieve
 except ImportError:
     # Use urllib2 for Python 2.
+    # noinspection PyUnresolvedReferences
     from urllib2 import urlopen, Request
     from urllib import urlretrieve
 
@@ -58,16 +59,17 @@ PLATFORMS = ['win32', 'linux', 'darwin', 'linux2']
 MINIMUM_PY_VERSION = (3, 5)
 TARGET_PY_VERSION = "3.5.2"
 
-PY_BUILD_DIR = "/tmp/Python-%s" % TARGET_PY_VERSION
-
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
+
+TEMP_DIR = tempfile.TemporaryDirectory(prefix='musicbot-')
+PY_BUILD_DIR = os.path.join(TEMP_DIR, "Python-%s" % TARGET_PY_VERSION)
+
+GET_PIP = "https://bootstrap.pypa.io/get-pip.py"
 
 # python2 compat bollocks
 if PY_VERSION >= (3,):
     raw_input = input
-
-GET_PIP = "https://bootstrap.pypa.io/get-pip.py"
 
 
 def read_from_urllib(r):
@@ -91,6 +93,12 @@ def sudo_check_call(args, **kwargs):
 
     return subprocess.check_call(('sudo',) + tuple(args), **kwargs)
 
+def tmpdownload(url, name=None, subdir=''):
+    if name is None:
+        name = os.path.basename(url)
+
+    _name = os.path.join(TEMP_DIR.name, subdir, name)
+    return urlretrieve(url, _name)
 
 ###############################################################################
 
@@ -143,26 +151,26 @@ class SetupTask(object):
 
 
 class EnsurePython(SetupTask):
+    PYTHON_BASE = "https://www.python.org/ftp/python/{ver}/"
+    # For some reason only the tgz's have a capital P
+    PYTHON_TGZ = PYTHON_BASE + "Python-{ver}.tgz"
+    PYTHON_EXE = PYTHON_BASE + "python-{ver}.exe"
+    PYTHON_PKG = PYTHON_BASE + "python-{ver}-macosx10.6.pkg"
+
     def check(self):
         return PY_VERSION >= MINIMUM_PY_VERSION
 
     def download_win32(self):
-        # https://www.python.org/ftp/python/3.5.2/python-3.5.2.exe
-        pass
+        exe, _ = tmpdownload(self.PYTHON_EXE.format(ver=TARGET_PY_VERSION))
+        return exe
 
     def setup_win32(self, data):
-        # There should be some sort of silent install option but I have to experiment with that
+        # TODO: figure out slient installation -> https://docs.python.org/3/using/windows.html#installing-without-ui
         pass
 
     def download_linux(self):
-        # https://www.python.org/ftp/python/3.5.2/Python-3.5.2.tgz
-        print("Downloading Python...")
-        if not os.path.exists("/tmp/python.tar.gz"):
-            result = urlretrieve("https://www.python.org/ftp/python/{0}/Python-{0}.tgz".format(TARGET_PY_VERSION),
-                                 '/tmp/python.tar.gz')
-        else:
-            result = ("/tmp/python.tar.gz",)
-        return result[0]
+        tgz, _ = tmpdownload(self.PYTHON_TGZ.format(ver=TARGET_PY_VERSION))
+        return tgz
 
     download_linux2 = download_linux
 
@@ -175,7 +183,7 @@ class EnsurePython(SetupTask):
             except OSError:
                 sudo_check_call("rm -rf %s" % PY_BUILD_DIR)
 
-        subprocess.check_output("tar -xf {} -C /tmp".format(data).split())
+        subprocess.check_output("tar -xf {} -C {}".format(data, TEMP_DIR.name).split())
 
         olddir = os.getcwd()
         # chdir into it
@@ -191,6 +199,9 @@ class EnsurePython(SetupTask):
 
         executable = "python{}".format(TARGET_PY_VERSION[0:3])
 
+        self._restart()
+
+        # TODO: Move to _restart
         # Restart into the new executable.
         print("Rebooting into Python {}...".format(TARGET_PY_VERSION))
         # Use os.execl to switch program
@@ -199,14 +210,14 @@ class EnsurePython(SetupTask):
     setup_linux2 = setup_linux
 
     def download_darwin(self):
-        # https://www.python.org/ftp/python/3.5.2/python-3.5.2-macosx10.6.pkg
-        pass
+        pkg, _ = tmpdownload(self.PYTHON_PKG.format(ver=TARGET_PY_VERSION))
+        return pkg
 
     def setup_darwin(self, data):
-        # idk maybe just execute it
-        pass
+        subprocess.check_call(data.split()) # I hope this works?
+        self._restart()
 
-    def _restart(self):
+    def _restart(self, cmd=None):
         pass  # Restart with 3.5 if needed
 
 
@@ -397,4 +408,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except:
+        pass
+    finally:
+        TEMP_DIR.cleanup()
