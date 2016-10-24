@@ -35,8 +35,9 @@ import shutil
 import sys
 import logging
 import platform
-import subprocess
 import tempfile
+import traceback
+import subprocess
 
 try:
     from urllib.request import urlopen, Request, urlretrieve
@@ -128,7 +129,6 @@ class SetupTask(object):
     def run(cls):
         self = cls()
         if not self.check():
-            f = self.setup
             self.setup(self.download())
 
     def check(self):
@@ -158,15 +158,27 @@ class EnsurePython(SetupTask):
     PYTHON_PKG = PYTHON_BASE + "python-{ver}-macosx10.6.pkg"
 
     def check(self):
-        return PY_VERSION >= MINIMUM_PY_VERSION
+        if PY_VERSION >= MINIMUM_PY_VERSION:
+            return True
+
+        # TODO: Check for python 3.5 and restart if found
 
     def download_win32(self):
         exe, _ = tmpdownload(self.PYTHON_EXE.format(ver=TARGET_PY_VERSION))
         return exe
 
     def setup_win32(self, data):
-        # TODO: figure out slient installation -> https://docs.python.org/3/using/windows.html#installing-without-ui
-        pass
+        # TODO: test slient installation
+        # https://docs.python.org/3/using/windows.html#installing-without-ui
+        args = {
+            'PrependPath': '1',
+            'InstallLauncherAllUsers': '0',
+            'Include_test': '0'
+        }
+        command = [data, '/quiet'] + ['='.join(x) for x in args.items()]
+
+        subprocess.check_call(command)
+        self._restart(None)
 
     def download_linux(self):
         tgz, _ = tmpdownload(self.PYTHON_TGZ.format(ver=TARGET_PY_VERSION))
@@ -199,7 +211,7 @@ class EnsurePython(SetupTask):
 
         executable = "python{}".format(TARGET_PY_VERSION[0:3])
 
-        self._restart()
+        self._restart(None)
 
         # TODO: Move to _restart
         # Restart into the new executable.
@@ -215,9 +227,9 @@ class EnsurePython(SetupTask):
 
     def setup_darwin(self, data):
         subprocess.check_call(data.split()) # I hope this works?
-        self._restart()
+        self._restart(None)
 
-    def _restart(self, cmd=None):
+    def _restart(self, *cmds):
         pass  # Restart with 3.5 if needed
 
 
@@ -411,6 +423,8 @@ if __name__ == '__main__':
     try:
         main()
     except:
-        pass
+        traceback.print_exc()
+        # noinspection PyUnboundLocalVariable
+        raw_input("An error has occured, press enter to exit. ")
     finally:
         TEMP_DIR.cleanup()
