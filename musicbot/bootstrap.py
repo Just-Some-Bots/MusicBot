@@ -39,6 +39,10 @@ import tempfile
 import traceback
 import subprocess
 
+from glob import glob
+from shutil import rmtree
+from textwrap import dedent
+
 try:
     from urllib.request import urlopen, Request, urlretrieve
 except ImportError:
@@ -62,6 +66,9 @@ TARGET_PY_VERSION = "3.5.2"
 
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
+
+if SYS_PLATFORM == 'linux2':
+    SYS_PLATFORM = 'linux'
 
 TEMP_DIR = tempfile.TemporaryDirectory(prefix='musicbot-')
 PY_BUILD_DIR = os.path.join(TEMP_DIR, "Python-%s" % TARGET_PY_VERSION)
@@ -100,6 +107,22 @@ def tmpdownload(url, name=None, subdir=''):
 
     _name = os.path.join(TEMP_DIR.name, subdir, name)
     return urlretrieve(url, _name)
+
+def find_library(libname):
+    if SYS_PLATFORM == 'win32': return
+
+    # TODO: This
+
+
+"""
+Finding lib dev headers:
+    1. Get include dirs and search for headers
+        "echo | gcc -xc++ -E -v -" and parse for include dirs
+        linux subprocess.check_output("find /usr[/local]/include -iname 'ffi.h'", shell=True) (find /usr/include /usr/local/include ...?)
+
+    2. Have gcc deal with it and check the error output
+        gcc -lffi (Fail: cannot find -lffi) vs (Success: ...  undefined reference to `main')
+"""
 
 ###############################################################################
 
@@ -184,8 +207,6 @@ class EnsurePython(SetupTask):
         tgz, _ = tmpdownload(self.PYTHON_TGZ.format(ver=TARGET_PY_VERSION))
         return tgz
 
-    download_linux2 = download_linux
-
     def setup_linux(self, data):
         # tar -xf data
         # do build process
@@ -219,8 +240,6 @@ class EnsurePython(SetupTask):
         # Use os.execl to switch program
         os.execl("/usr/local/bin/{}".format(executable), "{}".format(executable), __file__)
 
-    setup_linux2 = setup_linux
-
     def download_darwin(self):
         pkg, _ = tmpdownload(self.PYTHON_PKG.format(ver=TARGET_PY_VERSION))
         return pkg
@@ -230,6 +249,7 @@ class EnsurePython(SetupTask):
         self._restart(None)
 
     def _restart(self, *cmds):
+        # TODO: os.execl
         pass  # Restart with 3.5 if needed
 
 
@@ -258,6 +278,21 @@ class EnsureBrew(SetupTask):
 
 
 class EnsureGit(SetupTask):
+    WIN_OPTS = dedent("""
+        [Setup]
+        Lang=default
+        Group=Git
+        NoIcons=0
+        SetupType=default
+        Components=ext,ext\shellhere,assoc
+        Tasks=
+        PathOption=Cmd
+        SSHOption=OpenSSH
+        CRLFOption=CRLFAlways
+        BashTerminalOption=MinTTY
+        PerformanceTweaksFSCache=Enabled
+        """)
+
     def check(self):
         try:
             subprocess.check_output(['git', '--version'])
@@ -289,45 +324,113 @@ class EnsureGit(SetupTask):
         return url.format(full_ver=full_ver, ver=dist_ver, arch=SYS_ARCH)
 
     def download_win32(self):
-        result = urlretrieve(self._get_latest_win_get_download(), 'tmp/git-setup.exe')
-        return result[0]
+        result, _ = tmpdownload(self._get_latest_win_git_version(), 'git-setup.exe')
+        return result
 
     def setup_win32(self, data):
-        pass  # if I can't figure out silent setup i'll just run it via os.system or something
+        with tempfile.NamedTemporaryFile('w+', encoding='utf8') as f:
+            f.file.write(self.WIN_OPTS)
+            f.file.flush()
+
+            args = [
+                data,
+                '/SILENT',
+                '/NORESTART',
+                '/NOCANCEL',
+                '/SP-',
+                '/LOG',
+                '/SUPPRESSMSGBOXES',
+                '/LOADINF="%s"' % f.name
+            ]
+            subprocess.check_call(args)
 
     def download_linux(self):
         pass  # need package manager abstraction
 
-    def setup_linux(self, data):
-        pass  # nothing really needed, I don't think setting any git options is necessary
+    # def setup_linux(self, data):
+    #     pass  # nothing really needed, I don't think setting any git options is necessary
 
     def download_darwin(self):
-        pass  # brew install git
+        subprocess.check_call('brew install git'.split())
 
-    def setup_darwin(self, data):
-        pass  # same as linux, probably can just delete these stubs
+    # def setup_darwin(self, data):
+    #     pass  # same as linux, probably can just delete these stubs
 
 
 class EnsureFFmpeg(SetupTask):
-    pass
+    AVCONV_CHECK = b"Please use avconv instead"
+
+    def check_win32(self):
+        return True # ffmpeg comes with the bot
+
+    def check(self):
+        try:
+            data = subprocess.check_output(['ffmpeg', '-version'], stderr=subprocess.STDOUT)
+        except FileNotFoundError:
+            return False
+        else:
+            return self.AVCONV_CHECK not in data
+
+    def download_linux(self):
+        # check if ubuntu, add ppa's, install
+        # otherwise check for other repo variants
+        # if all else fails: https://trac.ffmpeg.org/wiki/CompilationGuide
+        pass
+
+    def setup_linux(self, data):
+        pass
+
+    def download_darwin(self):
+        subprocess.check_call('brew install ffmpeg'.split())
 
 
 class EnsureOpus(SetupTask):
     """
-    See below for check strat, alternatively locate libopus.so.0
+    Locate libopus.so.0 or whatever it'd be called (maybe ctypes.find_library)
     """
-    pass
+
+    def check_win32(self):
+        return True # opus comes with the lib
+
+    def check(self):
+        pass
+
+    def download_linux(self):
+        pass
+
+    def setup_linux(self, data):
+        pass
+
+    def download_darwin(self):
+        pass
+
+    def setup_darwin(self, data):
+        pass
 
 
 class EnsureFFI(SetupTask):
     """
-    Check strategies include:
-        linux subprocess.check_output("find /usr[/local]/include -iname 'ffi.h'", shell=True) (find /usr/include
-        /usr/local/include ...?)
-        gcc -lffi (Fail: cannot find -lffi) vs (Success: ...  undefined reference to `main')
-        "echo | gcc -xc++ -E -v -" and parse
+    see: find_library up above
     """
-    pass
+
+    def check_win32(self):
+        return True # cffi has wheels
+
+    def check(self):
+        pass
+
+    def download_linux(self):
+        pass
+
+    def setup_linux(self, data):
+        pass
+
+    def download_darwin(self):
+        pass
+
+    def setup_darwin(self, data):
+        pass
+
 
 
 class EnsureSodium(SetupTask):
@@ -335,7 +438,7 @@ class EnsureSodium(SetupTask):
 
 
 class EnsureCompiler(SetupTask):
-    pass
+    pass # oh god
 
 
 class EnsurePip(SetupTask):
@@ -383,15 +486,53 @@ class EnsurePip(SetupTask):
 
 
 class GitCloneMusicbot(SetupTask):
-    pass
+    GIT_URL = "https://github.com/Just-Some-Bots/MusicBot.git"
+    GIT_CMD = "git clone --depth 10 --no-single-branch %s MusicBot" % GIT_URL
+    # TODO: Folder name cmd arg
 
+    def download(self):
+        # TODO: if os.path.exists('MusicBot'): i'm triggered
+        subprocess.check_call(self.GIT_CMD.split())
 
-class PipInstallRequirements(SetupTask):
-    pass
+    def setup(self, data):
+        os.chdir('MusicBot')
+
+        import pip
+        pip.main("install --upgrade -r requirements.txt".split())
 
 
 class SetupMusicbot(SetupTask):
-    pass
+    def _rm(self, f):
+        try:
+            return os.unlink(f)
+        except:
+            pass
+
+    def _rm_glob(self, p):
+        fs = glob(p)
+        for f in fs:
+            self._rm(f)
+
+    def _rm_dir(self, d):
+        return rmtree(d, ignore_errors=True)
+
+    def download(self): # lazy way to call a function on all platforms
+        self._rm('.dockerignore')
+        self._rm('Dockerfile')
+
+    def setup_win32(self, data):
+        self._rm_glob('*.sh')
+        self._rm_glob('*.command')
+
+    def setup_linux(self, data):
+        self._rm_glob('*.bat')
+        self._rm_glob('*.command')
+        self._rm_dir('bin')
+
+    def setup_darwin(self, data):
+        self._rm_glob('*.bat')
+        self._rm_glob('*.sh')
+        self._rm_dir('bin')
 
 
 ###############################################################################
@@ -415,7 +556,6 @@ def main():
     EnsureCompiler.run()
     EnsurePip.run()
     GitCloneMusicbot.run()
-    PipInstallRequirements.run()
     SetupMusicbot.run()
 
 
