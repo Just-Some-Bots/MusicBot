@@ -99,7 +99,7 @@ class PermissionGroup:
         self.max_songs = section_data.get('MaxSongs', fallback=PermissionsDefaults.MaxSongs)
         self.max_song_length = section_data.get('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
         self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength)
-        self.max_volume = section_data.get ('MaxVolume', fallback=PermissionsDefaults.MaxVolume)
+        self.max_volume = section_data.get('MaxVolume', fallback=PermissionsDefaults.MaxVolume)
 		
         self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
         self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)

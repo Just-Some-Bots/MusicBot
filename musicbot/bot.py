@@ -34,7 +34,6 @@ from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-
 load_opus_lib()
 
 
@@ -245,7 +244,7 @@ class MusicBot(discord.Client):
                 'loop': self.loop,
                 'session_id': session_id,
                 'main_ws': self.ws
-            }
+                }
             voice_client = VoiceClient(**kwargs)
             self.the_voice_clients[server.id] = voice_client
 
@@ -258,12 +257,12 @@ class MusicBot(discord.Client):
                     break
                 except:
                     traceback.print_exc()
-                    print("Failed to connect, retrying (%s/%s)..." % (x+1, retries))
+                    print("Failed to connect, retrying (%s/%s)..." % (x + 1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
                     await asyncio.sleep(1)
 
-                    if x == retries-1:
+                    if x == retries - 1:
                         raise exceptions.HelpfulError(
                             "Cannot establish connection to voice chat.  "
                             "Something may be blocking outgoing UDP connections.",
@@ -271,7 +270,7 @@ class MusicBot(discord.Client):
                             "This may be an issue with a firewall blocking UDP.  "
                             "Figure out what is blocking UDP and disable it.  "
                             "It's most likely a system firewall or overbearing anti-virus firewall.  "
-                        )
+                            )
 
             return voice_client
 
@@ -344,8 +343,8 @@ class MusicBot(discord.Client):
                     'channel_id': channel.id,
                     'self_mute': mute,
                     'self_deaf': deaf
+                    }
                 }
-            }
 
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
@@ -466,7 +465,6 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
-
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None
         try:
@@ -514,7 +512,7 @@ class MusicBot(discord.Client):
 
     def safe_print(self, content, *, end='\n', flush=True):
         sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
-        if flush: sys.stdout.flush()
+        if flush:sys.stdout.flush()
 
     async def send_typing(self, destination):
         try:
@@ -527,12 +525,12 @@ class MusicBot(discord.Client):
         if self.user.bot:
             return await super().edit_profile(**fields)
         else:
-            return await super().edit_profile(self.config._password,**fields)
+            return await super().edit_profile(self.config._password, **fields)
 
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
-        except: # Can be ignored
+        except:  # Can be ignored
             pass
 
         pending = asyncio.Task.all_tasks()
@@ -542,7 +540,7 @@ class MusicBot(discord.Client):
             gathered.cancel()
             self.loop.run_until_complete(gathered)
             gathered.exception()
-        except: # Can be ignored
+        except:  # Can be ignored
             pass
 
     # noinspection PyMethodOverriding
@@ -718,6 +716,7 @@ class MusicBot(discord.Client):
                 print("Owner not found in a voice channel, could not autosummon.")
 
         print()
+
         # t-t-th-th-that's all folks!
 
     async def cmd_help(self, command=None):
@@ -1461,18 +1460,7 @@ class MusicBot(discord.Client):
                 delete_after=20
             )
 
-    async def cmd_volume(self, message, player, new_volume=None):
-        """
-        Usage:
-            {command_prefix}volume
-
-        Shows the current volume.
-        """
-
-        if not new_volume:
-            return Response('Current volume: `%s%%`' % int(player.volume * 100), reply=True)
-			
-    async def cmd_setvolume(self, message, player, permissions, new_volume=None):
+    async def cmd_volume(self, message, player, permissions, new_volume=None):
         """
         Usage:
             {command_prefix}setvolume (+/-)[volume]
@@ -1776,7 +1764,7 @@ class MusicBot(discord.Client):
         Changes the bot's nickname.
         """
 
-        if not channel.permissions_for(server.me).change_nickname:
+        if not channel.permissions_for(server.me).change_nicknames:
             raise exceptions.CommandError("Unable to change nickname: no permission.")
 
         nick = ' '.join([nick, *leftover_args])
@@ -2021,12 +2009,11 @@ class MusicBot(discord.Client):
                 self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
 
-    async def on_server_update(self, before:discord.Server, after:discord.Server):
+    async def on_server_update(self, before: discord.Server, after: discord.Server):
         if before.region != after.region:
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
-
 
 if __name__ == '__main__':
     bot = MusicBot()
