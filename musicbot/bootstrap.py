@@ -173,6 +173,9 @@ class SetupTask(object):
         pass
 
 
+###############################################################################
+
+
 class EnsurePython(SetupTask):
     PYTHON_BASE = "https://www.python.org/ftp/python/{ver}/"
     # For some reason only the tgz's have a capital P
@@ -191,7 +194,6 @@ class EnsurePython(SetupTask):
         return exe
 
     def setup_win32(self, data):
-        # TODO: test slient installation
         # https://docs.python.org/3/using/windows.html#installing-without-ui
         args = {
             'PrependPath': '1',
@@ -254,7 +256,7 @@ class EnsurePython(SetupTask):
 
 
 class EnsureEnv(SetupTask):
-    pass  # basically the important checks from run.py
+    pass  # basically the important checks from run.py, not sure exactly what I need to check though
 
 
 class EnsureBrew(SetupTask):
@@ -434,11 +436,17 @@ class EnsureFFI(SetupTask):
 
 
 class EnsureSodium(SetupTask):
-    pass  # This one is going to be weird since sometimes its not needed (check python import)
+    # This one is going to be weird since sometimes its not needed (check python import)
+
+    def check_win32(self):
+        return True
 
 
 class EnsureCompiler(SetupTask):
-    pass # oh god
+    # oh god
+
+    def check_win32(self):
+        return True # yay wheels
 
 
 class EnsurePip(SetupTask):
