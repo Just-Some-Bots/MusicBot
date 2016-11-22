@@ -31,6 +31,12 @@ class Playlist(EventEmitter):
     def clear(self):
         self.entries.clear()
 
+    # TODO: finish this function and add input from chat functionality
+    // Remove a specific song from your playlist based off of its number index
+    def remove(self, index):
+        print ("%s added by %s has been removed from the list")
+        del self.entries[index]
+
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
@@ -265,5 +271,3 @@ class Playlist(EventEmitter):
 
     def count_for_user(self, user):
         return sum(1 for e in self.entries if e.meta.get('author', None) == user)
-
-
