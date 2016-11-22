@@ -74,6 +74,8 @@ class Config:
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
+        self.auto_playlist_uselink = config.getboolean('MusicBot', 'UseAutoPlaylistURL', fallback=ConfigDefaults.auto_playlist_uselink)
+        self.auto_playlist_url = config.get('MusicBot', 'AutoPlaylistURL', fallback=ConfigDefaults.auto_playlist_url)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
@@ -153,6 +155,10 @@ class Config:
                 print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
 
+        if self.auto_playlist and self.auto_playlist_uselink and not self.auto_playlist_url:
+            print("[Warning] Set to use URL for autoplaylist but no URL was supplied, using file instead")
+            self.auto_playlist_uselink = False
+
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
         self.bound_channels = set(item.replace(',', ' ').strip() for item in self.bound_channels)
@@ -175,6 +181,7 @@ class ConfigDefaults:
     command_prefix = '!'
     bound_channels = set()
     autojoin_channels = set()
+    auto_playlist_url = ""
 
     default_volume = 0.15
     skips_required = 4
@@ -183,6 +190,7 @@ class ConfigDefaults:
     now_playing_mentions = False
     auto_summon = True
     auto_playlist = True
+    auto_playlist_uselink = False
     auto_pause = True
     delete_messages = True
     delete_invoking = False

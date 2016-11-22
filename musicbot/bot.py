@@ -76,8 +76,8 @@ class MusicBot(discord.Client):
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
-        self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
+        self.autoplaylist = load_file(self.config.auto_playlist_file)
 
         self.exit_signal = None
         self.init_ok = False
@@ -1653,6 +1653,54 @@ class MusicBot(discord.Client):
             await self.send_file(channel, fcontent, filename='playlist.txt', content="Here's the url dump for <%s>" % song_url)
 
         return Response(":mailbox_with_mail:", delete_after=20)
+
+    async def cmd_plupdate(self, channel):
+        """
+        Usage:
+            {command_prefix}plupdate
+
+        Refreshes the autoplaylist file with all links in the autoplaylist URL
+        """
+        if self.config.auto_playlist_uselink:
+            song_url = self.config.auto_playlist_url
+            try:
+                info = await self.downloader.extract_info(self.loop, song_url.strip('<>'), download=False, process=False)
+            except Exception as e:
+                raise exceptions.CommandError("Could not extract info from input url\n%s\n" % e, expire_in=25)
+
+            if not info:
+                raise exceptions.CommandError("Could not extract info from input url, no data.", expire_in=25)
+
+            #if not info.get('entries', None):
+                # TODO: Retarded playlist checking
+                # set(url, webpageurl).difference(set(url))
+
+                #if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
+                #    raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
+                #else:
+                #    return await self.cmd_pldump(channel, info.get(''))
+
+            linegens = defaultdict(lambda: None, **{
+                "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
+                "soundcloud": lambda d: d['url'],
+                "bandcamp":   lambda d: d['url']
+            })
+
+            exfunc = linegens[info['extractor'].split(':')[0]]
+
+            if not exfunc:
+                raise exceptions.CommandError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
+
+            with open(self.config.auto_playlist_file, 'w', encoding='utf-8') as f:
+                for item in info['entries']:
+                    link = str(exfunc(item).encode('utf8')).strip("b").strip("'")
+                    f.write(link + '\n')
+
+            self.autoplaylist = load_file(self.config.auto_playlist_file)
+
+            return Response("Updated", delete_after=20)
+        else:
+            return Response("Not using a link for auto playlist", delete_after=20)
 
     async def cmd_listids(self, server, author, leftover_args, cat='all'):
         """
