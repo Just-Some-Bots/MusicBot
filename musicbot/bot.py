@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import shlex
@@ -1033,6 +1034,22 @@ class MusicBot(discord.Client):
             reply_text %= (btext, position, time_until)
 
         return Response(reply_text, delete_after=30)
+
+    async def cmd_playlist(self, player, channel, author, permissions, leftover_args, playlist_unformatted):
+        """
+        Usage:
+            {command_prefix}playlist playlist_link
+
+        Adds the playlist to the queue.
+        """
+        
+        #Formats malformed youtube playlist urls if it matches or just passes it to self.cmd_play if it doesn't.
+        try:
+            m = re.search("[^\?]+\?[^\&]+\&([^\n]+)", playlist_unformatted)
+            playlist_formatted = "https://www.youtube.com/playlist?" + m.group(1)
+            return await self.cmd_play(player, channel, author, permissions, leftover_args, playlist_formatted)
+        except AttributeError:
+            return await self.cmd_play(player, channel, author, permissions, leftover_args, playlist_unformatted)
 
     async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
         """
