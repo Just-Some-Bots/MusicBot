@@ -1391,6 +1391,40 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
 
+    async def cmd_remove(self, message, player, index=None):
+        """
+        Usage:
+            (command_prefix)remove [number]
+	    
+        Removes a song from the queue at the given position, where the position is a number from (command_prefix)queue.
+        """
+
+        # first see if it's even valid input
+        # then we need to check if the queue is that long
+        # if the queue has as many entries as the number they
+        # input, we know there's a song there
+        # if the user inputs 0, tell them to use skip instead
+        if not index:
+            raise exceptions.CommandError("No input found. Try again with a position from (command_prefix)queue.", expire_in=20)
+
+        try:
+            index = int(index)
+
+        except ValueError:
+            raise exceptions.CommandError('{} is not a valid number.'.format(index), expire_in=20)
+
+        if index <= len(player.playlist.entries):
+            if index > 0:
+                song_title = player.playlist.entries[index-1].title
+                player.playlist.remove_entry((index)-1)
+                return Response(':white_check_mark: **' + song_title + '** removed.', delete_after=20)
+
+            else:
+                raise exceptions.CommandError("You can't remove the current song (skip it instead), or a song in a position that doesn't exist.", expire_in=20)
+
+        else:
+            raise exceptions.CommandError("There is either no queue, or the queue is not that long.", expire_in=20)
+
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
