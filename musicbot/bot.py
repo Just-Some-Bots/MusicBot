@@ -388,7 +388,8 @@ class MusicBot(discord.Client):
 
                 async for lmsg in self.logs_from(channel, limit=1):
                     if lmsg != last_np_msg and last_np_msg:
-                        await self.safe_delete_message(last_np_msg)
+                        if self.config.delete_nowplaying:
+                            await self.safe_delete_message(last_np_msg)
                         self.server_specific_data[channel.server]['last_np_msg'] = None
                     break  # This is probably redundant
 
