@@ -37,6 +37,16 @@ from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
 load_opus_lib()
 
+aliases = []
+
+alias_file = open("./config/aliases.txt","r+")
+#alias syntax
+alias_file_read = alias_file.read().split('\n')
+for i in range(0,len(alias_file_read) - 2,3):
+    aliases.append((alias_file_read[i],alias_file_read[i + 1],alias_file_read[i + 2]))
+#
+del alias_file_read
+alias_file.close()
 
 class SkipState:
     def __init__(self):
@@ -851,7 +861,13 @@ class MusicBot(discord.Client):
         Adds the song to the playlist.  If a link is not provided, the first
         result from a youtube search is added to the queue.
         """
-
+        aliased = False
+        alias_num = 0
+        for alias in range(0,len(aliases)):
+            if song_url.lower() == aliases[alias][0].lower():
+                song_url = aliases[alias][1]
+                alias_num = alias
+                aliased = True
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -1015,7 +1031,10 @@ class MusicBot(discord.Client):
 
                 return await self.cmd_play(player, channel, author, permissions, leftover_args, e.use_url)
 
-            reply_text = "Enqueued **%s** to be played. Position in queue: %s"
+            if aliased == True:
+                reply_text = "Enqueued **%s** to be played. Position in queue: %s. Alias created by: " + str(aliases[alias_num][2])
+            else:
+                reply_text = "Enqueued **%s** to be played. Position in queue: %s"
             btext = entry.title
 
         if position == 1 and player.is_stopped:
@@ -1502,6 +1521,35 @@ class MusicBot(discord.Client):
             else:
                 raise exceptions.CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume), expire_in=20)
+        async def cmd_save(self, command=None):
+        try:
+            alias_file = open("./config/aliases.txt","r+")
+            for alias in aliases:
+                alias_file.write(alias[0] + "\n" + alias[1] + "\n")
+                try:
+                    if alias[2] != "":
+                        alias_file.write(alias[2] + "\n")
+                except:
+                    alias_file.write("Unknown\n")
+            alias_file.close()
+        except:
+            return Response("Save failed")
+            if alias_file.closed() == False:
+                alias_file.close()
+        return Response("Save succesful")
+    async def cmd_alias(self, author, leftover_args, song_url):
+        """
+        Usage:
+            {command_prefix}alias alias_name song_title/url
+            
+            Creates an alias with the alias_name that automatically changes the song_title/url when inputted in {command_prefix}play
+        """
+        aliases.append((song_url,leftover_args[0],str(author).split("#")[0]))
+        return Response("Alias " + song_url + " added.")
+    async def cmd_delalias(self, leftover_args, song_url):
+        for alias in range(0,len(aliases)):
+            if aliases[alias][0] == song_url:
+                del aliases[alias]
 
     async def cmd_queue(self, channel, player):
         """
