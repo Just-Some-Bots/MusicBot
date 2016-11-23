@@ -13,7 +13,7 @@ class PermissionsDefaults:
     IgnoreNonVoice = set()
     GrantToRoles = set()
     UserList = set()
-
+    allowedRoles = set()
     MaxSongs = 0
     MaxSongLength = 0
     MaxPlaylistLength = 0
@@ -102,6 +102,8 @@ class PermissionGroup:
         self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
         self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
 
+        self.allowed_roles = section_data.get('allowedRoles', fallback=PermissionsDefaults.allowedRoles) #EDIT
+
         self.validate()
 
     def validate(self):
@@ -142,6 +144,8 @@ class PermissionGroup:
         self.instaskip = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.instaskip, PermissionsDefaults.InstaSkip
         )
+        if self.allowed_roles: #EDIT
+            self.allowed_roles = set(self.allowed_roles.split()) #EDIT
 
 
     def add_user(self, uid):
