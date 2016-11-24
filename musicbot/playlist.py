@@ -31,7 +31,13 @@ class Playlist(EventEmitter):
     def clear(self):
         self.entries.clear()
 
-    async def add_entry(self, song_url, **meta):
+    def undo(self):
+        self.entries.pop()
+
+    def remove(self, index):
+        del self.entries[index]
+
+    async def add_entry(self, song_url, playnext=False, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
 
@@ -81,8 +87,12 @@ class Playlist(EventEmitter):
             self.downloader.ytdl.prepare_filename(info),
             **meta
         )
-        self._add_entry(entry)
-        return entry, len(self.entries)
+        if playnext:
+            self._add_next(entry)
+            return entry, 1
+        else:
+            self._add_entry(entry)
+            return entry, len(self.entries)
 
     async def import_from(self, playlist_url, **meta):
         """
@@ -220,6 +230,13 @@ class Playlist(EventEmitter):
 
     def _add_entry(self, entry):
         self.entries.append(entry)
+        self.emit('entry-added', playlist=self, entry=entry)
+
+        if self.peek() is entry:
+            entry.get_ready_future()
+
+    def _add_next(self, entry):
+        self.entries.appendleft(entry)
         self.emit('entry-added', playlist=self, entry=entry)
 
         if self.peek() is entry:
