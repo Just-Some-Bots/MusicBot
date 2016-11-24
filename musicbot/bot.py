@@ -68,6 +68,7 @@ class MusicBot(discord.Client):
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         self.players = {}
         self.the_voice_clients = {}
+        self.member_list = {}
         self.locks = defaultdict(asyncio.Lock)
         self.voice_client_connect_lock = asyncio.Lock()
         self.voice_client_move_lock = asyncio.Lock()
@@ -1321,6 +1322,8 @@ class MusicBot(discord.Client):
                 "```Will not join channel \"%s\", no permission to speak.```" % author.voice_channel.name,
                 delete_after=25
             )
+            
+        self.member_list = [m for m in channel.voice_members];
 
         player = await self.get_player(author.voice_channel, create=True)
 
@@ -1977,8 +1980,37 @@ class MusicBot(discord.Client):
             return
 
         if before.voice_channel == my_voice_channel:
+            new_list = [n for n in my_voice_channel.voice_members];
+            prev_list = self.member_list;
+            
+            for n in new_list:
+                if n in prev_list:
+                    prev_list.remove(n);
+            
+            if len(prev_list) > 0:
+                leaver = prev_list.pop().name;
+                        
+                tchans = [c for c in after.server.channels if c.type == discord.ChannelType.text]
+                await self.send_message(tchans[0], "%s left the channel" % (leaver))
+            
+            self.member_list = new_list;
             joining = False
         elif after.voice_channel == my_voice_channel:
+            new_list = [n for n in my_voice_channel.voice_members];
+            new_list_clone = [n for n in my_voice_channel.voice_members];
+            prev_list = self.member_list;
+            
+            for p in prev_list:
+                if p in new_list:
+                    new_list.remove(p);
+            
+            if len(new_list) > 0:
+                joiner = new_list.pop().name;
+            
+                tchans = [c for c in after.server.channels if c.type == discord.ChannelType.text]
+                await self.send_message(tchans[0], "%s joined the channel" % (joiner))
+
+            self.member_list = new_list_clone;
             joining = True
         else:
             return  # Not my channel
