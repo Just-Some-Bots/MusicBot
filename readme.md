@@ -1,6 +1,6 @@
 # Aviator
 
-API documentation template for Jekyll. Browse through a [live demo](#TODO).
+API documentation template for Jekyll. Browse through a [live demo](https://tangerine-lemon.cloudvent.net/).
 Start documenting your API with this configurable theme.
 
 ![Aviator template screenshot](images/_screenshot.png)
@@ -13,7 +13,7 @@ Learn Jekyll with step-by-step tutorials and videos at [Jekyll Tips](http://jeky
 ## Features
 
 * Three column layout
-* Fully responsive 
+* Fully responsive
 * Full text search
 * Pre-styled components
 * Auto-generated navigation based on category

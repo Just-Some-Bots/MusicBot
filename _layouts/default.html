@@ -23,8 +23,7 @@
 	<body>
 		<header>
 			<h1>
-				<a href="/"><img src="/images/emblem.svg" width="40" height="40" alt="{{ site.title }} logo"></a>
-				{{ site.title }}
+				<a href="/"><img src="/images/logo.svg" height="40" alt="{{ site.title }} logo"></a>
 				<button type="button" class="open-nav" id="open-nav"></button>
 			</h1>
 
@@ -34,6 +33,12 @@
 			</form>
 
 			{% include sidebar.html %}
+
+			<p class="copyright">
+				<a href="https://cloudcannon.com/">
+					Template by CloudCannon
+				</a>
+			</p>
 		</header>
 		<div class="main">
 			{{ content }}
