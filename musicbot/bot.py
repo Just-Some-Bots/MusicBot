@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import re
 
 from discord import utils
 from discord.object import Object
@@ -19,7 +20,7 @@ from io import BytesIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
-from random import choice, shuffle
+from random import choice, shuffle, randint
 from collections import defaultdict
 
 from musicbot.playlist import Playlist
@@ -1975,6 +1976,43 @@ class MusicBot(discord.Client):
                 player.skip()
 
         # return Response(reply_text, delete_after=30)
+
+    async def cmd_roll(self, channel, author, leftover_args):
+        """
+        Usage:
+            {command_prefix}roll [1-100]d[MAXROLL]
+            {command_prefix}roll [MAXROLL]
+
+        Roll the set number of dice and show the sum of the rolls, or
+        roll one die and show the result.
+        ^\d+d\d+$|^\d+$
+        """
+        if not leftover_args:
+            raise exceptions.CommandError("Unable to roll dice. Usage: {command_prefix}roll [NUMDICE]d[4-20] or {command_prefix}roll [MAXROLL].")
+        diceInput = ''.join(leftover_args)
+        res = re.search(r"(^\d+d\d+$)|(^\d+$)", diceInput)
+        if not res:
+            raise exceptions.CommandError("Unable to roll dice. Usage: {command_prefix}roll [NUMDICE]d[4-20] or {command_prefix}roll [MAXROLL].")
+        match = res.group(0)
+        diceVals = match.split('d')
+        if len(diceVals) == 2:
+            numDice = int(diceVals[0])
+            maxRoll = int(diceVals[1])
+            if not (1 <= numDice <= 100):
+                raise exceptions.CommandError("Unable to roll dice. Usage: {command_prefix}roll [1-100]d[MAXROLL].")
+            if maxRoll < 1:
+                raise exceptions.CommandError("Unable to roll dice. Maximum dice value must be at least 1.")
+            rollSum = 0
+            for i in range (1, numDice):
+                rollSum += randint(1, maxRoll)
+            return Response(":game_die: %s used %s to roll a %d." % (author.mention, diceInput, rollSum), delete_after=30)
+        else:
+            maxRoll = int(diceVals[0])
+            if maxRoll < 1:
+                raise exceptions.CommandError("Unable to roll dice. Maximum dice value must be at least 1.")
+            roll = randint(1, maxRoll)
+            return Response(":game_die: %s rolled a %d." % (author.mention, roll), delete_after=30)
+        return
 
     @owner_only
     async def cmd_setname(self, leftover_args, name):
