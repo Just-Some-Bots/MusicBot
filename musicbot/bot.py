@@ -1985,7 +1985,7 @@ class MusicBot(discord.Client):
 
         Roll the set number of dice and show the sum of the rolls, or
         roll one die and show the result.
-        ^\d+d\d+$|^\d+$
+        (^\d+d\d+|^\d+)(\+\d+)?$
         """
         if not leftover_args:
             raise exceptions.CommandError("Unable to roll dice. Usage: {command_prefix}roll [NUMDICE]d[4-20] or {command_prefix}roll [MAXROLL].")
@@ -2003,7 +2003,7 @@ class MusicBot(discord.Client):
             if maxRoll < 1:
                 raise exceptions.CommandError("Unable to roll dice. Maximum dice value must be at least 1.")
             rollSum = 0
-            for i in range (1, numDice):
+            for i in range (0, numDice):
                 rollSum += randint(1, maxRoll)
             return Response(":game_die: %s used %s to roll a %d." % (author.mention, diceInput, rollSum), delete_after=30)
         else:
