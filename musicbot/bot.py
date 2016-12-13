@@ -34,6 +34,8 @@ from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+# required for language support
+import limportlib
 
 load_opus_lib()
 
@@ -258,12 +260,12 @@ class MusicBot(discord.Client):
                     break
                 except:
                     traceback.print_exc()
-                    print("Failed to connect, retrying (%s/%s)..." % (x+1, retries))
+                    print("Failed to connect, retrying (%s/%s)..." % (x + 1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
                     await asyncio.sleep(1)
 
-                    if x == retries-1:
+                    if x == retries - 1:
                         raise exceptions.HelpfulError(
                             "Cannot establish connection to voice chat.  "
                             "Something may be blocking outgoing UDP connections.",
@@ -466,7 +468,6 @@ class MusicBot(discord.Client):
 
         await self.change_status(game)
 
-
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None
         try:
@@ -514,7 +515,8 @@ class MusicBot(discord.Client):
 
     def safe_print(self, content, *, end='\n', flush=True):
         sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
-        if flush: sys.stdout.flush()
+        if flush:
+            sys.stdout.flush()
 
     async def send_typing(self, destination):
         try:
@@ -527,12 +529,12 @@ class MusicBot(discord.Client):
         if self.user.bot:
             return await super().edit_profile(**fields)
         else:
-            return await super().edit_profile(self.config._password,**fields)
+            return await super().edit_profile(self.config._password, **fields)
 
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
-        except: # Can be ignored
+        except:  # Can be ignored
             pass
 
         pending = asyncio.Task.all_tasks()
@@ -542,7 +544,7 @@ class MusicBot(discord.Client):
             gathered.cancel()
             self.loop.run_until_complete(gathered)
             gathered.exception()
-        except: # Can be ignored
+        except:  # Can be ignored
             pass
 
     # noinspection PyMethodOverriding
@@ -1075,7 +1077,6 @@ class MusicBot(discord.Client):
                 traceback.print_exc()
                 raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
 
-
         songs_processed = len(entries_added)
         drop_count = 0
         skipped = False
@@ -1368,7 +1369,7 @@ class MusicBot(discord.Client):
 
         player.playlist.shuffle()
 
-        cards = [':spades:',':clubs:',':hearts:',':diamonds:']
+        cards = [':spades:', ':clubs:', ':hearts:', ':diamonds:']
         hand = await self.send_message(channel, ' '.join(cards))
         await asyncio.sleep(0.6)
 
@@ -1635,9 +1636,9 @@ class MusicBot(discord.Client):
                 return await self.cmd_pldump(channel, info.get(''))
 
         linegens = defaultdict(lambda: None, **{
-            "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
+            "youtube": lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
             "soundcloud": lambda d: d['url'],
-            "bandcamp":   lambda d: d['url']
+            "bandcamp": lambda d: d['url']
         })
 
         exfunc = linegens[info['extractor'].split(':')[0]]
@@ -1711,7 +1712,6 @@ class MusicBot(discord.Client):
 
         return Response(":mailbox_with_mail:", delete_after=20)
 
-
     async def cmd_perms(self, author, channel, server, permissions):
         """
         Usage:
@@ -1730,7 +1730,6 @@ class MusicBot(discord.Client):
 
         await self.send_message(author, '\n'.join(lines))
         return Response(":mailbox_with_mail:", delete_after=20)
-
 
     @owner_only
     async def cmd_setname(self, leftover_args, name):
@@ -1796,7 +1795,6 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Unable to change avatar: %s" % e, expire_in=20)
 
         return Response(":ok_hand:", delete_after=20)
-
 
     async def cmd_disconnect(self, server):
         await self.disconnect_voice_client(server)
@@ -2005,7 +2003,7 @@ class MusicBot(discord.Client):
                 self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
 
-    async def on_server_update(self, before:discord.Server, after:discord.Server):
+    async def on_server_update(self, before: discord.Server, after: discord.Server):
         if before.region != after.region:
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 

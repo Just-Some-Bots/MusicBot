@@ -1,6 +1,5 @@
 import os
 import shutil
-import traceback
 import configparser
 
 from .exceptions import HelpfulError
@@ -21,7 +20,7 @@ class Config:
                 c = configparser.ConfigParser()
                 c.read(config_file, encoding='utf-8')
 
-                if not int(c.get('Permissions', 'OwnerID', fallback=0)): # jake pls no flame
+                if not int(c.get('Permissions', 'OwnerID', fallback=0)):  # jake pls no flame
                     print("\nPlease configure config/options.ini and restart the bot.", flush=True)
                     os._exit(1)
 
@@ -32,7 +31,7 @@ class Config:
                     "from the repo.  Stop removing important files!"
                 )
 
-            except ValueError: # Config id value was changed but its not valid
+            except ValueError:  # Config id value was changed but its not valid
                 print("\nInvalid value for OwnerID, config cannot be loaded.")
                 # TODO: HelpfulError
                 os._exit(4)
@@ -65,7 +64,7 @@ class Config:
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
-        self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.autojoin_channels = config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -75,15 +74,19 @@ class Config:
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
-        self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
+        self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.debug_mode = config.getboolean('MusicBot', 'DebugMode', fallback=ConfigDefaults.debug_mode)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
-        self.run_checks()
+# [MBM] Multi-Language support
+        self.language = config.get('MusicBot', 'Language', fallback=ConfigDefaults.language)
+        self.languages_location = config.get('Files', 'LanguagesFile', fallback=ConfigDefaults.languages_location)
+# ===== END =====
 
+        self.run_checks()
 
     def run_checks(self):
         """
@@ -168,7 +171,7 @@ class Config:
 
 class ConfigDefaults:
     email = None    #
-    password = None # This is not where you put your login info, go away.
+    password = None  # This is not where you put your login info, go away.
     token = None    #
 
     owner_id = None
@@ -190,12 +193,18 @@ class ConfigDefaults:
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-    auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
+    auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
+
+# [MBM] Multi-Language support
+    languages_location = "languages."
+    language = "english"
+# ===== END =====
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
 class Blacklist:
     pass
+
 
 class Whitelist:
     pass
