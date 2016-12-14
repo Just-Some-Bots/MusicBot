@@ -34,8 +34,10 @@ from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+# [MBM] Multi-Language support
 # required for language support
-import limportlib
+import importlib
+# ===== END =====
 
 load_opus_lib()
 
@@ -77,6 +79,15 @@ class MusicBot(discord.Client):
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
+# [MBM] Multi-Language support
+        language = self.config.language
+        if language == "":
+            language = "english"
+            print("No language detected, using english by default!")
+        f = self.config.languages_location + language
+        self.lang = importlib.import_module(f)
+# ===== END =====
+
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
@@ -86,7 +97,7 @@ class MusicBot(discord.Client):
         self.cached_client_id = None
 
         if not self.autoplaylist:
-            print("Warning: Autoplaylist is empty, disabling.")
+            print(self.lang.no_autoplaylist)
             self.config.auto_playlist = False
 
         # TODO: Do these properly
@@ -146,7 +157,7 @@ class MusicBot(discord.Client):
     async def _auto_summon(self):
         owner = self._get_owner(voice=True)
         if owner:
-            self.safe_print("Found owner in \"%s\", attempting to join..." % owner.voice_channel.name)
+            self.safe_print(self.lang.autosummon_found_owner % owner.voice_channel.name)
             # TODO: Effort
             await self.cmd_summon(owner.voice_channel, owner, None)
             return owner.voice_channel
@@ -706,7 +717,7 @@ class MusicBot(discord.Client):
             await self._autojoin_channels(autojoin_channels)
 
         elif self.config.auto_summon:
-            print("Attempting to autosummon...", flush=True)
+            print(self.lang.autosummon_attempt, flush=True)
 
             # waitfor + get value
             owner_vc = await self._auto_summon()
