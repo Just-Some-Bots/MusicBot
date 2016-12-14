@@ -118,7 +118,7 @@ class MusicBot(discord.Client):
             if not orig_msg or orig_msg.author.id == self.config.owner_id:
                 return await func(self, *args, **kwargs)
             else:
-                raise exceptions.PermissionsError("only the owner can use this command", expire_in=30)
+                raise exceptions.PermissionsError(self.lang.owner_only_cmd, expire_in=30)
 
         return wrapper
 
@@ -167,20 +167,20 @@ class MusicBot(discord.Client):
 
         for channel in channels:
             if channel.server in joined_servers:
-                print("Already joined a channel in %s, skipping" % channel.server.name)
+                print(self.lang.already_autojoined % channel.server.name)
                 continue
 
             if channel and channel.type == discord.ChannelType.voice:
-                self.safe_print("Attempting to autojoin %s in %s" % (channel.name, channel.server.name))
+                self.safe_print(self.lang.attempt_autojoin % (channel.name, channel.server.name))
 
                 chperms = channel.permissions_for(channel.server.me)
 
                 if not chperms.connect:
-                    self.safe_print("Cannot join channel \"%s\", no permission." % channel.name)
+                    self.safe_print(self.lang.no_channel_permission % channel.name)
                     continue
 
                 elif not chperms.speak:
-                    self.safe_print("Will not join channel \"%s\", no permission to speak." % channel.name)
+                    self.safe_print(self.lang.no_speak_permission % channel.name)
                     continue
 
                 try:
@@ -196,13 +196,13 @@ class MusicBot(discord.Client):
                 except Exception as e:
                     if self.config.debug_mode:
                         traceback.print_exc()
-                    print("Failed to join", channel.name)
+                    print(self.lang.failed_join, channel.name)
 
             elif channel:
-                print("Not joining %s on %s, that's a text channel." % (channel.name, channel.server.name))
+                print(self.lang.not_text_channel % (channel.name, channel.server.name))
 
             else:
-                print("Invalid channel thing: " + channel)
+                print(self.lang.invalid_voice_channel + channel)
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
@@ -220,8 +220,7 @@ class MusicBot(discord.Client):
         if not vc or vc == msg.author.voice_channel:
             return True
         else:
-            raise exceptions.PermissionsError(
-                "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
+            raise exceptions.PermissionsError(self.lang.not_in_voice % vc.name, expire_in=30)
 
     async def generate_invite_link(self, *, permissions=None, server=None):
         if not self.cached_client_id:
@@ -235,7 +234,7 @@ class MusicBot(discord.Client):
             channel = self.get_channel(channel.id)
 
         if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
-            raise AttributeError('Channel passed must be a voice channel')
+            raise AttributeError(self.lang.not_voice_channel)
 
         with await self.voice_client_connect_lock:
             server = channel.server
@@ -265,26 +264,19 @@ class MusicBot(discord.Client):
             retries = 3
             for x in range(retries):
                 try:
-                    print("Attempting connection...")
+                    print(self.lang.attempt_voice_connection)
                     await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
-                    print("Connection established.")
+                    print(self.lang.voice_connection_successful)
                     break
                 except:
                     traceback.print_exc()
-                    print("Failed to connect, retrying (%s/%s)..." % (x + 1, retries))
+                    print(self.lang.voice_connection_failed % (x + 1, retries))
                     await asyncio.sleep(1)
                     await self.ws.voice_state(server.id, None, self_mute=True)
                     await asyncio.sleep(1)
 
                     if x == retries - 1:
-                        raise exceptions.HelpfulError(
-                            "Cannot establish connection to voice chat.  "
-                            "Something may be blocking outgoing UDP connections.",
-
-                            "This may be an issue with a firewall blocking UDP.  "
-                            "Figure out what is blocking UDP and disable it.  "
-                            "It's most likely a system firewall or overbearing anti-virus firewall.  "
-                        )
+                        raise exceptions.HelpfulError(self.lang.voice_connection_error)
 
             return voice_client
 
@@ -314,7 +306,7 @@ class MusicBot(discord.Client):
         try:
             await vc.disconnect()
         except:
-            print("Error disconnecting during reconnect")
+            print(self.lang.error_disconnecting)
             traceback.print_exc()
 
         await asyncio.sleep(0.1)
@@ -344,7 +336,7 @@ class MusicBot(discord.Client):
             channel = self.get_channel(channel.id)
 
         if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
-            raise AttributeError('Channel passed must be a voice channel')
+            raise AttributeError(self.lang.not_voice_channel)
 
         # I'm not sure if this lock is actually needed
         with await self.voice_client_move_lock:
@@ -368,9 +360,7 @@ class MusicBot(discord.Client):
 
         if server.id not in self.players:
             if not create:
-                raise exceptions.CommandError(
-                    'The bot is not in a voice channel.  '
-                    'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
+                raise exceptions.CommandError(self.lang.bot_not_in_voice % self.config.command_prefix)
 
             voice_client = await self.get_voice_client(channel)
 
@@ -406,10 +396,10 @@ class MusicBot(discord.Client):
                     break  # This is probably redundant
 
             if self.config.now_playing_mentions:
-                newmsg = '%s - your song **%s** is now playing in %s!' % (
+                newmsg = self.lang.now_playing_mention % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = 'Now playing in %s: **%s**' % (
+                newmsg = self.lang.now_playing % (
                     player.voice_client.channel.name, entry.title)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
@@ -434,7 +424,7 @@ class MusicBot(discord.Client):
 
                 if not info:
                     self.autoplaylist.remove(song_url)
-                    self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
+                    self.safe_print(self.lang.ap_unplayable % song_url)
                     write_file(self.config.auto_playlist_file, self.autoplaylist)
                     continue
 
@@ -446,13 +436,13 @@ class MusicBot(discord.Client):
                 try:
                     await player.playlist.add_entry(song_url, channel=None, author=None)
                 except exceptions.ExtractionError as e:
-                    print("Error adding song from autoplaylist:", e)
+                    print(self.lang.ap_error_adding, e)
                     continue
 
                 break
 
             if not self.autoplaylist:
-                print("[Warning] No playable songs in the autoplaylist, disabling.")
+                print(self.lang.ap_no_playable)
                 self.config.auto_playlist = False
 
     async def on_player_entry_added(self, playlist, entry, **_):
@@ -464,7 +454,7 @@ class MusicBot(discord.Client):
         if self.user.bot:
             activeplayers = sum(1 for p in self.players.values() if p.is_playing)
             if activeplayers > 1:
-                game = discord.Game(name="music on %s servers" % activeplayers)
+                game = discord.Game(name=self.lang.user_playing_on % activeplayers)
                 entry = None
 
             elif activeplayers == 1:
@@ -492,11 +482,11 @@ class MusicBot(discord.Client):
 
         except discord.Forbidden:
             if not quiet:
-                self.safe_print("Warning: Cannot send message to %s, no permission" % dest.name)
+                self.safe_print(self.lang.no_text_send_permission % dest.name)
 
         except discord.NotFound:
             if not quiet:
-                self.safe_print("Warning: Cannot send message to %s, invalid channel?" % dest.name)
+                self.safe_print(self.lang.invalid_text_channel % dest.name)
 
         return msg
 
@@ -506,11 +496,11 @@ class MusicBot(discord.Client):
 
         except discord.Forbidden:
             if not quiet:
-                self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
+                self.safe_print(self.lang.no_text_delete_permission % message.clean_content)
 
         except discord.NotFound:
             if not quiet:
-                self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+                self.safe_print(self.lang.message_already_deleted % message.clean_content)
 
     async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
         try:
@@ -518,10 +508,10 @@ class MusicBot(discord.Client):
 
         except discord.NotFound:
             if not quiet:
-                self.safe_print("Warning: Cannot edit message \"%s\", message not found" % message.clean_content)
+                self.safe_print(self.lang.cannot_edit_message % message.clean_content)
             if send_if_fail:
                 if not quiet:
-                    print("Sending instead")
+                    print(self.lang.send_instead)
                 return await self.safe_send_message(message.channel, new)
 
     def safe_print(self, content, *, end='\n', flush=True):
@@ -534,7 +524,7 @@ class MusicBot(discord.Client):
             return await super().send_typing(destination)
         except discord.Forbidden:
             if self.config.debug_mode:
-                print("Could not send typing to %s, no permssion" % destination)
+                print(self.lang.cannot_send_typing % destination)
 
     async def edit_profile(self, **fields):
         if self.user.bot:
