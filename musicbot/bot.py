@@ -555,16 +555,13 @@ class MusicBot(discord.Client):
 
         except discord.errors.LoginFailure:
             # Add if token, else
-            raise exceptions.HelpfulError(
-                "Bot cannot login, bad credentials.",
-                "Fix your Email or Password or Token in the options file.  "
-                "Remember that each field should be on their own line.")
+            raise exceptions.HelpfulError(self.lang.bad_credentials)
 
         finally:
             try:
                 self._cleanup()
             except Exception as e:
-                print("Error in cleanup:", e)
+                print(self.lang.cleanup_error, e)
 
             self.loop.close()
             if self.exit_signal:
@@ -578,7 +575,7 @@ class MusicBot(discord.Client):
         ex_type, ex, stack = sys.exc_info()
 
         if ex_type == exceptions.HelpfulError:
-            print("Exception in", event)
+            print(self.lang.exception_in, event)
             print(ex.message)
 
             await asyncio.sleep(2)  # don't ask
@@ -596,39 +593,32 @@ class MusicBot(discord.Client):
             vc.main_ws = self.ws
 
     async def on_ready(self):
-        print('\rConnected!  Musicbot v%s\n' % BOTVERSION)
+        print(self.lang.bot_connected + 'Musicbot v%s\n' % BOTVERSION)
 
         if self.config.owner_id == self.user.id:
-            raise exceptions.HelpfulError(
-                "Your OwnerID is incorrect or you've used the wrong credentials.",
-
-                "The bot needs its own account to function.  "
-                "The OwnerID is the id of the owner, not the bot.  "
-                "Figure out which one is which and use the correct information.")
+            raise exceptions.HelpfulError(self.lang.bad_owner_id)
 
         self.init_ok = True
 
-        self.safe_print("Bot:   %s/%s#%s" % (self.user.id, self.user.name, self.user.discriminator))
+        self.safe_print(self.lang.bot_name % (self.user.id, self.user.name, self.user.discriminator))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner and self.servers:
-            self.safe_print("Owner: %s/%s#%s\n" % (owner.id, owner.name, owner.discriminator))
+            self.safe_print(self.lang.owner_name % (owner.id, owner.name, owner.discriminator))
 
-            print('Server List:')
+            print(self.lang.server_list)
             [self.safe_print(' - ' + s.name) for s in self.servers]
 
         elif self.servers:
-            print("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
+            print(self.lang.owner_not_found % self.config.owner_id)
 
-            print('Server List:')
+            print(self.lang.server_list)
             [self.safe_print(' - ' + s.name) for s in self.servers]
 
         else:
-            print("Owner unknown, bot is not on any servers.")
+            print(self.lang.owner_unknown)
             if self.user.bot:
-                print("\nTo make the bot join a server, paste this link in your browser.")
-                print("Note: You should be logged into your main account and have \n"
-                      "manage server permissions on the server you want the bot to join.\n")
+                print(self.lang.bot_invite_link_help)
                 print("    " + await self.generate_invite_link())
 
         print()
@@ -642,17 +632,17 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.bound_channels.difference_update(invalids)
 
-            print("Bound to text channels:")
+            print(self.lang.bound_to_channels)
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
-                print("\nNot binding to voice channels:")
+                print(self.lang.bound_to_voice_error)
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             print()
 
         else:
-            print("Not bound to any text channels")
+            print(self.lang.not_bound_error)
 
         if self.config.autojoin_channels:
             chlist = set(self.get_channel(i) for i in self.config.autojoin_channels if i)
@@ -663,35 +653,36 @@ class MusicBot(discord.Client):
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
 
-            print("Autojoining voice chanels:")
+            print(self.lang.autojoin_channels)
             [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in chlist if ch]
 
             if invalids and self.config.debug_mode:
-                print("\nCannot join text channels:")
+                print(self.lang.autojoin_text_error)
                 [self.safe_print(' - %s/%s' % (ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
             autojoin_channels = chlist
 
         else:
-            print("Not autojoining any voice channels")
+            print(self.lang.not_autojoin_error)
             autojoin_channels = set()
 
         print()
-        print("Options:")
-
-        self.safe_print("  Command prefix: " + self.config.command_prefix)
-        print("  Default volume: %s%%" % int(self.config.default_volume * 100))
-        print("  Skip threshold: %s votes or %s%%" % (
+        print(self.lang.op_options)
+# self.lang.op_disabled
+# self.lang.op_enabled
+        self.safe_print(self.lang.op_command_prefix + self.config.command_prefix)
+        print(self.lang.op_default_volume % int(self.config.default_volume * 100))
+        print(self.lang.op_skip_threshold % (
             self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
-        print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
-        print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-        print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
-        print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
-        print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
+        print(self.lang.op_now_playing_mentions + [self.lang.op_disabled, self.lang.op_enabled][self.config.now_playing_mentions])
+        print(self.lang.op_autosummon + [self.lang.op_disabled, self.lang.op_enabled][self.config.auto_summon])
+        print(self.lang.op_autoplaylist + [self.lang.op_disabled, self.lang.op_enabled][self.config.auto_playlist])
+        print(self.lang.op_autopause + [self.lang.op_disabled, self.lang.op_enabled][self.config.auto_pause])
+        print(self.lang.op_delete_messages + [self.lang.op_disabled, self.lang.op_enabled][self.config.delete_messages])
         if self.config.delete_messages:
-            print("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
-        print("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
-        print("  Downloaded songs will be %s" % ['deleted', 'saved'][self.config.save_videos])
+            print(self.lang.op_delete_invoking + [self.lang.op_disabled, self.lang.op_enabled][self.config.delete_invoking])
+        print(self.lang.debug_mode + [self.lang.op_disabled, self.lang.op_enabled][self.config.debug_mode])
+        print(self.lang.op_downloaded_songs % [self.lang.op_deleted, self.lang.op_saved][self.config.save_videos])
         print()
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
@@ -699,9 +690,9 @@ class MusicBot(discord.Client):
 
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
-                print("Deleting old audio cache")
+                print(self.lang.delete_audiocache)
             else:
-                print("Could not delete old audio cache, moving on.")
+                print(self.lang.delete_audiocache_error)
 
         if self.config.autojoin_channels:
             await self._autojoin_channels(autojoin_channels)
@@ -713,12 +704,12 @@ class MusicBot(discord.Client):
             owner_vc = await self._auto_summon()
 
             if owner_vc:
-                print("Done!", flush=True)  # TODO: Change this to "Joined server/channel"
+                print(self.lang.done, flush=True)  # TODO: Change this to "Joined server/channel"
                 if self.config.auto_playlist:
-                    print("Starting auto-playlist")
+                    print(self.lang.ap_start_autoplaylist)
                     await self.on_player_finished_playing(await self.get_player(owner_vc))
             else:
-                print("Owner not found in a voice channel, could not autosummon.")
+                print(self.lang.owner_not_in_voice)
 
         print()
         # t-t-th-th-that's all folks!
