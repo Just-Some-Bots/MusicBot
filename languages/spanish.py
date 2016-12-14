@@ -2,7 +2,7 @@ no_autoplaylist = "Advertencia: La lista de reproducción automática está vac�
 
 autosummon_attempt = "Intentando convocar automáticamente."
 
-autosummon_found_owner = "Encontré el dueño en \"%s\", intentando juntar."
+autosummon_found_owner = "Encontré el dueño en \"%s\", intentando juntar..."
 
 owner_only_cmd = "solamente el propietario puede usar este commando"
 
@@ -30,10 +30,6 @@ voice_connection_successful = "Conexión satisfactoria."
 
 voice_connection_failed = "Fallo a juntar. Reintentar (%s/%s)..."
 
-# ------END OF CURRENT TRANSLATIONS------
-# - Leave this for me later. (~MattBSG) -
-# ---------------------------------------
-
 voice_connection_error = ("Cannot establish connection to voice chat.  "
                           "Something may be blocking outgoing UDP connections.",
 
@@ -54,19 +50,20 @@ ap_unplayable = "[Info] Removing unplayable song from autoplaylist: %s"
 
 ap_error_adding = "Error adding song from autoplaylist:"
 
-ap_no_playable = "[Warning] No playable songs in the autoplaylist, disabling."
+ap_no_playable = "[Advertencia] No playable songs in the autoplaylist, disabling."
 
+# This starts with "Jugando a..." on discord.
 user_playing_on = "music on %s servers"
 
-no_text_send_permission = "Warning: Cannot send message to %s, no permission"
+no_text_send_permission = "Advertencia: Cannot send message to %s, no permission"
 
-invalid_text_channel = "Warning: Cannot send message to %s, invalid channel?"
+invalid_text_channel = "Advertencia: Cannot send message to %s, invalid channel?"
 
-no_text_delete_permission = "Warning: Cannot delete message \"%s\", no permission"
+no_text_delete_permission = "Advertencia: Cannot delete message \"%s\", no permission"
 
-message_already_deleted = "Warning: Cannot delete message \"%s\", message not found"
+message_already_deleted = "Advertencia: Cannot delete message \"%s\", message not found"
 
-cannot_edit_message = "Warning: Cannot edit message \"%s\", message not found"
+cannot_edit_message = "Advertencia: Cannot edit message \"%s\", message not found"
 
 send_instead = "Sending instead"
 
@@ -116,16 +113,16 @@ op_command_prefix = "  Command prefix: "
 op_default_volume = "  Default volume: %s%%"
 op_skip_threshold = "  Skip threshold: %s votes or %s%%"
 op_now_playing_mentions = "  Now Playing @mentions: "
-op_autosummom = "  Auto-Summon: "
-op_autoplaylist = "  Auto-Playlist: "
+op_autosummom = "  Convocar automáticamente: "
+op_autoplaylist = "  La lista de reproducción automática: "
 op_autopause = "  Auto-Pause: "
 op_delete_messages = "  Delete Messages: "
 op_delete_invoking = "  Delete Invoking: "
 op_debug_mode = "  Debug Mode: "
 op_downloaded_songs = "  Downloaded songs will be %s"
 
-op_disabled = "Disabled"
-op_enabled = "Enabled"
+op_disabled = "Inhabilitado"
+op_enabled = "Activar"
 op_deleted = "Deleted"
 op_saved = "Saved"
 # ===== END CONFIG OPTIONS
@@ -135,7 +132,7 @@ delete_audiocache_error = "Could not delete old audio cache, moving on."
 
 done = "Done!"
 
-ap_start_autoplaylist = "Starting auto-playlist"
+ap_start_autoplaylist = "Comenzando la lista de reproducción automática"
 
 owner_not_in_voice = "Owner not found in a voice channel, could not autosummon."
 
