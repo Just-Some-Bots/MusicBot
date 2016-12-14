@@ -1,3 +1,3 @@
-no_autoplaylist = "Advertencia: la lista de reproducción automática está vacía, inhabilitando."
-autosummon_attempt = "Intentando autosummon..."
-autosummon_found_owner = "Se encuentra dueño en \"%s\", Intentando unirse..."
+no_autoplaylist = "Advertencia: La lista de reproducción automática está vacía, deshabilitando."
+autosummon_attempt = "Intentando convocar automáticamente."
+autosummon_found_owner = "Encontré el dueño en \"%s\", intentando juntar."
