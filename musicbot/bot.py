@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import re
 
 from discord import utils
 from discord.object import Object
@@ -863,6 +864,12 @@ class MusicBot(discord.Client):
 
         if leftover_args:
             song_url = ' '.join([song_url, *leftover_args])
+        
+        linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
+        pattern = re.compile(linksRegex)
+        matchUrl = pattern.match(song_url)
+        if matchUrl is None:
+            song_url = song_url.replace('/', '%2F')
 
         try:
             info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
