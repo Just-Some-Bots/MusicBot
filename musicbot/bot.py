@@ -681,7 +681,7 @@ class MusicBot(discord.Client):
         print(self.lang.op_delete_messages + [self.lang.op_disabled, self.lang.op_enabled][self.config.delete_messages])
         if self.config.delete_messages:
             print(self.lang.op_delete_invoking + [self.lang.op_disabled, self.lang.op_enabled][self.config.delete_invoking])
-        print(self.lang.debug_mode + [self.lang.op_disabled, self.lang.op_enabled][self.config.debug_mode])
+        print(self.lang.op_debug_mode + [self.lang.op_disabled, self.lang.op_enabled][self.config.debug_mode])
         print(self.lang.op_downloaded_songs % [self.lang.op_deleted, self.lang.op_saved][self.config.save_videos])
         print()
 
