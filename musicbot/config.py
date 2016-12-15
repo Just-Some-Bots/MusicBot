@@ -3,6 +3,7 @@ import shutil
 import configparser
 
 from .exceptions import HelpfulError
+
 # [MBM] Multi-Language support
 # required for language support
 import importlib
@@ -12,15 +13,15 @@ import importlib
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
+        config = configparser.ConfigParser()
+
 # [MBM] Multi-Language support
-        language = self.config.language
+        language = config.get('MusicBot', 'Language', fallback=ConfigDefaults.language)
         if language == "":
             language = "english"
-            # print("No language detected, using english by default!")
-        f = self.config.languages_location + language
+        f = config.get('Files', 'LanguagesFile', fallback=ConfigDefaults.languages_location) + language
         self.lang = importlib.import_module(f)
 # ===== END =====
-        config = configparser.ConfigParser()
 
         if not config.read(config_file, encoding='utf-8'):
             print(self.lang.config_file_not_found)
