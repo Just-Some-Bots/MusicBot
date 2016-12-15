@@ -3,15 +3,27 @@ import shutil
 import configparser
 
 from .exceptions import HelpfulError
+# [MBM] Multi-Language support
+# required for language support
+import importlib
+# ===== END =====
 
 
 class Config:
     def __init__(self, config_file):
         self.config_file = config_file
+# [MBM] Multi-Language support
+        language = self.config.language
+        if language == "":
+            language = "english"
+            # print("No language detected, using english by default!")
+        f = self.config.languages_location + language
+        self.lang = importlib.import_module(f)
+# ===== END =====
         config = configparser.ConfigParser()
 
         if not config.read(config_file, encoding='utf-8'):
-            print('[config] Config file not found, copying example_options.ini')
+            print(self.lang.config_file_not_found)
 
             try:
                 shutil.copy('config/example_options.ini', config_file)
@@ -21,24 +33,20 @@ class Config:
                 c.read(config_file, encoding='utf-8')
 
                 if not int(c.get('Permissions', 'OwnerID', fallback=0)):  # jake pls no flame
-                    print("\nPlease configure config/options.ini and restart the bot.", flush=True)
+                    print(self.lang.config_please_configure, flush=True)
                     os._exit(1)
 
             except FileNotFoundError as e:
-                raise HelpfulError(
-                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
-                    "Grab the files back from the archive or remake them yourself and copy paste the content "
-                    "from the repo.  Stop removing important files!"
-                )
+                raise HelpfulError(self.lang.config_files_missing)
 
             except ValueError:  # Config id value was changed but its not valid
-                print("\nInvalid value for OwnerID, config cannot be loaded.")
+                print(self.lang.config_invalid_ownerid)
                 # TODO: HelpfulError
                 os._exit(4)
 
             except Exception as e:
                 print(e)
-                print("\nUnable to copy config/example_options.ini to %s" % config_file, flush=True)
+                print(self.lang.config_cannot_copy_example % config_file, flush=True)
                 os._exit(2)
 
         config = configparser.ConfigParser(interpolation=None)
@@ -46,14 +54,8 @@ class Config:
 
         confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
         if confsections:
-            raise HelpfulError(
-                "One or more required config sections are missing.",
-                "Fix your config.  Each [Section] should be on its own line with "
-                "nothing else on it.  The following sections are missing: {}".format(
-                    ', '.join(['[%s]' % s for s in confsections])
-                ),
-                preface="An error has occured parsing the config:\n"
-            )
+            raise HelpfulError(self.lang.config_section_missing.format(
+                               ', '.join(['[%s]' % s for s in confsections])), preface=self.lang.config_error_parsing)
 
         self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
         self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
@@ -89,71 +91,43 @@ class Config:
         self.run_checks()
 
     def run_checks(self):
-        """
-        Validation logic for bot settings.
-        """
-        confpreface = "An error has occured reading the config:\n"
+        self.lang.config_validation_error
+        confpreface = self.lang.config_error_reading
 
         if self._email or self._password:
             if not self._email:
-                raise HelpfulError(
-                    "The login email was not specified in the config.",
-
-                    "Please put your bot account credentials in the config.  "
-                    "Remember that the Email is the email address used to register the bot account.",
-                    preface=confpreface)
+                raise HelpfulError(self.lang.config_login_no_email, preface=confpreface)
 
             if not self._password:
-                raise HelpfulError(
-                    "The password was not specified in the config.",
-
-                    "Please put your bot account credentials in the config.",
-                    preface=confpreface)
+                raise HelpfulError(self.lang.config_login_no_password, preface=confpreface)
 
             self.auth = (self._email, self._password)
 
         elif not self._login_token:
-            raise HelpfulError(
-                "No login credentials were specified in the config.",
-
-                "Please fill in either the Email and Password fields, or "
-                "the Token field.  The Token field is for Bot accounts only.",
-                preface=confpreface
-            )
+            raise HelpfulError(self.lang.config_login_no_token, preface=confpreface)
 
         else:
             self.auth = (self._login_token,)
 
         if self.owner_id and self.owner_id.isdigit():
             if int(self.owner_id) < 10000:
-                raise HelpfulError(
-                    "OwnerID was not set.",
-
-                    "Please set the OwnerID in the config.  If you "
-                    "don't know what that is, use the %sid command" % self.command_prefix,
-                    preface=confpreface)
+                raise HelpfulError(self.lang.config_ownerid_not_set % self.command_prefix, preface=confpreface)
 
         else:
-            raise HelpfulError(
-                "An invalid OwnerID was set.",
-
-                "Correct your OwnerID.  The ID should be just a number, approximately "
-                "18 characters long.  If you don't know what your ID is, "
-                "use the %sid command.  Current invalid OwnerID: %s" % (self.command_prefix, self.owner_id),
-                preface=confpreface)
+            raise HelpfulError(self.lang.config_invalid_ownerid_set % (self.command_prefix, self.owner_id), preface=confpreface)
 
         if self.bound_channels:
             try:
                 self.bound_channels = set(x for x in self.bound_channels.split() if x)
             except:
-                print("[Warning] BindToChannels data invalid, will not bind to any channels")
+                print(self.lang.config_invalid_boundto)
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
                 self.autojoin_channels = set(x for x in self.autojoin_channels.split() if x)
             except:
-                print("[Warning] AutojoinChannels data invalid, will not autojoin any channels")
+                print(self.lang.config_invalid_autojoin)
                 self.autojoin_channels = set()
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
@@ -199,6 +173,7 @@ class ConfigDefaults:
     languages_location = "languages."
     language = "english"
 # ===== END =====
+
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue

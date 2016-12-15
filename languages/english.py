@@ -1,3 +1,6 @@
+# ======================
+# ======= BOT.PY =======
+# ======================
 no_autoplaylist = "Warning: Autoplaylist is empty, disabling."
 
 autosummon_attempt = "Attempting to autosummon..."
@@ -124,7 +127,7 @@ op_disabled = "Disabled"
 op_enabled = "Enabled"
 op_deleted = "Deleted"
 op_saved = "Saved"
-# ===== END CONFIG OPTIONS
+# ===== END CONFIG OPTIONS =====
 
 delete_audiocache = "Deleting old audio cache"
 delete_audiocache_error = "Could not delete old audio cache, moving on."
@@ -157,3 +160,57 @@ config_unpause = "[config:autopause] Unpausing"
 config_pause = "[config:autopause] Pausing"
 
 change_server_region = "[Servers] \"%s\" changed regions: %s -> %s"
+# ======================
+# ===== END BOT.PY =====
+# ======================
+
+# ===========================
+# ======== CONFIG.PY ========
+# ===========================
+config_file_not_found = "[config] Config file not found, copying example_options.ini"
+config_please_configure = "\nPlease configure config/options.ini and restart the bot."
+
+config_files_missing = ("Your config files are missing.  Neither options.ini nor example_options.ini were found.",
+                        "Grab the files back from the archive or remake them yourself and copy paste the content "
+                        "from the repo.  Stop removing important files!")
+
+config_invalid_ownerid = "\nInvalid value for OwnerID, config cannot be loaded."
+config_cannot_copy_example = "\nUnable to copy config/example_options.ini to %s"
+
+config_section_missing = ("One or more required config sections are missing.",
+                          "Fix your config.  Each [Section] should be on its own line with "
+                          "nothing else on it.  The following sections are missing: {}")
+
+config_error_parsing = "An error has occured parsing the config:\n"
+
+config_validation_error = ("""
+                           Validation logic for bot settings.
+                           """)
+
+config_error_reading = "An error has occured reading the config:\n"
+
+config_login_no_email = ("The login email was not specified in the config.",
+                         "Please put your bot account credentials in the config.  "
+                         "Remember that the Email is the email address used to register the bot account.")
+
+config_login_no_password = ("The password was not specified in the config.",
+                            "Please put your bot account credentials in the config.")
+
+config_login_no_token = ("No login credentials were specified in the config.",
+                         "Please fill in either the Email and Password fields, or "
+                         "the Token field.  The Token field is for Bot accounts only.")
+
+config_ownerid_not_set = ("OwnerID was not set.",
+                          "Please set the OwnerID in the config.  If you "
+                          "don't know what that is, use the %sid command")
+
+config_invalid_ownerid_set = ("An invalid OwnerID was set.",
+                              "Correct your OwnerID.  The ID should be just a number, approximately "
+                              "18 characters long.  If you don't know what your ID is, "
+                              "use the %sid command.  Current invalid OwnerID: %s")
+
+config_invalid_boundto = "[Warning] BindToChannels data invalid, will not bind to any channels"
+config_invalid_autojoin = "[Warning] AutojoinChannels data invalid, will not autojoin any channels"
+# ===========================
+# ====== END CONFIG.PY ======
+# ===========================
