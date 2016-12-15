@@ -196,7 +196,7 @@ config_invalid_autojoin = "[Warning] AutojoinChannels data invalid, will not aut
 # ======= DOWNLOADER.PY =======
 # =============================
 
-# Not 100% sure if the youtubedl errors either send to chat or command_permission_disabled
+# Not 100% sure if the youtubedl errors either send to chat
 # or are just borks comments
 
 # ===============================
