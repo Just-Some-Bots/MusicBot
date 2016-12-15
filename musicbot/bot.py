@@ -668,8 +668,6 @@ class MusicBot(discord.Client):
 
         print()
         print(self.lang.op_options)
-# self.lang.op_disabled
-# self.lang.op_enabled
         self.safe_print(self.lang.op_command_prefix + self.config.command_prefix)
         print(self.lang.op_default_volume % int(self.config.default_volume * 100))
         print(self.lang.op_skip_threshold % (

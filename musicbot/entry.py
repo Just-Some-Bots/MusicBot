@@ -6,12 +6,25 @@ import traceback
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
 
+# [MBM] Multi-Language support
+# required for language support
+from musicbot.config import Config, ConfigDefaults
+import importlib
+# ===== END =====
+
 
 class BasePlaylistEntry:
-    def __init__(self):
+    def __init__(self, config_file=ConfigDefaults.options_file):
         self.filename = None
         self._is_downloading = False
         self._waiting_futures = []
+
+# [MBM] Multi-Language support
+        self.config = Config(config_file)
+        language = self.config.language
+        f = self.config.languages_location + language
+        self.lang = importlib.import_module(f)
+# ===== END =====
 
     @property
     def is_downloaded(self):
