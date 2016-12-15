@@ -120,8 +120,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'type': self.meta[i].__class__.__name__,
                     'id': self.meta[i].id,
                     'name': self.meta[i].name
-                    } for i in self.meta
-                }
+                } for i in self.meta}
             # Actually I think I can just getattr instead, getattr(discord, type)
         }
         return json.dumps(data, indent=2)
@@ -182,12 +181,12 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
                 if expected_fname_base in ldir:
                     self.filename = os.path.join(self.download_folder, expected_fname_base)
-                    print("[Download] Cached:", self.url)
+                    print(self.lang.entry_download_cache, self.url)
 
                 elif expected_fname_noex in flistdir:
-                    print("[Download] Cached (different extension):", self.url)
+                    print(self.lang.entry_download_cache2, self.url)
                     self.filename = os.path.join(self.download_folder, ldir[flistdir.index(expected_fname_noex)])
-                    print("Expected %s, got %s" % (
+                    print(self.lang.entry_expected % (
                         self.expected_filename.rsplit('.', 1)[-1],
                         self.filename.rsplit('.', 1)[-1]
                     ))
@@ -207,17 +206,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
-        print("[Download] Started:", self.url)
+        print(self.lang.entry_download_start, self.url)
 
         try:
             result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
         except Exception as e:
             raise ExtractionError(e)
 
-        print("[Download] Complete:", self.url)
+        print(self.lang.entry_download_end, self.url)
 
         if result is None:
-            raise ExtractionError("ytdl broke and hell if I know why")
+            raise ExtractionError(self.lang.entry_youtubedl_error)
             # What the fuck do I do now?
 
         self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(result)
@@ -232,6 +231,3 @@ class URLPlaylistEntry(BasePlaylistEntry):
             else:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
-
-
-

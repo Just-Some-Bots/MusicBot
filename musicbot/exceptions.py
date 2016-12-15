@@ -1,6 +1,7 @@
 import shutil
 import textwrap
 
+
 # Base class for exceptions
 class MusicbotException(Exception):
     def __init__(self, message, *, expire_in=0):
@@ -15,13 +16,16 @@ class MusicbotException(Exception):
     def message_no_format(self):
         return self._message
 
+
 # Something went wrong during the processing of a command
 class CommandError(MusicbotException):
     pass
 
+
 # Something went wrong during the processing of a song/ytdl stuff
 class ExtractionError(MusicbotException):
     pass
+
 
 # The no processing entry type failed and an entry was a playlist/vice versa
 class WrongEntryTypeError(ExtractionError):
@@ -30,11 +34,13 @@ class WrongEntryTypeError(ExtractionError):
         self.is_playlist = is_playlist
         self.use_url = use_url
 
+
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
     @property
     def message(self):
         return "You don't have permission to use that command.\nReason: " + self._message
+
 
 # Error with pretty formatting for hand-holding users through various errors
 class HelpfulError(MusicbotException):
@@ -48,14 +54,14 @@ class HelpfulError(MusicbotException):
     def message(self):
         return ("\n{}\n{}\n{}\n").format(
             self.preface,
-            self._pretty_wrap(self.issue,    "  Problem:  "),
+            self._pretty_wrap(self.issue, "  Problem:  "),
             self._pretty_wrap(self.solution, "  Solution: "))
 
     @property
     def message_no_format(self):
         return "\n{}\n{}\n{}\n".format(
             self.preface,
-            self._pretty_wrap(self.issue,    "  Problem:  ", width=None),
+            self._pretty_wrap(self.issue, "  Problem:  ", width=None),
             self._pretty_wrap(self.solution, "  Solution: ", width=None))
 
     @staticmethod
@@ -72,16 +78,20 @@ class HelpfulError(MusicbotException):
 
         return ''.join([l1, *lx])
 
+
 class HelpfulWarning(HelpfulError):
     pass
+
 
 # Base class for control signals
 class Signal(Exception):
     pass
 
+
 # signal to restart the bot
 class RestartSignal(Signal):
     pass
+
 
 # signal to end the bot "gracefully"
 class TerminateSignal(Signal):

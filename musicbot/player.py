@@ -28,7 +28,7 @@ class PatchedBuff:
 
     def __del__(self):
         if self.draw:
-            print(' ' * (get_terminal_size().columns-1), end='\r')
+            print(' ' * (get_terminal_size().columns - 1), end='\r')
 
     def read(self, frame_size):
         self.frame_count += 1
