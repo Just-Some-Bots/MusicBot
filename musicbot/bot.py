@@ -1810,7 +1810,7 @@ class MusicBot(discord.Client):
             return
 
         if message.author == self.user:
-            self.safe_print("Ignoring command from myself (%s)" % message.content)
+            self.safe_print(self.lang.ignore_self % message.content)
             return
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
@@ -1825,7 +1825,7 @@ class MusicBot(discord.Client):
 
         if message.channel.is_private:
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
-                await self.send_message(message.channel, 'You cannot use this bot in private messages.')
+                await self.send_message(message.channel, self.lang.no_private_message)
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
@@ -1893,29 +1893,22 @@ class MusicBot(discord.Client):
             if message.author.id != self.config.owner_id:
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
                     raise exceptions.PermissionsError(
-                        "This command is not enabled for your group (%s)." % user_permissions.name,
-                        expire_in=20)
+                        self.lang.command_permission_no_enabled % user_permissions.name, expire_in=20)
 
                 elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
                     raise exceptions.PermissionsError(
-                        "This command is disabled for your group (%s)." % user_permissions.name,
-                        expire_in=20)
+                        self.lang.command_permission_disabled % user_permissions.name, expire_in=20)
 
             if params:
                 docs = getattr(handler, '__doc__', None)
                 if not docs:
                     docs = 'Usage: {}{} {}'.format(
-                        self.config.command_prefix,
-                        command,
-                        ' '.join(args_expected)
-                    )
+                        self.config.command_prefix, command, ' '.join(args_expected))
 
                 docs = '\n'.join(l.strip() for l in docs.split('\n'))
                 await self.safe_send_message(
                     message.channel,
-                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix),
-                    expire_in=60
-                )
+                    '```\n%s\n```' % docs.format(command_prefix=self.config.command_prefix), expire_in=60)
                 return
 
             response = await handler(**handler_kwargs)
@@ -1986,18 +1979,18 @@ class MusicBot(discord.Client):
 
         if sum(1 for m in my_voice_channel.voice_members if m != after.server.me):
             if auto_paused and player.is_paused:
-                print("[config:autopause] Unpausing")
+                print(self.lang.config_unpause)
                 self.server_specific_data[after.server]['auto_paused'] = False
                 player.resume()
         else:
             if not auto_paused and player.is_playing:
-                print("[config:autopause] Pausing")
+                print(self.lang.config_pause)
                 self.server_specific_data[after.server]['auto_paused'] = True
                 player.pause()
 
     async def on_server_update(self, before: discord.Server, after: discord.Server):
         if before.region != after.region:
-            self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
+            self.safe_print(self.lang.change_server_region % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
 

@@ -136,9 +136,24 @@ ap_start_autoplaylist = "Starting auto-playlist"
 owner_not_in_voice = "Owner not found in a voice channel, could not autosummon."
 
 # BOT COMMANDS
+# cmd_help = "help"
+# Apparently I can't create a combo that will alow async def to allow such
+# intergrationg, requires many more failed attempts
 
 # TODO EXPERIMENT using similer concept for CMD_COMMAND
 # IF it works, implement changes similer to this
 # may break a mod API i was working on but meh, we shall see
 
 # ===== END BOT COMMANDS =====
+
+ignore_self = "Ignoring command from myself (%s)"
+
+no_private_message = "You cannot use this bot in private messages."
+
+command_permission_no_enabled = "This command is not enabled for your group (%s)."
+command_permission_disabled = "This command is disabled for your group (%s)."
+
+config_unpause = "[config:autopause] Unpausing"
+config_pause = "[config:autopause] Pausing"
+
+change_server_region = "[Servers] \"%s\" changed regions: %s -> %s"
