@@ -4,6 +4,11 @@ import configparser
 
 from discord import User as discord_User
 
+# [MBM] Multi-Language support
+# required for language support
+import importlib
+# ===== END =====
+
 
 class PermissionsDefaults:
     perms_file = 'config/permissions.ini'
@@ -27,8 +32,14 @@ class Permissions:
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
+# [MBM] Multi-Language support
+        language = self.config.language
+        f = self.config.languages_location + language
+        self.lang = importlib.import_module(f)
+# ===== END =====
+
         if not self.config.read(config_file, encoding='utf-8'):
-            print('[permissions] Permissions file not found, copying example_permissions.ini')
+            print(self.lang.permissions_file_missing)
 
             try:
                 shutil.copy('config/example_permissions.ini', config_file)
@@ -36,7 +47,7 @@ class Permissions:
 
             except Exception as e:
                 traceback.print_exc()
-                raise RuntimeError("Unable to copy config/example_permissions.ini to %s: %s" % (config_file, e))
+                raise RuntimeError(self.lang.permissions_cannot_copy % (config_file, e))
 
         self.default_group = PermissionGroup('Default', self.config['Default'])
         self.groups = set()

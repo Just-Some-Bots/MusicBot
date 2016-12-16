@@ -9,6 +9,12 @@ from .entry import URLPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
 
+# [MBM] Multi-Language support
+# required for language support
+# from musicbot.config import Config, ConfigDefaults
+# import importlib
+# ===== END =====
+
 
 class Playlist(EventEmitter):
     """

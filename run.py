@@ -7,6 +7,12 @@ import time
 import traceback
 import subprocess
 
+# [MBM] Multi-Language support
+# required for language support
+# from musicbot.config import Config, ConfigDefaults
+# import importlib
+# ===== END =====
+
 
 class GIT(object):
     @classmethod

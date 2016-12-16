@@ -196,7 +196,7 @@ config_invalid_autojoin = "[Warning] AutojoinChannels data invalid, will not aut
 # ======= DOWNLOADER.PY =======
 # =============================
 
-# Not 100% sure if the youtubedl errors either send to chat
+# Not 100% sure if the youtubedl errors either send to chat or console
 # or are just borks comments
 
 # ===============================
@@ -221,9 +221,10 @@ entry_youtubedl_error = "ytdl broke and hell if I know why"
 # =============================
 # ======= EXCEPTIONS.PY =======
 # =============================
-
-# TODO
-
+exceptions_no_permission = "You don't have permission to use that command.\nReason: "
+exceptions_error_occured = "An error has occured:\n"
+exceptions_problem = "  Problem:  "
+exceptions_solution = "  Solution: "
 # ===============================
 # ====== END EXCEPTIONS.PY ======
 # ===============================
@@ -233,8 +234,9 @@ entry_youtubedl_error = "ytdl broke and hell if I know why"
 # ======= OPUS_LOADER.PY =======
 # ==============================
 
-# TODO
-
+# TODO Maybe???
+# Is this even worth doing for one line?
+# opus_error_loading = "Could not load an opus lib. Tried %s"
 # ================================
 # ====== END OPUS_LOADER.PY ======
 # ================================
@@ -243,9 +245,8 @@ entry_youtubedl_error = "ytdl broke and hell if I know why"
 # ================================
 # ======== PERMISSIONS.PY ========
 # ================================
-
-# TODO
-
+permissions_file_missing = "[permissions] Permissions file not found, copying example_permissions.ini"
+permissions_cannot_copy = "Unable to copy config/example_permissions.ini to %s: %s"
 # ================================
 # ====== END PERMISSIONS.PY ======
 # ================================
@@ -254,9 +255,14 @@ entry_youtubedl_error = "ytdl broke and hell if I know why"
 # ===========================
 # ======== PLAYER.PY ========
 # ===========================
-
-# TODO
-
+player_cannot_resume = "Cannot resume playback from state %s"
+player_cannot_pause = "Cannot pause a MusicPlayer in state %s"
+player_skip_deletion = "[Config:SaveVideos] Skipping deletion, found song in queue"
+player_error_deleteing = "Error trying to delete "
+player_cannot_delete = "[Config:SaveVideos] Could not delete file {}, giving up and moving on"
+player_failed_to_get_entry = "Failed to get entry."
+player_create_websocket = "[Debug] Creating websocket check loop"
+player_websocket_reconnecting = "[Debug] Voice websocket is %s, reconnecting"
 # ===========================
 # ====== END PLAYER.PY ======
 # ===========================
@@ -276,9 +282,10 @@ entry_youtubedl_error = "ytdl broke and hell if I know why"
 # ================================
 # =========== UTILS.PY ===========
 # ================================
-
-# TODO
-
+# TODO Maybe
+# Is this even worth doing for two line?
+# utils_error_loading = "Error loading"
+# utlils_not_list = "Content must be str or list, not %s"
 # ================================
 # ========= END UTILS.PY =========
 # ================================

@@ -10,13 +10,19 @@ from shutil import get_terminal_size
 
 from .lib.event_emitter import EventEmitter
 
+# [MBM] Multi-Language support
+# required for language support
+from musicbot.config import Config, ConfigDefaults
+import importlib
+# ===== END =====
+
 
 class PatchedBuff:
     """
         PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
 
-    def __init__(self, buff, *, draw=False):
+    def __init__(self, buff, *, draw=False, config_file=ConfigDefaults.options_file):
         self.buff = buff
         self.frame_count = 0
         self.volume = 1.0
@@ -25,6 +31,13 @@ class PatchedBuff:
         self.use_audioop = True
         self.frame_skip = 2
         self.rmss = deque([2048], maxlen=90)
+
+# [MBM] Multi-Language support
+        self.config = Config(config_file)
+        language = self.config.language
+        f = self.config.languages_location + language
+        self.lang = importlib.import_module(f)
+# ===== END =====
 
     def __del__(self):
         if self.draw:
@@ -138,7 +151,7 @@ class MusicPlayer(EventEmitter):
             self._kill_current_player()
             return
 
-        raise ValueError('Cannot resume playback from state %s' % self.state)
+        raise ValueError(self.lang.player_cannot_resume % self.state)
 
     def pause(self):
         if self.is_playing:
@@ -153,7 +166,7 @@ class MusicPlayer(EventEmitter):
         elif self.is_paused:
             return
 
-        raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
+        raise ValueError(self.lang.player_cannot_pause % self.state)
 
     def kill(self):
         self.state = MusicPlayerState.DEAD
@@ -175,7 +188,7 @@ class MusicPlayer(EventEmitter):
 
         if not self.bot.config.save_videos and entry:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
-                print("[Config:SaveVideos] Skipping deletion, found song in queue")
+                print(self.lang.player_skip_deletion)
 
             else:
                 # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
@@ -209,10 +222,10 @@ class MusicPlayer(EventEmitter):
 
             except Exception as e:
                 traceback.print_exc()
-                print("Error trying to delete " + filename)
+                print(self.lang.player_error_deleteing + filename)
                 break
         else:
-            print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+            print(self.lang.player_cannot_delete.format(
                 os.path.relpath(filename)))
 
     def play(self, _continue=False):
@@ -234,7 +247,7 @@ class MusicPlayer(EventEmitter):
                     entry = await self.playlist.get_next_entry()
 
                 except Exception as e:
-                    print("Failed to get entry.")
+                    print(self.lang.player_failed_to_get_entry)
                     traceback.print_exc()
                     # Retry playing the next entry in a sec.
                     self.loop.call_later(0.1, self.play)
@@ -279,7 +292,7 @@ class MusicPlayer(EventEmitter):
 
     async def websocket_check(self):
         if self.bot.config.debug_mode:
-            print("[Debug] Creating websocket check loop")
+            print(self.langplayer_create_websocket)
 
         while not self.is_dead:
             try:
@@ -287,7 +300,7 @@ class MusicPlayer(EventEmitter):
                 assert self.voice_client.ws.open
             except:
                 if self.bot.config.debug_mode:
-                    print("[Debug] Voice websocket is %s, reconnecting" % self.voice_client.ws.state_name)
+                    print(self.lang.player_websocket_reconnecting % self.voice_client.ws.state_name)
                 await self.bot.reconnect_voice_client(self.voice_client.channel.server)
                 await asyncio.sleep(4)
             finally:
