@@ -1,4 +1,3 @@
 discord.py[voice] ~= 0.12.0
 youtube_dl
 pip
-Python 3.4.2+
