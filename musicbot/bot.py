@@ -35,8 +35,11 @@ from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
 
-load_opus_lib()
+from .custom.common import Response
+from .custom import ro
+from .custom import others
 
+load_opus_lib()
 
 class SkipState:
     def __init__(self):
@@ -56,15 +59,8 @@ class SkipState:
         self.skip_msgs.add(msg)
         return self.skip_count
 
-
-class Response:
-    def __init__(self, content, reply=False, delete_after=0):
-        self.content = content
-        self.reply = reply
-        self.delete_after = delete_after
-
-
 class MusicBot(discord.Client):
+
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         self.players = {}
         self.the_voice_clients = {}
@@ -82,6 +78,17 @@ class MusicBot(discord.Client):
         self.exit_signal = None
         self.init_ok = False
         self.cached_client_id = None
+
+    # # custom variables
+    #     self.repeat = False
+    #     self.repeatqueue = False
+    #     self.ebr = ["Yes", "Very doubtful", "Totally!" ,"Probably not","Perhaps","Of course!","Not sure","Nope","No","NO - It may cause disease contraction","My sources say yes","My sources say no","Most likely no","Most likely","Most definitely yes","Maybe","It is uncertain","For sure","Dont even think about it","Don't count on it","Definitely no" ,"Ask me again later" ,"As I see it, yes"]
+    #     self.default_commands = ["cmd_blacklist", "cmd_clean", "cmd_clear", "cmd_disconnect", "cmd_id", "cmd_joinserver", "cmd_listids", "cmd_np", "cmd_pause", "cmd_perms", "cmd_play", "cmd_pldump", "cmd_queue", "cmd_restart", "cmd_resume", "cmd_search", "cmd_setavatar", "cmd_setname", "cmd_setnick", "cmd_shuffle", "cmd_shutdown", "cmd_skip", "cmd_summon", "cmd_volume"]
+
+    #     # RO LINK CONSTANTS
+    #     self.RO_MOB_PAGE = 'http://www.divine-pride.net/database/monster/'
+    #     self.RO_PAGE = 'http://www.divine-pride.net/'
+    #     self.RO_MOB_SEARCH_PAGE = 'http://www.divine-pride.net/database/monster?Name=&Map=&Item=&Scale=&Element=&Race=&minLevel=1&maxLevel=200&minFlee=1&maxFlee=800&minHit=1&maxHit=1600&Flag=&Page=1'
 
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
@@ -2011,6 +2018,18 @@ class MusicBot(discord.Client):
 
             await self.reconnect_voice_client(after)
 
+def patch(cls, func):
+    setattr(cls, func.__name__, func)
+
+def add_att(modules):
+    for module in modules:
+        for att in dir(module):
+            if att.startswith('cmd_'):
+                attr = getattr(module, att)
+                patch(MusicBot, attr)
+
+modules = [ro, others]
+add_att(modules)
 
 if __name__ == '__main__':
     bot = MusicBot()
