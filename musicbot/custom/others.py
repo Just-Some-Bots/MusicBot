@@ -30,6 +30,7 @@ async def cmd_choose(self, channel, author, leftover_args):
         option_list = full_string.split(';')
         num_options = len(option_list) - 1
         reply_text = option_list[randint(0, num_options)]
+        print(reply_text)
         return Response(reply_text)
 
 async def cmd_8ball(self, channel, author, leftover_args):

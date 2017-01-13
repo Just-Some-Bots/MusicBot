@@ -8,11 +8,8 @@ import concurrent.futures
 
 from .common import *
 from lxml import html
+from functools import partial
 
-# RO LINK CONSTANTS
-
-RO_MOB_PAGE = 'http://www.divine-pride.net/database/monster/'
-RO_PAGE = 'http://www.divine-pride.net/'
 RO_MOB_SEARCH_PAGE = 'http://www.divine-pride.net/database/monster?Name=&Map=&Item=&Scale=&Element=&Race=&minLevel=1&maxLevel=200&minFlee=1&maxFlee=800&minHit=1&maxHit=1600&Flag=&Page=1'
 API_LINK = 'http://www.divine-pride.net/api/database/DBTYPE/ID?apiKey=MYKEY'
 RACE_MAP = {
@@ -25,8 +22,20 @@ RACE_MAP = {
                 '6': 'Demon',
                 '7': 'Human',
                 '8': 'Angel',
-                '9': 'Dragon'
+                '9': 'Dragon',
+                'formless': '0',
+                'undead': '1',
+                'brute': '2',
+                'plant': '3',
+                'insect': '4',
+                'fish': '5',
+                'demon': '6',
+                'human': '7',
+                'angel': '8',
+                'dragon': '9'
             }
+
+
 
 ELE_TYPE_MAP = {
                         '0': 'Neutral',
@@ -38,20 +47,34 @@ ELE_TYPE_MAP = {
                         '6': 'Holy',
                         '7': 'Dark',
                         '8': 'Ghost',
-                        '9': 'Undead'
+                        '9': 'Undead',
+                        'neutral': '0',
+                        'water': '1',
+                        'earth': '2',
+                        'fire': '3',
+                        'wind': '4',
+                        'poison': '5',
+                        'holy': '6',
+                        'dark': '7',
+                        'ghost': '8',
+                        'undead': '9'
                     }
 
 ELE_LVL_MAP = {
                     '0': '',
                     '2': '1',
                     '4': '2',
-                    '6': '3'
+                    '6': '3',
+                    '8': '4'
                 }
 
 SCALE_MAP = {
             '0': 'Small',
             '1': 'Medium',
-            '2': 'Large'
+            '2': 'Large',
+            'small': '0',
+            'medium': '1',
+            'large': '2'
         }
 
 DROP_RATE_MAX = 100
@@ -86,12 +109,6 @@ async def cmd_mi(self, channel, author, leftover_args):
     If search returns only one result, take that and return mob 
     information
     """
-#     rep = {"condition1": "", "condition2": "text"} # define desired replacements here
-
-# # use these three lines to do the replacement
-# rep = dict((re.escape(k), v) for k, v in rep.iteritems())
-# pattern = re.compile("|".join(rep.keys()))
-# text = pattern.sub(lambda m: rep[re.escape(m.group(0))], text)
 
     if not leftover_args:
         return
@@ -103,69 +120,166 @@ async def cmd_mi(self, channel, author, leftover_args):
     if leftover_args and w_args == 1 and leftover_args[0].isdigit():
         this_mob_id = leftover_args[0]
 
-        
-
-
-
     # if user doesn't provide a valid mob id,
-    # we search website first and grab first result
-    # then use it to go to mob page
+    # we search website and return all results
     elif leftover_args:
 
-        mob_search_name = '+'.join([*leftover_args])
-        mob_search_url = RO_MOB_SEARCH_PAGE.replace("Name=", "Name=" + mob_search_name)
+        keywords = {
+            'Item': ['d', 'drops', 'i', 'item'],
+            'Element': ['e', 'ele', 'element'],
+            'Scale': ['s', 'size'],
+            'Race': ['r', 'race'],
+            'Limit': ['-']
+                    }
+        url_replace = {
+            'Item=': 'Item=',
+            'Name=': 'Name=',
+            'Element=': 'Element=',
+            'Scale=': 'Scale=',
+            'Race=': 'Race='
+                    }
+
+        mob_query = ' '.join([*leftover_args]).split(',')
+        print(mob_query)
+
+        mob_query = [query.split() for query in mob_query]
+        print(mob_query)
+
+        url_replace['Name='] += '+'.join(mob_query[0])
+        print(url_replace['Name='])
+
+        print(mob_query)
+
+        item_bool = False
+        index_min_bool = False
+        index_max_bool = False
+        index_set = {'min': -1, 'max': -1}
+
+
+        for sub_query in mob_query[1:]:
+            print('\n')
+            if sub_query[0] in keywords['Item']:
+                url_replace['Item='] += '+'.join(sub_query[1:])
+                print(url_replace['Item='])
+                item_bool = True
+            
+            elif sub_query[0] in keywords['Element']:
+                url_replace['Element='] += ('%2C').join([ELE_TYPE_MAP[ele] for ele in sub_query[1:] if ele in ELE_TYPE_MAP])
+                print(url_replace['Element='])
+
+            elif sub_query[0] in keywords['Race']:
+                url_replace['Race='] += ('%2C').join([RACE_MAP[race] for race in sub_query[1:] if race in RACE_MAP])
+                print(url_replace['Race='])
+            elif sub_query[0] in keywords['Scale']:
+                url_replace['Scale='] += ('%2C').join([SCALE_MAP[scale] for scale in sub_query[1:] if scale in SCALE_MAP])
+                print(url_replace['Scale='])
+
+            elif sub_query[0].isdigit():
+                index_min_bool = True
+                index_set['min'] = int(sub_query[0])
+                print('min')
+                print(index_set['min'])
+
+            elif sub_query[1] in keywords['Limit']:
+                if sub_query[0].isdigit():
+                    index_min_bool = True
+                    index_set['min'] = int(sub_query[0])
+                if sub_query[2].isdigit():
+                    index_max_bool = True
+                    index_set['max'] = int(sub_query[2])
+
+                print('min')
+                print(index_set['min'])
+                print('max')
+                print(index_set['max'])
+
+            elif sub_query[0] in keywords['Limit']:
+                if sub_query[1].isdigit():
+                    index_max_bool = True
+                    index_set['max'] = int(sub_query[1])
+                    print('max')
+                    print(index_set['max'])
+
+
+
+            
+
+
+        rep = dict((re.escape(k), v) for k, v in url_replace.items())
+        pattern = re.compile("|".join(rep.keys()))
+        mob_search_url = pattern.sub(lambda m: rep[re.escape(m.group(0))], RO_MOB_SEARCH_PAGE)
+        print(mob_search_url)
         page = requests.get(mob_search_url)
         tree = html.fromstring(page.content)
 
         try:
-            hrefs = tree.xpath('//tbody/tr/td/a')
+            hrefs = tree.xpath('//tbody/tr')
+            index_limit = {
+            'min': 0,
+            'max': len(hrefs)
+                }
+
+            print(index_limit)
+
         except IndexError:
             reply_text = "No results from search."
             print(reply_text)
             return Response(reply_text)
 
+        if index_min_bool:
+            index_limit['min'] = index_set['min']
+        if index_max_bool:
+            index_limit['max'] = index_set['max']
+
+        hrefs = hrefs[index_limit['min']:index_limit['max']]
+        print(len(hrefs))
         if len(hrefs) != 1:
-            mob_ids = [href.attrib['href'].rsplit('/', 2)[1] for href in hrefs]
-            mob_names = [href.xpath('text()')[0] for href in hrefs]
+            i = 0
+            content = []
+
+            mob_names = [h.xpath('.//td')[1].xpath('.//text()')[1] for h in hrefs]
+            mob_ids = [h.xpath('.//td/a')[0].attrib['href'].rsplit('/', 2)[1] for h in hrefs]
 
             results = "__**Results**__\n"
-            mob_list = ['**' + mob_name.strip() + ':** ' + mob_id + '\n' for mob_name, mob_id in zip(mob_names, mob_ids)]
+
+            if item_bool:
+                mob_items = [h.xpath('.//td')[13][1].xpath('.//text()')[0] for h in hrefs]
+                mob_items_id = [h.xpath('.//td/a')[1].attrib['href'].rsplit('/', 2)[1] for h in hrefs]
+                mob_items_rate = [h.xpath('.//td')[14].xpath('.//span/text()')[0] for h in hrefs]
+                mob_list = ['**' + name + ':** ' + mob_id + \
+                            ', drop: ' + drop + '(' + item_id + ') rate: ' + rates + \
+                            '\n' for name, mob_id, drop, item_id, rates in zip(mob_names, mob_ids, mob_items, mob_items_id, mob_items_rate)]
+            else:
+                mob_list = ['**' + name + ':** ' + mob_id + '\n' for name, mob_id in zip(mob_names, mob_ids)]
+
             results += ''.join(mob_list)
             return Response(results)
 
+        # If, however, there is only one result,
+        # grab the id instead as it is effectively the same 
+        # as querying for mob id
         else:
-            pass
+            this_mob_id = hrefs[0].xpath('.//td/a')[0].attrib['href'].rsplit('/', 2)[1]
 
 
     mob_url = dpapi_url_make('Monster', [this_mob_id])  
+    print(mob_url)
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     mob_data = loop.run_until_complete(many_json_grab(mob_url))[0]
-
-
-    for pair in mob_data:
-        print(pair)
 
     results = await mob_print(mob_data)
 
     return Response(results)
 
 
-        
-
-    # headvals = ['{:<25}'.format('[' + l_header.strip() + '](' + l_value.strip() + ')') + \
-    #             '{:<35}'.format('[' + r_header.strip() + '](' + r_value.strip() + ')') + '\n' \
-    #             for r_header, r_value, l_header, l_value in \
-    #             zip(r_headers, r_values, l_headers, l_values)]
-    # stats +=  ''.join(headvals) + "```"
-
 async def mob_print(mob_data):
     
-    mob_drops_ids = []
-    for i in mob_data['drops']:
-        mob_drops_ids.append(str(i['itemId']))
+    mob_drops_ids = [str(i['itemId']) for i in mob_data['drops']]
 
+    print(mob_drops_ids)
+    # async queries all the items of the mob
     mob_drops_urls = dpapi_url_make('Item', mob_drops_ids)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -182,10 +296,8 @@ async def mob_print(mob_data):
     # stitch attack damage
     mob_atk = mob_data['stats']['attack']
 
-
-    MAX_CHAR_LINE = 70
     SRE_LEN = 20
-    STAT_LEN = 35
+    STAT_LEN = 40
 
     # name - id
     stats = "```Markdown" + "\n" + "# " + mob_data['name'] + " - " + str(mob_data['id']) + "\n\n"
@@ -228,6 +340,8 @@ async def mob_print(mob_data):
 
     stats += "```"
 
+    print(stats)
+
     return stats
 
 
@@ -252,10 +366,12 @@ async def many_json_grab(urls):
         loop = asyncio.get_event_loop()
         futures = [
             loop.run_in_executor(
-                executor, 
-                requests.get, 
-                i
-            )
+                executor,
+                partial(
+                    requests.get, 
+                    i, headers={'Accept-Language': 'en-US'}
+                    )
+                )
             for i in urls
         ]
         for response in await asyncio.gather(*futures):

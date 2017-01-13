@@ -78,18 +78,7 @@ class MusicBot(discord.Client):
         self.exit_signal = None
         self.init_ok = False
         self.cached_client_id = None
-
-    # # custom variables
-    #     self.repeat = False
-    #     self.repeatqueue = False
-    #     self.ebr = ["Yes", "Very doubtful", "Totally!" ,"Probably not","Perhaps","Of course!","Not sure","Nope","No","NO - It may cause disease contraction","My sources say yes","My sources say no","Most likely no","Most likely","Most definitely yes","Maybe","It is uncertain","For sure","Dont even think about it","Don't count on it","Definitely no" ,"Ask me again later" ,"As I see it, yes"]
-    #     self.default_commands = ["cmd_blacklist", "cmd_clean", "cmd_clear", "cmd_disconnect", "cmd_id", "cmd_joinserver", "cmd_listids", "cmd_np", "cmd_pause", "cmd_perms", "cmd_play", "cmd_pldump", "cmd_queue", "cmd_restart", "cmd_resume", "cmd_search", "cmd_setavatar", "cmd_setname", "cmd_setnick", "cmd_shuffle", "cmd_shutdown", "cmd_skip", "cmd_summon", "cmd_volume"]
-
-    #     # RO LINK CONSTANTS
-    #     self.RO_MOB_PAGE = 'http://www.divine-pride.net/database/monster/'
-    #     self.RO_PAGE = 'http://www.divine-pride.net/'
-    #     self.RO_MOB_SEARCH_PAGE = 'http://www.divine-pride.net/database/monster?Name=&Map=&Item=&Scale=&Element=&Race=&minLevel=1&maxLevel=200&minFlee=1&maxFlee=800&minHit=1&maxHit=1600&Flag=&Page=1'
-
+        
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
