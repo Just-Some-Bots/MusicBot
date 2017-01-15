@@ -1374,14 +1374,7 @@ class MusicBot(discord.Client):
                 return Response('**{}** is now at the top of the queue! Skip the current song to play it!'.format(entry.title))
             except IndexError:
                 return Response("That index does not exist in the queue!")
-        '''
-        try:
-            entry = player.playlist.entries.pop(entry_index)
-            await player.playlist.entries.insert(0, entry)
-            return Response('{} is now at the top of the queue! Skip the current song to play it!'.format(index.title))
-        except Exception as e:
-            return Response(e)
-        '''
+
     async def cmd_np(self, player, channel, server, message):
         """
         Usage:
