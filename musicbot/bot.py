@@ -1309,41 +1309,6 @@ class MusicBot(discord.Client):
                     continue
             textfile.remove(song_url)
 
-        '''
-        for l in textfile:
-            song_url = l.strip()
-            info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
-            if not info:
-                unplayable_songs.append(song_url)
-                self.safe_print("[Info] Removing unplayable song from `{}`: {}".format(playlistfile, song_url))
-                continue
-            try:
-                await player.playlist.add_entry(song_url, channel=None, author=None)
-                print("Added %s to the queue!" % song_url)
-            except exceptions.ExtractionError as e:
-                print("Error adding song from %s:" % playlistfile, e)
-                continue
-        '''
-        '''
-        try:
-            with open(playlistfile) as textfile:
-                for l in textfile:
-                    song_url = l.strip()
-                    info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
-                    if not info:
-                        unplayable_songs.append(song_url)
-                        self.safe_print("[Info] Removing unplayable song from `{}`: {}".format(playlistfile, song_url))
-                        continue
-                    try:
-                            await player.playlist.add_entry(song_url, channel=None, author=None)
-                            print("Added %s to the queue!" % song_url)
-                    except exceptions.ExtractionError as e:
-                        print("Error adding song from %s:" % playlistfile, e)
-                        continue
-        except Exception as e:
-            return Response(e)
-        '''
-
         for s in unplayable_songs:
             try:
                 savefile.remove(s)
@@ -1352,27 +1317,6 @@ class MusicBot(discord.Client):
                 await self.safe_send_message(message.channel, e)
 
         return Response('Songs from `%s` were added to the queue!' % playlistfile)
-
-    async def cmd_eval(self, message, stmt, args=None):
-        """
-        Usage:
-            {command_prefix}eval <code>
-
-        Evaluates Python code. If the result is a coroutine, it will be awaited.
-        """
-        if args:
-            stmt = ' '.join([stmt, args])
-        else:
-            stmt = stmt
-        try:
-            result = eval(stmt)
-            if inspect.isawaitable(result):
-                result = await result
-        except Exception as e:
-            exc = traceback.format_exc().splitlines()
-            result = exc[-1]
-        self.safe_print("Evaluated: {} - Result was: {}".format(stmt, result))
-        return Response("```xl\n--- In ---\n{}\n--- Out ---\n{}\n```".format(stmt, result))
 
     async def cmd_repeat(self, player, message, index=None):
         """
