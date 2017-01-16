@@ -405,22 +405,21 @@ async def cmd_sig(self, channel, author, leftover_args):
             sig_pose_val = str(randint(1, sig_pose))
 
             
-            if len(string_list) > 2:
-                sig_bg_txt = string_list[-2]
-                sig_pose_txt = string_list[-1]
+            name_list = [s for s in string_list if not '/' in s]
+            char_name = '_'.join(name_list)
+            bgpose_val = [s for s in string_list if '/' in s][0]
+            print(char_name + ' ' + bgpose_val)
 
-                if sig_bg_txt.isdigit():
-                    sig_bg_val = sig_bg_txt
-                    del string_list[-1]
-                if sig_pose_txt.isdigit():
-                    sig_pose_val  = sig_pose_txt
-                    del string_list[-1]
+            if bgpose_val:
+                bgpose_list = bgpose_val.split('/')
+                print(bgpose_list)
 
-                print (string_list)
-                char_name = '_'.join(string_list)
-                
-            else:
-                char_name = '_'.join(string_list)
+                if bgpose_list[0] and bgpose_list[0].isdigit():
+                    sig_bg_val = bgpose_list[0]
+
+                if bgpose_list[1] and bgpose_list[1].isdigit():
+                    sig_pose_val = bgpose_list[1]
+
 
             reply_text += sig_link + char_name + '/' + sig_bg_val + '/' + sig_pose_val + '\n'
 
