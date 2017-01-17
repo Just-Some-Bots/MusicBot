@@ -407,11 +407,11 @@ async def cmd_sig(self, channel, author, leftover_args):
             
             name_list = [s for s in string_list if not '/' in s]
             char_name = '_'.join(name_list)
-            bgpose_val = [s for s in string_list if '/' in s][0]
-            print(char_name + ' ' + bgpose_val)
+            bgpose_val = [s for s in string_list if '/' in s]
+            
 
             if bgpose_val:
-                bgpose_list = bgpose_val.split('/')
+                bgpose_list = bgpose_val[0].split('/')
                 print(bgpose_list)
 
                 if bgpose_list[0] and bgpose_list[0].isdigit():
