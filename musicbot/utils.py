@@ -8,7 +8,6 @@ from .constants import DISCORD_MSG_CHAR_LIMIT
 
 log = logging.getLogger(__name__)
 
-
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
         with open(filename, encoding='utf8') as f:
@@ -31,7 +30,6 @@ def write_file(filename, contents):
         for item in contents:
             f.write(str(item))
             f.write('\n')
-
 
 def sane_round_int(x):
     return int(decimal.Decimal(x).quantize(1, rounding=decimal.ROUND_HALF_UP))
@@ -79,7 +77,6 @@ def md5sum(filename, limit=0):
         for chunk in iter(lambda: f.read(8192), b""):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
-
 
 def fixg(x, dp=2):
     return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')

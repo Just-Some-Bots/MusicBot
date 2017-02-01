@@ -21,6 +21,7 @@ class EntryTypes(Enum):
 
 
 class BasePlaylistEntry(Serializable):
+
     def __init__(self):
         self.filename = None
         self._is_downloading = False
@@ -201,6 +202,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         self.expected_filename.rsplit('.', 1)[-1],
                         self.filename.rsplit('.', 1)[-1]
                     ))
+
                 else:
                     await self._really_download()
 
@@ -222,7 +224,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
             result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
         except Exception as e:
             raise ExtractionError(e)
-
         log.info("Download complete: {}".format(self.url))
 
         if result is None:

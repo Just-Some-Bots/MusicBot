@@ -4,7 +4,10 @@ import datetime
 
 from random import shuffle
 from itertools import islice
+
 from collections import deque
+from itertools import islice
+from random import shuffle
 
 from urllib.error import URLError
 from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
@@ -353,4 +356,3 @@ class Playlist(EventEmitter, Serializable):
 
         # TODO: create a function to init downloading (since we don't do it here)?
         return pl
-

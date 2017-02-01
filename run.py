@@ -394,9 +394,11 @@ def main():
 
         finally:
             if not m or not m.init_ok:
+
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
                     traceback.print_exc()
+
                 break
 
             asyncio.set_event_loop(asyncio.new_event_loop())

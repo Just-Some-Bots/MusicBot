@@ -20,7 +20,8 @@ class PermissionsDefaults:
     MaxSongs = 0
     MaxSongLength = 0
     MaxPlaylistLength = 0
-
+    MaxVolume = 0
+	
     AllowPlaylists = True
     InstaSkip = False
 
@@ -108,7 +109,8 @@ class PermissionGroup:
         self.max_songs = section_data.get('MaxSongs', fallback=PermissionsDefaults.MaxSongs)
         self.max_song_length = section_data.get('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
         self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength)
-
+        self.max_volume = section_data.get('MaxVolume', fallback=PermissionsDefaults.MaxVolume)
+		
         self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
         self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
 
@@ -144,6 +146,10 @@ class PermissionGroup:
             self.max_playlist_length = max(0, int(self.max_playlist_length))
         except:
             self.max_playlist_length = PermissionsDefaults.MaxPlaylistLength
+        try:
+            self.max_volume = max(0, int(self.max_volume))
+        except:
+            self.max_volume = PermissionsDefaults.MaxVolume
 
         self.allow_playlists = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.allow_playlists, PermissionsDefaults.AllowPlaylists
