@@ -701,11 +701,15 @@ class MusicBot(discord.Client):
                 player = discord.utils.get(self.players.values(), is_playing=True)
                 entry = player.current_entry
 
+        name = ''
+
         if entry:
             prefix = u'\u275A\u275A ' if is_paused else ''
 
-            name = u'{}{}'.format(prefix, entry.title)[:128]
-            game = discord.Game(name=name)
+            name = u'{}{}'.format(prefix, entry.title)
+            game = discord.Game(name=name[:128])
+
+        write_file('now-playing.txt', name)
 
         async with self.aiolocks[_func_()]:
             if game != self.last_status:

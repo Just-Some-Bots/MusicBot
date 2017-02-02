@@ -6,6 +6,7 @@ audio_cache/
 dectalk/
 
 discord.log
+now-playing.txt
 logs/
 data/
 config/options.ini
