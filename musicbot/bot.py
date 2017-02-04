@@ -1957,7 +1957,7 @@ class MusicBot(discord.Client):
 			
 		Enable or disable the autoplaylist
         """
-        song_url = choice(self.autoplaylist)       
+        song_url = random.choice(self.autoplaylist)       
         if self.config.auto_playlist == False:
             self.config.auto_playlist = True
             if not player.playlist.entries and not player.current_entry and self.config.auto_playlist: #if nothing is queued, start a song
