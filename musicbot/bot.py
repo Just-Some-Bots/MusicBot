@@ -1965,7 +1965,7 @@ class MusicBot(discord.Client):
             await self.safe_send_message(channel, "The autoplaylist is now enabled!")
             return
 			
-        if self.config.auto_playlist == True: #else dislable 
+        if self.config.auto_playlist == True: #else disable 
             self.config.auto_playlist = False
             await self.safe_send_message(channel, "The autoplaylist is now disabled!")
             return							
