@@ -1812,6 +1812,13 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
+    async def cmd_announce(self, *, message):
+        for server in self.bot.servers:
+            try:
+                await self.bot.send_message(server.default_channel, message)
+            except:
+                pass
+        
     async def on_message(self, message):
         await self.wait_until_ready()
 
