@@ -4,14 +4,17 @@ MusicBot is a Discord music bot written in [Python](https://www.python.org "Pyth
 
 ### How do I set it up?
 
-- [Windows Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions")
-- [Linux Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions")
-- [Docker Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Docker)
-- [OSX Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-OSX)
+- [Windows Tutorial](https://github.com/Just-Some-Bots/MusicBot/wiki/Guide-for-Windows "Windows instructions")
+- [Linux Tutorial](https://github.com/Just-Some-Bots/MusicBot/wiki/Guide-for-Ubuntu "Linux instructions")
+- [OSX Tutorial](https://github.com/Just-Some-Bots/MusicBot/wiki/Guide-for-OSX)
+- [Raspbian Tutorial](https://github.com/Just-Some-Bots/MusicBot/wiki/Guide-for-Raspbian)
+- [Debian Tutorial](https://github.com/Just-Some-Bots/MusicBot/wiki/Guide-for-Debian)
+- [Docker Tutorial](https://github.com/Just-Some-Bots/MusicBot/wiki/Guide-for-Docker)
+
 
 ### Commands
 
-Commands are listed [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
+Commands are listed [here](https://github.com/Just-Some-Bots/MusicBot/wiki/Commands "Commands list").
 
 ### Configuration
 
@@ -26,4 +29,4 @@ If you have any errors, read the FAQ. If that didn't help, you can ask for assis
 
 ### FAQ
 
-Some frequently asked questions are listed on the wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
+Some frequently asked questions are listed on the wiki [here](https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ "Wiki").
