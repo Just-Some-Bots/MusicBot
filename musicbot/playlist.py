@@ -224,6 +224,9 @@ class Playlist(EventEmitter):
 
         if self.peek() is entry:
             entry.get_ready_future()
+            
+    def remove_entry(self, index):
+        del self.entries[index]
 
     async def get_next_entry(self, predownload_next=True):
         """
