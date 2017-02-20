@@ -72,17 +72,25 @@ class BasePlaylistEntry:
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, duration=0, expected_filename=None, **meta):
+    def __init__(self, playlist, url, title, duration=0, expected_filename=None, start_seconds=0, **meta):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
+        self.start_seconds = start_seconds
         self.expected_filename = expected_filename
         self.meta = meta
 
         self.download_folder = self.playlist.downloader.download_folder
+
+    def set_start(self, sec):
+        if sec > self.duration or sec < 0:
+            return False
+
+        self.start_seconds = sec
+        return True
 
     @classmethod
     def from_json(cls, playlist, jsonstring):
@@ -92,6 +100,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         url = data['url']
         title = data['title']
         duration = data['duration']
+        start_seconds = data["start_seconds"]
         downloaded = data['downloaded']
         filename = data['filename'] if downloaded else None
         meta = {}
@@ -104,7 +113,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         if 'author' in data['meta']:
             meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
 
-        return cls(playlist, url, title, duration, filename, **meta)
+        return cls(playlist, url, title, duration, filename, start_seconds, **meta)
 
     def to_json(self):
         data = {
@@ -113,6 +122,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             'url': self.url,
             'title': self.title,
             'duration': self.duration,
+            "start_seconds": self.start_seconds,
             'downloaded': self.is_downloaded,
             'filename': self.filename,
             'meta': {
@@ -232,6 +242,3 @@ class URLPlaylistEntry(BasePlaylistEntry):
             else:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
-
-
-
