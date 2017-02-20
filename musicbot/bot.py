@@ -77,6 +77,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.used_urls = []
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
         self.exit_signal = None
@@ -418,7 +419,33 @@ class MusicBot(discord.Client):
             while self.autoplaylist:
                 song_url = choice(self.autoplaylist)
                 info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
+                
+                if (len(self.used_urls) == len(self.autoplaylist)):
+                    print('All songs have been played, reshuffling...')
+                    self.used_urls.clear()
 
+                init_index = self.autoplaylist.index(song_url)
+
+                while (self.used_urls.count(song_url) > 0):
+                    print('%s has already been played!' % song_url)
+                    url_index = self.autoplaylist.index(song_url)
+
+                    if (self.autoplaylist.count(song_url) > 1):
+                        del self.autoplaylist[self.autoplaylist.index(song_url)]
+
+                    if (url_index + 1 < len(self.autoplaylist)):
+                        url_index += 1
+                    else:
+                        url_index = 0
+
+                    if (url_index == init_index):
+                        print('All songs have been played, reshuffling...')
+                        self.used_urls.clear()
+                        break
+
+                    song_url = self.autoplaylist[url_index]
+                    info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
+                
                 if not info:
                     self.autoplaylist.remove(song_url)
                     self.safe_print("[Info] Removing unplayable song from autoplaylist: %s" % song_url)
