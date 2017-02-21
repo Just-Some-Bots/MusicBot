@@ -61,6 +61,7 @@ class Config:
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
         self.debug_mode = False
+        self.max_volume = config.getint('MusicBot', 'MaxVolume', fallback=ConfigDefaults.max_volume)
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
@@ -147,6 +148,13 @@ class Config:
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
+
+        if self.max_volume < 1 or self.max_volume > 1000:
+            if self.max_volume < 1:
+                print("[Warning] Max Volume is {}%, which is less than 1%, defaulting to 100%.".format(self.max_volume))
+            elif self.max_volume > 1000:
+                print("[Warning] Max Volume is {}%, which is greater than 1000%, defaulting to 100%.".format(self.max_volume))
+            self.max_volume = 100
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
@@ -280,6 +288,7 @@ class ConfigDefaults:
     delete_invoking = False
     persistent_queue = True
     debug_level = 'INFO'
+    max_volume = 100
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

@@ -48,7 +48,7 @@ class PatchedBuff:
         frame = self.buff.read(frame_size)
 
         if self.volume != 1:
-            frame = self._frame_vol(frame, self.volume, maxv=2)
+            frame = self._frame_vol(frame, self.volume, maxv=10)
 
         if self.draw and not self.frame_count % self.frame_skip:
             # these should be processed for every frame, but "overhead"
@@ -61,7 +61,7 @@ class PatchedBuff:
 
         return frame
 
-    def _frame_vol(self, frame, mult, *, maxv=2, use_audioop=True):
+    def _frame_vol(self, frame, mult, *, maxv=10, use_audioop=True):
         if use_audioop:
             return audioop.mul(frame, 2, min(mult, maxv))
         else:
