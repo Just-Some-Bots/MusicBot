@@ -445,6 +445,8 @@ class MusicBot(discord.Client):
 
                     song_url = self.autoplaylist[url_index]
                     info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
+                    
+                self.used_urls.append(song_url)
                 
                 if not info:
                     self.autoplaylist.remove(song_url)
