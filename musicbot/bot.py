@@ -77,6 +77,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.song_list = self.autoplaylist[:]
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
         self.exit_signal = None
@@ -416,8 +417,13 @@ class MusicBot(discord.Client):
     async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             while self.autoplaylist:
-                song_url = choice(self.autoplaylist)
+                if (len(self.song_list) == 0):
+                    print('All songs have been played. Restarting auto playlist...')
+                    self.song_list = self.autoplaylist[:]
+                song_url = choice(self.song_list)
                 info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
+
+                self.song_list.remove(song_url)
 
                 if not info:
                     self.autoplaylist.remove(song_url)
