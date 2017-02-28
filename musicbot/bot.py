@@ -1957,19 +1957,11 @@ class MusicBot(discord.Client):
 			
 		Enable or disable the autoplaylist
         """
-        song_url = random.choice(self.autoplaylist)       
-        if self.config.auto_playlist == False:
-            self.config.auto_playlist = True
-            if not player.playlist.entries and not player.current_entry and self.config.auto_playlist: #if nothing is queued, start a song
-                await player.playlist.add_entry(song_url, channel=None, author=None)
-            await self.safe_send_message(channel, "The autoplaylist is now enabled!")
-            return
-			
-        if self.config.auto_playlist == True: #else disable 
-            self.config.auto_playlist = False
-            await self.safe_send_message(channel, "The autoplaylist is now disabled!")
-            return							
-	
+        self.config.auto_playlist = not self.config.auto_playlist
+        await self.safe_send_message(channel, "The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist])
+        if not player.playlist.entries and not player.current_entry and self.config.auto_playlist: #if nothing is queued, start a song
+            song_url = random.choice(player.autoplaylist) 
+            await player.playlist.add_entry(song_url, channel=None, author=None)							
 	
     async def cmd_queue(self, channel, player):
         """
