@@ -372,11 +372,11 @@ class MusicBot(discord.Client):
         await self.ws.voice_state(server.id, channel.id)
 
         log.voicedebug("(%s) waiting for session id", _func_())
-        session_id_data = await asyncio.wait_for(session_id_future, timeout=15, loop=self.loop)
+        session_id_data = await asyncio.wait_for(session_id_future, timeout=self.timeout, loop=self.loop)
 
         # sometimes it gets stuck on this step.  Jake said to wait indefinitely.  To hell with that.
         log.voicedebug("(%s) waiting for voice data", _func_())
-        data = await asyncio.wait_for(voice_data_future, timeout=15, loop=self.loop)
+        data = await asyncio.wait_for(voice_data_future, timeout=self.timeout, loop=self.loop)
 
         kwargs = {
             'user': self.user,
@@ -390,7 +390,7 @@ class MusicBot(discord.Client):
         voice = discord.VoiceClient(**kwargs)
         try:
             log.voicedebug("(%s) connecting...", _func_())
-            with aiohttp.Timeout(15):
+            with aiohttp.Timeout(self.timeout):
                 await voice.connect()
 
         except asyncio.TimeoutError as e:
