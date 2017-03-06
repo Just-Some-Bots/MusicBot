@@ -1,8 +1,11 @@
 import shutil
+import logging
 import traceback
 import configparser
 
-from discord import User as discord_User
+import discord
+
+log = logging.getLogger(__name__)
 
 
 class PermissionsDefaults:
@@ -28,7 +31,7 @@ class Permissions:
         self.config = configparser.ConfigParser(interpolation=None)
 
         if not self.config.read(config_file, encoding='utf-8'):
-            print('[permissions] Permissions file not found, copying example_permissions.ini')
+            log.info("Permissions file not found, copying example_permissions.ini")
 
             try:
                 shutil.copy('config/example_permissions.ini', config_file)
@@ -36,7 +39,7 @@ class Permissions:
 
             except Exception as e:
                 traceback.print_exc()
-                raise RuntimeError("Unable to copy config/example_permissions.ini to %s: %s" % (config_file, e))
+                raise RuntimeError("Unable to copy config/example_permissions.ini to {}: {}".format(config_file, e))
 
         self.default_group = PermissionGroup('Default', self.config['Default'])
         self.groups = set()
@@ -52,6 +55,13 @@ class Permissions:
 
         self.groups.add(owner_group)
 
+    async def async_validate(self, bot):
+        log.debug("Validating permissions...")
+
+        og = discord.utils.get(self.groups, name="Owner (auto)")
+        if 'auto' in og.user_list:
+            log.debug("Fixing automatic owner group")
+            og.user_list = {bot.config.owner_id}
 
     def save(self):
         with open(self.config_file, 'w') as f:
@@ -68,7 +78,7 @@ class Permissions:
                 return group
 
         # The only way I could search for roles is if I add a `server=None` param and pass that too
-        if type(user) == discord_User:
+        if type(user) == discord.User:
             return self.default_group
 
         # We loop again so that we don't return a role based group before we find an assigned one
@@ -143,13 +153,28 @@ class PermissionGroup:
             self.instaskip, PermissionsDefaults.InstaSkip
         )
 
+    @staticmethod
+    def _process_list(seq, *, split=' ', lower=True, strip=', ', coerce=str, rcoerce=list):
+        lower = str.lower if lower else None
+        _strip = (lambda x: x.strip(strip)) if strip else None
+        coerce = coerce if callable(coerce) else None
+        rcoerce = rcoerce if callable(rcoerce) else None
+
+        for ch in strip:
+            seq = seq.replace(ch, split)
+
+        values = [i for i in seq.split(split) if i]
+        for fn in (_strip, lower, coerce):
+            if fn: values = map(fn, values)
+
+        return rcoerce(values)
 
     def add_user(self, uid):
         self.user_list.add(uid)
 
     def remove_user(self, uid):
         if uid in self.user_list:
-            self.user_list.pop(uid)
+            self.user_list.remove(uid)
 
 
     def __repr__(self):
