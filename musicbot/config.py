@@ -81,7 +81,7 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
-
+        self.timeout = config.get('MusicBot', 'TimeOut', fallback=ConfigDefaults.timeout)
         self.run_checks()
 
 
@@ -187,7 +187,7 @@ class ConfigDefaults:
     delete_messages = True
     delete_invoking = False
     debug_mode = False
-
+    timeout = 10
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists

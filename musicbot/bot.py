@@ -75,6 +75,8 @@ class MusicBot(discord.Client):
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
+        self.timeout = self.config.timeout
+
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
@@ -234,8 +236,8 @@ class MusicBot(discord.Client):
 
             await self.ws.voice_state(server.id, channel.id)
 
-            s_id_data = await asyncio.wait_for(s_id, timeout=10, loop=self.loop)
-            voice_data = await asyncio.wait_for(_voice_data, timeout=10, loop=self.loop)
+            s_id_data = await asyncio.wait_for(s_id, timeout=self.timeout, loop=self.loop)
+            voice_data = await asyncio.wait_for(_voice_data, timeout=self.timeout, loop=self.loop)
             session_id = s_id_data.get('session_id')
 
             kwargs = {
@@ -253,7 +255,7 @@ class MusicBot(discord.Client):
             for x in range(retries):
                 try:
                     print("Attempting connection...")
-                    await asyncio.wait_for(voice_client.connect(), timeout=10, loop=self.loop)
+                    await asyncio.wait_for(voice_client.connect(), timeout=self.timeout, loop=self.loop)
                     print("Connection established.")
                     break
                 except:
@@ -1788,7 +1790,7 @@ class MusicBot(discord.Client):
             thing = url.strip('<>')
 
         try:
-            with aiohttp.Timeout(10):
+            with aiohttp.Timeout(self.timeout):
                 async with self.aiosession.get(thing) as res:
                     await self.edit_profile(avatar=await res.read())
 
