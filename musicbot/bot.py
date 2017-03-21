@@ -1239,6 +1239,40 @@ class MusicBot(discord.Client):
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
 
+    async def cmd_remove(self, player, leftover_args, index):
+        """
+        Usage:
+            {command_prefix}remove [index]
+
+        Remove a song at the given index from the queue. 
+        Use {command_prefix}queue to see the list of queued songs and their indices.
+        """
+        try:
+            index = int(' '.join([index, *leftover_args]))
+            playlist_size = len(player.playlist.entries)
+            if index > playlist_size:
+                if(playlist_size > 1):
+                    reply_text = "There are only %s songs in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text, expire_in=30)
+                elif(playlist_size == 1):
+                    reply_text = "There is only %s song in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text, expire_in=30)
+                else:
+                    reply_text = "There aren't any songs in the queue, dumbass!"
+                    return Response(reply_text, expire_in=30)
+
+            entry = await player.playlist.remove_entry(index)
+            reply_text = "Removed **%s** from the playlist"
+            reply_text %= (entry.title)
+
+            return Response(reply_text, expire_in=30)
+        except ValueError:
+            reply_text = "Must specify an index to remove (AKA a number)"
+
+            return Response(reply_text, expire_in=30)
+
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
