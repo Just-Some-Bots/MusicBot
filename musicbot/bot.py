@@ -1469,13 +1469,18 @@ class MusicBot(discord.Client):
         Remove a song at the given index from the queue. 
         Use {command_prefix}queue to see the list of queued songs and their indices.
         """
-        index = int(' '.join([index, *leftover_args]))
+        try:
+            index = int(' '.join([index, *leftover_args]))
 
-        entry = await player.playlist.remove_entry(index)
-        reply_text = "Removed **%s** from the playlist"
-        reply_text %= (entry.title)
+            entry = await player.playlist.remove_entry(index)
+            reply_text = "Removed **%s** from the playlist"
+            reply_text %= (entry.title)
 
-        return Response(reply_text)
+            return Response(reply_text)
+        except ValueError:
+            reply_text = "Must specify an index to remove (AKA a number)"
+
+            return Response(reply_text)
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
