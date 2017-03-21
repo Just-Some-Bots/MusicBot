@@ -1197,7 +1197,7 @@ class MusicBot(discord.Client):
         if leftover_args[0][0] in '\'"':
             lchar = leftover_args[0][0]
             leftover_args[0] = leftover_args[0].lstrip(lchar)
-            leftover_args[-1] = leftover_args[-1].rstrip(lchar)
+            leftover_args[-1] = [-1].rstrip(lchar)
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
@@ -1460,6 +1460,22 @@ class MusicBot(discord.Client):
                 reply=True,
                 delete_after=20
             )
+
+    async def cmd_remove(self, player, leftover_args, index):
+        """
+        Usage:
+            {command_prefix}remove [index]
+
+        Remove a song at the given index from the queue. 
+        Use {command_prefix}queue to see the list of queued songs and their indices.
+        """
+        index = int(' '.join([index, *leftover_args]))
+
+        entry = await player.playlist.remove_entry(index)
+        reply_text = "Removed **%s** from the playlist"
+        reply_text %= (entry.title)
+
+        return Response(reply_text)
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
