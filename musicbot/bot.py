@@ -1471,6 +1471,20 @@ class MusicBot(discord.Client):
         """
         try:
             index = int(' '.join([index, *leftover_args]))
+            playlist_size = len(player.playlist.entries)
+            if index > playlist_size:
+                if(playlist_size > 1):
+                    reply_text = "There are only %s songs in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text)
+                elif(playlist_size == 1):
+                    reply_text = "There is only %s song in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text)
+                else:
+                    reply_text = "There aren't any %s songs in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text)
 
             entry = await player.playlist.remove_entry(index)
             reply_text = "Removed **%s** from the playlist"
