@@ -1197,7 +1197,7 @@ class MusicBot(discord.Client):
         if leftover_args[0][0] in '\'"':
             lchar = leftover_args[0][0]
             leftover_args[0] = leftover_args[0].lstrip(lchar)
-            leftover_args[-1] = leftover_args[-1].rstrip(lchar)
+            leftover_args[-1] = [-1].rstrip(lchar)
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
@@ -1460,6 +1460,41 @@ class MusicBot(discord.Client):
                 reply=True,
                 delete_after=20
             )
+
+    async def cmd_remove(self, player, leftover_args, index):
+        """
+        Usage:
+            {command_prefix}remove [index]
+
+        Remove a song at the given index from the queue. 
+        Use {command_prefix}queue to see the list of queued songs and their indices.
+        """
+        try:
+            index = int(' '.join([index, *leftover_args]))
+            playlist_size = len(player.playlist.entries)
+            if index > playlist_size:
+                if(playlist_size > 1):
+                    reply_text = "There are only %s songs in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text)
+                elif(playlist_size == 1):
+                    reply_text = "There is only %s song in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text)
+                else:
+                    reply_text = "There aren't any %s songs in the queue, dumbass!"
+                    reply_text %= (playlist_size)
+                    return Response(reply_text)
+
+            entry = await player.playlist.remove_entry(index)
+            reply_text = "Removed **%s** from the playlist"
+            reply_text %= (entry.title)
+
+            return Response(reply_text)
+        except ValueError:
+            reply_text = "Must specify an index to remove (AKA a number)"
+
+            return Response(reply_text)
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
