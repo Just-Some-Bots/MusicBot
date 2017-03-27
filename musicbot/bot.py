@@ -1461,6 +1461,108 @@ class MusicBot(discord.Client):
                 delete_after=20
             )
 
+    async def cmd_skipto(self, player, timestamp):
+        """
+        Usage:
+            {command_prefix}skipto <timestamp>
+
+        Go to the given timestamp in the format of: (minutes:seconds)
+        """
+
+        parts = timestamp.split(":")
+        if len(parts) < 1:  # Shouldn't occur, but who knows?
+            return Response("Please provide a valid timestamp", delete_after=20)
+
+        # seconds, minutes, hours, days
+        values = (1, 60, 60 * 60, 60 * 60 * 24)
+
+        secs = 0
+        for i in range(len(parts)):
+            try:
+                v = int(parts[i])
+            except:
+                continue
+
+            j = len(parts) - i - 1
+            if j >= len(values):  # If I don't have a conversion from this to seconds
+                continue
+
+            secs += v * values[j]
+
+        if player.current_entry is None:
+            return Response("Nothing playing!", delete_after=20)
+
+        if not player.goto_seconds(secs):
+            return Response("Timestamp exceeds song duration!", delete_after=20)
+
+    async def cmd_fwd(self, player, timestamp):
+        """
+        Usage:
+            {command_prefix}fwd <timestamp>
+
+        Forward <timestamp> into the current entry
+        """
+
+        parts = timestamp.split(":")
+        if len(parts) < 1:  # Shouldn't occur, but who knows?
+            return Response("Please provide a valid timestamp", delete_after=20)
+
+        # seconds, minutes, hours, days
+        values = (1, 60, 60 * 60, 60 * 60 * 24)
+
+        secs = 0
+        for i in range(len(parts)):
+            try:
+                v = int(parts[i])
+            except:
+                continue
+
+            j = len(parts) - i - 1
+            if j >= len(values):  # If I don't have a conversion from this to seconds
+                continue
+
+            secs += v * values[j]
+
+        if player.current_entry is None:
+            return Response("Nothing playing!", delete_after=20)
+
+        if not player.goto_seconds(player.progress + secs):
+            return Response("Timestamp exceeds song duration!", delete_after=20)
+
+    async def cmd_rwd(self, player, timestamp):
+        """
+        Usage:
+            {command_prefix}fwd <timestamp>
+
+        Rewind <timestamp> into the current entry
+        """
+
+        parts = timestamp.split(":")
+        if len(parts) < 1:  # Shouldn't occur, but who knows?
+            return Response("Please provide a valid timestamp", delete_after=20)
+
+        # seconds, minutes, hours, days
+        values = (1, 60, 60 * 60, 60 * 60 * 24)
+
+        secs = 0
+        for i in range(len(parts)):
+            try:
+                v = int(parts[i])
+            except:
+                continue
+
+            j = len(parts) - i - 1
+            if j >= len(values):  # If I don't have a conversion from this to seconds
+                continue
+
+            secs += v * values[j]
+
+        if player.current_entry is None:
+            return Response("Nothing playing!", delete_after=20)
+
+        if not player.goto_seconds(player.progress - secs):
+            return Response("Timestamp exceeds song duration!", delete_after=20)
+
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:

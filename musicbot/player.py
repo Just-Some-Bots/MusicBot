@@ -9,6 +9,7 @@ from collections import deque
 from shutil import get_terminal_size
 
 from .lib.event_emitter import EventEmitter
+from .utils import format_time_ffmpeg
 
 
 class PatchedBuff:
@@ -102,6 +103,7 @@ class MusicPlayer(EventEmitter):
         self.state = MusicPlayerState.STOPPED
 
         self.loop.create_task(self.websocket_check())
+        self.deliberately_killed = False
 
     @property
     def volume(self):
@@ -119,6 +121,15 @@ class MusicPlayer(EventEmitter):
 
     def skip(self):
         self._kill_current_player()
+
+    def goto_seconds(self, secs):
+        if (not self.current_entry) or secs >= self.current_entry.duration:
+            return False
+
+        c_entry = self.current_entry
+        c_entry.set_start(secs)
+        self.play_entry(c_entry)
+        return True
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
@@ -162,6 +173,10 @@ class MusicPlayer(EventEmitter):
         self._kill_current_player()
 
     def _playback_finished(self):
+        if self.deliberately_killed:
+            self.deliberately_killed = False
+            return
+
         entry = self._current_entry
 
         if self._current_player:
@@ -265,6 +280,37 @@ class MusicPlayer(EventEmitter):
                 self._current_player.start()
                 self.emit('play', player=self, entry=entry)
 
+    def play_entry(self, entry):
+        self.loop.create_task(self._play_entry(entry))
+
+    async def _play_entry(self, entry):
+        """
+            Plays the provided entry.
+        """
+
+        with await self._play_lock:
+                # In-case there was a player, kill it. RIP.
+                self.deliberately_killed = True
+                self._kill_current_player()
+
+                self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
+                    entry.filename,
+                    before_options="-nostdin -ss {}".format(format_time_ffmpeg(int(entry.start_seconds))),
+                    options="-vn -b:a 128k",
+                    # Threadsafe call soon, b/c after will be called from the voice playback thread.
+                    after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
+                ))
+                self._current_player.setDaemon(True)
+                self._current_player.buff.volume = self.volume
+
+                # I need to add ytdl hooks
+                self.state = MusicPlayerState.PLAYING
+                self._current_entry = entry
+
+                self._current_player.start()
+                self.emit('play', player=self, entry=entry)
+
+
     def _monkeypatch_player(self, player):
         original_buff = player.buff
         player.buff = PatchedBuff(original_buff)
@@ -315,7 +361,7 @@ class MusicPlayer(EventEmitter):
 
     @property
     def progress(self):
-        return round(self._current_player.buff.frame_count * 0.02)
+        return round(self._current_player.buff.frame_count * 0.02) + (self.current_entry.start_seconds if self.current_entry is not None else 0)
         # TODO: Properly implement this
         #       Correct calculation should be bytes_read/192k
         #       192k AKA sampleRate * (bitDepth / 8) * channelCount
