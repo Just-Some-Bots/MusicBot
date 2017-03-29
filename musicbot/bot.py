@@ -1392,12 +1392,14 @@ class MusicBot(discord.Client):
         return Response(':put_litter_in_its_place:', delete_after=20)
 
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
+        # edit
         """
         Usage:
             {command_prefix}skip
 
-        Skips the current song when enough votes are cast, or by the bot owner.
+        Skips the current song when enough votes are cast.
         """
+        #edit END
 
         if player.is_stopped:
             raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
@@ -1417,13 +1419,9 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id \
-                or permissions.instaskip \
-                or author == player.current_entry.meta.get('author', None):
-
-            player.skip()  # check autopause stuff here
-            await self._manual_delete_check(message)
-            return
+        # edit  removed if author.id == self.config.owner_id
+        #                 or permissions.instaskip
+        #                 or author == player.current_entry.meta.get('author', None):
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
@@ -1460,6 +1458,53 @@ class MusicBot(discord.Client):
                 reply=True,
                 delete_after=20
             )
+
+    # edit
+    async def cmd_instaskip(self, player, channel, author, message, permissions, voice_channel):
+        """
+        Usage:
+            {command_prefix}instaskip
+
+        Skips the current song when when called by the bot owner or someone with appropriate permissions.
+        """
+        if author.id == self.config.owner_id \
+                or permissions.instaskip \
+                or author == player.current_entry.meta.get('author', None):
+
+            if player.is_stopped:
+                raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
+
+            if not player.current_entry:
+                if player.playlist.peek():
+                    if player.playlist.peek()._is_downloading:
+                        # print(player.playlist.peek()._waiting_futures[0].__dict__)
+                        return Response(
+                            "The next song (%s) is downloading, please wait." % player.playlist.peek().title)
+
+                    elif player.playlist.peek().is_downloaded:
+                        print("The next song will be played shortly.  Please wait.")
+                    else:
+                        print("Something odd is happening.  "
+                              "You might want to restart the bot if it doesn't start working.")
+                else:
+                    print("Something strange is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
+
+            player.skip()  # check autopause stuff here
+            await self._manual_delete_check(message)
+            return Response(
+                'has skipped **{}**'.format(
+                    player.current_entry.title,
+                ),
+                reply=True,
+                delete_after=20
+            )
+        else:
+            raise exceptions.PermissionsError(
+                "You do not have permission to instaskip.",
+                expire_in=20)
+
+    # edit end
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
