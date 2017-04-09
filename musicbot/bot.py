@@ -35,8 +35,11 @@ from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
 
-load_opus_lib()
+from .custom.common import Response
+from .custom import ro
+from .custom import others
 
+load_opus_lib()
 
 class SkipState:
     def __init__(self):
@@ -56,15 +59,8 @@ class SkipState:
         self.skip_msgs.add(msg)
         return self.skip_count
 
-
-class Response:
-    def __init__(self, content, reply=False, delete_after=0):
-        self.content = content
-        self.reply = reply
-        self.delete_after = delete_after
-
-
 class MusicBot(discord.Client):
+
     def __init__(self, config_file=ConfigDefaults.options_file, perms_file=PermissionsDefaults.perms_file):
         self.players = {}
         self.the_voice_clients = {}
@@ -82,7 +78,7 @@ class MusicBot(discord.Client):
         self.exit_signal = None
         self.init_ok = False
         self.cached_client_id = None
-
+        
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
@@ -2011,6 +2007,18 @@ class MusicBot(discord.Client):
 
             await self.reconnect_voice_client(after)
 
+def patch(cls, func):
+    setattr(cls, func.__name__, func)
+
+def add_att(modules):
+    for module in modules:
+        for att in dir(module):
+            if att.startswith('cmd_'):
+                attr = getattr(module, att)
+                patch(MusicBot, attr)
+
+modules = [ro, others]
+add_att(modules)
 
 if __name__ == '__main__':
     bot = MusicBot()

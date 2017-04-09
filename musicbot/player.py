@@ -99,9 +99,12 @@ class MusicPlayer(EventEmitter):
         self._play_lock = asyncio.Lock()
         self._current_player = None
         self._current_entry = None
+        self._repeat_entry = None
         self.state = MusicPlayerState.STOPPED
 
         self.loop.create_task(self.websocket_check())
+
+        self.repeat = False
 
     @property
     def volume(self):
@@ -118,6 +121,7 @@ class MusicPlayer(EventEmitter):
             self.loop.call_later(2, self.play)
 
     def skip(self):
+        self.repeat = False
         self._kill_current_player()
 
     def stop(self):
@@ -228,20 +232,27 @@ class MusicPlayer(EventEmitter):
         if self.is_dead:
             return
 
+
         with await self._play_lock:
             if self.is_stopped or _continue:
-                try:
-                    entry = await self.playlist.get_next_entry()
 
-                except Exception as e:
-                    print("Failed to get entry.")
-                    traceback.print_exc()
-                    # Retry playing the next entry in a sec.
-                    self.loop.call_later(0.1, self.play)
-                    return
+                if self.repeat:
+                    entry = self._repeat_entry
+                else:
+                    try:
+                        entry = await self.playlist.get_next_entry()
+                        print (entry)
+
+                    except Exception as e:
+                        print("Failed to get entry.")
+                        traceback.print_exc()
+                        # Retry playing the next entry in a sec.
+                        self.loop.call_later(0.1, self.play)
+                        return
 
                 # If nothing left to play, transition to the stopped state.
                 if not entry:
+                    self.repeat = False
                     self.stop()
                     return
 
@@ -261,6 +272,7 @@ class MusicPlayer(EventEmitter):
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
+                self._repeat_entry = entry
 
                 self._current_player.start()
                 self.emit('play', player=self, entry=entry)
