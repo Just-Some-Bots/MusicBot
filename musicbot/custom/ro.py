@@ -4,6 +4,7 @@ import requests
 import urllib, json
 import asyncio
 import concurrent.futures
+import time
 
 
 from .common import *
@@ -421,6 +422,6 @@ async def cmd_sig(self, channel, author, leftover_args):
                     sig_pose_val = bgpose_list[1]
 
 
-            reply_text += sig_link + char_name + '/' + sig_bg_val + '/' + sig_pose_val + '\n'
+            reply_text += sig_link + char_name + '/' + sig_bg_val + '/' + sig_pose_val + '?' + str(round(time.time())) + '\n'
 
         return Response(reply_text)
