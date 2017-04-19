@@ -758,6 +758,22 @@ class MusicBot(discord.Client):
 
             return Response(helpmsg, reply=True, delete_after=60)
 
+    async def cmd_(self, player):
+        """
+        Usage:
+            {command_prefix}
+
+        Pauses or resumes the song.
+        """
+
+        if player.is_playing:
+            player.pause()
+        else:
+            if player.is_paused:
+                player.resume()
+            else:
+                return Response("There is no song to be paused or resumed.", delete_after=10)
+
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
         Usage:
