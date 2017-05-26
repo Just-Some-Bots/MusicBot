@@ -393,8 +393,8 @@ class MusicBot(discord.Client):
                     break  # This is probably redundant
 
             if self.config.now_playing_mentions:
-                newmsg = '%s - your song **%s** is now playing in %s!' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
+                newmsg = '`%s` - your song **%s** is now playing in %s!' % (
+                    author.name, entry.title, player.voice_client.channel.name)
             else:
                 newmsg = 'Now playing in %s: **%s**' % (
                     player.voice_client.channel.name, entry.title)
@@ -1258,6 +1258,136 @@ class MusicBot(discord.Client):
 
         return Response("Oh well :frowning:", delete_after=30)
 
+    async def cmd_search(self, player, channel, author, permissions, leftover_args):
+        """
+        Usage:
+            {command_prefix}search [service] [number] query
+
+        Searches a service for a video and adds it to the queue.
+        - service: any one of the following services:
+            - youtube (yt) (default if unspecified)
+            - soundcloud (sc)
+            - yahoo (yh)
+        - number: return a number of video results and waits for user to choose one
+          - defaults to 1 if unspecified
+          - note: If your search query starts with a number,
+                  you must put your query in quotes
+            - ex: {command_prefix}search 2 "I ran seagulls"
+        """
+
+        if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
+            raise exceptions.PermissionsError(
+                "You have reached your playlist item limit (%s)" % permissions.max_songs,
+                expire_in=30
+            )
+
+        def argcheck():
+            if not leftover_args:
+                raise exceptions.CommandError(
+                    "Please specify a search query.\n%s" % dedent(
+                        self.cmd_search.__doc__.format(command_prefix=self.config.command_prefix)),
+                    expire_in=60
+                )
+
+        argcheck()
+
+        try:
+            leftover_args = shlex.split(' '.join(leftover_args))
+        except ValueError:
+            raise exceptions.CommandError("Please quote your search query properly.", expire_in=30)
+
+        service = 'youtube'
+        items_requested = 3
+        max_items = 10  # this can be whatever, but since ytdl uses about 1000, a small number might be better
+        services = {
+            'youtube': 'ytsearch',
+            'soundcloud': 'scsearch',
+            'yahoo': 'yvsearch',
+            'yt': 'ytsearch',
+            'sc': 'scsearch',
+            'yh': 'yvsearch'
+        }
+
+        if leftover_args[0] in services:
+            service = leftover_args.pop(0)
+            argcheck()
+
+        if leftover_args[0].isdigit():
+            items_requested = int(leftover_args.pop(0))
+            argcheck()
+
+            if items_requested > max_items:
+                raise exceptions.CommandError("You cannot search for more than %s videos" % max_items)
+
+        # Look jake, if you see this and go "what the fuck are you doing"
+        # and have a better idea on how to do this, i'd be delighted to know.
+        # I don't want to just do ' '.join(leftover_args).strip("\"'")
+        # Because that eats both quotes if they're there
+        # where I only want to eat the outermost ones
+        if leftover_args[0][0] in '\'"':
+            lchar = leftover_args[0][0]
+            leftover_args[0] = leftover_args[0].lstrip(lchar)
+            leftover_args[-1] = leftover_args[-1].rstrip(lchar)
+
+        search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
+
+        search_msg = await self.send_message(channel, "Searching for videos...")
+        await self.send_typing(channel)
+
+        try:
+            info = await self.downloader.extract_info(player.playlist.loop, search_query, download=False, process=True)
+
+        except Exception as e:
+            await self.safe_edit_message(search_msg, str(e), send_if_fail=True)
+            return
+        else:
+            await self.safe_delete_message(search_msg)
+
+        if not info:
+            return Response("No videos found.", delete_after=30)
+
+        def check(m):
+            return (
+                m.content.lower()[0] in 'yn' or
+                # hardcoded function name weeee
+                m.content.lower().startswith('{}{}'.format(self.config.command_prefix, 'search')) or
+                m.content.lower().startswith('exit'))
+
+        for e in info['entries']:
+            result_message = await self.safe_send_message(channel, "Result %s/%s: %s" % (
+                info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
+
+            confirm_message = await self.safe_send_message(channel, "Is this ok? Type `y`, `n` or `exit`")
+            response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
+
+            if not response_message:
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                return Response("Ok nevermind.", delete_after=30)
+
+            # They started a new search query so lets clean up and bugger off
+            elif response_message.content.startswith(self.config.command_prefix) or \
+                    response_message.content.lower().startswith('exit'):
+
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                return
+
+            if response_message.content.lower().startswith('y'):
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                await self.safe_delete_message(response_message)
+
+                await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+
+                return Response("Alright, coming right up!", delete_after=30)
+            else:
+                await self.safe_delete_message(result_message)
+                await self.safe_delete_message(confirm_message)
+                await self.safe_delete_message(response_message)
+
+        return Response("Oh well :frowning:", delete_after=30)
+
     async def cmd_np(self, player, channel, server, message):
         """
         Usage:
@@ -1391,16 +1521,17 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response(':put_litter_in_its_place:', delete_after=20)
 
-    async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
+# Voteskip takes the voting part of of the skip command also if someones headphones are muted it ignores them
+    async def cmd_voteskip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
-            {command_prefix}skip
+            {command_prefix}voteskip
 
         Skips the current song when enough votes are cast, or by the bot owner.
         """
 
         if player.is_stopped:
-            raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
+            raise exceptions.CommandError("Can't skip! The Bot is not playing!", expire_in=25)
 
         if not player.current_entry:
             if player.playlist.peek():
@@ -1412,24 +1543,16 @@ class MusicBot(discord.Client):
                     print("The next song will be played shortly.  Please wait.")
                 else:
                     print("Something odd is happening.  "
-                          "You might want to restart the bot if it doesn't start working.")
+                          "IT FUCKED UP RESTART THE BOT.")
             else:
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id \
-                or permissions.instaskip \
-                or author == player.current_entry.meta.get('author', None):
-
-            player.skip()  # check autopause stuff here
-            await self._manual_delete_check(message)
-            return
-
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
 
-        num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
+        num_voice = sum(1 for member_is in voice_channel.voice_members
+                        if not (member_is.deaf or member_is.self_deaf))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
@@ -1439,8 +1562,8 @@ class MusicBot(discord.Client):
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
             return Response(
-                'your skip for **{}** was acknowledged.'
-                '\nThe vote to skip has been passed.{}'.format(
+              'your skip for **{}** was acknowledged.'
+                '\nI guess the vote to skip has been passed.{}'.format(
                     player.current_entry.title,
                     ' Next song coming up!' if player.playlist.peek() else ''
                 ),
@@ -1451,7 +1574,7 @@ class MusicBot(discord.Client):
         else:
             # TODO: When a song gets skipped, delete the old x needed to skip messages
             return Response(
-                'your skip for **{}** was acknowledged.'
+                'Your skip for **{}** was acknowledged.'
                 '\n**{}** more {} required to vote to skip this song.'.format(
                     player.current_entry.title,
                     skips_remaining,
@@ -1460,6 +1583,61 @@ class MusicBot(discord.Client):
                 reply=True,
                 delete_after=20
             )
+
+    async def cmd_update(self, channel):
+        """
+        Usage:
+            {command_prefix}update
+        This is a changelog command for modders or the developer
+        """
+        await self.safe_send_message(channel, "Update command")
+        await self.safe_send_message(channel, "To be reviewed/modded")
+        await self.safe_send_message(channel, "To be reviewed/modded")
+        await self.safe_send_message(channel, "To be reviewed/modded")
+        await self.safe_send_message(channel, "To be reviewed/modded")
+
+# Update command is a changelog command
+# it can be reviewed and changed
+# it is more their and can be disabled with comments
+# its up to you whether to use this in the bot
+#
+# forceskip takes the instaskip ability of of the skip command and is used as an admin tool for the bot
+# the reason the skip commmand was split in two was because the admins on this one server had problems
+# with the skip command it would instaskip when they tried to voteskip it made more sense to make two commands out of
+# from skip to not worry about the instaskip problem it makes things easier and can be a useful admin tool
+
+    async def cmd_forceskip(self, channel, author, user_mentions, player, message):
+        """
+        Usage:
+            {command_prefix}forceskip
+        Force skip command is used to skip songs that should not be playing
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
+
+        if player.is_paused:
+            raise exceptions.CommandError("Can't skip! The player is paused!", expire_in=20)
+
+        if not player.current_entry:
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    # print(player.playlist.peek()._waiting_futures[0].__dict__)
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
+
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    await self.safe_send_message(channel, "Traicebot has stopped responding")
+            else:
+                await self.safe_send_message(channel, "Something strange is happening, do .restart to fix this")
+
+        if player.is_playing:
+            player.skip()
+            await self._manual_delete_check(message)
+
+        if player.is_playing:
+            return Response('The song was force skipped by `%s`' % author.name, delete_after=35)
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
