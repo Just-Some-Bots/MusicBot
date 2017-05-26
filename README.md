@@ -4,8 +4,8 @@ The Bot was made in python and then improved by me
 the original bot is here:
 https://github.com/Just-Some-Bots/MusicBot
 ### How do I set it up?
-
-[CLICK HERE](https://github.com/SexualRhinoceros/MusicBot/wiki) The Guide for setting it up is here
+first off it requires python3.5 and later and can run on Windows MacOS X and Linux
+second The Guide for setting it up is here [CLICK HERE](https://github.com/SexualRhinoceros/MusicBot/wiki) 
 
 ### Commands
 
