@@ -1,4 +1,4 @@
-# Jellcos Fork of RhynoBot
+# Jellcos Fork of RhinoBot
 
 The Bot was made in python and then improved by me
 the original bot is here:
