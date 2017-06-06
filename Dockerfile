@@ -26,7 +26,7 @@ WORKDIR /musicBot
 #Install PIP dependencies
 RUN sudo pip install -r requirements.txt
 
-RUN echo "root python3.5 -m pip install --upgrade -r /musicBot/requirements.txt; pkill python3.5" > /etc/cron.d/auto-update-dependencies
+RUN echo "* 0 * * * root python3.5 -m pip install --upgrade -r /musicBot/requirements.txt; pkill python3.5" > /etc/cron.d/auto-update-dependencies
 
 #Add volume for configuration
 VOLUME /musicBot/config
