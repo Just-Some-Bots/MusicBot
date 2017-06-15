@@ -1357,6 +1357,19 @@ class MusicBot(discord.Client):
 
         else:
             raise exceptions.CommandError('Player is not paused.', expire_in=30)
+            
+    async def cmd_add(self, song_url):
+        """
+        Usage:
+            {command_prefix}add song_link
+        Add song to autoplaylist.
+        """
+
+        song_url = song_url.strip('<>')
+        f = open(self.config.auto_playlist_file, 'a')
+        f.write(song_url+"\n");
+        f.close()
+        return Response('Added song to autoplaylist. Use !restart to reload playlist.', delete_after=20)
 
     async def cmd_shuffle(self, channel, player):
         """
@@ -2010,6 +2023,7 @@ class MusicBot(discord.Client):
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
+            
 
 
 if __name__ == '__main__':
