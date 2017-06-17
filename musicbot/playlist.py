@@ -224,7 +224,24 @@ class Playlist(EventEmitter):
 
         if self.peek() is entry:
             entry.get_ready_future()
-            
+
+    def promote_position(self, position):
+        rotDist = -1 * (position - 1)
+        self.entries.rotate(rotDist)
+        entry = self.entries.popleft()
+        self.entries.rotate(-1 * rotDist)
+        self.entries.appendleft(entry)
+        self.emit('entry-added', playlist=self, entry=entry)
+        entry.get_ready_future()
+        return entry
+
+    def promote_last(self):
+        entry = self.entries.pop()
+        self.entries.appendleft(entry)
+        self.emit('entry-added', playlist=self, entry=entry)
+        entry.get_ready_future()
+        return entry
+
     def remove_entry(self, index):
         del self.entries[index]
 
