@@ -7,6 +7,7 @@ from random import shuffle
 from .utils import get_header
 from .entry import URLPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
+from .exceptions import ExtractionError, WrongEntryTypeError, PermissionsError
 from .lib.event_emitter import EventEmitter
 
 
@@ -21,6 +22,7 @@ class Playlist(EventEmitter):
         self.loop = bot.loop
         self.downloader = bot.downloader
         self.entries = deque()
+        self.locked = False
 
     def __iter__(self):
         return iter(self.entries)
@@ -41,6 +43,9 @@ class Playlist(EventEmitter):
             :param meta: Any additional metadata to add to the playlist entry.
         """
 
+        if self.locked:
+            raise PermissionsError("The playlist is currently locked")
+ 
         try:
             info = await self.downloader.extract_info(self.loop, song_url, download=False)
         except Exception as e:
@@ -93,6 +98,10 @@ class Playlist(EventEmitter):
             :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
             :param meta: Any additional metadata to add to the playlist entry
         """
+
+        if self.locked:
+            raise PermissionsError("The playlist is currently locked")
+
         position = len(self.entries) + 1
         entry_list = []
 
@@ -147,6 +156,9 @@ class Playlist(EventEmitter):
             :param meta: Any additional metadata to add to the playlist entry
         """
 
+        if self.locked:
+            raise PermissionsError("The playlist is currently locked")
+
         try:
             info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False, process=False)
         except Exception as e:
@@ -186,6 +198,9 @@ class Playlist(EventEmitter):
             :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
             :param meta: Any additional metadata to add to the playlist entry
         """
+
+        if self.locked:
+            raise PermissionsError("The playlist is currently locked")
 
         try:
             info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False, process=False)
