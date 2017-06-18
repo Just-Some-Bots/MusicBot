@@ -230,8 +230,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(result)
 
-        imgPattern = re.compile(self.filename.lstrip(self.download_folder + '\\').rsplit('.', 1)[0] + '(\.(jpg|jpeg|png|gif|bmp))$', re.IGNORECASE)
-        self.filename_thumbnail = next(self.download_folder + '\\' + f for f in os.listdir(self.download_folder) if imgPattern.search(f))
+        imgPattern = re.compile(self.filename.lstrip(self.download_folder + os.sep).rsplit('.', 1)[0] + '(\.(jpg|jpeg|png|gif|bmp))$', re.IGNORECASE)
+        self.filename_thumbnail = next(os.path.join(self.download_folder, f) for f in os.listdir(self.download_folder) if imgPattern.search(f))
         
         if hash:
             # insert the 8 last characters of the file hash to the file name to ensure uniqueness
