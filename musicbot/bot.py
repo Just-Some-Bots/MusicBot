@@ -76,6 +76,7 @@ class MusicBot(discord.Client):
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
+        self.ownerlock = False
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -381,6 +382,7 @@ class MusicBot(discord.Client):
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
+        thumbnail = entry.filename_thumbnail
 
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
@@ -400,7 +402,9 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
-                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, fp=thumbnail, send_if_fail=True)
+            elif thumbnail:
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_file(channel, newmsg, thumbnail)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
@@ -488,6 +492,27 @@ class MusicBot(discord.Client):
 
         return msg
 
+    async def safe_send_file(self, dest, content, fp, *, tts=False, expire_in=0, also_delete=None, quiet=False, filename=None):
+        msg = None
+        try:
+            msg = await self.send_file(dest, fp, content=content, tts=tts)
+
+            if msg and expire_in:
+                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+
+            if also_delete and isinstance(also_delete, discord.Message):
+                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+
+        except discord.Forbidden:
+            if not quiet:
+                self.safe_print("Warning: Cannot send message or file to %s, no permission" % dest.name)
+
+        except discord.NotFound:
+            if not quiet:
+                self.safe_print("Warning: Cannot send message or file to %s, invalid channel?" % dest.name)
+
+        return msg
+
     async def safe_delete_message(self, message, *, quiet=False):
         try:
             return await self.delete_message(message)
@@ -500,7 +525,19 @@ class MusicBot(discord.Client):
             if not quiet:
                 self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
-    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
+    async def safe_delete_message(self, message, *, quiet=False):
+        try:
+            return await self.delete_message(message)
+
+        except discord.Forbidden:
+            if not quiet:
+                self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
+
+        except discord.NotFound:
+            if not quiet:
+                self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+
+    async def safe_edit_message(self, message, new, *, fp=None, send_if_fail=False, quiet=False):
         try:
             return await self.edit_message(message, new)
 
@@ -510,6 +547,9 @@ class MusicBot(discord.Client):
             if send_if_fail:
                 if not quiet:
                     print("Sending instead")
+            if fp:
+                return await self.safe_send_file(message.channel, new, fp)
+            else:
                 return await self.safe_send_message(message.channel, new)
 
     def safe_print(self, content, *, end='\n', flush=True):
@@ -724,7 +764,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}help [command]
-
         Prints a help message.
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
@@ -762,7 +801,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
-
         Add or remove users to the blacklist.
         Blacklisted users are forbidden from using bot commands.
         """
@@ -809,7 +847,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}id [@user]
-
         Tells the user their id or the id of another user.
         """
         if not user_mentions:
@@ -823,7 +860,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}joinserver invite_link
-
         Asks the bot to join a server.  Note: Bot accounts cannot use invite links.
         """
 
@@ -847,11 +883,12 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}play song_link
             {command_prefix}play text to search for
-
         Adds the song to the playlist.  If a link is not provided, the first
         result from a youtube search is added to the queue.
         """
-
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+    
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -1038,7 +1075,9 @@ class MusicBot(discord.Client):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
-
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+    
         await self.send_typing(channel)
         info = await self.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
 
@@ -1132,7 +1171,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}search [service] [number] query
-
         Searches a service for a video and adds it to the queue.
         - service: any one of the following services:
             - youtube (yt) (default if unspecified)
@@ -1144,7 +1182,9 @@ class MusicBot(discord.Client):
                   you must put your query in quotes
             - ex: {command_prefix}search 2 "I ran seagulls"
         """
-
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+    
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
             raise exceptions.PermissionsError(
                 "You have reached your playlist item limit (%s)" % permissions.max_songs,
@@ -1262,7 +1302,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}np
-
         Displays the current song in chat.
         """
 
@@ -1274,6 +1313,7 @@ class MusicBot(discord.Client):
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
             prog_str = '`[%s/%s]`' % (song_progress, song_total)
+            thumbnail = player.current_entry.filename_thumbnail
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
                 np_text = "Now Playing: **%s** added by **%s** %s\n" % (
@@ -1282,7 +1322,11 @@ class MusicBot(discord.Client):
                 np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
 
             self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
-            await self._manual_delete_check(message)
+            if thumbnail:
+                self.server_specific_data[server]['last_np_msg'] = await self.safe_send_file(channel, np_text, thumbnail)
+            else:
+                self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
+                await self._manual_delete_check(message)
         else:
             return Response(
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix),
@@ -1293,7 +1337,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}summon
-
         Call the bot to the summoner's voice channel.
         """
 
@@ -1334,7 +1377,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}pause
-
         Pauses playback of the current song.
         """
 
@@ -1348,7 +1390,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}resume
-
         Resumes playback of a paused song.
         """
 
@@ -1362,7 +1403,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}shuffle
-
         Shuffles the playlist.
         """
 
@@ -1384,7 +1424,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}clear
-
         Clears the playlist.
         """
 
@@ -1395,9 +1434,10 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}skip
-
         Skips the current song when enough votes are cast, or by the bot owner.
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         if player.is_stopped:
             raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
@@ -1465,7 +1505,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}volume (+/-)[volume]
-
         Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
@@ -1507,7 +1546,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}queue
-
         Prints the current song queue.
         """
 
@@ -1555,7 +1593,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}clean [range]
-
         Removes up to [range] messages the bot has posted in chat. Default: 50, Max: 1000
         """
 
@@ -1613,7 +1650,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}pldump url
-
         Dumps the individual urls of a playlist
         """
 
@@ -1658,9 +1694,11 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}remove [number]
-	    
+        
         Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         if not player.playlist.entries:
             raise exceptions.CommandError("There are no songs queued.", expire_in=20)
@@ -1690,7 +1728,9 @@ class MusicBot(discord.Client):
             {command_prefix}repeat
         Cycles through the repeat options. Default is no repeat, switchable to repeat all or repeat current song.
         """
-
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+    
         if player.is_stopped:
             raise exceptions.CommandError("Can't change repeat mode! The player is not playing!", expire_in=20)
 
@@ -1711,6 +1751,8 @@ class MusicBot(discord.Client):
         Promotes the last song in the queue to the front. 
         If you specify a position in the queue, it promotes the song at that position to the front.
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         if player.is_stopped:
             raise exceptions.CommandError("Can't modify the queue! The player is not playing!", expire_in=20)
@@ -1758,7 +1800,9 @@ class MusicBot(discord.Client):
         Stops the currently playing song and immediately plays the song requested. \
         If a link is not provided, the first result from a youtube search is played.
         """
-
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+    
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -1849,7 +1893,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}listids [categories]
-
         Lists the ids for various things.  Categories are:
            all, users, roles, channels
         """
@@ -1907,7 +1950,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}perms
-
         Sends the user a list of their permissions.
         """
 
@@ -1928,7 +1970,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setname name
-
         Changes the bot's username.
         Note: This operation is limited by discord to twice per hour.
         """
@@ -1947,7 +1988,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setnick nick
-
         Changes the bot's nickname.
         """
 
@@ -1968,7 +2008,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setavatar [url]
-
         Changes the bot's avatar.
         Attaching a file and leaving the url parameter blank also works.
         """
@@ -1988,12 +2027,45 @@ class MusicBot(discord.Client):
 
         return Response(":ok_hand:", delete_after=20)
 
+    @owner_only
+    async def cmd_ownerlock(self):
+        self.ownerlock = True
+        return Response(":rotating_light:")
+
+    @owner_only
+    async def cmd_ownerunlock(self):
+        self.ownerlock = False
+        return Response(":sweat_smile:")
+
+    async def cmd_lock(self, player):
+        """
+        Usage:
+            {command_prefix}lock
+        
+        Prevents anyone from adding anything to the playlist until it is unlocked
+        """
+
+        player.playlist.locked = True
+        return Response("Playlist has been locked")
+    
+    async def cmd_unlock(self, player):
+        """
+        Usage:
+            {command_prefix}unlock
+        
+        Removes the playlist lock
+        """
+        
+        player.playlist.locked = False
+        return Response("Playlist has been unlocked")
 
     async def cmd_disconnect(self, server):
         await self.disconnect_voice_client(server)
         return Response(":hear_no_evil:", delete_after=20)
 
     async def cmd_restart(self, channel):
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
         await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
