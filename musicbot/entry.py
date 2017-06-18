@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import traceback
+import re
 
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
@@ -10,6 +11,7 @@ from .utils import get_header, md5sum
 class BasePlaylistEntry:
     def __init__(self):
         self.filename = None
+        self.filename_thumbnail = None
         self._is_downloading = False
         self._waiting_futures = []
 
@@ -94,6 +96,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         duration = data['duration']
         downloaded = data['downloaded']
         filename = data['filename'] if downloaded else None
+        filename_thumbnail = data['filename_thumbnail'] if downloaded else None
         meta = {}
 
         # TODO: Better [name] fallbacks
@@ -113,8 +116,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
             'url': self.url,
             'title': self.title,
             'duration': self.duration,
+            'thumbnail': self.url_thumbnail,
             'downloaded': self.is_downloaded,
             'filename': self.filename,
+            'filename_thumbnail': self.filename_thumbnail,
             'meta': {
                 i: {
                     'type': self.meta[i].__class__.__name__,
@@ -143,7 +148,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # the generic extractor requires special handling
             if extractor == 'generic':
                 # print("Handling generic")
-                flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self.download_folder)]
+                # remove thumbnail images from list
+                imgPattern = re.compile('(\.(jpg|jpeg|png|gif|bmp))$', flags=re.IGNORECASE)
+                flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self.download_folder) if not imgPattern.search(f)]
                 expected_fname_noex, fname_ex = os.path.basename(self.expected_filename).rsplit('.', 1)
 
                 if expected_fname_noex in flistdir:
@@ -172,7 +179,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     await self._really_download(hash=True)
 
             else:
-                ldir = os.listdir(self.download_folder)
+                imgPattern = re.compile('(\.(jpg|jpeg|png|gif|bmp))$', flags=re.IGNORECASE)
+                ldir = [f for f in os.listdir(self.download_folder) if not imgPattern.search(f)]
                 flistdir = [f.rsplit('.', 1)[0] for f in ldir]
                 expected_fname_base = os.path.basename(self.expected_filename)
                 expected_fname_noex = expected_fname_base.rsplit('.', 1)[0]
@@ -222,6 +230,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(result)
 
+        imgPattern = re.compile(self.filename.lstrip(self.download_folder + os.sep).rsplit('.', 1)[0] + '(\.(jpg|jpeg|png|gif|bmp))$', re.IGNORECASE)
+        self.filename_thumbnail = next(os.path.join(self.download_folder, f) for f in os.listdir(self.download_folder) if imgPattern.search(f))
+        
         if hash:
             # insert the 8 last characters of the file hash to the file name to ensure uniqueness
             self.filename = md5sum(unhashed_fname, 8).join('-.').join(unhashed_fname.rsplit('.', 1))
@@ -232,6 +243,4 @@ class URLPlaylistEntry(BasePlaylistEntry):
             else:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
-
-
 
