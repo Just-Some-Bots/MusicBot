@@ -1435,6 +1435,9 @@ class MusicBot(discord.Client):
             {command_prefix}skip
         Skips the current song when enough votes are cast, or by the bot owner.
         """
+        if player.playlist.locked:
+            raise exceptions.PermissionsError("The playlist is currently locked")
+            
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
 
