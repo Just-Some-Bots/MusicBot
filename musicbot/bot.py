@@ -1630,13 +1630,15 @@ class MusicBot(discord.Client):
             return Response("No song currently being played")
         
         await self.send_typing(channel)
-        test = self.searchSong(player.current_entry.title)
-        for item in test:
+        songsResults = self.searchSong(player.current_entry.title)
+        await self.safe_send_message(channel, "Lyrics for " + player.current_entry.title)
+
+        for item in songsResults:
             try:
                 lyrics = lyricwikia.get_lyrics(item.split(':')[0], item.split(':')[1])    
                 n = 1985
                 for i in range(0, len(lyrics), n):
-                    await self.safe_send_message(channel, "Lyrics \n```" + lyrics[i:i+n] + "```")
+                    await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
                 return Response(":thumbsup:")
             except IndexError:      
                 print("Failed to get lyrics from " + item)   
