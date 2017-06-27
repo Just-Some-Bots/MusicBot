@@ -8,12 +8,16 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import urllib.parse
 
+import lyricwikia
+import requests
 from discord import utils
 from discord.object import Object
 from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 from discord.ext.commands.bot import _get_variable
+from lxml import html
 
 from io import BytesIO
 from functools import wraps
@@ -1609,6 +1613,38 @@ class MusicBot(discord.Client):
 
         return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=15)
 
+    def searchSong(self, song_name):
+        print("Song name: " + song_name)
+        print("Encoded song name: " + urllib.parse.quote_plus(song_name))
+        encondedsongname = urllib.parse.quote_plus(song_name)
+        page = requests.get('http://lyrics.wikia.com/wiki/Special:Search?query=' + encondedsongname)
+        tree = html.fromstring(page.content)
+        songs = tree.xpath('//li[@class="result"]/article/h1/a/text()')
+        return songs
+
+    async def cmd_lyrics(self, channel, player):
+        return await self.cmd_lyric()
+
+    async def cmd_lyric(self, channel, player):
+        if not player.current_entry:
+            return Response("No song currently being played")
+        
+        await self.send_typing(channel)
+        test = self.searchSong(player.current_entry.title)
+        for item in test:
+            try:
+                lyrics = lyricwikia.get_lyrics(item.split(':')[0], item.split(':')[1])    
+                n = 1985
+                for i in range(0, len(lyrics), n):
+                    await self.safe_send_message(channel, "Lyrics \n```" + lyrics[i:i+n] + "```")
+                return Response(":thumbsup:")
+            except IndexError:      
+                print("Failed to get lyrics from " + item)   
+            except:
+                raise
+
+        return Response("Could not find the lyrics")
+			
     async def cmd_pldump(self, channel, song_url):
         """
         Usage:
