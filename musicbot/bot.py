@@ -1632,17 +1632,17 @@ class MusicBot(discord.Client):
         for item in songsResults:
             try:
                 lyrics = lyricwikia.get_lyrics(item.split(':')[0], item.split(':')[1])    
-                await self.safe_send_message(channel, "Lyrics for " + item.split(':')[0] + " - " + item.split(':')[1])
+                await self.safe_send_message(channel, "Lyric for " + item.split(':')[0] + " - " + item.split(':')[1])
                 n = 1985
                 for i in range(0, len(lyrics), n):
                     await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
                 return Response(":thumbsup:")
             except IndexError:      
-                print("Failed to get lyrics from " + item)   
+                print("Failed to get lyric from " + item)   
             except:
                 raise
 
-        return Response("Could not find the lyrics")
+        return Response("Could not find the lyric")
 			
     async def cmd_pldump(self, channel, song_url):
         """
