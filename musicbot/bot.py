@@ -1623,9 +1623,6 @@ class MusicBot(discord.Client):
         return songs
 
     async def cmd_lyrics(self, channel, player):
-        return await self.cmd_lyric(channel, player)
-
-    async def cmd_lyric(self, channel, player):
         if not player.current_entry:
             return Response("No song currently being played")
         
