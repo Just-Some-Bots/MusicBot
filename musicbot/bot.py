@@ -1631,11 +1631,11 @@ class MusicBot(discord.Client):
         
         await self.send_typing(channel)
         songsResults = self.searchSong(player.current_entry.title)
-        await self.safe_send_message(channel, "Lyrics for " + player.current_entry.title)
 
         for item in songsResults:
             try:
                 lyrics = lyricwikia.get_lyrics(item.split(':')[0], item.split(':')[1])    
+                await self.safe_send_message(channel, "Lyrics for " + item.split(':')[0] + " - " + item.split(':')[1])
                 n = 1985
                 for i in range(0, len(lyrics), n):
                     await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
