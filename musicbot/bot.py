@@ -512,7 +512,7 @@ class MusicBot(discord.Client):
                 self.safe_print("Warning: Cannot send message or file to %s, invalid channel?" % dest.name)
 
         return msg
-
+      
     async def safe_delete_message(self, message, *, quiet=False):
         try:
             return await self.delete_message(message)
@@ -524,19 +524,7 @@ class MusicBot(discord.Client):
         except discord.NotFound:
             if not quiet:
                 self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
-
-    async def safe_delete_message(self, message, *, quiet=False):
-        try:
-            return await self.delete_message(message)
-
-        except discord.Forbidden:
-            if not quiet:
-                self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
-
-        except discord.NotFound:
-            if not quiet:
-                self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
-
+                
     async def safe_edit_message(self, message, new, *, fp=None, send_if_fail=False, quiet=False):
         try:
             return await self.edit_message(message, new)
@@ -1435,6 +1423,9 @@ class MusicBot(discord.Client):
             {command_prefix}skip
         Skips the current song when enough votes are cast, or by the bot owner.
         """
+        if player.playlist.locked:
+            raise exceptions.PermissionsError("The playlist is currently locked")
+
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
 
@@ -1693,7 +1684,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}remove [number]
-
         Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
         """
         if self.ownerlock:
@@ -1729,7 +1719,7 @@ class MusicBot(discord.Client):
         """
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-
+            
         if player.is_stopped:
             raise exceptions.CommandError("Can't change repeat mode! The player is not playing!", expire_in=20)
 
@@ -2040,7 +2030,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}lock
-
         Prevents anyone from adding anything to the playlist until it is unlocked
         """
 
@@ -2050,8 +2039,7 @@ class MusicBot(discord.Client):
     async def cmd_unlock(self, player):
         """
         Usage:
-            {command_prefix}unlock
-
+            {command_prefix}unlock       
         Removes the playlist lock
         """
 

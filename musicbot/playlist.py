@@ -28,9 +28,14 @@ class Playlist(EventEmitter):
         return iter(self.entries)
 
     def shuffle(self):
+        if self.locked:
+            raise PermissionsError("The playlist is currently locked")
+            
         shuffle(self.entries)
 
     def clear(self):
+        if self.locked:
+            raise PermissionsError("The playlist is currently locked")
         self.entries.clear()
 
     async def add_entry(self, song_url, **meta):
