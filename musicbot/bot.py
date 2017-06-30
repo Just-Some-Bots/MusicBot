@@ -760,7 +760,7 @@ class MusicBot(discord.Client):
         print()
         # t-t-th-th-that's all folks!
 
-    async def cmd_help(self, command=None):
+    async def cmd_help(self, author, command=None):
         """
         Usage:
             {command_prefix}help [command]
@@ -783,7 +783,7 @@ class MusicBot(discord.Client):
                 return Response("No such command", delete_after=10)
 
         else:
-            helpmsg = "**Commands**\n```"
+            helpmsg = "Hello %s! I am **Sigma-chan**, a small music bot with hopes to be much more in the future! Here is a list of what I can do:\n\n**Commands**\n```" % author.mention
             commands = []
 
             for att in dir(self):
@@ -792,10 +792,10 @@ class MusicBot(discord.Client):
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
             helpmsg += ", ".join(commands)
-            helpmsg += "```"
-            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+            helpmsg += "```\nTo take a look at my code or find extra documentation on my additional commands, check out the link below (Sugoi!)\n"
+            helpmsg += "<https://github.com/NeonRD1/MusicBot>"
 
-            return Response(helpmsg, reply=True, delete_after=60)
+            return Response(helpmsg, reply=False, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
@@ -888,7 +888,7 @@ class MusicBot(discord.Client):
         """
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-    
+
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -1077,7 +1077,7 @@ class MusicBot(discord.Client):
         """
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-    
+
         await self.send_typing(channel)
         info = await self.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
 
@@ -1184,7 +1184,7 @@ class MusicBot(discord.Client):
         """
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-    
+
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
             raise exceptions.PermissionsError(
                 "You have reached your playlist item limit (%s)" % permissions.max_songs,
@@ -1644,7 +1644,7 @@ class MusicBot(discord.Client):
                         pass
 
         return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=15)
-    
+
     async def cmd_pldump(self, channel, song_url):
         """
         Usage:
@@ -1688,12 +1688,12 @@ class MusicBot(discord.Client):
             await self.send_file(channel, fcontent, filename='playlist.txt', content="Here's the url dump for <%s>" % song_url)
 
         return Response(":mailbox_with_mail:", delete_after=20)
-    
+
     async def cmd_remove(self, message, player, index):
         """
         Usage:
             {command_prefix}remove [number]
-        
+
         Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
         """
         if self.ownerlock:
@@ -1729,7 +1729,7 @@ class MusicBot(discord.Client):
         """
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-    
+
         if player.is_stopped:
             raise exceptions.CommandError("Can't change repeat mode! The player is not playing!", expire_in=20)
 
@@ -1747,7 +1747,7 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}promote
             {command_prefix}promote [song position]
-        Promotes the last song in the queue to the front. 
+        Promotes the last song in the queue to the front.
         If you specify a position in the queue, it promotes the song at that position to the front.
         """
         if self.ownerlock:
@@ -1755,7 +1755,7 @@ class MusicBot(discord.Client):
 
         if player.is_stopped:
             raise exceptions.CommandError("Can't modify the queue! The player is not playing!", expire_in=20)
-        
+
         length = len(player.playlist.entries)
 
         if length < 2:
@@ -1772,7 +1772,7 @@ class MusicBot(discord.Client):
 
             if position == 1:
                 raise exceptions.CommandError("This song is already at the top of the queue!", expire_in=20)
-            if position < 1 or position > length:                
+            if position < 1 or position > length:
                 raise exceptions.CommandError("Can't promote a song not in the queue! Please choose a song \
                     number between 2 and %s!" % length, expire_in=20)
 
@@ -1789,7 +1789,7 @@ class MusicBot(discord.Client):
 
         reply_text %= (btext, time_until)
 
-        return Response(reply_text, delete_after=30)    
+        return Response(reply_text, delete_after=30)
 
     async def cmd_playnow(self, player, channel, author, permissions, leftover_args, song_url):
         """
@@ -1801,7 +1801,7 @@ class MusicBot(discord.Client):
         """
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-    
+
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
@@ -2040,21 +2040,21 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}lock
-        
+
         Prevents anyone from adding anything to the playlist until it is unlocked
         """
 
         player.playlist.locked = True
         return Response("Playlist has been locked")
-    
+
     async def cmd_unlock(self, player):
         """
         Usage:
             {command_prefix}unlock
-        
+
         Removes the playlist lock
         """
-        
+
         player.playlist.locked = False
         return Response("Playlist has been unlocked")
 
@@ -2065,12 +2065,12 @@ class MusicBot(discord.Client):
     async def cmd_restart(self, channel):
         if self.ownerlock:
             raise exceptions.PermissionsError("This bot has been locked by the owner")
-        await self.safe_send_message(channel, ":wave:")
+        await self.safe_send_message(channel, "Be right back :grin:")
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
 
     async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, ":wave:")
+        await self.safe_send_message(channel, ":wave: Bye-bye!")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
