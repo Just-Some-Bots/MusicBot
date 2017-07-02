@@ -1,14 +1,26 @@
 import os
+import sys
+import json
+import logging
 import asyncio
 import audioop
-import traceback
+import subprocess
 
 from enum import Enum
 from array import array
+from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
+from websockets.exceptions import InvalidState
 
+from discord.http import _func_
+
+from .utils import avg
 from .lib.event_emitter import EventEmitter
+from .constructs import Serializable, Serializer
+from .exceptions import FFmpegError, FFmpegWarning
+
+log = logging.getLogger(__name__)
 
 
 class PatchedBuff:
@@ -44,7 +56,7 @@ class PatchedBuff:
             self.rmss.append(rms)
 
             max_rms = sorted(self.rmss)[-1]
-            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(self._avg(self.rmss), max_rms)
+            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(avg(self.rmss), max_rms)
             self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
 
         return frame
@@ -60,9 +72,6 @@ class PatchedBuff:
                 frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
 
             return frame_array.tobytes()
-
-    def _avg(self, i):
-        return sum(i) / len(i)
 
     def _pprint_meter(self, perc, *, char='#', text='', shift=True):
         tx, ty = get_terminal_size()
@@ -86,21 +95,23 @@ class MusicPlayerState(Enum):
         return self.name
 
 
-class MusicPlayer(EventEmitter):
+class MusicPlayer(EventEmitter, Serializable):
     def __init__(self, bot, voice_client, playlist):
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
         self.voice_client = voice_client
         self.playlist = playlist
-        self.playlist.on('entry-added', self.on_entry_added)
-        self._volume = bot.config.default_volume
+        self.state = MusicPlayerState.STOPPED
+        self.skip_state = None
 
+        self._volume = bot.config.default_volume
         self._play_lock = asyncio.Lock()
         self._current_player = None
         self._current_entry = None
-        self.state = MusicPlayerState.STOPPED
+        self._stderr_future = None
 
+        self.playlist.on('entry-added', self.on_entry_added)
         self.loop.create_task(self.websocket_check())
 
     @property
@@ -116,6 +127,8 @@ class MusicPlayer(EventEmitter):
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
             self.loop.call_later(2, self.play)
+
+        self.emit('entry-added', player=self, playlist=playlist, entry=entry)
 
     def skip(self):
         self._kill_current_player()
@@ -170,15 +183,20 @@ class MusicPlayer(EventEmitter):
 
         self._current_entry = None
 
+        if self._stderr_future.done() and self._stderr_future.exception():
+            # I'm not sure that this would ever not be done if it gets to this point
+            # unless ffmpeg is doing something highly questionable
+            self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
+
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
 
         if not self.bot.config.save_videos and entry:
             if any([entry.filename == e.filename for e in self.playlist.entries]):
-                print("[Config:SaveVideos] Skipping deletion, found song in queue")
+                log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
 
             else:
-                # print("[Config:SaveVideos] Deleting file: %s" % os.path.relpath(entry.filename))
+                log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
                 asyncio.ensure_future(self._delete_file(entry.filename))
 
         self.emit('finished-playing', player=self, entry=entry)
@@ -207,9 +225,8 @@ class MusicPlayer(EventEmitter):
                 if e.winerror == 32:  # File is in use
                     await asyncio.sleep(0.25)
 
-            except Exception as e:
-                traceback.print_exc()
-                print("Error trying to delete " + filename)
+            except Exception:
+                log.error("Error trying to delete {}".format(filename), exc_info=True)
                 break
         else:
             print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
@@ -233,10 +250,8 @@ class MusicPlayer(EventEmitter):
                 try:
                     entry = await self.playlist.get_next_entry()
 
-                except Exception as e:
-                    print("Failed to get entry.")
-                    traceback.print_exc()
-                    # Retry playing the next entry in a sec.
+                except:
+                    log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
                     return
 
@@ -248,10 +263,17 @@ class MusicPlayer(EventEmitter):
                 # In-case there was a player, kill it. RIP.
                 self._kill_current_player()
 
+                boptions = "-nostdin"
+                # aoptions = "-vn -b:a 192k"
+                aoptions = "-vn"
+
+                log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
+
                 self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
                     entry.filename,
-                    before_options="-nostdin",
-                    options="-vn -b:a 128k",
+                    before_options=boptions,
+                    options=aoptions,
+                    stderr=subprocess.PIPE,
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
                 ))
@@ -261,8 +283,17 @@ class MusicPlayer(EventEmitter):
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
+                self._stderr_future = asyncio.Future()
 
+                stderr_thread = Thread(
+                    target=filter_stderr,
+                    args=(self._current_player.process, self._stderr_future),
+                    name="{} stderr reader".format(self._current_player.name)
+                )
+
+                stderr_thread.start()
                 self._current_player.start()
+
                 self.emit('play', player=self, entry=entry)
 
     def _monkeypatch_player(self, player):
@@ -270,28 +301,75 @@ class MusicPlayer(EventEmitter):
         player.buff = PatchedBuff(original_buff)
         return player
 
-    def reload_voice(self, voice_client):
-        self.voice_client = voice_client
-        if self._current_player:
-            self._current_player.player = voice_client.play_audio
-            self._current_player._resumed.clear()
-            self._current_player._connected.set()
+    async def reload_voice(self, voice_client):
+        async with self.bot.aiolocks[_func_() + ':' + voice_client.channel.server.id]:
+            self.voice_client = voice_client
+            if self._current_player:
+                self._current_player.player = voice_client.play_audio
+                self._current_player._resumed.clear()
+                self._current_player._connected.set()
 
     async def websocket_check(self):
-        if self.bot.config.debug_mode:
-            print("[Debug] Creating websocket check loop")
+        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.server))
 
         while not self.is_dead:
             try:
-                self.voice_client.ws.ensure_open()
-                assert self.voice_client.ws.open
-            except:
-                if self.bot.config.debug_mode:
-                    print("[Debug] Voice websocket is %s, reconnecting" % self.voice_client.ws.state_name)
-                await self.bot.reconnect_voice_client(self.voice_client.channel.server)
-                await asyncio.sleep(4)
+                async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + self.voice_client.channel.server.id]:
+                    await self.voice_client.ws.ensure_open()
+
+            except InvalidState:
+                log.debug("Voice websocket for \"{}\" is {}, reconnecting".format(
+                    self.voice_client.channel.server,
+                    self.voice_client.ws.state_name
+                ))
+                await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
+                await asyncio.sleep(3)
+
+            except Exception:
+                log.error("Error in websocket check loop", exc_info=True)
+
             finally:
                 await asyncio.sleep(1)
+
+    def __json__(self):
+        return self._enclose_json({
+            'current_entry': {
+                'entry': self.current_entry,
+                'progress': self.progress,
+                'progress_frames': self._current_player.buff.frame_count if self.progress is not None else None
+            },
+            'entries': self.playlist
+        })
+
+    @classmethod
+    def _deserialize(cls, data, bot=None, voice_client=None, playlist=None):
+        assert bot is not None, cls._bad('bot')
+        assert voice_client is not None, cls._bad('voice_client')
+        assert playlist is not None, cls._bad('playlist')
+
+        player = cls(bot, voice_client, playlist)
+
+        data_pl = data.get('entries')
+        if data_pl and data_pl.entries:
+            player.playlist.entries = data_pl.entries
+
+        current_entry_data = data['current_entry']
+        if current_entry_data['entry']:
+            player.playlist.entries.appendleft(current_entry_data['entry'])
+            # TODO: progress stuff
+            # how do I even do this
+            # this would have to be in the entry class right?
+            # some sort of progress indicator to skip ahead with ffmpeg (however that works, reading and ignoring frames?)
+
+        return player
+
+    @classmethod
+    def from_json(cls, raw_json, bot, voice_client, playlist):
+        try:
+            return json.loads(raw_json, object_hook=Serializer.deserialize)
+        except:
+            log.exception("Failed to deserialize player")
+
 
     @property
     def current_entry(self):
@@ -315,11 +393,71 @@ class MusicPlayer(EventEmitter):
 
     @property
     def progress(self):
-        return round(self._current_player.buff.frame_count * 0.02)
-        # TODO: Properly implement this
-        #       Correct calculation should be bytes_read/192k
-        #       192k AKA sampleRate * (bitDepth / 8) * channelCount
-        #       Change frame_count to bytes_read in the PatchedBuff
+        if self._current_player:
+            return round(self._current_player.buff.frame_count * 0.02)
+            # TODO: Properly implement this
+            #       Correct calculation should be bytes_read/192k
+            #       192k AKA sampleRate * (bitDepth / 8) * channelCount
+            #       Change frame_count to bytes_read in the PatchedBuff
+
+# TODO: I need to add a check for if the eventloop is closed
+
+def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
+    last_ex = None
+
+    while True:
+        data = popen.stderr.readline()
+        if data:
+            log.ffmpeg("Data from ffmpeg: {}".format(data))
+            try:
+                if check_stderr(data):
+                    sys.stderr.buffer.write(data)
+                    sys.stderr.buffer.flush()
+
+            except FFmpegError as e:
+                log.ffmpeg("Error from ffmpeg: %s", str(e).strip())
+                last_ex = e
+
+            except FFmpegWarning:
+                pass # useless message
+        else:
+            break
+
+    if last_ex:
+        future.set_exception(last_ex)
+    else:
+        future.set_result(True)
+
+def check_stderr(data:bytes):
+    try:
+        data = data.decode('utf8')
+    except:
+        log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
+        return True # fuck it
+
+    # log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
+
+    # TODO: Regex
+    warnings = [
+        "Header missing",
+        "Estimating duration from birate, this may be inaccurate",
+        "Using AVStream.codec to pass codec parameters to muxers is deprecated, use AVStream.codecpar instead.",
+        "Application provided invalid, non monotonically increasing dts to muxer in stream",
+        "Last message repeated",
+        "Failed to send close message",
+        "decode_band_types: Input buffer exhausted before END element found"
+    ]
+    errors = [
+        "Invalid data found when processing input", # need to regex this properly, its both a warning and an error
+    ]
+
+    if any(msg in data for msg in warnings):
+        raise FFmpegWarning(data)
+
+    if any(msg in data for msg in errors):
+        raise FFmpegError(data)
+
+    return True
 
 
 # if redistributing ffmpeg is an issue, it can be downloaded from here:
