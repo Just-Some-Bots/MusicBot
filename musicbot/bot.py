@@ -1,3 +1,8 @@
+"""
+
+Import python modules
+
+"""
 import os
 import sys
 import time
@@ -8,13 +13,26 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import datetime
+import pytz
+import random
 
+"""
+
+Import discord.py
+
+"""
 from discord import utils
 from discord.object import Object
 from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 from discord.ext.commands.bot import _get_variable
 
+"""
+
+Import specific python modules
+
+""" 
 from io import BytesIO
 from functools import wraps
 from textwrap import dedent
@@ -22,6 +40,11 @@ from datetime import timedelta
 from random import choice, shuffle
 from collections import defaultdict
 
+"""
+
+Import other classes
+
+"""
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
@@ -96,6 +119,11 @@ class MusicBot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
+    """
+
+    Owner functions
+
+    """
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
@@ -218,6 +246,11 @@ class MusicBot(discord.Client):
 
         return discord.utils.oauth_url(self.cached_client_id, permissions=permissions, server=server)
 
+    """
+
+    Voice client
+
+    """
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
@@ -351,6 +384,11 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
 
+    """
+
+    Player
+
+    """
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
 
@@ -471,6 +509,11 @@ class MusicBot(discord.Client):
         await self.change_status(game)
 
 
+    """
+
+    Safe sending, editing, and deleting messages
+
+    """
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None
         try:
@@ -585,6 +628,11 @@ class MusicBot(discord.Client):
         except: # Can be ignored
             pass
 
+    """
+
+    Run, logout, on <state> methods
+
+    """
     # noinspection PyMethodOverriding
     def run(self):
         try:
@@ -760,7 +808,12 @@ class MusicBot(discord.Client):
         print()
         # no idea how to get this stupidity to send a message on startup
         #await self.safe_send_message(self.get_channel(self.config.bound_channels), "*yawn* Ahh! Good morning, it's a great day to be alive! All ready to play music!", expire_in=20)
+    
+    """
 
+    Custom Commands
+
+    """
     async def cmd_hello(self, author):
         """
         Usage:
@@ -770,6 +823,71 @@ class MusicBot(discord.Client):
         msg = "Hello %s! How are you doing today?" % author.mention
         return Response(msg, reply=False, delete_after=10)
 
+    async def cmd_hug(self, author, message):
+        """
+        Usage:
+            {command_prefix}hug [recipient]
+        Hug somebody!
+        If no recipient is specified, Sigma-chan will hug you <3
+        """
+        if message.mentions and len(message.mentions) == 1:
+            msg = "%s hugged %s!" % (author.mention, message.mentions[0].mention)
+        elif message.mentions and len(message.mentions) > 1:
+            raise exceptions.CommandError(
+                'You are trying to hug too many people at once! Take it once at a time, please <3' , expire_in=20
+            )
+        else:
+            msg = "Sigma-chan gives %s a soft hug <:heartmodern:328603582993661982>" % (author.mention)
+        return Response(msg, reply=False)
+
+    async def cmd_time(self, timezone=None):
+        """
+        Usage:
+            {command_prefix}time [timezone]
+        Prints the current date and time in UTC.
+        If a timezone is specified, the time will be displayed in that timezone.
+        """
+        timezone_dict = {'BST': 'UTC+01', 'CET': 'UTC+01', 'DFT': 'UTC+01', 'IST': 'UTC+01', 'MET': 'UTC+01', 'WAT': 'UTC+01', 'WEST': 'UTC+01', 'CAT': 'UTC+02', 'CEST': 'UTC+02', 'EET': 'UTC+02', 'HAEC': 'UTC+02', 'IST': 'UTC+02', 'MEST': 'UTC+02', 'SAST': 'UTC+02', 'USZ1': 'UTC+02', 'WAST': 'UTC+02', 'AST': 'UTC+03', 'EAT': 'UTC+03', 'EEST': 'UTC+03', 'FET': 'UTC+03', 'IDT': 'UTC+03', 'IOT': 'UTC+03', 'MSK': 'UTC+03', 'SYOT': 'UTC+03', 'TRT': 'UTC+03', 'AMT': 'UTC+04', 'AZT': 'UTC+04', 'GET': 'UTC+04', 'GST': 'UTC+04', 'MUT': 'UTC+04', 'RET': 'UTC+04', 'SAMT': 'UTC+04', 'SCT': 'UTC+04', 'VOLT': 'UTC+04', 'HMT': 'UTC+05', 'MAWT': 'UTC+05', 'MVT': 'UTC+05', 'ORAT': 'UTC+05', 'PKT': 'UTC+05', 'TFT': 'UTC+05', 'TJT': 'UTC+05', 'TMT': 'UTC+05', 'UZT': 'UTC+05', 'YEKT': 'UTC+05', 'BIOT': 'UTC+06', 'BST': 'UTC+06', 'BTT': 'UTC+06', 'KGT': 'UTC+06', 'OMST': 'UTC+06', 'VOST': 'UTC+06', 'CXT': 'UTC+07', 'DAVT': 'UTC+07', 'HOVT': 'UTC+07', 'ICT': 'UTC+07', 'KRAT': 'UTC+07', 'THA': 'UTC+07', 'WIT': 'UTC+07', 'AWST': 'UTC+08', 'BDT': 'UTC+08', 'CHOT': 'UTC+08', 'CIT': 'UTC+08', 'CST': 'UTC+08', 'CT': 'UTC+08', 'HKT': 'UTC+08', 'HOVST': 'UTC+08', 'IRKT': 'UTC+08', 'MST': 'UTC+08', 'MYT': 'UTC+08', 'PHT': 'UTC+08', 'PST': 'UTC+08', 'SGT': 'UTC+08', 'SST': 'UTC+08', 'ULAT': 'UTC+08', 'WST': 'UTC+08', 'CHOST': 'UTC+09', 'EIT': 'UTC+09', 'JST': 'UTC+09', 'KST': 'UTC+09', 'TLT': 'UTC+09', 'ULAST': 'UTC+09', 'YAKT': 'UTC+09', 'AEST': 'UTC+10', 'AEST': 'UTC+10', 'CHST': 'UTC+10', 'CHUT': 'UTC+10', 'DDUT': 'UTC+10', 'PGT': 'UTC+10', 'VLAT': 'UTC+10', 'AEDT': 'UTC+11', 'AEDT': 'UTC+11', 'BST': 'UTC+11', 'KOST': 'UTC+11', 'LHST': 'UTC+11', 'MIST': 'UTC+11', 'NCT': 'UTC+11', 'NFT': 'UTC+11', 'PONT': 'UTC+11', 'SAKT': 'UTC+11', 'SBT': 'UTC+11', 'SRET': 'UTC+11', 'VUT': 'UTC+11', 'FJT': 'UTC+12', 'GILT': 'UTC+12', 'MAGT': 'UTC+12', 'MHT': 'UTC+12', 'NZST': 'UTC+12', 'PETT': 'UTC+12', 'TVT': 'UTC+12', 'WAKT': 'UTC+12', 'NZDT': 'UTC+13', 'PHOT': 'UTC+13', 'TKT': 'UTC+13', 'TOT': 'UTC+13', 'LINT': 'UTC+14', 'AZOT': 'UTC-01', 'CVT': 'UTC-01', 'EGT': 'UTC-01', 'BRST': 'UTC-02', 'FNT': 'UTC-02', 'GST': 'UTC-02', 'PMDT': 'UTC-02', 'UYST': 'UTC-02', 'ADT': 'UTC-03', 'AMST': 'UTC-03', 'ART': 'UTC-03', 'BRT': 'UTC-03', 'CLST': 'UTC-03', 'FKST': 'UTC-03', 'GFT': 'UTC-03', 'PMST': 'UTC-03', 'PYST': 'UTC-03', 'ROTT': 'UTC-03', 'SRT': 'UTC-03', 'UYT': 'UTC-03', 'AMT': 'UTC-04', 'AST': 'UTC-04', 'BOT': 'UTC-04', 'CDT': 'UTC-04', 'CLT': 'UTC-04', 'COST': 'UTC-04', 'ECT': 'UTC-04', 'EDT': 'UTC-04', 'FKT': 'UTC-04', 'GYT': 'UTC-04', 'PYT': 'UTC-04', 'VET': 'UTC-04', 'ACT': 'UTC-05', 'CDT': 'UTC-05', 'COT': 'UTC-05', 'CST': 'UTC-05', 'EASST': 'UTC-05', 'ECT': 'UTC-05', 'EST': 'UTC-05', 'PET': 'UTC-05', 'CST': 'UTC-06', 'EAST': 'UTC-06', 'GALT': 'UTC-06', 'MDT': 'UTC-06', 'MST': 'UTC-07', 'PDT': 'UTC-07', 'AKDT': 'UTC-08', 'CIST': 'UTC-08', 'PST': 'UTC-08', 'AKST': 'UTC-09', 'GAMT': 'UTC-09', 'GIT': 'UTC-09', 'HADT': 'UTC-09', 'CKT': 'UTC-10', 'HAST': 'UTC-10', 'TAHT': 'UTC-10', 'NUT': 'UTC-11', 'SST': 'UTC-11', 'BIT': 'UTC-12', 'AZOST': 'UTC±00', 'EGST': 'UTC±00', 'GMT': 'UTC±00', 'WET': 'UTC±00', 
+}
+        current_time = datetime.datetime.utcnow()
+        if timezone:
+            if "UTC" in timezone:
+                try:
+                    hour=int(timezone[3:len(timezone)])
+                except ValueError:
+                    raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+            else:
+                try:
+                    timezone = timezone_dict[timezone]
+                    hour=int(timezone[3:len(timezone)])
+                except ValueError:
+                    raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+            current_time = current_time + timedelta(hours=hour)
+        else:
+            timezone = "UTC"
+            
+        current_time = current_time.strftime('%Y-%m-%d | %H:%M ' + timezone)
+        msg = "The current time is: " + current_time
+        return Response(msg, reply=True, delete_after=30)
+
+    async def cmd_tconvert(self, time_in=None, timezone1=None, timezone2=None):
+        """
+        Usage:
+            {command_prefix}tconvert [time] [timezone_from] [timezone_to]
+            NOT IMPLEMENTED YET, DO NOT USE
+        """
+        if time_in:
+            time_parsed = time_in.split(":")
+            try:
+                time_input = datetime.time(hour=(int(time_parsed[0]) + int(timezone[3:len(timezone)])), minute=int(time_parsed[1]))
+            except ValueError:
+                raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+            msg = time_input
+    """
+
+    Help Command
+
+    """
     async def cmd_help(self, author, command=None):
         """
         Usage:
@@ -803,7 +921,7 @@ class MusicBot(discord.Client):
 
             helpmsg += ", ".join(commands)
             helpmsg += "```\nTo take a look at my code or find extra documentation on my additional commands, check out the link below (Sugoi!)\n"
-            helpmsg += "<https://github.com/NeonRD1/MusicBot>"
+            helpmsg += "<https://github.com/NeonRD1/Sigma-Kizuna>"
 
             return Response(helpmsg, reply=False, delete_after=60)
 
@@ -812,7 +930,7 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
         Add or remove users to the blacklist.
-        Blacklisted users are forbidden from using bot commands.
+        Blacklisted users are forbidden from using bot commands
         """
 
         if not user_mentions:
@@ -2205,6 +2323,12 @@ class MusicBot(discord.Client):
         await self.wait_until_ready()
 
         message_content = message.content.strip()
+        print(message_content)
+        if "<@!281807963147075584>" in message_content:
+            msg = ["<:sigmachan:331569185349959681>", "Hello!", "Hiya!", "Sigma-chan reporting for duty!", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Ahh, you scared me ;_;", "Hiya! :wave:", "Hi there, %s :gift_heart:" % message.author.mention]
+            await self.safe_send_message(message.channel, random.choice(msg)) 
+
+        #place anything you want not to be channel bound before this comment
         if not message_content.startswith(self.config.command_prefix):
             return
 
@@ -2212,11 +2336,13 @@ class MusicBot(discord.Client):
             self.safe_print("Ignoring command from myself (%s)" % message.content)
             return
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
-            return  # if I want to log this I just move it under the prefix check
-
         command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
+        #there's probably a better way to do this with a property, although cmds are not objects and are instead functions
+        bound_commands = ["clean", "clear", "lock", "np", "pause", "play", "playnow", "pldump", "promote", "queue", "remove", "repeat", "resume", "search", "shuffle", "skip", "sub", "unlock", "volume"]
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private and command in bound_commands:
+            return  # if I want to log this I just move it under the prefix check
 
         handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
