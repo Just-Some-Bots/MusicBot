@@ -2358,7 +2358,8 @@ class MusicBot(discord.Client):
         command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
         #there's probably a better way to do this with a property, although cmds are not objects and are instead functions
-        bound_commands = ["clean", "clear", "lock", "np", "pause", "play", "playnow", "pldump", "promote", "queue", "remove", "repeat", "resume", "search", "shuffle", "skip", "sub", "unlock", "volume"]
+        bound_commands = self.config.bound_commands
+        #bound_commands = ["clean", "clear", "lock", "np", "pause", "play", "playnow", "pldump", "promote", "queue", "remove", "repeat", "resume", "search", "shuffle", "skip", "sub", "unlock", "volume"]
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private and command in bound_commands:
             return  # if I want to log this I just move it under the prefix check
