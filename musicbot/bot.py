@@ -905,6 +905,8 @@ class MusicBot(discord.Client):
                 minute = int(time_parsed[1])
             except ValueError:
                 raise exceptions.CommandError("This is not a valid time!", expire_in=20)
+            if hour > 23 or hour < 0 or minute > 59 or minute < 0:
+                raise exceptions.CommandError("This is not a valid time!", expire_in=20)
         else:
             raise exceptions.CommandError("You did not specify a time!", expire_in=20)
         if timezone1:
@@ -946,6 +948,7 @@ class MusicBot(discord.Client):
                         raise exceptions.CommandError("Could not parse timezone.", expire_in=20)
                     timezone2_minute = 0
 
+                #Catch all the different scenarios that could happen
                 if timezone1_hour < 0 and timezone2_hour < 0:
                     difference = abs(timezone1_hour) - abs(timezone2_hour)
                 elif timezone1_hour < 0 and timezone2_hour > 0:
@@ -963,8 +966,12 @@ class MusicBot(discord.Client):
                 #print(difference_minute)
                 hour = (hour + difference) % 24
                 minute = (minute + difference_minute) % 60
+
+                #I'm lazy, probably a better way to do this
                 if minute == 0:
                     minute = str(minute) + "0"
+                elif minute < 10:
+                    minute = "0" + str(minute)
                 final_time = str(hour) + ":" + str(minute)
 
                 msg = "Converted time from **" + timezone1 + "** to **" + timezone2 + "** is **" + final_time + "**"
