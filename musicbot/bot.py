@@ -839,8 +839,21 @@ class MusicBot(discord.Client):
             msg = "Sigma-chan gives %s a soft hug <:heartmodern:328603582993661982>" % (author.mention)
         return Response(msg, reply=False)
 
-    async def cmd_yikes(self,message):
+    async def cmd_yikes(self, message):
         return Response("Yikes! 😬", reply=False, delete_after=30)
+
+    async def cmd_roll(self, author, num=None):
+        if num:
+            try:
+                num = int(num)
+                answer = random.randint(0, num)
+                msg = "%s rolled a " % author.mention + str(answer) 
+                return Response(msg, reply=False, delete_after=30)
+            except ValueError:
+                pass
+        answer = random.randint(0, 100)
+        msg = "%s rolled a " % author.mention + str(answer)
+        return Response(msg, reply=False, delete_after=30)
 
     async def cmd_time(self, timezone=None):
         """
@@ -2438,11 +2451,9 @@ class MusicBot(discord.Client):
 
         command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
-        #there's probably a better way to do this with a property, although cmds are not objects and are instead functions
-        bound_commands = self.config.bound_commands
         #bound_commands = ["clean", "clear", "lock", "np", "pause", "play", "playnow", "pldump", "promote", "queue", "remove", "repeat", "resume", "search", "shuffle", "skip", "sub", "unlock", "volume"]
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private and command in bound_commands:
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private and command in self.config.bound_commands:
             return  # if I want to log this I just move it under the prefix check
 
         handler = getattr(self, 'cmd_%s' % command, None)
@@ -2553,7 +2564,7 @@ class MusicBot(discord.Client):
                 sentmsg = await self.safe_send_message(
                     message.channel, content,
                     expire_in=response.delete_after if self.config.delete_messages else 0,
-                    also_delete=message if self.config.delete_invoking else None
+                    also_delete=message if self.config.delete_invoking and command not in self.config.retain_commands else None
                 )
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:

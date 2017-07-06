@@ -83,6 +83,7 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
 
         self.bound_commands = config.get('Other', 'BoundCommands', fallback=None)
+        self.retain_commands = config.get('Other', 'RetainCommands', fallback=None)
 
         self.run_checks()
 
