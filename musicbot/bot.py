@@ -820,7 +820,7 @@ class MusicBot(discord.Client):
         Talk to Sigma-chan!    
         """
         msg = "Hello %s! How are you doing today?" % author.mention
-        return Response(msg, reply=False, delete_after=10)
+        return Response(msg, reply=False, delete_after=30)
 
     async def cmd_hug(self, author, message):
         """
@@ -838,6 +838,9 @@ class MusicBot(discord.Client):
         else:
             msg = "Sigma-chan gives %s a soft hug <:heartmodern:328603582993661982>" % (author.mention)
         return Response(msg, reply=False)
+
+    async def cmd_yikes(self,message):
+        return Response("Yikes! 😬", reply=False, delete_after=30)
 
     async def cmd_time(self, timezone=None):
         """
