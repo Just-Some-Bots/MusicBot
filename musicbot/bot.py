@@ -100,7 +100,7 @@ class MusicBot(discord.Client):
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.ownerlock = False
         self.autoassignrole = False
-        self.autorole = None
+        self.autorole = {"default": "default"} #rip can't have a NoneType dictionary :/
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -865,27 +865,21 @@ class MusicBot(discord.Client):
         msg = "%s rolled a " % author.mention + str(answer)
         return Response(msg, reply=False, delete_after=30)
 
-    #TODO: Make this server specific, support multiple roles
     @owner_only
     async def cmd_aar(self, channel, server, role=None):
         """
         Usage:
             {command_prefix}aar [role]
-        Enables auto assign role with a specific role.
+        Enables auto assign role with a specific role. Server specific.
         Owner only.
         """
         if role:
             #Let's find the role
             role = discord.utils.find(lambda r: r.name == role, server.roles)
             if role:
-                self.autorole = role
-                #If autorole is enabled we're just changing the role.
-                if self.autoassignrole:
-                    await self.safe_send_message(channel, "Changed autorole", expire_in=20)
-
-                elif not self.autoassignrole:
-                    self.autoassignrole = True
-                    await self.safe_send_message(channel, "Enabled autorole with %s" % role, expire_in=20)
+                self.autorole[server] = role
+                self.autoassignrole = True
+                await self.safe_send_message(channel, "Enabled autorole in %s with %s" % (server,role), expire_in=20)
 
             else:
                 #oops, can't find that role. Try again
@@ -897,7 +891,40 @@ class MusicBot(discord.Client):
         elif self.autoassignrole:
             self.autoassignrole = False
             await self.safe_send_message(channel, "Autorole disabled", expire_in=20)
+        #print(self.autorole)
 
+    async def cmd_purge(self, channel, message, num=None):
+        """
+        Usage:
+            {command_prefix}purge [number]
+        Deletes the previous # of messages from the channel.
+        """
+        if num:
+            try:
+                num = int(num)
+            except ValueError:
+                raise exceptions.CommandError("Invalid number specified.", expire_in=20)
+
+            await self.purge_from(channel, limit=num, before=message)
+            msg = str(num) + " message(s) purged."
+            return Response(msg, reply=False, delete_after=20)
+
+    async def cmd_mute(self, channel, message, time=None):
+        """
+        Usage:
+            {command_prefix}mute [user_mentions] [time]
+        Mutes the specified users. Length of mute is optional.
+        Length is not implemented yet.
+        """
+        for member in message.mentions:
+            if member.id == self.user.id: #jenky member/userness
+                raise exceptions.CommandError("Cannot mute myself!", expire_in=20)
+            overwrite = discord.PermissionOverwrite()
+            if channel.overwrites_for(member).send_messages == None or channel.overwrites_for(member).send_messages:
+                overwrite.send_messages = False
+            else:
+                overwrite.send_messages = True
+            await self.edit_channel_permissions(channel, member, overwrite)
     """ 
     # Debugging purpose
     async def cmd_getroles(self, author):
@@ -2485,7 +2512,7 @@ class MusicBot(discord.Client):
 
     async def on_member_join(self, member):
         if self.autorole:
-            await self.add_roles(member, self.autorole)
+            await self.add_roles(member, self.autorole[member.server])
             print("Added a user")
         else:
             print("Autorole disabled")
@@ -2495,8 +2522,7 @@ class MusicBot(discord.Client):
 
         message_content = message.content.strip()
         print(message_content)
-        #TODO: Make this less jenky and check if the mention is self.user, probably a self.user.mention == message.mentions
-        if "<@!281807963147075584>" in message_content and message.author != self.user: 
+        if "281807963147075584" in message.raw_mentions and message.author != self.user: 
             msg = ["Hello!", "Hiya!", "Sigma-chan reporting for duty!", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Ahh, you scared me ;_;", "Hiya! :wave:", "Hi there, %s :gift_heart:" % message.author.mention]
             await self.safe_send_message(message.channel, random.choice(msg)) 
 
