@@ -865,6 +865,7 @@ class MusicBot(discord.Client):
         msg = "%s rolled a " % author.mention + str(answer)
         return Response(msg, reply=False, delete_after=30)
 
+    #TODO: Make this server specific, support multiple roles
     @owner_only
     async def cmd_aar(self, channel, server, role=None):
         """
@@ -1074,7 +1075,7 @@ class MusicBot(discord.Client):
                 return Response("No such command", delete_after=10)
 
         else:
-            helpmsg = "Hello %s! I am **Sigma-chan**, a small music bot with hopes to be much more in the future! Here is a list of what I can do:\n\n**Commands**\n```" % author.mention
+            helpmsg = "Hello %s! I am **Sigma-chan**, a general purpose bot that can play music, interact with users, and moderate! Here is a list of what I can do:\n\n**Commands**\n```" % author.mention
             commands = []
 
             for att in dir(self):
@@ -2484,16 +2485,19 @@ class MusicBot(discord.Client):
 
     async def on_member_join(self, member):
         if self.autorole:
-            await self.add_roles(member, self.autorolename)
+            await self.add_roles(member, self.autorole)
+            print("Added a user")
+        else:
+            print("Autorole disabled")
 
     async def on_message(self, message):
         await self.wait_until_ready()
 
         message_content = message.content.strip()
         print(message_content)
-        if "<@!281807963147075584>" in message_content and message.author != self.user:
-            #TODO: Redo the image with a safe_send_file 
-            msg = ["<:sigmachan:331569185349959681>", "Hello!", "Hiya!", "Sigma-chan reporting for duty!", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Ahh, you scared me ;_;", "Hiya! :wave:", "Hi there, %s :gift_heart:" % message.author.mention]
+        #TODO: Make this less jenky and check if the mention is self.user, probably a self.user.mention == message.mentions
+        if "<@!281807963147075584>" in message_content and message.author != self.user: 
+            msg = ["Hello!", "Hiya!", "Sigma-chan reporting for duty!", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Ahh, you scared me ;_;", "Hiya! :wave:", "Hi there, %s :gift_heart:" % message.author.mention]
             await self.safe_send_message(message.channel, random.choice(msg)) 
 
         #place anything you want not to be channel bound before this comment
