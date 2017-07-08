@@ -1614,9 +1614,9 @@ class MusicBot(discord.Client):
         return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=15)
 
     def searchSong(self, song_name):
-        print("Song name: " + song_name)
-        print("Encoded song name: " + urllib.parse.quote_plus(song_name))
+        print("[Lyrics] Song name: " + song_name)
         encondedsongname = urllib.parse.quote_plus(song_name)
+        print("[Lyrics] Search url: " + encondedsongname)
         page = requests.get('http://lyrics.wikia.com/wiki/Special:Search?query=' + encondedsongname)
         tree = html.fromstring(page.content)
         songs = tree.xpath('//li[@class="result"]/article/h1/a/text()')
@@ -1638,9 +1638,9 @@ class MusicBot(discord.Client):
                     await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
                 return Response(":thumbsup:")
             except IndexError:      
-                print("Failed to get lyric from " + item)   
+                print("[Lyrics] Failed to get lyric from " + item)   
             except:
-                raise
+                print("[Lyrics] Unhandled exception occurred (You're probably fine ignoring this)")
 
         return Response("Could not find the lyric")
 			
