@@ -1639,8 +1639,11 @@ class MusicBot(discord.Client):
                 return Response(":thumbsup:")
             except IndexError:      
                 print("[Lyrics] Failed to get lyric from " + item)   
+            except Exception as inst:
+                if inst.args[0] != "Cannot download lyrics":
+                    print("[Lyrics] Unhandled exception occurred" + inst.args[0])
             except:
-                print("[Lyrics] Unhandled exception occurred (You're probably fine ignoring this)")
+                raise
 
         return Response("Could not find the lyric")
 			
