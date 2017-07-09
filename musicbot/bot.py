@@ -1814,7 +1814,14 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
-    async def cmd_autoplaylist(self, player, message):
+    async def cmd_autoplay(self, player, message):
+        """
+        Usage:
+            {command_prefix}autoplay
+
+        Enables/Disables the AutoPlaylist feature.
+        """
+
         await self._manual_delete_check(message)
         if self.config.auto_playlist:
             self.config.auto_playlist=False
