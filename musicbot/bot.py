@@ -86,6 +86,7 @@ class MusicBot(discord.Client):
         if not self.autoplaylist:
             print("Warning: Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
+        self.use_auto_playlist = self.config.auto_playlist
 
         # TODO: Do these properly
         ssd_defaults = {'last_np_msg': None, 'auto_paused': False}
@@ -441,6 +442,7 @@ class MusicBot(discord.Client):
             if not self.autoplaylist:
                 print("[Warning] No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
+                self.use_auto_playlist = False
 
     async def on_player_entry_added(self, playlist, entry, **_):
         pass
@@ -1811,6 +1813,29 @@ class MusicBot(discord.Client):
         await self.safe_send_message(channel, ":wave:")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
+
+    async def cmd_autoplay(self, player, message):
+        """
+        Usage:
+            {command_prefix}autoplay
+
+        Enables/Disables the AutoPlaylist feature.
+        """
+
+        await self._manual_delete_check(message)
+        if self.config.auto_playlist:
+            self.config.auto_playlist=False
+            return Response("AutoPlaylist Disabled.", delete_after=20)
+        elif self.use_auto_playlist:
+            self.config.auto_playlist=True
+            if not player.is_playing:
+                player.play()
+                await self.on_player_finished_playing(player)
+            return Response("AutoPlaylist Enabled.", delete_after=20)
+        else:
+            return Response("The AutoPlaylist cannot be enabled. Either there \
+are no playable songs in the playlist, or the autoplaylist feature is disabled \
+in the settings file.", delete_after=30)
 
     async def on_message(self, message):
         await self.wait_until_ready()
