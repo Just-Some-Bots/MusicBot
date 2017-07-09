@@ -1833,7 +1833,9 @@ class MusicBot(discord.Client):
                 await self.on_player_finished_playing(player)
             return Response("AutoPlaylist Enabled.", delete_after=20)
         else:
-            return Response("There is nothing in the AutoPlaylist, so it cannot be enabled.", delete_after=20)
+            return Response("The AutoPlaylist cannot be enabled. Either there \
+are no playable songs in the playlist, or the autoplaylist feature is disabled \
+in the settings file.", delete_after=30)
 
     async def on_message(self, message):
         await self.wait_until_ready()
