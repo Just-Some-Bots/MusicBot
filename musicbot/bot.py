@@ -1622,62 +1622,67 @@ class MusicBot(discord.Client):
         songs = tree.xpath('//li[@class="result"]/article/h1/a/text()')
         return songs
 
-    async def cmd_lyrics(self, channel, player):
-        if not player.current_entry:
-            return Response("No song currently being played")
-        
-        await self.send_typing(channel)
-        songsResults = self.searchSong(player.current_entry.title)
+    async def cmd_lyrics(self, channel, player, song_url=None):
+        """
+        Usage:
+            {command_prefix}lyrics 
+            {command_prefix}lyrics song_url
 
-        for item in songsResults:
-            name = item
-            pos= None
-            if '(' in name and not '[' in name: #optional it allows to remove the (hd) or (feat) from the title
-                pos = name.index('(') 
-            elif '[' in name and not '(' in name:
-                pos = tiem.index('[')
-            elif '(' in name and '[' in name:
-                pos = min(name.index('['), name.index('('))
-            if pos:
-                item = item[0:pos]
+        Displays the lyrics of the current song, otherwise you have to specify an URL
+        """ 
+            
+        if song_url:                
+            try:
+                info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+                title = info.get('title', '')
+            except:
+                return Response("Cannot find the title, please ensure you URL is correct")
+        elif not player.current_entry:
+            return Response("No song currently being played, please specify an URL")        
+        else:
+            title = player.current_entry.title
+        await self.send_typing(channel)
+        songsResults = self.searchSong(title)
+
+        for item in songsResults: 
             try:
                 nameofthesong = item.split(':')[1] 
                 nameofthesong = nameofthesong.split('/')[0]
             except:
                 pass
             try:    
-                nameofthesong = nameofthesong.split('`\\')[0] #fix the issue from lyricswikia
+                nameofthesong = nameofthesong.split('`\\')[0]
             except:
                 pass
-            try:    
-                if nameofthesong not in player.current_entry.title: #check if it's not the good lyrics
-                    print('Not the good song... ' + nameofthesong) #it will spam if you don't remove it
+            try:    #too much try/except to remove that /ru from lyricswikia
+                if nameofthesong not in title:
+                    print("%s was not the song you were looking for don't you ?" % nameofthesong)
                     continue
             except:
                 pass
             try:
                 lyrics = lyricwikia.get_lyrics(item.split(':')[0], item.split(':')[1])    
-                await self.safe_send_message(channel, "Lyric for " + item.split(':')[0] + " - " + item.split(':')[1])
+                await self.safe_send_message(channel, "Lyrics for " + item.split(':')[0] + " - " + item.split(':')[1])
                 n = 1985
                 for i in range(0, len(lyrics), n):
                     await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
-                return Response(":thumbsup:")
-            except:     #if it fails let's remove some part of the artist name
+                return
+            except:      
                 print("[Lyrics] Failed to get lyric from " + item)
                 try:
-                    count = 0
+                    count = 0 #don't mind me
                     artist = item.split(':')[0]
-                    for element in artist.split(' '):  #how much words in the artist name
+                    for element in artist.split(' '): 
                         count += 1                      
-                        artist = artist.split(' ')[0:-count] #remove word(s)
+                        artist = artist.split(' ')[0:-count]
                         artist = ' '.join(artist)
                         try:    
                             lyrics = lyricwikia.get_lyrics(artist, item.split(':')[1])    
                             await self.safe_send_message(channel, "Lyric for " + artist + " - " + item.split(':')[1])
                             n = 1985
                             for i in range(0, len(lyrics), n):
-                                await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
-                            return Response(":thumbsup:")
+                                await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```") #feel redundant
+                            return 
                         except:
                             pass
                 except:
