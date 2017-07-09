@@ -1630,6 +1630,31 @@ class MusicBot(discord.Client):
         songsResults = self.searchSong(player.current_entry.title)
 
         for item in songsResults:
+            name = item
+            pos= None
+            if '(' in name and not '[' in name: #optional it allows to remove the (hd) or (feat) from the title
+                pos = name.index('(') 
+            elif '[' in name and not '(' in name:
+                pos = tiem.index('[')
+            elif '(' in name and '[' in name:
+                pos = min(name.index('['), name.index('('))
+            if pos:
+                item = item[0:pos]
+            try:
+                nameofthesong = item.split(':')[1] 
+                nameofthesong = nameofthesong.split('/')[0]
+            except:
+                pass
+            try:    
+                nameofthesong = nameofthesong.split('`\\')[0] #fix the issue from lyricswikia
+            except:
+                pass
+            try:    
+                if nameofthesong not in player.current_entry.title: #check if it's not the good lyrics
+                    print('Not the good song... ' + nameofthesong) #it will spam if you don't remove it
+                    continue
+            except:
+                pass
             try:
                 lyrics = lyricwikia.get_lyrics(item.split(':')[0], item.split(':')[1])    
                 await self.safe_send_message(channel, "Lyric for " + item.split(':')[0] + " - " + item.split(':')[1])
@@ -1637,13 +1662,26 @@ class MusicBot(discord.Client):
                 for i in range(0, len(lyrics), n):
                     await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
                 return Response(":thumbsup:")
-            except IndexError:      
-                print("[Lyrics] Failed to get lyric from " + item)   
-            except Exception as inst:
-                if inst.args[0] != "Cannot download lyrics":
-                    print("[Lyrics] Unhandled exception occurred" + inst.args[0])
-            except:
-                raise
+            except:     #if it fails let's remove some part of the artist name
+                print("[Lyrics] Failed to get lyric from " + item)
+                try:
+                    count = 0
+                    artist = item.split(':')[0]
+                    for element in artist.split(' '):  #how much words in the artist name
+                        count += 1                      
+                        artist = artist.split(' ')[0:-count] #remove word(s)
+                        artist = ' '.join(artist)
+                        try:    
+                            lyrics = lyricwikia.get_lyrics(artist, item.split(':')[1])    
+                            await self.safe_send_message(channel, "Lyric for " + artist + " - " + item.split(':')[1])
+                            n = 1985
+                            for i in range(0, len(lyrics), n):
+                                await self.safe_send_message(channel, "```" + lyrics[i:i+n] + "```")
+                            return Response(":thumbsup:")
+                        except:
+                            pass
+                except:
+                    continue 
 
         return Response("Could not find the lyric")
 			
