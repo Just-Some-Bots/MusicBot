@@ -394,7 +394,7 @@ class MusicBot(discord.Client):
 
             if self.config.now_playing_mentions:
                 usermsg = '{}'.format(entry.meta['author'].mention)
-                newmsg = discord.Embed(title='Your song is now playing in {}!'.format(player.voice_client.channel.name), description='```md\n Song Name: <{}>\n Song Length: <{}>```'.format(
+                newmsg = discord.Embed(title='Your song is now playing in {}!'.format(player.voice_client.channel.name), description='```ini\n Song Name: [{}]\n Song Length: [{}]```'.format(
 				    entry.title, str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')) ,colour=0x00FFFF)
                 newmsg.set_thumbnail(url='https://cdn.pixabay.com/photo/2017/01/09/20/11/music-1967480_960_720.png')
                 newmsg.set_footer(text='Bot Originally Created By sexualrhinocerous Discord.py V0.12.0. Updated And Ran By Vibs Discord.py V0.16.8')
@@ -1488,6 +1488,7 @@ class MusicBot(discord.Client):
         if 0 < new_volume <= 100:
             player.volume = new_volume / 100.0
             newmsg = discord.Embed(title='Volume Changed!'.format(player.voice_client.channel.name), description='The Volume Was Changed From {} To {}'.format(old_volume, new_volume) ,colour=0x22FF00)
+            newmsg.set_thumbnail(url='http://www.free-icons-download.net/images/audio-wave-icon-61276.png')
             #return Response('```cs\n#updated volume from %d to %d ```' % (old_volume, new_volume), reply=True, delete_after=20)
             self.server_specific_data[channel.server]['last_np_msg'] = await self.send_message(channel, embed=newmsg)
 
