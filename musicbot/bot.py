@@ -34,7 +34,7 @@ from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-
+client = discord.Client()
 load_opus_lib()
 
 
@@ -55,8 +55,7 @@ class SkipState:
         self.skippers.add(skipper)
         self.skip_msgs.add(msg)
         return self.skip_count
-
-
+		
 class Response:
     def __init__(self, content, reply=False, delete_after=0):
         self.content = content
@@ -2035,6 +2034,18 @@ class MusicBot(discord.Client):
             self.server_specific_data[channel.server]['last_np_msg'] = await self.send_message(channel, alertmsg, embed=newmsg)
         else:
             return Response("Please Enter A Stream Name")
+    
+    @client.event
+    async def on_member_join(self, member):
+        server = member.server
+        fmt = 'Welcome {0.mention}!'
+        msgwelcome = discord.Embed(title='{}'.format(server), description='```ini\n [{} Would Like To Welcome You! This Server Is For Anyone! Many Diffrent Communities Are Based In Here, From Competitive Gamers, To Coders And Graphic Artist! We Hope You Enjoy Your Time Here!]```'.format(server) ,colour=0x00FFFF)
+        msgwelcome.set_image(url='http://www.pngmart.com/files/3/Welcome-PNG-File.png')
+        msgwelcome.set_footer(text='Bot Developed By Vibs. Owner Of Discord Channel MemeSquad')
+        roles = discord.utils.get(server.roles, id=self.config.auto_groupid)
+        await self.add_roles(member, roles)
+        await self.send_message(server, fmt.format(member), embed=msgwelcome)
+
 if __name__ == '__main__':
     bot = MusicBot()
     bot.run()
