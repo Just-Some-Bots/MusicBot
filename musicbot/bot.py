@@ -2044,7 +2044,7 @@ class MusicBot(discord.Client):
             msgwelcome = discord.Embed(title='{}'.format(server), description='```ini\n [{} Would Like To Welcome You! This Server Is For Anyone! Many Diffrent Communities Are Based In Here, From Competitive Gamers, To Coders And Graphic Artist! We Hope You Enjoy Your Time Here!]```'.format(server) ,colour=0x00FFFF)
             msgwelcome.set_image(url='http://www.pngmart.com/files/3/Welcome-PNG-File.png')
             msgwelcome.set_footer(text='Bot Developed By Vibs. Owner Of Discord Channel MemeSquad')
-			await self.send_message(server, fmt.format(member), embed=msgwelcome)
+            await self.send_message(server, fmt.format(member), embed=msgwelcome)
         roles = discord.utils.get(server.roles, id=self.config.auto_groupid)
         await self.add_roles(member, roles)
 if __name__ == '__main__':
