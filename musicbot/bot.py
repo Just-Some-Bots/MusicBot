@@ -689,6 +689,7 @@ class MusicBot(discord.Client):
         print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
         print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
         print("  Auto-Welcome: " + ['Disabled', 'Enabled'][self.config.auto_welcome])
+        print("  Auto-Group: " + ['Disabled', 'Enabled'][self.config.auto_groupenable])
         print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
@@ -2041,12 +2042,14 @@ class MusicBot(discord.Client):
         if self.config.auto_welcome:
             server = member.server
             fmt = 'Welcome {0.mention}!'
-            msgwelcome = discord.Embed(title='{}'.format(server), description='```ini\n [{} Would Like To Welcome You! This Server Is For Anyone! Many Diffrent Communities Are Based In Here, From Competitive Gamers, To Coders And Graphic Artist! We Hope You Enjoy Your Time Here!]```'.format(server) ,colour=0x00FFFF)
+            servermessage = self.config.welcome_message.format(server)
+            msgwelcome = discord.Embed(title='{}'.format(server), description='```ini\n [{}]```'.format(servermessage) ,colour=0x00FFFF)
             msgwelcome.set_image(url='http://www.pngmart.com/files/3/Welcome-PNG-File.png')
             msgwelcome.set_footer(text='Bot Developed By Vibs. Owner Of Discord Channel MemeSquad')
             await self.send_message(server, fmt.format(member), embed=msgwelcome)
-        roles = discord.utils.get(server.roles, id=self.config.auto_groupid)
-        await self.add_roles(member, roles)
+        if self.config.auto_groupenable:
+            roles = discord.utils.get(server.roles, id=self.config.auto_groupid)
+            await self.add_roles(member, roles)
 if __name__ == '__main__':
     bot = MusicBot()
     bot.run()
