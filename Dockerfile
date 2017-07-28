@@ -1,6 +1,6 @@
 FROM ubuntu:14.04
 
-MAINTAINER Sidesplitter, https://github.com/SexualRhinoceros/MusicBot
+MAINTAINER Sidesplitter, https://github.com/Just-Some-Bots/MusicBot
 
 #Install dependencies
 RUN sudo apt-get update \
@@ -23,7 +23,8 @@ RUN sudo apt-get install wget \
 ADD . /musicBot
 WORKDIR /musicBot
 
-#Install PIP dependencies
+#Update PIP and install dependencies
+RUN sudo python3.5 -m pip install --upgrade pip
 RUN sudo pip install -r requirements.txt
 
 #Add volume for configuration
