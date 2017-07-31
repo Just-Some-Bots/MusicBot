@@ -15,6 +15,8 @@ import asyncio
 import traceback
 import datetime
 import random
+import requests
+import re
 
 """
 
@@ -824,7 +826,6 @@ class MusicBot(discord.Client):
         msg = "Hello %s! How are you doing today?" % author.mention
         return Response(msg, reply=False, delete_after=30)
 
-    #TODO: use user_mentions provided by the command handler instead of taking message.mentions
     async def cmd_hug(self, author, user_mentions):
         """
         Usage:
@@ -852,6 +853,9 @@ class MusicBot(discord.Client):
     async def cmd_yikes(self, message):
         return Response("Yikes! 😬", reply=False, delete_after=30)
 
+    async def cmd_shrug(self, message):
+        return Response("¯\_(ツ)_/¯", reply=False, delete_after=30)
+
     async def cmd_roll(self, author, num=None):
         if num:
             try:
@@ -865,6 +869,7 @@ class MusicBot(discord.Client):
         msg = "%s rolled a " % author.mention + str(answer)
         return Response(msg, reply=False, delete_after=30)
 
+    #TODO: Make aar persist through shutdown/restart (tough)
     @owner_only
     async def cmd_aar(self, channel, server, role=None):
         """
@@ -879,7 +884,7 @@ class MusicBot(discord.Client):
             if role:
                 self.autorole[server] = role
                 self.autoassignrole = True
-                await self.safe_send_message(channel, "Enabled autorole in %s with %s" % (server,role), expire_in=20)
+                return Response("Enabled autorole in %s with %s" % (server,role), reply=False, delete_after=20)
 
             else:
                 #oops, can't find that role. Try again
@@ -890,7 +895,7 @@ class MusicBot(discord.Client):
 
         elif self.autoassignrole:
             self.autoassignrole = False
-            await self.safe_send_message(channel, "Autorole disabled", expire_in=20)
+            return Response("Autorole disabled", reply=False, delete_after=20)
         #print(self.autorole)
 
     async def cmd_purge(self, channel, message, num=None):
@@ -909,7 +914,8 @@ class MusicBot(discord.Client):
             msg = str(num) + " message(s) purged."
             return Response(msg, reply=False, delete_after=20)
 
-    async def cmd_mute(self, channel, message, time=None):
+    #TODO: Add unmute command, allow timed mutes
+    async def cmd_mute(self, author, channel, message, time=None):
         """
         Usage:
             {command_prefix}mute [user_mentions] [time]
@@ -917,14 +923,33 @@ class MusicBot(discord.Client):
         Length is not implemented yet.
         """
         for member in message.mentions:
-            if member.id == self.user.id: #jenky member/userness
-                raise exceptions.CommandError("Cannot mute myself!", expire_in=20)
+            if member.id in (self.user.id, author.id, owner.id): #jenky member/userness
+                raise exceptions.CommandError("You cannot perform this command on this user.", expire_in=20)
             overwrite = discord.PermissionOverwrite()
             if channel.overwrites_for(member).send_messages == None or channel.overwrites_for(member).send_messages:
                 overwrite.send_messages = False
+                await self.edit_channel_permissions(channel, member, overwrite)
             else:
+                raise exceptions.CommandError("User already muted!", expire_in=20)
+
+    #TODO: Add unmute command, allow timed mutes
+    async def cmd_unmute(self, channel, message):
+        """
+        Usage:
+            {command_prefix}mute [user_mentions] [time]
+        Mutes the specified users. Length of mute is optional.
+        Length is not implemented yet.
+        """
+        for member in message.mentions:
+            if member.id in (self.user.id, author.id, owner.id): #jenky member/userness
+                raise exceptions.CommandError("You cannot perform this command on this user.", expire_in=20)
+            overwrite = discord.PermissionOverwrite()
+            if not channel.overwrites_for(member).send_messages:
                 overwrite.send_messages = True
-            await self.edit_channel_permissions(channel, member, overwrite)
+                await self.edit_channel_permissions(channel, member, overwrite)
+            else:
+                raise exceptions.CommandError("User not muted!", expire_in=20)
+              
     """ 
     # Debugging purpose
     async def cmd_getroles(self, author):
@@ -1043,7 +1068,14 @@ class MusicBot(discord.Client):
                     timezone2_minute = 0
 
                 #Catch all the different scenarios that could happen
-                if timezone1_hour < 0 and timezone2_hour < 0:
+                if timezone1_hour == 0:
+                    difference = timezone2_hour
+                elif timezone2_hour == 0:
+                    if timezone1_hour < timezone2_hour:
+                        difference = abs(timezone1_hour)
+                    elif timezone1_hour > timezone2_hour:
+                        difference = -timezone1_hour
+                elif timezone1_hour < 0 and timezone2_hour < 0:
                     difference = abs(timezone1_hour) - abs(timezone2_hour)
                 elif timezone1_hour < 0 and timezone2_hour > 0:
                     difference = abs(timezone1_hour) + abs(timezone2_hour)
@@ -1051,10 +1083,6 @@ class MusicBot(discord.Client):
                     difference = -(abs(timezone1_hour) + abs(timezone2_hour))
                 elif timezone1_hour > 0 and timezone2_hour > 0:
                     difference = abs(timezone1_hour - timezone2_hour)
-                elif timezone1_hour == 0:
-                    difference = timezone2_hour
-                elif timezone2_hour == 0:
-                    difference = timezone1_hour
                 difference_minute = (timezone1_minute + timezone2_minute) % 60
                 #print(difference)
                 #print(difference_minute)
@@ -2520,18 +2548,22 @@ class MusicBot(discord.Client):
     async def on_message(self, message):
         await self.wait_until_ready()
 
-        message_content = message.content.strip()
-        print(message_content)
-        if "281807963147075584" in message.raw_mentions and message.author != self.user: 
-            msg = ["Hello!", "Hiya!", "Sigma-chan reporting for duty!", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Ahh, you scared me ;_;", "Hiya! :wave:", "Hi there, %s :gift_heart:" % message.author.mention]
-            await self.safe_send_message(message.channel, random.choice(msg)) 
+        message_content = message.content.strip() 
+        #print(message_content)
 
-        #place anything you want not to be channel bound before this comment
+        if "281807963147075584" in message.raw_mentions and message.author != self.user:  
+            parsedmessage = re.sub('<@!?\d{18}>', '', message_content).strip()
+            #msg = ["Hello!", "Hiya!", "Let me pull out my pocketknife here...", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Boo.", "Hi there, %s. Need me to kill anyone?" % message.author.mention]
+            link = "http://api.program-o.com/v2/chatbot/?bot_id=6&say=%s&convo_id=discordbot_1&format=json" % parsedmessage
+            try:
+                r = requests.get(link, timeout=10)
+                print(r.status_code)
+                botsay = r.json()["botsay"]
+            except:
+                botsay = "I don't feel like talking right now."
+            await self.safe_send_message(message.channel, botsay)
+
         if not message_content.startswith(self.config.command_prefix):
-            return
-
-        if message.author == self.user:
-            self.safe_print("Ignoring command from myself (%s)" % message.content)
             return
 
         command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
@@ -2540,6 +2572,11 @@ class MusicBot(discord.Client):
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private and command in self.config.bound_commands:
             return  # if I want to log this I just move it under the prefix check
+
+        #place anything you want not to be channel bound before this comment
+        if message.author == self.user:
+            self.safe_print("Ignoring command from myself (%s)" % message.content)
+            return 
 
         handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
@@ -2648,7 +2685,7 @@ class MusicBot(discord.Client):
 
                 sentmsg = await self.safe_send_message(
                     message.channel, content,
-                    expire_in=response.delete_after if self.config.delete_messages else 0,
+                    expire_in=response.delete_after if self.config.delete_messages and command not in self.config.retain_commands else 0,
                     also_delete=message if self.config.delete_invoking and command not in self.config.retain_commands else None
                 )
 
