@@ -61,11 +61,14 @@ class Config:
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
 
         self.auth = None
+        
+        self.welcome_message = config.get('MusicBot', 'welcomemsg', fallback=ConfigDefaults.welcome_message)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.auto_groupid = config.get('Chat', 'AutogroupID', fallback=ConfigDefaults.owner_id)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -73,6 +76,8 @@ class Config:
         self.save_videos = config.getboolean('MusicBot', 'SaveVideos', fallback=ConfigDefaults.save_videos)
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
+        self.auto_welcome = config.getboolean('MusicBot', 'AutoWelcome', fallback=ConfigDefaults.auto_welcome)
+        self.auto_groupenable = config.getboolean('Chat', 'autogroupenable', fallback=ConfigDefaults.auto_groupenable)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
@@ -182,12 +187,15 @@ class ConfigDefaults:
     save_videos = True
     now_playing_mentions = False
     auto_summon = True
+    auto_groupenable = False
+    auto_welcome = True
     auto_playlist = True
     auto_pause = True
     delete_messages = True
     delete_invoking = False
     debug_mode = False
 
+    welcome_message = "Hope You Enjoy Our Discord Server! {}"
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists

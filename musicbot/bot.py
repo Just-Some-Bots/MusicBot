@@ -34,7 +34,7 @@ from .opus_loader import load_opus_lib
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-
+client = discord.Client()
 load_opus_lib()
 
 
@@ -55,8 +55,7 @@ class SkipState:
         self.skippers.add(skipper)
         self.skip_msgs.add(msg)
         return self.skip_count
-
-
+		
 class Response:
     def __init__(self, content, reply=False, delete_after=0):
         self.content = content
@@ -394,7 +393,7 @@ class MusicBot(discord.Client):
 
             if self.config.now_playing_mentions:
                 usermsg = '{}'.format(entry.meta['author'].mention)
-                newmsg = discord.Embed(title='Your song is now playing in {}!'.format(player.voice_client.channel.name), description='```md\n Song Name: <{}>\n Song Length: <{}>```'.format(
+                newmsg = discord.Embed(title='Your song is now playing in {}!'.format(player.voice_client.channel.name), description='```ini\n Song Name: [{}]\n Song Length: [{}]```'.format(
 				    entry.title, str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')) ,colour=0x00FFFF)
                 newmsg.set_thumbnail(url='https://cdn.pixabay.com/photo/2017/01/09/20/11/music-1967480_960_720.png')
                 newmsg.set_footer(text='Bot Originally Created By sexualrhinocerous Discord.py V0.12.0. Updated And Ran By Vibs Discord.py V0.16.8')
@@ -689,6 +688,8 @@ class MusicBot(discord.Client):
             self.config.skips_required, self._fixg(self.config.skip_ratio_required * 100)))
         print("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
         print("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
+        print("  Auto-Welcome: " + ['Disabled', 'Enabled'][self.config.auto_welcome])
+        print("  Auto-Group: " + ['Disabled', 'Enabled'][self.config.auto_groupenable])
         print("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
         print("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         print("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
@@ -750,7 +751,7 @@ class MusicBot(discord.Client):
                 return Response("No such command")
 
         else:
-            helpmsg = discord.Embed(title='Heres All The Commands', description='```cs\n !blacklist, !clean, !clear, !disconnect, !id, !joinserver, !listids, !np, !pause, !perms, !play, !pldump, !queue, !restart, !resume, !search, !setavatar, !setname, !setnick, !shuffle, !shutdown, !skip, !summon, !volume```',colour=0xAB0000)
+            helpmsg = discord.Embed(title='Heres All The Commands', description='```cs\n !blacklist, !clean, !clear, !disconnect, !id, !joinserver, !listids, !np, !pause, !perms, !play, !pldump, !queue, !restart, !resume, !search, !setavatar, !setname, !setnick, !shuffle, !shutdown, !skip, !summon, !volume, !meow, !stream```',colour=0xAB0000)
             helpmsg.set_thumbnail(url='http://www.freeiconspng.com/uploads/help-icon-3.png')
             self.server_specific_data[channel.server]['last_np_msg'] = await self.send_message(channel, embed=helpmsg)
             #return Response(Embed=helpmsg, reply=True,)
@@ -1488,6 +1489,7 @@ class MusicBot(discord.Client):
         if 0 < new_volume <= 100:
             player.volume = new_volume / 100.0
             newmsg = discord.Embed(title='Volume Changed!'.format(player.voice_client.channel.name), description='The Volume Was Changed From {} To {}'.format(old_volume, new_volume) ,colour=0x22FF00)
+            newmsg.set_thumbnail(url='http://www.freeiconspng.com/uploads/sound-off-music-mute-off-sound-speaker-volume-icon-16.png')
             #return Response('```cs\n#updated volume from %d to %d ```' % (old_volume, new_volume), reply=True, delete_after=20)
             self.server_specific_data[channel.server]['last_np_msg'] = await self.send_message(channel, embed=newmsg)
 
@@ -2010,7 +2012,44 @@ class MusicBot(discord.Client):
 
             await self.reconnect_voice_client(after)
 
+    async def cmd_meow(self, channel):
+        """
+        Usage:
+            {command_prefix}meow
 
+        Scare Away Cats!
+        """
+        newmsg = discord.Embed(title='PUPPER ALERTED!', description='```ini\n [BORK BORK BORK BORK BORK]```',colour=0x00FFFF)
+        newmsg.set_thumbnail(url='http://pre04.deviantart.net/7b91/th/pre/i/2015/158/4/3/bork__by_chiibe-d8wehj6.png')
+        self.server_specific_data[channel.server]['last_np_msg'] = await self.send_message(channel, embed=newmsg)
+    async def cmd_stream(self, channel, streamname=None):
+        """
+        Usage:
+            {command_prefix}stream
+
+        Alert Someone Is Live
+        """
+        if streamname:
+            alertmsg = '@everyone https://www.twitch.tv/{}'.format(streamname)
+            newmsg = discord.Embed(title='Twitch.tv', description='```ini\n [{} Is Live On Twitch]```'.format(streamname) ,colour=0x00FFFF)
+            newmsg.set_thumbnail(url='https://www.shareicon.net/data/128x128/2016/11/14/852244_twitch_512x512.png')
+            self.server_specific_data[channel.server]['last_np_msg'] = await self.send_message(channel, alertmsg, embed=newmsg)
+        else:
+            return Response("Please Enter A Stream Name")
+    
+    @client.event
+    async def on_member_join(self, member):
+        if self.config.auto_welcome:
+            server = member.server
+            fmt = 'Welcome {0.mention}!'
+            servermessage = self.config.welcome_message.format(server)
+            msgwelcome = discord.Embed(title='{}'.format(server), description='```ini\n [{}]```'.format(servermessage) ,colour=0x00FFFF)
+            msgwelcome.set_image(url='http://www.pngmart.com/files/3/Welcome-PNG-File.png')
+            msgwelcome.set_footer(text='Bot Developed By Vibs. Owner Of Discord Channel MemeSquad')
+            await self.send_message(server, fmt.format(member), embed=msgwelcome)
+        if self.config.auto_groupenable:
+            roles = discord.utils.get(server.roles, id=self.config.auto_groupid)
+            await self.add_roles(member, roles)
 if __name__ == '__main__':
     bot = MusicBot()
     bot.run()
