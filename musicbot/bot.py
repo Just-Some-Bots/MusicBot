@@ -1,3 +1,8 @@
+"""
+
+Import python modules
+
+"""
 import os
 import sys
 import time
@@ -8,13 +13,27 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import datetime
+import random
+import requests
+import re
 
+"""
+
+Import discord.py
+
+"""
 from discord import utils
 from discord.object import Object
 from discord.enums import ChannelType
 from discord.voice_client import VoiceClient
 from discord.ext.commands.bot import _get_variable
 
+"""
+
+Import specific python modules
+
+""" 
 from io import BytesIO
 from functools import wraps
 from textwrap import dedent
@@ -22,6 +41,11 @@ from datetime import timedelta
 from random import choice, shuffle
 from collections import defaultdict
 
+"""
+
+Import other classes
+
+"""
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
@@ -76,6 +100,9 @@ class MusicBot(discord.Client):
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
 
         self.blacklist = set(load_file(self.config.blacklist_file))
+        self.ownerlock = False
+        self.autoassignrole = False
+        self.autorole = {"default": "default"} #rip can't have a NoneType dictionary :/
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -95,6 +122,11 @@ class MusicBot(discord.Client):
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 
+    """
+
+    Owner functions
+
+    """
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
@@ -217,6 +249,11 @@ class MusicBot(discord.Client):
 
         return discord.utils.oauth_url(self.cached_client_id, permissions=permissions, server=server)
 
+    """
+
+    Voice client
+
+    """
     async def get_voice_client(self, channel):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)
@@ -350,6 +387,11 @@ class MusicBot(discord.Client):
             await self.ws.send(utils.to_json(payload))
             self.the_voice_clients[server.id].channel = channel
 
+    """
+
+    Player
+
+    """
     async def get_player(self, channel, create=False) -> MusicPlayer:
         server = channel.server
 
@@ -381,6 +423,7 @@ class MusicBot(discord.Client):
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
+        thumbnail = entry.filename_thumbnail
 
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
@@ -400,7 +443,9 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
-                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, fp=thumbnail, send_if_fail=True)
+            elif thumbnail:
+                self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_file(channel, newmsg, thumbnail)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
@@ -467,6 +512,11 @@ class MusicBot(discord.Client):
         await self.change_status(game)
 
 
+    """
+
+    Safe sending, editing, and deleting messages
+
+    """
     async def safe_send_message(self, dest, content, *, tts=False, expire_in=0, also_delete=None, quiet=False):
         msg = None
         try:
@@ -488,6 +538,27 @@ class MusicBot(discord.Client):
 
         return msg
 
+    async def safe_send_file(self, dest, content, fp, *, tts=False, expire_in=0, also_delete=None, quiet=False, filename=None):
+        msg = None
+        try:
+            msg = await self.send_file(dest, fp, content=content, tts=tts)
+
+            if msg and expire_in:
+                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+
+            if also_delete and isinstance(also_delete, discord.Message):
+                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+
+        except discord.Forbidden:
+            if not quiet:
+                self.safe_print("Warning: Cannot send message or file to %s, no permission" % dest.name)
+
+        except discord.NotFound:
+            if not quiet:
+                self.safe_print("Warning: Cannot send message or file to %s, invalid channel?" % dest.name)
+
+        return msg
+
     async def safe_delete_message(self, message, *, quiet=False):
         try:
             return await self.delete_message(message)
@@ -500,7 +571,19 @@ class MusicBot(discord.Client):
             if not quiet:
                 self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
 
-    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
+    async def safe_delete_message(self, message, *, quiet=False):
+        try:
+            return await self.delete_message(message)
+
+        except discord.Forbidden:
+            if not quiet:
+                self.safe_print("Warning: Cannot delete message \"%s\", no permission" % message.clean_content)
+
+        except discord.NotFound:
+            if not quiet:
+                self.safe_print("Warning: Cannot delete message \"%s\", message not found" % message.clean_content)
+
+    async def safe_edit_message(self, message, new, *, fp=None, send_if_fail=False, quiet=False):
         try:
             return await self.edit_message(message, new)
 
@@ -510,6 +593,9 @@ class MusicBot(discord.Client):
             if send_if_fail:
                 if not quiet:
                     print("Sending instead")
+            if fp:
+                return await self.safe_send_file(message.channel, new, fp)
+            else:
                 return await self.safe_send_message(message.channel, new)
 
     def safe_print(self, content, *, end='\n', flush=True):
@@ -545,6 +631,11 @@ class MusicBot(discord.Client):
         except: # Can be ignored
             pass
 
+    """
+
+    Run, logout, on <state> methods
+
+    """
     # noinspection PyMethodOverriding
     def run(self):
         try:
@@ -718,13 +809,308 @@ class MusicBot(discord.Client):
                 print("Owner not found in a voice channel, could not autosummon.")
 
         print()
-        # t-t-th-th-that's all folks!
+        # no idea how to get this stupidity to send a message on startup
+        #await self.safe_send_message(self.get_channel(self.config.bound_channels), "*yawn* Ahh! Good morning, it's a great day to be alive! All ready to play music!", expire_in=20)
+    
+    """
 
-    async def cmd_help(self, command=None):
+    Custom Commands
+
+    """
+    async def cmd_hello(self, author):
+        """
+        Usage:
+            {command_prefix}hello
+        Talk to Sigma-chan!    
+        """
+        msg = "Hello %s! How are you doing today?" % author.mention
+        return Response(msg, reply=False, delete_after=30)
+
+    async def cmd_hug(self, author, user_mentions):
+        """
+        Usage:
+            {command_prefix}hug [recipient]
+        Hug somebody!
+        If no recipient is specified, Sigma-chan will hug you <3
+        """
+        if user_mentions and len(user_mentions) == 1:
+            msg = "%s hugged %s!" % (author.mention, user_mentions[0].mention)
+        elif user_mentions and len(user_mentions) > 1:
+            msg = "%s hugged " % author.mention
+            if len(user_mentions) == 2:
+                msg += "%s " % user_mentions[0].mention
+            else:
+                for i in range(len(user_mentions) - 1):
+                    msg += "%s, " % user_mentions[i].mention
+            msg += "and %s" % user_mentions[len(user_mentions) - 1].mention
+            #raise exceptions.CommandError(
+            #    'You are trying to hug too many people at once! Take it once at a time, please <3' , expire_in=20
+            #)
+        else:
+            msg = "Sigma-chan gives %s a soft hug <:heartmodern:328603582993661982>" % (author.mention)
+        return Response(msg, reply=False)
+
+    async def cmd_yikes(self, message):
+        return Response("Yikes! 😬", reply=False, delete_after=30)
+
+    async def cmd_shrug(self, message):
+        return Response("¯\_(ツ)_/¯", reply=False, delete_after=30)
+
+    async def cmd_roll(self, author, num=None):
+        if num:
+            try:
+                num = int(num)
+                answer = random.randint(0, num)
+                msg = "%s rolled a " % author.mention + str(answer) 
+                return Response(msg, reply=False, delete_after=30)
+            except ValueError:
+                pass
+        answer = random.randint(0, 100)
+        msg = "%s rolled a " % author.mention + str(answer)
+        return Response(msg, reply=False, delete_after=30)
+
+    #TODO: Make aar persist through shutdown/restart (tough)
+    @owner_only
+    async def cmd_aar(self, channel, server, role=None):
+        """
+        Usage:
+            {command_prefix}aar [role]
+        Enables auto assign role with a specific role. Server specific.
+        Owner only.
+        """
+        if role:
+            #Let's find the role
+            role = discord.utils.find(lambda r: r.name == role, server.roles)
+            if role:
+                self.autorole[server] = role
+                self.autoassignrole = True
+                return Response("Enabled autorole in %s with %s" % (server,role), reply=False, delete_after=20)
+
+            else:
+                #oops, can't find that role. Try again
+                raise exceptions.CommandError("Invalid role specified.", expire_in=20)
+
+        elif not self.autoassignrole:
+            raise exceptions.CommandError("Autorole is currently disabled. No role specified.", expire_in=20)
+
+        elif self.autoassignrole:
+            self.autoassignrole = False
+            return Response("Autorole disabled", reply=False, delete_after=20)
+        #print(self.autorole)
+
+    async def cmd_purge(self, channel, message, num=None):
+        """
+        Usage:
+            {command_prefix}purge [number]
+        Deletes the previous # of messages from the channel.
+        """
+        if num:
+            try:
+                num = int(num)
+            except ValueError:
+                raise exceptions.CommandError("Invalid number specified.", expire_in=20)
+
+            await self.purge_from(channel, limit=num, before=message)
+            msg = str(num) + " message(s) purged."
+            return Response(msg, reply=False, delete_after=20)
+
+    #TODO: Add unmute command, allow timed mutes
+    async def cmd_mute(self, author, channel, message, time=None):
+        """
+        Usage:
+            {command_prefix}mute [user_mentions] [time]
+        Mutes the specified users. Length of mute is optional.
+        Length is not implemented yet.
+        """
+        for member in message.mentions:
+            if member.id in (self.user.id, author.id, owner.id): #jenky member/userness
+                raise exceptions.CommandError("You cannot perform this command on this user.", expire_in=20)
+            overwrite = discord.PermissionOverwrite()
+            if channel.overwrites_for(member).send_messages == None or channel.overwrites_for(member).send_messages:
+                overwrite.send_messages = False
+                await self.edit_channel_permissions(channel, member, overwrite)
+            else:
+                raise exceptions.CommandError("User already muted!", expire_in=20)
+
+    #TODO: Add unmute command, allow timed mutes
+    async def cmd_unmute(self, channel, message):
+        """
+        Usage:
+            {command_prefix}mute [user_mentions] [time]
+        Mutes the specified users. Length of mute is optional.
+        Length is not implemented yet.
+        """
+        for member in message.mentions:
+            if member.id in (self.user.id, author.id, owner.id): #jenky member/userness
+                raise exceptions.CommandError("You cannot perform this command on this user.", expire_in=20)
+            overwrite = discord.PermissionOverwrite()
+            if not channel.overwrites_for(member).send_messages:
+                overwrite.send_messages = True
+                await self.edit_channel_permissions(channel, member, overwrite)
+            else:
+                raise exceptions.CommandError("User not muted!", expire_in=20)
+              
+    """ 
+    # Debugging purpose
+    async def cmd_getroles(self, author):
+        for role in author.roles:
+            print(role)
+        return Response("Printed roles to console", reply=False, delete_after=10)
+    """
+
+    async def cmd_time(self, timezone=None):
+        """
+        Usage:
+            {command_prefix}time [timezone]
+        Prints the current date and time in UTC.
+        If a timezone is specified, the time will be displayed in that timezone.
+        """
+        #Create a dictionary of timezones we can accpet
+        timezone_dict = {'ACDT': 'UTC+10:30', 'ACST': 'UTC+09:30', 'ACT': 'UTC-05', 'ADT': 'UTC-03', 'AEDT': 'UTC+11', 'AEST': 'UTC+10', 'AFT': 'UTC+04:30', 'AKDT': 'UTC-08', 'AKST': 'UTC-09', 'AMST': 'UTC-03', 'AMT': 'UTC-04', 'AMT': 'UTC+04', 'ART': 'UTC-03', 'AST': 'UTC+03', 'AST': 'UTC-04', 'AWST': 'UTC+08', 'AZOST': 'UTC±00', 'AZOT': 'UTC-01', 'AZT': 'UTC+04', 'BDT': 'UTC+08', 'BIOT': 'UTC+06', 'BIT': 'UTC-12', 'BOT': 'UTC-04', 'BRST': 'UTC-02', 'BRT': 'UTC-03', 'BST': 'UTC+06', 'BST': 'UTC+11', 'BST': 'UTC+01', 'BTT': 'UTC+06', 'CAT': 'UTC+02', 'CCT': 'UTC+06:30', 'CDT': 'UTC-05', 'CDT': 'UTC-04', 'CEST': 'UTC+02', 'CET': 'UTC+01', 'CHADT': 'UTC+13:45', 'CHAST': 'UTC+12:45', 'CHOT': 'UTC+08', 'CHOST': 'UTC+09', 'CHST': 'UTC+10', 'CHUT': 'UTC+10', 'CIST': 'UTC-08', 'CIT': 'UTC+08', 'CKT': 'UTC-10', 'CLST': 'UTC-03', 'CLT': 'UTC-04', 'COST': 'UTC-04', 'COT': 'UTC-05', 'CST': 'UTC-06', 'CST': 'UTC+08', 'ACST': 'UTC+09:30', 'ACDT': 'UTC+10:30', 'CST': 'UTC-05', 'CT': 'UTC+08', 'CVT': 'UTC-01', 'CWST': 'UTC+08:45', 'CXT': 'UTC+07', 'DAVT': 'UTC+07', 'DDUT': 'UTC+10', 'DFT': 'UTC+01', 'EASST': 'UTC-05', 'EAST': 'UTC-06', 'EAT': 'UTC+03', 'ECT': 'UTC-04', 'ECT': 'UTC-05', 'EDT': 'UTC-04', 'AEDT': 'UTC+11', 'EEST': 'UTC+03', 'EET': 'UTC+02', 'EGST': 'UTC±00', 'EGT': 'UTC-01', 'EIT': 'UTC+09', 'EST': 'UTC-05', 'AEST': 'UTC+10', 'FET': 'UTC+03', 'FJT': 'UTC+12', 'FKST': 'UTC-03', 'FKT': 'UTC-04', 'FNT': 'UTC-02', 'GALT': 'UTC-06', 'GAMT': 'UTC-09', 'GET': 'UTC+04', 'GFT': 'UTC-03', 'GILT': 'UTC+12', 'GIT': 'UTC-09', 'GMT': 'UTC±00', 'GST': 'UTC-02', 'GST': 'UTC+04', 'GYT': 'UTC-04', 'HADT': 'UTC-09', 'HAEC': 'UTC+02', 'HAST': 'UTC-10', 'HKT': 'UTC+08', 'HMT': 'UTC+05', 'HOVST': 'UTC+08', 'HOVT': 'UTC+07', 'ICT': 'UTC+07', 'IDT': 'UTC+03', 'IOT': 'UTC+03', 'IRDT': 'UTC+04:30', 'IRKT': 'UTC+08', 'IRST': 'UTC+03:30', 'IST': 'UTC+05:30', 'IST': 'UTC+01', 'IST': 'UTC+02', 'JST': 'UTC+09', 'KGT': 'UTC+06', 'KOST': 'UTC+11', 'KRAT': 'UTC+07', 'KST': 'UTC+09', 'LHST': 'UTC+10:30', 'LHST': 'UTC+11', 'LINT': 'UTC+14', 'MAGT': 'UTC+12', 'MART': 'UTC-09:30', 'MAWT': 'UTC+05', 'MDT': 'UTC-06', 'MET': 'UTC+01', 'MEST': 'UTC+02', 'MHT': 'UTC+12', 'MIST': 'UTC+11', 'MIT': 'UTC-09:30', 'MMT': 'UTC+06:30', 'MSK': 'UTC+03', 'MST': 'UTC+08', 'MST': 'UTC-07', 'MUT': 'UTC+04', 'MVT': 'UTC+05', 'MYT': 'UTC+08', 'NCT': 'UTC+11', 'NDT': 'UTC-02:30', 'NFT': 'UTC+11', 'NPT': 'UTC+05:45', 'NST': 'UTC-03:30', 'NT': 'UTC-03:30', 'NUT': 'UTC-11', 'NZDT': 'UTC+13', 'NZST': 'UTC+12', 'OMST': 'UTC+06', 'ORAT': 'UTC+05', 'PDT': 'UTC-07', 'PET': 'UTC-05', 'PETT': 'UTC+12', 'PGT': 'UTC+10', 'PHOT': 'UTC+13', 'PHT': 'UTC+08', 'PKT': 'UTC+05', 'PMDT': 'UTC-02', 'PMST': 'UTC-03', 'PONT': 'UTC+11', 'PST': 'UTC-08', 'PST': 'UTC+08', 'PYST': 'UTC-03', 'PYT': 'UTC-04', 'RET': 'UTC+04', 'ROTT': 'UTC-03', 'SAKT': 'UTC+11', 'SAMT': 'UTC+04', 'SAST': 'UTC+02', 'SBT': 'UTC+11', 'SCT': 'UTC+04', 'SGT': 'UTC+08', 'SLST': 'UTC+05:30', 'SRET': 'UTC+11', 'SRT': 'UTC-03', 'SST': 'UTC-11', 'SST': 'UTC+08', 'SYOT': 'UTC+03', 'TAHT': 'UTC-10', 'THA': 'UTC+07', 'TFT': 'UTC+05', 'TJT': 'UTC+05', 'TKT': 'UTC+13', 'TLT': 'UTC+09', 'TMT': 'UTC+05', 'TRT': 'UTC+03', 'TOT': 'UTC+13', 'TVT': 'UTC+12', 'ULAST': 'UTC+09', 'ULAT': 'UTC+08', 'USZ1': 'UTC+02', 'UTC': 'UTC±00', 'UYST': 'UTC-02', 'UYT': 'UTC-03', 'UZT': 'UTC+05', 'VET': 'UTC-04', 'VLAT': 'UTC+10', 'VOLT': 'UTC+04', 'VOST': 'UTC+06', 'VUT': 'UTC+11', 'WAKT': 'UTC+12', 'WAST': 'UTC+02', 'WAT': 'UTC+01', 'WEST': 'UTC+01', 'WET': 'UTC±00', 'WIT': 'UTC+07', 'WST': 'UTC+08', 'YAKT': 'UTC+09', 'YEKT': 'UTC+05'}
+        
+        #Get current time in UTC.
+        current_time = datetime.datetime.utcnow()
+       
+        #If a timezone is specified let's convert time into that timezone.
+        if timezone:
+            #If UTC is in the timezone we don't need to do any of this conversion stuff
+            if "UTC" in timezone:
+                    pass
+            else:
+                #Let's convert the abbreviation into UTC format
+                try:
+                    timezone = timezone_dict[timezone]
+                except KeyError:
+                    raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+            #Take care of those pesky 30 or 45 minute intervals that some timezones have (I'm looking at you, NST :/)
+            if ":" in timezone:
+                timezone_parsed = timezone.split(":")
+                timezone_hour = timezone_parsed[0]
+                timezone_minute = timezone_parsed[1]
+                try:
+                    hour = int(timezone_hour[3:len(timezone_hour)])
+                    minute = int(timezone_minute)
+                except ValueError:
+                    raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+                 
+                current_time = current_time + timedelta(hours=hour, minutes=minute)
+            else:
+                try:
+                    hour = int(timezone[3:len(timezone)])
+                except ValueError:
+                    raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+
+                current_time = current_time + timedelta(hours=hour)
+        else:
+            timezone = "UTC"
+            
+        current_time = current_time.strftime('%Y-%m-%d | %H:%M ' + timezone)
+        msg = "The current time is: " + current_time
+        return Response(msg, reply=True, delete_after=30)
+
+    async def cmd_tconvert(self, time_in=None, timezone1=None, timezone2=None):
+        """
+        Usage:
+            {command_prefix}tconvert [time] [timezone_from] [timezone_to]
+            Convert a time from one timezone to another.
+            The first timezone is the original timezone the time is in.
+            The second timezone is the timezone you wish to convert to.
+        """
+        timezone_dict = {'ACDT': 'UTC+10:30', 'ACST': 'UTC+09:30', 'ACT': 'UTC-05', 'ADT': 'UTC-03', 'AEDT': 'UTC+11', 'AEST': 'UTC+10', 'AFT': 'UTC+04:30', 'AKDT': 'UTC-08', 'AKST': 'UTC-09', 'AMST': 'UTC-03', 'AMT': 'UTC-04', 'AMT': 'UTC+04', 'ART': 'UTC-03', 'AST': 'UTC+03', 'AST': 'UTC-04', 'AWST': 'UTC+08', 'AZOST': 'UTC±00', 'AZOT': 'UTC-01', 'AZT': 'UTC+04', 'BDT': 'UTC+08', 'BIOT': 'UTC+06', 'BIT': 'UTC-12', 'BOT': 'UTC-04', 'BRST': 'UTC-02', 'BRT': 'UTC-03', 'BST': 'UTC+06', 'BST': 'UTC+11', 'BST': 'UTC+01', 'BTT': 'UTC+06', 'CAT': 'UTC+02', 'CCT': 'UTC+06:30', 'CDT': 'UTC-05', 'CDT': 'UTC-04', 'CEST': 'UTC+02', 'CET': 'UTC+01', 'CHADT': 'UTC+13:45', 'CHAST': 'UTC+12:45', 'CHOT': 'UTC+08', 'CHOST': 'UTC+09', 'CHST': 'UTC+10', 'CHUT': 'UTC+10', 'CIST': 'UTC-08', 'CIT': 'UTC+08', 'CKT': 'UTC-10', 'CLST': 'UTC-03', 'CLT': 'UTC-04', 'COST': 'UTC-04', 'COT': 'UTC-05', 'CST': 'UTC-06', 'CST': 'UTC+08', 'ACST': 'UTC+09:30', 'ACDT': 'UTC+10:30', 'CST': 'UTC-05', 'CT': 'UTC+08', 'CVT': 'UTC-01', 'CWST': 'UTC+08:45', 'CXT': 'UTC+07', 'DAVT': 'UTC+07', 'DDUT': 'UTC+10', 'DFT': 'UTC+01', 'EASST': 'UTC-05', 'EAST': 'UTC-06', 'EAT': 'UTC+03', 'ECT': 'UTC-04', 'ECT': 'UTC-05', 'EDT': 'UTC-04', 'AEDT': 'UTC+11', 'EEST': 'UTC+03', 'EET': 'UTC+02', 'EGST': 'UTC±00', 'EGT': 'UTC-01', 'EIT': 'UTC+09', 'EST': 'UTC-05', 'AEST': 'UTC+10', 'FET': 'UTC+03', 'FJT': 'UTC+12', 'FKST': 'UTC-03', 'FKT': 'UTC-04', 'FNT': 'UTC-02', 'GALT': 'UTC-06', 'GAMT': 'UTC-09', 'GET': 'UTC+04', 'GFT': 'UTC-03', 'GILT': 'UTC+12', 'GIT': 'UTC-09', 'GMT': 'UTC+00', 'GST': 'UTC-02', 'GST': 'UTC+04', 'GYT': 'UTC-04', 'HADT': 'UTC-09', 'HAEC': 'UTC+02', 'HAST': 'UTC-10', 'HKT': 'UTC+08', 'HMT': 'UTC+05', 'HOVST': 'UTC+08', 'HOVT': 'UTC+07', 'ICT': 'UTC+07', 'IDT': 'UTC+03', 'IOT': 'UTC+03', 'IRDT': 'UTC+04:30', 'IRKT': 'UTC+08', 'IRST': 'UTC+03:30', 'IST': 'UTC+05:30', 'IST': 'UTC+01', 'IST': 'UTC+02', 'JST': 'UTC+09', 'KGT': 'UTC+06', 'KOST': 'UTC+11', 'KRAT': 'UTC+07', 'KST': 'UTC+09', 'LHST': 'UTC+10:30', 'LHST': 'UTC+11', 'LINT': 'UTC+14', 'MAGT': 'UTC+12', 'MART': 'UTC-09:30', 'MAWT': 'UTC+05', 'MDT': 'UTC-06', 'MET': 'UTC+01', 'MEST': 'UTC+02', 'MHT': 'UTC+12', 'MIST': 'UTC+11', 'MIT': 'UTC-09:30', 'MMT': 'UTC+06:30', 'MSK': 'UTC+03', 'MST': 'UTC+08', 'MST': 'UTC-07', 'MUT': 'UTC+04', 'MVT': 'UTC+05', 'MYT': 'UTC+08', 'NCT': 'UTC+11', 'NDT': 'UTC-02:30', 'NFT': 'UTC+11', 'NPT': 'UTC+05:45', 'NST': 'UTC-03:30', 'NT': 'UTC-03:30', 'NUT': 'UTC-11', 'NZDT': 'UTC+13', 'NZST': 'UTC+12', 'OMST': 'UTC+06', 'ORAT': 'UTC+05', 'PDT': 'UTC-07', 'PET': 'UTC-05', 'PETT': 'UTC+12', 'PGT': 'UTC+10', 'PHOT': 'UTC+13', 'PHT': 'UTC+08', 'PKT': 'UTC+05', 'PMDT': 'UTC-02', 'PMST': 'UTC-03', 'PONT': 'UTC+11', 'PST': 'UTC-08', 'PST': 'UTC+08', 'PYST': 'UTC-03', 'PYT': 'UTC-04', 'RET': 'UTC+04', 'ROTT': 'UTC-03', 'SAKT': 'UTC+11', 'SAMT': 'UTC+04', 'SAST': 'UTC+02', 'SBT': 'UTC+11', 'SCT': 'UTC+04', 'SGT': 'UTC+08', 'SLST': 'UTC+05:30', 'SRET': 'UTC+11', 'SRT': 'UTC-03', 'SST': 'UTC-11', 'SST': 'UTC+08', 'SYOT': 'UTC+03', 'TAHT': 'UTC-10', 'THA': 'UTC+07', 'TFT': 'UTC+05', 'TJT': 'UTC+05', 'TKT': 'UTC+13', 'TLT': 'UTC+09', 'TMT': 'UTC+05', 'TRT': 'UTC+03', 'TOT': 'UTC+13', 'TVT': 'UTC+12', 'ULAST': 'UTC+09', 'ULAT': 'UTC+08', 'USZ1': 'UTC+02', 'UTC': 'UTC+00', 'UYST': 'UTC-02', 'UYT': 'UTC-03', 'UZT': 'UTC+05', 'VET': 'UTC-04', 'VLAT': 'UTC+10', 'VOLT': 'UTC+04', 'VOST': 'UTC+06', 'VUT': 'UTC+11', 'WAKT': 'UTC+12', 'WAST': 'UTC+02', 'WAT': 'UTC+01', 'WEST': 'UTC+01', 'WET': 'UTC±00', 'WIT': 'UTC+07', 'WST': 'UTC+08', 'YAKT': 'UTC+09', 'YEKT': 'UTC+05'}
+        if time_in:
+            time_parsed = time_in.split(":")
+            try:
+                hour = int(time_parsed[0])
+                minute = int(time_parsed[1])
+            except ValueError:
+                raise exceptions.CommandError("This is not a valid time!", expire_in=20)
+            if hour > 23 or hour < 0 or minute > 59 or minute < 0:
+                raise exceptions.CommandError("This is not a valid time!", expire_in=20)
+        else:
+            raise exceptions.CommandError("You did not specify a time!", expire_in=20)
+        if timezone1:
+            try:
+                timezone1 = timezone_dict[timezone1]
+            except KeyError:
+                raise exceptions.CommandError("This is not a valid from timezone.", expire_in=20)
+            if ":" in timezone1:
+                timezone1_parsed = timezone1.split(":")
+                try:
+                    timezone1_hour = timezone1_parsed[0]
+                    timezone1_hour = int(timezone1_hour[3:len(timezone1_hour)])
+                    timezone1_minute = int(timezone1_parsed[1])
+                except ValueError:
+                    raise exceptions.CommandError("Timezone dictionary error.", expire_in=20)
+            else:
+                try:
+                    timezone1_hour = int(timezone1[3:len(timezone1)])
+                except ValueError:
+                    raise exceptions.CommandError("Could not parse timezone.", expire_in=20)
+                timezone1_minute = 0
+            if timezone2:
+                try:
+                    timezone2 = timezone_dict[timezone2]
+                except KeyError:
+                        raise exceptions.CommandError("This is not a valid timezone.", expire_in=20)
+                if ":" in timezone2:
+                    timezone2_parsed = timezone2.split(":")
+                    try:
+                        timezone2_hour = timezone2_parsed[0]
+                        timezone2_hour = int(timezone2_hour[3:len(timezone2_hour)])
+                        timezone2_minute = int(timezone2_parsed[1])
+                    except ValueError:
+                        raise exceptions.CommandError("Timezone dictionary error.", expire_in=20)
+                else:
+                    try:
+                        timezone2_hour = int(timezone2[3:len(timezone2)])
+                    except ValueError:
+                        raise exceptions.CommandError("Could not parse timezone.", expire_in=20)
+                    timezone2_minute = 0
+
+                #Catch all the different scenarios that could happen
+                if timezone1_hour == 0:
+                    difference = timezone2_hour
+                elif timezone2_hour == 0:
+                    if timezone1_hour < timezone2_hour:
+                        difference = abs(timezone1_hour)
+                    elif timezone1_hour > timezone2_hour:
+                        difference = -timezone1_hour
+                elif timezone1_hour < 0 and timezone2_hour < 0:
+                    difference = abs(timezone1_hour) - abs(timezone2_hour)
+                elif timezone1_hour < 0 and timezone2_hour > 0:
+                    difference = abs(timezone1_hour) + abs(timezone2_hour)
+                elif timezone1_hour > 0 and timezone2_hour < 0:
+                    difference = -(abs(timezone1_hour) + abs(timezone2_hour))
+                elif timezone1_hour > 0 and timezone2_hour > 0:
+                    difference = abs(timezone1_hour - timezone2_hour)
+                difference_minute = (timezone1_minute + timezone2_minute) % 60
+                #print(difference)
+                #print(difference_minute)
+                hour = (hour + difference) % 24
+                minute = (minute + difference_minute) % 60
+
+                #I'm lazy, probably a better way to do this
+                if minute == 0:
+                    minute = str(minute) + "0"
+                elif minute < 10:
+                    minute = "0" + str(minute)
+                final_time = str(hour) + ":" + str(minute)
+
+                msg = "Converted time from **" + timezone1 + "** to **" + timezone2 + "** is **" + final_time + "**"
+                return Response(msg, reply=False, delete_after=30)
+            else:
+                raise exceptions.CommandError("You did not specify a to timezone!")
+        else:
+            raise exceptions.CommandError("You did not specify a from timezone!")
+    """
+
+    Help Command
+
+    """
+    async def cmd_help(self, author, command=None):
         """
         Usage:
             {command_prefix}help [command]
-
         Prints a help message.
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
@@ -744,7 +1130,7 @@ class MusicBot(discord.Client):
                 return Response("No such command", delete_after=10)
 
         else:
-            helpmsg = "**Commands**\n```"
+            helpmsg = "Hello %s! I am **Sigma-chan**, a general purpose bot that can play music, interact with users, and moderate! Here is a list of what I can do:\n\n**Commands**\n```" % author.mention
             commands = []
 
             for att in dir(self):
@@ -753,18 +1139,17 @@ class MusicBot(discord.Client):
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
             helpmsg += ", ".join(commands)
-            helpmsg += "```"
-            helpmsg += "https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list"
+            helpmsg += "```\nTo take a look at my code or find extra documentation on my additional commands, check out the link below (Sugoi!)\n"
+            helpmsg += "<https://github.com/NeonRD1/Sigma-Kizuna>"
 
-            return Response(helpmsg, reply=True, delete_after=60)
+            return Response(helpmsg, reply=False, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
         Usage:
             {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
-
         Add or remove users to the blacklist.
-        Blacklisted users are forbidden from using bot commands.
+        Blacklisted users are forbidden from using bot commands
         """
 
         if not user_mentions:
@@ -809,7 +1194,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}id [@user]
-
         Tells the user their id or the id of another user.
         """
         if not user_mentions:
@@ -823,7 +1207,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}joinserver invite_link
-
         Asks the bot to join a server.  Note: Bot accounts cannot use invite links.
         """
 
@@ -847,10 +1230,11 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}play song_link
             {command_prefix}play text to search for
-
         Adds the song to the playlist.  If a link is not provided, the first
         result from a youtube search is added to the queue.
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         song_url = song_url.strip('<>')
 
@@ -1038,6 +1422,8 @@ class MusicBot(discord.Client):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         await self.send_typing(channel)
         info = await self.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
@@ -1132,7 +1518,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}search [service] [number] query
-
         Searches a service for a video and adds it to the queue.
         - service: any one of the following services:
             - youtube (yt) (default if unspecified)
@@ -1144,6 +1529,8 @@ class MusicBot(discord.Client):
                   you must put your query in quotes
             - ex: {command_prefix}search 2 "I ran seagulls"
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
             raise exceptions.PermissionsError(
@@ -1262,7 +1649,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}np
-
         Displays the current song in chat.
         """
 
@@ -1274,6 +1660,7 @@ class MusicBot(discord.Client):
             song_progress = str(timedelta(seconds=player.progress)).lstrip('0').lstrip(':')
             song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
             prog_str = '`[%s/%s]`' % (song_progress, song_total)
+            thumbnail = player.current_entry.filename_thumbnail
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
                 np_text = "Now Playing: **%s** added by **%s** %s\n" % (
@@ -1281,7 +1668,10 @@ class MusicBot(discord.Client):
             else:
                 np_text = "Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str)
 
-            self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
+            if thumbnail:
+                self.server_specific_data[server]['last_np_msg'] = await self.safe_send_file(channel, np_text, thumbnail)
+            else:
+                self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
             await self._manual_delete_check(message)
         else:
             return Response(
@@ -1293,7 +1683,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}summon
-
         Call the bot to the summoner's voice channel.
         """
 
@@ -1334,7 +1723,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}pause
-
         Pauses playback of the current song.
         """
 
@@ -1348,7 +1736,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}resume
-
         Resumes playback of a paused song.
         """
 
@@ -1362,7 +1749,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}shuffle
-
         Shuffles the playlist.
         """
 
@@ -1384,7 +1770,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}clear
-
         Clears the playlist.
         """
 
@@ -1395,9 +1780,10 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}skip
-
         Skips the current song when enough votes are cast, or by the bot owner.
         """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
 
         if player.is_stopped:
             raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
@@ -1465,7 +1851,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}volume (+/-)[volume]
-
         Sets the playback volume. Accepted values are from 1 to 100.
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
@@ -1507,7 +1892,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}queue
-
         Prints the current song queue.
         """
 
@@ -1555,7 +1939,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}clean [range]
-
         Removes up to [range] messages the bot has posted in chat. Default: 50, Max: 1000
         """
 
@@ -1613,7 +1996,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}pldump url
-
         Dumps the individual urls of a playlist
         """
 
@@ -1654,11 +2036,326 @@ class MusicBot(discord.Client):
 
         return Response(":mailbox_with_mail:", delete_after=20)
 
+    async def cmd_remove(self, message, player, index):
+        """
+        Usage:
+            {command_prefix}remove [number]
+
+        Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
+        """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+
+        if not player.playlist.entries:
+            raise exceptions.CommandError("There are no songs queued.", expire_in=20)
+
+        try:
+            index = int(index)
+
+        except ValueError:
+            raise exceptions.CommandError('{} is not a valid number.'.format(index), expire_in=20)
+
+        if 0 < index <= len(player.playlist.entries):
+            try:
+                song_title = player.playlist.entries[index-1].title
+                player.playlist.remove_entry((index)-1)
+
+            except IndexError:
+                raise exceptions.CommandError("Something went wrong while the song was being removed. Try again with a new position from `" + self.config.command_prefix + "queue`", expire_in=20)
+
+            return Response("\N{CHECK MARK} removed **" + song_title + "**", delete_after=20)
+
+        else:
+            raise exceptions.CommandError("You can't remove the current song (skip it instead), or a song in a position that doesn't exist.", expire_in=20)
+
+    async def cmd_repeat(self, player):
+        """
+        Usage:
+            {command_prefix}repeat
+        Cycles through the repeat options. Default is no repeat, switchable to repeat all or repeat current song.
+        """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't change repeat mode! The player is not playing!", expire_in=20)
+
+        player.repeat()
+
+        if player.is_repeatNone:
+            return Response(":play_pause: Repeat mode: None", delete_after=20)
+        if player.is_repeatAll:
+            return Response(":repeat: Repeat mode: All", delete_after=20)
+        if player.is_repeatSingle:
+            return Response(":repeat_one: Repeat mode: Single", delete_after=20)
+
+    async def cmd_promote(self, player, position=None):
+        """
+        Usage:
+            {command_prefix}promote
+            {command_prefix}promote [song position]
+        Promotes the last song in the queue to the front.
+        If you specify a position in the queue, it promotes the song at that position to the front.
+        """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't modify the queue! The player is not playing!", expire_in=20)
+
+        length = len(player.playlist.entries)
+
+        if length < 2:
+            raise exceptions.CommandError("Can't promote! Please add at least 2 songs to the queue!", expire_in=20)
+
+        if not position:
+            entry = player.playlist.promote_last()
+        else:
+            try:
+                position = int(position)
+            except ValueError:
+                raise exceptions.CommandError("This is not a valid song number! Please choose a song \
+                    number between 2 and %s!" % length, expire_in=20)
+
+            if position == 1:
+                raise exceptions.CommandError("This song is already at the top of the queue!", expire_in=20)
+            if position < 1 or position > length:
+                raise exceptions.CommandError("Can't promote a song not in the queue! Please choose a song \
+                    number between 2 and %s!" % length, expire_in=20)
+
+            entry = player.playlist.promote_position(position)
+
+        reply_text = "Promoted **%s** to the :top: of the queue. Estimated time until playing: %s"
+        btext = entry.title
+
+        try:
+            time_until = await player.playlist.estimate_time_until(1, player)
+        except:
+            traceback.print_exc()
+            time_until = ''
+
+        reply_text %= (btext, time_until)
+
+        return Response(reply_text, delete_after=30)
+
+    async def cmd_sub(self, player, channel, author, permissions, leftover_args, song_url, pos=None):
+        """
+        Usage:
+            {command_prefix}sub [song position]
+        Substitute a song in the queue with a different song.
+        """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't modify the queue! The player is not playing!", expire_in=20)
+
+        length = len(player.playlist.entries)
+
+        try:
+            pos = int(pos)
+        except ValueError:
+            raise exceptions.CommandError("This is not a valid song number! Please choose a song \
+                    number between 1 and %s!" % length, expire_in=20)
+
+        if pos < 1 or pos > length:
+            raise exceptions.CommandError("Can't substitute a song not in the queue! Please choose a song \
+                number between 1 and %s!" % length, expire_in=20)
+
+        song_url = song_url.strip('<>')
+
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
+            raise exceptions.PermissionsError(
+                "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
+            )
+
+        await self.send_typing(channel)
+
+        if leftover_args:
+            song_url = ' '.join([song_url, *leftover_args])
+
+        try:
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=30)
+
+        if not info:
+            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+
+        # abstract the search handling away from the user
+        # our ytdl options allow us to use search strings as input urls
+        if info.get('url', '').startswith('ytsearch'):
+            # print("[Command:play] Searching for \"%s\"" % song_url)
+            info = await self.downloader.extract_info(
+                player.playlist.loop,
+                song_url,
+                download=False,
+                process=True,    # ASYNC LAMBDAS WHEN
+                on_error=lambda e: asyncio.ensure_future(
+                    self.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=self.loop),
+                retry_on_error=True
+            )
+
+            if not info:
+                raise exceptions.CommandError(
+                    "Error extracting info from search string, youtubedl returned no data.  "
+                    "You may need to restart the bot if this continues to happen.", expire_in=30
+                )
+
+            if not all(info.get('entries', [])):
+                # empty list, no data
+                return
+
+            song_url = info['entries'][0]['webpage_url']
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+            # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
+            # But this is probably fine
+
+        # TODO: Possibly add another check here to see about things like the bandcamp issue
+        # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
+
+        if 'entries' in info:
+            raise exceptions.CommandError("Cannot substitute playlists! You must specify a single song.", expire_in=30)
+        else:
+            if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
+                raise exceptions.PermissionsError(
+                    "Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length),
+                    expire_in=30
+                )
+
+            try:
+                old_entry = player.playlist.entries[pos - 1]
+                entry, position = await player.playlist.sub_entry(song_url, pos, channel=channel, author=author)
+                # Get the song ready now, otherwise race condition where finished-playing will fire before
+                # the song is finished downloading, which will then cause another song from autoplaylist to
+                # be added to the queue. Even when we're subbing, we want to make sure that if the song ends 
+                # and the song is being subbed at position 1 we don't have autoplaylist running
+                await entry.get_ready_future()
+
+            except exceptions.WrongEntryTypeError as e:
+                if e.use_url == song_url:
+                    print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
+
+                if self.config.debug_mode:
+                    print("[Info] Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
+                    print("[Info] Using \"%s\" instead" % e.use_url)
+
+            reply_text = "Substituted **%s** with **%s** at position %s"
+            btext1 = old_entry.title
+            btext2 = entry.title
+
+            try:
+                time_until = await player.playlist.estimate_time_until(position, player)
+                reply_text += ' - estimated time until playing: %s'
+            except:
+                traceback.print_exc()
+                time_until = ''
+
+            reply_text %= (btext1, btext2, position, time_until)
+
+            return Response(reply_text, delete_after=30)
+
+    async def cmd_playnow(self, player, channel, author, permissions, leftover_args, song_url):
+        """
+        Usage:
+            {command_prefix}playnow song_link
+            {command_prefix}playnow text to search for
+        Stops the currently playing song and immediately plays the song requested. \
+        If a link is not provided, the first result from a youtube search is played.
+        """
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+
+        song_url = song_url.strip('<>')
+
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
+            raise exceptions.PermissionsError(
+                "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
+            )
+
+        await self.send_typing(channel)
+
+        if leftover_args:
+            song_url = ' '.join([song_url, *leftover_args])
+
+        try:
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+        except Exception as e:
+            raise exceptions.CommandError(e, expire_in=30)
+
+        if not info:
+            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+
+        # abstract the search handling away from the user
+        # our ytdl options allow us to use search strings as input urls
+        if info.get('url', '').startswith('ytsearch'):
+            # print("[Command:play] Searching for \"%s\"" % song_url)
+            info = await self.downloader.extract_info(
+                player.playlist.loop,
+                song_url,
+                download=False,
+                process=True,    # ASYNC LAMBDAS WHEN
+                on_error=lambda e: asyncio.ensure_future(
+                    self.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=self.loop),
+                retry_on_error=True
+            )
+
+            if not info:
+                raise exceptions.CommandError(
+                    "Error extracting info from search string, youtubedl returned no data.  "
+                    "You may need to restart the bot if this continues to happen.", expire_in=30
+                )
+
+            if not all(info.get('entries', [])):
+                # empty list, no data
+                return
+
+            song_url = info['entries'][0]['webpage_url']
+            info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+            # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
+            # But this is probably fine
+
+        # TODO: Possibly add another check here to see about things like the bandcamp issue
+        # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
+
+        if 'entries' in info:
+            raise exceptions.CommandError("Cannot playnow playlists! You must specify a single song.", expire_in=30)
+        else:
+            if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
+                raise exceptions.PermissionsError(
+                    "Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length),
+                    expire_in=30
+                )
+
+            try:
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+                await self.safe_send_message(channel, "Enqueued **%s** to be played. Position in queue: Up next!" % entry.title, expire_in=20)
+                # Get the song ready now, otherwise race condition where finished-playing will fire before
+                # the song is finished downloading, which will then cause another song from autoplaylist to
+                # be added to the queue
+                await entry.get_ready_future()
+
+            except exceptions.WrongEntryTypeError as e:
+                if e.use_url == song_url:
+                    print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
+
+                if self.config.debug_mode:
+                    print("[Info] Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
+                    print("[Info] Using \"%s\" instead" % e.use_url)
+
+                return await self.cmd_playnow(player, channel, author, permissions, leftover_args, e.use_url)
+
+            if position > 1:
+                player.playlist.promote_last()
+            if player.is_playing:
+                player.skip()
+
+        # return Response(reply_text, delete_after=30)
+
     async def cmd_listids(self, server, author, leftover_args, cat='all'):
         """
         Usage:
             {command_prefix}listids [categories]
-
         Lists the ids for various things.  Categories are:
            all, users, roles, channels
         """
@@ -1716,7 +2413,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}perms
-
         Sends the user a list of their permissions.
         """
 
@@ -1737,7 +2433,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setname name
-
         Changes the bot's username.
         Note: This operation is limited by discord to twice per hour.
         """
@@ -1756,7 +2451,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setnick nick
-
         Changes the bot's nickname.
         """
 
@@ -1777,7 +2471,6 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setavatar [url]
-
         Changes the bot's avatar.
         Attaching a file and leaving the url parameter blank also works.
         """
@@ -1797,37 +2490,93 @@ class MusicBot(discord.Client):
 
         return Response(":ok_hand:", delete_after=20)
 
+    @owner_only
+    async def cmd_ownerlock(self):
+        self.ownerlock = True
+        return Response(":rotating_light:")
+
+    @owner_only
+    async def cmd_ownerunlock(self):
+        self.ownerlock = False
+        return Response(":sweat_smile:")
+
+    async def cmd_lock(self, player):
+        """
+        Usage:
+            {command_prefix}lock
+
+        Prevents anyone from adding anything to the playlist until it is unlocked
+        """
+
+        player.playlist.locked = True
+        return Response("Playlist has been locked")
+
+    async def cmd_unlock(self, player):
+        """
+        Usage:
+            {command_prefix}unlock
+
+        Removes the playlist lock
+        """
+
+        player.playlist.locked = False
+        return Response("Playlist has been unlocked")
 
     async def cmd_disconnect(self, server):
         await self.disconnect_voice_client(server)
         return Response(":hear_no_evil:", delete_after=20)
 
     async def cmd_restart(self, channel):
-        await self.safe_send_message(channel, ":wave:")
+        if self.ownerlock:
+            raise exceptions.PermissionsError("This bot has been locked by the owner")
+        await self.safe_send_message(channel, "Be right back :grin:")
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal
 
     async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, ":wave:")
+        await self.safe_send_message(channel, ":wave: Bye-bye!")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
+
+    async def on_member_join(self, member):
+        if self.autorole:
+            await self.add_roles(member, self.autorole[member.server])
+            print("Added a user")
+        else:
+            print("Autorole disabled")
 
     async def on_message(self, message):
         await self.wait_until_ready()
 
-        message_content = message.content.strip()
+        message_content = message.content.strip() 
+        #print(message_content)
+
+        if "281807963147075584" in message.raw_mentions and message.author != self.user:  
+            parsedmessage = re.sub('<@!?\d{18}>', '', message_content).strip()
+            #msg = ["Hello!", "Hiya!", "Let me pull out my pocketknife here...", "Did someone say my name?", "You called for me?", "What's up, %s?" % message.author.mention, "Boo.", "Hi there, %s. Need me to kill anyone?" % message.author.mention]
+            link = "http://api.program-o.com/v2/chatbot/?bot_id=6&say=%s&convo_id=discordbot_1&format=json" % parsedmessage
+            try:
+                r = requests.get(link, timeout=10)
+                print(r.status_code)
+                botsay = r.json()["botsay"]
+            except:
+                botsay = "I don't feel like talking right now."
+            await self.safe_send_message(message.channel, botsay)
+
         if not message_content.startswith(self.config.command_prefix):
             return
 
-        if message.author == self.user:
-            self.safe_print("Ignoring command from myself (%s)" % message.content)
-            return
-
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
-            return  # if I want to log this I just move it under the prefix check
-
         command, *args = message_content.split()  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
+        #bound_commands = ["clean", "clear", "lock", "np", "pause", "play", "playnow", "pldump", "promote", "queue", "remove", "repeat", "resume", "search", "shuffle", "skip", "sub", "unlock", "volume"]
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private and command in self.config.bound_commands:
+            return  # if I want to log this I just move it under the prefix check
+
+        #place anything you want not to be channel bound before this comment
+        if message.author == self.user:
+            self.safe_print("Ignoring command from myself (%s)" % message.content)
+            return 
 
         handler = getattr(self, 'cmd_%s' % command, None)
         if not handler:
@@ -1936,8 +2685,8 @@ class MusicBot(discord.Client):
 
                 sentmsg = await self.safe_send_message(
                     message.channel, content,
-                    expire_in=response.delete_after if self.config.delete_messages else 0,
-                    also_delete=message if self.config.delete_invoking else None
+                    expire_in=response.delete_after if self.config.delete_messages and command not in self.config.retain_commands else 0,
+                    also_delete=message if self.config.delete_invoking and command not in self.config.retain_commands else None
                 )
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:

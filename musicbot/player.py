@@ -85,6 +85,13 @@ class MusicPlayerState(Enum):
     def __str__(self):
         return self.name
 
+class MusicPlayerRepeatState(Enum):
+    NONE = 0    # Playlist plays as normal
+    ALL = 1     # Entire playlist repeats
+    SINGLE = 2  # Currently playing song repeats
+
+    def __str__(self):
+        return self.name
 
 class MusicPlayer(EventEmitter):
     def __init__(self, bot, voice_client, playlist):
@@ -95,6 +102,8 @@ class MusicPlayer(EventEmitter):
         self.playlist = playlist
         self.playlist.on('entry-added', self.on_entry_added)
         self._volume = bot.config.default_volume
+        self.repeatState = MusicPlayerRepeatState.NONE
+        self.skipRepeat = False
 
         self._play_lock = asyncio.Lock()
         self._current_player = None
@@ -118,6 +127,8 @@ class MusicPlayer(EventEmitter):
             self.loop.call_later(2, self.play)
 
     def skip(self):
+        if self.is_repeatSingle:
+            self.skipRepeat = True;
         self._kill_current_player()
 
     def stop(self):
@@ -155,6 +166,17 @@ class MusicPlayer(EventEmitter):
 
         raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
 
+    def repeat(self):
+        if self.is_repeatNone:
+            self.repeatState = MusicPlayerRepeatState.ALL
+            return
+        if self.is_repeatAll:
+            self.repeatState = MusicPlayerRepeatState.SINGLE
+            return
+        if self.is_repeatSingle:
+            self.repeatState = MusicPlayerRepeatState.NONE
+            return
+
     def kill(self):
         self.state = MusicPlayerState.DEAD
         self.playlist.clear()
@@ -164,6 +186,12 @@ class MusicPlayer(EventEmitter):
     def _playback_finished(self):
         entry = self._current_entry
 
+        if self.is_repeatAll or (self.is_repeatSingle and not self.skipRepeat):
+            self.playlist._add_entry(entry)
+            if self.is_repeatSingle:
+                self.playlist.promote_last()
+        self.skipRepeat = False
+            
         if self._current_player:
             self._current_player.after = None
             self._kill_current_player()
@@ -312,6 +340,18 @@ class MusicPlayer(EventEmitter):
     @property
     def is_dead(self):
         return self.state == MusicPlayerState.DEAD
+
+    @property
+    def is_repeatNone(self):
+        return self.repeatState == MusicPlayerRepeatState.NONE
+
+    @property
+    def is_repeatAll(self):
+        return self.repeatState == MusicPlayerRepeatState.ALL
+
+    @property
+    def is_repeatSingle(self):
+        return self.repeatState == MusicPlayerRepeatState.SINGLE
 
     @property
     def progress(self):
