@@ -1,0 +1,4 @@
+[Unit]
+After=network.service
+[Service]
+ExecStart=/home/ubuntu/MusicBot/run.py

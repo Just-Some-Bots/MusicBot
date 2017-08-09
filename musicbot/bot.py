@@ -1358,7 +1358,7 @@ class MusicBot(discord.Client):
             )
 
         player = await self.get_player(author.voice_channel, create=True)
-        await self.safe_send_message(channel, "<:liljasky:296253959822376981> says: :eggplant: :volcano:")
+        await self.safe_send_message(channel, "<:liljasky:296253959822376981> says: <:throb:332393117439361035> :volcano:")
 
         if player.is_stopped:
             player.play()
