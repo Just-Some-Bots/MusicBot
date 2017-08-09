@@ -9,6 +9,9 @@ import discord
 import asyncio
 import traceback
 
+import lxml
+from lxml import etree
+
 from discord import utils
 from discord.object import Object
 from discord.enums import ChannelType
@@ -19,8 +22,11 @@ from io import BytesIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
-from random import choice, shuffle
+from random import choice, shuffle, sample
 from collections import defaultdict
+
+from os import listdir
+from os.path import isfile, join
 
 from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
@@ -842,6 +848,34 @@ class MusicBot(discord.Client):
         except:
             raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
 
+
+    async def cmd_remove(self, player, index=None):
+        """
+        Usage:
+            {command_prefix}remove [index]
+
+        Removes a song from the playlist. If no index is provided, the last song is removed.
+        """
+        playlist_len = len(player.playlist.entries)
+        if playlist_len == 0:
+            raise exceptions.CommandError("Playlist empty, no songs to be removed")
+
+        if not index:
+            index = playlist_len
+        else:
+            try:
+                index = int(index)
+            except ValueError:
+                raise exceptions.CommandError("Index must be an integer")
+
+        if not 1 <= index <= playlist_len:
+            raise exceptions.CommandError("Index out of bounds")
+
+        entry = await player.playlist.remove_entry(index)
+        reply_text = "Removed **%s** from the playlist" % (entry.title)
+
+        return Response(reply_text, delete_after=60)
+
     async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
@@ -870,7 +904,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(e, expire_in=30)
 
         if not info:
-            raise exceptions.CommandError("That video cannot be played.", expire_in=30)
+            raise exceptions.CommandError("<:liljasky:296253959822376981> says: tbh that video cannot be played.", expire_in=30)
 
         # abstract the search handling away from the user
         # our ytdl options allow us to use search strings as input urls
@@ -1248,9 +1282,10 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(confirm_message)
                 await self.safe_delete_message(response_message)
 
+                #await self.safe_send_message(channel, e['webpage_url'])
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
 
-                return Response("Alright, coming right up!", delete_after=30)
+                return Response("Alright, coming right up! %s" % e['webpage_url'], delete_after=30)
             else:
                 await self.safe_delete_message(result_message)
                 await self.safe_delete_message(confirm_message)
@@ -1323,6 +1358,7 @@ class MusicBot(discord.Client):
             )
 
         player = await self.get_player(author.voice_channel, create=True)
+        await self.safe_send_message(channel, "<:liljasky:296253959822376981> says: <:throb:332393117439361035> :volcano:")
 
         if player.is_stopped:
             player.play()
@@ -1330,6 +1366,58 @@ class MusicBot(discord.Client):
         if self.config.auto_playlist:
             await self.on_player_finished_playing(player)
 
+    async def get_title(url):
+        youtube = etree.HTML(urllib.urlopen(url).read())
+        video_title = youtube.xpath("//span[@id='eow-title']/@title")
+        print("getting title")
+        return ''.join(video_title)
+    
+    async def cmd_random(self, player, channel, author, permissions, voice_channel, N=None):
+        """
+        Usage:
+            {command_prefix}random
+
+        Create queue of N previously played songs.
+        """
+        
+        cache = [f for f in listdir(AUDIO_CACHE_PATH) if isfile(join(AUDIO_CACHE_PATH, f)) and 'youtube' in f]
+
+        if not N:
+            N = 10
+        else:
+            try:
+                N = int(N)
+            except ValueError:
+                raise exceptions.CommandError("Length must be an integer")
+
+        if not 1 <= N <= len(cache):
+            raise exceptions.CommandError("Length must be >1 and less than the amount of caches songs (%s)" % len(cache))
+                
+        yturl = "https://www.youtube.com/watch?v={}"
+        rlist = [yturl.format(song.split('-',1)[1][:11]) for song in sample(cache,N)]
+
+        await self.safe_send_message(channel, "<:liljasky:296253959822376981> says: a playlist worthy of an ass eat is on its way")
+        
+        reply_text = "```Random playlist from %s:" % AUDIO_CACHE_PATH
+        for i in range(N):
+            try:
+                entry, _ = await player.playlist.add_entry(rlist[i], channel=channel, author=author)
+                reply_text += "\n\t{}.\t{}".format(i+1,entry.title)
+            except exceptions.WrongEntryTypeError as e:
+                if e.use_url == rlist[i]:
+                    print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
+                    
+                    if self.config.debug_mode:
+                        print("[Info] Assumed url \"%s\" was a single entry, was actually a playlist" % rlist[i])
+                        print("[Info] Using \"%s\" instead" % e.use_url)
+                        
+        reply_text += "```"
+
+        return Response(reply_text, delete_after=30)
+
+    async def cmd_ieatass(self, channel):
+        await self.safe_send_message(channel, "fucking <:same:297250174625906688> fam :ok_hand: :100: :open_hands::skin-tone-5: :open_hands::skin-tone-5:")
+    
     async def cmd_pause(self, player):
         """
         Usage:
@@ -1803,12 +1891,13 @@ class MusicBot(discord.Client):
         return Response(":hear_no_evil:", delete_after=20)
 
     async def cmd_restart(self, channel):
-        await self.safe_send_message(channel, ":wave:")
+        await self.safe_send_message(channel, "<:liljasky:296253959822376981> says: restarting 4 u papi")
         await self.disconnect_all_voice_clients()
-        raise exceptions.RestartSignal
+        await self._auto_summon()
+        #raise exceptions.RestartSignal
 
     async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, ":wave:")
+        await self.safe_send_message(channel, "<:liljasky:296253959822376981> says:o7")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal
 
@@ -2010,6 +2099,104 @@ class MusicBot(discord.Client):
             self.safe_print("[Servers] \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
+
+    
+    def sizeof_fmt(self, num, suffix='B'):
+        if( suffix == 'b' ):
+            n = 1000.0
+        else:
+            n = 1024.0
+
+        for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+            if abs(num) < n :
+                return "%3.1f%s%s" % (num, unit, suffix)
+            num /= n
+        return "%.1f%s%s" % (num, 'Yi', suffix)
+
+    @owner_only
+    async def cmd_cachestats(self):
+        """
+        Usage:
+            {command_prefix}cachestats
+
+        Prints infomation about the audio_cache, number of files and total storage used.
+        """
+        ostr = "!"
+        try:
+            sizeBytes = 0
+            numFiles = 0
+            dList = os.listdir( AUDIO_CACHE_PATH )
+            for f in dList :
+                fpath = os.path.join(AUDIO_CACHE_PATH, f)
+                if os.path.isfile(fpath) :
+                    numFiles = 1 + numFiles
+                    sizeBytes = sizeBytes + os.path.getsize( fpath )
+
+            rSize = self.sizeof_fmt(sizeBytes)
+            ostr = "Cache contains %d files, using %s of storage." % (numFiles, rSize)
+        except Exception as e:
+            raise exceptions.CommandError("Error while getting cache stats: %s" % e, expire_in=20)
+
+        self.safe_print("[Info] %s" % ostr)
+        return Response(ostr, delete_after=20)
+
+    @owner_only
+    async def cmd_cacheclear(self, leftover_args):
+        """
+        Usage:
+            {command_prefix}cacheclear [time_frame] [time_scale]
+
+        Removes any file inside of AUDIO_CACHE_PATH older than the given time frame.
+        [time_scale] must be one of:  days, hours, day, or hour.
+        [time_frame] must be a number.
+        """
+        valid_scales = ["days", "hours", "day", "hour"]
+        time_scale = "days"
+        time_frame = 30
+        hours_old = 0
+
+        if len(leftover_args) >= 1 :
+            try:
+                tf = int( leftover_args[0] )
+                tf = abs( tf )
+            except:
+                tf = 0
+
+            if tf > 0 :
+                time_frame = tf
+
+        if len(leftover_args) >= 2 :
+            arg = str(leftover_args[1]).lower()
+            if arg in valid_scales :
+                time_scale = arg
+
+        if time_scale[-1:] == 's' :
+            time_scale = time_scale[:-1]
+
+        if time_scale == "hour" :
+            hours_old = time_frame * 1
+
+        if time_scale == "day" :
+            hours_old = time_frame * 24
+
+        numRemoved = 0
+        bytesRemoved = 0
+        oldest_time = time.time() - (hours_old * 3600)
+        for f in os.listdir( AUDIO_CACHE_PATH ) :
+            if f == '.' or f == '..' :
+                continue
+            fpath = os.path.join(AUDIO_CACHE_PATH, f)
+            compTime = os.path.getctime( fpath )
+
+            if compTime < oldest_time :
+                bytesRemoved = bytesRemoved + os.path.getsize( fpath )
+                numRemoved = 1 + numRemoved
+                os.remove( fpath )
+
+        rBytes = self.sizeof_fmt(bytesRemoved)
+        ostr = "Removed %d cached files with ctime older than %d %s(s), reclaimed %s of storage." % (numRemoved, time_frame, time_scale, rBytes)
+        self.safe_print( "[Info] %s" % ostr )
+        return Response(ostr, delete_after=20)
 
 
 if __name__ == '__main__':
