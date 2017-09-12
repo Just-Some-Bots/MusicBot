@@ -720,6 +720,56 @@ class MusicBot(discord.Client):
         print()
         # t-t-th-th-that's all folks!
 
+        
+    async def get_title(url):
+        youtube = etree.HTML(urllib.urlopen(url).read())
+        video_title = youtube.xpath("//span[@id='eow-title']/@title")
+        print("getting title")
+        return ''.join(video_title)
+    
+    async def cmd_random(self, player, channel, author, permissions, voice_channel, N=None):
+        """
+        Usage:
+            {command_prefix}random
+
+        Create queue of N previously played songs.
+        """
+        
+        cache = [f for f in listdir(AUDIO_CACHE_PATH) if isfile(join(AUDIO_CACHE_PATH, f)) and 'youtube' in f]
+
+        if not N:
+            N = 10
+        else:
+            try:
+                N = int(N)
+            except ValueError:
+                raise exceptions.CommandError("Length must be an integer")
+
+        if not 1 <= N <= len(cache):
+            raise exceptions.CommandError("Length must be >1 and less than the amount of caches songs (%s)" % len(cache))
+                
+        yturl = "https://www.youtube.com/watch?v={}"
+        rlist = [yturl.format(song.split('-',1)[1][:11]) for song in sample(cache,N)]
+
+        await self.safe_send_message(channel, "A playlist worthy of an ass eat is on its way")
+        
+        reply_text = "```Random playlist:\n" 
+        for i in range(N):
+            try:
+                entry, _ = await player.playlist.add_entry(rlist[i], channel=channel, author=author)
+                reply_text += "\n\t{}.\t{}".format(i+1,entry.title)
+            except exceptions.WrongEntryTypeError as e:
+                if e.use_url == rlist[i]:
+                    print("[Warning] Determined incorrect entry type, but suggested url is the same.  Help.")
+                    
+                    if self.config.debug_mode:
+                        print("[Info] Assumed url \"%s\" was a single entry, was actually a playlist" % rlist[i])
+                        print("[Info] Using \"%s\" instead" % e.use_url)
+                        
+        reply_text += "```"
+
+        return Response(reply_text)   
+        
     async def cmd_help(self, command=None):
         """
         Usage:
