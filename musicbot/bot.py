@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import datetime
 
 from discord import utils
 from discord.object import Object
@@ -396,8 +397,9 @@ class MusicBot(discord.Client):
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = 'Now playing in %s: **%s**' % (
-                    player.voice_client.channel.name, entry.title)
+                song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+                newmsg = 'Now playing in %s: **%s** (%ss)' % (
+                    player.voice_client.channel.name, entry.title, song_total)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
@@ -1167,7 +1169,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Please quote your search query properly.", expire_in=30)
 
         service = 'youtube'
-        items_requested = 3
+        items_requested = 5
         max_items = 10  # this can be whatever, but since ytdl uses about 1000, a small number might be better
         services = {
             'youtube': 'ytsearch',
@@ -1218,43 +1220,46 @@ class MusicBot(discord.Client):
 
         def check(m):
             return (
-                m.content.lower()[0] in 'yn' or
+                m.content.lower()[0] is 'p' or
                 # hardcoded function name weeee
                 m.content.lower().startswith('{}{}'.format(self.config.command_prefix, 'search')) or
                 m.content.lower().startswith('exit'))
 
-        for e in info['entries']:
-            result_message = await self.safe_send_message(channel, "Result %s/%s: %s" % (
-                info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
+        results = "Please select a track with p#:\n"
 
-            confirm_message = await self.safe_send_message(channel, "Is this ok? Type `y`, `n` or `exit`")
-            response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
+        for n, e in enumerate(info['entries']):
+            time_str = str(datetime.timedelta(seconds=e['duration']))
+            results += "%d: **%s** (%s)\n" % (n+1, e['title'], time_str) 
+        result_message = await self.safe_send_message(channel, results)
+        response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
 
-            if not response_message:
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                return Response("Ok nevermind.", delete_after=30)
+        if not response_message:
+            await self.safe_delete_message(result_message)
+            return Response("Ok nevermind.", delete_after=30)
 
-            # They started a new search query so lets clean up and bugger off
-            elif response_message.content.startswith(self.config.command_prefix) or \
-                    response_message.content.lower().startswith('exit'):
+        # They started a new search query so lets clean up and bugger off
+        elif response_message.content.startswith(self.config.command_prefix) or \
+                response_message.content.lower().startswith('exit'):
 
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                return
+            await self.safe_delete_message(result_message)
+            return
 
-            if response_message.content.lower().startswith('y'):
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                await self.safe_delete_message(response_message)
+        elif (response_message.content.lower().startswith('p') and
+                response_message.content[1:].isdigit() and
+                (int(response_message.content[1:]) <= len(info['entries'])) ):
+            chosen_song_n = int(response_message.content[1:]) - 1
+            e = info['entries'][chosen_song_n]
 
-                await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+            await self.safe_delete_message(result_message)
+            await self.safe_delete_message(response_message)
 
-                return Response("Alright, coming right up!", delete_after=30)
-            else:
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                await self.safe_delete_message(response_message)
+            await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+
+            time_str = str(datetime.timedelta(seconds=e['duration']))
+            return Response("Queueing **%s** (%s)"%(e['title'], time_str), delete_after=30)
+        else:
+            await self.safe_delete_message(result_message)
+            await self.safe_delete_message(response_message)
 
         return Response("Oh well :frowning:", delete_after=30)
 
