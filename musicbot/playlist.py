@@ -242,7 +242,8 @@ class Playlist(EventEmitter):
                     break
             else:
                 sanitized = entry.url
-            write_line(self.bot.config.auto_playlist_file, sanitized)
+            if sanitized not in self.bot.autoplaylist:
+                write_line(self.bot.config.auto_playlist_file, sanitized)
 
             print("wrote autoplaylist file")
         else:
