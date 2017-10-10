@@ -226,8 +226,12 @@ class Playlist(EventEmitter):
         print("Enter if")
         if self.bot.config.auto_playlist_auto_add:
             print("auto_add enabled")
+            print("Here is the autoplaylist")
+            print(self.bot.autoplaylist)
             self.bot.autoplaylist.append(entry.song_url)
+            print("appended autoplaylist")
             write_line(self.bot.config.auto_playlist_file, entry.song_url)
+            print("wrote autoplaylist file")
         else:
             print("auto_add disabled")
         print("endif")
