@@ -221,6 +221,10 @@ class Playlist(EventEmitter):
     def _add_entry(self, entry):
         self.entries.append(entry)
         self.emit('entry-added', playlist=self, entry=entry)
+        # I can't get the event working so I'll just put this here
+        if self.bot.config.auto_playlist_auto_add:
+            self.bot.autoplaylist.append(entry.song_url)
+            write_line(self.bot.config.auto_playlist_file, entry.song_url)
 
         if self.peek() is entry:
             entry.get_ready_future()

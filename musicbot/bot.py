@@ -445,9 +445,7 @@ class MusicBot(discord.Client):
                 self.config.auto_playlist = False
 
     async def on_player_entry_added(self, playlist, entry, **_):
-        if self.config.auto_playlist_auto_add:
-            self.autoplaylist.append(entry.song_url)
-            write_line(self.config.auto_playlist_file, entry.song_url)
+        pass
 
     async def update_now_playing(self, entry=None, is_paused=False):
         game = None
