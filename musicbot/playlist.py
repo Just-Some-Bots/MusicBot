@@ -81,7 +81,7 @@ class Playlist(EventEmitter):
             self.downloader.ytdl.prepare_filename(info),
             **meta
         )
-        self._add_entry(entry)
+        await self._add_entry(entry)
         return entry, len(self.entries)
 
     async def import_from(self, playlist_url, **meta):
@@ -123,7 +123,7 @@ class Playlist(EventEmitter):
                         **meta
                     )
 
-                    self._add_entry(entry)
+                    await self._add_entry(entry)
                     entry_list.append(entry)
                 except:
                     baditems += 1
@@ -218,7 +218,7 @@ class Playlist(EventEmitter):
 
         return gooditems
 
-    def _add_entry(self, entry):
+    async def _add_entry(self, entry):
         print("Enter _add_entry")
         self.entries.append(entry)
         self.emit('entry-added', playlist=self, entry=entry)
