@@ -235,7 +235,7 @@ class Playlist(EventEmitter):
             print(self.bot.autoplaylist)
             if "youtube" in entry.url:
                 params = entry.url.split("?")[-1]
-                params = sanitized.split("&")
+                params = params.split("&")
                 for param in params:
                     if param[0] == 'v':
                         sanitized = "https://www.youtube.com/watch?"+param
