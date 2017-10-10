@@ -4,7 +4,7 @@ from collections import deque
 from itertools import islice
 from random import shuffle
 
-from .utils import get_header
+from .utils import get_header, write_line
 from .entry import URLPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
@@ -232,6 +232,7 @@ class Playlist(EventEmitter):
             print(entry.url)
             #self.bot.autoplaylist.append(entry.song_url)
             print("appended autoplaylist")
+            print(self.bot.autoplaylist)
             write_line(self.bot.config.auto_playlist_file, entry.url)
             print("wrote autoplaylist file")
         else:
