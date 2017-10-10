@@ -30,6 +30,11 @@ def write_file(filename, contents):
             f.write(str(item))
             f.write('\n')
 
+def write_line(filename, line):
+    with open(filename, 'a', encoding='utf8') as f:
+        f.write(str(line))
+        f.write('\n')
+
 
 def slugify(value):
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
