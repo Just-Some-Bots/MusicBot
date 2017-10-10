@@ -229,10 +229,10 @@ class Playlist(EventEmitter):
             print("Here is the autoplaylist")
             print(self.bot.autoplaylist)
             print("Here is what I want to add")
-            print(entry.song_url)
+            print(entry.url)
             #self.bot.autoplaylist.append(entry.song_url)
             print("appended autoplaylist")
-            write_line(self.bot.config.auto_playlist_file, entry.song_url)
+            write_line(self.bot.config.auto_playlist_file, entry.url)
             print("wrote autoplaylist file")
         else:
             print("auto_add disabled")
