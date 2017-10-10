@@ -233,7 +233,17 @@ class Playlist(EventEmitter):
             #self.bot.autoplaylist.append(entry.song_url)
             print("appended autoplaylist")
             print(self.bot.autoplaylist)
-            write_line(self.bot.config.auto_playlist_file, entry.url)
+            if "youtube" in entry.url:
+                params = entry.url.split("?")[-1]
+                params = sanitized.split("&")
+                for param in params:
+                    if param[0] == 'v':
+                        sanitized = "https://www.youtube.com/watch?"+param
+                    break
+            else:
+                sanitized = entry.url
+            write_line(self.bot.config.auto_playlist_file, sanitized)
+
             print("wrote autoplaylist file")
         else:
             print("auto_add disabled")
