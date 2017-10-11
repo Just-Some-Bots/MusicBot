@@ -30,6 +30,32 @@ def write_file(filename, contents):
             f.write(str(item))
             f.write('\n')
 
+def write_line(filename, line):
+    with open(filename, 'a', encoding='utf8') as f:
+        f.write(str(line))
+        f.write('\n')
+
+def remove_line(filename, toremove):
+    found = False
+    out = []
+    with open(filename, 'r') as f:
+        for line in f:
+            if line.strip() != toremove:
+                out.append(line)
+            else:
+                found = True
+    with open(filename, 'w') as f:
+        f.writelines(out)
+    return found
+
+def clean_youtube_link(url):
+    params = url.split("?")[-1]
+    params = params.split("&")
+    for param in params:
+        if param[0] == 'v':
+            sanitized = "https://www.youtube.com/watch?"+param
+        break
+    return sanitized
 
 def slugify(value):
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')

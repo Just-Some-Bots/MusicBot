@@ -27,7 +27,8 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int, remove_line
+from musicbot.utils import clean_youtube_link
 
 from . import exceptions
 from . import downloader
@@ -445,6 +446,21 @@ class MusicBot(discord.Client):
                 self.config.auto_playlist = False
 
     async def on_player_entry_added(self, playlist, entry, **_):
+        # print("enter event")
+        # print("Enter if")
+        # if self.config.auto_playlist_auto_add:
+        #     print("auto_add enabled")
+        #     print("Here is the autoplaylist")
+        #     print(self.autoplaylist)
+        #     print("Here is what I want to add")
+        #     print(entry.song_url)
+        #     self.autoplaylist.append(entry.song_url)
+        #     print("appended autoplaylist")
+        #     write_line(self.config.auto_playlist_file, entry.song_url)
+        #     print("wrote autoplaylist file")
+        # else:
+        #     print("auto_add disabled")
+        # print("endif")
         pass
 
     async def update_now_playing(self, entry=None, is_paused=False):
@@ -1130,6 +1146,33 @@ class MusicBot(discord.Client):
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=30)
 
+    async def cmd_autoremove(self, player, channel, author, permissions, leftover_args):
+        """
+        Usage:
+            {command_prefix}autoremove
+
+        Removes the currently playing song from the autoplaylist.
+        """
+        if player.current_entry:
+
+            url = player.current_entry.url
+            if "youtube.com" in url:
+                url = clean_youtube_link(url)
+            else:
+                url = url
+
+            result = False
+            if url in self.autoplaylist:
+                self.autoplaylist.remove(url)
+                result = remove_line(self.config.auto_playlist_file, url)
+
+            if result:
+                await self.send_message(channel, "Removed from auto playlist. :cold_sweat:")
+            else:
+                await self.send_message(channel, "Could not find entry in autoplaylist ?_?")
+        else:
+            await self.send_message(channel, "There is no song currently playing!")
+
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
@@ -1385,6 +1428,26 @@ class MusicBot(discord.Client):
         await self.safe_delete_message(hand, quiet=True)
         return Response(":ok_hand:", delete_after=15)
 
+    async def cmd_shuffleon(self, channel, player):
+        """
+        Usage:
+            {command_prefix}shuffleon
+
+        Turns on shuffle mode. New songs will be added in a random position in the playlist.
+        """
+        player.playlist.shufflemode(True)
+        await self.send_message(channel, "Shuffle mode is ON!")
+
+    async def cmd_shuffleoff(self, channel, player):
+        """
+        Usage:
+            {command_prefix}autoremove
+
+        Turns off shuffle mode. New songs will be added sequentially in the playlist.
+        """
+        player.playlist.shufflemode(False)
+        await self.send_message(channel, "Shuffle mode is OFF!")
+
     async def cmd_clear(self, player, author):
         """
         Usage:
@@ -1555,6 +1618,9 @@ class MusicBot(discord.Client):
 
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
+
+    async def cmd_q(self, channel, player):
+        return await self.cmd_queue(channel, player)
 
     async def cmd_clean(self, message, channel, server, author, search_range=50):
         """

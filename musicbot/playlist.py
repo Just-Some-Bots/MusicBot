@@ -2,9 +2,9 @@ import datetime
 import traceback
 from collections import deque
 from itertools import islice
-from random import shuffle
+from random import shuffle, randint
 
-from .utils import get_header
+from .utils import get_header, write_line, clean_youtube_link
 from .entry import URLPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
@@ -21,12 +21,16 @@ class Playlist(EventEmitter):
         self.loop = bot.loop
         self.downloader = bot.downloader
         self.entries = deque()
+        self.currentshufflemode = False
 
     def __iter__(self):
         return iter(self.entries)
 
     def shuffle(self):
         shuffle(self.entries)
+
+    def shufflemode(self, mode):
+        self.currentshufflemode = mode
 
     def clear(self):
         self.entries.clear()
@@ -219,8 +223,23 @@ class Playlist(EventEmitter):
         return gooditems
 
     def _add_entry(self, entry):
-        self.entries.append(entry)
+
+        if self.currentshufflemode:
+            position = randint(0, len(self.entries)+1)
+        else:
+            position = len(self.entries)
+        self.entries.insert(position, entry)
+
         self.emit('entry-added', playlist=self, entry=entry)
+        # I can't get the event working so I'll just put this here
+        if self.bot.config.auto_playlist_auto_add:
+            if "youtube.com" in entry.url:
+                sanitized = clean_youtube_link(entry.url)
+            else:
+                sanitized = entry.url
+            if sanitized not in self.bot.autoplaylist:
+                write_line(self.bot.config.auto_playlist_file, sanitized)
+                self.bot.autoplaylist.append(entry.url)
 
         if self.peek() is entry:
             entry.get_ready_future()
