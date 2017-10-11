@@ -2,7 +2,7 @@ import datetime
 import traceback
 from collections import deque
 from itertools import islice
-from random import shuffle
+from random import shuffle, randint
 
 from .utils import get_header, write_line, clean_youtube_link
 from .entry import URLPlaylistEntry
@@ -21,12 +21,16 @@ class Playlist(EventEmitter):
         self.loop = bot.loop
         self.downloader = bot.downloader
         self.entries = deque()
+        self.currentshufflemode = False
 
     def __iter__(self):
         return iter(self.entries)
 
     def shuffle(self):
         shuffle(self.entries)
+
+    def shufflemode(self, mode):
+        self.currentshufflemode = mode
 
     def clear(self):
         self.entries.clear()
@@ -219,7 +223,13 @@ class Playlist(EventEmitter):
         return gooditems
 
     def _add_entry(self, entry):
-        self.entries.append(entry)
+
+        if self.currentshufflemode:
+            position = randint(0, len(self.entries)+1)
+        else:
+            position = len(self.entries)
+        self.entries.insert(position, entry)
+
         self.emit('entry-added', playlist=self, entry=entry)
         # I can't get the event working so I'll just put this here
         if self.bot.config.auto_playlist_auto_add:

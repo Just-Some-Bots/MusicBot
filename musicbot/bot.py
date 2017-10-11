@@ -1422,6 +1422,14 @@ class MusicBot(discord.Client):
         await self.safe_delete_message(hand, quiet=True)
         return Response(":ok_hand:", delete_after=15)
 
+    async def cmd_shuffleon(self, channel, player):
+        player.playlist.shufflemode(True)
+        await self.send_message(channel, "Shuffle mode is ON!")
+
+    async def cmd_shuffleoff(self, channel, player):
+        player.playlist.shufflemode(False)
+        await self.send_message(channel, "Shuffle mode is OFF!")
+
     async def cmd_clear(self, player, author):
         """
         Usage:
