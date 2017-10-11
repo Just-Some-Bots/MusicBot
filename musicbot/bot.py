@@ -8,6 +8,7 @@ import aiohttp
 import discord
 import asyncio
 import traceback
+import datetime
 
 from discord import utils
 from discord.object import Object
@@ -26,7 +27,8 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int, remove_line
+from musicbot.utils import clean_youtube_link
 
 from . import exceptions
 from . import downloader
@@ -396,8 +398,9 @@ class MusicBot(discord.Client):
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = 'Now playing in %s: **%s**' % (
-                    player.voice_client.channel.name, entry.title)
+                song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+                newmsg = 'Now playing in %s: **%s** (%ss)' % (
+                    player.voice_client.channel.name, entry.title, song_total)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
@@ -443,6 +446,21 @@ class MusicBot(discord.Client):
                 self.config.auto_playlist = False
 
     async def on_player_entry_added(self, playlist, entry, **_):
+        # print("enter event")
+        # print("Enter if")
+        # if self.config.auto_playlist_auto_add:
+        #     print("auto_add enabled")
+        #     print("Here is the autoplaylist")
+        #     print(self.autoplaylist)
+        #     print("Here is what I want to add")
+        #     print(entry.song_url)
+        #     self.autoplaylist.append(entry.song_url)
+        #     print("appended autoplaylist")
+        #     write_line(self.config.auto_playlist_file, entry.song_url)
+        #     print("wrote autoplaylist file")
+        # else:
+        #     print("auto_add disabled")
+        # print("endif")
         pass
 
     async def update_now_playing(self, entry=None, is_paused=False):
@@ -1128,6 +1146,33 @@ class MusicBot(discord.Client):
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=30)
 
+    async def cmd_autoremove(self, player, channel, author, permissions, leftover_args):
+        """
+        Usage:
+            {command_prefix}autoremove
+
+        Removes the currently playing song from the autoplaylist.
+        """
+        if player.current_entry:
+
+            url = player.current_entry.url
+            if "youtube.com" in url:
+                url = clean_youtube_link(url)
+            else:
+                url = url
+
+            result = False
+            if url in self.autoplaylist:
+                self.autoplaylist.remove(url)
+                result = remove_line(self.config.auto_playlist_file, url)
+
+            if result:
+                await self.send_message(channel, "Removed from auto playlist. :cold_sweat:")
+            else:
+                await self.send_message(channel, "Could not find entry in autoplaylist ?_?")
+        else:
+            await self.send_message(channel, "There is no song currently playing!")
+
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
         Usage:
@@ -1167,7 +1212,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Please quote your search query properly.", expire_in=30)
 
         service = 'youtube'
-        items_requested = 3
+        items_requested = 5
         max_items = 10  # this can be whatever, but since ytdl uses about 1000, a small number might be better
         services = {
             'youtube': 'ytsearch',
@@ -1218,43 +1263,46 @@ class MusicBot(discord.Client):
 
         def check(m):
             return (
-                m.content.lower()[0] in 'yn' or
+                m.content.lower()[0] is 'p' or
                 # hardcoded function name weeee
                 m.content.lower().startswith('{}{}'.format(self.config.command_prefix, 'search')) or
                 m.content.lower().startswith('exit'))
 
-        for e in info['entries']:
-            result_message = await self.safe_send_message(channel, "Result %s/%s: %s" % (
-                info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
+        results = "Please select a track with p#:\n"
 
-            confirm_message = await self.safe_send_message(channel, "Is this ok? Type `y`, `n` or `exit`")
-            response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
+        for n, e in enumerate(info['entries']):
+            time_str = str(datetime.timedelta(seconds=e['duration']))
+            results += "%d: **%s** (%s)\n" % (n+1, e['title'], time_str) 
+        result_message = await self.safe_send_message(channel, results)
+        response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
 
-            if not response_message:
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                return Response("Ok nevermind.", delete_after=30)
+        if not response_message:
+            await self.safe_delete_message(result_message)
+            return Response("Ok nevermind.", delete_after=30)
 
-            # They started a new search query so lets clean up and bugger off
-            elif response_message.content.startswith(self.config.command_prefix) or \
-                    response_message.content.lower().startswith('exit'):
+        # They started a new search query so lets clean up and bugger off
+        elif response_message.content.startswith(self.config.command_prefix) or \
+                response_message.content.lower().startswith('exit'):
 
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                return
+            await self.safe_delete_message(result_message)
+            return
 
-            if response_message.content.lower().startswith('y'):
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                await self.safe_delete_message(response_message)
+        elif (response_message.content.lower().startswith('p') and
+                response_message.content[1:].isdigit() and
+                (int(response_message.content[1:]) <= len(info['entries'])) ):
+            chosen_song_n = int(response_message.content[1:]) - 1
+            e = info['entries'][chosen_song_n]
 
-                await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+            await self.safe_delete_message(result_message)
+            await self.safe_delete_message(response_message)
 
-                return Response("Alright, coming right up!", delete_after=30)
-            else:
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                await self.safe_delete_message(response_message)
+            await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+
+            time_str = str(datetime.timedelta(seconds=e['duration']))
+            return Response("Queueing **%s** (%s)"%(e['title'], time_str), delete_after=30)
+        else:
+            await self.safe_delete_message(result_message)
+            await self.safe_delete_message(response_message)
 
         return Response("Oh well :frowning:", delete_after=30)
 
@@ -1379,6 +1427,26 @@ class MusicBot(discord.Client):
 
         await self.safe_delete_message(hand, quiet=True)
         return Response(":ok_hand:", delete_after=15)
+
+    async def cmd_shuffleon(self, channel, player):
+        """
+        Usage:
+            {command_prefix}shuffleon
+
+        Turns on shuffle mode. New songs will be added in a random position in the playlist.
+        """
+        player.playlist.shufflemode(True)
+        await self.send_message(channel, "Shuffle mode is ON!")
+
+    async def cmd_shuffleoff(self, channel, player):
+        """
+        Usage:
+            {command_prefix}autoremove
+
+        Turns off shuffle mode. New songs will be added sequentially in the playlist.
+        """
+        player.playlist.shufflemode(False)
+        await self.send_message(channel, "Shuffle mode is OFF!")
 
     async def cmd_clear(self, player, author):
         """
@@ -1550,6 +1618,9 @@ class MusicBot(discord.Client):
 
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
+
+    async def cmd_q(self, channel, player):
+        return await self.cmd_queue(channel, player)
 
     async def cmd_clean(self, message, channel, server, author, search_range=50):
         """
