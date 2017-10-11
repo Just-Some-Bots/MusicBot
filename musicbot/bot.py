@@ -1593,6 +1593,9 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
+    async def cmd_q(self, channel, player):
+        return await self.cmd_queue(channel, player)
+
     async def cmd_clean(self, message, channel, server, author, search_range=50):
         """
         Usage:
