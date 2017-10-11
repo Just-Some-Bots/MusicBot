@@ -27,7 +27,8 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int, remove_line
+from musicbot.utils import clean_youtube_link
 
 from . import exceptions
 from . import downloader
@@ -1144,6 +1145,27 @@ class MusicBot(discord.Client):
 
         return Response("Enqueued {} songs to be played in {} seconds".format(
             songs_added, self._fixg(ttime, 1)), delete_after=30)
+
+    async def cmd_autoremove(self, player, channel, author, permissions, leftover_args):
+        if player.current_entry:
+
+            url = player.current_entry.url
+            if "youtube.com" in url:
+                url = clean_youtube_link(url)
+            else:
+                url = url
+
+            result = False
+            if url in self.autoplaylist:
+                self.autoplaylist.remove(url)
+                result = remove_line(self.config.auto_playlist_file, url)
+
+            if result:
+                await self.send_message(channel, "Removed from auto playlist. :cold_sweat:")
+            else:
+                await self.send_message(channel, "Could not find entry in autoplaylist ?_?")
+        else:
+            await self.send_message(channel, "There is no song currently playing!")
 
     async def cmd_search(self, player, channel, author, permissions, leftover_args):
         """
