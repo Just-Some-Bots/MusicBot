@@ -1147,6 +1147,12 @@ class MusicBot(discord.Client):
             songs_added, self._fixg(ttime, 1)), delete_after=30)
 
     async def cmd_autoremove(self, player, channel, author, permissions, leftover_args):
+        """
+        Usage:
+            {command_prefix}autoremove
+
+        Removes the currently playing song from the autoplaylist.
+        """
         if player.current_entry:
 
             url = player.current_entry.url
@@ -1423,10 +1429,22 @@ class MusicBot(discord.Client):
         return Response(":ok_hand:", delete_after=15)
 
     async def cmd_shuffleon(self, channel, player):
+        """
+        Usage:
+            {command_prefix}shuffleon
+
+        Turns on shuffle mode. New songs will be added in a random position in the playlist.
+        """
         player.playlist.shufflemode(True)
         await self.send_message(channel, "Shuffle mode is ON!")
 
     async def cmd_shuffleoff(self, channel, player):
+        """
+        Usage:
+            {command_prefix}autoremove
+
+        Turns off shuffle mode. New songs will be added sequentially in the playlist.
+        """
         player.playlist.shufflemode(False)
         await self.send_message(channel, "Shuffle mode is OFF!")
 
