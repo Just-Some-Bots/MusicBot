@@ -84,6 +84,7 @@ class Playlist(EventEmitter):
         self._add_entry(entry)
         return entry, len(self.entries)
 
+<<<<<<< HEAD
     def remove_entry(self, id):
         self.entries.rotate(-id)
         entry = self.entries.popleft()
@@ -97,6 +98,8 @@ class Playlist(EventEmitter):
         self.entries.appendleft(entry)
         return entry
 
+=======
+>>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
     async def import_from(self, playlist_url, **meta):
         """
             Imports the songs from `playlist_url` and queues them to be played.
@@ -238,6 +241,7 @@ class Playlist(EventEmitter):
         if self.peek() is entry:
             entry.get_ready_future()
 
+<<<<<<< HEAD
     def _promote_last(self):
         entry = self.entries.pop()
         self.entries.appendleft(entry)
@@ -248,6 +252,8 @@ class Playlist(EventEmitter):
 
         return entry
 
+=======
+>>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
     async def get_next_entry(self, predownload_next=True):
         """
             A coroutine which will return the next song or None if no songs left to play.
