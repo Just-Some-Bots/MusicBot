@@ -846,12 +846,12 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError('Player is not playing.', expire_in=30)
 
-    async def cmd_repeatsong(self, player):
+    async def cmd_repeat(self, player):
         """
         Usage:
-            {command_prefix}repeatsong
+            {command_prefix}repeat
 
-        Loops the current song until it is skipped.
+        Changes the loop mode from Normal -> All -> Single.
         """
 		
         #if player.current_entry:
@@ -862,11 +862,13 @@ class MusicBot(discord.Client):
         player.repeat()
 
         if (player.is_repeat):
-            return Response(":sun_with_face: :dagger: :full_moon_with_face: Repeat mode: Yes", delete_after=20)
-        else:
+            return Response(":sun_with_face: :dagger: :full_moon_with_face: Repeat mode: Single", delete_after=20)
+        elif (player.is_normal):
             return Response(":full_moon_with_face: :dagger: :sun_with_face: Repeat mode: None", delete_after=20)
+        else:
+            return Response(":sun_with_face: :clap: :full_moon_with_face: :clap: Repeat mode: All", delete_after=20)
 
-        print("is player looping? %s" % str(player.is_repeat))
+        #print("is player looping? %s" % str(player.is_repeat))
 
         #else:
             #raise exceptions.CommandError('Player is not playing.', expire_in=30)

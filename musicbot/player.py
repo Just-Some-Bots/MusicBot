@@ -88,6 +88,7 @@ class MusicPlayerState(Enum):
 class RepeatState(Enum):
     NORMAL = 0
     REPEAT = 1
+    ALL = 2
 
     def __str__(self):
         return self.name
@@ -132,9 +133,16 @@ class MusicPlayer(EventEmitter):
     def is_normal(self):
         return self.repeatState == RepeatState.NORMAL
 
+    @property
+    def is_all(self):
+        return self.repeatState == RepeatState.ALL
+
     def repeat(self):
+        #repeat -> normal -> all -> repeat
         if (self.is_repeat):
             self.repeatState = RepeatState.NORMAL
+        elif (self.is_normal):
+            self.repeatState = RepeatState.ALL
         else:
             self.repeatState = RepeatState.REPEAT
 
@@ -291,13 +299,15 @@ class MusicPlayer(EventEmitter):
         entry = self._current_entry
         self.increase_play_count()
 
-        if (self.repeatState == RepeatState.REPEAT) and (not self.skipRepeat):
+        if (self.is_repeat) and (not self.skipRepeat):
             #print("Looping current song \"%s\"" % self._current_entry.url)
             #songURL = "https://www.youtube.com/watch?v=" + self._current_entry.url[20:31]
 
             #add entry to last, then push to first.
             self.playlist._add_entry(entry)
             self.playlist._promote_last()
+        elif (self.is_all):
+            self.playlist._add_entry(entry)
         else:
             self.skipRepeat = False
 
