@@ -758,7 +758,6 @@ class MusicBot(discord.Client):
 
             return Response(helpmsg, reply=True, delete_after=60)
 
-<<<<<<< HEAD
     async def cmd_remove(self, id, player):
         """
         Usage:
@@ -872,8 +871,6 @@ class MusicBot(discord.Client):
         #else:
             #raise exceptions.CommandError('Player is not playing.', expire_in=30)
 
-=======
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
         Usage:

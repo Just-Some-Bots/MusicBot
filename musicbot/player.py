@@ -85,7 +85,6 @@ class MusicPlayerState(Enum):
     def __str__(self):
         return self.name
 
-<<<<<<< HEAD
 class RepeatState(Enum):
     NORMAL = 0
     REPEAT = 1
@@ -101,8 +100,6 @@ class NoSongFound(Exception):
             msg = "An error occured with song %s" % song
         super(NoSongFound, self).__init__(msg)
         self.song = song
-=======
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
 
 class MusicPlayer(EventEmitter):
     def __init__(self, bot, voice_client, playlist):
@@ -118,11 +115,8 @@ class MusicPlayer(EventEmitter):
         self._current_player = None
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
-<<<<<<< HEAD
         self.repeatState = RepeatState.NORMAL
         self.skipRepeat = False
-=======
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
 
         self.loop.create_task(self.websocket_check())
 
@@ -130,7 +124,6 @@ class MusicPlayer(EventEmitter):
     def volume(self):
         return self._volume
 
-<<<<<<< HEAD
     @property
     def is_repeat(self):
         return self.repeatState == RepeatState.REPEAT
@@ -145,8 +138,7 @@ class MusicPlayer(EventEmitter):
         else:
             self.repeatState = RepeatState.REPEAT
 
-=======
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
+
     @volume.setter
     def volume(self, value):
         self._volume = value
@@ -158,11 +150,9 @@ class MusicPlayer(EventEmitter):
             self.loop.call_later(2, self.play)
 
     def skip(self):
-<<<<<<< HEAD
         if (self.is_repeat):
             self.skipRepeat = True;
-=======
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
+
         self._kill_current_player()
 
     def stop(self):
@@ -206,7 +196,6 @@ class MusicPlayer(EventEmitter):
         self._events.clear()
         self._kill_current_player()
 
-<<<<<<< HEAD
     def check_play_count(self, url):
         script_dir = os.path.dirname(__file__)
         splitter = "=:="
@@ -311,10 +300,6 @@ class MusicPlayer(EventEmitter):
             self.playlist._promote_last()
         else:
             self.skipRepeat = False
-=======
-    def _playback_finished(self):
-        entry = self._current_entry
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
 
         if self._current_player:
             self._current_player.after = None
@@ -402,11 +387,7 @@ class MusicPlayer(EventEmitter):
 
                 self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
                     entry.filename,
-<<<<<<< HEAD
                     before_options="-nostdin -ss 00:00:00",
-=======
-                    before_options="-nostdin",
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
                     options="-vn -b:a 128k",
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
@@ -417,10 +398,7 @@ class MusicPlayer(EventEmitter):
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
-<<<<<<< HEAD
                 self._current_entry.url = entry.filename
-=======
->>>>>>> 3519ee88bb4b2ed67d23c8f075710c8f88de2392
 
                 self._current_player.start()
                 self.emit('play', player=self, entry=entry)
