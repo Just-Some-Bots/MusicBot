@@ -84,21 +84,6 @@ class Playlist(EventEmitter):
         self._add_entry(entry)
         return entry, len(self.entries)
 
-
-    def remove_entry(self, id):
-        self.entries.rotate(-id)
-        entry = self.entries.popleft()
-        self.entries.rotate(id)
-        return entry
-
-    def promote_entry(self, id):
-        self.entries.rotate(-id)
-        entry = self.entries.popleft()
-        self.entries.rotate(id)
-        self.entries.appendleft(entry)
-        return entry
-
-
     async def import_from(self, playlist_url, **meta):
         """
             Imports the songs from `playlist_url` and queues them to be played.
@@ -239,16 +224,6 @@ class Playlist(EventEmitter):
 
         if self.peek() is entry:
             entry.get_ready_future()
-
-    def _promote_last(self):
-        entry = self.entries.pop()
-        self.entries.appendleft(entry)
-        self.emit('entry-added', playlist=self, entry=entry)
-
-        if self.peek() is entry:
-            entry.get_ready_future()
-
-        return entry
 
     async def get_next_entry(self, predownload_next=True):
         """

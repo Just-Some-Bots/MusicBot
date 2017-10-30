@@ -85,22 +85,6 @@ class MusicPlayerState(Enum):
     def __str__(self):
         return self.name
 
-class RepeatState(Enum):
-    NORMAL = 0
-    REPEAT = 1
-    ALL = 2
-
-    def __str__(self):
-        return self.name
-
-class NoSongFound(Exception):
-    """Basic exception for errors raised by song"""
-    def __init__(self, song, msg=None):
-        if msg is None:
-            # Set some default useful error message
-            msg = "An error occured with song %s" % song
-        super(NoSongFound, self).__init__(msg)
-        self.song = song
 
 class MusicPlayer(EventEmitter):
     def __init__(self, bot, voice_client, playlist):
@@ -116,36 +100,12 @@ class MusicPlayer(EventEmitter):
         self._current_player = None
         self._current_entry = None
         self.state = MusicPlayerState.STOPPED
-        self.repeatState = RepeatState.NORMAL
-        self.skipRepeat = False
 
         self.loop.create_task(self.websocket_check())
 
     @property
     def volume(self):
         return self._volume
-
-    @property
-    def is_repeat(self):
-        return self.repeatState == RepeatState.REPEAT
-
-    @property
-    def is_normal(self):
-        return self.repeatState == RepeatState.NORMAL
-
-    @property
-    def is_all(self):
-        return self.repeatState == RepeatState.ALL
-
-    def repeat(self):
-        #repeat -> normal -> all -> repeat
-        if (self.is_repeat):
-            self.repeatState = RepeatState.NORMAL
-        elif (self.is_normal):
-            self.repeatState = RepeatState.ALL
-        else:
-            self.repeatState = RepeatState.REPEAT
-
 
     @volume.setter
     def volume(self, value):
@@ -158,9 +118,6 @@ class MusicPlayer(EventEmitter):
             self.loop.call_later(2, self.play)
 
     def skip(self):
-        if (self.is_repeat):
-            self.skipRepeat = True;
-
         self._kill_current_player()
 
     def stop(self):
@@ -204,112 +161,8 @@ class MusicPlayer(EventEmitter):
         self._events.clear()
         self._kill_current_player()
 
-    def check_play_count(self, url):
-        script_dir = os.path.dirname(__file__)
-        splitter = "=:="
-
-        with open(script_dir + "/test.txt", "r", encoding='utf-8') as f:
-            data = f
-
-            for line in data:
-                #print(line + ":" + url)
-                #searches through whole line, maybe want to restrict to only url?
-                try:
-                    #if the line in database can be splitted into 3 parts
-                    #song[0] = title, 1 = play count, 2 = filename in audio_cache
-                    song = len(line.split(splitter)) >= 2
-                    if (not song):
-                        raise ValueError
-                except (ValueError, IndexError):
-                    pass
-                else:
-                    #if it is possible to split it into 3 parts
-                    song = line.split(splitter)
-                    id = song[2][21:32]
-                    if (url == id):
-                        song[1] = int(song[1].strip())
-                        #return line so that we can gather the info needed such as title & playcount
-                        #although the function name is intended otherwise?
-                        return song
-
-    def increase_play_count(self):
-        if (not self._current_entry):
-            return False
-        script_dir = os.path.dirname(__file__)
-        songTitle = self.current_entry.title
-        songURL = self.current_entry.url
-        splitter = "=:="
-
-        #read current file and store data into oldFile
-        data = open(script_dir + "/test.txt", "r", encoding='utf-8')
-        oldFile = data.readlines()
-
-        #rewrite current file using oldFile as reference
-        with open(script_dir + "/test.txt", "w", encoding='utf-8') as f:
-            newFile = f
-            lineWithSongClap = ""
-
-            '''try:
-                for line in oldFile:
-                    #song exists in database
-                    print(songTitle + " == " + line)
-                    if (songTitle in line):
-                        lineWithSongClap = line
-                        raise StopIteration
-                    else:
-                        newFile.write(line)
-                raise NoSongFound(songTitle)
-            except StopIteration:
-                #song[0] = id, 1 = play count
-                song = lineWithSongClap.split(":")
-                song[1] = str(int(song[1].strip()) + 1)
-                newFile.write(song[0] + ":" + song[1])
-                print(song)
-            except NoSongFound:
-                #song doesn't exist in database
-                print("ELSE")
-                newFile.write("\n%s:%s" % (songTitle, 1))
-            '''
-
-            #add song to database if it does not exists.
-            #song[0] = id, 1 = play count, 2 = url
-
-            try:
-                for line in oldFile:
-                    #song exists in database
-                    if (songTitle == line.split(splitter)[0][:-1]):
-                        lineWithSongClap = line
-                        
-                        song = lineWithSongClap.split(splitter)
-                        song[1] = str(int(song[1]) + 1)
-                        #append new line because we're rewriting a line
-                        newFile.write("%s %s %s %s %s\n" % (songTitle, splitter, song[1], splitter, songURL))
-                    #rewrite line because file is recreated.
-                    else:
-                        newFile.write(line)
-                if (lineWithSongClap == ""):
-                    raise NoSongFound(songTitle)
-            except NoSongFound:
-                #song doesn't exist in database
-                newFile.write("\n%s %s %s %s %s" % (songTitle, splitter, 1, splitter, songURL))
-
-        data.close()
-
     def _playback_finished(self):
         entry = self._current_entry
-        self.increase_play_count()
-
-        if (self.is_repeat) and (not self.skipRepeat):
-            #print("Looping current song \"%s\"" % self._current_entry.url)
-            #songURL = "https://www.youtube.com/watch?v=" + self._current_entry.url[20:31]
-
-            #add entry to last, then push to first.
-            self.playlist._add_entry(entry)
-            self.playlist._promote_last()
-        elif (self.is_all):
-            self.playlist._add_entry(entry)
-        else:
-            self.skipRepeat = False
 
         if self._current_player:
             self._current_player.after = None
@@ -397,7 +250,7 @@ class MusicPlayer(EventEmitter):
 
                 self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
                     entry.filename,
-                    before_options="-nostdin -ss 00:00:00",
+                    before_options="-nostdin",
                     options="-vn -b:a 128k",
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
@@ -408,7 +261,6 @@ class MusicPlayer(EventEmitter):
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
-                self._current_entry.url = entry.filename
 
                 self._current_player.start()
                 self.emit('play', player=self, entry=entry)
