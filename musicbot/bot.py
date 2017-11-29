@@ -9,6 +9,7 @@ import logging
 import asyncio
 import pathlib
 import traceback
+import math
 
 import aiohttp
 import discord
@@ -33,7 +34,7 @@ from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .constructs import SkipState, Response, VoiceStateUpdate
-from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta, _func_
+from .utils import load_file, write_file, fixg, ftimedelta, _func_
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -1878,7 +1879,7 @@ class MusicBot(discord.Client):
 
         skips_remaining = min(
             self.config.skips_required,
-            sane_round_int(num_voice * self.config.skip_ratio_required)
+            math.ceil(self.config.skip_ratio_required / (1 / num_voice)) # Number of skips from config ratio
         ) - num_skips
 
         if skips_remaining <= 0:
