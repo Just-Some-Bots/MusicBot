@@ -13,9 +13,7 @@ from collections import deque
 from shutil import get_terminal_size
 from websockets.exceptions import InvalidState
 
-from discord.http import _func_
-
-from .utils import avg
+from .utils import avg, _func_
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning

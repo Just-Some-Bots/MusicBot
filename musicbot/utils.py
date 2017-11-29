@@ -2,6 +2,7 @@ import sys
 import decimal
 import logging
 import aiohttp
+import inspect
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
@@ -153,3 +154,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
 def color_supported():
     return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+
+def _func_():
+    # emulate __func__ from C++
+    return inspect.currentframe().f_back.f_code.co_name
