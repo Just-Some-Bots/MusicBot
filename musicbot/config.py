@@ -66,6 +66,7 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.auto_playlist_removed_file = None
 
+        self.timeout = config.get('MusicBot', 'TimeOut', fallback=ConfigDefaults.timeout)
         self.run_checks()
 
         self.find_autoplaylist()
@@ -281,6 +282,8 @@ class ConfigDefaults:
     persistent_queue = True
     debug_level = 'INFO'
 
+    debug_mode = False
+    timeout = 10
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
