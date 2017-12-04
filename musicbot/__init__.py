@@ -6,6 +6,9 @@ from textwrap import dedent
 from discord.ext.commands.bot import _get_variable
 
 from .exceptions import HelpfulError
+from .bot import MusicBot
+from .constructs import BetterLogRecord
+
 
 class Yikes:
     def find_module(self, fullname, path=None):
@@ -69,10 +72,8 @@ class Yikes:
             footnote="Import traceback (most recent call last):\n" + import_tb
         )
 
-sys.meta_path.insert(0, Yikes())
 
-from .bot import MusicBot
-from .constructs import BetterLogRecord
+sys.meta_path.insert(0, Yikes())
 
 __all__ = ['MusicBot']
 
@@ -82,7 +83,8 @@ _func_prototype = "def {logger_func_name}(self, message, *args, **kwargs):\n" \
                   "    if self.isEnabledFor({levelname}):\n" \
                   "        self._log({levelname}, message, args, **kwargs)"
 
-def _add_logger_level(levelname, level, *, func_name = None):
+
+def _add_logger_level(levelname, level, *, func_name=None):
     """
 
     :type levelname: str

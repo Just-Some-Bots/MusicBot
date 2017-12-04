@@ -90,7 +90,7 @@ class Permissions:
         return self.default_group
 
     def create_group(self, name, **kwargs):
-        self.config.read_dict({name:kwargs})
+        self.config.read_dict({name: kwargs})
         self.groups.add(PermissionGroup(name, self.config[name]))
         # TODO: Test this
 
@@ -165,7 +165,8 @@ class PermissionGroup:
 
         values = [i for i in seq.split(split) if i]
         for fn in (_strip, lower, coerce):
-            if fn: values = map(fn, values)
+            if fn:
+                values = map(fn, values)
 
         return rcoerce(values)
 
@@ -175,7 +176,6 @@ class PermissionGroup:
     def remove_user(self, uid):
         if uid in self.user_list:
             self.user_list.remove(uid)
-
 
     def __repr__(self):
         return "<PermissionGroup: %s>" % self.name

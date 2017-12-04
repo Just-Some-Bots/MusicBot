@@ -11,6 +11,7 @@ from .utils import objdiff
 
 log = logging.getLogger(__name__)
 
+
 class BetterLogRecord(logging.LogRecord):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,6 +55,7 @@ class Response:
             return self._codeblock.format(self._content)
         else:
             return self._content
+
 
 # Alright this is going to take some actual thinking through
 class AnimatedResponse(Response):
@@ -126,18 +128,18 @@ class Serializable:
 
 class VoiceStateUpdate:
     class Change(Enum):
-        RESUME     = 0   # Reconnect to an existing voice session
-        JOIN       = 1   # User has joined the bot's voice channel
-        LEAVE      = 2   # User has left the bot's voice channel
-        MOVE       = 3   # User has moved voice channels on this server
-        CONNECT    = 4   # User has connected to voice chat on this server
+        RESUME = 0   # Reconnect to an existing voice session
+        JOIN = 1   # User has joined the bot's voice channel
+        LEAVE = 2   # User has left the bot's voice channel
+        MOVE = 3   # User has moved voice channels on this server
+        CONNECT = 4   # User has connected to voice chat on this server
         DISCONNECT = 5   # User has disconnected from voice chat on this server
-        MUTE       = 6   # User is now mute
-        UNMUTE     = 7   # User is no longer mute
-        DEAFEN     = 8   # User is now deaf
-        UNDEAFEN   = 9   # User is no longer deaf
-        AFK        = 10  # User has gone afk
-        UNAFK      = 11  # User has come back from afk
+        MUTE = 6   # User is now mute
+        UNMUTE = 7   # User is no longer mute
+        DEAFEN = 8   # User is now deaf
+        UNDEAFEN = 9   # User is no longer deaf
+        AFK = 10  # User has gone afk
+        UNAFK = 11  # User has come back from afk
 
         def __repr__(self):
             return self.name

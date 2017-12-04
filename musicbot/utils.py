@@ -81,6 +81,7 @@ def md5sum(filename, limit=0):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
 
+
 def fixg(x, dp=2):
     return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
 
@@ -92,7 +93,8 @@ def ftimedelta(td):
 
 def safe_print(content, *, end='\n', flush=True):
     sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
-    if flush: sys.stdout.flush()
+    if flush:
+        sys.stdout.flush()
 
 
 def avg(i):
@@ -151,8 +153,10 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
     return changes
 
+
 def color_supported():
     return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+
 
 def _func_():
     # emulate __func__ from C++

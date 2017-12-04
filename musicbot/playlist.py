@@ -86,7 +86,7 @@ class Playlist(EventEmitter, Serializable):
 
                 elif content_type.startswith('text/html'):
                     log.warning("Got text/html for content-type, this might be a stream")
-                    pass # TODO: Check for shoutcast/icecast
+                    pass  # TODO: Check for shoutcast/icecast
 
                 elif not content_type.startswith(('audio/', 'video/')):
                     log.warning("Questionable content-type \"{}\" for url {}".format(content_type, song_url))
@@ -110,14 +110,14 @@ class Playlist(EventEmitter, Serializable):
                 info = await self.downloader.extract_info(self.loop, song_url, download=False)
 
             except DownloadError as e:
-                if e.exc_info[0] == UnsupportedError: # ytdl doesn't like it but its probably a stream
+                if e.exc_info[0] == UnsupportedError:  # ytdl doesn't like it but its probably a stream
                     log.debug("Assuming content is a direct stream")
 
                 elif e.exc_info[0] == URLError:
                     if os.path.exists(os.path.abspath(song_url)):
                         raise ExtractionError("This is not a stream, this is a file path.")
 
-                    else: # it might be a file path that just doesn't exist
+                    else:  # it might be a file path that just doesn't exist
                         raise ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
 
                 else:
@@ -131,7 +131,7 @@ class Playlist(EventEmitter, Serializable):
         if info.get('extractor'):
             dest_url = info.get('url')
 
-        if info.get('extractor', None) == 'twitch:stream': # may need to add other twitch types
+        if info.get('extractor', None) == 'twitch:stream':  # may need to add other twitch types
             title = info.get('description')
         else:
             title = info.get('title', 'Untitled')
@@ -142,7 +142,7 @@ class Playlist(EventEmitter, Serializable):
             self,
             song_url,
             title,
-            destination = dest_url,
+            destination=dest_url,
             **meta
         )
         self._add_entry(entry)
@@ -336,7 +336,6 @@ class Playlist(EventEmitter, Serializable):
     def count_for_user(self, user):
         return sum(1 for e in self.entries if e.meta.get('author', None) == user)
 
-
     def __json__(self):
         return self._enclose_json({
             'entries': list(self.entries)
@@ -353,4 +352,3 @@ class Playlist(EventEmitter, Serializable):
 
         # TODO: create a function to init downloading (since we don't do it here)?
         return pl
-

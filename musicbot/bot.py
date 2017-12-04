@@ -92,11 +92,15 @@ class MusicBot(discord.Client):
 
     def __del__(self):
         # These functions return futures but it doesn't matter
-        try:    self.http.session.close()
-        except: pass
+        try:
+            self.http.session.close()
+        except:
+            pass
 
-        try:    self.aiosession.close()
-        except: pass
+        try:
+            self.aiosession.close()
+        except:
+            pass
 
         super().__init__()
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
@@ -170,7 +174,7 @@ class MusicBot(discord.Client):
 
         shandler = logging.StreamHandler(stream=sys.stdout)
         shandler.setFormatter(colorlog.LevelFormatter(
-            fmt = {
+            fmt={
                 'DEBUG': '{log_color}[{levelname}:{module}] {message}',
                 'INFO': '{log_color}{message}',
                 'WARNING': '{log_color}{levelname}: {message}',
@@ -182,20 +186,20 @@ class MusicBot(discord.Client):
                 'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}',
                 'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}'
             },
-            log_colors = {
-                'DEBUG':    'cyan',
-                'INFO':     'white',
-                'WARNING':  'yellow',
-                'ERROR':    'red',
+            log_colors={
+                'DEBUG': 'cyan',
+                'INFO': 'white',
+                'WARNING': 'yellow',
+                'ERROR': 'red',
                 'CRITICAL': 'bold_red',
 
                 'EVERYTHING': 'white',
-                'NOISY':      'white',
-                'FFMPEG':     'bold_purple',
+                'NOISY': 'white',
+                'FFMPEG': 'bold_purple',
                 'VOICEDEBUG': 'purple',
-        },
-            style = '{',
-            datefmt = ''
+            },
+            style='{',
+            datefmt=''
         ))
         shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
@@ -221,7 +225,6 @@ class MusicBot(discord.Client):
             return True
 
         return not sum(1 for m in vchannel.voice_members if check(m))
-
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
@@ -316,8 +319,7 @@ class MusicBot(discord.Client):
 
         return self.cached_app_info
 
-
-    async def remove_from_autoplaylist(self, song_url:str, *, ex:Exception=None, delete_from_ap=False):
+    async def remove_from_autoplaylist(self, song_url: str, *, ex: Exception=None, delete_from_ap=False):
         if song_url not in self.autoplaylist:
             log.debug("URL \"{}\" not in autoplaylist, ignoring".format(song_url))
             return
@@ -332,10 +334,10 @@ class MusicBot(discord.Client):
                     '# Reason: {ex}\n'
                     '{url}\n\n{sep}\n\n'.format(
                         ctime=time.ctime(),
-                        ex=str(ex).replace('\n', '\n#' + ' ' * 10), # 10 spaces to line up with # Reason:
+                        ex=str(ex).replace('\n', '\n#' + ' ' * 10),  # 10 spaces to line up with # Reason:
                         url=song_url,
                         sep='#' * 32
-                ))
+                    ))
 
             if delete_from_ap:
                 log.info("Updating autoplaylist")
@@ -344,7 +346,6 @@ class MusicBot(discord.Client):
     @ensure_appinfo
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), server=None):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
-
 
     async def join_voice_channel(self, channel):
         if isinstance(channel, discord.Object):
@@ -407,7 +408,6 @@ class MusicBot(discord.Client):
         self.connection._add_voice_client(server.id, voice)
         return voice
 
-
     async def get_voice_client(self, channel: discord.Channel):
         if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
@@ -423,7 +423,7 @@ class MusicBot(discord.Client):
             t0 = t1 = 0
             tries = 5
 
-            for attempt in range(1, tries+1):
+            for attempt in range(1, tries + 1):
                 log.debug("Connection attempt {} to {}".format(attempt, channel.name))
                 t0 = time.time()
 
@@ -450,7 +450,7 @@ class MusicBot(discord.Client):
                 log.critical("Voice client is unable to connect, restarting...")
                 await self.restart()
 
-            log.debug("Connected in {:0.1f}s".format(t1-t0))
+            log.debug("Connected in {:0.1f}s".format(t1 - t0))
             log.info("Connected to {}/{}".format(channel.server, channel))
 
             vc.ws._keep_alive.name = 'VoiceClient Keepalive'
@@ -675,7 +675,7 @@ class MusicBot(discord.Client):
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
-        else: # Don't serialize for autoplaylist events
+        else:  # Don't serialize for autoplaylist events
             await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
@@ -722,30 +722,29 @@ class MusicBot(discord.Client):
         if message is None and lnp:
             await self.safe_delete_message(lnp, quiet=True)
 
-        elif lnp: # If there was a previous lp message
+        elif lnp:  # If there was a previous lp message
             oldchannel = lnp.channel
 
-            if lnp.channel == oldchannel: # If we have a channel to update it in
+            if lnp.channel == oldchannel:  # If we have a channel to update it in
                 async for lmsg in self.logs_from(channel, limit=1):
-                    if lmsg != lnp and lnp: # If we need to resend it
+                    if lmsg != lnp and lnp:  # If we need to resend it
                         await self.safe_delete_message(lnp, quiet=True)
                         m = await self.safe_send_message(channel, message, quiet=True)
                     else:
                         m = await self.safe_edit_message(lnp, message, send_if_fail=True, quiet=False)
 
-            elif channel: # If we have a new channel to send it to
+            elif channel:  # If we have a new channel to send it to
                 await self.safe_delete_message(lnp, quiet=True)
                 m = await self.safe_send_message(channel, message, quiet=True)
 
-            else: # we just resend it in the old channel
+            else:  # we just resend it in the old channel
                 await self.safe_delete_message(lnp, quiet=True)
                 m = await self.safe_send_message(oldchannel, message, quiet=True)
 
-        elif channel: # No previous message
+        elif channel:  # No previous message
             m = await self.safe_send_message(channel, message, quiet=True)
 
         self.server_specific_data[server]['last_np_msg'] = m
-
 
     async def serialize_queue(self, server, *, dir=None):
         """
@@ -759,7 +758,7 @@ class MusicBot(discord.Client):
         if dir is None:
             dir = 'data/%s/queue.json' % server.id
 
-        async with self.aiolocks['queue_serialization'+':'+server.id]:
+        async with self.aiolocks['queue_serialization' + ':' + server.id]:
             log.debug("Serializing queue for %s", server.id)
 
             with open(dir, 'w', encoding='utf8') as f:
@@ -805,14 +804,13 @@ class MusicBot(discord.Client):
         # config/permissions async validate?
         await self._scheck_configs()
 
-
     async def _scheck_ensure_env(self):
         log.debug("Ensuring data folders exist")
         for server in self.servers:
             pathlib.Path('data/%s/' % server.id).mkdir(exist_ok=True)
 
         with open('data/server_names.txt', 'w', encoding='utf8') as f:
-            for server in sorted(self.servers, key=lambda s:int(s.id)):
+            for server in sorted(self.servers, key=lambda s: int(s.id)):
                 f.write('{:<22} {}\n'.format(server.id, server.name))
 
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
@@ -821,14 +819,13 @@ class MusicBot(discord.Client):
             else:
                 log.debug("Could not delete old audio cache, moving on.")
 
-
     async def _scheck_server_permissions(self):
         log.debug("Checking server permissions")
-        pass # TODO
+        pass  # TODO
 
     async def _scheck_autoplaylist(self):
         log.debug("Auditing autoplaylist")
-        pass # TODO
+        pass  # TODO
 
     async def _scheck_configs(self):
         log.debug("Validating config")
@@ -837,10 +834,7 @@ class MusicBot(discord.Client):
         log.debug("Validating permissions config")
         await self.permissions.async_validate(self)
 
-
-
 #######################################################################################################################
-
 
     async def safe_send_message(self, dest, content, **kwargs):
         tts = kwargs.pop('tts', False)
@@ -912,8 +906,7 @@ class MusicBot(discord.Client):
         if self.user.bot:
             return await super().edit_profile(**fields)
         else:
-            return await super().edit_profile(self.config._password,**fields)
-
+            return await super().edit_profile(self.config._password, **fields)
 
     async def restart(self):
         self.exit_signal = exceptions.RestartSignal()
@@ -925,7 +918,8 @@ class MusicBot(discord.Client):
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
-        except: pass
+        except:
+            pass
 
         pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
@@ -934,7 +928,8 @@ class MusicBot(discord.Client):
             gathered.cancel()
             self.loop.run_until_complete(gathered)
             gathered.exception()
-        except: pass
+        except:
+            pass
 
     # noinspection PyMethodOverriding
     def run(self):
@@ -948,7 +943,7 @@ class MusicBot(discord.Client):
                 "Fix your %s in the options file.  "
                 "Remember that each field should be on their own line."
                 % ['shit', 'Token', 'Email/Password', 'Credentials'][len(self.config.auth)]
-            ) #     ^^^^ In theory self.config.auth should never have no items
+            )  # ^^^^ In theory self.config.auth should never have no items
 
         finally:
             try:
@@ -1478,7 +1473,6 @@ class MusicBot(discord.Client):
             except Exception:
                 log.error("Error processing playlist", exc_info=True)
                 raise exceptions.CommandError('Error handling playlist %s queuing.' % playlist_url, expire_in=30)
-
 
         songs_processed = len(entries_added)
         drop_count = 0
@@ -2085,9 +2079,9 @@ class MusicBot(discord.Client):
                 return await self.cmd_pldump(channel, info.get(''))
 
         linegens = defaultdict(lambda: None, **{
-            "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
+            "youtube": lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
             "soundcloud": lambda d: d['url'],
-            "bandcamp":   lambda d: d['url']
+            "bandcamp": lambda d: d['url']
         })
 
         exfunc = linegens[info['extractor'].split(':')[0]]
@@ -2161,7 +2155,6 @@ class MusicBot(discord.Client):
 
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
-
     async def cmd_perms(self, author, channel, server, permissions):
         """
         Usage:
@@ -2180,7 +2173,6 @@ class MusicBot(discord.Client):
 
         await self.send_message(author, '\n'.join(lines))
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
-
 
     @owner_only
     async def cmd_setname(self, leftover_args, name):
@@ -2251,7 +2243,6 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("Unable to change avatar: {}".format(e), expire_in=20)
 
         return Response("\N{OK HAND SIGN}", delete_after=20)
-
 
     async def cmd_disconnect(self, server):
         await self.disconnect_voice_client(server)
@@ -2501,10 +2492,9 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
-
     async def on_voice_state_update(self, before, after):
         if not self.init_ok:
-            return # Ignore stuff before ready
+            return  # Ignore stuff before ready
 
         state = VoiceStateUpdate(before, after)
 
@@ -2517,19 +2507,19 @@ class MusicBot(discord.Client):
 
         if not state.changes:
             log.voicedebug("Empty voice state update, likely a session id change")
-            return # Session id change, pointless event
+            return  # Session id change, pointless event
 
         ################################
 
         log.voicedebug("Voice state update for {mem.id}/{mem!s} on {ser.name}/{vch.name} -> {dif}".format(
-            mem = state.member,
-            ser = state.server,
-            vch = state.voice_channel,
-            dif = state.changes
+            mem=state.member,
+            ser=state.server,
+            vch=state.voice_channel,
+            dif=state.changes
         ))
 
         if not state.is_about_my_voice_channel:
-            return # Irrelevant channel
+            return  # Irrelevant channel
 
         if state.joining or state.leaving:
             log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
@@ -2549,9 +2539,9 @@ class MusicBot(discord.Client):
 
         if state.joining and state.empty() and player.is_playing:
             log.info(autopause_msg.format(
-                state = "Pausing",
-                channel = state.my_voice_channel,
-                reason = "(joining empty channel)"
+                state="Pausing",
+                channel=state.my_voice_channel,
+                reason="(joining empty channel)"
             ).strip())
 
             self.server_specific_data[after.server]['auto_paused'] = True
@@ -2562,9 +2552,9 @@ class MusicBot(discord.Client):
             if not state.empty(old_channel=state.leaving):
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
-                        state = "Unpausing",
-                        channel = state.my_voice_channel,
-                        reason = ""
+                        state="Unpausing",
+                        channel=state.my_voice_channel,
+                        reason=""
                     ).strip())
 
                     self.server_specific_data[after.server]['auto_paused'] = False
@@ -2572,35 +2562,33 @@ class MusicBot(discord.Client):
             else:
                 if not auto_paused and player.is_playing:
                     log.info(autopause_msg.format(
-                        state = "Pausing",
-                        channel = state.my_voice_channel,
-                        reason = "(empty channel)"
+                        state="Pausing",
+                        channel=state.my_voice_channel,
+                        reason="(empty channel)"
                     ).strip())
 
                     self.server_specific_data[after.server]['auto_paused'] = True
                     player.pause()
 
-
-    async def on_server_update(self, before:discord.Server, after:discord.Server):
+    async def on_server_update(self, before: discord.Server, after: discord.Server):
         if before.region != after.region:
             log.warning("Server \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
 
-
-    async def on_server_join(self, server:discord.Server):
+    async def on_server_join(self, server: discord.Server):
         log.info("Bot has been joined server: {}".format(server.name))
 
         if not self.user.bot:
             alertmsg = "<@{uid}> Hi I'm a musicbot please mute me."
 
-            if server.id == "81384788765712384" and not server.unavailable: # Discord API
+            if server.id == "81384788765712384" and not server.unavailable:  # Discord API
                 playground = server.get_channel("94831883505905664") or discord.utils.get(server.channels, name='playground') or server
-                await self.safe_send_message(playground, alertmsg.format(uid="98295630480314368")) # fake abal
+                await self.safe_send_message(playground, alertmsg.format(uid="98295630480314368"))  # fake abal
 
-            elif server.id == "129489631539494912" and not server.unavailable: # Rhino Bot Help
+            elif server.id == "129489631539494912" and not server.unavailable:  # Rhino Bot Help
                 bot_testing = server.get_channel("134771894292316160") or discord.utils.get(server.channels, name='bot-testing') or server
-                await self.safe_send_message(bot_testing, alertmsg.format(uid="98295630480314368")) # also fake abal
+                await self.safe_send_message(bot_testing, alertmsg.format(uid="98295630480314368"))  # also fake abal
 
         log.debug("Creating data folder for server %s", server.id)
         pathlib.Path('data/%s/' % server.id).mkdir(exist_ok=True)
@@ -2613,10 +2601,9 @@ class MusicBot(discord.Client):
         if server.id in self.players:
             self.players.pop(server.id).kill()
 
-
     async def on_server_available(self, server: discord.Server):
         if not self.init_ok:
-            return # Ignore pre-ready events
+            return  # Ignore pre-ready events
 
         log.debug("Server \"{}\" has become available.".format(server.name))
 
@@ -2629,7 +2616,6 @@ class MusicBot(discord.Client):
                 log.debug("Resuming player in \"{}\" due to availability.".format(server.name))
                 self.server_specific_data[server]['availability_paused'] = False
                 player.resume()
-
 
     async def on_server_unavailable(self, server: discord.Server):
         log.debug("Server \"{}\" has become unavailable.".format(server.name))
