@@ -38,7 +38,6 @@ from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta, _fun
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-
 load_opus_lib()
 
 log = logging.getLogger(__name__)
@@ -1456,7 +1455,7 @@ class MusicBot(discord.Client):
         unplayable_songs = []
 
         while textfile:
-            song_url = choice(textfile)
+            song_url = random.choice(textfile)
             try:
                 info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
             except Exception as e:
