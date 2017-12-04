@@ -655,7 +655,10 @@ class MusicBot(discord.Client):
 
                 if info.get('entries', None):  # or .get('_type', '') == 'playlist'
                     log.debug("Playlist found but is unsupported at this time, skipping.")
+                    entry_list, position = await player.playlist.import_from(song_url)
                     # TODO: Playlist expansion
+                    # Hey Bork, only took 1 line to get playlist URLS to work in autoplaylist
+                    # Simple yet effective ~KingGold171
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
