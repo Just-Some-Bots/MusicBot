@@ -1,14 +1,15 @@
 import os
 import asyncio
+import logging
 import functools
 import youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
 
+log = logging.getLogger(__name__)
+
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'extractaudio': True,
-    'audioformat': 'mp3',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,
@@ -32,7 +33,6 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 
 '''
 
-
 class Downloader:
     def __init__(self, download_folder=None):
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
@@ -48,6 +48,7 @@ class Downloader:
 
             otmpl = self.safe_ytdl.params['outtmpl']
             self.safe_ytdl.params['outtmpl'] = os.path.join(download_folder, otmpl)
+
 
     @property
     def ytdl(self):
