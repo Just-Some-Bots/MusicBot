@@ -1433,6 +1433,63 @@ class MusicBot(discord.Client):
 
         return Response(reply_text, delete_after=30)
 
+    async def cmd_playlist(self, message, player, filename):
+        """
+        Usage:
+            {command_prefix}playlist <file name>
+
+        Plays a specified playlist .txt file.
+        """
+        filename = filename
+        if filename.endswith('.txt'):
+            playlistfile = filename
+        else:
+            playlistfile = filename + '.txt'
+
+        try:
+            savefile = load_file(playlistfile)
+            textfile = load_file(playlistfile)
+        except Exception as e:
+            return Response(e)
+
+        await self.safe_send_message(message.channel, 'Adding songs from `{}` to the queue!'.format(playlistfile))
+        unplayable_songs = []
+
+        while textfile:
+            song_url = choice(textfile)
+            try:
+                info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+            except Exception as e:
+                raise exceptions.CommandError(e, expire_in=30)
+            if not info:
+                unplayable_songs.append(song_url)
+                self.safe_print("[Info] Removing unplayable song from `{}`: {}".format(playlistfile, song_url))
+                continue
+            if 'entries' in info:
+                try:
+                    print('Playlist detected in `{}`. Attempting to retrieve songs...'.format(playlistfile))
+                    entry_list, position = await player.playlist.import_from(song_url)
+                except exceptions.ExtractionError as e:
+                    print("Error adding song(s) from `%s` in %s:" % song_url, playlistfile, e)
+                    continue
+            else:
+                try:
+                    await player.playlist.add_entry(song_url, channel=None, author=None)
+                    print("Added `%s` to the queue!" % song_url)
+                except exceptions.ExtractionError as e:
+                    print("Error adding song (`%s`) from %s:" % song_url, playlistfile, e)
+                    continue
+            textfile.remove(song_url)
+
+        for s in unplayable_songs:
+            try:
+                savefile.remove(s)
+                write_file(playlistfile, savefile)
+            except Exception as e:
+                await self.safe_send_message(message.channel, e)
+
+        return Response('Songs from `%s` were added to the queue!' % playlistfile)
+
     async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
