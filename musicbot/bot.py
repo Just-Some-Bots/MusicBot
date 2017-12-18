@@ -1950,7 +1950,7 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume), expire_in=20)
 
-    async def cmd_autoplaylist(self, channel, author, player, voice_channel):
+    async def cmd_autoplaylist(self, player):
         """
         Usage:
             {command_prefix}autoplaylist
@@ -1960,10 +1960,10 @@ class MusicBot(discord.Client):
         self.autoplaylist = load_file(self.config.auto_playlist_file) #don't need to restart the bot to add songs to the autoplaylist  
         if not self.autoplaylist and not self.config.auto_playlist:
            return Response("No playable songs in the autoplaylist, cannot be enabled.")
-        self.config.auto_playlist = not self.config.auto_playlist
-        return Response("The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist])
+        self.config.auto_playlist = not self.config.auto_playlist        
         if self.config.auto_playlist:
-            await self.on_player_finished_playing(player)						
+            await self.on_player_finished_playing(player)
+	return Response("The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist])
 	
     async def cmd_queue(self, channel, player):
         """
