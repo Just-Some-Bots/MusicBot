@@ -1,7 +1,7 @@
 import sys
-import decimal
 import logging
 import aiohttp
+import inspect
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
@@ -31,11 +31,6 @@ def write_file(filename, contents):
         for item in contents:
             f.write(str(item))
             f.write('\n')
-
-
-def sane_round_int(x):
-    return int(decimal.Decimal(x).quantize(1, rounding=decimal.ROUND_HALF_UP))
-
 
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
@@ -153,3 +148,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
 def color_supported():
     return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+
+def _func_():
+    # emulate __func__ from C++
+    return inspect.currentframe().f_back.f_code.co_name

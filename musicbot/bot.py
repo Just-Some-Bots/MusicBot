@@ -9,6 +9,7 @@ import logging
 import asyncio
 import pathlib
 import traceback
+import math
 
 import aiohttp
 import discord
@@ -22,7 +23,6 @@ from collections import defaultdict
 
 from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
-from discord.http import _func_
 
 from . import exceptions
 from . import downloader
@@ -34,7 +34,7 @@ from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .constructs import SkipState, Response, VoiceStateUpdate
-from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta
+from .utils import load_file, write_file, fixg, ftimedelta, _func_
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -64,6 +64,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.autoplaylist_session = self.autoplaylist[:]
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
@@ -624,9 +625,14 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
-            while self.autoplaylist:
-                random.shuffle(self.autoplaylist)
-                song_url = random.choice(self.autoplaylist)
+            if not self.autoplaylist_session:
+                log.info("Autoplaylist session empty. Re-populating with entries...")
+                self.autoplaylist_session = self.autoplaylist[:]
+
+            while self.autoplaylist_session:
+                random.shuffle(self.autoplaylist_session)
+                song_url = random.choice(self.autoplaylist_session)
+                self.autoplaylist_session.remove(song_url)
 
                 info = {}
 
@@ -1214,6 +1220,27 @@ class MusicBot(discord.Client):
         else:
             usr = user_mentions[0]
             return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
+    
+    async def cmd_save(self, player):
+        """
+        Usage:
+            {command_prefix}save
+        
+        Saves the current song to the autoplaylist.
+        """
+        if player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry):
+            url = player.current_entry.url
+
+            if url not in self.autoplaylist:
+                self.autoplaylist.append(url)
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
+                log.debug("Appended {} to autoplaylist".format(url))
+                return Response('\N{THUMBS UP SIGN}')
+            else:
+                raise exceptions.CommandError('This song is already in the autoplaylist.')
+        else:
+            raise exceptions.CommandError('There is no valid song playing.')
+            
 
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
@@ -1879,7 +1906,7 @@ class MusicBot(discord.Client):
 
         skips_remaining = min(
             self.config.skips_required,
-            sane_round_int(num_voice * self.config.skip_ratio_required)
+            math.ceil(self.config.skip_ratio_required / (1 / num_voice)) # Number of skips from config ratio
         ) - num_skips
 
         if skips_remaining <= 0:
