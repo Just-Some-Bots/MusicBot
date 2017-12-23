@@ -1220,6 +1220,27 @@ class MusicBot(discord.Client):
         else:
             usr = user_mentions[0]
             return Response("%s's id is `%s`" % (usr.name, usr.id), reply=True, delete_after=35)
+    
+    async def cmd_save(self, player):
+        """
+        Usage:
+            {command_prefix}save
+        
+        Saves the current song to the autoplaylist.
+        """
+        if player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry):
+            url = player.current_entry.url
+
+            if url not in self.autoplaylist:
+                self.autoplaylist.append(url)
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
+                log.debug("Appended {} to autoplaylist".format(url))
+                return Response('\N{THUMBS UP SIGN}')
+            else:
+                raise exceptions.CommandError('This song is already in the autoplaylist.')
+        else:
+            raise exceptions.CommandError('There is no valid song playing.')
+            
 
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
