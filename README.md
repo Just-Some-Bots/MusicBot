@@ -1,31 +1,25 @@
-> :loudspeaker: While discord.py is undergoing a rewrite, this bot will not receive any major updates. Please do not bug us asking if the project is dead. It is likely that this bot make break at some point due to updates to discord.py. When the discord.py rewrite is complete, this bot will likely be rewritten too.
+:loudspeaker: While discord.py is undergoing a rewrite, this bot will not receive any major updates. Please do not bug us asking if the project is dead. It is likely that this bot make break at some point due to updates to discord.py. When the discord.py rewrite is complete, this bot will likely be rewritten too.
 
-# RhinoBot: The music bot for Discord.
+# MusicBot
 
-MusicBot is a Discord music bot written in [Python](https://www.python.org "Python homepage"). It plays requested songs and if the queue becomes empty it will play through a list of existing songs.
+MusicBot is the original Discord music bot written for [Python](https://www.python.org "Python homepage") 3.5+. It plays requested songs, from YouTube and other services, into a Discord server (or multiple servers) and if the queue becomes empty it will play through a list of existing songs, if configured to do so. The bot features a permissions system allowing owners to restrict commands to certain people. As well as playing songs, MusicBot is capable of streaming live media into a voice channel (experimental).
 
 ### How do I set it up?
 
-- [Windows Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Windows-7-and-up "Windows instructions")
-- [Linux Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Ubuntu-14.04-and-other-versions "Linux instructions")
-- [Docker Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-Docker)
-- [OSX Tutorial](https://github.com/SexualRhinoceros/MusicBot/wiki/Installation-guide-for-OSX)
+To set up MusicBot, do not install the ZIP. While it is certainly possible, we won't provide support for it. Instead, use our official guides, [located here](https://github.com/Just-Some-Bots/MusicBot/wiki).
 
 ### Commands
 
-Commands are listed [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
+There are many commands that can be used with the bot. Most notably, the `play <url>` command (preceded by your command prefix) will download, process, and play a song from YouTube or a similar site. A full list of commands are available [here](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list "Commands list").
 
 ### Configuration
 
-The main configuration file is `config/options.ini`, but is not included.  Simply make a copy of `example_options.ini` and rename to `options.ini`.  See `example_options.ini` for more information on how to configure it.
+The main configuration file is `config/options.ini`, but is not included. Simply make a copy of `example_options.ini` and rename to `options.ini`. See `example_options.ini` for more information on how to configure it.
 
-### Great, now how do I use it?
-Download the bot, set the dependencies up, then run `runbot.bat`! (or `run.sh` on mac/linux)  Read the tutorial if you don't know what to do.
+### Help
 
-If you have any errors, read the FAQ. If that didn't help, you can ask for assistance on the discord help server. Is is recommended to take screenshots so the developers can see errors.
+For some frequently asked questions, see [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki"). If you require further help, join our [Discord server](https://discord.gg/bots).
 
-[Rhino Help Server](http://discord.me/rhinohelp "Discord link")
+### Modification
 
-### FAQ
-
-Some frequently asked questions are listed on the wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
+As MusicBot uses the MIT license, you're welcome to modify it. However, we do not provide any support for this, or support for if something breaks as a result.
