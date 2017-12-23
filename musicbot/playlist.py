@@ -85,8 +85,8 @@ class Playlist(EventEmitter, Serializable):
                         raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
                 elif content_type.startswith('text/html'):
-                    log.warning("Got text/html for content-type, this might be a stream")
-                    pass # TODO: Check for shoutcast/icecast
+                    log.warning("Got text/html for content-type, this might be a stream. Attempting to stream.")
+                    return await self.add_stream_entry(song_url, info=info, **meta) # TODO: Check for shoutcast/icecast
 
                 elif not content_type.startswith(('audio/', 'video/')):
                     log.warning("Questionable content-type \"{}\" for url {}".format(content_type, song_url))
