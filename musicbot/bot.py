@@ -697,21 +697,24 @@ class MusicBot(discord.Client):
     async def update_now_playing_status(self, entry=None, is_paused=False):
         game = None
 
-        if self.user.bot:
-            activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-            if activeplayers > 1:
-                game = discord.Game(name="music on %s servers" % activeplayers)
-                entry = None
+        if not self.config.status_message:
+            if self.user.bot:
+                activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+                if activeplayers > 1:
+                    game = discord.Game(type=0, name="music on %s servers" % activeplayers)
+                    entry = None
 
-            elif activeplayers == 1:
-                player = discord.utils.get(self.players.values(), is_playing=True)
-                entry = player.current_entry
+                elif activeplayers == 1:
+                    player = discord.utils.get(self.players.values(), is_playing=True)
+                    entry = player.current_entry
 
-        if entry:
-            prefix = u'\u275A\u275A ' if is_paused else ''
+            if entry:
+                prefix = u'\u275A\u275A ' if is_paused else ''
 
-            name = u'{}{}'.format(prefix, entry.title)[:128]
-            game = discord.Game(name=name)
+                name = u'{}{}'.format(prefix, entry.title)[:128]
+                game = discord.Game(type=0, name=name)
+        else:
+            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
 
         async with self.aiolocks[_func_()]:
             if game != self.last_status:
@@ -1116,6 +1119,8 @@ class MusicBot(discord.Client):
         log.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         log.info("  Downloaded songs will be " + ['deleted', 'saved'][self.config.save_videos])
         print(flush=True)
+
+        await self.update_now_playing_status()
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
