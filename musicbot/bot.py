@@ -2269,8 +2269,10 @@ class MusicBot(discord.Client):
 
         if message.attachments:
             thing = message.attachments[0]['url']
-        else:
+        elif url:
             thing = url.strip('<>')
+        else:
+            raise exceptions.CommandError("You must provide a URL or attach a file.", expire_in=20)
 
         try:
             with aiohttp.Timeout(10):
