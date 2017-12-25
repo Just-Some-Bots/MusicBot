@@ -187,7 +187,7 @@ class Config:
                 )
 
             self.owner_id = bot.cached_app_info.owner.id
-            log.debug("Aquired owner id via API")
+            log.debug("Acquired owner id via API")
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(

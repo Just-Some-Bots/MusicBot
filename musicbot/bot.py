@@ -1118,6 +1118,8 @@ class MusicBot(discord.Client):
             log.info("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
         log.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
         log.info("  Downloaded songs will be " + ['deleted', 'saved'][self.config.save_videos])
+        if self.config.status_message:
+            log.info("  Status message: " + self.config.status_message)
         print(flush=True)
 
         await self.update_now_playing_status()
@@ -1673,45 +1675,29 @@ class MusicBot(discord.Client):
         if not info:
             return Response("No videos found.", delete_after=30)
 
-        def check(m):
-            return (
-                m.content.lower()[0] in 'yn' or
-                # hardcoded function name weeee
-                m.content.lower().startswith('{}{}'.format(self.config.command_prefix, 'search')) or
-                m.content.lower().startswith('exit'))
-
         for e in info['entries']:
             result_message = await self.safe_send_message(channel, "Result %s/%s: %s" % (
                 info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
 
-            confirm_message = await self.safe_send_message(channel, "Is this ok? Type `y`, `n` or `exit`")
-            response_message = await self.wait_for_message(30, author=author, channel=channel, check=check)
+            reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
+            for r in reactions:
+                await self.add_reaction(result_message, r)
+            res = await self.wait_for_reaction(reactions, user=author, timeout=30, message=result_message)
 
-            if not response_message:
+            if not res:
                 await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                return Response("Ok nevermind.", delete_after=30)
-
-            # They started a new search query so lets clean up and bugger off
-            elif response_message.content.startswith(self.config.command_prefix) or \
-                    response_message.content.lower().startswith('exit'):
-
-                await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
                 return
 
-            if response_message.content.lower().startswith('y'):
+            if res.reaction.emoji == '\u2705': # check
                 await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                await self.safe_delete_message(response_message)
-
                 await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
-
                 return Response("Alright, coming right up!", delete_after=30)
+            elif res.reaction.emoji == '\U0001F6AB': # cross
+                await self.safe_delete_message(result_message)
+                continue
             else:
                 await self.safe_delete_message(result_message)
-                await self.safe_delete_message(confirm_message)
-                await self.safe_delete_message(response_message)
+                break
 
         return Response("Oh well \N{SLIGHTLY FROWNING FACE}", delete_after=30)
 

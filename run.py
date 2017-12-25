@@ -199,17 +199,19 @@ def sanity_checks(optional=True):
     # Make our folders if needed
     req_ensure_folders()
 
+    log.info("Required checks passed.")
+
     ## Optional
     if not optional:
         return
 
-    # Check for a bot update
+    # Check the bot is consistent with remote
     opt_check_for_update()
 
     # Check disk usage
     opt_check_disk_space()
 
-    log.info("Checks passed.")
+    log.info("Optional checks passed.")
 
 
 def req_ensure_py3():
@@ -315,10 +317,13 @@ def opt_check_for_update():
         log.critical("Git is not installed on this system, or added to the PATH env variable")
         return
 
-    subprocess.check_output('git remote update', shell=True) # update remote refs
-    check = subprocess.check_output('git rev-list HEAD...@{u} --count', shell=True) # check mismatching commits
-    if int(check) >= 1:
-        log.warning("Your bot may be out-of-date by {} commit(s).".format(int(check)))
+    try:
+        subprocess.check_output('git remote update', shell=True) # update remote refs
+        check = subprocess.check_output('git rev-list HEAD...@{u} --count', shell=True) # check mismatching commits
+        if int(check) >= 1:
+            log.warning("Your local repo is inconsistent with the remote by {} commit(s). You may be using an outdated bot.".format(int(check)))
+    except Exception:
+        return # who cares
 
 
 def opt_check_disk_space(warnlimit_mb=200):
