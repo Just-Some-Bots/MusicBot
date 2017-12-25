@@ -1261,7 +1261,7 @@ class MusicBot(discord.Client):
         if self.user.bot:
             url = await self.generate_invite_link()
             return Response(
-                "Bot accounts can't use invite links!  Click here to add me to a server: \n{}".format(url),
+                "Click here to add me to a server: \n{}".format(url),
                 reply=True, delete_after=30
             )
 

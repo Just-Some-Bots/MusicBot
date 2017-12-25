@@ -33,8 +33,6 @@ class Config:
         self._confpreface = "An error has occured reading the config:\n"
         self._confpreface2 = "An error has occured validating the config:\n"
 
-        self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
-        self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
 
         self.auth = ()
@@ -77,26 +75,7 @@ class Config:
         Validation logic for bot settings.
         """
 
-
-        if self._email or self._password:
-            if not self._email:
-                raise HelpfulError(
-                    "The login email was not specified in the config.",
-
-                    "Please put your bot account credentials in the config.  "
-                    "Remember that the Email is the email address used to register the bot account.",
-                    preface=self._confpreface)
-
-            if not self._password:
-                raise HelpfulError(
-                    "The password was not specified in the config.",
-
-                    "Please put your bot account credentials in the config.",
-                    preface=self._confpreface)
-
-            self.auth = (self._email, self._password)
-
-        elif not self._login_token:
+        if not self._login_token:
             raise HelpfulError(
                 "No login credentials were specified in the config.",
 
