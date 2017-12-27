@@ -1597,10 +1597,11 @@ class MusicBot(discord.Client):
             - soundcloud (sc)
             - yahoo (yh)
         - number: return a number of video results and waits for user to choose one
-          - defaults to 1 if unspecified
+          - defaults to 3 if unspecified
           - note: If your search query starts with a number,
                   you must put your query in quotes
             - ex: {command_prefix}search 2 "I ran seagulls"
+        The command issuer can use reactions to indicate their response to each result.
         """
 
         if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:

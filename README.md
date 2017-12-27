@@ -1,5 +1,3 @@
-:loudspeaker: While discord.py is undergoing a rewrite, this bot will not receive any major updates. Please do not bug us asking if the project is dead. It is likely that this bot make break at some point due to updates to discord.py. When the discord.py rewrite is complete, this bot will likely be rewritten too.
-
 # MusicBot
 
 MusicBot is the original Discord music bot written for [Python](https://www.python.org "Python homepage") 3.5+. It plays requested songs, from YouTube and other services, into a Discord server (or multiple servers) and if the queue becomes empty it will play through a list of existing songs, if configured to do so. The bot features a permissions system allowing owners to restrict commands to certain people. As well as playing songs, MusicBot is capable of streaming live media into a voice channel (experimental).
