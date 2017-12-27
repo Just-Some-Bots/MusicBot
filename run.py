@@ -205,9 +205,6 @@ def sanity_checks(optional=True):
     if not optional:
         return
 
-    # Check the bot is consistent with remote
-    opt_check_for_update()
-
     # Check disk usage
     opt_check_disk_space()
 
@@ -308,23 +305,6 @@ def req_ensure_env():
 def req_ensure_folders():
     pathlib.Path('logs').mkdir(exist_ok=True)
     pathlib.Path('data').mkdir(exist_ok=True)
-
-
-def opt_check_for_update():
-    try:
-        assert GIT.works
-    except AssertionError: # theoretically, this should never happen as we already check for .git
-        log.critical("Git is not installed on this system, or added to the PATH env variable")
-        return
-
-    try:
-        subprocess.check_output('git remote update', shell=True) # update remote refs
-        check = subprocess.check_output('git rev-list HEAD...@{u} --count', shell=True) # check mismatching commits
-        if int(check) >= 1:
-            log.warning("Your local repo is inconsistent with the remote by {} commit(s). You may be using an outdated bot.".format(int(check)))
-    except Exception:
-        return # who cares
-
 
 def opt_check_disk_space(warnlimit_mb=200):
     if disk_usage('.').free < warnlimit_mb*1024*2:
