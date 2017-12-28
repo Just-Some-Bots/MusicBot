@@ -1,26 +1,26 @@
-# RhinoBot: µð½ºÄÚµå ¹ÂÁ÷º¿.
+ï»¿# RhinoBot: ë””ìŠ¤ì½”ë“œ ë®¤ì§ë´‡.
 
-[ÆÄÀÌ½ã](https://www.python.org "Python homepage") À¸·Î ÀÛ¼ºµÈ µð½ºÄÚµå ¹ÂÁ÷º¿ ÀÔ´Ï´Ù. ¿äÃ»µÈ ³ë·¡¸¦ Àç»ýÇÏ¸ç ¿äÃ»µÈ ³ë·¡°¡ ¾øÀ» °æ¿ì¿¡´Â ¸®½ºÆ®¿¡ ÀÖ´Â ³ë·¡¸ñ·ÏÀ» Àç»ýÇÕ´Ï´Ù.
+[íŒŒì´ì¬](https://www.python.org "Python homepage") ìœ¼ë¡œ ìž‘ì„±ëœ ë””ìŠ¤ì½”ë“œ ë®¤ì§ë´‡ ìž…ë‹ˆë‹¤. ìš”ì²­ëœ ë…¸ëž˜ë¥¼ ìž¬ìƒí•˜ë©° ìš”ì²­ëœ ë…¸ëž˜ê°€ ì—†ì„ ê²½ìš°ì—ëŠ” ë¦¬ìŠ¤íŠ¸ì— ìžˆëŠ” ë…¸ëž˜ëª©ë¡ì„ ìž¬ìƒí•©ë‹ˆë‹¤.
 
-### ¾î¶»°Ô ¼³Ä¡ÇÏ³ª¿ä?
+### ì–´ë–»ê²Œ ì„¤ì¹˜í•˜ë‚˜ìš”?
 
-[ÀÌ°÷](https://github.com/SexualRhinoceros/MusicBot/wiki) ¿¡¼­ ´ç½ÅÀÇ OS¿¡ ¸Â´Â ÀûÀýÇÑ °¡ÀÌµå¸¦ ¾òÀ» ¼ö ÀÖ½À´Ï´Ù.
+[ì´ê³³](https://github.com/SexualRhinoceros/MusicBot/wiki) ì—ì„œ ë‹¹ì‹ ì˜ OSì— ë§žëŠ” ì ì ˆí•œ ê°€ì´ë“œë¥¼ ì–»ì„ ìˆ˜ ìžˆìŠµë‹ˆë‹¤.
 
-### ¸í·É¾îµé
+### ëª…ë ¹ì–´ë“¤
 
-¸í·É¾îµéÀº [ÀÌ°÷](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands "Commands list")¿¡ ¸®½ºÆ® µÇ¾î ÀÖ½À´Ï´Ù.
+ëª…ë ¹ì–´ë“¤ì€ [ì´ê³³](https://github.com/SexualRhinoceros/MusicBot/wiki/Commands "Commands list")ì— ë¦¬ìŠ¤íŠ¸ ë˜ì–´ ìžˆìŠµë‹ˆë‹¤.
 
-### ÃÊ±â ¼³Á¤
+### ì´ˆê¸° ì„¤ì •
 
-¸ÞÀÎ ¼³Á¤ÆÄÀÏÀº `config/options.ini`ÀÔ´Ï´Ù. ÇÏÁö¸¸ ÀÌ ÆÄÀÏÀº Æ÷ÇÔµÇ¾îÀÖÁö ¾Ê±â ¶§¹®¿¡  °£´ÜÇÏ°Ô `example_options.ini` ¸¦ `options.ini`·Î ÀÌ¸§À» ¹Ù²ãÁÖ¸é µË´Ï´Ù! ±×¸®°í `example_options.ini`¸¦ ÀÐ¾îº¸´Ù º¸¸é ¼³Á¤¿¡ ´ëÇÑ ÀÚ¼¼ÇÑ ¼³¸íÀÌ ³ª¿ÍÀÖ½À´Ï´Ù.
+ë©”ì¸ ì„¤ì •íŒŒì¼ì€ `config/options.ini`ìž…ë‹ˆë‹¤. í•˜ì§€ë§Œ ì´ íŒŒì¼ì€ í¬í•¨ë˜ì–´ìžˆì§€ ì•Šê¸° ë•Œë¬¸ì—  ê°„ë‹¨í•˜ê²Œ `example_options.ini` ë¥¼ `options.ini`ë¡œ ì´ë¦„ì„ ë°”ê¿”ì£¼ë©´ ë©ë‹ˆë‹¤! ê·¸ë¦¬ê³  `example_options.ini`ë¥¼ ì½ì–´ë³´ë‹¤ ë³´ë©´ ì„¤ì •ì— ëŒ€í•œ ìžì„¸í•œ ì„¤ëª…ì´ ë‚˜ì™€ìžˆìŠµë‹ˆë‹¤.
 
-¶Ç [ÀÌ°÷](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration)¿¡¼­ ´õ ÀÚ¼¼ÇÑ »çÇ×À» È®ÀÎÇÒ ¼öµµ ÀÖ±¸¿ä.
+ë˜ [ì´ê³³](https://github.com/SexualRhinoceros/MusicBot/wiki/Configuration)ì—ì„œ ë” ìžì„¸í•œ ì‚¬í•­ì„ í™•ì¸í•  ìˆ˜ë„ ìžˆêµ¬ìš”.
 
-### ÁÁ¾Æ¿ä, ÀÌÁ¦ ¾î¶»°Ô »ç¿ëÇØ¾ß ÇÏÁÒ?
-º¿À» ´Ù¿î·Îµå ÇÏ°í, ÇÊ¿ä»çÇ×À» ¼³Á¤ÇÑ ´ÙÀ½, `runbot.bat`À¸·Î ½ÃÀÛÇÏ¼¼¿ä! (¸¸¾à ¸ÆÀÌ°Å³ª ¸®´ª½º È¯°æ ÀÌ¶ó¸é `run.sh`) ¹» ÇØ¾ßÇÒÁö ¸ð¸£°Ú´Ù¸é Æ©Åä¸®¾óÀ» ÀÐ¾îÁÖ¼¼¿ä.
+### ì¢‹ì•„ìš”, ì´ì œ ì–´ë–»ê²Œ ì‚¬ìš©í•´ì•¼ í•˜ì£ ?
+ë´‡ì„ ë‹¤ìš´ë¡œë“œ í•˜ê³ , í•„ìš”ì‚¬í•­ì„ ì„¤ì •í•œ ë‹¤ìŒ, `runbot.bat`ìœ¼ë¡œ ì‹œìž‘í•˜ì„¸ìš”! (ë§Œì•½ ë§¥ì´ê±°ë‚˜ ë¦¬ëˆ…ìŠ¤ í™˜ê²½ ì´ë¼ë©´ `run.sh`) ë­˜ í•´ì•¼í• ì§€ ëª¨ë¥´ê² ë‹¤ë©´ íŠœí† ë¦¬ì–¼ì„ ì½ì–´ì£¼ì„¸ìš”.
 
-¸¸¾à ¿¡·¯°¡ ¹ß»ýÇß´Ù¸é, FAQ¸¦ ÀÐ¾îÁÖ¼¼¿ä. ¹¹ ÀÌ°Í¸¶Àú µµ¿òÀÌ ¾ÈµÈ´Ù¸é ÀúÈñ µð½ºÄÚµå ¼­¹ö¿¡ ¿Í¼­ µµ¿òÀ» ±¸ÇØº¸¼¼¿ä. ½ºÅ©¸°¼¦ÀÌ ÀÖ¾î¾ß °³¹ßÀÚµéÀÌ ½±°Ô ¿¡·¯¸¦ ÆÄ¾ÇÇÒ ¼ö ÀÖ´ä´Ï´Ù (:
+ë§Œì•½ ì—ëŸ¬ê°€ ë°œìƒí–ˆë‹¤ë©´, FAQë¥¼ ì½ì–´ì£¼ì„¸ìš”. ë­ ì´ê²ƒë§ˆì € ë„ì›€ì´ ì•ˆëœë‹¤ë©´ ì €í¬ ë””ìŠ¤ì½”ë“œ ì„œë²„ì— ì™€ì„œ ë„ì›€ì„ êµ¬í•´ë³´ì„¸ìš”. ìŠ¤í¬ë¦°ìƒ·ì´ ìžˆì–´ì•¼ ê°œë°œìžë“¤ì´ ì‰½ê²Œ ì—ëŸ¬ë¥¼ íŒŒì•…í•  ìˆ˜ ìžˆë‹µë‹ˆë‹¤ (:
 [Rhino Help Server](http://discord.me/rhinohelp "Discord link")
 
 ### FAQ
-ÀÚÁÖ ¹¯´Â Áú¹®¿¡ ´ëÇÑ ¸®½ºÆ®°¡ ¿©±â¿¡ ÀÖÀ¸´Ï ¹®Á¦°¡ ¹ß»ýÇßÀ» ¶§ µµ¿òÀÌ µÉ °Ì´Ï´Ù [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
+ìžì£¼ ë¬»ëŠ” ì§ˆë¬¸ì— ëŒ€í•œ ë¦¬ìŠ¤íŠ¸ê°€ ì—¬ê¸°ì— ìžˆìœ¼ë‹ˆ ë¬¸ì œê°€ ë°œìƒí–ˆì„ ë•Œ ë„ì›€ì´ ë  ê²ë‹ˆë‹¤ [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
