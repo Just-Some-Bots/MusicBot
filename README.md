@@ -32,4 +32,4 @@ Some frequently asked questions are listed on the wiki [here](https://github.com
 
 ### Other Language
 
-[한글](https://github.com/SexualRhinoceros/MusicBot/guide/KR/README.md)
+[한글](https://github.com/hth225/MusicBot/tree/krlang/guide/KR)
