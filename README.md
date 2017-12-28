@@ -30,6 +30,6 @@ If you have any errors, read the FAQ. If that didn't help, you can ask for assis
 Some frequently asked questions are listed on the wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
 
 
-###Other Language
+### Other Language
 
 [한글](https://github.com/SexualRhinoceros/MusicBot/guide/KR/README.md)
