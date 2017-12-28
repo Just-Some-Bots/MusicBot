@@ -1,4 +1,5 @@
-﻿# RhinoBot: 디스코드 뮤직봇.
+
+# RhinoBot: 디스코드 뮤직봇.
 
 [파이썬](https://www.python.org "Python homepage") 으로 작성된 디스코드 뮤직봇 입니다. 요청된 노래를 재생하며 요청된 노래가 없을 경우에는 리스트에 있는 노래목록을 재생합니다.
 
