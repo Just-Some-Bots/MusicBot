@@ -277,7 +277,7 @@ def req_ensure_env():
     try:
         assert os.path.isdir('config'), 'folder "config" not found'
         assert os.path.isdir('musicbot'), 'folder "musicbot" not found'
-        assert os.path.isdir('.git'), 'bot was not installed using Git'
+        assert os.path.isdir('.git'), 'bot was not installed using Git. If you downloaded a ZIP, you did it wrong. Open http://bit.ly/dmbguide on your browser for official install steps.'
         assert os.path.isfile('musicbot/__init__.py'), 'musicbot folder is not a Python module'
 
         assert importlib.util.find_spec('musicbot'), "musicbot module is not importable"
