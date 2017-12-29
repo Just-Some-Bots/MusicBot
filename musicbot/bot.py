@@ -1755,6 +1755,24 @@ class MusicBot(discord.Client):
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix),
                 delete_after=30
             )
+        
+    async def cmd_addnp(self, player, channel, server, message):
+        """
+        Usage:
+            {command_prefix}addnp
+
+        Adds the song currently playing to the autoplaylist.
+        """
+
+        if self.autoplaylist.count(player._current_entry.url) == 0:
+            self.autoplaylist.append(player._current_entry.url)
+            autoplaylist_file = open(self.config.auto_playlist_file, "a")
+            autoplaylist_file.write(player._current_entry.url)
+            autoplaylist_file.write("\n")
+            autoplaylist_file.close()
+            await self.send_message(channel, "Added **%s** to the autoplaylist!" % (player.current_entry.title))
+        else:
+            await self.send_message(channel, "**%s** is already in the autoplaylist!" % (player.current_entry.title))
 
     async def cmd_summon(self, channel, server, author, voice_channel):
         """
