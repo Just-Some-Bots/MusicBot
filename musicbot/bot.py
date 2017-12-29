@@ -47,6 +47,11 @@ log = logging.getLogger(__name__)
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None):
+        try:
+            sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
+        except:
+            pass
+
         if config_file is None:
             config_file = ConfigDefaults.options_file
 
@@ -70,6 +75,8 @@ class MusicBot(discord.Client):
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
         self._setup_logging()
+
+        log.info(' MusicBot (version {}) '.format(BOTVERSION).center(50, '='))
 
         if not self.autoplaylist:
             log.warning("Autoplaylist is empty, disabling.")
@@ -1007,7 +1014,7 @@ class MusicBot(discord.Client):
         await self._on_ready_sanity_checks()
         print()
 
-        log.info('Connected!  Musicbot v{}\n'.format(BOTVERSION))
+        log.info('Connected to Discord!')
 
         self.init_ok = True
 
@@ -2321,7 +2328,6 @@ class MusicBot(discord.Client):
 
     @dev_only
     async def cmd_debug(self, message, _player, *, data):
-        player = _player
         codeblock = "```py\n{}\n```"
         result = None
 
