@@ -2674,4 +2674,4 @@ class MusicBot(discord.Client):
             anak2bgst = [user.mention for user in user_mentions]
             return Response('SAYA SLEDING KEPALA KAMU %s' % ', '.join(anak2bgst))
         else:
-            return Response('SAYA SLEDING KEPALA KAMU %s' % author.name)
+            return Response('SAYA SLEDING KEPALA KAMU %s' % author.mention)
