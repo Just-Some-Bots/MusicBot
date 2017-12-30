@@ -2640,3 +2640,38 @@ class MusicBot(discord.Client):
             log.debug("Pausing player in \"{}\" due to unavailability.".format(server.name))
             self.server_specific_data[server]['availability_paused'] = True
             player.pause()
+
+    #NEW Custom Command PUT BELOW
+    
+    async def cmd_apakah(self, user_mentions, leftover_args):
+        """
+        Usage:
+            {command_prefix}apakah [your query]
+
+        Random answer based on your query.
+        This command will only answer 'ya' or 'tidak'.
+        """
+        import random
+        standardize_user = [user.name for user in user_mentions]
+
+        randomize = random.seed(hash(' '.join(leftover_args + standardize_user)))
+        seed = random.random()
+        if  seed > 0.5:
+            result = 'ya'
+        else:
+            result = 'tidak'
+        return Response(result, reply=True)
+
+    async def cmd_sleding(self, author, user_mentions):
+        """
+        Usage:
+            {command_prefix}sleding [target...]
+
+        Let kak seto do the sleding.
+        You should use mention also when executing this command so you won't get sleding-ed
+        """
+        if user_mentions:
+            anak2bgst = [user.mention for user in user_mentions]
+            return Response('SAYA SLEDING KEPALA KAMU %s' % ', '.join(anak2bgst))
+        else:
+            return Response('SAYA SLEDING KEPALA KAMU %s' % author.name)
