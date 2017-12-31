@@ -1,17 +1,16 @@
-FROM alpine:3.4
+FROM alpine:edge
 
-# Install Dependencies
-RUN apk update \
- && apk add python3-dev ca-certificates gcc make linux-headers musl-dev ffmpeg libffi-dev
+# Requirements for the system and Python
+COPY requirements.txt /usr/src/MusicBot/requirements.txt
+RUN apk add --no-cache build-base libintl python3 python3-dev ffmpeg opus opus-dev libffi libffi-dev rtmpdump ca-certificates libsodium libsodium-dev pkgconf && \
+	SODIUM_INSTALL=system pip3 install -r /usr/src/MusicBot/requirements.txt && \
+	apk del build-base opus-dev libffi-dev libsodium-dev
 
-# Add project source
-ADD . /usr/src/MusicBot
+# Setup our main environment
 WORKDIR /usr/src/MusicBot
+COPY . /usr/src/MusicBot
 
 # Create volume for mapping the config
 VOLUME /usr/src/MusicBot/config
 
-# Install pip dependencies
-RUN pip3 install -r requirements.txt
-
-CMD python3.5 run.py
+CMD ["python3", "run.py"]

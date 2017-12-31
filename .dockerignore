@@ -1,3 +1,7 @@
 *.exe
 *.dll
 *.bat
+bin/
+env/
+audio_cache/
+.git/

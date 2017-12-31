@@ -3,6 +3,7 @@
 ~*/
 .vscode/
 
+env/
 audio_cache/
 dectalk/
 
