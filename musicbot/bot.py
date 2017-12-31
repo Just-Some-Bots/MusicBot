@@ -1037,13 +1037,17 @@ class MusicBot(discord.Client):
             ))
 
             log.info('Server List:')
-            [log.info(' - ' + s.name) for s in self.servers]
+            for s in self.servers:
+                ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
+                log.info(' - ' + ser)
 
         elif self.servers:
             log.warning("Owner could not be found on any server (id: %s)\n" % self.config.owner_id)
 
             log.info('Server List:')
-            [log.info(' - ' + s.name) for s in self.servers]
+            for s in self.servers:
+                ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
+                log.info(' - ' + ser)
 
         else:
             log.warning("Owner unknown, bot is not on any servers.")
