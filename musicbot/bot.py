@@ -594,6 +594,9 @@ class MusicBot(discord.Client):
         # This is the one event where its ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.server)
 
+        if self.config.write_current_song:
+            await self.write_current_song(player.voice_client.channel.server, entry)
+
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
 
@@ -804,6 +807,23 @@ class MusicBot(discord.Client):
                 data = f.read()
 
         return MusicPlayer.from_json(data, self, voice_client, playlist)
+
+    async def write_current_song(self, server, entry, *, dir=None):
+        """
+        Writes the current song to file
+        """
+        player = self.get_player_in(server)
+        if not player:
+            return
+
+        if dir is None:
+            dir = 'data/%s/current.txt' % server.id
+
+        async with self.aiolocks['current_song'+':'+server.id]:
+            log.debug("Writing current song for %s", server.id)
+
+            with open(dir, 'w', encoding='utf8') as f:
+                f.write(entry.title)
 
     @ensure_appinfo
     async def _on_ready_sanity_checks(self):
