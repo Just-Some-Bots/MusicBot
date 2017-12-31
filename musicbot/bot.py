@@ -641,8 +641,11 @@ class MusicBot(discord.Client):
                 self.autoplaylist_session = self.autoplaylist[:]
 
             while self.autoplaylist_session:
-                random.shuffle(self.autoplaylist_session)
-                song_url = random.choice(self.autoplaylist_session)
+                if self.config.auto_playlist_random:
+                    random.shuffle(self.autoplaylist_session)
+                    song_url = random.choice(self.autoplaylist_session)
+                else:
+                    song_url = self.autoplaylist_session[0]
                 self.autoplaylist_session.remove(song_url)
 
                 info = {}
@@ -1143,7 +1146,7 @@ class MusicBot(discord.Client):
             self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
         log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
         log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-        log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist])
+        log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_random] + ")")
         log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
         log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
         if self.config.delete_messages:
@@ -1152,6 +1155,7 @@ class MusicBot(discord.Client):
         log.info("  Downloaded songs will be " + ['deleted', 'saved'][self.config.save_videos])
         if self.config.status_message:
             log.info("  Status message: " + self.config.status_message)
+        log.info("  Write current songs to file: " + ['Disabled', 'Enabled'][self.config.write_current_song])
         print(flush=True)
 
         await self.update_now_playing_status()
