@@ -2497,7 +2497,7 @@ class MusicBot(discord.Client):
                 await self.safe_send_message(message.channel, '```\n{}\n```'.format(traceback.format_exc()))
 
         finally:
-            if not sentmsg and not response and self.config.delete_invoking:
+            if not sentmsg and not response and self.config.delete_invoking and command not in self.config.prevent_delete_invoking_commands:
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
@@ -2643,7 +2643,7 @@ class MusicBot(discord.Client):
 
     #NEW Custom Command PUT BELOW
     
-    async def cmd_apakah(self, user_mentions, leftover_args):
+    async def cmd_apakah(self, message, user_mentions, leftover_args):
         """
         Usage:
             {command_prefix}apakah [your query]
@@ -2657,10 +2657,10 @@ class MusicBot(discord.Client):
         randomize = random.seed(hash(' '.join(leftover_args + standardize_user)))
         seed = random.random()
         if  seed > 0.5:
-            result = 'ya'
+            result = '\U00002705'
         else:
-            result = 'tidak'
-        return Response(result, reply=True)
+            result = '\U0000274E'
+        await self.add_reaction(message, result)
 
     async def cmd_sleding(self, author, user_mentions):
         """

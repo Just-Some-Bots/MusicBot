@@ -66,6 +66,13 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.auto_playlist_removed_file = None
 
+        if self.delete_invoking:
+            prevent_delete_invoking_commands = config.get('MusicBot', 'PreventDeleteInvokingCommands', fallback=None)
+            if prevent_delete_invoking_commands:
+                self.prevent_delete_invoking_commands = set(prevent_delete_invoking_commands.lower().split())
+            else:
+                self.prevent_delete_invoking_commands = set()
+
         self.run_checks()
 
         self.find_autoplaylist()
