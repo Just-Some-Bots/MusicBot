@@ -147,6 +147,13 @@ class Config:
 
         self.debug_mode = self.debug_level <= logging.DEBUG
 
+        self.create_empty_file_ifnoexist('config/blacklist.txt')
+        self.create_empty_file_ifnoexist('config/whitelist.txt')
+
+    def create_empty_file_ifnoexist(self, path):
+        if not os.path.isfile(path):
+            open(path, 'a').close()
+            log.warning('Creating %s' % path)
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
