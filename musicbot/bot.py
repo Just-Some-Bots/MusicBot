@@ -2643,7 +2643,7 @@ class MusicBot(discord.Client):
 
     #NEW Custom Command PUT BELOW
     
-    async def cmd_apakah(self, message, user_mentions, leftover_args):
+    async def cmd_apakah(self, user_mentions, leftover_args):
         """
         Usage:
             {command_prefix}apakah [your query]
@@ -2657,10 +2657,10 @@ class MusicBot(discord.Client):
         randomize = random.seed(hash(' '.join(leftover_args + standardize_user)))
         seed = random.random()
         if  seed > 0.5:
-            result = '\U00002705'
+            result = 'ya'
         else:
-            result = '\U0000274E'
-        await self.add_reaction(message, result)
+            result = 'tidak'
+        return Response(result, reply=True)
 
     async def cmd_sleding(self, author, user_mentions):
         """
