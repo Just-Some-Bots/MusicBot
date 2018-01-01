@@ -2472,14 +2472,14 @@ class MusicBot(discord.Client):
                 sentmsg = await self.safe_send_message(
                     message.channel, content,
                     expire_in=response.delete_after if self.config.delete_messages else 0,
-                    also_delete=message if self.config.delete_invoking else None
+                    also_delete=message if self.config.delete_invoking and command not in self.config.prevent_delete_invoking_commands else None
                 )
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
             log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e), exc_info=True)
 
             expirein = e.expire_in if self.config.delete_messages else None
-            alsodelete = message if self.config.delete_invoking else None
+            alsodelete = message if self.config.delete_invoking and command not in self.config.prevent_delete_invoking_commands else None
 
             await self.safe_send_message(
                 message.channel,
