@@ -42,6 +42,27 @@ class Playlist(EventEmitter, Serializable):
     def clear(self):
         self.entries.clear()
 
+    async def remove_entry(self, index):
+        """
+            Removes a song from the playlist.
+
+            :param index: The index of the song to remove from the queue.
+        """
+
+        removed_entries = deque()
+
+        if index == 1:
+            return self.entries.popleft()
+
+        for i in range(1, index):
+            removed_entries.appendleft(self.entries.popleft())
+        removed_entry = self.entries.popleft()
+
+        for entry in removed_entries:
+            self.entries.appendleft(entry)
+
+        return removed_entry
+
     async def add_entry(self, song_url, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
