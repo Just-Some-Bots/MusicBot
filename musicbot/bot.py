@@ -2012,6 +2012,59 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume), expire_in=20)
 
+    @owner_only
+    async def cmd_option(self, player, option, value):
+        """
+        Usage:
+            {command_prefix}option [option] [on/y/enabled/off/n/disabled]
+
+        Changes a config option without restarting the bot. Changes aren't permanent and
+        only last until the bot is restarted. To make permanent changes, edit the
+        config file.
+
+        Valid options:
+            autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
+            delete_messages, delete_invoking, write_current_song
+
+        For information about these options, see the option's comment in the config file.
+        """
+        option = option.lower()
+        value = value.lower()
+        bool_y = ['on', 'y', 'enabled']
+        bool_n = ['off', 'n', 'disabled']
+        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_random',
+                   'auto_pause', 'delete_messages', 'delete_invoking',
+                   'write_current_song']  # these need to match attribute names in the Config class
+        if option in ['autoplaylist', 'auto_playlist']:
+            if value in bool_y:
+                if self.config.auto_playlist:
+                    raise exceptions.CommandError('The autoplaylist is already enabled!')
+                else:
+                    if not self.autoplaylist:
+                        raise exceptions.CommandError('There are no entries in the autoplaylist file.')
+                    self.config.auto_playlist = True
+                    await self.on_player_finished_playing(player)
+            elif value in bool_n:
+                if not self.config.auto_playlist:
+                    raise exceptions.CommandError('The autoplaylist is already disabled!')
+                else:
+                    self.config.auto_playlist = False
+            else:
+                raise exceptions.CommandError('The value provided was not valid.')
+            return Response("The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist] + '.')
+        else:
+            is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
+            if is_generic and (value in bool_y or value in bool_n):
+                name = is_generic[0]
+                log.debug('Setting attribute {0}'.format(name))
+                setattr(self.config, name, True if value in bool_y else False)  # this is scary but should work
+                attr = getattr(self.config, name)
+                res = "The option {0} is now ".format(option) + ['disabled', 'enabled'][attr] + '.'
+                log.warning('Option overriden for this session: {0}'.format(res))
+                return Response(res)
+            else:
+                raise exceptions.CommandError('The parameters provided were invalid.')
+
     async def cmd_queue(self, channel, player):
         """
         Usage:
