@@ -140,8 +140,8 @@ log.addHandler(tfh)
 
 def finalize_logging():
     musiclog = datetime.now().strftime('logs/musicbot_%Y-%m-%d_%H-%M.log')
-    if os.path.isfile(musiclog):
-        log.info("Starting logs")
+    os.path.isfile(musiclog)
+    log.info("Initializing Logs")
 
     with open(musiclog, 'w', encoding='utf8') as f:
         tmpfile.seek(0)
