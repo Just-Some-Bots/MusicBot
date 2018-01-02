@@ -79,10 +79,9 @@ class Config:
 
         if not self._login_token:
             raise HelpfulError(
-                "No login credentials were specified in the config.",
-
-                "Please fill in either the Email and Password fields, or "
-                "the Token field.  The Token field is for Bot accounts only.",
+                "No bot token was specified in the config.",
+                "As of v1.9.6_1, you are required to use a Discord bot account. "
+                "See https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ for info.",
                 preface=self._confpreface
             )
 
@@ -97,8 +96,8 @@ class Config:
                     raise HelpfulError(
                         "An invalid OwnerID was set: {}".format(self.owner_id),
 
-                        "Correct your OwnerID.  The ID should be just a number, approximately "
-                        "18 characters long.  If you don't know what your ID is, read the "
+                        "Correct your OwnerID. The ID should be just a number, approximately "
+                        "18 characters long, or 'auto'. If you don't know what your ID is, read the "
                         "instructions in the options or ask in the help server.",
                         preface=self._confpreface
                     )
@@ -181,10 +180,10 @@ class Config:
             raise HelpfulError(
                 "Your OwnerID is incorrect or you've used the wrong credentials.",
 
-                "The bot's user ID and the id for OwnerID is identical.  "
-                "This is wrong.  The bot needs its own account to function, "
-                "meaning you cannot use your own account to run the bot on.  "
-                "The OwnerID is the id of the owner, not the bot.  "
+                "The bot's user ID and the id for OwnerID is identical. "
+                "This is wrong. The bot needs a bot account to function, "
+                "meaning you cannot use your own account to run the bot on. "
+                "The OwnerID is the id of the owner, not the bot. "
                 "Figure out which one is which and use the correct information.",
 
                 preface=self._confpreface2
@@ -207,9 +206,9 @@ class Config:
 
             else:
                 raise HelpfulError(
-                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
+                    "Your config files are missing. Neither options.ini nor example_options.ini were found.",
                     "Grab the files back from the archive or remake them yourself and copy paste the content "
-                    "from the repo.  Stop removing important files!"
+                    "from the repo. Stop removing important files!"
                 )
 
         if not config.read(self.config_file, encoding='utf-8'):
@@ -225,10 +224,10 @@ class Config:
 
             except ValueError: # Config id value was changed but its not valid
                 raise HelpfulError(
-                    'Invalid value "{}" for OwnerID, config cannot be loaded.'.format(
+                    'Invalid value "{}" for OwnerID, config cannot be loaded. '.format(
                         c.get('Permissions', 'OwnerID', fallback=None)
                     ),
-                    "The OwnerID option takes a user id, fuck it i'll finish this message later."
+                    "The OwnerID option requires a user ID or 'auto'."
                 )
 
             except Exception as e:
