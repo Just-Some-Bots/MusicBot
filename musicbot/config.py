@@ -37,6 +37,9 @@ class Config:
 
         self.auth = ()
 
+        self.spotify_clientid = config.get('Credentials', 'Spotify_ClientID', fallback=ConfigDefaults.spotify_clientid)
+        self.spotify_clientsecret = config.get('Credentials', 'Spotify_ClientSecret', fallback=ConfigDefaults.spotify_clientsecret)
+
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
 
@@ -128,6 +131,10 @@ class Config:
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
+
+        self._spotify = False
+        if self.spotify_clientid and self.spotify_clientsecret:
+            self._spotify = True
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
@@ -253,6 +260,9 @@ class ConfigDefaults:
 
     token = None
     dev_ids = set()
+
+    spotify_clientid = None
+    spotify_clientsecret = None
 
     command_prefix = '!'
     bound_channels = set()

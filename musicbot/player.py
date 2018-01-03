@@ -222,7 +222,7 @@ class MusicPlayer(EventEmitter, Serializable):
                 if e.winerror == 32:  # File is in use
                     await asyncio.sleep(0.25)
             except FileNotFoundError:
-                log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename))
+                log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
                 break
             except Exception:
                 log.error("Error trying to delete {}".format(filename), exc_info=True)
