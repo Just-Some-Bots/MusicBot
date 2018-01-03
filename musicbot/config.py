@@ -33,8 +33,6 @@ class Config:
         self._confpreface = "An error has occured reading the config:\n"
         self._confpreface2 = "An error has occured validating the config:\n"
 
-        self._email = config.get('Credentials', 'Email', fallback=ConfigDefaults.email)
-        self._password = config.get('Credentials', 'Password', fallback=ConfigDefaults.password)
         self._login_token = config.get('Credentials', 'Token', fallback=ConfigDefaults.token)
 
         self.auth = ()
@@ -57,6 +55,7 @@ class Config:
         self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
+        self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -76,26 +75,7 @@ class Config:
         Validation logic for bot settings.
         """
 
-
-        if self._email or self._password:
-            if not self._email:
-                raise HelpfulError(
-                    "The login email was not specified in the config.",
-
-                    "Please put your bot account credentials in the config.  "
-                    "Remember that the Email is the email address used to register the bot account.",
-                    preface=self._confpreface)
-
-            if not self._password:
-                raise HelpfulError(
-                    "The password was not specified in the config.",
-
-                    "Please put your bot account credentials in the config.",
-                    preface=self._confpreface)
-
-            self.auth = (self._email, self._password)
-
-        elif not self._login_token:
+        if not self._login_token:
             raise HelpfulError(
                 "No login credentials were specified in the config.",
 
@@ -186,7 +166,7 @@ class Config:
                 )
 
             self.owner_id = bot.cached_app_info.owner.id
-            log.debug("Aquired owner id via API")
+            log.debug("Acquired owner id via API")
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(
@@ -262,6 +242,8 @@ class Config:
 
 class ConfigDefaults:
     owner_id = None
+
+    token = None
     dev_ids = set()
 
     command_prefix = '!'
@@ -280,6 +262,7 @@ class ConfigDefaults:
     delete_invoking = False
     persistent_queue = True
     debug_level = 'INFO'
+    status_message = None
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
