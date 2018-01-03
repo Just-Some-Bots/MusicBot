@@ -38,7 +38,6 @@ from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta, _fun
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-
 load_opus_lib()
 
 log = logging.getLogger(__name__)
@@ -89,6 +88,8 @@ class MusicBot(discord.Client):
         super().__init__()
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
+
+        self.load_custom_command()
 
     def __del__(self):
         # These functions return futures but it doesn't matter
@@ -2641,37 +2642,18 @@ class MusicBot(discord.Client):
             self.server_specific_data[server]['availability_paused'] = True
             player.pause()
 
-    #NEW Custom Command PUT BELOW
-    
-    async def cmd_apakah(self, user_mentions, leftover_args):
-        """
-        Usage:
-            {command_prefix}apakah [your query]
+    # Functio wrapper to load all custom command in custom_commands_bot.py
+    def load_custom_command(self):
+        import types
+        from . import custom_commands_bot
+        from functools import partial
 
-        Random answer based on your query.
-        This command will only answer 'ya' or 'tidak'.
-        """
-        import random
-        standardize_user = [user.name for user in user_mentions]
-
-        randomize = random.seed(hash(' '.join(leftover_args + standardize_user)))
-        seed = random.random()
-        if  seed > 0.5:
-            result = 'ya'
-        else:
-            result = 'tidak'
-        return Response(result, reply=True)
-
-    async def cmd_sleding(self, author, user_mentions):
-        """
-        Usage:
-            {command_prefix}sleding [target...]
-
-        Let kak seto do the sleding.
-        You should use mention also when executing this command so you won't get sleding-ed
-        """
-        if user_mentions:
-            anak2bgst = [user.mention for user in user_mentions]
-            return Response('SAYA SLEDING KEPALA KAMU %s' % ', '.join(anak2bgst))
-        else:
-            return Response('SAYA SLEDING KEPALA KAMU %s' % author.mention)
+        # Listing all custom commands in custom_commands_bot
+        for _custom_command in dir(custom_commands_bot):
+            custom_command = getattr(custom_commands_bot, _custom_command, None)
+            if isinstance(custom_command, types.FunctionType):
+                function_name = custom_command.__name__
+                if function_name.startswith('cmd_'):
+                    log.debug("[Custom Method] Binding custom method {}".format(function_name))
+                    # Add those method to this object
+                    setattr(self, function_name, types.MethodType(custom_command, self))
