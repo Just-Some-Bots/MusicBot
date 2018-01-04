@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM frolvlad/alpine-python3:latest
 
 # Install Dependencies
 RUN apk update \
@@ -14,4 +14,4 @@ VOLUME /usr/src/MusicBot/config
 # Install pip dependencies
 RUN pip3 install -r requirements.txt
 
-CMD python3.5 run.py
+CMD python3 run.py
