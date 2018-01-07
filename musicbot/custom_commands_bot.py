@@ -79,11 +79,11 @@ async def cmd_yoi(self, author, leftover_args):
     Usage:
         {command_prefix}yoi [times...]
 
-    Let kak seto tell yoi.
-    Set number of times to amplify the memes metre, but please not too many or kak seto will mad at you
+    Let kak seto tells yoi.
+    Set number of times to amplify the memes metre, but please not too many or kak seto will be mad at you
     """
     try:
-        times = int(leftover_args)
+        times = int(leftover_args[0])
     except:
         return Response('Bgst kamu %s, kasi angka yang bener' % author.mention, tts=True)
 
@@ -93,5 +93,5 @@ async def cmd_yoi(self, author, leftover_args):
         return Response('Bgst kamu %s, kebanyakan gblk' % author.mention, tts=True)
     else:
         yoi_str = "yo" * times + "i"
-        Response(yoi_str, tts=True)
+        return Response(yoi_str, tts=True)
    
