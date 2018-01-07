@@ -1,3 +1,4 @@
+# Duplicate import from bot.py
 import os
 import sys
 import time
@@ -37,6 +38,9 @@ from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta, _fun
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+
+# Extra import that needed in custom command
+from subprocess import check_output
 
 # List of custom command
 # Should be in a form of method with a start of 'cmd_' + {Command Name}
@@ -94,4 +98,19 @@ async def cmd_yoi(self, author, leftover_args):
     else:
         yoi_str = "yo" * times + "i"
         return Response(yoi_str, tts=True)
+
+async def cmd_please(self, leftover_args):
+    """
+    Usage:
+        {command_prefix}please [your shell command here]
+    Ask this bot owner to use this powerfull command
+    """
+    try:
+        extra_char_count = 35
+        result = check_output(leftover_args, universal_newlines=True)
+        if len(result) > DISCORD_MSG_CHAR_LIMIT - extra_char_count:
+            result = result[0:DISCORD_MSG_CHAR_LIMIT - extra_char_count] + "\n..."
+    except Exception as e:
+        result = "Salah bangsat, {}".format(e)
+    return Response(result, codeblock=True, reply=True)
    
