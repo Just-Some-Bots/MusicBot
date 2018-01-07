@@ -39,14 +39,15 @@ class SkipState:
 
 
 class Response:
-    __slots__ = ['_content', 'reply', 'delete_after', 'codeblock', '_codeblock']
+    __slots__ = ['_content', 'reply', 'delete_after', 'codeblock', '_codeblock', 'tts']
 
-    def __init__(self, content, reply=False, delete_after=0, codeblock=None):
+    def __init__(self, content, reply=False, delete_after=0, codeblock=None, tts=False):
         self._content = content
         self.reply = reply
         self.delete_after = delete_after
         self.codeblock = codeblock
         self._codeblock = "```{!s}\n{{}}\n```".format('' if codeblock is True else codeblock)
+        self.tts = tts
 
     @property
     def content(self):

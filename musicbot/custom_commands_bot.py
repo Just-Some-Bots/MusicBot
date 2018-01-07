@@ -58,7 +58,7 @@ async def cmd_apakah(self, user_mentions, leftover_args):
         result = 'ya'
     else:
         result = 'tidak'
-    return Response(result, reply=True)
+    return Response(result, reply=True, tts=True)
 
 async def cmd_sleding(self, author, user_mentions):
     """
@@ -70,6 +70,6 @@ async def cmd_sleding(self, author, user_mentions):
     """
     if user_mentions:
         anak2bgst = [user.mention for user in user_mentions]
-        return Response('SAYA SLEDING KEPALA KAMU %s' % ', '.join(anak2bgst))
+        return Response('SAYA SLEDING KEPALA KAMU %s' % ', '.join(anak2bgst), tts=True)
     else:
-        return Response('SAYA SLEDING KEPALA KAMU %s' % author.mention)
+        return Response('SAYA SLEDING KEPALA KAMU %s' % author.mention, tts=True)
