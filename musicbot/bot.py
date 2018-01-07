@@ -2644,10 +2644,14 @@ class MusicBot(discord.Client):
             player.pause()
 
     # Functio wrapper to load all custom command in custom_commands_bot.py
-    def load_custom_command(self):
+    def load_custom_command(self, reload=True):
         import types
         from . import custom_commands_bot
         from functools import partial
+
+        if reload:
+            import importlib
+            importlib.reload(custom_commands_bot)
 
         # Listing all custom commands in custom_commands_bot
         for _custom_command in dir(custom_commands_bot):

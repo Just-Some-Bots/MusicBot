@@ -114,3 +114,28 @@ async def cmd_please(self, leftover_args):
         result = "Salah bangsat, {}".format(e)
     return Response(result, codeblock=True, reply=True)
    
+
+async def cmd_git(self, leftover_args):
+    """
+    Usage:
+        {command_prefix}git [git command]
+    Pull? Log? Show? As long as it is git
+    """
+    try:
+        extra_char_count = 35
+        result = check_output(['git'] + leftover_args, universal_newlines=True)
+        if len(result) > DISCORD_MSG_CHAR_LIMIT - extra_char_count:
+            result = result[0:DISCORD_MSG_CHAR_LIMIT - extra_char_count] + "\n..."
+    except Exception as e:
+        result = "Salah euy, {}".format(e)
+    return Response(result, codeblock=True, reply=True)
+
+
+async def cmd_reload_custom(self):
+    """
+    Usage:
+        {command_prefix}reload_custom
+    To reload the custom command in bot
+    """
+    self.load_custom_command(reload=True)
+    return Response("Ok. Reloaded", reply=True)
