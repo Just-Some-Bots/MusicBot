@@ -1,39 +1,124 @@
-# coding=utf-8
-
 from __future__ import print_function
 
-import sys
 import os
-import subprocess
+import sys
+import time
 import logging
 import tempfile
 import traceback
-import time
-import argparse
+import subprocess
+
+from shutil import disk_usage, rmtree
 
 try:
-    import webbrowser
-    import importlib.util
     import pathlib
-except ImportError:  # py 2
+    import importlib.util
+except ImportError:
     pass
 
-REQUIRED_PY_VERSION = (3, 5)
-FILL_CHAR = '─'
 
-# Arguments
-parser = argparse.ArgumentParser(description='The original MusicBot for Discord.')
-parser.add_argument('--start', help='non-interactively starts the bot', action='store_true')
-parser.add_argument('--update', help='updates the bot and dependencies', action='store_true')
-parser.add_argument('--skip-checks', help='skips the bot\'s environment checks', action='store_true')
-parser.add_argument('--skip-update', help='ignores updates (not recommended)', action='store_true')
-app_args = parser.parse_args()
+class GIT(object):
+    @classmethod
+    def works(cls):
+        try:
+            return bool(subprocess.check_output('git --version', shell=True))
+        except:
+            return False
 
-# Logging
-try:
-    tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
-except TypeError:
-    tmpfile = tempfile.TemporaryFile('w+')
+
+class PIP(object):
+    @classmethod
+    def run(cls, command, check_output=False):
+        if not cls.works():
+            raise RuntimeError("Could not import pip.")
+
+        try:
+            return PIP.run_python_m(*command.split(), check_output=check_output)
+        except subprocess.CalledProcessError as e:
+            return e.returncode
+        except:
+            traceback.print_exc()
+            print("Error using -m method")
+
+    @classmethod
+    def run_python_m(cls, *args, **kwargs):
+        check_output = kwargs.pop('check_output', False)
+        check = subprocess.check_output if check_output else subprocess.check_call
+        return check([sys.executable, '-m', 'pip'] + list(args))
+
+    @classmethod
+    def run_pip_main(cls, *args, **kwargs):
+        import pip
+
+        args = list(args)
+        check_output = kwargs.pop('check_output', False)
+
+        if check_output:
+            from io import StringIO
+
+            out = StringIO()
+            sys.stdout = out
+
+            try:
+                pip.main(args)
+            except:
+                traceback.print_exc()
+            finally:
+                sys.stdout = sys.__stdout__
+
+                out.seek(0)
+                pipdata = out.read()
+                out.close()
+
+                print(pipdata)
+                return pipdata
+        else:
+            return pip.main(args)
+
+    @classmethod
+    def run_install(cls, cmd, quiet=False, check_output=False):
+        return cls.run("install %s%s" % ('-q ' if quiet else '', cmd), check_output)
+
+    @classmethod
+    def run_show(cls, cmd, check_output=False):
+        return cls.run("show %s" % cmd, check_output)
+
+    @classmethod
+    def works(cls):
+        try:
+            import pip
+            return True
+        except ImportError:
+            return False
+
+    # noinspection PyTypeChecker
+    @classmethod
+    def get_module_version(cls, mod):
+        try:
+            out = cls.run_show(mod, check_output=True)
+
+            if isinstance(out, bytes):
+                out = out.decode()
+
+            datas = out.replace('\r\n', '\n').split('\n')
+            expectedversion = datas[3]
+
+            if expectedversion.startswith('Version: '):
+                return expectedversion.split()[1]
+            else:
+                return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
+        except:
+            pass
+
+    @classmethod
+    def get_requirements(cls, file='requirements.txt'):
+        from pip.req import parse_requirements
+        return list(parse_requirements(file))
+
+
+# Setup initial loggers
+
+tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
 log = logging.getLogger('launcher')
 log.setLevel(logging.DEBUG)
 
@@ -52,20 +137,25 @@ tfh.setFormatter(logging.Formatter(
 tfh.setLevel(logging.DEBUG)
 log.addHandler(tfh)
 
+
 def finalize_logging():
     if os.path.isfile("logs/musicbot.log"):
-        log.info("Moving old log.")
+        log.info("Moving old musicbot log")
         try:
             if os.path.isfile("logs/musicbot.log.last"):
                 os.unlink("logs/musicbot.log.last")
             os.rename("logs/musicbot.log", "logs/musicbot.log.last")
-        except Exception:
+        except:
             pass
 
     with open("logs/musicbot.log", 'w', encoding='utf8') as f:
         tmpfile.seek(0)
         f.write(tmpfile.read())
         tmpfile.close()
+
+        f.write('\n')
+        f.write(" PRE-RUN SANITY CHECKS PASSED ".center(80, '#'))
+        f.write('\n\n')
 
     global tfh
     log.removeHandler(tfh)
@@ -86,100 +176,172 @@ def finalize_logging():
     dlh.setFormatter(logging.Formatter('.'))
     dlog.addHandler(dlh)
 
-def uinput(text=''):
-    return input("{0}-> ".format(text)).lower().strip()
 
-def run_sp(args, shell=True, check=True):
-    """Runs a command using subprocess and handles logging"""
-    try:
-        r = subprocess.run(args, shell=shell, check=check, stdout=subprocess.PIPE, encoding='utf-8')
-    except AttributeError:  # py2 bollocks
-        try:
-            r = subprocess.check_output(args, shell=shell)
-        except Exception:
-            raise
-    except TypeError:  # py3.5 bollocks
-        try:
-            r = subprocess.run(args, shell=shell, check=check, stdout=subprocess.PIPE, universal_newlines=True)
-        except Exception:
-            raise
-    except subprocess.CalledProcessError as e:
-        log.debug(e.stdout)
-        raise
-    except Exception as e:
-        log.debug(e)
-        raise
-    try:
-        log.debug(r.stdout)
-    except AttributeError:  # py2 bollocks
-        log.debug(r)
-    return r
+def bugger_off(msg="Press enter to continue . . .", code=1):
+    input(msg)
+    sys.exit(code)
 
-def check_py():
-    log.info('Running Python {0.major}.{0.minor}.'.format(sys.version_info))
 
-    if not sys.version_info >= REQUIRED_PY_VERSION:
-        # Try and find a working Python 3 executable
-        log.warning('Using an incompatible Python version. Attempting to find an alternative.')
+# TODO: all of this
+def sanity_checks(optional=True):
+    log.info("Starting sanity checks")
+    ## Required
+
+    # Make sure we're on Python 3.5+
+    req_ensure_py3()
+
+    # Fix windows encoding fuckery
+    req_ensure_encoding()
+
+    # Make sure we're in a writeable env
+    req_ensure_env()
+
+    # Make our folders if needed
+    req_ensure_folders()
+
+    log.info("Required checks passed.")
+
+    ## Optional
+    if not optional:
+        return
+
+    # Check disk usage
+    opt_check_disk_space()
+
+    log.info("Optional checks passed.")
+
+
+def req_ensure_py3():
+    log.info("Checking for Python 3.5+")
+
+    if sys.version_info < (3, 5):
+        log.warning("Python 3.5+ is required. This version is %s", sys.version.split()[0])
+        log.warning("Attempting to locate Python 3.5...")
+
         pycom = None
-        tests = ['py -3', 'python3', 'python3.5']
-        for t in tests:
-            log.debug('Trying {0}'.format(t))
+
+        if sys.platform.startswith('win'):
+            log.info('Trying "py -3.5"')
             try:
-                run_sp('{0} -c "exit()"'.format(t), shell=True)
-                pycom = t
-                break
-            except subprocess.CalledProcessError:
-                continue
-            except (IOError, OSError):  # py2 bollocks is why this isn't a filenotfounderror
-                continue
+                subprocess.check_output('py -3.5 -c "exit()"', shell=True)
+                pycom = 'py -3.5'
+            except:
 
-        if pycom:
-            log.info('Relaunch this file using "{0} run.py"'.format(pycom))
-            terminate()
+                log.info('Trying "python3"')
+                try:
+                    subprocess.check_output('python3 -c "exit()"', shell=True)
+                    pycom = 'python3'
+                except:
+                    pass
+
+            if pycom:
+                log.info("Python 3 found.  Launching bot...")
+                pyexec(pycom, 'run.py')
+
+                # I hope ^ works
+                os.system('start cmd /k %s run.py' % pycom)
+                sys.exit(0)
+
         else:
-            log.warning('Could not find a working executable. Please update Python to {0} or higher.'.format(REQUIRED_PY_VERSION))
-            terminate()
+            log.info('Trying "python3.5"')
+            try:
+                pycom = subprocess.check_output('python3.5 -c "exit()"'.split()).strip().decode()
+            except:
+                pass
 
-def check_encoding():
-    log.debug("Checking console encoding")
+            if pycom:
+                log.info("\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom)
+                pyexec(pycom, 'run.py')
+
+        log.critical("Could not find Python 3.5 or higher.  Please run the bot using Python 3.5")
+        bugger_off()
+
+
+def req_ensure_encoding():
+    log.info("Checking console encoding")
 
     if sys.platform.startswith('win') or sys.stdout.encoding.replace('-', '').lower() != 'utf8':
-        log.info("Setting console encoding to UTF-8.")
+        log.info("Setting console encoding to UTF-8")
 
         import io
         sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
-        # only slightly evil
+        # only slightly evil    
         sys.__stdout__ = sh.stream = sys.stdout
 
         if os.environ.get('PYCHARM_HOSTED', None) not in (None, '0'):
             log.info("Enabling colors in pycharm pseudoconsole")
             sys.stdout.isatty = lambda: True
 
-def restart(pycom=None, quick=False, *args):
-    pycom = pycom if pycom else sys.executable
-    # Python 2 compatibility bullshit
-    args = [pycom] + list(args) + list(sys.argv)
-    if quick:
-        args.append('--skip-update')
-        args.append('--start')
-    # Buggy on Windows: https://bugs.python.org/issue19124
-    os.execv(pycom, args)
 
-def start_bot():
+def req_ensure_env():
+    log.info("Ensuring we're in the right environment")
+
+    try:
+        assert os.path.isdir('config'), 'folder "config" not found'
+        assert os.path.isdir('musicbot'), 'folder "musicbot" not found'
+        assert os.path.isdir('.git'), 'bot was not installed using Git. If you downloaded a ZIP, you did it wrong. Open http://bit.ly/dmbguide on your browser for official install steps.'
+        assert os.path.isfile('musicbot/__init__.py'), 'musicbot folder is not a Python module'
+
+        assert importlib.util.find_spec('musicbot'), "musicbot module is not importable"
+    except AssertionError as e:
+        log.critical("Failed environment check, %s", e)
+        bugger_off()
+
+    try:
+        os.mkdir('musicbot-test-folder')
+    except Exception:
+        log.critical("Current working directory does not seem to be writable")
+        log.critical("Please move the bot to a folder that is writable")
+        bugger_off()
+    finally:
+        rmtree('musicbot-test-folder', True)
+
+    if sys.platform.startswith('win'):
+        log.info("Adding local bins/ folder to path")
+        os.environ['PATH'] += ';' + os.path.abspath('bin/')
+        sys.path.append(os.path.abspath('bin/')) # might as well
+
+
+def req_ensure_folders():
+    pathlib.Path('logs').mkdir(exist_ok=True)
+    pathlib.Path('data').mkdir(exist_ok=True)
+
+def opt_check_disk_space(warnlimit_mb=200):
+    if disk_usage('.').free < warnlimit_mb*1024*2:
+        log.warning("Less than %sMB of free space remains on this device" % warnlimit_mb)
+
+
+#################################################
+
+def pyexec(pycom, *args, pycom2=None):
+    pycom2 = pycom2 or pycom
+    os.execlp(pycom, pycom2, *args)
+
+def restart(*args):
+    pyexec(sys.executable, *args, *sys.argv, pycom2='python')
+
+
+def main():
+    # TODO: *actual* argparsing
+
+    if '--no-checks' not in sys.argv:
+        sanity_checks()
+
+    finalize_logging()
+
     import asyncio
 
     tried_requirementstxt = False
-    retry = True
+    tryagain = True
+
     loops = 0
     max_wait_time = 60
 
-    while retry:
+    while tryagain:
         # Maybe I need to try to import stuff first, then actually import stuff
         # It'd save me a lot of pain with all that awful exception type checking
 
         m = None
-        print()
         try:
             from musicbot import MusicBot
             m = MusicBot()
@@ -189,27 +351,49 @@ def start_bot():
             sh.terminator = '\n'
 
             m.run()
+
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
             break
+
         except ImportError:
-            log.exception("Could not import a module.")
+            # TODO: if error module is in pip or dpy requirements...
+
             if not tried_requirementstxt:
                 tried_requirementstxt = True
-                update_deps()
+
+                log.exception("Error starting bot")
+                log.info("Attempting to install dependencies...")
+
+                err = PIP.run_install('--upgrade -r requirements.txt')
+
+                if err: # TODO: add the specific error check back as not to always tell users to sudo it
+                    print()
+                    log.critical("You may need to %s to install dependencies." %
+                                 ['use sudo', 'run as admin'][sys.platform.startswith('win')])
+                    break
+                else:
+                    print()
+                    log.info("Ok lets hope it worked")
+                    print()
             else:
+                log.exception("Unknown ImportError, exiting.")
                 break
+
         except Exception as e:
             if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
                 if e.__class__.__name__ == 'HelpfulError':
                     log.info(e.message)
                     break
+
                 elif e.__class__.__name__ == "TerminateSignal":
                     break
+
                 elif e.__class__.__name__ == "RestartSignal":
-                    restart(quick=True)
+                    restart()
             else:
-                log.exception("Error starting the bot.")
+                log.exception("Error starting bot")
+
         finally:
             if not m or not m.init_ok:
                 if any(sys.exc_info()):
@@ -222,150 +406,12 @@ def start_bot():
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops * 2))
+            log.info("Restarting in {} seconds...".format(loops*2))
             time.sleep(sleeptime)
 
     print()
-    terminate()
+    log.info("All done.")
 
-def terminate(msg="Press enter to continue...", code=1, with_msg=True):
-    if with_msg:
-        input(msg)
-    sys.exit(code)
-
-def check_env():
-    try:
-        assert os.path.isdir('config'), 'could not find "config" folder'
-        assert os.path.isdir('musicbot'), 'could not find "musicbot" folder'
-        assert os.path.isdir('.git'), 'bot was not installed using Git'
-        assert os.path.isfile('musicbot/__init__.py'), 'could not load the bot\'s Python module'
-        assert importlib.util.find_spec('musicbot'), "could not import the bot\'s Python module"
-    except AssertionError as e:
-        log.critical('Failed check: {0}. Please visit http://bit.ly/dmbguide for official install steps.'.format(e))
-        terminate()
-    log.info('Installation is ok.')
-
-def check_version():
-    log.debug('Doing Git version checks...')
-    try:
-        import git
-    except ImportError:
-        update_deps()
-        import git
-
-    try:
-        repo = git.Repo(os.getcwd())
-        assert not repo.is_dirty(), 'local changes have been made'
-        assert not repo.bare, 'repository is bare'
-        remote = repo.remote(name='origin')
-        remote.fetch()
-    except git.exc.GitCommandNotFound:
-        log.error('Git does not seem to be found on your system (e.g in your PATH).')
-        return
-    except git.exc.InvalidGitRepositoryError:  # shouldn't happen, we already checked for .git
-        log.error('The folder is not a valid Git repository. Aborting.')
-        terminate()
-    except AssertionError as e:
-        log.error('Can\'t check for bot updates: {0}.'.format(e))
-        return
-    except ValueError:
-        log.error('Could not find a Git remote linked to this repo.')
-        return
-
-    behind = list(repo.iter_commits('{0}..origin/{0}'.format(repo.active_branch.name)))
-    if behind:
-        log.warning('Your repo is behind by {0} commits.'.format(len(behind)))
-        while True:
-            print()
-            print(' An update is available '.center(50, FILL_CHAR))
-            print('It is recommended that you keep your bot up to date to ensure you have the latest'
-                  '\nbug fixes and feature updates. For information about the changes, see'
-                  '\nhttps://github.com/Just-Some-Bots/MusicBot/releases')
-            print()
-            r = uinput('Update now? [y/n] ')
-            if r == 'y':
-                try:
-                    remote.pull()
-                    return True
-                except git.exc.GitCommandError as e:
-                    log.error('Could not update the bot: {0}'.format(e))
-            elif r == 'n':
-                return
-    else:
-        log.info('Bot is up to date. [{0.summary} (by {0.author.name})]'.format(repo.head.commit))
-
-def open_browser(url):
-    if not sys.platform.startswith('linux'):  # I'd rather not run a non-GUI browser lol
-        try:
-            webbrowser.open(url)
-        except Exception:
-            pass
-    log.info('Visit {0} for help.'.format(url))
-
-def update_deps():
-    log.info('Updating dependencies...')
-    try:
-        run_sp([sys.executable, '-m', 'pip', 'install', '-U', 'pip'], shell=False)
-        res = run_sp([sys.executable, '-m', 'pip', 'install', '-U', '-r', 'requirements.txt'], shell=False)
-    except subprocess.CalledProcessError:
-        log.error('Could not install a dependency. You may need to run this as an admin/sudo.')
-        return
-    out = res.stdout.lower()
-    if 'failed with' in out:
-        print(res.stdout)
-        log.error('Could not install a dependency. You may need to run this as an admin/sudo.')
-        return
-    log.info('Updated dependencies.')
-
-def ensure_folders():
-    pathlib.Path('logs').mkdir(exist_ok=True)
-    pathlib.Path('data').mkdir(exist_ok=True)
-
-def main():
-    if not app_args.skip_checks:
-        check_py()
-        check_encoding()
-        check_env()
-
-    ensure_folders()
-    finalize_logging()
-
-    if not app_args.skip_update:
-        up = check_version()
-        if up is True:
-            restart()
-
-    if app_args.start:
-        start_bot()
-    elif app_args.update:
-        check_version()
-        update_deps()
-    else:
-        try:
-            from musicbot.constants import VERSION
-        except Exception:
-            VERSION = '(unknown ver)'
-
-        while True:
-            print()
-            print(' MusicBot {0} '.format(VERSION).center(50, FILL_CHAR))
-            print('[1] Start - starts the bot (--start)'
-                  '\n[2] Update - updates the bot and its dependencies (--update)'
-                  '\n[3] Help - provides information and help for the bot'
-                  '\n[q] Quit')
-            print()
-            r = uinput('Choose an option ')
-            if r == '1':
-                start_bot()
-            elif r == '2':
-                check_version()
-                update_deps()
-                restart()
-            elif r == '3':
-                url = 'https://github.com/Just-Some-Bots/MusicBot/wiki'
-                open_browser(url)
-            elif r == 'q':
-                break
 
 if __name__ == '__main__':
     main()
