@@ -246,14 +246,30 @@ def check_env():
 def check_version():
     log.debug('Doing Git version checks...')
     try:
-        run_sp('git fetch')
-        res = run_sp('git status')
-    except FileNotFoundError:
-        log.warning('Skipping version checks. Can\'t seem to use Git on this shell.')
+        import git
+    except ImportError:
+        update_deps()
+        import git
+
+    try:
+        repo = git.Repo(os.getcwd())
+        assert not repo.is_dirty(), 'local changes have been made'
+        assert not repo.bare, 'repository is bare'
+        remote = repo.remote(name='origin')
+        remote.fetch()
+    except git.exc.InvalidGitRepositoryError:  # shouldn't happen, we already checked for .git
+        log.warning('The folder is not a valid Git repository. Aborting.')
+        terminate()
+    except AssertionError as e:
+        log.warning('Can\'t check for bot updates: {0}.'.format(e))
+        return
+    except ValueError:
+        log.warning('Could not find a Git remote linked to this repo.')
         return
 
-    out = res.stdout.lower()
-    if 'your branch is behind' in out:
+    behind = list(repo.iter_commits('{0}..origin/{0}'.format(repo.active_branch.name)))
+    if behind:
+        log.warning('Your repo is behind by {0} commits.'.format(len(behind)))
         while True:
             print()
             print(' An update is available '.center(50, FILL_CHAR))
@@ -263,14 +279,15 @@ def check_version():
             print()
             r = uinput('Update now? [y/n] ')
             if r == 'y':
-                update_bot()
-                update_deps()
-                restart()
-                return
+                try:
+                    remote.pull()
+                    return True
+                except git.exc.GitCommandError as e:
+                    log.error('Could not update the bot: {0}'.format(e))
             elif r == 'n':
                 return
-    elif 'your branch is ahead' in out:
-        log.warning('You have commits that are ahead of the remote.')
+    else:
+        log.info('Bot is up to date. [{0.summary} (by {0.author.name})]'.format(repo.head.commit))
 
 def open_browser(url):
     if not sys.platform.startswith('linux'):  # I'd rather not run a non-GUI browser lol
@@ -291,15 +308,6 @@ def update_deps():
         return
     log.info('Updated dependencies.')
 
-def update_bot():
-    log.info('Updating bot...')
-    try:
-        run_sp('git pull')
-    except subprocess.CalledProcessError:
-        log.error('Could not update bot.')
-        terminate()
-    log.info('Updated bot successfully.')
-
 def ensure_folders():
     pathlib.Path('logs').mkdir(exist_ok=True)
     pathlib.Path('data').mkdir(exist_ok=True)
@@ -312,12 +320,14 @@ def main():
 
     ensure_folders()
     finalize_logging()
-    check_version()
+    up = check_version()
+    if up is True:
+        restart()
 
     if app_args.start:
         start_bot()
     elif app_args.update:
-        update_bot()
+        check_version()
         update_deps()
     else:
         try:
@@ -337,7 +347,7 @@ def main():
             if r == '1':
                 start_bot()
             elif r == '2':
-                update_bot()
+                check_version()
                 update_deps()
                 restart()
             elif r == '3':
