@@ -1,16 +1,20 @@
+# coding=utf-8
+
+from __future__ import print_function
+
 import sys
 import os
 import subprocess
 import logging
 import tempfile
-import importlib.util
 import traceback
 import time
-import pathlib
 import argparse
 
 try:
     import webbrowser
+    import importlib.util
+    import pathlib
 except ImportError:  # py 2
     pass
 
@@ -25,7 +29,10 @@ parser.add_argument('--skip-checks', help='skips the bot\'s initial checks', act
 app_args = parser.parse_args()
 
 # Logging
-tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
+try:
+    tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
+except TypeError:
+    tmpfile = tempfile.TemporaryFile('w+')
 log = logging.getLogger('launcher')
 log.setLevel(logging.DEBUG)
 
@@ -81,14 +88,30 @@ def finalize_logging():
 def uinput(text=''):
     return input("{0}-> ".format(text)).lower().strip()
 
-def run_sp(args, *, shell=False, check=True):
+def run_sp(args, shell=True, check=True):
     """Runs a command using subprocess and handles logging"""
     try:
         r = subprocess.run(args, shell=shell, check=check, stdout=subprocess.PIPE, encoding='utf-8')
-    except Exception as e:
+    except AttributeError:  # py2 bollocks
+        try:
+            r = subprocess.check_output(args, shell=shell)
+        except Exception:
+            raise
+    except TypeError:  # py3.5 bollocks
+        try:
+            r = subprocess.run(args, shell=shell, check=check, stdout=subprocess.PIPE, universal_newlines=True)
+        except Exception:
+            raise
+    except subprocess.CalledProcessError as e:
         log.debug(e.stdout)
         raise
-    log.debug(r.stdout)
+    except Exception as e:
+        log.debug(e)
+        raise
+    try:
+        log.debug(r.stdout)
+    except AttributeError:  # py2 bollocks
+        log.debug(r)
     return r
 
 def check_py():
@@ -102,17 +125,20 @@ def check_py():
         for t in tests:
             log.debug('Trying {0}'.format(t))
             try:
-                run_sp('{0} -c "exit()"'.format(t))
+                run_sp('{0} -c "exit()"'.format(t), shell=True)
                 pycom = t
                 break
-            except FileNotFoundError:
+            except subprocess.CalledProcessError:
+                continue
+            except (IOError, OSError):  # py2 bollocks is why this isn't a filenotfounderror
                 continue
 
         if pycom:
-            log.info('Relaunching using ' + pycom)
-            restart(pycom=pycom)
+            log.info('Relaunch this file using "{0} run.py"'.format(pycom))
+            terminate()
         else:
             log.warning('Could not find a working executable. Please update Python to {0} or higher.'.format(REQUIRED_PY_VERSION))
+            terminate()
 
 def check_encoding():
     log.debug("Checking console encoding")
@@ -129,12 +155,14 @@ def check_encoding():
             log.info("Enabling colors in pycharm pseudoconsole")
             sys.stdout.isatty = lambda: True
 
-def restart(*args, pycom=None, quick=False):
+def restart(pycom=None, quick=False, *args):
     pycom = pycom if pycom else sys.executable
+    # Python 2 compatibility bullshit
+    args = [pycom] + list(args) + list(sys.argv)
     if quick:
-        sys.argv.append('--start')
+        args.append('--start')
     # Buggy on Windows: https://bugs.python.org/issue19124
-    os.execl(pycom, pycom, *args, *sys.argv)
+    os.execv(pycom, args)
 
 def start_bot():
     import asyncio
@@ -253,7 +281,7 @@ def open_browser(url):
 
 def update_deps():
     log.info('Updating dependencies...')
-    res = run_sp([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+    res = run_sp([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'], shell=False)
     out = res.stdout.lower()
     if 'failed with' in out:
         print(res.stdout)
@@ -280,9 +308,9 @@ def main():
         check_encoding()
         check_env()
 
+    ensure_folders()
     finalize_logging()
     check_version()
-    ensure_folders()
 
     if app_args.start:
         start_bot()
@@ -290,7 +318,10 @@ def main():
         update_bot()
         update_deps()
     else:
-        from musicbot.constants import VERSION
+        try:
+            from musicbot.constants import VERSION
+        except Exception:
+            VERSION = '(unknown ver)'
 
         while True:
             print()
