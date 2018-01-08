@@ -210,9 +210,10 @@ class MusicBot(discord.Client):
                 'NOISY':      'white',
                 'FFMPEG':     'bold_purple',
                 'VOICEDEBUG': 'purple',
-        },
-            style = '{',
-            datefmt = ''
+            },
+            reset=True,
+            style='{',
+            datefmt=''
         ))
         shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
