@@ -25,7 +25,8 @@ FILL_CHAR = '─'
 parser = argparse.ArgumentParser(description='The original MusicBot for Discord.')
 parser.add_argument('--start', help='non-interactively starts the bot', action='store_true')
 parser.add_argument('--update', help='updates the bot and dependencies', action='store_true')
-parser.add_argument('--skip-checks', help='skips the bot\'s initial checks', action='store_true')
+parser.add_argument('--skip-checks', help='skips the bot\'s environment checks', action='store_true')
+parser.add_argument('--skip-update', help='ignores updates (not recommended)', action='store_true')
 app_args = parser.parse_args()
 
 # Logging
@@ -160,6 +161,7 @@ def restart(pycom=None, quick=False, *args):
     # Python 2 compatibility bullshit
     args = [pycom] + list(args) + list(sys.argv)
     if quick:
+        args.append('--skip-update')
         args.append('--start')
     # Buggy on Windows: https://bugs.python.org/issue19124
     os.execv(pycom, args)
@@ -327,9 +329,11 @@ def main():
 
     ensure_folders()
     finalize_logging()
-    up = check_version()
-    if up is True:
-        restart()
+
+    if not app_args.skip_update:
+        up = check_version()
+        if up is True:
+            restart()
 
     if app_args.start:
         start_bot()
