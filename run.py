@@ -302,8 +302,12 @@ def open_browser(url):
 
 def update_deps():
     log.info('Updating dependencies...')
-    run_sp([sys.executable, '-m', 'pip', 'install', '-U', 'pip'], shell=False)
-    res = run_sp([sys.executable, '-m', 'pip', 'install', '-U', '-r', 'requirements.txt'], shell=False)
+    try:
+        run_sp([sys.executable, '-m', 'pip', 'install', '-U', 'pip'], shell=False)
+        res = run_sp([sys.executable, '-m', 'pip', 'install', '-U', '-r', 'requirements.txt'], shell=False)
+    except subprocess.CalledProcessError:
+        log.error('Could not install a dependency. You may need to run this as an admin/sudo.')
+        return
     out = res.stdout.lower()
     if 'failed with' in out:
         print(res.stdout)
