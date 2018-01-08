@@ -257,14 +257,17 @@ def check_version():
         assert not repo.bare, 'repository is bare'
         remote = repo.remote(name='origin')
         remote.fetch()
+    except git.exc.GitCommandNotFound:
+        log.error('Git does not seem to be found on your system (e.g in your PATH).')
+        return
     except git.exc.InvalidGitRepositoryError:  # shouldn't happen, we already checked for .git
-        log.warning('The folder is not a valid Git repository. Aborting.')
+        log.error('The folder is not a valid Git repository. Aborting.')
         terminate()
     except AssertionError as e:
-        log.warning('Can\'t check for bot updates: {0}.'.format(e))
+        log.error('Can\'t check for bot updates: {0}.'.format(e))
         return
     except ValueError:
-        log.warning('Could not find a Git remote linked to this repo.')
+        log.error('Could not find a Git remote linked to this repo.')
         return
 
     behind = list(repo.iter_commits('{0}..origin/{0}'.format(repo.active_branch.name)))
