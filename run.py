@@ -224,6 +224,7 @@ def start_bot():
             time.sleep(sleeptime)
 
     print()
+    terminate()
 
 def terminate(msg="Press enter to continue...", code=1, with_msg=True):
     if with_msg:
