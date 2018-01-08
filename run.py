@@ -282,7 +282,7 @@ def open_browser(url):
 def update_deps():
     log.info('Updating dependencies...')
     run_sp([sys.executable, '-m', 'pip', 'install', '-U', 'pip'], shell=False)
-    res = run_sp([sys.executable, '-m', 'pip', 'install', 'U', '-r', 'requirements.txt'], shell=False)
+    res = run_sp([sys.executable, '-m', 'pip', 'install', '-U', '-r', 'requirements.txt'], shell=False)
     out = res.stdout.lower()
     if 'failed with' in out:
         print(res.stdout)
