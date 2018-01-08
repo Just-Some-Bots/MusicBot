@@ -263,12 +263,12 @@ def update_deps():
 
 def update_bot():
     log.info('Updating bot...')
-    res = run_sp('git pull')
-    out = res.stdout.lower()
-    if 'overwritten by merge' in out:
-        log.error('Could not update bot as you have made local changes.')
-    else:
-        log.info('Updated bot successfully.')
+    try:
+        run_sp('git pull')
+    except subprocess.CalledProcessError:
+        log.error('Could not update bot.')
+        terminate()
+    log.info('Updated bot successfully.')
 
 def ensure_folders():
     pathlib.Path('logs').mkdir(exist_ok=True)
