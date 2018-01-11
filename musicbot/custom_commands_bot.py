@@ -93,7 +93,7 @@ async def cmd_yoi(self, author, leftover_args):
 
     if times < 1:
         return Response('Bgst kamu %s, input harus positif' % author.mention, tts=True)
-    elif times > 10:
+    elif times > 30:
         return Response('Bgst kamu %s, kebanyakan gblk' % author.mention, tts=True)
     else:
         yoi_str = "yo" * times + "i"
