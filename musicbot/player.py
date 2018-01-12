@@ -17,6 +17,7 @@ from .utils import avg, _func_
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning
+from .entry import StreamPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -190,12 +191,13 @@ class MusicPlayer(EventEmitter, Serializable):
             self.play(_continue=True)
 
         if not self.bot.config.save_videos and entry:
-            if any([entry.filename == e.filename for e in self.playlist.entries]):
-                log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
+            if not isinstance(entry, StreamPlaylistEntry):
+                if any([entry.filename == e.filename for e in self.playlist.entries]):
+                    log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
 
-            else:
-                log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
-                asyncio.ensure_future(self._delete_file(entry.filename))
+                else:
+                    log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
+                    asyncio.ensure_future(self._delete_file(entry.filename))
 
         self.emit('finished-playing', player=self, entry=entry)
 
