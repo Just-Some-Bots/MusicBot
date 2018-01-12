@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" >
+
+		<link rel="stylesheet" href="/css/style.css">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+		<script src="/js/main.js"></script>
+		{% seo %}
+
+		{% if jekyll.environment == 'production' %}
+			<script>
+				(function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){
+				(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+				m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+			})(window,document,"script","//www.google-analytics.com/analytics.js","ga");
+				ga("create", "{{ site.google_analytics_key }}", "auto");
+				ga("send", "pageview");
+			</script>
+		{% endif %}
+	</head>
+	<body>
+		<header>
+			<h1>
+				<a href="/"><img src="/images/logo.svg" height="40" alt="{{ site.title }} logo"></a>
+				<button type="button" class="open-nav" id="open-nav"></button>
+			</h1>
+
+			<form action="/search/" method="get">
+				<input type="text" name="q" id="search-input" placeholder="Search">
+				<input type="submit" value="Search" style="display: none;">
+			</form>
+
+			{% include sidebar.html %}
+
+			<p class="copyright">
+				<a href="https://cloudcannon.com/">
+					Template by CloudCannon
+				</a>
+			</p>
+		</header>
+		<div class="main">
+			{{ content }}
+		</div>
+		<script>
+			document.getElementById("open-nav").addEventListener("click", function () {
+				document.body.classList.toggle("nav-open");
+			});
+		</script>
+	</body>
+</html>
