@@ -1370,8 +1370,13 @@ class MusicBot(discord.Client):
         linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
         pattern = re.compile(linksRegex)
         matchUrl = pattern.match(song_url)
-        if matchUrl is None:
-            song_url = song_url.replace('/', '%2F')
+        song_url = song_url.replace('/', '%2F') if matchUrl is None else song_url
+
+        # Rewrite YouTube playlist URLs if the wrong URL type is given
+        playlistRegex = r'watch\?v=.+&(list=[^&]+)'
+        matches = re.search(playlistRegex, song_url)
+        groups = matches.groups() if matches is not None else []
+        song_url = "https://www.youtube.com/playlist?" + groups[0] if len(groups) > 0 else song_url
 
         if song_url.startswith('spotify:'):  # treat it as probably a spotify URI
             if self.config._spotify:
