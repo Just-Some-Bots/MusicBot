@@ -1166,6 +1166,7 @@ class MusicBot(discord.Client):
         if self.config.status_message:
             log.info("  Status message: " + self.config.status_message)
         log.info("  Write current songs to file: " + ['Disabled', 'Enabled'][self.config.write_current_song])
+        log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
         log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
         print(flush=True)
 
@@ -1995,7 +1996,7 @@ class MusicBot(discord.Client):
 
         if author.id == self.config.owner_id \
                 or permissions.instaskip \
-                or author == player.current_entry.meta.get('author', None):
+                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)

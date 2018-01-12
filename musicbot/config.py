@@ -61,6 +61,7 @@ class Config:
         self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
         self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
         self.write_current_song = config.getboolean('MusicBot', 'WriteCurrentSong', fallback=ConfigDefaults.write_current_song)
+        self.allow_author_skip = config.getboolean('MusicBot', 'AllowAuthorSkip', fallback=ConfigDefaults.allow_author_skip)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -283,6 +284,7 @@ class ConfigDefaults:
     debug_level = 'INFO'
     status_message = None
     write_current_song = False
+    allow_author_skip = True
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
