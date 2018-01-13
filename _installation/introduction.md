@@ -18,3 +18,6 @@ If you require additional help beyond what you can find on this site, join our [
 
 #### Guides
 - [Configuration](#guidesconfiguration)
+- [Commands](#guidescommands)
+- [Updating](#guidesupdating)
+- [FAQ](#guidesfaq)
