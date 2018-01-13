@@ -139,3 +139,12 @@ async def cmd_reload_custom(self):
     """
     self.load_custom_command(reload=True)
     return Response("Ok. Reloaded", reply=True)
+
+async def cmd_boker(self):
+    """
+    Usage:
+        {command_prefix}boker
+    Let kak seto says our boker quote
+    """
+    return Response("boker cloaker nigger picker", tts=True)
+    
