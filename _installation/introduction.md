@@ -20,4 +20,5 @@ If you require additional help beyond what you can find on this site, join our [
 - [Configuration](#guidesconfiguration)
 - [Commands](#guidescommands)
 - [Updating](#guidesupdating)
+- [Permissions](#guidespermissions)
 - [FAQ](#guidesfaq)
