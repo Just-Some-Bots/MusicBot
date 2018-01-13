@@ -23,6 +23,7 @@ class PermissionsDefaults:
 
     AllowPlaylists = True
     InstaSkip = False
+    Remove = False
 
 
 class Permissions:
@@ -111,6 +112,7 @@ class PermissionGroup:
 
         self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
         self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
+        self.remove = section_data.get('Remove', fallback=PermissionsDefaults.Remove)
 
         self.validate()
 
@@ -151,6 +153,10 @@ class PermissionGroup:
 
         self.instaskip = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.instaskip, PermissionsDefaults.InstaSkip
+        )
+
+        self.remove = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.remove, PermissionsDefaults.Remove
         )
 
     @staticmethod

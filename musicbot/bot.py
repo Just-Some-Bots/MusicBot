@@ -1973,6 +1973,59 @@ class MusicBot(discord.Client):
 
         player.playlist.clear()
         return Response('\N{PUT LITTER IN ITS PLACE SYMBOL}', delete_after=20)
+        
+    async def cmd_remove(self, user_mentions, message, author, permissions, channel, player, index=None):
+        """
+        Usage:
+            {command_prefix}remove [# in queue]
+
+        Removes queued songs. If a number is specified, removes that song in the queue, otherwise removes the most recently queued song.
+        """
+        
+        if not player.playlist.entries:
+            raise exceptions.CommandError("There's nothing to remove!", expire_in=20)
+        
+        if user_mentions:
+            for user in user_mentions:
+                if author.id == self.config.owner_id or permissions.remove or author == user:
+                    try:
+                        entry_indexes = [e for e in player.playlist.entries if e.meta.get('author', None) == user]
+                        for entry in entry_indexes:
+                            player.playlist.entries.remove(entry)
+                        entry_text = '%s ' % len(entry_indexes) + 'item'
+                        if len(entry_indexes) > 1:
+                            entry_text += 's'
+                        return Response("Removed **{}** added by **{}**".format(entry_text, user.name).strip())
+                        
+                    except ValueError:
+                        raise exceptions.CommandError("Nothing found in the queue from user %s" % user.name, expire_in=20)
+                        
+                raise exceptions.PermissionsError(
+                            "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20)
+                            
+        if not index:
+            index = len(player.playlist.entries)
+            
+        try:
+            index = int(index)
+        except (TypeError, ValueError):
+            raise exceptions.CommandError("Queue number not valid, please enter a valid queue number and try again!", expire_in=20)
+            
+        if index > len(player.playlist.entries):
+            raise exceptions.CommandError("Queue number not valid, please enter a valid queue number and try again!", expire_in=20)
+        
+        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index-1).meta.get('author', None):
+            entry = player.playlist.delete_entry_at_index((index-1))
+            await self._manual_delete_check(message)
+            if entry.meta.get('channel', False) and entry.meta.get('author', False):
+                return Response("Removed Entry #{} - **{}** added by **{}**".format(index, entry.title, entry.meta['author'].name).strip())
+                
+            else:
+                return Response("Removed Entry #{} **{}**".format(index, entry.title).strip())
+                
+        else:
+            raise exceptions.PermissionsError(
+                        "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20)
 
     async def cmd_superskip(self, player, channel, author, message, permissions, voice_channel):
         """
@@ -2019,7 +2072,7 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}skip
 
-        Skips the current song when enough votes are cast, or by the bot owner.
+        Skips the current song when enough votes are cast.
         """
 
         if player.is_stopped:
