@@ -621,12 +621,19 @@ class MusicBot(discord.Client):
                         self.server_specific_data[channel.server]['last_np_msg'] = None
                     break  # This is probably redundant
 
-            if self.config.now_playing_mentions:
+            
+            author_perms = self.permissions.for_user(author)
+            
+            if author not in player.voice_client.channel.voice_members and author_perms.skip_when_absent:
+                newmsg = 'Skipping next song in %s: **%s** added by **%s** as queuer not in voice' % (
+                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+                player.skip()
+            elif self.config.now_playing_mentions:
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = 'Now playing in %s: **%s**' % (
-                    player.voice_client.channel.name, entry.title)
+                newmsg = 'Now playing in %s: **%s** added by **%s**' % (
+                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
