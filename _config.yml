@@ -3,7 +3,8 @@
 
 title: MusicBot
 description: The documentation for the original MusicBot for Discord.
-url: https://Just-Some-Bots.github.io/MusicBot/
+url: https://Just-Some-Bots.github.io/
+baseurl: "/MusicBot"
 google_analytics_key:
 permalink: pretty
 
