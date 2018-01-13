@@ -71,7 +71,6 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
-        self.autoplaylist_session = self.autoplaylist[:]
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
@@ -654,17 +653,22 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
-            if not self.autoplaylist_session:
-                log.info("Autoplaylist session empty. Re-populating with entries...")
-                self.autoplaylist_session = self.autoplaylist[:]
-
-            while self.autoplaylist_session:
-                if self.config.auto_playlist_random:
-                    random.shuffle(self.autoplaylist_session)
-                    song_url = random.choice(self.autoplaylist_session)
+            if not player.autoplaylist:
+                if not self.autoplaylist:
+                    # TODO: When I add playlist expansion, make sure that's not happening during this check
+                    log.warning("No playable songs in the autoplaylist, disabling.")
+                    self.config.auto_playlist = False
                 else:
-                    song_url = self.autoplaylist_session[0]
-                self.autoplaylist_session.remove(song_url)
+                    log.debug("No content in current autoplaylist. Filling with new music...")
+                    player.autoplaylist = list(set(self.autoplaylist))
+
+            while player.autoplaylist:
+                if self.config.auto_playlist_random:
+                    random.shuffle(player.autoplaylist)
+                    song_url = random.choice(player.autoplaylist)
+                else:
+                    song_url = player.autoplaylist[0]
+                player.autoplaylist.remove(song_url)
 
                 info = {}
 
@@ -1185,6 +1189,29 @@ class MusicBot(discord.Client):
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
         # t-t-th-th-that's all folks!
+        
+    @dev_only
+    async def cmd_resetplaylist(self, player):
+        """
+        Usage: {command_prefix}resetplayer
+        Resets all songs in the AutoPlaylist
+        """
+        player.autoplaylist = list(set(self.autoplaylist))
+        
+        cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
+        random.shuffle(cards)
+
+        hand = await self.send_message(channel, ' '.join(cards))
+        await asyncio.sleep(0.6)
+
+        for x in range(4):
+            random.shuffle(cards)
+            await self.safe_edit_message(hand, ' '.join(cards))
+            await asyncio.sleep(0.6)
+
+        await self.safe_delete_message(hand, quiet=True)
+        return Response("\N{OK HAND SIGN}", delete_after=15)
+        
 
     async def cmd_help(self, command=None):
         """
