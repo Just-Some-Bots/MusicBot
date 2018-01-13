@@ -1,12 +1,12 @@
 ---
-title: API Docs
+title: Documentation
 ---
 {% assign sorted_collections = site.collections | sort: "position" %}
 {% for collection in sorted_collections %}
 	{% assign sorted_docs = collection.docs | sort: "position" %}
 	{% for doc in sorted_docs %}
 		<section class="doc-content">
-			<section class="left-docs">
+			<section class="docs">
 				<h3>
 					<a id="{{ doc.id | replace: '/', '' | replace: '.', '' }}">
 						{{ doc.title }}
@@ -21,12 +21,6 @@ title: API Docs
 
 				{{ doc.content | replace: "<dl>", "<h6>Parameters</h6><dl>" }}
 			</section>
-
-			{% if doc.right_code %}
-				<section class="right-code">
-					{{ doc.right_code | markdownify }}
-				</section>
-			{% endif %}
 		</section>
 	{% endfor %}
 {% endfor %}

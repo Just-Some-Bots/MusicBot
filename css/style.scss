@@ -3,7 +3,7 @@ layout: null
 sitemap: false
 ---
 
-$brand-colour: #35d69b;
+$brand-colour: #7289da;
 
 $nav-header-height: 60px;
 $nav-background-color: #f5f5f5;
@@ -17,3 +17,10 @@ $mobile-break: 700px;
 @import "main";
 @import "borland";
 @import "monaki";
+
+.doc-img {
+    border-radius: 5px;
+    float: right;
+    margin-left: 20px;
+    margin-bottom: 20px;
+}

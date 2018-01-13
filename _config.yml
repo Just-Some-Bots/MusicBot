@@ -1,19 +1,20 @@
 # ----
 # Site
 
-title: Aviator
-description: Jekyll template for API documentation.
-url: https://example.com
+title: MusicBot
+description: The documentation for the original MusicBot for Discord.
+url: https://jaydenkieran.github.io/musicbot-docs/
 google_analytics_key:
 permalink: pretty
 
 collections:
-  documentation:
-    title: Documentation
+  installation:
+    title: Installation
     position: 1
-  api:
-    title: APIs
+  guides:
+    title: Guides
     position: 2
+
 gems:
   - jekyll-sitemap
   - jekyll-seo-tag
