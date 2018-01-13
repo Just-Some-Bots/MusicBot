@@ -1974,6 +1974,46 @@ class MusicBot(discord.Client):
         player.playlist.clear()
         return Response('\N{PUT LITTER IN ITS PLACE SYMBOL}', delete_after=20)
 
+    async def cmd_superskip(self, player, channel, author, message, permissions, voice_channel):
+        """
+        Usage:
+            {command_prefix}superskip
+
+        Skips the current song immediatley
+        """
+
+        if player.is_stopped:
+            raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
+
+        if not player.current_entry:
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
+
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    print("Something odd is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
+            else:
+                print("Something strange is happening.  "
+                      "You might want to restart the bot if it doesn't start working.")
+
+        if author.id == self.config.owner_id \
+                or permissions.instaskip \
+                or author == player.current_entry.meta.get('author', None):
+            player.skip()  # check autopause stuff here
+            await self._manual_delete_check(message)
+            return Response(
+                'your super skip for **{}** was acknowledged!'
+                '{}'.format(
+                    player.current_entry.title,
+                    '\nNext song coming up!' if player.playlist.peek() else ''
+                ),
+                reply=True,
+                delete_after=20
+            )
+
     async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
         """
         Usage:
@@ -1999,10 +2039,7 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id \
-                or permissions.instaskip \
-                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
-
+        if author == player.current_entry.meta.get('author', None):
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return
@@ -2017,9 +2054,12 @@ class MusicBot(discord.Client):
 
         skips_remaining = min(
             self.config.skips_required,
-            math.ceil(self.config.skip_ratio_required / (1 / num_voice)) # Number of skips from config ratio
+            sane_round_int(num_voice * self.config.skip_ratio_required)
         ) - num_skips
 
+        if player.skip_state.prevent_skip:
+            raise exceptions.CommandError("Can't skip! Skipping is blocked!", expire_in=20)
+            
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
             return Response(
