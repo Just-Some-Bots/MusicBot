@@ -30,9 +30,3 @@ defaults:
       path: ""
     values:
       layout: default
-
-types:
-  - get
-  - put
-  - delete
-  - post

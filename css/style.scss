@@ -24,3 +24,36 @@ $mobile-break: 700px;
     margin-left: 20px;
     margin-bottom: 20px;
 }
+
+.label {
+    display: inline;
+    padding: .2em .6em .3em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .25em;
+}
+
+.label-primary {
+    background-color: #198f46;
+}
+
+.label-warning {
+    background-color: #ac0a0a;
+}
+
+.label-dark {
+    background-color: #242424;
+}
+
+code.highlighter-rouge {
+    padding: .2rem .4rem;
+    font-size: 90%;
+    color: #bd4147;
+    background-color: #f7f7f9;
+    border-radius: .25rem;
+}

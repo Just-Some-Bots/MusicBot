@@ -11,21 +11,19 @@ For Windows users, please note that file extensions are **hidden by default**, s
 Do not edit any configuration file using Notepad or other basic text editors, otherwise it will break. Use something like [Notepad++](https://notepad-plus-plus.org/download/).
 {: .warning }
 
-***
-
 The permissions file contains **multiple sections**. The `[Default]` section should **not be renamed**. It contains the default permissions for users of the bot that are not the owner. **Each section is a group**. A user's roles do not allow them to have full permissions to use the bot, **this file does**.
 
-### Control what commands a group can use
-**Add it** in the `CommandWhitelist` section of the group. Each command should be separated by **spaces**. For example, to allow a group to use `!play` and `!skip` only:
+#### Control what commands a group can use
+**Add the command** in the `CommandWhitelist` section of the group. Each command should be separated by **spaces**. For example, to allow a group to use `!play` and `!skip` only:
 
     CommandWhitelist = play skip
 
-### Add a user to a group
+#### Add a user to a group
 **Add a user's ID** in the `UserList` section of the group. Each user ID should be separated by **spaces**. For example:
 
     UserList = 154748625350688768 104766296687656960
 
-### Add a role to a group
+#### Add a role to a group
 
 **Add a role's ID** in the `GrantToRoles` section of the group. Each role ID should be separated by **spaces**. For example:
 
