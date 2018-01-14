@@ -19,7 +19,7 @@ sudo add-apt-repository ppa:chris-lea/libsodium -y
 
 # Install system dependencies
 sudo apt-get update -y
-sudo apt-get install git python python3.5-dev libav-tools libopus-dev libffi-dev libsodium-dev -y
+sudo apt-get install git python python3.5-dev libav-tools libopus-dev libffi-dev libsodium-dev python3-pip -y
 sudo apt-get upgrade -y
 
 # Clone the MusicBot to your home directory
@@ -42,7 +42,7 @@ sudo add-apt-repository ppa:mc3man/xerus-media -y
 
 # Install system dependencies
 sudo apt-get update -y
-sudo apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3-pip -y
+sudo apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3-pip python3-dev -y
 sudo apt-get upgrade -y
 
 # Clone the MusicBot to your home directory
