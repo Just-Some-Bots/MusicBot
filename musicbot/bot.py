@@ -146,7 +146,11 @@ class MusicBot(discord.Client):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
+<<<<<<< HEAD
                 raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
+=======
+                raise exceptions.PermissionsError("only dev users can use this command", expire_in=30)
+>>>>>>> 3a7b62a... logs now delete after one day yay
 
     def ensure_appinfo(func):
         @wraps(func)
