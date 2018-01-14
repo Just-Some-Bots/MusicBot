@@ -298,6 +298,9 @@ class Playlist(EventEmitter, Serializable):
         if self.peek() is entry:
             entry.get_ready_future()
 
+    def remove_entry(self, index):
+        del self.entries[index]
+
     async def get_next_entry(self, predownload_next=True):
         """
             A coroutine which will return the next song or None if no songs left to play.
