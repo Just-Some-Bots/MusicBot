@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import asyncio
 import os
 import sys
 import time
@@ -140,7 +141,6 @@ log.addHandler(tfh)
 
 def finalize_logging():
     musiclog = datetime.now().strftime('logs/musicbot_%Y-%m-%d_%H-%M.log')
-    os.path.isfile(musiclog)
     log.info("Initializing Logs")
 
     with open(musiclog, 'w', encoding='utf8') as f:

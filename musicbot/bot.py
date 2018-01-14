@@ -15,13 +15,13 @@ import re
 import aiohttp
 import discord
 import colorlog
-
+from subprocess import call
 from io import BytesIO, StringIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from collections import defaultdict
-
+from os.path import join
 from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
 
@@ -145,9 +145,6 @@ class MusicBot(discord.Client):
             else:
                 raise exceptions.PermissionsError("only dev users can use this command", expire_in=30)
 
-        wrapper.dev_cmd = True
-        return wrapper
-
     def ensure_appinfo(func):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -225,6 +222,21 @@ class MusicBot(discord.Client):
             dhandler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
             dhandler.setFormatter(logging.Formatter('{asctime}:{levelname}:{name}: {message}', style='{'))
             dlogger.addHandler(dhandler)
+
+# Here's Where log clean up comes in
+    now = time.time()
+    cutoff = now - (1 * 86400)
+
+    files = os.listdir("logs")
+    for xfile in files:
+        if os.path.isfile("logs/" + xfile):
+            t = os.stat("logs/" + xfile)
+            c = t.st_ctime
+
+            # delete file if older than a day
+            if c < cutoff:
+                os.remove("logs/" + xfile)
+
 
     @staticmethod
     def _check_if_empty(vchannel: discord.Channel, *, excluding_me=True, excluding_deaf=False):
