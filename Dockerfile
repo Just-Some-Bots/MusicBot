@@ -32,4 +32,6 @@ RUN apk update \
 # Create volume for mapping the config
 VOLUME /usr/src/musicbot/config
 
+ENV APP_ENV=docker
+
 ENTRYPOINT ["python3", "run.py"]
