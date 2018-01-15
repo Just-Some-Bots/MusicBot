@@ -5,6 +5,7 @@ import logging
 import asyncio
 import audioop
 import subprocess
+import re
 
 from enum import Enum
 from array import array
@@ -317,7 +318,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                if bot.config.use_experimental_equalization:
+                if self.bot.config.use_experimental_equalization:
                     mean, maximum = self.get_mean_volume(entry.filename)
                     
                     aoptions = '-af "volume={}dB"'.format((maximum * -1))

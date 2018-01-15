@@ -1189,29 +1189,16 @@ class MusicBot(discord.Client):
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
         # t-t-th-th-that's all folks!
-        
-    @dev_only
-    async def cmd_resetplaylist(self, player):
+
+    async def cmd_resetplaylist(self, player, channel):
         """
-        Usage: {command_prefix}resetplayer
-        Resets all songs in the AutoPlaylist
+        Usage:
+            {command_prefix}resetplayer
+
+        Resets all songs in the server's autoplaylist
         """
         player.autoplaylist = list(set(self.autoplaylist))
-        
-        cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
-        random.shuffle(cards)
-
-        hand = await self.send_message(channel, ' '.join(cards))
-        await asyncio.sleep(0.6)
-
-        for x in range(4):
-            random.shuffle(cards)
-            await self.safe_edit_message(hand, ' '.join(cards))
-            await asyncio.sleep(0.6)
-
-        await self.safe_delete_message(hand, quiet=True)
         return Response("\N{OK HAND SIGN}", delete_after=15)
-        
 
     async def cmd_help(self, command=None):
         """
@@ -2042,7 +2029,7 @@ class MusicBot(discord.Client):
 
         player.playlist.clear()
         return Response('\N{PUT LITTER IN ITS PLACE SYMBOL}', delete_after=20)
-        
+
     async def cmd_remove(self, user_mentions, message, author, permissions, channel, player, index=None):
         """
         Usage:
@@ -2050,10 +2037,10 @@ class MusicBot(discord.Client):
 
         Removes queued songs. If a number is specified, removes that song in the queue, otherwise removes the most recently queued song.
         """
-        
+
         if not player.playlist.entries:
             raise exceptions.CommandError("There's nothing to remove!", expire_in=20)
-        
+
         if user_mentions:
             for user in user_mentions:
                 if author.id == self.config.owner_id or permissions.remove or author == user:
@@ -2065,83 +2052,45 @@ class MusicBot(discord.Client):
                         if len(entry_indexes) > 1:
                             entry_text += 's'
                         return Response("Removed **{}** added by **{}**".format(entry_text, user.name).strip())
-                        
+
                     except ValueError:
                         raise exceptions.CommandError("Nothing found in the queue from user %s" % user.name, expire_in=20)
-                        
+
                 raise exceptions.PermissionsError(
-                            "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20)
-                            
+                    "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20)
+
         if not index:
             index = len(player.playlist.entries)
-            
+
         try:
             index = int(index)
         except (TypeError, ValueError):
             raise exceptions.CommandError("Queue number not valid, please enter a valid queue number and try again!", expire_in=20)
-            
+
         if index > len(player.playlist.entries):
             raise exceptions.CommandError("Queue number not valid, please enter a valid queue number and try again!", expire_in=20)
-        
-        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index-1).meta.get('author', None):
+
+        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
             entry = player.playlist.delete_entry_at_index((index-1))
             await self._manual_delete_check(message)
             if entry.meta.get('channel', False) and entry.meta.get('author', False):
                 return Response("Removed Entry #{} - **{}** added by **{}**".format(index, entry.title, entry.meta['author'].name).strip())
-                
+
             else:
                 return Response("Removed Entry #{} **{}**".format(index, entry.title).strip())
-                
+
         else:
             raise exceptions.PermissionsError(
-                        "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20)
-
-    async def cmd_superskip(self, player, channel, author, message, permissions, voice_channel):
-        """
-        Usage:
-            {command_prefix}superskip
-
-        Skips the current song immediatley
-        """
-
-        if player.is_stopped:
-            raise exceptions.CommandError("Can't skip! The player is not playing!", expire_in=20)
-
-        if not player.current_entry:
-            if player.playlist.peek():
-                if player.playlist.peek()._is_downloading:
-                    return Response("The next song (%s) is downloading, please wait." % player.playlist.peek().title)
-
-                elif player.playlist.peek().is_downloaded:
-                    print("The next song will be played shortly.  Please wait.")
-                else:
-                    print("Something odd is happening.  "
-                          "You might want to restart the bot if it doesn't start working.")
-            else:
-                print("Something strange is happening.  "
-                      "You might want to restart the bot if it doesn't start working.")
-
-        if author.id == self.config.owner_id \
-                or permissions.instaskip \
-                or (author == player.current_entry.meta.get('author', None) and self.config.allow_author_skip):
-            player.skip()  # check autopause stuff here
-            await self._manual_delete_check(message)
-            return Response(
-                'your super skip for **{}** was acknowledged!'
-                '{}'.format(
-                    player.current_entry.title,
-                    '\nNext song coming up!' if player.playlist.peek() else ''
-                ),
-                reply=True,
-                delete_after=20
+                "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20
             )
 
-    async def cmd_skip(self, player, channel, author, message, permissions, voice_channel):
+    async def cmd_skip(self, player, channel, author, message, permissions, voice_channel, param=''):
         """
         Usage:
-            {command_prefix}skip
+            {command_prefix}skip [force/f]
 
         Skips the current song when enough votes are cast.
+        Owners and those with the instaskip permission can add 'force' or 'f' after the command to force skip.
         """
 
         if player.is_stopped:
@@ -2161,27 +2110,30 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if author == player.current_entry.meta.get('author', None):
-            player.skip()  # check autopause stuff here
-            await self._manual_delete_check(message)
-            return
+        if param.lower() in ['force', 'f']:
+            if author.id == self.config.owner_id \
+                or permissions.instaskip \
+                    or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
+
+                player.skip()  # TODO: check autopause stuff here
+                await self._manual_delete_check(message)
+                return Response('force skipped **{}**.'.format(player.current_entry.title), reply=True, delete_after=30)
+            else:
+                raise exceptions.PermissionsError('You do not have permission to force skip.', expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf or m.id in [self.config.owner_id, self.user.id]))
+            m.deaf or m.self_deaf))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
         skips_remaining = min(
             self.config.skips_required,
-            sane_round_int(num_voice * self.config.skip_ratio_required)
+            math.ceil(self.config.skip_ratio_required / (1 / num_voice))  # Number of skips from config ratio
         ) - num_skips
 
-        if player.skip_state.prevent_skip:
-            raise exceptions.CommandError("Can't skip! Skipping is blocked!", expire_in=20)
-            
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
             return Response(
@@ -2206,7 +2158,7 @@ class MusicBot(discord.Client):
                 reply=True,
                 delete_after=20
             )
-            
+
     async def cmd_volume(self, message, player, new_volume=None):
         """
         Usage:
