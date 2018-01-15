@@ -2065,20 +2065,18 @@ class MusicBot(discord.Client):
         try:
             index = int(index)
         except (TypeError, ValueError):
-            raise exceptions.CommandError("Queue number not valid, please enter a valid queue number and try again!", expire_in=20)
+            raise exceptions.CommandError("Invalid number. Use {}queue to find queue positions.".format(self.config.command_prefix), expire_in=20)
 
         if index > len(player.playlist.entries):
-            raise exceptions.CommandError("Queue number not valid, please enter a valid queue number and try again!", expire_in=20)
+            raise exceptions.CommandError("Invalid number. Use {}queue to find queue positions.".format(self.config.command_prefix), expire_in=20)
 
         if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
-            entry = player.playlist.delete_entry_at_index((index-1))
+            entry = player.playlist.delete_entry_at_index((index - 1))
             await self._manual_delete_check(message)
             if entry.meta.get('channel', False) and entry.meta.get('author', False):
-                return Response("Removed Entry #{} - **{}** added by **{}**".format(index, entry.title, entry.meta['author'].name).strip())
-
+                return Response("Removed entry **{}** added by **{}**".format(entry.title, entry.meta['author'].name).strip())
             else:
-                return Response("Removed Entry #{} **{}**".format(index, entry.title).strip())
-
+                return Response("Removed entry **{}**".format(entry.title).strip())
         else:
             raise exceptions.PermissionsError(
                 "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions", expire_in=20
