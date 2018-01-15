@@ -62,6 +62,7 @@ class Config:
         self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
         self.write_current_song = config.getboolean('MusicBot', 'WriteCurrentSong', fallback=ConfigDefaults.write_current_song)
         self.allow_author_skip = config.getboolean('MusicBot', 'AllowAuthorSkip', fallback=ConfigDefaults.allow_author_skip)
+        self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -285,6 +286,7 @@ class ConfigDefaults:
     status_message = None
     write_current_song = False
     allow_author_skip = True
+    use_experimental_equalizationuse_experimental_equalization = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

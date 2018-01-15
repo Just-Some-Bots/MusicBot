@@ -2123,7 +2123,7 @@ class MusicBot(discord.Client):
 
         if author.id == self.config.owner_id \
                 or permissions.instaskip \
-                or author == player.current_entry.meta.get('author', None):
+                or (author == player.current_entry.meta.get('author', None) and self.config.allow_author_skip):
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
             return Response(

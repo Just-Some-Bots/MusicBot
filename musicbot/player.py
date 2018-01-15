@@ -237,6 +237,55 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def play(self, _continue=False):
         self.loop.create_task(self._play(_continue=_continue))
+        
+    def run_command(self, cmd):
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        return stdout + stderr
+
+    def get(self, program):
+        def is_exe(fpath):
+            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            if not found and sys.platform == 'win32':
+                fpath = fpath + ".exe"
+                found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            return found
+
+        fpath, __ = os.path.split(program)
+        if fpath:
+            if is_exe(program):
+                return program
+        else:
+            for path in os.environ["PATH"].split(os.pathsep):
+                path = path.strip('"')
+                exe_file = os.path.join(path, program)
+                if is_exe(exe_file):
+                    return exe_file
+
+        return None
+
+    def get_mean_volume(self, input_file):
+        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
+        # print('===', cmd)
+        try:
+            output = self.run_command(cmd)
+        except Exception as e:
+            raise e
+        output = output.decode("utf-8")
+        # print('----', output)
+        mean_volume_matches = re.findall(r"mean_volume: ([\-\d\.]+) dB", output)
+        if (mean_volume_matches):
+            mean_volume = float(mean_volume_matches[0])
+        else:
+            mean_volume = float(0)
+
+        max_volume_matches = re.findall(r"max_volume: ([\-\d\.]+) dB", output)
+        if (max_volume_matches):
+            max_volume = float(max_volume_matches[0])
+        else:
+            max_volume = float(0)
+
+        return mean_volume, max_volume
 
     async def _play(self, _continue=False):
         """
@@ -268,7 +317,13 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                aoptions = "-vn"
+                if bot.config.use_experimental_equalization:
+                    mean, maximum = self.get_mean_volume(entry.filename)
+                    
+                    aoptions = '-af "volume={}dB"'.format((maximum * -1))
+                    
+                else:
+                    aoptions = "-vn"
 
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 
