@@ -25,6 +25,7 @@ class PermissionsDefaults:
     InstaSkip = False
     Remove = False
     SkipWhenAbsent = True
+    BypassKaraokeMode = False
 
 
 class Permissions:
@@ -115,6 +116,7 @@ class PermissionGroup:
         self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
         self.remove = section_data.get('Remove', fallback=PermissionsDefaults.Remove)
         self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=PermissionsDefaults.SkipWhenAbsent)
+        self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=PermissionsDefaults.BypassKaraokeMode)
 
         self.validate()
 
@@ -163,6 +165,10 @@ class PermissionGroup:
 
         self.skip_when_absent = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.skip_when_absent, PermissionsDefaults.SkipWhenAbsent
+        )
+        
+        self.bypass_karaoke_mode = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.bypass_karaoke_mode, PermissionsDefaults.BypassKaraokeMode
         )
 
     @staticmethod
