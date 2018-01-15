@@ -1316,7 +1316,6 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError('This song is already in the autoplaylist.')
         else:
             raise exceptions.CommandError('There is no valid song playing.')
-            
 
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
@@ -1334,26 +1333,16 @@ class MusicBot(discord.Client):
                 reply=True, delete_after=30
             )
 
-        try:
-            if server_link:
-                await self.accept_invite(server_link)
-                return Response("\N{THUMBS UP SIGN}")
-
-        except:
-            raise exceptions.CommandError('Invalid URL provided:\n{}\n'.format(server_link), expire_in=30)
-            
     async def cmd_karaoke(self, player, channel, author):
         """
         Usage:
-            {command_prefix}play song_link
-            {command_prefix}play text to search for
+            {command_prefix}karaoke
 
-        Adds the song to the playlist.  If a link is not provided, the first
-        result from a youtube search is added to the queue.
+        Activates karaoke mode. During karaoke mode, only groups with the BypassKaraokeMode
+        permission in the config file can queue music.
         """
         player.karaoke_mode = not player.karaoke_mode
-        return Response("\N{OK HAND SIGN}", delete_after=15)
-
+        return Response("\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][player.karaoke_mode], delete_after=15)
 
     async def _do_playlist_checks(self, permissions, player, author, testobj):
         num_songs = sum(1 for _ in testobj)
@@ -1745,12 +1734,12 @@ class MusicBot(discord.Client):
             raise exceptions.PermissionsError(
                 "You have reached your enqueued song limit (%s)" % permissions.max_songs, expire_in=30
             )
-            
+
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
                 "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
             )
-            
+
         await self.send_typing(channel)
         await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
 
@@ -1779,7 +1768,7 @@ class MusicBot(discord.Client):
                 "You have reached your playlist item limit (%s)" % permissions.max_songs,
                 expire_in=30
             )
-            
+
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
                 "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
