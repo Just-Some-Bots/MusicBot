@@ -286,7 +286,7 @@ class ConfigDefaults:
     status_message = None
     write_current_song = False
     allow_author_skip = True
-    use_experimental_equalizationuse_experimental_equalization = False
+    use_experimental_equalization = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
