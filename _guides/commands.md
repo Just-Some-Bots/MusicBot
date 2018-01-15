@@ -27,6 +27,7 @@ This is a list of the **commands** that can be used to control the MusicBot. You
 - **`!perms`** - Sends a message to the user with their bot permissions.
 - <span class="label label-primary" title="Added in 1.9.6">new</span> **`!stream <url>`** - Streams a URL. This can be a Twitch, YouTube, etc livestream, or a radio stream. This feature of the bot is experimental and may have some issues.
 - <span class="label label-primary" title="Added in 1.9.6_1">new</span> **`!save`** - Saves the current song to the autoplaylist.
+- <span class="label label-dark" title="Added in a future update">upcoming</span> - **`!karaoke`** - Enables karaoke mode in a server. During karaoke mode, only users with the `BypassKaraokeMode` permission can queue music.
 
 #### Admin
 

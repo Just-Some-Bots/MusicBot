@@ -52,3 +52,4 @@ This section is about the config options in options.ini. For help with the actua
 - <span class="label label-dark" title="Added in a future update">upcoming</span> **`StatusMessage`** - Allows users to specify a custom "Playing" status message for the bot, rather than the dynamic ones the bot provides
 - <span class="label label-dark" title="Added in a future update">upcoming</span> **`WriteCurrentSong`** - Whether the bot should write the current song to a text file on the disk, which can then be used in OBS or other software
 - <span class="label label-dark" title="Added in a future update">upcoming</span> **`AllowAuthorSkip`** - Whether the person who queues a song should be allowed to instantly skip it if they use `!skip`
+- <span class="label label-dark" title="Added in a future update">upcoming</span> **`UseExperimentalEqualization`** - Whether the bot should try to equalize tracks to ensure they play at a consistent volume
