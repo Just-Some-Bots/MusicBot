@@ -22,4 +22,4 @@ script:
 - if [ "$TYPE" = "build" ]; then python -m compileall ./musicbot; fi;
 
 after_success:
-- if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASS"; docker tag musicbot $DOCKER_USERNAME/musicbot:$TRAVIS_BRANCH ; docker push $DOCKER_USERNAME/musicbot; fi;
+- if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASS"; docker tag musicbot justsomebots/musicbot:$TRAVIS_BRANCH ; docker push justsomebots/musicbot; fi;
