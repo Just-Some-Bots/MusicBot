@@ -28,3 +28,24 @@ MusicBot has limited integration with Spotify, in that it automatically converts
 
 1. First, create a new [Spotify application](https://beta.developer.spotify.com/dashboard/applications). You will be asked to login to a Spotify account. Do so, and then click 'Create an app' at the top right and then 'No' when asked if you're developing a commercial integration. Name it what you like, and give it a short description. Tick all three boxes, then press 'Create'.
 2. Finally, [configure](#guidesconfiguration) your bot with your Spotify client ID and client secret, both obtainable on your Spotify application page. Restart the bot, and provided your details are okay, you will be able to use Spotify URIs with the `!play` command.
+
+#### Can I change the bot's responses?
+
+This is an **upcoming feature** and is not yet available in the latest version of the bot.
+{: .error }
+
+If you would like to change the bot's responses, perhaps because your users have a different native language, it is possible without editing the bot's source code. As long as you have a basic understanding of JSON, you can create a new i18n file. Open up the `config/i18n` folder, copy `en.json` to `whatever.json`, and then open it up with a code editor (such as Notepad++, Atom, or Visual Studio Code).
+
+It will look something like this:
+
+```json
+{
+    "cmd-resetplaylist-response": "The server's autoplaylist has been reset.",
+    "cmd-help-invalid": "No such command",
+    ...
+}
+```
+
+You can then change the values (after the colon on each line) to whatever you like. Make sure that you preserve variables that look like `{0}` and `%s` to ensure the bot can automatically insert things there.
+
+Finally, ensure that your JSON is formatted correctly and valid, by pasting it into a tool like [JSONLint](https://jsonlint.com/), and then change the option `i18nFile` in your config file to equal `config/i18n/whatever.json`. Launch the bot, and off you go! If your file can't be loaded, the bot will try to fallback to the default (`en.json`). If it can't do that, it will throw an error.
