@@ -72,6 +72,7 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+        self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
 
         self.run_checks()
@@ -83,6 +84,19 @@ class Config:
         """
         Validation logic for bot settings.
         """
+        if self.i18n_file != ConfigDefaults.i18n_file and not os.path.isfile(self.i18n_file):
+            log.warning('i18n file does not exist. Trying to fallback to {0}.'.format(ConfigDefaults.i18n_file))
+            self.i18n_file = ConfigDefaults.i18n_file
+
+        if not os.path.isfile(self.i18n_file):
+            raise HelpfulError(
+                "Your i18n file was not found, and we could not fallback.",
+                "As a result, the bot cannot launch. Have you moved some files? "
+                "Try pulling the recent changes from Git, or resetting your local repo.",
+                preface=self._confpreface
+            )
+
+        log.info('Using i18n: {0}'.format(self.i18n_file))
 
         if not self._login_token:
             raise HelpfulError(
@@ -295,6 +309,7 @@ class ConfigDefaults:
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
+    i18n_file = 'config/i18n/en.json'
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
