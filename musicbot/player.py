@@ -266,6 +266,7 @@ class MusicPlayer(EventEmitter, Serializable):
         return None
 
     def get_mean_volume(self, input_file):
+        log.debug('Calculating mean volume of {0}'.format(input_file))
         cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
         # print('===', cmd)
         try:
@@ -286,6 +287,7 @@ class MusicPlayer(EventEmitter, Serializable):
         else:
             max_volume = float(0)
 
+        log.debug('Calculated mean volume as {0}'.format(mean_volume))
         return mean_volume, max_volume
 
     async def _play(self, _continue=False):
@@ -302,7 +304,6 @@ class MusicPlayer(EventEmitter, Serializable):
             if self.is_stopped or _continue:
                 try:
                     entry = await self.playlist.get_next_entry()
-
                 except:
                     log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
@@ -318,14 +319,14 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                if self.bot.config.use_experimental_equalization:
+                if self.bot.config.use_experimental_equalization and not isinstance(entry, StreamPlaylistEntry):
                     mean, maximum = self.get_mean_volume(entry.filename)
                     
                     aoptions = '-af "volume={}dB"'.format((maximum * -1))
                     
                 else:
                     aoptions = "-vn"
-
+                
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 
                 self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(

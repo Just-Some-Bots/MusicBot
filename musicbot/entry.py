@@ -51,6 +51,7 @@ class BasePlaylistEntry(Serializable):
             asyncio.ensure_future(self._download())
             self._waiting_futures.append(future)
 
+        log.debug('Created future for {0}'.format(self.filename))
         return future
 
     def _for_each_future(self, cb):
