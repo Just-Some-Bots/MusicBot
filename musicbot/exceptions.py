@@ -40,6 +40,10 @@ class FFmpegError(MusicbotException):
 class FFmpegWarning(MusicbotException):
     pass
 
+# YouTube-DL started downloading really slowly
+class YouTubeDLIsAwful(MusicbotException):
+    pass
+
 # Some issue retrieving something from Spotify's API
 class SpotifyError(MusicbotException):
     pass

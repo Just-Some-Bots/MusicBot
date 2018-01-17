@@ -5,7 +5,7 @@ import traceback
 
 from enum import Enum
 from .constructs import Serializable
-from .exceptions import ExtractionError
+from .exceptions import ExtractionError, YouTubeDLIsAwful
 from .utils import get_header, md5sum
 
 log = logging.getLogger(__name__)
@@ -218,10 +218,16 @@ class URLPlaylistEntry(BasePlaylistEntry):
     async def _really_download(self, *, hash=False):
         log.info("Download started: {}".format(self.url))
 
-        try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
-        except Exception as e:
-            raise ExtractionError(e)
+        retry = True
+        while retry:
+            try:
+                result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
+                break
+            except YouTubeDLIsAwful:
+                log.warning('Detected low download speed (< 200KiB/s). Trying to restart...')
+                continue
+            except Exception as e:
+                raise ExtractionError(e)
 
         log.info("Download complete: {}".format(self.url))
 
