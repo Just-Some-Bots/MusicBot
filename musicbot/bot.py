@@ -2555,6 +2555,25 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
 
+    async def cmd_leaveserver(self, val, leftover_args):
+        """
+        Usage:
+            {command_prefix}leaveserver <name/ID>
+
+        Forces the bot to leave a server.
+        When providing names, names are case-sensitive.
+        """
+        if leftover_args:
+            val = ' '.join([val, *leftover_args])
+
+        t = self.get_server(val)
+        if t is None:
+            t = discord.utils.get(self.servers, name=val)
+            if t is None:
+                raise exceptions.CommandError('No server was found with the ID or name as `{0}`'.format(val))
+        await self.leave_server(t)
+        return Response('Left the server: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(t))
+
     @dev_only
     async def cmd_breakpoint(self, message):
         log.critical("Activating debug breakpoint")
