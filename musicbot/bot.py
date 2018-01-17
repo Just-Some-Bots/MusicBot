@@ -1379,7 +1379,7 @@ class MusicBot(discord.Client):
             )
         return True
 
-    async def cmd_play(self, player, channel, author, permissions, leftover_args, song_url):
+    async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url=''):
         """
         Usage:
             {command_prefix}play song_link
@@ -2444,15 +2444,19 @@ class MusicBot(discord.Client):
         return Response("Sent a message with a list of IDs.", delete_after=20)
 
 
-    async def cmd_perms(self, author, channel, server, permissions):
+    async def cmd_perms(self, author, user_mentions, channel, server, permissions):
         """
         Usage:
-            {command_prefix}perms
+            {command_prefix}perms [@user]
 
-        Sends the user a list of their permissions.
+        Sends the user a list of their permissions, or the permissions of the user specified.
         """
 
         lines = ['Command permissions in %s\n' % server.name, '```', '```']
+
+        if user_mentions:
+            user = user_mentions[0]
+            permissions = self.permissions.for_user(user)
 
         for perm in permissions.__dict__:
             if perm in ['user_list'] or permissions.__dict__[perm] == set():
@@ -2460,7 +2464,7 @@ class MusicBot(discord.Client):
 
             lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
-        await self.send_message(author, '\n'.join(lines))
+        await self.safe_send_message(author, '\n'.join(lines))
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
 
