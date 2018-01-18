@@ -4,8 +4,6 @@ import logging
 import functools
 import youtube_dl
 
-from .exceptions import YouTubeDLIsAwful
-
 from concurrent.futures import ThreadPoolExecutor
 
 log = logging.getLogger(__name__)
@@ -22,7 +20,9 @@ ytdl_format_options = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    'usenetrc': True
+    'usenetrc': True,
+    'socket_timeout': 1,
+    'retries': 100
 }
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
@@ -38,9 +38,6 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 
 class Downloader:
     def __init__(self, download_folder=None):
-        # Temporary dirty patch for YT throttling
-        ytdl_format_options['progress_hooks'] = [self.hook]
-
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
         self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
@@ -59,13 +56,6 @@ class Downloader:
     @property
     def ytdl(self):
         return self.safe_ytdl
-
-    def hook(self, data):
-        if data['status'] == 'downloading':
-            if not data['speed']:
-                return
-            if 200000 > data['speed']:  # if speed drops below 200KiB/s
-                raise YouTubeDLIsAwful('borked')
 
     async def extract_info(self, loop, *args, on_error=None, retry_on_error=False, **kwargs):
         """
