@@ -148,3 +148,15 @@ async def cmd_boker(self):
     """
     return Response("boker cloaker nigger picker", tts=True)
     
+async def cmd_grepe(self, author, user_mentions):
+    """
+    Usage:
+        {command_prefix}grepe [target...]
+
+    Show inner dark side of Kak Seto as the on who want to grepe2 someone
+    """
+    grepe_target = author.mention # Default to author
+    if user_mentions:
+        anak2bgst = [user.mention for user in user_mentions]
+        grepe_target = ', '.join(anak2bgst)    
+    return Response('Hai dek %s, saya grepe grepe kamu' % grepe_target, tts=True)
