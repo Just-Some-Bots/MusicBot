@@ -39,6 +39,8 @@ from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta, _fun
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+log = logging.getLogger(__name__)
+
 # Extra import that needed in custom command
 from subprocess import check_output
 
@@ -160,3 +162,65 @@ async def cmd_grepe(self, author, user_mentions):
         anak2bgst = [user.mention for user in user_mentions]
         grepe_target = ', '.join(anak2bgst)    
     return Response('Hai dek %s, saya grepe grepe kamu' % grepe_target, tts=True)
+
+quotes = None
+
+async def cmd_quote(self, leftover_args):
+    """
+    Usage:
+        {command_prefix}quote  => Show a random quotes
+        {command_prefix}quote list => List of all available quotes
+        {command_prefix}quote add <Your wise quotes> => Add the quotes
+        {command_prefix}quote del <n> => Delete n-th quotes from the list
+    """
+    # Load quotes if this is the first time exec quote
+
+    quotes_file_path = 'data/quotes.txt';
+    
+    global quotes
+    if quotes is None:
+        log.debug('Loading the quotes first time')
+        quotes = load_file(quotes_file_path)
+
+
+    if len(leftover_args) > 0:
+        # Has param, valid param = list, add, del
+        if leftover_args[0] == 'list':
+            # Print a list of available quote
+            if len(quotes) > 0:
+                message = []
+                for idx, quote in enumerate(quotes):
+                    message.append("[{}]. {}".format(idx, quote))
+                return Response('\n'.join(message), codeblock=True)
+            else:
+                return Response('Empty Quotes', codeblock=True)
+        elif leftover_args[0] == 'add':
+            # Add a new wise quote
+            if len(leftover_args) > 1:
+                quotes.append(' '.join(leftover_args[1::]))
+                write_file(quotes_file_path, quotes)
+                return Response('Thanks. Your qoute has been added', True)
+            else:
+                # Mising wise quote
+                return Response('Please enter a quote', True, tts=True)
+        elif leftover_args[0] == 'del':
+            # Delete specific index quote
+            if len(leftover_args) > 1:
+                try:
+                    selected_idx = int(leftover_args[1])
+                    removed_quotes =  quotes.pop(selected_idx)
+                    write_file(quotes_file_path, quotes)
+                    return Response("Quotes: `{}` is removed".format(removed_quotes), True, tts=True) 
+                except Exception as e:
+                    result = "Salah bangsat, {}".format(e)
+                    return Response(result, True, tts=True) 
+            else:
+                # Missing index that need to be deleted
+                return Response('Please enter an index', True, tts=True)
+    elif len(quotes) > 0:
+        # Return random quote
+        selected_quote = quotes[random.randint(0, len(quotes))]
+        return Response(selected_quote, tts=True)
+    else:
+        # We dont have any quote yet.
+        return Response("Empty Quotes", tts=True)
