@@ -219,7 +219,7 @@ async def cmd_quote(self, leftover_args):
                 return Response('Please enter an index', True, tts=True)
     elif len(quotes) > 0:
         # Return random quote
-        selected_quote = quotes[random.randint(0, len(quotes))]
+        selected_quote = quotes[random.randint(0, len(quotes-1))]
         return Response(selected_quote, tts=True)
     else:
         # We dont have any quote yet.
