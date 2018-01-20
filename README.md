@@ -15,7 +15,7 @@ The main configuration file is `config/options.ini`, but is not included. Simply
 
 ### Commands
 
-There are many commands that can be used with the bot. Most notably, the `play <url>` command (preceded by your command prefix) will download, process, and play a song from YouTube or a similar site. A full list of commands are available [here](https://github.com/Just-Some-Bots/MusicBot/wiki/Commands "Commands").
+There are many commands that can be used with the bot. Most notably, the `play <url>` command (preceded by your command prefix) will download, process, and play a song from YouTube or a similar site. A full list of commands are available [here](https://just-some-bots.github.io/MusicBot/#guidescommands "Commands").
 
 ### Further reading
 

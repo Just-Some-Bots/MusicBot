@@ -56,12 +56,15 @@ class Config:
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
         self.auto_playlist_random = config.getboolean('MusicBot', 'AutoPlaylistRandom', fallback=ConfigDefaults.auto_playlist_random)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
-        self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
+        self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
         self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
         self.write_current_song = config.getboolean('MusicBot', 'WriteCurrentSong', fallback=ConfigDefaults.write_current_song)
         self.allow_author_skip = config.getboolean('MusicBot', 'AllowAuthorSkip', fallback=ConfigDefaults.allow_author_skip)
+        self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
+        self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
+        self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -69,6 +72,7 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+        self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
 
         self.run_checks()
@@ -80,6 +84,19 @@ class Config:
         """
         Validation logic for bot settings.
         """
+        if self.i18n_file != ConfigDefaults.i18n_file and not os.path.isfile(self.i18n_file):
+            log.warning('i18n file does not exist. Trying to fallback to {0}.'.format(ConfigDefaults.i18n_file))
+            self.i18n_file = ConfigDefaults.i18n_file
+
+        if not os.path.isfile(self.i18n_file):
+            raise HelpfulError(
+                "Your i18n file was not found, and we could not fallback.",
+                "As a result, the bot cannot launch. Have you moved some files? "
+                "Try pulling the recent changes from Git, or resetting your local repo.",
+                preface=self._confpreface
+            )
+
+        log.info('Using i18n: {0}'.format(self.i18n_file))
 
         if not self._login_token:
             raise HelpfulError(
@@ -285,10 +302,14 @@ class ConfigDefaults:
     status_message = None
     write_current_song = False
     allow_author_skip = True
+    use_experimental_equalization = False
+    embeds = True
+    queue_length = 10
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
+    i18n_file = 'config/i18n/en.json'
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
