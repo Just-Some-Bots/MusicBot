@@ -11,6 +11,10 @@ If you are using Debian Jessie, you need to follow [this guide](https://gist.git
 {: .warning }
 
 ~~~ bash
+# Update System
+sudo apt-get update -y
+sudo apt-get upgrade -y
+
 # Install dependencies
 sudo apt-get install git libopus-dev libffi-dev libsodium-dev -y
 sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl -y
