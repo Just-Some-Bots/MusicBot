@@ -10,6 +10,8 @@ import logging
 import asyncio
 import pathlib
 import traceback
+import math
+import re
 
 import aiohttp
 import discord
@@ -34,7 +36,7 @@ from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .constructs import SkipState, Response, VoiceStateUpdate
-from .utils import load_file, write_file, sane_round_int, fixg, ftimedelta, _func_
+from .utils import load_file, write_file, fixg, ftimedelta, _func_
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
