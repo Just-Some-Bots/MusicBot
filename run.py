@@ -199,6 +199,8 @@ def sanity_checks(optional=True):
     # Make our folders if needed
     req_ensure_folders()
 
+    log.info("Required checks passed.")
+
     ## Optional
     if not optional:
         return
@@ -206,7 +208,7 @@ def sanity_checks(optional=True):
     # Check disk usage
     opt_check_disk_space()
 
-    log.info("Checks passed.")
+    log.info("Optional checks passed.")
 
 
 def req_ensure_py3():
