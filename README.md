@@ -19,5 +19,10 @@ There are many commands that can be used with the bot. Most notably, the `play <
 
 ### Further reading
 
+Some frequently asked questions are listed on the wiki [here](https://github.com/SexualRhinoceros/MusicBot/wiki/FAQ "Wiki").
 * [Support Discord server](https://discord.gg/bots)
 * [Project license](LICENSE)
+
+### Other Language
+
+[한글](https://github.com/SexualRhinoceros/MusicBot/tree/krlang/guide/KR)
