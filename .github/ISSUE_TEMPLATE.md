@@ -3,7 +3,7 @@ Please make sure these boxes are checked (put an 'x' inside them) **before** cre
 - [ ] I am using Python 3.5 or higher (run `python --version` on the command line)
 - [ ] I have followed the [official guides](https://github.com/Just-Some-Bots/MusicBot/wiki) to install the bot for my system
 - [ ] I have updated my dependencies to the latest version using the appropriate `update_dependencies` script
-- [ ] I am running version 1.9.6_1 of MusicBot
+- [ ] I am running version 1.9.6_2 of MusicBot
 
 ----
 
