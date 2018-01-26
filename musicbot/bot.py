@@ -655,6 +655,14 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status()
 
     async def on_player_finished_playing(self, player, **_):
+        def _autopause(player):
+            if self._check_if_empty(player.voice_client.channel):
+                log.info("Player finished playing, autopaused in empty channel")
+
+                player.pause()
+                self.server_specific_data[player.voice_client.channel.server]['auto_paused'] = True
+        
+        
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             if not player.autoplaylist:
                 if not self.autoplaylist:
@@ -702,6 +710,9 @@ class MusicBot(discord.Client):
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+                
+                if self.config.auto_pause:
+                    player.once('play', lambda player, **_: _autopause(player))
 
                 try:
                     await player.playlist.add_entry(song_url, channel=None, author=None)
