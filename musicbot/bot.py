@@ -2562,9 +2562,7 @@ class MusicBot(discord.Client):
 		else:
 			p = subprocess.Popen('runbot.bat', creationflags=subprocess.CREATE_NEW_CONSOLE)
 		raise exceptions.TerminateSignal()
-
-
-
+		
     async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
