@@ -2546,6 +2546,7 @@ class MusicBot(discord.Client):
         return Response("Disconnected from `{0.name}`".format(server), delete_after=20)
 
     async def cmd_restart(self, channel):
+	await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
         from sys import platform as _platform
         if _platform == "linux" or _platform == "linux2":
@@ -2554,7 +2555,7 @@ class MusicBot(discord.Client):
             p = subprocess.Popen('runbot_osx.command', creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:
             p = subprocess.Popen('bot.py', creationflags=subprocess.CREATE_NEW_CONSOLE)
-		raise exceptions.TerminateSignal()
+	raise exceptions.TerminateSignal()
 
     async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
