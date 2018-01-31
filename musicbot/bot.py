@@ -2548,7 +2548,8 @@ class MusicBot(discord.Client):
     async def cmd_restart(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
-        raise exceptions.RestartSignal()
+        raise exceptions.TerminateSignal()
+        p = subprocess.Popen('runbot.bat', creationflags=subprocess.CREATE_NEW_CONSOLE)
 
     async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
