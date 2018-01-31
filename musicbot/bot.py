@@ -2550,7 +2550,7 @@ class MusicBot(discord.Client):
 		Usage: 
 			{command_prefix}restart
 			
-		Restarts the bot, making it leave all voice channels, this also opens a new command prompt, with any saved changes to bot.py.
+		Restarts the bot, making it leave all voice channels, this also opens a new command prompt, with any saved changes to files.
 		"""
 		await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
 		await self.disconnect_all_voice_clients()
