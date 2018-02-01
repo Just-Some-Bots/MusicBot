@@ -1214,7 +1214,7 @@ class MusicBot(discord.Client):
         player.autoplaylist = list(set(self.autoplaylist))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
-    async def cmd_help(self, channel, command=None):
+    async def cmd_help(self, message, channel, command=None):
         """
         Usage:
             {command_prefix}help [command]
@@ -1223,30 +1223,47 @@ class MusicBot(discord.Client):
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
         """
+        self.commands = []
+        prefix = self.config.command_prefix
 
-        if command:
-            cmd = getattr(self, 'cmd_' + command, None)
-            if cmd and not hasattr(cmd, 'dev_cmd'):
-                return Response(
-                    "```\n{}```".format(
-                        dedent(cmd.__doc__)
-                    ).format(command_prefix=self.config.command_prefix),
-                    delete_after=60
-                )
-            else:
-                raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
-
-        else:
-            commands = []
+        async def gen_cmd_list(message, all=False):
 
             for att in dir(self):
                 if att.startswith('cmd_') and att != 'cmd_help' and not hasattr(getattr(self, att), 'dev_cmd'):
+                    user_permissions = self.permissions.for_user(message.author)
                     command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(self.config.command_prefix, command_name))
+                    if command_name in user_permissions.command_whitelist and not command_name in user_permissions.command_blacklist or all:
+                        self.commands.append("{}{}".format(self.config.command_prefix, command_name))
 
-        desc = '```\n' + ', '.join(commands) + '\n```\n' + self.str.get(
+        if command:
+            if command == 'all':
+                await gen_cmd_list(message, all=True)
+            else:
+                cmd = getattr(self, 'cmd_' + command, None)
+                if cmd and not hasattr(cmd, 'dev_cmd'):
+                    return Response(
+                        "```\n{}```".format(
+                            dedent(cmd.__doc__)
+                        ).format(command_prefix=self.config.command_prefix),
+                        delete_after=60
+                    )
+                else:
+                    raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+
+        elif message.author.id == self.config.owner_id:
+            await gen_cmd_list(message, all=True)
+
+        else:
+            await gen_cmd_list(message)
+            desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
+                'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
+                                     'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix) + self.str.get(
+                'cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`')
+            return Response(desc, reply=True, delete_after=60)
+
+        desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
             'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
-                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(self.config.command_prefix)
+                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
 
         return Response(desc, reply=True, delete_after=60)
 
