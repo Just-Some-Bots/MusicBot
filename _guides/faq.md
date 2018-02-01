@@ -21,6 +21,9 @@ MusicBot is licensed under MIT. If you want to modify it, you can. Please bare i
 
 #### How do I enable Spotify integration?
 
+Discord has native support for listening to music with friends using Spotify. If you want to use the bot solely to listen to Spotify music with friends, you should use the native feature instead. For more information, see [their page](https://support.spotify.com/uk/using_spotify/app_integrations/discord/).
+{: .info }
+
 This is an **upcoming feature** and is not yet available in the latest version of the bot.
 {: .error }
 
