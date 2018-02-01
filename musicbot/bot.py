@@ -1379,6 +1379,17 @@ class MusicBot(discord.Client):
             )
         return True
 
+    async def cmd_playlocal(self, message, player, channel, author, permissions, leftover_args, song_path=''):
+        """
+        Usage:
+            {command_prefix}play song_path
+
+        Adds song or playlist from the host machines song folder to bots playlist
+        """
+        print(leftover_args)
+        print(song_path)
+        return Response("playing local", delete_after=30)
+        
     async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url=''):
         """
         Usage:
@@ -1395,26 +1406,30 @@ class MusicBot(discord.Client):
         """
 
         song_url = song_url.strip('<>')
+        leftover_args = filter(None, leftover_args)
 
-        fullPath = song_url+" " + ' '.join(leftover_args)
-        fullPath = fullPath.strip('"')
-        print(fullPath)
-        #print(os.path.exists(fullPath))
+        if self.config.musicPaths == '':
+            self.config.musicPaths = "localMusic"
+            
+        pathInFileSystem = self.config.musicPaths + u"\\" + song_url + " " + ' '.join(leftover_args)
+        filePath, fileName = os.path.split(pathInFileSystem)
         
-        if os.path.exists(fullPath): #check if given url is a path in file system.
-            print("found local song")
-            head, tail = os.path.split(fullPath)
-            print(head, tail)
+        if os.path.exists(filePath): #check if given url is a path in file system.
+            #return Response("true", delete_after=30)
+            head, tail = os.path.split(pathInFileSystem)
             self.downloader = downloader.Downloader(download_folder=head) #redudant?
             player.playlist.downloader = self.downloader #redudant?
             
-            if(os.path.isfile(fullPath)): #playing a file adds the file to the playlist.
-                entry, position = await player.playlist.add_entry_local(fullPath, channel=channel, author=author)
-            elif(os.path.isdir(fullPath)): #playing a folder adds whole content to playlist
-                for file in os.listdir(fullPath):
+            if(os.path.isfile(pathInFileSystem)): #playing a file adds the file to the playlist.
+                entry, position = await player.playlist.add_entry_local(pathInFileSystem, channel=channel, author=author)
+                
+            elif(os.path.isdir(pathInFileSystem)): #playing a folder adds whole content to playlist
+
+                for file in os.listdir(pathInFileSystem):
                     if file.endswith((".mp3", ".wav", ".flac", ".ogg", ".wma")):
-                        entry, position = await player.playlist.add_entry_local(os.path.join(fullPath, file), channel=channel, author=author)
-            return Response("playing local", delete_after=30)
+                        print(os.path.join(pathInFileSystem, file))
+                        entry, position = await player.playlist.add_entry_local(os.path.join(pathInFileSystem, file), channel=channel, author=author)
+            return Response("Up next: ```" + entry.title + "```", delete_after=30)
         
         self.downloader = downloader.Downloader(download_folder='audio_cache')
         player.playlist.downloader = self.downloader
@@ -1664,36 +1679,55 @@ class MusicBot(discord.Client):
 
         return Response(reply_text, delete_after=30)
 
-    async def cmd_mpaths(self,server,author, leftover_args, path = '.'):
+    async def cmd_library(self,server,author, leftover_args, path = ''):
         """
         Usage:
-            {command_prefix}mpaths path
+            {command_prefix}library path
 
         Queries folders for local music
         """
+        
+        if self.config.musicPaths == '':
+            self.config.musicPaths = "localMusic"
+        
         songs = u''
         baseList = self.config.musicPaths.split(",")
         
-        if path == '.':
-            path = baseList[0].replace(r"\\", "\\")
-            
-        fullPath = path+" " + ' '.join(leftover_args)  
-        fullPath = fullPath.strip()
+        fullPath = u''
+        relativePath = u''
+        relativePath += path + " " + ' '.join(leftover_args)
+        
+        if path == '':
+            #path = baseList[0].replace(r"\\", "\\")
+            fullPath = self.config.musicPaths
+        else:
+            fullPath = self.config.musicPaths + "\\" + relativePath
+            fullPath = fullPath.strip()
+        
         fileList = os.listdir(fullPath)        
-        print(fileList)
             
         songs += "directories \n"
+        #print(path)
+        #print(fullPath)
+        #print(fileList)
         
         for dir in baseList:
             for object in fileList:
-                if os.path.isdir(os.path.join(dir,object)):
-                    songs += os.path.join(fullPath,object) + u'\\\n'        
+                if os.path.isdir(os.path.join(fullPath,object)):
+                    if path:
+                        songs += relativePath + u"\\" + object + u'\\\n'
+                    else:
+                        songs += object + u'\\\n'
+                        
         songs += u"\n files \n"
         
         for dir in baseList:
             for object in fileList:
                 if object.endswith((".mp3", ".wav", ".flac", ".ogg", ".wma")):
-                    songs += fullPath + u'\\\\' + object + u'\n'
+                    if path:
+                        songs += relativePath + u"\\" + object + u'\n'
+                    else:
+                        songs += object + u'\n'
                         
         return Response('\n' + songs, delete_after=120)
              

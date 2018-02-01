@@ -46,7 +46,7 @@ class Config:
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
-        self.musicPaths = config.get('MusicBot', 'music_query_paths', fallback = None)
+        self.musicPaths = config.get('MusicBot', 'LocalMusicPath', fallback = ConfigDefaults.LocalMusicPath)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -307,6 +307,7 @@ class ConfigDefaults:
     embeds = True
     queue_length = 10
 
+    LocalMusicPath = './localMusic'
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists

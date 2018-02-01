@@ -15,6 +15,8 @@ from .lib.event_emitter import EventEmitter
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError
 
+from tinytag import TinyTag
+
 log = logging.getLogger(__name__)
 
 
@@ -124,15 +126,19 @@ class Playlist(EventEmitter, Serializable):
             :param path: The song path to add to the playlist.
             :param meta: Any additional metadata to add to the playlist entry.
         """
+        
+        tag = TinyTag.get(path)
         head, tail = os.path.split(path)
+        title = tag.title if tag.title else tail
         entry = URLPlaylistEntry(
             self,
             path,
-            "untitled",
+            title,
             100,
             tail,
             **meta
         )
+        entry.local = True
         self._add_entry(entry)
         return entry, len(self.entries)
         

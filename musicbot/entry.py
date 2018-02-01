@@ -25,6 +25,7 @@ class BasePlaylistEntry(Serializable):
         self.filename = None
         self._is_downloading = False
         self._waiting_futures = []
+        self.local = False
 
     @property
     def is_downloaded(self):

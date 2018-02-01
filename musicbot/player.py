@@ -193,7 +193,7 @@ class MusicPlayer(EventEmitter, Serializable):
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
 
-        if not self.bot.config.save_videos and entry:
+        if not self.bot.config.save_videos and not entry.local:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
                     log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
