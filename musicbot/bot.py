@@ -1254,8 +1254,6 @@ class MusicBot(discord.Client):
             await gen_cmd_list(message, all=True)
 
         else:
-            if self.commands == []:
-                raise exceptions.CommandError(self.str.get('cmd-help-no-perms', 'You don\'t have permission to use any commands. Run `{}help all` list every command anyway'), expire_in=10)
             await gen_cmd_list(message)
             desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
                 'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
