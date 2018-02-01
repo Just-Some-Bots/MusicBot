@@ -1427,7 +1427,6 @@ class MusicBot(discord.Client):
 
                 for file in os.listdir(pathInFileSystem):
                     if file.endswith((".mp3", ".wav", ".flac", ".ogg", ".wma")):
-                        print(os.path.join(pathInFileSystem, file))
                         entry, position = await player.playlist.add_entry_local(os.path.join(pathInFileSystem, file), channel=channel, author=author)
             return Response("Up next: ```" + entry.title + "```", delete_after=30)
         
