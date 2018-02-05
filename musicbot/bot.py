@@ -2556,7 +2556,7 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         from sys import platform as _platform
         if _platform.startswith("linux"):
-			p = subprocess.Popen(runbot.linux.sh, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+	    p = subprocess.Popen(runbot.linux.sh, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         elif _platform == "darwin":
             p = subprocess.Popen('runbot_osx.command', creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:
