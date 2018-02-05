@@ -293,11 +293,12 @@ class MusicBot(discord.Client):
                     if player.is_stopped:
                         player.play()
 
-                    if self.config.auto_playlist and not player.playlist.entries:
-                        await self.on_player_finished_playing(player)
+                    if self.config.auto_playlist:
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
-
+                        if not player.playlist.entries:
+                            await self.on_player_finished_playing(player)
+                
                 except Exception:
                     log.debug("Error joining {0.server.name}/{0.name}".format(channel), exc_info=True)
                     log.error("Failed to join {0.server.name}/{0.name}".format(channel))
@@ -654,6 +655,14 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status()
 
     async def on_player_finished_playing(self, player, **_):
+        def _autopause(player):
+            if self._check_if_empty(player.voice_client.channel):
+                log.info("Player finished playing, autopaused in empty channel")
+
+                player.pause()
+                self.server_specific_data[player.voice_client.channel.server]['auto_paused'] = True
+        
+        
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             if not player.autoplaylist:
                 if not self.autoplaylist:
@@ -701,6 +710,9 @@ class MusicBot(discord.Client):
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+                
+                if self.config.auto_pause:
+                    player.once('play', lambda player, **_: _autopause(player))
 
                 try:
                     await player.playlist.add_entry(song_url, channel=None, author=None)
@@ -2547,11 +2559,21 @@ class MusicBot(discord.Client):
 
     async def cmd_restart(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        
+        player = self.get_player_in(channel.server)
+        if player and player.is_paused:
+            player.resume()
+        
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
     async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        
+        player = self.get_player_in(channel.server)
+        if player and player.is_paused:
+            player.resume()
+        
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
 
@@ -2901,7 +2923,17 @@ class MusicBot(discord.Client):
 
                     self.server_specific_data[after.server]['auto_paused'] = True
                     player.pause()
-
+        else: 
+            if not state.empty():
+                if auto_paused and player.is_paused:
+                    log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = state.my_voice_channel,
+                        reason = ""
+                    ).strip())
+ 
+                    self.server_specific_data[after.server]['auto_paused'] = False
+                    player.resume()
 
     async def on_server_update(self, before:discord.Server, after:discord.Server):
         if before.region != after.region:
