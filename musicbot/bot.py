@@ -2555,8 +2555,8 @@ class MusicBot(discord.Client):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
         from sys import platform as _platform
-        if _platform == "linux" or _platform == "linux2":
-            p = subprocess.Popen('runbot_linux.sh', creationflags=subprocess.CREATE_NEW_CONSOLE)
+        if _platform.startswith("linux"):
+			p = subprocess.Popen(runbot.linux.sh, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         elif _platform == "darwin":
             p = subprocess.Popen('runbot_osx.command', creationflags=subprocess.CREATE_NEW_CONSOLE)
         else:
