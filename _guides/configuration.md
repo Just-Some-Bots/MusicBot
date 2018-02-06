@@ -17,8 +17,8 @@ Editing your configuration file using Notepad or WordPad will result in problems
 After creating a bot account, you should probably add your bot to a server by clicking the 'Generate OAuth2 URL' button on the application page and copying the URL in the box to your address bar and pressing enter. You can then select what server you wish to add it to.
 {: .info }
 
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`Spotify-ClientID`** - The client ID for your Spotify application. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`Spotify-ClientSecret`** - The client secret for your Spotify applicaton. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
+- <span class="label label-dark" title="Added in a future update">upcoming</span> **`Spotify_ClientID`** - The client ID for your Spotify application. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
+- <span class="label label-dark" title="Added in a future update">upcoming</span> **`Spotify_ClientSecret`** - The client secret for your Spotify applicaton. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
 
 #### Permissions
 
