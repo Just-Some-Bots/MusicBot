@@ -1224,20 +1224,14 @@ class MusicBot(discord.Client):
         Otherwise, it lists the available commands.
         """
         self.commands = []
+        self.is_all = False
         prefix = self.config.command_prefix
 
-        async def gen_cmd_list(message, all=False):
-
-            for att in dir(self):
-                if att.startswith('cmd_') and att != 'cmd_help' and not hasattr(getattr(self, att), 'dev_cmd'):
-                    user_permissions = self.permissions.for_user(message.author)
-                    command_name = att.replace('cmd_', '').lower()
-                    if command_name in user_permissions.command_whitelist and not command_name in user_permissions.command_blacklist or all:
-                        self.commands.append("{}{}".format(self.config.command_prefix, command_name))
-
         if command:
-            if command == 'all':
-                await gen_cmd_list(message, all=True)
+            if command.lower() == 'all':
+                self.is_all = True
+                await self.gen_cmd_list(message, list_all_cmds=True)
+
             else:
                 cmd = getattr(self, 'cmd_' + command, None)
                 if cmd and not hasattr(cmd, 'dev_cmd'):
@@ -1251,21 +1245,16 @@ class MusicBot(discord.Client):
                     raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
 
         elif message.author.id == self.config.owner_id:
-            await gen_cmd_list(message, all=True)
+            await self.gen_cmd_list(message, list_all_cmds=True)
 
         else:
-            if self.commands == []:
-                raise exceptions.CommandError(self.str.get('cmd-help-no-perms', 'You don\'t have permission to use any commands. Run `{}help all` list every command anyway'), expire_in=10)
-            await gen_cmd_list(message)
-            desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
-                'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
-                                     'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix) + self.str.get(
-                'cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`')
-            return Response(desc, reply=True, delete_after=60)
+            await self.gen_cmd_list(message)
 
         desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
             'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
                                  'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
+        if not self.is_all:
+            desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
         return Response(desc, reply=True, delete_after=60)
 
@@ -2842,6 +2831,25 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
+    async def gen_cmd_list(self, message, list_all_cmds=False):
+        for att in dir(self):
+            # This will always return at least cmd_help, since they needed perms to run this command
+            if att.startswith('cmd_') and not hasattr(getattr(self, att), 'dev_cmd'):
+                user_permissions = self.permissions.for_user(message.author)
+                command_name = att.replace('cmd_', '').lower()
+                whitelist = user_permissions.command_whitelist
+                blacklist = user_permissions.command_blacklist
+                if list_all_cmds:
+                    self.commands.append('{}{}'.format(self.config.command_prefix, command_name))
+
+                elif blacklist and command_name in blacklist:
+                    pass
+
+                elif whitelist and command_name not in whitelist:
+                    pass
+
+                else:
+                    self.commands.append("{}{}".format(self.config.command_prefix, command_name))
 
     async def on_voice_state_update(self, before, after):
         if not self.init_ok:
