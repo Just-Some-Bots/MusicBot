@@ -38,6 +38,7 @@
     "cmd-play-song-reply": "Enqueued `%s` to be played. Position in queue: %s",
     "cmd-play-next": "Up next!",
     "cmd-play-eta": " - estimated time until playing: %s",
+    "cmd-play-badextractor": "You do not have permission to play media from this service.",
     "cmd-stream-limit": "You have reached your enqueued song limit ({0})",
     "cmd-stream-success": "Streaming.",
     "cmd-search-limit": "You have reached your playlist item limit ({0})",

@@ -1503,6 +1503,13 @@ class MusicBot(discord.Client):
                     expire_in=30
                 )
 
+            log.debug(info)
+
+            if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
+                raise exceptions.PermissionsError(
+                    self.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
+                )
+
             # abstract the search handling away from the user
             # our ytdl options allow us to use search strings as input urls
             if info.get('url', '').startswith('ytsearch'):
