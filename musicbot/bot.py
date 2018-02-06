@@ -1485,7 +1485,7 @@ class MusicBot(discord.Client):
 
             if player.karaoke_mode and not permissions.bypass_karaoke_mode:
                 raise exceptions.PermissionsError(
-                    "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
+                    self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
                 )
 
             try:
@@ -1769,7 +1769,7 @@ class MusicBot(discord.Client):
 
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
-                "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
+                self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
 
         await self.send_typing(channel)
@@ -1803,7 +1803,7 @@ class MusicBot(discord.Client):
 
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
-                "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
+                self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
 
         def argcheck():
