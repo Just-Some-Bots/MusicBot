@@ -1,7 +1,9 @@
 {
     "cmd-resetplaylist-response": "The server's autoplaylist has been reset.",
     "cmd-help-invalid": "No such command",
+    "cmd-help-no-perms": "You don't have permission to use any commands. Run `{}help all` list every command anyway",
     "cmd-help-response": "For information about a particular command, run `{}help [command]`\nFor further help, see https://just-some-bots.github.io/MusicBot/",
+    "cmd-help-all": "\nOnly showing commands you can use, for a list of all commands, run `{}help all`",
     "cmd-blacklist-invalid": "Invalid option '{0}' specified, use +, -, add, or remove",
     "cmd-blacklist-added": "{0} users have been added to the blacklist",
     "cmd-blacklist-none": "None of those users are in the blacklist.",

@@ -1226,7 +1226,7 @@ class MusicBot(discord.Client):
         player.autoplaylist = list(set(self.autoplaylist))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
-    async def cmd_help(self, channel, command=None):
+    async def cmd_help(self, message, channel, command=None):
         """
         Usage:
             {command_prefix}help [command]
@@ -1235,30 +1235,38 @@ class MusicBot(discord.Client):
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
         """
+        self.commands = []
+        self.is_all = False
+        prefix = self.config.command_prefix
 
         if command:
-            cmd = getattr(self, 'cmd_' + command, None)
-            if cmd and not hasattr(cmd, 'dev_cmd'):
-                return Response(
-                    "```\n{}```".format(
-                        dedent(cmd.__doc__)
-                    ).format(command_prefix=self.config.command_prefix),
-                    delete_after=60
-                )
+            if command.lower() == 'all':
+                self.is_all = True
+                await self.gen_cmd_list(message, list_all_cmds=True)
+
             else:
-                raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+                cmd = getattr(self, 'cmd_' + command, None)
+                if cmd and not hasattr(cmd, 'dev_cmd'):
+                    return Response(
+                        "```\n{}```".format(
+                            dedent(cmd.__doc__)
+                        ).format(command_prefix=self.config.command_prefix),
+                        delete_after=60
+                    )
+                else:
+                    raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+
+        elif message.author.id == self.config.owner_id:
+            await self.gen_cmd_list(message, list_all_cmds=True)
 
         else:
-            commands = []
+            await self.gen_cmd_list(message)
 
-            for att in dir(self):
-                if att.startswith('cmd_') and att != 'cmd_help' and not hasattr(getattr(self, att), 'dev_cmd'):
-                    command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(self.config.command_prefix, command_name))
-
-        desc = '```\n' + ', '.join(commands) + '\n```\n' + self.str.get(
+        desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
             'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
-                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(self.config.command_prefix)
+                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
+        if not self.is_all:
+            desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
         return Response(desc, reply=True, delete_after=60)
 
@@ -2845,6 +2853,25 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
+    async def gen_cmd_list(self, message, list_all_cmds=False):
+        for att in dir(self):
+            # This will always return at least cmd_help, since they needed perms to run this command
+            if att.startswith('cmd_') and not hasattr(getattr(self, att), 'dev_cmd'):
+                user_permissions = self.permissions.for_user(message.author)
+                command_name = att.replace('cmd_', '').lower()
+                whitelist = user_permissions.command_whitelist
+                blacklist = user_permissions.command_blacklist
+                if list_all_cmds:
+                    self.commands.append('{}{}'.format(self.config.command_prefix, command_name))
+
+                elif blacklist and command_name in blacklist:
+                    pass
+
+                elif whitelist and command_name not in whitelist:
+                    pass
+
+                else:
+                    self.commands.append("{}{}".format(self.config.command_prefix, command_name))
 
     async def on_voice_state_update(self, before, after):
         if not self.init_ok:
