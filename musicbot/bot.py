@@ -305,11 +305,12 @@ class MusicBot(discord.Client):
                     if player.is_stopped:
                         player.play()
 
-                    if self.config.auto_playlist and not player.playlist.entries:
-                        await self.on_player_finished_playing(player)
+                    if self.config.auto_playlist:
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
-
+                        if not player.playlist.entries:
+                            await self.on_player_finished_playing(player)
+                
                 except Exception:
                     log.debug("Error joining {0.server.name}/{0.name}".format(channel), exc_info=True)
                     log.error("Failed to join {0.server.name}/{0.name}".format(channel))
@@ -666,6 +667,14 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status()
 
     async def on_player_finished_playing(self, player, **_):
+        def _autopause(player):
+            if self._check_if_empty(player.voice_client.channel):
+                log.info("Player finished playing, autopaused in empty channel")
+
+                player.pause()
+                self.server_specific_data[player.voice_client.channel.server]['auto_paused'] = True
+        
+        
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             if not player.autoplaylist:
                 if not self.autoplaylist:
@@ -713,6 +722,9 @@ class MusicBot(discord.Client):
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+                
+                if self.config.auto_pause:
+                    player.once('play', lambda player, **_: _autopause(player))
 
                 try:
                     await player.playlist.add_entry(song_url, channel=None, author=None)
@@ -1226,7 +1238,7 @@ class MusicBot(discord.Client):
         player.autoplaylist = list(set(self.autoplaylist))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
-    async def cmd_help(self, channel, command=None):
+    async def cmd_help(self, message, channel, command=None):
         """
         Usage:
             {command_prefix}help [command]
@@ -1235,30 +1247,38 @@ class MusicBot(discord.Client):
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
         """
+        self.commands = []
+        self.is_all = False
+        prefix = self.config.command_prefix
 
         if command:
-            cmd = getattr(self, 'cmd_' + command, None)
-            if cmd and not hasattr(cmd, 'dev_cmd'):
-                return Response(
-                    "```\n{}```".format(
-                        dedent(cmd.__doc__)
-                    ).format(command_prefix=self.config.command_prefix),
-                    delete_after=60
-                )
+            if command.lower() == 'all':
+                self.is_all = True
+                await self.gen_cmd_list(message, list_all_cmds=True)
+
             else:
-                raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+                cmd = getattr(self, 'cmd_' + command, None)
+                if cmd and not hasattr(cmd, 'dev_cmd'):
+                    return Response(
+                        "```\n{}```".format(
+                            dedent(cmd.__doc__)
+                        ).format(command_prefix=self.config.command_prefix),
+                        delete_after=60
+                    )
+                else:
+                    raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+
+        elif message.author.id == self.config.owner_id:
+            await self.gen_cmd_list(message, list_all_cmds=True)
 
         else:
-            commands = []
+            await self.gen_cmd_list(message)
 
-            for att in dir(self):
-                if att.startswith('cmd_') and att != 'cmd_help' and not hasattr(getattr(self, att), 'dev_cmd'):
-                    command_name = att.replace('cmd_', '').lower()
-                    commands.append("{}{}".format(self.config.command_prefix, command_name))
-
-        desc = '```\n' + ', '.join(commands) + '\n```\n' + self.str.get(
+        desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
             'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
-                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(self.config.command_prefix)
+                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
+        if not self.is_all:
+            desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
         return Response(desc, reply=True, delete_after=60)
 
@@ -1477,7 +1497,7 @@ class MusicBot(discord.Client):
 
             if player.karaoke_mode and not permissions.bypass_karaoke_mode:
                 raise exceptions.PermissionsError(
-                    "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
+                    self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
                 )
 
             try:
@@ -1493,6 +1513,13 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     self.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(self.config.command_prefix),
                     expire_in=30
+                )
+
+            log.debug(info)
+
+            if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
+                raise exceptions.PermissionsError(
+                    self.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
                 )
 
             # abstract the search handling away from the user
@@ -1761,7 +1788,7 @@ class MusicBot(discord.Client):
 
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
-                "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
+                self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
 
         await self.send_typing(channel)
@@ -1795,7 +1822,7 @@ class MusicBot(discord.Client):
 
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
-                "Karaoke mode is enabled, please try again when its disabled!", expire_in=30
+                self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
 
         def argcheck():
@@ -2559,11 +2586,21 @@ class MusicBot(discord.Client):
 
     async def cmd_restart(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        
+        player = self.get_player_in(channel.server)
+        if player and player.is_paused:
+            player.resume()
+        
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
     async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        
+        player = self.get_player_in(channel.server)
+        if player and player.is_paused:
+            player.resume()
+        
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
 
@@ -2835,6 +2872,25 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
+    async def gen_cmd_list(self, message, list_all_cmds=False):
+        for att in dir(self):
+            # This will always return at least cmd_help, since they needed perms to run this command
+            if att.startswith('cmd_') and not hasattr(getattr(self, att), 'dev_cmd'):
+                user_permissions = self.permissions.for_user(message.author)
+                command_name = att.replace('cmd_', '').lower()
+                whitelist = user_permissions.command_whitelist
+                blacklist = user_permissions.command_blacklist
+                if list_all_cmds:
+                    self.commands.append('{}{}'.format(self.config.command_prefix, command_name))
+
+                elif blacklist and command_name in blacklist:
+                    pass
+
+                elif whitelist and command_name not in whitelist:
+                    pass
+
+                else:
+                    self.commands.append("{}{}".format(self.config.command_prefix, command_name))
 
     async def on_voice_state_update(self, before, after):
         if not self.init_ok:
@@ -2913,7 +2969,17 @@ class MusicBot(discord.Client):
 
                     self.server_specific_data[after.server]['auto_paused'] = True
                     player.pause()
-
+        else: 
+            if not state.empty():
+                if auto_paused and player.is_paused:
+                    log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = state.my_voice_channel,
+                        reason = ""
+                    ).strip())
+ 
+                    self.server_specific_data[after.server]['auto_paused'] = False
+                    player.resume()
 
     async def on_server_update(self, before:discord.Server, after:discord.Server):
         if before.region != after.region:

@@ -27,6 +27,8 @@ class PermissionsDefaults:
     SkipWhenAbsent = True
     BypassKaraokeMode = False
 
+    Extractors = set()
+
 
 class Permissions:
     def __init__(self, config_file, grant_all=None):
@@ -118,6 +120,8 @@ class PermissionGroup:
         self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=PermissionsDefaults.SkipWhenAbsent)
         self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=PermissionsDefaults.BypassKaraokeMode)
 
+        self.extractors = section_data.get('Extractors', fallback=PermissionsDefaults.Extractors)
+
         self.validate()
 
     def validate(self):
@@ -135,6 +139,9 @@ class PermissionGroup:
 
         if self.user_list:
             self.user_list = set(self.user_list.split())
+
+        if self.extractors:
+            self.extractors = set(self.extractors.split())
 
         try:
             self.max_songs = max(0, int(self.max_songs))
@@ -166,7 +173,7 @@ class PermissionGroup:
         self.skip_when_absent = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.skip_when_absent, PermissionsDefaults.SkipWhenAbsent
         )
-        
+
         self.bypass_karaoke_mode = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.bypass_karaoke_mode, PermissionsDefaults.BypassKaraokeMode
         )

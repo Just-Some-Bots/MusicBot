@@ -1,7 +1,9 @@
 {
     "cmd-resetplaylist-response": "The server's autoplaylist has been reset.",
     "cmd-help-invalid": "No such command",
+    "cmd-help-no-perms": "You don't have permission to use any commands. Run `{}help all` list every command anyway",
     "cmd-help-response": "For information about a particular command, run `{}help [command]`\nFor further help, see https://just-some-bots.github.io/MusicBot/",
+    "cmd-help-all": "\nOnly showing commands you can use, for a list of all commands, run `{}help all`",
     "cmd-blacklist-invalid": "Invalid option '{0}' specified, use +, -, add, or remove",
     "cmd-blacklist-added": "{0} users have been added to the blacklist",
     "cmd-blacklist-none": "None of those users are in the blacklist.",
@@ -36,6 +38,7 @@
     "cmd-play-song-reply": "Enqueued `%s` to be played. Position in queue: %s",
     "cmd-play-next": "Up next!",
     "cmd-play-eta": " - estimated time until playing: %s",
+    "cmd-play-badextractor": "You do not have permission to play media from this service.",
     "cmd-stream-limit": "You have reached your enqueued song limit ({0})",
     "cmd-stream-success": "Streaming.",
     "cmd-search-limit": "You have reached your playlist item limit ({0})",
@@ -98,5 +101,6 @@
     "cmd-clean-reply": "Cleaned up {0} message{1}.",
     "playlists-noperms": "You are not allowed to request playlists",
     "playlists-big": "Playlist has too many entries ({0} > {1})",
-    "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})"
+    "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
+    "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!"
 }
