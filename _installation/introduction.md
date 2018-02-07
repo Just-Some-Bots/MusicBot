@@ -15,7 +15,7 @@ If you require additional help beyond what you can find on this site, join our [
 - [**Mac**](#installationmac) (Yosemite and higher)
 - [**Raspbian**](#installationraspbian) (Raspberry Pi 2/3B)
 - [**Debian**](#installationdebian) (Jessie, Stretch)
-- [**CentOS**](#installationcentos) (7.4, 6.9)
+- [**CentOS**](#installationcentos) (6.9, 7.4)
 
 #### Guides
 - [Configuration](#guidesconfiguration)
