@@ -626,13 +626,19 @@ class MusicBot(discord.Client):
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
                 song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
-                newmsg = 'Now playing in %s: **%s** (%ss)' % (
-                    player.voice_client.channel.name, entry.title, song_total)
+                newmsg = "Now Playing: **{title}** `[{total}]`\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>".format(
+                    title=entry.title,
+                    url=entry.url,
+                    total = song_total
+                )
+                #newmsg = 'Now playing in %s: **%s** (%ss)' % (
+                    #player.voice_client.channel.name, entry.title, song_total)
 
             if self.server_specific_data[channel.server]['last_np_msg']:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
+
 
     async def on_player_resume(self, player, entry, **_):
         await self.update_now_playing_status(entry)
