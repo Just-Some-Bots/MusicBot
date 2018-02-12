@@ -289,21 +289,15 @@ class Playlist(EventEmitter, Serializable):
 
         return gooditems
 
-<<<<<<< HEAD
-    def _add_entry(self, entry):
+    def _add_entry(self, entry, *, head=False):
 
-        if self.currentshufflemode:
+        if head:
+            position = 0
+        elif self.currentshufflemode:
             position = randint(0, len(self.entries)+1)
         else:
             position = len(self.entries)
         self.entries.insert(position, entry)
-=======
-    def _add_entry(self, entry, *, head=False):
-        if head:
-            self.entries.appendleft(entry)
-        else:
-            self.entries.append(entry)
->>>>>>> upstream/master
 
         self.emit('entry-added', playlist=self, entry=entry)
         # I can't get the event working so I'll just put this here
