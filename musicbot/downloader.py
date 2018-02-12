@@ -1,14 +1,15 @@
 import os
 import asyncio
+import logging
 import functools
 import youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
 
+log = logging.getLogger(__name__)
+
 ytdl_format_options = {
     'format': 'bestaudio/best',
-    'extractaudio': True,
-    'audioformat': 'mp3',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,
@@ -18,7 +19,8 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0'
+    'source_address': '0.0.0.0',
+    'usenetrc': True
 }
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
