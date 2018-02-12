@@ -22,9 +22,19 @@ if [ ! -z $SAVEVIDEOS ]; then
 fi
 
 cat << EOF > config/permissions.ini
+[Default]
+CommandWhitelist = play perms queue np skip search id help clean
+; CommandBlacklist =
+IgnoreNonVoice = play skip search
+MaxSongLength = 1200
+MaxSongs = 0
+AllowPlaylists = yes
+; MaxPlaylistLength = 20
+InstaSkip = no
 [DJ]
 CommandBlacklist = blacklist listids
 GrantToRoles = $DJROLES
+; UserList =
 MaxSongLength = 0
 MaxSongs = 0
 MaxPlaylistLength = 0
