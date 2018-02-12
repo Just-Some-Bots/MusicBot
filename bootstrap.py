@@ -511,7 +511,7 @@ class EnsurePip(SetupTask):
 
 
 class GitCloneMusicbot(SetupTask):
-    GIT_URL = "https://github.com/Just-Some-Bots/MusicBot.git"
+    GIT_URL = "https://github.com/kosugikun/MusicBot_JP.git"
     GIT_CMD = "git clone --depth 10 --no-single-branch %s %s" % (GIT_URL, INSTALL_DIR)
 
     def download(self):

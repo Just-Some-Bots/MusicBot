@@ -30,7 +30,7 @@ class PIP(object):
     @classmethod
     def run(cls, command, check_output=False):
         if not cls.works():
-            raise RuntimeError("Could not import pip.")
+            raise RuntimeError("pipをインポートできませんでした。")
 
         try:
             return PIP.run_python_m(*command.split(), check_output=check_output)
@@ -38,7 +38,7 @@ class PIP(object):
             return e.returncode
         except:
             traceback.print_exc()
-            print("Error using -m method")
+            print("-mメソッドによるエラー")
 
     @classmethod
     def run_python_m(cls, *args, **kwargs):
@@ -77,11 +77,11 @@ class PIP(object):
 
     @classmethod
     def run_install(cls, cmd, quiet=False, check_output=False):
-        return cls.run("install %s%s" % ('-q ' if quiet else '', cmd), check_output)
+        return cls.run("インストール %s%s" % ('-q ' if quiet else '', cmd), check_output)
 
     @classmethod
     def run_show(cls, cmd, check_output=False):
-        return cls.run("show %s" % cmd, check_output)
+        return cls.run("%sを表示" % cmd, check_output)
 
     @classmethod
     def works(cls):
@@ -106,7 +106,7 @@ class PIP(object):
             if expectedversion.startswith('Version: '):
                 return expectedversion.split()[1]
             else:
-                return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
+                return [x.split()[1] for x in datas if x.startswith("バージョン: ")][0]
         except:
             pass
 
@@ -119,7 +119,7 @@ class PIP(object):
 # Setup initial loggers
 
 tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
-log = logging.getLogger('launcher')
+log = logging.getLogger('ランチャー')
 log.setLevel(logging.DEBUG)
 
 sh = logging.StreamHandler(stream=sys.stdout)
@@ -140,7 +140,7 @@ log.addHandler(tfh)
 
 def finalize_logging():
     if os.path.isfile("logs/musicbot.log"):
-        log.info("Moving old musicbot log")
+        log.info("古いミュージックボットのログを移動する")
         try:
             if os.path.isfile("logs/musicbot.log.last"):
                 os.unlink("logs/musicbot.log.last")
@@ -177,14 +177,14 @@ def finalize_logging():
     dlog.addHandler(dlh)
 
 
-def bugger_off(msg="Press enter to continue . . .", code=1):
+def bugger_off(msg="Enterキーを押して続行します...", code=1):
     input(msg)
     sys.exit(code)
 
 
 # TODO: all of this
 def sanity_checks(optional=True):
-    log.info("Starting sanity checks")
+    log.info("チェックの開始")
     ## Required
 
     # Make sure we're on Python 3.5+
@@ -199,7 +199,7 @@ def sanity_checks(optional=True):
     # Make our folders if needed
     req_ensure_folders()
 
-    log.info("Required checks passed.")
+    log.info("必要なチェックが合格しました。")
 
     ## Optional
     if not optional:
@@ -208,15 +208,15 @@ def sanity_checks(optional=True):
     # Check disk usage
     opt_check_disk_space()
 
-    log.info("Optional checks passed.")
+    log.info("オプションのチェックが合格しました。")
 
 
 def req_ensure_py3():
-    log.info("Checking for Python 3.5+")
+    log.info("Python 3.5+のチェック")
 
     if sys.version_info < (3, 5):
-        log.warning("Python 3.5+ is required. This version is %s", sys.version.split()[0])
-        log.warning("Attempting to locate Python 3.5...")
+        log.warning("Python 3.5以降が必要です。このバージョンは%sです", sys.version.split()[0])
+        log.warning("Python 3.5の検索を試みています...")
 
         pycom = None
 
@@ -258,10 +258,10 @@ def req_ensure_py3():
 
 
 def req_ensure_encoding():
-    log.info("Checking console encoding")
+    log.info("コンソールエンコーディングの確認")
 
     if sys.platform.startswith('win') or sys.stdout.encoding.replace('-', '').lower() != 'utf8':
-        log.info("Setting console encoding to UTF-8")
+        log.info("コンソールエンコーディングをUTF-8に設定する")
 
         import io
         sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
@@ -269,12 +269,12 @@ def req_ensure_encoding():
         sys.__stdout__ = sh.stream = sys.stdout
 
         if os.environ.get('PYCHARM_HOSTED', None) not in (None, '0'):
-            log.info("Enabling colors in pycharm pseudoconsole")
+            log.info("pycharm pseudoconsoleでの色の有効化")
             sys.stdout.isatty = lambda: True
 
 
 def req_ensure_env():
-    log.info("Ensuring we're in the right environment")
+    log.info("私たちが正しい環境にいることを保証する")
 
     try:
         assert os.path.isdir('config'), 'folder "config" not found'
@@ -284,7 +284,7 @@ def req_ensure_env():
 
         assert importlib.util.find_spec('musicbot'), "musicbot module is not importable"
     except AssertionError as e:
-        log.critical("Failed environment check, %s", e)
+        log.critical("失敗した環境チェック、%s", e)
         bugger_off()
 
     try:
@@ -308,7 +308,7 @@ def req_ensure_folders():
 
 def opt_check_disk_space(warnlimit_mb=200):
     if disk_usage('.').free < warnlimit_mb*1024*2:
-        log.warning("Less than %sMB of free space remains on this device" % warnlimit_mb)
+        log.warning("このデバイスには%sMB未満の空き領域が残ります" % warnlimit_mb)
 
 
 #################################################
@@ -347,13 +347,13 @@ def main():
             m = MusicBot()
 
             sh.terminator = ''
-            log.info("Connecting")
+            log.info("接続")
             sh.terminator = '\n'
 
             m.run()
 
         except SyntaxError:
-            log.exception("Syntax error (this is a bug, not your fault)")
+            log.exception("構文エラー(これはあなたのせいではなくバグです)")
             break
 
         except ImportError:
@@ -362,14 +362,14 @@ def main():
             if not tried_requirementstxt:
                 tried_requirementstxt = True
 
-                log.exception("Error starting bot")
-                log.info("Attempting to install dependencies...")
+                log.exception("ボットを起動する際のエラー")
+                log.info("依存関係をインストールしようとしています...")
 
                 err = PIP.run_install('--upgrade -r requirements.txt')
 
                 if err: # TODO: add the specific error check back as not to always tell users to sudo it
                     print()
-                    log.critical("You may need to %s to install dependencies." %
+                    log.critical("依存関係をインストールするには、%sが必要な場合があります。" %
                                  ['use sudo', 'run as admin'][sys.platform.startswith('win')])
                     break
                 else:
@@ -406,12 +406,12 @@ def main():
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops*2))
+            log.info("{}秒後に再開しています...".format(loops*2))
             time.sleep(sleeptime)
 
     print()
-    log.info("All done.")
+    log.info("すべて完了。")
 
 
 if __name__ == '__main__':
-    main()
+    main() 
