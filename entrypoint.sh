@@ -21,4 +21,15 @@ if [ ! -z $SAVEVIDEOS ]; then
   sed -i 's/SaveVideos = yes/SaveVideos = '"$SAVEVIDEOS"'/' $OPTIONS
 fi
 
+cat << EOF > config/permissions.ini
+[DJ]
+CommandBlacklist = blacklist listids
+GrantToRoles = $DJROLES
+MaxSongLength = 0
+MaxSongs = 0
+MaxPlaylistLength = 0
+AllowPlaylists = yes
+InstaSkip = yes
+EOF
+
 exec python3.5 run.py
