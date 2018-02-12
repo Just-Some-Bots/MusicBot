@@ -6,7 +6,7 @@ ENV_FILE := environment.env
 build:
 	docker build -t $(IMAGE) .
 
-push: image
+push: build
 	docker push $(IMAGE)
 
 test: build
