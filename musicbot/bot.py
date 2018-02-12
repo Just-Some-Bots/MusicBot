@@ -604,11 +604,14 @@ class MusicBot(discord.Client):
 
         # This is the one event where its ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.server)
+        await self.my_update_now_playing_message(player, entry)
+        # TODO: Check channel voice state?
 
+    async def my_update_now_playing_message(self, player, entry):
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
 
-        if channel and author:
+        if channel:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
             if last_np_msg and last_np_msg.channel == channel:
 
@@ -618,7 +621,7 @@ class MusicBot(discord.Client):
                         self.server_specific_data[channel.server]['last_np_msg'] = None
                     break  # This is probably redundant
 
-            if self.config.now_playing_mentions:
+            if self.config.now_playing_mentions and author:
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
@@ -630,8 +633,6 @@ class MusicBot(discord.Client):
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
-
-        # TODO: Check channel voice state?
 
     async def on_player_resume(self, player, entry, **_):
         await self.update_now_playing_status(entry)
@@ -685,7 +686,13 @@ class MusicBot(discord.Client):
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
 
                 try:
-                    await player.playlist.add_entry(song_url, channel=None, author=None)
+                    a_bound_channel = sorted(list(self.config.bound_channels))[0]
+                    real_channel = player.voice_client.channel.server.get_channel(a_bound_channel)
+                except:
+                    real_channel = None
+
+                try:
+                    await player.playlist.add_entry(song_url, channel=real_channel, author=None)
                 except exceptions.ExtractionError as e:
                     log.error("Error adding song from autoplaylist: {}".format(e))
                     log.debug('', exc_info=True)
