@@ -2675,4 +2675,4 @@ class MusicBot(discord.Client):
         if player and player.is_playing:
             log.debug("使用できないため\"{}\"のプレイヤー".format(server.name))
             self.server_specific_data[server]['availability_paused'] = True
-            player.pause() 
+            player.pause()
