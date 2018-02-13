@@ -1175,9 +1175,8 @@ class MusicBot(discord.Client):
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
             helpmsg += ", ".join(commands)
-            helpmsg += "`` \n各コマンドの詳細については、`{} help x`を使用することもできます。\n".format(self.config.command_prefix)
-            helpmsg += "`このBotはKosugi_kunにより運営、管理されています。`"
-
+            helpmsg += "``` \n各コマンドの詳細については、`{} help x`を使用することもできます。\n".format(self.config.command_prefix)
+            helpmsg += "MusicBot JP V {}はKosugi_kunにより運営、管理されています。".format(BOTVERSION)
             return Response(helpmsg, reply=True, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
