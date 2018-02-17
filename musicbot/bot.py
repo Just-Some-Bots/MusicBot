@@ -1784,7 +1784,7 @@ class MusicBot(discord.Client):
 
         return Response(self.str.get('cmd-stream-success', "Streaming."), delete_after=6)
 
-    async def cmd_search(self, player, channel, author, permissions, leftover_args):
+    async def cmd_search(self, message, player, channel, author, permissions, leftover_args):
         """
         Usage:
             {command_prefix}search [service] [number] query
@@ -1894,7 +1894,7 @@ class MusicBot(discord.Client):
 
             if res.reaction.emoji == '\u2705':  # check
                 await self.safe_delete_message(result_message)
-                await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+                await self.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
                 return Response(self.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
             elif res.reaction.emoji == '\U0001F6AB':  # cross
                 await self.safe_delete_message(result_message)
