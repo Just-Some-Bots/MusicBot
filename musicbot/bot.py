@@ -812,8 +812,14 @@ class MusicBot(discord.Client):
             await self.serialize_queue(player.voice_client.channel.server)
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
+        print("I'm here")
         if entry.meta.get('author') and entry.meta.get('channel'):
+            print("if")
             await self.serialize_queue(player.voice_client.channel.server)
+            if self.is_voting:
+                print("why no work")
+                self.is_voting = False
+                await self.my_update_now_playing_message(player, entry)
 
     async def on_player_error(self, player, entry, ex, **_):
         if 'channel' in entry.meta:
