@@ -71,6 +71,7 @@ class MusicBot(discord.Client):
         self.init_ok = False
         self.cached_app_info = None
         self.last_status = None
+        self.is_voting = False
 
         self.config = Config(config_file)
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
@@ -600,6 +601,9 @@ class MusicBot(discord.Client):
 
     async def on_player_play(self, player, entry):
         await self.update_now_playing_status(entry)
+        if not player.playlist.entries and self.config.auto_playlist:
+            await self.my_update_now_playing_message(player, entry)
+            await self.begin_voting(player)
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
@@ -634,11 +638,62 @@ class MusicBot(discord.Client):
                 #newmsg = 'Now playing in %s: **%s** (%ss)' % (
                     #player.voice_client.channel.name, entry.title, song_total)
 
+            if self.is_voting:
+                reactions = []
+                for n in range(5):
+                    reactions.append(u"%d\u20E3" % (n+1))
+                vote_msg = "\nVote for the next track!\n"
+                for n, song_info in enumerate(self.voting_songs):
+                    vote_msg += "%s: %s\n"% (reactions[n], song_info.get('title', 'Untitled'))
+                newmsg += vote_msg
+
             if self.server_specific_data[channel.server]['last_np_msg']:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
             else:
                 self.server_specific_data[channel.server]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
+            if self.is_voting:
+                reactions = []
+                for n in range(5):
+                    reactions.append(u"%d\u20E3" % (n+1))
+                for r in reactions:
+                    await self.add_reaction(self.server_specific_data[channel.server]['last_np_msg'], r)
+
+    async def on_reaction_add(self, reaction, user):
+        reactions = {}
+        for n in range(5):
+            reactions[u"%d\u20E3" % (n+1)] = n+1
+        server = reaction.message.server
+        np_msg = self.server_specific_data[server]['last_np_msg']
+        if (reaction.message.id == np_msg.id and
+            reaction.emoji in reactions):
+            if user.id is np_msg.author.id:
+                print("Not counting self reaction")
+                return
+            elif user.id in self.votes.keys():
+                print("User already voted, switching vote")
+                await self.remove_reaction(np_msg, self.votes[user.id]['reaction'].emoji, user)
+                self.votes.pop(user.id, None)
+
+            print(reactions[reaction.emoji])
+            print(type(reactions[reaction.emoji]))
+            vote = {"reaction":reaction, "vote":reactions[reaction.emoji]}
+            print("Adding vote")
+            print(vote)
+            self.votes[user.id] = vote
+
+        else:
+            print("disregarded reaction!")
+
+    async def on_reaction_removed(self, reaction, user):
+        reactions = {}
+        for n in range(5):
+            reactions[u"%d\u20E3" % (n+1)] = n+1
+        server = reaction.message.server
+        np_msg = self.server_specific_data[server]['last_np_msg']
+        if (reaction.message.id == np_msg.id and
+            reaction.emoji in reactions):
+            self.votes.pop(user.id, None)
 
     async def on_player_resume(self, player, entry, **_):
         await self.update_now_playing_status(entry)
@@ -650,61 +705,103 @@ class MusicBot(discord.Client):
     async def on_player_stop(self, player, **_):
         await self.update_now_playing_status()
 
+    def get_winning_vote(self, player):
+        channel = player.voice_client.channel
+        np_msg = self.server_specific_data[channel.server]['last_np_msg']
+        reactions = {}
+        for n in range(5):
+            reactions[u"%d\u20E3" % (n+1)] = n+1
+        votes = [0]*5
+        print(self.votes)
+        for id in self.votes.keys():
+            vote = self.votes[id]
+            print(vote)
+            print(vote['vote']-1)
+            votes[ vote['vote']-1 ] += 1
+        idx = max(enumerate(votes),key=lambda x: x[1])[0]
+        print(votes)
+        print("winning idx is %d"%idx)
+        print("winning url is %s"%self.voting_songs[idx].get('url', None))
+        self.is_voting = False
+        return self.voting_songs[idx].get('webpage_url', None)
+        
+
+    async def begin_voting(self, player):
+
+        if not (self.autoplaylist_session) or (len(self.autoplaylist_session) < 10):
+            log.info("Autoplaylist session empty. Re-populating with entries...")
+            self.autoplaylist_session = self.autoplaylist[:]
+
+        song_infos = []
+        song_urls = []
+        while self.autoplaylist_session:
+            song_url = random.choice(self.autoplaylist_session)
+            print("picking %s to vote on" % song_url)
+            if song_url in song_urls:
+                continue
+
+            info = {}
+
+            try:
+                info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+            except downloader.youtube_dl.utils.DownloadError as e:
+                if 'YouTube said:' in e.args[0]:
+                    # url is bork, remove from list and put in removed list
+                    log.error("Error processing youtube url:\n{}".format(e.args[0]))
+
+                else:
+                    # Probably an error from a different extractor, but I've only seen youtube's
+                    log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+
+                await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=True)
+                continue
+
+            except Exception as e:
+                log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+                log.exception()
+
+                self.autoplaylist.remove(song_url)
+                continue
+
+            if info.get('entries', None):  # or .get('_type', '') == 'playlist'
+                log.debug("Playlist found but is unsupported at this time, skipping.")
+                # TODO: Playlist expansion
+                continue
+
+            song_infos.append(info)
+            song_urls.append(song_url)
+            if len(song_infos) >= 5:
+                break
+
+            # Do I check the initial conditions again?
+            # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+
+        self.is_voting = True
+        self.votes = {}
+        self.voting_songs = song_infos
+        pass
+
     async def on_player_finished_playing(self, player, **_):
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
-            if not self.autoplaylist_session:
-                log.info("Autoplaylist session empty. Re-populating with entries...")
-                self.autoplaylist_session = self.autoplaylist[:]
 
-            while self.autoplaylist_session:
-                random.shuffle(self.autoplaylist_session)
-                song_url = random.choice(self.autoplaylist_session)
-                self.autoplaylist_session.remove(song_url)
+            if self.is_voting:
+                print("Getting the winning vote")
+                next_song_url = self.get_winning_vote(player)
+                if next_song_url:
+                    print("The next song is %s"%next_song_url)
+                    self.autoplaylist_session.remove(next_song_url)
+                    try:
+                        a_bound_channel = sorted(list(self.config.bound_channels))[0]
+                        real_channel = player.voice_client.channel.server.get_channel(a_bound_channel)
+                    except:
+                        real_channel = None
 
-                info = {}
+                    try:
+                        await player.playlist.add_entry(next_song_url, channel=real_channel, author=None)
+                    except exceptions.ExtractionError as e:
+                        log.error("Error adding song from autoplaylist: {}".format(e))
+                        log.debug('', exc_info=True)
 
-                try:
-                    info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                except downloader.youtube_dl.utils.DownloadError as e:
-                    if 'YouTube said:' in e.args[0]:
-                        # url is bork, remove from list and put in removed list
-                        log.error("Error processing youtube url:\n{}".format(e.args[0]))
-
-                    else:
-                        # Probably an error from a different extractor, but I've only seen youtube's
-                        log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-
-                    await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=True)
-                    continue
-
-                except Exception as e:
-                    log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-                    log.exception()
-
-                    self.autoplaylist.remove(song_url)
-                    continue
-
-                if info.get('entries', None):  # or .get('_type', '') == 'playlist'
-                    log.debug("Playlist found but is unsupported at this time, skipping.")
-                    # TODO: Playlist expansion
-
-                # Do I check the initial conditions again?
-                # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-
-                try:
-                    a_bound_channel = sorted(list(self.config.bound_channels))[0]
-                    real_channel = player.voice_client.channel.server.get_channel(a_bound_channel)
-                except:
-                    real_channel = None
-
-                try:
-                    await player.playlist.add_entry(song_url, channel=real_channel, author=None)
-                except exceptions.ExtractionError as e:
-                    log.error("Error adding song from autoplaylist: {}".format(e))
-                    log.debug('', exc_info=True)
-                    continue
-
-                break
 
             if not self.autoplaylist:
                 # TODO: When I add playlist expansion, make sure that's not happening during this check
