@@ -718,12 +718,21 @@ class MusicBot(discord.Client):
             print(vote)
             print(vote['vote']-1)
             votes[ vote['vote']-1 ] += 1
-        idx = max(enumerate(votes),key=lambda x: x[1])[0]
+
+        max_votes = max(votes)
+        winning_songs = []
+        for n, v in enumerate(votes):
+            if v == max_votes:
+                winning_songs.append(n)
+        idx = random.choice(winning_songs)
+        win_song_url = self.voting_songs[idx].get('webpage_url', None)
         print(votes)
+        for song in self.voting_songs:
+            print(song.get('webpage_url', None))
         print("winning idx is %d"%idx)
-        print("winning url is %s"%self.voting_songs[idx].get('url', None))
+        print("winning url is %s"%win_song_url)
         self.is_voting = False
-        return self.voting_songs[idx].get('webpage_url', None)
+        return win_song_url
         
 
     async def begin_voting(self, player):
