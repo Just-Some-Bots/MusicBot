@@ -1411,7 +1411,7 @@ class MusicBot(discord.Client):
             )
         return True
 
-    async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url=''):
+    async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
             {command_prefix}play song_link
@@ -1796,7 +1796,7 @@ class MusicBot(discord.Client):
 
         return Response(self.str.get('cmd-stream-success', "Streaming."), delete_after=6)
 
-    async def cmd_search(self, player, channel, author, permissions, leftover_args):
+    async def cmd_search(self, message, player, channel, author, permissions, leftover_args):
         """
         Usage:
             {command_prefix}search [service] [number] query
@@ -1906,7 +1906,7 @@ class MusicBot(discord.Client):
 
             if res.reaction.emoji == '\u2705':  # check
                 await self.safe_delete_message(result_message)
-                await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+                await self.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
                 return Response(self.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
             elif res.reaction.emoji == '\U0001F6AB':  # cross
                 await self.safe_delete_message(result_message)
@@ -2167,7 +2167,7 @@ class MusicBot(discord.Client):
         # Currently is recounted if they vote, deafen, then vote
 
         num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf))
+            m.deaf or m.self_deaf or m == self.user))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
