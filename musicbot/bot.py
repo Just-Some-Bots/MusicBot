@@ -1646,6 +1646,7 @@ class MusicBot(discord.Client):
                 reply_text = self.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
                 btext = entry.title
 
+
             if position == 1 and player.is_stopped:
                 position = self.str.get('cmd-play-next', 'Up next!')
                 reply_text %= (btext, position)
@@ -1956,7 +1957,9 @@ class MusicBot(discord.Client):
                     url=player.current_entry.url
                 )
             else:
+
                 np_text = self.str.get('cmd-np-reply-noauthor', "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>").format(
+
                     action=action_text,
                     title=player.current_entry.title,
                     progress_bar=prog_bar_str,
