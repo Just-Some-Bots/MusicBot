@@ -41,6 +41,19 @@ class Playlist(EventEmitter, Serializable):
 
     def clear(self):
         self.entries.clear()
+        
+    def get_entry_at_index(self, index):
+        self.entries.rotate(-index)
+        entry = self.entries[0]
+        self.entries.rotate(index)
+        return entry
+        
+    def delete_entry_at_index(self, index):
+        self.entries.rotate(-index)
+        entry = self.entries.popleft()
+        self.entries.rotate(index)
+        return entry
+
 
     async def add_entry(self, song_url, **meta):
         """
@@ -69,11 +82,11 @@ class Playlist(EventEmitter, Serializable):
 
         # TODO: Extract this to its own function
         if info['extractor'] in ['generic', 'Dropbox']:
+            log.debug('Detected a generic extractor, or Dropbox')
             try:
                 headers = await get_header(self.bot.aiosession, info['url'])
                 content_type = headers.get('CONTENT-TYPE')
                 log.debug("Got content type {}".format(content_type))
-
             except Exception as e:
                 log.warning("Failed to get content type for url {} ({})".format(song_url, e))
                 content_type = None
@@ -84,9 +97,9 @@ class Playlist(EventEmitter, Serializable):
                         # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
-                elif content_type.startswith('text/html'):
-                    log.warning("Got text/html for content-type, this might be a stream")
-                    pass # TODO: Check for shoutcast/icecast
+                elif content_type.startswith('text/html') and info['extractor'] == 'generic':
+                    log.warning("Got text/html for content-type, this might be a stream.")
+                    return await self.add_stream_entry(song_url, info=info, **meta)  # TODO: Check for shoutcast/icecast
 
                 elif not content_type.startswith(('audio/', 'video/')):
                     log.warning("Questionable content-type \"{}\" for url {}".format(content_type, song_url))
@@ -110,14 +123,14 @@ class Playlist(EventEmitter, Serializable):
                 info = await self.downloader.extract_info(self.loop, song_url, download=False)
 
             except DownloadError as e:
-                if e.exc_info[0] == UnsupportedError: # ytdl doesn't like it but its probably a stream
+                if e.exc_info[0] == UnsupportedError:  # ytdl doesn't like it but its probably a stream
                     log.debug("Assuming content is a direct stream")
 
                 elif e.exc_info[0] == URLError:
                     if os.path.exists(os.path.abspath(song_url)):
                         raise ExtractionError("This is not a stream, this is a file path.")
 
-                    else: # it might be a file path that just doesn't exist
+                    else:  # it might be a file path that just doesn't exist
                         raise ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
 
                 else:
@@ -127,11 +140,14 @@ class Playlist(EventEmitter, Serializable):
             except Exception as e:
                 log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url, e), exc_info=True)
 
+        if info.get('is_live') is None and info.get('extractor', None) is not 'generic':  # wew hacky
+            raise ExtractionError("This is not a stream.")
+
         dest_url = song_url
         if info.get('extractor'):
             dest_url = info.get('url')
 
-        if info.get('extractor', None) == 'twitch:stream': # may need to add other twitch types
+        if info.get('extractor', None) == 'twitch:stream':  # may need to add other twitch types
             title = info.get('description')
         else:
             title = info.get('title', 'Untitled')
@@ -294,6 +310,9 @@ class Playlist(EventEmitter, Serializable):
 
         if self.peek() is entry:
             entry.get_ready_future()
+
+    def remove_entry(self, index):
+        del self.entries[index]
 
     async def get_next_entry(self, predownload_next=True):
         """

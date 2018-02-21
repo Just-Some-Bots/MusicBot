@@ -23,6 +23,11 @@ class PermissionsDefaults:
 
     AllowPlaylists = True
     InstaSkip = False
+    Remove = False
+    SkipWhenAbsent = True
+    BypassKaraokeMode = False
+
+    Extractors = set()
 
 
 class Permissions:
@@ -111,6 +116,11 @@ class PermissionGroup:
 
         self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
         self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
+        self.remove = section_data.get('Remove', fallback=PermissionsDefaults.Remove)
+        self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=PermissionsDefaults.SkipWhenAbsent)
+        self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=PermissionsDefaults.BypassKaraokeMode)
+
+        self.extractors = section_data.get('Extractors', fallback=PermissionsDefaults.Extractors)
 
         self.validate()
 
@@ -129,6 +139,9 @@ class PermissionGroup:
 
         if self.user_list:
             self.user_list = set(self.user_list.split())
+
+        if self.extractors:
+            self.extractors = set(self.extractors.split())
 
         try:
             self.max_songs = max(0, int(self.max_songs))
@@ -151,6 +164,18 @@ class PermissionGroup:
 
         self.instaskip = configparser.RawConfigParser.BOOLEAN_STATES.get(
             self.instaskip, PermissionsDefaults.InstaSkip
+        )
+
+        self.remove = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.remove, PermissionsDefaults.Remove
+        )
+
+        self.skip_when_absent = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.skip_when_absent, PermissionsDefaults.SkipWhenAbsent
+        )
+
+        self.bypass_karaoke_mode = configparser.RawConfigParser.BOOLEAN_STATES.get(
+            self.bypass_karaoke_mode, PermissionsDefaults.BypassKaraokeMode
         )
 
     @staticmethod
