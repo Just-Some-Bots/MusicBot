@@ -1,0 +1,25 @@
+sudo: required
+language: python
+
+matrix:
+  include:
+  - env: TYPE=docker
+    sudo: required
+  - env: TYPE=build
+    os: linux
+    python: 3.5
+    dist: trusty
+    sudo: required
+
+services:
+- docker
+
+install:
+- if [ "$TYPE" = "build" ]; then ./.travis/install.sh; fi;
+
+script:
+- if [ "$TYPE" = "docker" ]; then docker build -t musicbot .; docker images -a; fi;
+- if [ "$TYPE" = "build" ]; then python -m compileall ./musicbot; fi;
+
+after_success:
+- if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASS"; docker tag musicbot justsomebots/musicbot:$TRAVIS_BRANCH ; docker push justsomebots/musicbot; fi;

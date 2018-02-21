@@ -40,6 +40,10 @@ class FFmpegError(MusicbotException):
 class FFmpegWarning(MusicbotException):
     pass
 
+# Some issue retrieving something from Spotify's API
+class SpotifyError(MusicbotException):
+    pass
+
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
     @property

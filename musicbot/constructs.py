@@ -169,7 +169,10 @@ class VoiceStateUpdate:
     def is_about_my_voice_channel(self):
         return all((
             self.my_voice_channel,
-            self.voice_channel == self.my_voice_channel
+            any((
+                self.new_voice_channel == self.my_voice_channel,
+                self.old_voice_channel == self.my_voice_channel
+            ))
         ))
 
     @property
