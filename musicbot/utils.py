@@ -22,7 +22,7 @@ def load_file(filename, skip_commented_lines=True, comment_char='#'):
             return results
 
     except IOError as e:
-        print("Error loading", filename, e)
+        print("読み込み中のエラー", filename, e)
         return []
 
 
@@ -34,14 +34,14 @@ def write_file(filename, contents):
 
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
-    Split up a large string or list of strings into chunks for sending to discord.
+    大きな文字列または文字列のリストをチャンクに分割して、不一致に送ります。
     """
     if type(content) == str:
         contentlist = content.split('\n')
     elif type(content) == list:
         contentlist = content
     else:
-        raise ValueError("Content must be str or list, not %s" % type(content))
+        raise ValueError("内容は%sではなくstrまたはlistでなければなりません" % type(content))
 
     chunks = []
     currentchunk = ''
@@ -107,7 +107,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
             attrdir = lambda x: getattr(x, '__dict__')
 
         else:
-            # log.everything("{}{} or {} has no slots or dict".format('-' * (depth+1), repr(obj1), repr(obj2)))
+            # log.everything("{}{}または{}にはスロットやdictがありません".format('-' * (depth+1), repr(obj1), repr(obj2)))
             attrdir = dir
 
     elif isinstance(access_attr, str):
@@ -116,24 +116,24 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
     else:
         attrdir = dir
 
-    # log.everything("Diffing {o1} and {o2} with {attr}".format(o1=obj1, o2=obj2, attr=access_attr))
+    # log.everything("{attr}で{o1}と{o2}の差分をとる".format(o1=obj1, o2=obj2, attr=access_attr))
 
     for item in set(attrdir(obj1) + attrdir(obj2)):
         try:
-            iobj1 = getattr(obj1, item, AttributeError("No such attr " + item))
-            iobj2 = getattr(obj2, item, AttributeError("No such attr " + item))
+            iobj1 = getattr(obj1, item, AttributeError("そのようなattrはありません " + item))
+            iobj2 = getattr(obj2, item, AttributeError("そのようなattrはありません " + item))
 
-            # log.everything("Checking {o1}.{attr} and {o2}.{attr}".format(attr=item, o1=repr(obj1), o2=repr(obj2)))
+            # log.everything("{o1}。{attr}と{o2}を確認しています。{attr}".format(attr=item, o1=repr(obj1), o2=repr(obj2)))
 
             if depth:
-                # log.everything("Inspecting level {}".format(depth))
+                # log.everything("レベルの検査{}".format(depth))
                 idiff = objdiff(iobj1, iobj2, access_attr='auto', depth=depth - 1)
                 if idiff:
                     changes[item] = idiff
 
             elif iobj1 is not iobj2:
                 changes[item] = (iobj1, iobj2)
-                # log.everything("{1}.{0} ({3}) is not {2}.{0} ({4}) ".format(item, repr(obj1), repr(obj2), iobj1, iobj2))
+                # log.everything("{1}。{0}({3})は{2}ではありません。{0}({4})".format(item, repr(obj1), repr(obj2), iobj1, iobj2))
 
             else:
                 pass

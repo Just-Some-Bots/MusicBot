@@ -72,24 +72,24 @@ class Serializer(json.JSONEncoder):
     @classmethod
     def deserialize(cls, data):
         if all(x in data for x in Serializable._class_signature):
-            # log.debug("Deserialization requested for %s", data)
+            # log.debug("%sの逆シリアル化が要求されました", data)
             factory = pydoc.locate(data['__module__'] + '.' + data['__class__'])
-            # log.debug("Found object %s", factory)
+            # log.debug("見つかりましたオブジェクト%s", factory)
             if factory and issubclass(factory, Serializable):
-                # log.debug("Deserializing %s object", factory)
+                # log.debug("%sオブジェクトの逆シリアル化", factory)
                 return factory._deserialize(data['data'], **cls._get_vars(factory._deserialize))
 
         return data
 
     @classmethod
     def _get_vars(cls, func):
-        # log.debug("Getting vars for %s", func)
+        # log.debug("%sの値を取得する", func)
         params = inspect.signature(func).parameters.copy()
         args = {}
-        # log.debug("Got %s", params)
+        # log.debug("%sを取得しました", params)
 
         for name, param in params.items():
-            # log.debug("Checking arg %s, type %s", name, param.kind)
+            # log.debug("arg%sを確認して、%sと入力してください", name, param.kind)
             if param.kind is param.POSITIONAL_OR_KEYWORD and param.default is None:
                 # log.debug("Using var %s", name)
                 args[name] = _get_variable(name)
@@ -111,7 +111,7 @@ class Serializable:
     # Perhaps convert this into some sort of decorator
     @staticmethod
     def _bad(arg):
-        raise TypeError('Argument "%s" must not be None' % arg)
+        raise TypeError('引数 "%s"はNoneであってはなりません。' % arg)
 
     def serialize(self, *, cls=Serializer, **kwargs):
         return json.dumps(self, cls=cls, **kwargs)

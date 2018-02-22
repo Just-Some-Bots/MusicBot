@@ -141,6 +141,7 @@ log.addHandler(tfh)
 def finalize_logging():
     if os.path.isfile("logs/musicbot.log"):
         log.info("古いミュージックボットのログを移動する")
+
         try:
             if os.path.isfile("logs/musicbot.log.last"):
                 os.unlink("logs/musicbot.log.last")
@@ -185,6 +186,7 @@ def bugger_off(msg="Enterキーを押して続行します...", code=1):
 # TODO: all of this
 def sanity_checks(optional=True):
     log.info("チェックの開始")
+    print ("\a")
     ## Required
 
     # Make sure we're on Python 3.5+
