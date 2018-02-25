@@ -1341,9 +1341,9 @@ class MusicBot(discord.Client):
 		creation_date = member.created_at
 		avatar = member.avatar_url if member.avatar_url else member.default_avatar_url
 		user_id = member.id
-		await self.safe_send_message(self.str.get('cmd-user',channel, """
+		return Response(self.str.get('cmd-user', """
 ```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n"""
-.format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar)))
+.format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar)), delete_after=30)
 
     async def cmd_save(self, player):
         """
