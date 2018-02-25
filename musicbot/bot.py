@@ -1317,18 +1317,33 @@ class MusicBot(discord.Client):
                     reply=True, delete_after=10
                 )
 
-    async def cmd_id(self, author, user_mentions):
-        """
-        Usage:
-            {command_prefix}id [@user]
+	async def cmd_user(self, author, server, channel, message, user_mentions):
+		"""
+		Usage:
+			{command_prefix}user [@user]
 
-        Tells the user their id or the id of another user.
-        """
-        if not user_mentions:
-            return Response(self.str.get('cmd-id-self', 'Your ID is `{0}`').format(author.id), reply=True, delete_after=35)
-        else:
-            usr = user_mentions[0]
-            return Response(self.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, delete_after=35)
+		Provides some info on a user, if no-one mentioned returns info on message author.
+		"""
+		if not user_mentions:
+			member = author
+		else:
+			member = user_mentions[0]
+
+		voice = member.voice.voice_channel
+		roles = ', '.join(r.name for r in member.roles)
+		join_date = member.joined_at
+		status = member.status
+		game = member.game
+		server = member.server
+		nickname = member.nick
+		color = member.colour
+		top_role = member.top_role
+		creation_date = member.created_at
+		avatar = member.avatar_url if member.avatar_url else member.default_avatar_url
+		user_id = member.id
+		await self.safe_send_message(self.str.get('cmd-user',channel, """
+```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n"""
+.format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar)))
 
     async def cmd_save(self, player):
         """
