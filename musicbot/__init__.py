@@ -35,7 +35,7 @@ class Yikes:
     def _format_import_chain(self, chain, *, message=None):
         lines = []
         for line in chain:
-            lines.append("In %s, line %s:\n    %s" % line)
+            lines.append("%sでは、行%s:\n%s" % line)
 
         if message:
             lines.append(message)
@@ -51,22 +51,22 @@ class Yikes:
         import_tb = self._format_import_chain(import_chain)
 
         raise HelpfulError(
-            "You are attempting to import requests, or import a module that uses requests.  "
-            "Requests (or any module that uses requests) should not be used in this code.  "
-            "See %s for why requests is not suitable for this code."
+            "要求をインポートしようとしているか、要求を使用しているモジュールをインポートしようとしています。  "
+            "要求（または要求を使用するモジュール）は、このコードでは使用しないでください。  "
+            "このコードに対して要求が適切でない理由については、%sを参照してください。"
             % "[https://discordpy.readthedocs.io/en/latest/faq.html#what-does-blocking-mean]",
 
-            "Don't use requests, use aiohttp instead.  The api is very similar to requests "
-            "when using session objects. [http://aiohttp.readthedocs.io/en/stable/]  If "
-            "a module you're trying to use depends on requests, see if you can find a similar "
-            "module compatable with asyncio.  If you can't find one, learn how to avoid blocking "
-            "in coroutines.  If you're new to programming, consider learning more about how "
-            "asynchronous code and coroutines work.  Blocking calls (notably HTTP requests) can take "
-            "a long time, during which the bot is unable to do anything but wait for it.  "
-            "If you're sure you know what you're doing, simply add `allow_requests = True` above your "
-            "import statement, that being `import requests` or whatever requests dependent module.",
+            "リクエストを使用しないで、代わりにaiohttpを使用してください。 APIはリクエストと非常に似ています"
+            "セッションオブジェクトを使用する場合[http://aiohttp.readthedocs.io/en/stable/] "
+            "あなたが使用しようとしているモジュールはリクエストに依存しています。 "
+            "モジュールasyncioと互換性があります。見つけられない場合は、ブロックを回避する方法を学んでください"
+            "コルーチンでプログラミングに慣れていない場合は、 "
+            "非同期コードとコルーチンが機能します。ブロッキングコール（特にHTTPリクエスト）は、"
+            "長い間、ボットは何もすることができないが、それを待つ。"
+            "あなたが何をしているのか分かっているなら、あなたの上に `allow_requests = True`を追加するだけです "
+            "importステートメント、それは `import requests`または何らかの要求依存モジュールです。",
 
-            footnote="Import traceback (most recent call last):\n" + import_tb
+            footnote="トレースバックをインポートする(直近の最後のコール):\n" + import_tb
         )
 
 sys.meta_path.insert(0, Yikes())

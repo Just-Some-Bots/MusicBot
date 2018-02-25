@@ -27,10 +27,10 @@ ytdl_format_options = {
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 '''
-    Alright, here's the problem.  To catch youtube-dl errors for their useful information, I have to
-    catch the exceptions with `ignoreerrors` off.  To not break when ytdl hits a dumb video
-    (rental videos, etc), I have to have `ignoreerrors` on.  I can change these whenever, but with async
-    that's bad.  So I need multiple ytdl objects.
+    さて、ここに問題があります。役に立つ情報のためにyoutube-dlエラーを捕まえるためには、
+    `ignoreerrors`を使って例外を捕捉します。 ytdlがダムのビデオに当たったときに壊れないようにする
+    （レンタルビデオなど）、私は `ignoreerrors`をしなければなりません。私はこれらをいつでも変更できますが、非同期で
+    それは良くないね。だから私は複数のytdlオブジェクトが必要です。
 
 '''
 
@@ -57,9 +57,9 @@ class Downloader:
 
     async def extract_info(self, loop, *args, on_error=None, retry_on_error=False, **kwargs):
         """
-            Runs ytdl.extract_info within the threadpool. Returns a future that will fire when it's done.
-            If `on_error` is passed and an exception is raised, the exception will be caught and passed to
-            on_error as an argument.
+            スレッドプール内でytdl.extract_infoを実行します。終了時に起動する未来を返します。
+            `on_error`が渡され、例外が発生した場合、例外は捕捉され、渡されます
+            on_errorを引数として指定します。
         """
         if callable(on_error):
             try:

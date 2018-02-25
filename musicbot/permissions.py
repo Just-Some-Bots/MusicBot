@@ -31,7 +31,7 @@ class Permissions:
         self.config = configparser.ConfigParser(interpolation=None)
 
         if not self.config.read(config_file, encoding='utf-8'):
-            log.info("Permissions file not found, copying example_permissions.ini")
+            log.info("許可ファイルが見つからない、example_permissions.iniをコピーする")
 
             try:
                 shutil.copy('config/example_permissions.ini', config_file)
@@ -39,7 +39,7 @@ class Permissions:
 
             except Exception as e:
                 traceback.print_exc()
-                raise RuntimeError("Unable to copy config/example_permissions.ini to {}: {}".format(config_file, e))
+                raise RuntimeError("config / example_permissions.iniを{}にコピーできません:{}".format(config_file, e))
 
         self.default_group = PermissionGroup('Default', self.config['Default'])
         self.groups = set()
@@ -56,11 +56,11 @@ class Permissions:
         self.groups.add(owner_group)
 
     async def async_validate(self, bot):
-        log.debug("Validating permissions...")
+        log.debug("権限の検証中...")
 
         og = discord.utils.get(self.groups, name="Owner (auto)")
         if 'auto' in og.user_list:
-            log.debug("Fixing automatic owner group")
+            log.debug("自動所有者グループの修正")
             og.user_list = {bot.config.owner_id}
 
     def save(self):
@@ -69,8 +69,8 @@ class Permissions:
 
     def for_user(self, user):
         """
-        Returns the first PermissionGroup a user belongs to
-        :param user: A discord User or Member object
+        ユーザーが属している最初のPermissionGroupを返します。
+        ：param user：不一致ユーザーまたはメンバーオブジェクト
         """
 
         for group in self.groups:

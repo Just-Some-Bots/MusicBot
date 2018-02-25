@@ -1,6 +1,6 @@
-Please make sure these boxes are checked (put an 'x' inside them) **before** creating the issue.
+問題を作成する前に、これらのボックスがチェックされていることを確認してください (内部に`x`を入れてください)。
 
-- [ ] I am using Python 3.5 or higher (run `python --version` on the command line)
+- [ ] 私は python を使用しています3.5 以上 (run`python -version`コマンドラインで)
 - [ ] I have followed the [official guides](https://github.com/Just-Some-Bots/MusicBot/wiki) to install the bot for my system
 - [ ] I have updated my dependencies to the latest version using the appropriate `update_dependencies` script
 - [ ] I am running version 1.9.6_3 of MusicBot
