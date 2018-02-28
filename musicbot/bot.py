@@ -1933,11 +1933,8 @@ class MusicBot(discord.Client):
             percentage = 0.0
             if player.current_entry.duration > 0:
                 percentage = player.progress / player.current_entry.duration
-            """
-            This for loop adds  empty or full squares to prog_bar_str (it could look like
-            ■■■■■■■■■■□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□
-            if for example the song has already played 25% of the songs duration
-            """
+
+            # create the actual bar
             progress_bar_length = 30
             for i in range(progress_bar_length):
                 if (percentage < 1 / progress_bar_length * i):
