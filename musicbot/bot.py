@@ -2593,7 +2593,8 @@ class MusicBot(discord.Client):
         return Response("Disconnected from `{0.name}`".format(server), delete_after=20)
 
     async def cmd_restart(self, channel):
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
+            "or its dependencies, you need to restart the bot properly, rather than using this command.")
         
         player = self.get_player_in(channel.server)
         if player and player.is_paused:
