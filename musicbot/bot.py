@@ -698,7 +698,7 @@ class MusicBot(discord.Client):
                         # Probably an error from a different extractor, but I've only seen youtube's
                         log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
 
-                    await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=True)
+                    await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=self.config.remove_ap)
                     continue
 
                 except Exception as e:
@@ -1935,11 +1935,8 @@ class MusicBot(discord.Client):
             percentage = 0.0
             if player.current_entry.duration > 0:
                 percentage = player.progress / player.current_entry.duration
-            """
-            This for loop adds  empty or full squares to prog_bar_str (it could look like
-            ■■■■■■■■■■□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□
-            if for example the song has already played 25% of the songs duration
-            """
+
+            # create the actual bar
             progress_bar_length = 30
             for i in range(progress_bar_length):
                 if (percentage < 1 / progress_bar_length * i):
@@ -2604,12 +2601,13 @@ class MusicBot(discord.Client):
         return Response("Disconnected from `{0.name}`".format(server), delete_after=20)
 
     async def cmd_restart(self, channel):
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
+        await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
+            "or its dependencies, you need to restart the bot properly, rather than using this command.")
+
         player = self.get_player_in(channel.server)
         if player and player.is_paused:
             player.resume()
-        
+
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
