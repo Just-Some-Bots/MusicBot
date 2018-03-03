@@ -65,6 +65,7 @@ class Config:
         self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
         self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
         self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
+        self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -305,6 +306,7 @@ class ConfigDefaults:
     use_experimental_equalization = False
     embeds = True
     queue_length = 10
+    remove_ap = True
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
