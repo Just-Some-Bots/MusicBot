@@ -1206,6 +1206,12 @@ class MusicBot(discord.Client):
 
         await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
 
+        # we do this after the config stuff because it's a lot easier to notice here
+        if self.config.missing_keys:
+            log.warning('Your config file is missing some options. If you have recently updated, '
+                        'check the example_options.ini file to see if there are new options available to you. '
+                        'The options missing are: {0}'.format(self.config.missing_keys))
+
         # t-t-th-th-that's all folks!
 
     def _gen_embed(self):
