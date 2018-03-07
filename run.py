@@ -348,7 +348,6 @@ def main():
             m = MusicBot()
 
             sh.terminator = ''
-            log.info("Connecting")
             sh.terminator = '\n'
 
             m.run()

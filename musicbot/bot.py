@@ -54,6 +54,8 @@ class MusicBot(discord.Client):
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
             pass
+        
+        print()
 
         if config_file is None:
             config_file = ConfigDefaults.options_file
@@ -79,7 +81,7 @@ class MusicBot(discord.Client):
 
         self._setup_logging()
 
-        log.info(' MusicBot (version {}) '.format(BOTVERSION).center(50, '='))
+        log.info('Starting MusicBot {}'.format(BOTVERSION))
 
         if not self.autoplaylist:
             log.warning("Autoplaylist is empty, disabling.")
@@ -1074,24 +1076,20 @@ class MusicBot(discord.Client):
             return
 
         await self._on_ready_sanity_checks()
-        print()
-
-        log.info('Connected to Discord!')
 
         self.init_ok = True
 
         ################################
 
-        log.info("Bot:   {0}/{1}#{2}{3}".format(
+        log.info("Connected: {0}/{1}#{2}".format(
             self.user.id,
             self.user.name,
-            self.user.discriminator,
-            ' [BOT]' if self.user.bot else ' [Userbot]'
+            self.user.discriminator
         ))
 
         owner = self._get_owner(voice=True) or self._get_owner()
         if owner and self.servers:
-            log.info("Owner: {0}/{1}#{2}\n".format(
+            log.info("Owner:     {0}/{1}#{2}\n".format(
                 owner.id,
                 owner.name,
                 owner.discriminator
@@ -1174,29 +1172,31 @@ class MusicBot(discord.Client):
         else:
             log.info("Not autojoining any voice channels")
             autojoin_channels = set()
+        
+        if self.config.show_config_at_start:
+            print(flush=True)
+            log.info("Options:")
 
-        print(flush=True)
-        log.info("Options:")
+            log.info("  Command prefix: " + self.config.command_prefix)
+            log.info("  Default volume: {}%".format(int(self.config.default_volume * 100)))
+            log.info("  Skip threshold: {} votes or {}%".format(
+                self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
+            log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
+            log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
+            log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_random] + ")")
+            log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
+            log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
+            if self.config.delete_messages:
+                log.info("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
+            log.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
+            log.info("  Downloaded songs will be " + ['deleted', 'saved'][self.config.save_videos])
+            if self.config.status_message:
+                log.info("  Status message: " + self.config.status_message)
+            log.info("  Write current songs to file: " + ['Disabled', 'Enabled'][self.config.write_current_song])
+            log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
+            log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
+            log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
 
-        log.info("  Command prefix: " + self.config.command_prefix)
-        log.info("  Default volume: {}%".format(int(self.config.default_volume * 100)))
-        log.info("  Skip threshold: {} votes or {}%".format(
-            self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
-        log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
-        log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-        log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_random] + ")")
-        log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
-        log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
-        if self.config.delete_messages:
-            log.info("    Delete Invoking: " + ['Disabled', 'Enabled'][self.config.delete_invoking])
-        log.info("  Debug Mode: " + ['Disabled', 'Enabled'][self.config.debug_mode])
-        log.info("  Downloaded songs will be " + ['deleted', 'saved'][self.config.save_videos])
-        if self.config.status_message:
-            log.info("  Status message: " + self.config.status_message)
-        log.info("  Write current songs to file: " + ['Disabled', 'Enabled'][self.config.write_current_song])
-        log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
-        log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
-        log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
         print(flush=True)
 
         await self.update_now_playing_status()
@@ -1211,6 +1211,7 @@ class MusicBot(discord.Client):
             log.warning('Your config file is missing some options. If you have recently updated, '
                         'check the example_options.ini file to see if there are new options available to you. '
                         'The options missing are: {0}'.format(self.config.missing_keys))
+            print(flush=True)
 
         # t-t-th-th-that's all folks!
 
