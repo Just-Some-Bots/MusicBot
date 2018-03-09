@@ -66,6 +66,7 @@ class Config:
         self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
         self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
         self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
+        self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -78,8 +79,30 @@ class Config:
 
         self.run_checks()
 
+        self.missing_keys = set()
+        self.check_changes(config)
+
         self.find_autoplaylist()
 
+    def get_all_keys(self, conf):
+        """Returns all config keys as a list"""
+        sects = dict(conf.items())
+        keys = []
+        for k in sects:
+            s = sects[k]
+            keys += [key for key in s.keys()]
+        return keys
+
+    def check_changes(self, conf):
+        exfile = 'config/example_options.ini'
+        if os.path.isfile(exfile):
+            usr_keys = self.get_all_keys(conf)
+            exconf = configparser.ConfigParser(interpolation=None)
+            if not exconf.read(exfile, encoding='utf-8'):
+                return
+            ex_keys = self.get_all_keys(exconf)
+            if set(usr_keys) != set(ex_keys):
+                self.missing_keys = set(ex_keys) - set(usr_keys)  # to raise this as an issue in bot.py later
 
     def run_checks(self):
         """
@@ -307,6 +330,7 @@ class ConfigDefaults:
     embeds = True
     queue_length = 10
     remove_ap = True
+    show_config_at_start = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
