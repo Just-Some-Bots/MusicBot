@@ -25,9 +25,9 @@ This is a list of the **commands** that can be used to control the MusicBot. You
 - <span class="label label-warning" title="This command will be removed in a future update. See the FAQ for how to obtain IDs using Discord">deprecated</span> **`!id [@user]`** - Prints the user's ID in the chat, or prints the ID of the specified user. User must be @mentioned if not yourself.
 - <span class="label label-warning" title="This command will be removed in a future update. See the FAQ for how to obtain IDs using Discord">deprecated</span> **`!listids`** - Sends a message to the user with a list of all of the IDs on the server, so that permissions and such can be configured.
 - **`!perms`** - Sends a message to the user with their bot permissions.
-- <span class="label label-primary" title="Added in 1.9.6">new</span> **`!stream <url>`** - Streams a URL. This can be a Twitch, YouTube, etc livestream, or a radio stream. This feature of the bot is experimental and may have some issues.
-- <span class="label label-primary" title="Added in 1.9.6_1">new</span> **`!save`** - Saves the current song to the autoplaylist.
-- <span class="label label-dark" title="Added in a future update">upcoming</span> - **`!karaoke`** - Enables karaoke mode in a server. During karaoke mode, only users with the `BypassKaraokeMode` permission can queue music.
+- **`!stream <url>`** - Streams a URL. This can be a Twitch, YouTube, etc livestream, or a radio stream. This feature of the bot is experimental and may have some issues.
+- **`!save`** - Saves the current song to the autoplaylist.
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`!karaoke`** - Enables karaoke mode in a server. During karaoke mode, only users with the `BypassKaraokeMode` permission can queue music.
 
 #### Admin
 
@@ -39,8 +39,8 @@ This is a list of the **commands** that can be used to control the MusicBot. You
 - **`!disconnect`** - Disconnects the bot from the voice channel.
 - **`!restart`** - Restarts the bot.
 - **`!shutdown`** - Shuts down the bot and terminates the process.
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`!option <option> <y/n>`** - Changes a config option without restarting the bot for the current session. Run `!help option` for info.
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`!remove <number>`** - Removes a song from the queue by its numbered position. Use `!queue` to find out song positions.
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`!option <option> <y/n>`** - Changes a config option without restarting the bot for the current session. Run `!help option` for info.
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`!remove <number>`** - Removes a song from the queue by its numbered position. Use `!queue` to find out song positions.
 
 #### Dev
 

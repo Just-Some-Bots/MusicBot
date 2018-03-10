@@ -17,8 +17,8 @@ Editing your configuration file using Notepad or WordPad will result in problems
 After creating a bot account, you should probably add your bot to a server by clicking the 'Generate OAuth2 URL' button on the application page and copying the URL in the box to your address bar and pressing enter. You can then select what server you wish to add it to.
 {: .info }
 
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`Spotify_ClientID`** - The client ID for your Spotify application. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`Spotify_ClientSecret`** - The client secret for your Spotify applicaton. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`Spotify_ClientID`** - The client ID for your Spotify application. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`Spotify_ClientSecret`** - The client secret for your Spotify applicaton. Required for the bot's [Spotify integration](#how-do-i-enable-spotify-integration).
 
 #### Permissions
 
@@ -26,7 +26,7 @@ This section is about the config options in options.ini. For help with the actua
 {: .info }
 
 - **`OwnerID`** - The ID of your Discord user, who will gain full permissions for the bot. If this is set to `auto`, the bot will automatically determine its owner from who created the bot account
-- <span class="label label-primary" title="Added in 1.9.6">new</span> **`DevIDs`** - The IDs of every Discord user that you would like to gain developer commands. These commands are dangerous and allow execution of arbitrary code. If you don't know what you're doing, don't add any IDs here
+- **`DevIDs`** - The IDs of every Discord user that you would like to gain developer commands. These commands are dangerous and allow execution of arbitrary code. If you don't know what you're doing, don't add any IDs here
 
 #### Chat
 
@@ -43,13 +43,20 @@ This section is about the config options in options.ini. For help with the actua
 - **`NowPlayingMentions`** - Whether to mention the user that requested a song when their song starts playing
 - **`AutoSummon`** - Whether the bot should automatically connect to the owner's voice channel on startup. This takes precendence over `AutojoinChannels`
 - **`UseAutoPlaylist`** - Whether to play music from `autoplaylist.txt` when joining a voice channel and when nothing is queued
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`AutoPlaylistRandom`** - Whether the autoplaylist should play music randomly or sequentially when it is enabled
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`AutoPlaylistRandom`** - Whether the autoplaylist should play music randomly or sequentially when it is enabled
 - **`AutoPause`** - Whether the bot should pause if nobody is in the voice channel
 - **`DeleteMessages`** - Whether the bot should delete its messages after a short period of time
 - **`DeleteInvoking`** - Whether the bot should delete user command messages after a short period of time. `DeleteMessages` must be enabled for this to work too
 - **`PersistentQueue`** - Whether the bot should save the queue to the disk regularly so it can recover if it is unexpectedly shutdown
 - **`DebugLevel`** - Determines what messages are logged. This is generally not needed to be changed unless you are asked to do so when receiving support
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`StatusMessage`** - Allows users to specify a custom "Playing" status message for the bot, rather than the dynamic ones the bot provides
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`WriteCurrentSong`** - Whether the bot should write the current song to a text file on the disk, which can then be used in OBS or other software
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`AllowAuthorSkip`** - Whether the person who queues a song should be allowed to instantly skip it if they use `!skip`
-- <span class="label label-dark" title="Added in a future update">upcoming</span> **`UseExperimentalEqualization`** - Whether the bot should try to equalize tracks to ensure they play at a consistent volume
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`StatusMessage`** - Allows users to specify a custom "Playing" status message for the bot, rather than the dynamic ones the bot provides
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`WriteCurrentSong`** - Whether the bot should write the current song to a text file on the disk, which can then be used in OBS or other software
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`AllowAuthorSkip`** - Whether the person who queues a song should be allowed to instantly skip it if they use `!skip`
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`UseExperimentalEqualization`** - Whether the bot should try to equalize tracks to ensure they play at a consistent volume
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`UseEmbeds`** - Whether the bot should use Discord embeds when sending messages
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`QueueLength`** - How many songs should appear in the `queue` command
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`RemoveFromAPOnError`** - Whether the bot should remove songs from the autoplaylist if there is an error
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`ShowConfigOnLaunch`** - Whether the bot should print the configuration options when it starts
+
+#### Files
+- <span class="label label-primary" title="Added in 1.9.7">new</span> **`i18nFile`** - The internationalization file to use for the bot (relative path, e.g `i18n/en.json`)
