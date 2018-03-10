@@ -37,6 +37,9 @@ class Config:
 
         self.auth = ()
 
+        self.spotify_clientid = config.get('Credentials', 'Spotify_ClientID', fallback=ConfigDefaults.spotify_clientid)
+        self.spotify_clientsecret = config.get('Credentials', 'Spotify_ClientSecret', fallback=ConfigDefaults.spotify_clientsecret)
+
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
 
@@ -51,11 +54,19 @@ class Config:
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
+        self.auto_playlist_random = config.getboolean('MusicBot', 'AutoPlaylistRandom', fallback=ConfigDefaults.auto_playlist_random)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
-        self.delete_messages  = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
+        self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
         self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
+        self.write_current_song = config.getboolean('MusicBot', 'WriteCurrentSong', fallback=ConfigDefaults.write_current_song)
+        self.allow_author_skip = config.getboolean('MusicBot', 'AllowAuthorSkip', fallback=ConfigDefaults.allow_author_skip)
+        self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
+        self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
+        self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
+        self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
+        self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -63,24 +74,59 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+        self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
 
         self.run_checks()
 
+        self.missing_keys = set()
+        self.check_changes(config)
+
         self.find_autoplaylist()
 
+    def get_all_keys(self, conf):
+        """Returns all config keys as a list"""
+        sects = dict(conf.items())
+        keys = []
+        for k in sects:
+            s = sects[k]
+            keys += [key for key in s.keys()]
+        return keys
+
+    def check_changes(self, conf):
+        exfile = 'config/example_options.ini'
+        if os.path.isfile(exfile):
+            usr_keys = self.get_all_keys(conf)
+            exconf = configparser.ConfigParser(interpolation=None)
+            if not exconf.read(exfile, encoding='utf-8'):
+                return
+            ex_keys = self.get_all_keys(exconf)
+            if set(usr_keys) != set(ex_keys):
+                self.missing_keys = set(ex_keys) - set(usr_keys)  # to raise this as an issue in bot.py later
 
     def run_checks(self):
         """
         Validation logic for bot settings.
         """
+        if self.i18n_file != ConfigDefaults.i18n_file and not os.path.isfile(self.i18n_file):
+            log.warning('i18n file does not exist. Trying to fallback to {0}.'.format(ConfigDefaults.i18n_file))
+            self.i18n_file = ConfigDefaults.i18n_file
+
+        if not os.path.isfile(self.i18n_file):
+            raise HelpfulError(
+                "Your i18n file was not found, and we could not fallback.",
+                "As a result, the bot cannot launch. Have you moved some files? "
+                "Try pulling the recent changes from Git, or resetting your local repo.",
+                preface=self._confpreface
+            )
+
+        log.info('Using i18n: {0}'.format(self.i18n_file))
 
         if not self._login_token:
             raise HelpfulError(
-                "No login credentials were specified in the config.",
-
-                "Please fill in either the Email and Password fields, or "
-                "the Token field.  The Token field is for Bot accounts only.",
+                "No bot token was specified in the config.",
+                "As of v1.9.6_1, you are required to use a Discord bot account. "
+                "See https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ for info.",
                 preface=self._confpreface
             )
 
@@ -95,8 +141,8 @@ class Config:
                     raise HelpfulError(
                         "An invalid OwnerID was set: {}".format(self.owner_id),
 
-                        "Correct your OwnerID.  The ID should be just a number, approximately "
-                        "18 characters long.  If you don't know what your ID is, read the "
+                        "Correct your OwnerID. The ID should be just a number, approximately "
+                        "18 characters long, or 'auto'. If you don't know what your ID is, read the "
                         "instructions in the options or ask in the help server.",
                         preface=self._confpreface
                     )
@@ -128,6 +174,10 @@ class Config:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
 
+        self._spotify = False
+        if self.spotify_clientid and self.spotify_clientsecret:
+            self._spotify = True
+
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
         self.bound_channels = set(item.replace(',', ' ').strip() for item in self.bound_channels)
@@ -147,6 +197,13 @@ class Config:
 
         self.debug_mode = self.debug_level <= logging.DEBUG
 
+        self.create_empty_file_ifnoexist('config/blacklist.txt')
+        self.create_empty_file_ifnoexist('config/whitelist.txt')
+
+    def create_empty_file_ifnoexist(self, path):
+        if not os.path.isfile(path):
+            open(path, 'a').close()
+            log.warning('Creating %s' % path)
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
@@ -172,10 +229,10 @@ class Config:
             raise HelpfulError(
                 "Your OwnerID is incorrect or you've used the wrong credentials.",
 
-                "The bot's user ID and the id for OwnerID is identical.  "
-                "This is wrong.  The bot needs its own account to function, "
-                "meaning you cannot use your own account to run the bot on.  "
-                "The OwnerID is the id of the owner, not the bot.  "
+                "The bot's user ID and the id for OwnerID is identical. "
+                "This is wrong. The bot needs a bot account to function, "
+                "meaning you cannot use your own account to run the bot on. "
+                "The OwnerID is the id of the owner, not the bot. "
                 "Figure out which one is which and use the correct information.",
 
                 preface=self._confpreface2
@@ -198,9 +255,9 @@ class Config:
 
             else:
                 raise HelpfulError(
-                    "Your config files are missing.  Neither options.ini nor example_options.ini were found.",
+                    "Your config files are missing. Neither options.ini nor example_options.ini were found.",
                     "Grab the files back from the archive or remake them yourself and copy paste the content "
-                    "from the repo.  Stop removing important files!"
+                    "from the repo. Stop removing important files!"
                 )
 
         if not config.read(self.config_file, encoding='utf-8'):
@@ -216,10 +273,10 @@ class Config:
 
             except ValueError: # Config id value was changed but its not valid
                 raise HelpfulError(
-                    'Invalid value "{}" for OwnerID, config cannot be loaded.'.format(
+                    'Invalid value "{}" for OwnerID, config cannot be loaded. '.format(
                         c.get('Permissions', 'OwnerID', fallback=None)
                     ),
-                    "The OwnerID option takes a user id, fuck it i'll finish this message later."
+                    "The OwnerID option requires a user ID or 'auto'."
                 )
 
             except Exception as e:
@@ -246,6 +303,9 @@ class ConfigDefaults:
     token = None
     dev_ids = set()
 
+    spotify_clientid = None
+    spotify_clientsecret = None
+
     command_prefix = '!'
     bound_channels = set()
     autojoin_channels = set()
@@ -257,16 +317,25 @@ class ConfigDefaults:
     now_playing_mentions = False
     auto_summon = True
     auto_playlist = True
+    auto_playlist_random = True
     auto_pause = True
     delete_messages = True
     delete_invoking = False
     persistent_queue = True
     debug_level = 'INFO'
     status_message = None
+    write_current_song = False
+    allow_author_skip = True
+    use_experimental_equalization = False
+    embeds = True
+    queue_length = 10
+    remove_ap = True
+    show_config_at_start = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-    auto_playlist_file = 'config/autoplaylist.txt' # this will change when I add playlists
+    auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
+    i18n_file = 'config/i18n/en.json'
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)

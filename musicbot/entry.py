@@ -51,6 +51,7 @@ class BasePlaylistEntry(Serializable):
             asyncio.ensure_future(self._download())
             self._waiting_futures.append(future)
 
+        log.debug('Created future for {0}'.format(self.filename))
         return future
 
     def _for_each_future(self, cb):
@@ -118,7 +119,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             url = data['url']
             title = data['title']
             duration = data['duration']
-            downloaded = data['downloaded']
+            downloaded = data['downloaded'] if playlist.bot.config.save_videos else False
             filename = data['filename'] if downloaded else None
             expected_filename = data['expected_filename']
             meta = {}
