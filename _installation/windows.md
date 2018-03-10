@@ -17,4 +17,4 @@ MusicBot can be installed on Windows 7, 8, and 10 too, though it requires instal
 If you do not clone the bot using Git, and instead download the ZIP file from GitHub and attempt to run it, you will receive an error.
 {: .warning }
 
-After doing that, a folder called `MusicBot` will appear in the folder you opened Git Bash in. [Configure](#guidesconfiguration) your bot, then run `update_dependencies.bat` to update your dependencies, then `runbot.bat` to start the MusicBot.
+After doing that, a folder called `MusicBot` will appear in the folder you opened Git Bash in. [Configure](#guidesconfiguration) your bot, then run `update.bat` to update your dependencies, then `run.bat` to start the MusicBot.

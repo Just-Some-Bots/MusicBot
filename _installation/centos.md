@@ -60,4 +60,4 @@ sudo python3.5 -m pip install -U -r requirements.txt
 ~~~
 {: title="CentOS 7.4" }
 
-Once everything has been completed, you can go ahead and [configure](#guidesconfiguration) the bot and then run with `sudo ./runbot_linux_mac.sh`. If you want to keep it running without a terminal being required, install screen with `sudo yum -y install screen` or use [PM2](http://pm2.keymetrics.io/docs/usage/quick-start/) with the `--interpreter=python3.5` start argument.
+Once everything has been completed, you can go ahead and [configure](#guidesconfiguration) the bot and then run with `sudo ./run.sh`. If you want to keep it running without a terminal being required, install screen with `sudo yum -y install screen` or use [PM2](http://pm2.keymetrics.io/docs/usage/quick-start/) with the `--interpreter=python3.5` start argument.

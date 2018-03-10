@@ -30,4 +30,4 @@ python3 -m pip install -U pip
 python3 -m pip install -U -r requirements.txt
 ```
 
-After this, you can find a folder called `MusicBot` on your Desktop. You can then open it, [configure](#guidesconfiguration) your bot, and then run the bot by double-clicking the `runbot_osx.command` file. If you can't run this, you may have to open Terminal, cd to the folder, and use `chmod +x runbot_osx.command` to give the file executable permissions.
+After this, you can find a folder called `MusicBot` on your Desktop. You can then open it, [configure](#guidesconfiguration) your bot, and then run the bot by double-clicking the `run.sh` file. If you can't run this, you may have to open Terminal, cd to the folder, and use `chmod +x run.sh` to give the file executable permissions.

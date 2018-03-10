@@ -55,4 +55,4 @@ sudo python3 -m pip install -U -r requirements.txt
 ~~~
 {: title="Ubuntu 16.04" }
 
-After doing those commands, you can [configure](#guidesconfiguration) the bot and then run it using `sudo ./runbot_linux_mac.sh`. To keep the bot online, you should run this in a screen session, or use [PM2](http://pm2.keymetrics.io/docs/usage/quick-start/) with the `--interpreter=python3` (or `python3.5`, depending on your system) argument.
+After doing those commands, you can [configure](#guidesconfiguration) the bot and then run it using `sudo ./run.sh`. To keep the bot online, you should run this in a screen session, or use [PM2](http://pm2.keymetrics.io/docs/usage/quick-start/) with the `--interpreter=python3` (or `python3.5`, depending on your system) argument.
