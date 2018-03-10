@@ -25,7 +25,7 @@ def main():
     print("Passed Git checks...")
 
     # Check that the current working directory is clean
-    sp = subprocess.check_output('git status --porcelain', shell=True, encoding='utf-8', universal_newlines=True)
+    sp = subprocess.check_output('git status --porcelain', shell=True, universal_newlines=True)
     if sp:
         oshit = y_n('You have modified files that are tracked by Git (e.g the bot\'s source files).\n'
                     'We can try to reset your folder to a clean version for you. Continue?')
