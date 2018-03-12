@@ -2313,8 +2313,8 @@ class MusicBot(discord.Client):
         """
 
         value = value.lower()
-        bool_y = ['on', 'y', 'enabled']
-        bool_n = ['off', 'n', 'disabled']
+        bool_y = ['on', 'y', 'enabled', 'start']
+        bool_n = ['off', 'n', 'disabled', 'stop']
         
         if value in bool_y:
             if self.config.auto_playlist:
