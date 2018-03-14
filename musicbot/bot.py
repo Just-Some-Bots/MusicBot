@@ -161,7 +161,7 @@ class MusicBot(discord.Client):
 
     def _get_owner(self, *, server=None, voice=False):
             return discord.utils.find(
-                lambda m: m.id == self.config.owner_id and (m.voice_channel if voice else True),
+                lambda m: m.id == self.config.owner_id and (m.voice if voice else True),
                 server.members if server else self.get_all_members()
             )
 
@@ -229,7 +229,7 @@ class MusicBot(discord.Client):
             dlogger.addHandler(dhandler)
 
     @staticmethod
-    def _check_if_empty(vchannel: discord.Channel, *, excluding_me=True, excluding_deaf=False):
+    def _check_if_empty(vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False):
         def check(member):
             if excluding_me and member == vchannel.guild.me:
                 return False
@@ -257,22 +257,22 @@ class MusicBot(discord.Client):
             if guild.unavailable or guild in channel_map:
                 continue
 
-            if guild.me.voice_channel:
-                log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.me.voice_channel))
-                channel_map[guild] = guild.me.voice_channel
+            if guild.me.voice:
+                log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.me.voice.channel))
+                channel_map[guild] = guild.me.voice.channel
 
             if autosummon:
                 owner = self._get_owner(server=guild, voice=True)
                 if owner:
-                    log.info("Found owner in \"{}\"".format(owner.voice_channel.name))
-                    channel_map[guild] = owner.voice_channel
+                    log.info("Found owner in \"{}\"".format(owner.voice.channel.name))
+                    channel_map[guild] = owner.voice.channel
 
         for guild, channel in channel_map.items():
             if guild in joined_servers:
                 log.info("Already joined a channel in \"{}\", skipping".format(guild.name))
                 continue
 
-            if channel and channel.type == discord.ChannelType.voice:
+            if channel and isinstance(channel, discord.VoiceChannel):
                 log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
 
                 chperms = channel.permissions_for(guild.me)
@@ -320,10 +320,10 @@ class MusicBot(discord.Client):
             await self.safe_delete_message(message, quiet=quiet)
 
     async def _check_ignore_non_voice(self, msg):
-        vc = msg.guild.me.voice_channel
+        vc = msg.guild.me.voice.channel
 
         # If we've connected to a voice chat and we're in the same voice channel
-        if not vc or vc == msg.author.voice_channel:
+        if not vc or vc == msg.author.voice.channel:
             return True
         else:
             raise exceptions.PermissionsError(
@@ -365,123 +365,23 @@ class MusicBot(discord.Client):
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), server=None):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
 
-
-    async def join_voice_channel(self, channel):
+    async def get_voice_client(self, channel: discord.abc.GuildChannel):
         if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
 
-        if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
-            raise discord.InvalidArgument('Channel passed must be a voice channel')
-
-        guild = channel.guild
-
-        if self.is_voice_connected(guild):
-            raise discord.ClientException('Already connected to a voice channel in this guild')
-
-        def session_id_found(data):
-            user_id = data.get('user_id')
-            guild_id = data.get('guild_id')
-            return user_id == self.user.id and guild_id == guild.id
-
-        log.voicedebug("(%s) creating futures", _func_())
-        # register the futures for waiting
-        session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
-        voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == guild.id)
-
-        # "join" the voice channel
-        log.voicedebug("(%s) setting voice state", _func_())
-        await self.ws.voice_state(guild.id, channel.id)
-
-        log.voicedebug("(%s) waiting for session id", _func_())
-        session_id_data = await asyncio.wait_for(session_id_future, timeout=15, loop=self.loop)
-
-        # sometimes it gets stuck on this step.  Jake said to wait indefinitely.  To hell with that.
-        log.voicedebug("(%s) waiting for voice data", _func_())
-        data = await asyncio.wait_for(voice_data_future, timeout=15, loop=self.loop)
-
-        kwargs = {
-            'user': self.user,
-            'channel': channel,
-            'data': data,
-            'loop': self.loop,
-            'session_id': session_id_data.get('session_id'),
-            'main_ws': self.ws
-        }
-
-        voice = discord.VoiceClient(**kwargs)
-        try:
-            log.voicedebug("(%s) connecting...", _func_())
-            with aiohttp.Timeout(15):
-                await voice.connect()
-
-        except asyncio.TimeoutError as e:
-            log.voicedebug("(%s) connection failed, disconnecting", _func_())
-            try:
-                await voice.disconnect()
-            except:
-                pass
-            raise e
-
-        log.voicedebug("(%s) connection successful", _func_())
-
-        self.connection._add_voice_client(guild.id, voice)
-        return voice
-
-
-    async def get_voice_client(self, channel: discord.Channel):
-        if isinstance(channel, discord.Object):
-            channel = self.get_channel(channel.id)
-
-        if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
+        if not isinstance(channel, discord.VoiceChannel):
             raise AttributeError('Channel passed must be a voice channel')
 
-        async with self.aiolocks[_func_() + ':' + channel.guild.id]:
-            if self.is_voice_connected(channel.guild):
-                return self.voice_client_in(channel.guild)
-
-            vc = None
-            t0 = t1 = 0
-            tries = 5
-
-            for attempt in range(1, tries+1):
-                log.debug("Connection attempt {} to {}".format(attempt, channel.name))
-                t0 = time.time()
-
-                try:
-                    vc = await self.join_voice_channel(channel)
-                    t1 = time.time()
-                    break
-
-                except asyncio.TimeoutError:
-                    log.warning("Failed to connect, retrying ({}/{})".format(attempt, tries))
-
-                    # TODO: figure out if I need this or not
-                    # try:
-                    #     await self.ws.voice_state(channel.guild.id, None)
-                    # except:
-                    #     pass
-
-                except:
-                    log.exception("Unknown error attempting to connect to voice")
-
-                await asyncio.sleep(0.5)
-
-            if not vc:
-                log.critical("Voice client is unable to connect, restarting...")
-                await self.restart()
-
-            log.debug("Connected in {:0.1f}s".format(t1-t0))
-            log.info("Connected to {}/{}".format(channel.guild, channel))
-
-            vc.ws._keep_alive.name = 'VoiceClient Keepalive'
-
-            return vc
+        if channel.guild.voice_client:
+            return channel.guild.voice_client
+        else:
+            return await channel.connect(timeout=60, reconnect=True)
 
     async def reconnect_voice_client(self, guild, *, sleep=0.1, channel=None):
         log.debug("Reconnecting voice client on \"{}\"{}".format(
             guild, ' to "{}"'.format(channel.name) if channel else ''))
 
-        async with self.aiolocks[_func_() + ':' + guild.id]:
+        async with self.aiolocks[_func_() + ':' + str(guild.id)]:
             vc = self.voice_client_in(guild)
 
             if not (vc or channel):
@@ -556,7 +456,7 @@ class MusicBot(discord.Client):
     async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
         guild = channel.guild
 
-        async with self.aiolocks[_func_() + ':' + guild.id]:
+        async with self.aiolocks[_func_() + ':' + str(guild.id)]:
             if deserialize:
                 voice_client = await self.get_voice_client(channel)
                 player = await self.deserialize_queue(guild, voice_client)
@@ -578,7 +478,7 @@ class MusicBot(discord.Client):
                 player = MusicPlayer(self, voice_client, playlist)
                 self._init_player(player, guild=guild)
 
-            async with self.aiolocks[self.reconnect_voice_client.__name__ + ':' + guild.id]:
+            async with self.aiolocks[self.reconnect_voice_client.__name__ + ':' + str(guild.id)]:
                 if self.players[guild.id].voice_client not in self.voice_clients:
                     log.debug("Reconnect required for voice client in {}".format(guild.name))
                     await self.reconnect_voice_client(guild, channel=channel)
@@ -816,7 +716,7 @@ class MusicBot(discord.Client):
         if dir is None:
             dir = 'data/%s/queue.json' % guild.id
 
-        async with self.aiolocks['queue_serialization'+':'+guild.id]:
+        async with self.aiolocks['queue_serialization' + ':' + str(guild.id)]:
             log.debug("Serializing queue for %s", guild.id)
 
             with open(dir, 'w', encoding='utf8') as f:
@@ -837,7 +737,7 @@ class MusicBot(discord.Client):
         if dir is None:
             dir = 'data/%s/queue.json' % guild.id
 
-        async with self.aiolocks['queue_serialization' + ':' + guild.id]:
+        async with self.aiolocks['queue_serialization' + ':' + str(guild.id)]:
             if not os.path.isfile(dir):
                 return None
 
@@ -859,7 +759,7 @@ class MusicBot(discord.Client):
         if dir is None:
             dir = 'data/%s/current.txt' % guild.id
 
-        async with self.aiolocks['current_song'+':'+guild.id]:
+        async with self.aiolocks['current_song' + ':' + str(guild.id)]:
             log.debug("Writing current song for %s", guild.id)
 
             with open(dir, 'w', encoding='utf8') as f:
@@ -1986,34 +1886,34 @@ class MusicBot(discord.Client):
         Call the bot to the summoner's voice channel.
         """
 
-        if not author.voice_channel:
+        if not author.voice.channel:
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not in a voice channel!'))
 
         voice_client = self.voice_client_in(guild)
-        if voice_client and guild == author.voice_channel.guild:
-            await voice_client.move_to(author.voice_channel)
+        if voice_client and guild == author.voice.channel.guild:
+            await voice_client.move_to(author.voice.channel)
             return
 
         # move to _verify_vc_perms?
-        chperms = author.voice_channel.permissions_for(guild.me)
+        chperms = author.voice.channel.permissions_for(guild.me)
 
         if not chperms.connect:
-            log.warning("Cannot join channel '{0}', no permission.".format(author.voice_channel.name))
+            log.warning("Cannot join channel '{0}', no permission.".format(author.voice.channel.name))
             raise exceptions.CommandError(
-                self.str.get('cmd-summon-noperms-connect', "Cannot join channel `{0}`, no permission to connect.").format(author.voice_channel.name),
+                self.str.get('cmd-summon-noperms-connect', "Cannot join channel `{0}`, no permission to connect.").format(author.voice.channel.name),
                 expire_in=25
             )
 
         elif not chperms.speak:
-            log.warning("Cannot join channel '{0}', no permission to speak.".format(author.voice_channel.name))
+            log.warning("Cannot join channel '{0}', no permission to speak.".format(author.voice.channel.name))
             raise exceptions.CommandError(
-                self.str.get('cmd-summon-noperms-speak', "Cannot join channel `{0}`, no permission to speak.").format(author.voice_channel.name),
+                self.str.get('cmd-summon-noperms-speak', "Cannot join channel `{0}`, no permission to speak.").format(author.voice.channel.name),
                 expire_in=25
             )
 
-        log.info("Joining {0.guild.name}/{0.name}".format(author.voice_channel))
+        log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
 
-        player = await self.get_player(author.voice_channel, create=True, deserialize=self.config.persistent_queue)
+        player = await self.get_player(author.voice.channel, create=True, deserialize=self.config.persistent_queue)
 
         if player.is_stopped:
             player.play()
@@ -2021,7 +1921,7 @@ class MusicBot(discord.Client):
         if self.config.auto_playlist:
             await self.on_player_finished_playing(player)
 
-        return Response(self.str.get('cmd-summon-reply', 'Connected to `{0.name}`').format(author.voice_channel))
+        return Response(self.str.get('cmd-summon-reply', 'Connected to `{0.name}`').format(author.voice.channel))
 
     async def cmd_pause(self, player):
         """
@@ -2769,7 +2669,7 @@ class MusicBot(discord.Client):
                 handler_kwargs['channel_mentions'] = list(map(message.guild.get_channel, message.raw_channel_mentions))
 
             if params.pop('voice_channel', None):
-                handler_kwargs['voice_channel'] = message.guild.me.voice_channel
+                handler_kwargs['voice_channel'] = message.guild.me.voice.channel
 
             if params.pop('leftover_args', None):
                 handler_kwargs['leftover_args'] = args
@@ -2907,7 +2807,7 @@ class MusicBot(discord.Client):
                 else:
                     self.commands.append("{}{}".format(self.config.command_prefix, command_name))
 
-    async def on_voice_state_update(self, before, after):
+    async def on_voice_state_update(self, member, before, after):
         if not self.init_ok:
             return # Ignore stuff before ready
 

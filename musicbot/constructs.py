@@ -154,15 +154,15 @@ class VoiceStateUpdate:
 
     @property
     def me(self) -> discord.Member:
-        return self.after.server.me
+        return self.after.channel.guild.me
 
     @property
     def is_about_me(self):
         return self.after == self.me
 
     @property
-    def my_voice_channel(self) -> discord.Channel:
-        return self.me.voice_channel
+    def my_voice_channel(self) -> discord.abc.GuildChannel:
+        return self.me.voice.channel
 
     @property
     def is_about_my_voice_channel(self):
@@ -175,20 +175,20 @@ class VoiceStateUpdate:
         ))
 
     @property
-    def voice_channel(self) -> discord.Channel:
+    def voice_channel(self) -> discord.abc.GuildChannel:
         return self.new_voice_channel or self.old_voice_channel
 
     @property
-    def old_voice_channel(self) -> discord.Channel:
-        return self.before.voice_channel
+    def old_voice_channel(self) -> discord.abc.GuildChannel:
+        return self.before.channel
 
     @property
-    def new_voice_channel(self) -> discord.Channel:
-        return self.after.voice_channel
+    def new_voice_channel(self) -> discord.abc.GuildChannel:
+        return self.after.channel
 
     @property
-    def server(self) -> discord.Server:
-        return self.after.server or self.before.server
+    def guild(self) -> discord.Guild:
+        return self.after.channel.guild or self.before.channel.guild
 
     @property
     def member(self) -> discord.Member:
@@ -198,38 +198,38 @@ class VoiceStateUpdate:
     def joining(self):
         return all((
             self.my_voice_channel,
-            self.before.voice_channel != self.my_voice_channel,
-            self.after.voice_channel == self.my_voice_channel
+            self.before.channel != self.my_voice_channel,
+            self.after.channel == self.my_voice_channel
         ))
 
     @property
     def leaving(self):
         return all((
             self.my_voice_channel,
-            self.before.voice_channel == self.my_voice_channel,
-            self.after.voice_channel != self.my_voice_channel
+            self.before.channel == self.my_voice_channel,
+            self.after.channel != self.my_voice_channel
         ))
 
     @property
     def moving(self):
         return all((
             self.before.voice_channel,
-            self.after.voice_channel,
-            self.before.voice_channel != self.after.voice_channel,
+            self.after.channel,
+            self.before.channel != self.after.channel,
         ))
 
     @property
     def connecting(self):
         return all((
-            not self.before.voice_channel or self.resuming,
-            self.after.voice_channel
+            not self.before.channel or self.resuming,
+            self.after.channel
         ))
 
     @property
     def disconnecting(self):
         return all((
-            self.before.voice_channel,
-            not self.after.voice_channel
+            self.before.channel,
+            not self.after.channel
         ))
 
     @property
@@ -237,7 +237,7 @@ class VoiceStateUpdate:
         return all((
             not self.joining,
             self.is_about_me,
-            not self.server.voice_client,
+            not self.guild.voice_client,
             not self.raw_change
         ))
 
@@ -259,7 +259,7 @@ class VoiceStateUpdate:
 
     @property
     def raw_change(self) -> dict:
-        return objdiff(self.before.voice, self.after.voice, access_attr='__slots__')
+        return objdiff(self.before, self.after, access_attr='__slots__')
 
     @property
     def changes(self):

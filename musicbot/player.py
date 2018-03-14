@@ -362,7 +362,7 @@ class MusicPlayer(EventEmitter, Serializable):
         return player
 
     async def reload_voice(self, voice_client):
-        async with self.bot.aiolocks[_func_() + ':' + voice_client.channel.server.id]:
+        async with self.bot.aiolocks[_func_() + ':' + str(voice_client.channel.guild.id)]:
             self.voice_client = voice_client
             if self._current_player:
                 self._current_player.player = voice_client.play_audio
@@ -370,19 +370,19 @@ class MusicPlayer(EventEmitter, Serializable):
                 self._current_player._connected.set()
 
     async def websocket_check(self):
-        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.server))
+        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.guild))
 
         while not self.is_dead:
             try:
-                async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + self.voice_client.channel.server.id]:
+                async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + str(self.voice_client.channel.guild.id)]:
                     await self.voice_client.ws.ensure_open()
 
             except InvalidState:
                 log.debug("Voice websocket for \"{}\" is {}, reconnecting".format(
-                    self.voice_client.channel.server,
+                    self.voice_client.channel.guild,
                     self.voice_client.ws.state_name
                 ))
-                await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
+                await self.bot.reconnect_voice_client(self.voice_client.channel.guild, channel=self.voice_client.channel)
                 await asyncio.sleep(3)
 
             except Exception:
