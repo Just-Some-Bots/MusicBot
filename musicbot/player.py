@@ -181,10 +181,6 @@ class MusicPlayer(EventEmitter, Serializable):
     def _playback_finished(self):
         entry = self._current_entry
 
-        if self._current_player:
-            self._current_player.after = None
-            self._kill_current_player()
-
         self._current_entry = None
 
         if self._stderr_future.done() and self._stderr_future.exception():
@@ -208,11 +204,11 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def _kill_current_player(self):
         if self._current_player:
-            if self.is_paused:
-                self.resume()
+            if self.voice_client.is_paused():
+                self.voice_client.resume()
 
             try:
-                self._current_player.stop()
+                self.voice_client.stop()
             except OSError:
                 pass
             self._current_player = None

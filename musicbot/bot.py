@@ -527,7 +527,7 @@ class MusicBot(discord.Client):
             
             author_perms = self.permissions.for_user(author)
             
-            if author not in player.voice_client.channel.voice_members and author_perms.skip_when_absent:
+            if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
                 newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
                 player.skip()
@@ -669,7 +669,7 @@ class MusicBot(discord.Client):
 
         async with self.aiolocks[_func_()]:
             if game != self.last_status:
-                await self.change_presence(game=game)
+                await self.change_presence(activity=game)
                 self.last_status = game
 
     async def update_now_playing_message(self, guild, message, *, channel=None):
@@ -1111,6 +1111,9 @@ class MusicBot(discord.Client):
                         'check the example_options.ini file to see if there are new options available to you. '
                         'The options missing are: {0}'.format(self.config.missing_keys))
             print(flush=True)
+
+        log.warning('THIS BRANCH OF MUSICBOT IS HIGHLY EXPERIMENTAL AND WILL NOT WORK AS EXPECTED. DO NOT USE THIS UNLESS YOU ARE A DEVELOPER AND ARE LOOKING TO CONTRIBUTE TO THE DEVELOPMENT OF THE BOT.\n'
+                    'IF YOU HAVE ANY ISSUES AS A RESULT OF USING THIS BRANCH OF MUSICBOT, WE WILL NOT HELP YOU.')
 
         # t-t-th-th-that's all folks!
 
@@ -2080,8 +2083,8 @@ class MusicBot(discord.Client):
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
 
-        num_voice = sum(1 for m in voice_channel.voice_members if not (
-            m.deaf or m.self_deaf or m == self.user))
+        num_voice = sum(1 for m in voice_channel.members if not (
+            m.voice.deaf or m.voice.self_deaf or m == self.user))
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
