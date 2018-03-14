@@ -6,8 +6,7 @@ import logging
 import discord
 
 from enum import Enum
-from discord.ext.commands.bot import _get_variable
-from .utils import objdiff
+from .utils import objdiff, _get_variable
 
 log = logging.getLogger(__name__)
 
