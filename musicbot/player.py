@@ -7,6 +7,8 @@ import audioop
 import subprocess
 import re
 
+from discord import FFmpegPCMAudio
+
 from enum import Enum
 from array import array
 from threading import Thread
@@ -329,37 +331,20 @@ class MusicPlayer(EventEmitter, Serializable):
                 
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 
-                self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
+                self._current_player = self.voice_client.play(FFmpegPCMAudio(
                     entry.filename,
                     before_options=boptions,
                     options=aoptions,
-                    stderr=subprocess.PIPE,
+                    stderr=subprocess.PIPE),
                     # Threadsafe call soon, b/c after will be called from the voice playback thread.
                     after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
-                ))
-                self._current_player.setDaemon(True)
-                self._current_player.buff.volume = self.volume
+                )
 
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
-                self._stderr_future = asyncio.Future()
-
-                stderr_thread = Thread(
-                    target=filter_stderr,
-                    args=(self._current_player.process, self._stderr_future),
-                    name="{} stderr reader".format(self._current_player.name)
-                )
-
-                stderr_thread.start()
-                self._current_player.start()
 
                 self.emit('play', player=self, entry=entry)
-
-    def _monkeypatch_player(self, player):
-        original_buff = player.buff
-        player.buff = PatchedBuff(original_buff)
-        return player
 
     async def reload_voice(self, voice_client):
         async with self.bot.aiolocks[_func_() + ':' + str(voice_client.channel.guild.id)]:

@@ -33,7 +33,7 @@ from .entry import StreamPlaylistEntry
 from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
-from .constructs import SkipState, Response, VoiceStateUpdate
+from .constructs import SkipState, Response
 from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
 from .spotify import Spotify
 from .json import Json
@@ -829,9 +829,9 @@ class MusicBot(discord.Client):
         try:
             if content is not None or allow_none:
                 if isinstance(content, discord.Embed):
-                    msg = await self.send_message(dest, embed=content)
+                    msg = await dest.send(embed=content)
                 else:
-                    msg = await self.send_message(dest, content, tts=tts)
+                    msg = await dest.send(content, tts=tts)
 
         except discord.Forbidden:
             lfunc("Cannot send message to \"%s\", no permission", dest.name)
@@ -881,7 +881,7 @@ class MusicBot(discord.Client):
 
     async def send_typing(self, destination):
         try:
-            return await super().send_typing(destination)
+            return await destination.trigger_typing()
         except discord.Forbidden:
             log.warning("Could not send typing to {}, no permission".format(destination))
 
@@ -1383,7 +1383,7 @@ class MusicBot(discord.Client):
             else:
                 raise exceptions.CommandError(self.str.get('cmd-play-spotify-unavailable', 'The bot is not setup to support Spotify URIs. Check your config.'))
 
-        async with self.aiolocks[_func_() + ':' + author.id]:
+        async with self.aiolocks[_func_() + ':' + str(author.id)]:
             if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
                 raise exceptions.PermissionsError(
                     self.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
@@ -2606,7 +2606,7 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not isinstance(message.channel, discord.abc.GuildChannel):
             return  # if I want to log this I just move it under the prefix check
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
@@ -2616,7 +2616,7 @@ class MusicBot(discord.Client):
         if not handler:
             return
 
-        if message.channel.is_private:
+        if isinstance(message.channel, discord.abc.PrivateChannel):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
@@ -2809,66 +2809,32 @@ class MusicBot(discord.Client):
 
     async def on_voice_state_update(self, member, before, after):
         if not self.init_ok:
-            return # Ignore stuff before ready
+            return  # Ignore stuff before ready
 
-        state = VoiceStateUpdate(before, after)
-
-        if state.broken:
-            log.voicedebug("Broken voice state update")
+        if before.channel:
+            channel = before.channel
+        elif after.channel:
+            channel = after.channel
+        else:
             return
-
-        if state.resuming:
-            log.debug("Resumed voice connection to {0.guild.name}/{0.name}".format(state.voice_channel))
-
-        if not state.changes:
-            log.voicedebug("Empty voice state update, likely a session id change")
-            return # Session id change, pointless event
-
-        ################################
-
-        log.voicedebug("Voice state update for {mem.id}/{mem!s} on {ser.name}/{vch.name} -> {dif}".format(
-            mem = state.member,
-            ser = state.guild,
-            vch = state.voice_channel,
-            dif = state.changes
-        ))
-
-        if not state.is_about_my_voice_channel:
-            return # Irrelevant channel
-
-        if state.joining or state.leaving:
-            log.info("{0.id}/{0!s} has {1} {2}/{3}".format(
-                state.member,
-                'joined' if state.joining else 'left',
-                state.guild,
-                state.my_voice_channel
-            ))
 
         if not self.config.auto_pause:
             return
 
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
 
-        auto_paused = self.server_specific_data[after.guild]['auto_paused']
-        player = await self.get_player(state.my_voice_channel)
+        auto_paused = self.server_specific_data[channel.guild]['auto_paused']
+        player = await self.get_player(channel)
 
-        if state.joining and state.empty() and player.is_playing:
-            log.info(autopause_msg.format(
-                state = "Pausing",
-                channel = state.my_voice_channel,
-                reason = "(joining empty channel)"
-            ).strip())
-
-            self.server_specific_data[after.guild]['auto_paused'] = True
-            player.pause()
+        if not player:
             return
 
-        if not state.is_about_me:
-            if not state.empty(old_channel=state.leaving):
+        if not member == self.user:  # if the user is not the bot
+            if player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:  # if the person left
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
                         state = "Unpausing",
-                        channel = state.my_voice_channel,
+                        channel = player.voice_client.channel,
                         reason = ""
                     ).strip())
 
@@ -2878,18 +2844,18 @@ class MusicBot(discord.Client):
                 if not auto_paused and player.is_playing:
                     log.info(autopause_msg.format(
                         state = "Pausing",
-                        channel = state.my_voice_channel,
+                        channel = player.voice_client.channel,
                         reason = "(empty channel)"
                     ).strip())
 
                     self.server_specific_data[after.guild]['auto_paused'] = True
                     player.pause()
         else: 
-            if not state.empty():
+            if len(player.voice_client.channel.members) > 0:  # channel is not empty
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
                         state = "Unpausing",
-                        channel = state.my_voice_channel,
+                        channel = player.voice_client.channel,
                         reason = ""
                     ).strip())
  
