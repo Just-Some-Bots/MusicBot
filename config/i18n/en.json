@@ -99,9 +99,9 @@
     "cmd-queue-entry-noauthor": "{0} -- `{1}`",
     "cmd-clean-invalid": "Invalid parameter. Please provide a number of messages to search.",
     "cmd-clean-reply": "Cleaned up {0} message{1}.",
+    "cmd-user": "```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n",
     "playlists-noperms": "You are not allowed to request playlists",
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!"
-    "cmd-user": "```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n"
 }
