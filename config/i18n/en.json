@@ -103,4 +103,5 @@
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!"
+    "cmd-user": "```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n"
 }
