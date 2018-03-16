@@ -2218,7 +2218,7 @@ class MusicBot(discord.Client):
         unlisted = 0
         andmoretext = '* ... and %s more*' % ('x' * len(player.playlist.entries))
 
-        if player.current_entry:
+        if player.is_playing:
             # TODO: Fix timedelta garbage with util function
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
@@ -2287,10 +2287,10 @@ class MusicBot(discord.Client):
 
         if self.user.bot:
             if channel.permissions_for(guild.me).manage_messages:
-                deleted = await self.purge_from(channel, check=check, limit=search_range, before=message)
+                deleted = await channel.purge(check=check, limit=search_range, before=message)
                 return Response(self.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), delete_after=15)
 
-    async def cmd_pldump(self, channel, song_url):
+    async def cmd_pldump(self, channel, author, song_url):
         """
         Usage:
             {command_prefix}pldump url
@@ -2331,7 +2331,7 @@ class MusicBot(discord.Client):
                 fcontent.write(exfunc(item).encode('utf8') + b'\n')
 
             fcontent.seek(0)
-            await self.send_file(channel, fcontent, filename='playlist.txt', content="Here's the url dump for <%s>" % song_url)
+            await author.send("Here's the playlist dump for <%s>" % song_url, file=discord.File(fcontent, filename='playlist.txt'))
 
         return Response("Sent a message with a playlist file.", delete_after=20)
 
@@ -2373,11 +2373,11 @@ class MusicBot(discord.Client):
 
             elif cur_cat == 'channels':
                 data.append("\nText Channel IDs:")
-                tchans = [c for c in guild.channels if c.type == discord.ChannelType.text]
+                tchans = [c for c in guild.channels if isinstance(c, discord.TextChannel)]
                 rawudata = ['%s: %s' % (c.name, c.id) for c in tchans]
 
                 rawudata.append("\nVoice Channel IDs:")
-                vchans = [c for c in guild.channels if c.type == discord.ChannelType.voice]
+                vchans = [c for c in guild.channels if isinstance(c, discord.VoiceChannel)]
                 rawudata.extend('%s: %s' % (c.name, c.id) for c in vchans)
 
             if rawudata:
@@ -2388,7 +2388,7 @@ class MusicBot(discord.Client):
             sdata.seek(0)
 
             # TODO: Fix naming (Discord20API-ids.txt)
-            await self.send_file(author, sdata, filename='%s-ids-%s.txt' % (guild.name.replace(' ', '_'), cat))
+            await author.send(file=discord.File(sdata, filename='%s-ids-%s.txt' % (guild.name.replace(' ', '_'), cat)))
 
         return Response("Sent a message with a list of IDs.", delete_after=20)
 
@@ -2430,7 +2430,7 @@ class MusicBot(discord.Client):
         name = ' '.join([name, *leftover_args])
 
         try:
-            await self.edit_profile(username=name)
+            await self.user.edit(username=name)
 
         except discord.HTTPException:
             raise exceptions.CommandError(
@@ -2456,7 +2456,7 @@ class MusicBot(discord.Client):
         nick = ' '.join([nick, *leftover_args])
 
         try:
-            await self.change_nickname(guild.me, nick)
+            await guild.me.edit(nick=nick)
         except Exception as e:
             raise exceptions.CommandError(e, expire_in=20)
 
@@ -2482,7 +2482,7 @@ class MusicBot(discord.Client):
         try:
             with aiohttp.Timeout(10):
                 async with self.aiosession.get(thing) as res:
-                    await self.edit_profile(avatar=await res.read())
+                    await self.user.edit(avatar=await res.read())
 
         except Exception as e:
             raise exceptions.CommandError("Unable to change avatar: {}".format(e), expire_in=20)
@@ -2531,7 +2531,7 @@ class MusicBot(discord.Client):
             t = discord.utils.get(self.guilds, name=val)
             if t is None:
                 raise exceptions.CommandError('No guild was found with the ID or name as `{0}`'.format(val))
-        await self.leave_guild(t)
+        await t.leave()
         return Response('Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(t))
 
     @dev_only
@@ -2834,7 +2834,7 @@ class MusicBot(discord.Client):
                         reason = ""
                     ).strip())
 
-                    self.server_specific_data[after.channel.guild]['auto_paused'] = False
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
             elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:
                 if not auto_paused and player.is_playing:
@@ -2863,7 +2863,6 @@ class MusicBot(discord.Client):
             log.warning("Guild \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
             await self.reconnect_voice_client(after)
-
 
     async def on_guild_join(self, guild:discord.Guild):
         log.info("Bot has been joined guild: {}".format(guild.name))
