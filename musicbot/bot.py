@@ -869,7 +869,7 @@ class MusicBot(discord.Client):
         lfunc = log.debug if quiet else log.warning
 
         try:
-            return await message.edit(new)
+            return await message.edit(content=new)
 
         except discord.NotFound:
             lfunc("Cannot edit message \"{}\", message not found".format(message.clean_content))
@@ -1889,34 +1889,33 @@ class MusicBot(discord.Client):
         voice_client = self.voice_client_in(guild)
         if voice_client and guild == author.voice.channel.guild:
             await voice_client.move_to(author.voice.channel)
-            return
+        else:
+            # move to _verify_vc_perms?
+            chperms = author.voice.channel.permissions_for(guild.me)
 
-        # move to _verify_vc_perms?
-        chperms = author.voice.channel.permissions_for(guild.me)
+            if not chperms.connect:
+                log.warning("Cannot join channel '{0}', no permission.".format(author.voice.channel.name))
+                raise exceptions.CommandError(
+                    self.str.get('cmd-summon-noperms-connect', "Cannot join channel `{0}`, no permission to connect.").format(author.voice.channel.name),
+                    expire_in=25
+                )
 
-        if not chperms.connect:
-            log.warning("Cannot join channel '{0}', no permission.".format(author.voice.channel.name))
-            raise exceptions.CommandError(
-                self.str.get('cmd-summon-noperms-connect', "Cannot join channel `{0}`, no permission to connect.").format(author.voice.channel.name),
-                expire_in=25
-            )
+            elif not chperms.speak:
+                log.warning("Cannot join channel '{0}', no permission to speak.".format(author.voice.channel.name))
+                raise exceptions.CommandError(
+                    self.str.get('cmd-summon-noperms-speak', "Cannot join channel `{0}`, no permission to speak.").format(author.voice.channel.name),
+                    expire_in=25
+                )
 
-        elif not chperms.speak:
-            log.warning("Cannot join channel '{0}', no permission to speak.".format(author.voice.channel.name))
-            raise exceptions.CommandError(
-                self.str.get('cmd-summon-noperms-speak', "Cannot join channel `{0}`, no permission to speak.").format(author.voice.channel.name),
-                expire_in=25
-            )
+            player = await self.get_player(author.voice.channel, create=True, deserialize=self.config.persistent_queue)
+
+            if player.is_stopped:
+                player.play()
+
+            if self.config.auto_playlist:
+                await self.on_player_finished_playing(player)
 
         log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
-
-        player = await self.get_player(author.voice.channel, create=True, deserialize=self.config.persistent_queue)
-
-        if player.is_stopped:
-            player.play()
-
-        if self.config.auto_playlist:
-            await self.on_player_finished_playing(player)
 
         return Response(self.str.get('cmd-summon-reply', 'Connected to `{0.name}`').format(author.voice.channel))
 
@@ -1963,7 +1962,7 @@ class MusicBot(discord.Client):
         cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
         random.shuffle(cards)
 
-        hand = await self.send_message(channel, ' '.join(cards))
+        hand = await self.safe_send_message(channel, ' '.join(cards))
         await asyncio.sleep(0.6)
 
         for x in range(4):
@@ -2827,7 +2826,7 @@ class MusicBot(discord.Client):
             return
 
         if not member == self.user:  # if the user is not the bot
-            if player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:  # if the person left
+            if player.voice_client.channel != before.channel and player.voice_client.channel == after.channel:  # if the person left
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
                         state = "Unpausing",
@@ -2835,9 +2834,9 @@ class MusicBot(discord.Client):
                         reason = ""
                     ).strip())
 
-                    self.server_specific_data[after.guild]['auto_paused'] = False
+                    self.server_specific_data[after.channel.guild]['auto_paused'] = False
                     player.resume()
-            else:
+            elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:
                 if not auto_paused and player.is_playing:
                     log.info(autopause_msg.format(
                         state = "Pausing",
@@ -2845,7 +2844,7 @@ class MusicBot(discord.Client):
                         reason = "(empty channel)"
                     ).strip())
 
-                    self.server_specific_data[after.guild]['auto_paused'] = True
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
                     player.pause()
         else: 
             if len(player.voice_client.channel.members) > 0:  # channel is not empty
@@ -2856,7 +2855,7 @@ class MusicBot(discord.Client):
                         reason = ""
                     ).strip())
  
-                    self.server_specific_data[after.guild]['auto_paused'] = False
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
 
     async def on_guild_update(self, before:discord.Guild, after:discord.Guild):
