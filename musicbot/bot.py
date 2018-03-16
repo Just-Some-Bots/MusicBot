@@ -2913,3 +2913,9 @@ class MusicBot(discord.Client):
             log.debug("Pausing player in \"{}\" due to unavailability.".format(guild.name))
             self.server_specific_data[guild]['availability_paused'] = True
             player.pause()
+
+    def voice_client_in(self, guild):
+        for vc in self.voice_clients:
+            if vc.guild == guild:
+                return vc
+        return None
