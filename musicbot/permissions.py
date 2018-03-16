@@ -126,7 +126,7 @@ class PermissionGroup:
 
     def validate(self):
         if self.command_whitelist:
-            self.command_whitelist = set(self.command_whitelist.lower().split())
+            self.command_whitelist = set(self.command_whitelist.lower().split(","))
 
         if self.command_blacklist:
             self.command_blacklist = set(self.command_blacklist.lower().split())

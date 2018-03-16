@@ -2264,7 +2264,14 @@ class MusicBot(discord.Client):
         relative = False
         if new_volume[0] in '+-':
             relative = True
+       
+        elif new_volume == "up":
+            new_volume = '+5'
+            relative = True
 
+        elif new_volume == "down":
+            new_volume = '-5'
+            relative = True
         try:
             new_volume = int(new_volume)
 
@@ -2275,14 +2282,6 @@ class MusicBot(discord.Client):
         if relative:
             vol_change = new_volume
             new_volume += (player.volume * 100)
-
-        elif new_volume == "up":
-            new_volume = '+5'
-            relative = True
-
-        elif new_volume == "down":
-            new_volume = '-5'
-            relative = True
 
         old_volume = int(player.volume * 100)
 
