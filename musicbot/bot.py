@@ -362,8 +362,8 @@ class MusicBot(discord.Client):
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
 
     @ensure_appinfo
-    async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), server=None):
-        return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, server=server)
+    async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
+        return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
     async def get_voice_client(self, channel: discord.abc.GuildChannel):
         if isinstance(channel, discord.Object):
@@ -518,15 +518,14 @@ class MusicBot(discord.Client):
             last_np_msg = self.server_specific_data[channel.guild]['last_np_msg']
             if last_np_msg and last_np_msg.channel == channel:
 
-                async for lmsg in self.logs_from(channel, limit=1):
+                async for lmsg in channel.history(limit=1):
                     if lmsg != last_np_msg and last_np_msg:
                         await self.safe_delete_message(last_np_msg)
                         self.server_specific_data[channel.guild]['last_np_msg'] = None
                     break  # This is probably redundant
 
-            
             author_perms = self.permissions.for_user(author)
-            
+
             if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
                 newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
@@ -562,8 +561,7 @@ class MusicBot(discord.Client):
 
                 player.pause()
                 self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
-        
-        
+
         if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
             if not player.autoplaylist:
                 if not self.autoplaylist:
@@ -611,7 +609,7 @@ class MusicBot(discord.Client):
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-                
+
                 if self.config.auto_pause:
                     player.once('play', lambda player, **_: _autopause(player))
 
@@ -859,7 +857,7 @@ class MusicBot(discord.Client):
         lfunc = log.debug if quiet else log.warning
 
         try:
-            return message.delete() # await self.delete_message(message)
+            return await message.delete()
 
         except discord.Forbidden:
             lfunc("Cannot delete message \"{}\", no permission".format(message.clean_content))
@@ -871,7 +869,7 @@ class MusicBot(discord.Client):
         lfunc = log.debug if quiet else log.warning
 
         try:
-            return await self.edit_message(message, new)
+            return await message.edit(new)
 
         except discord.NotFound:
             lfunc("Cannot edit message \"{}\", message not found".format(message.clean_content))
@@ -884,13 +882,6 @@ class MusicBot(discord.Client):
             return await destination.trigger_typing()
         except discord.Forbidden:
             log.warning("Could not send typing to {}, no permission".format(destination))
-
-    async def edit_profile(self, **fields):
-        if self.user.bot:
-            return await super().edit_profile(**fields)
-        else:
-            return await super().edit_profile(self.config._password,**fields)
-
 
     async def restart(self):
         self.exit_signal = exceptions.RestartSignal()
@@ -1128,7 +1119,7 @@ class MusicBot(discord.Client):
     async def cmd_resetplaylist(self, player, channel):
         """
         Usage:
-            {command_prefix}resetplayer
+            {command_prefix}resetplaylist
 
         Resets all songs in the server's autoplaylist
         """
@@ -1268,12 +1259,11 @@ class MusicBot(discord.Client):
         Asks the bot to join a server.  Note: Bot accounts cannot use invite links.
         """
 
-        if self.user.bot:
-            url = await self.generate_invite_link()
-            return Response(
-                self.str.get('cmd-joinserver-response', "Click here to add me to a server: \n{}").format(url),
-                reply=True, delete_after=30
-            )
+        url = await self.generate_invite_link()
+        return Response(
+            self.str.get('cmd-joinserver-response', "Click here to add me to a server: \n{}").format(url),
+            reply=True, delete_after=30
+        )
 
     async def cmd_karaoke(self, player, channel, author):
         """
@@ -1774,7 +1764,7 @@ class MusicBot(discord.Client):
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
-        search_msg = await self.send_message(channel, self.str.get('cmd-search-searching', "Searching for videos..."))
+        search_msg = await self.safe_send_message(channel, self.str.get('cmd-search-searching', "Searching for videos..."))
         await self.send_typing(channel)
 
         try:
@@ -1793,20 +1783,24 @@ class MusicBot(discord.Client):
             result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
                 info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
 
+            def check(reaction, user):
+                return user == message.author and reaction.message.id == result_message.id  # why can't these objs be compared directly?
+
             reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
             for r in reactions:
-                await self.add_reaction(result_message, r)
-            res = await self.wait_for_reaction(reactions, user=author, timeout=30, message=result_message)
+                await result_message.add_reaction(r)
 
-            if not res:
+            try:
+                reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+            except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
                 return
 
-            if res.reaction.emoji == '\u2705':  # check
+            if str(reaction.emoji) == '\u2705':  # check
                 await self.safe_delete_message(result_message)
                 await self.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
                 return Response(self.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
-            elif res.reaction.emoji == '\U0001F6AB':  # cross
+            elif str(reaction.emoji) == '\U0001F6AB':  # cross
                 await self.safe_delete_message(result_message)
                 continue
             else:
