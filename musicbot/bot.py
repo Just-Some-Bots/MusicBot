@@ -239,7 +239,7 @@ class MusicBot(discord.Client):
 
             return True
 
-        return not sum(1 for m in vchannel.voice_members if check(m))
+        return not sum(1 for m in vchannel.members if check(m))
 
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
@@ -859,7 +859,7 @@ class MusicBot(discord.Client):
         lfunc = log.debug if quiet else log.warning
 
         try:
-            return await self.delete_message(message)
+            return message.delete() # await self.delete_message(message)
 
         except discord.Forbidden:
             lfunc("Cannot delete message \"{}\", no permission".format(message.clean_content))
@@ -2672,7 +2672,7 @@ class MusicBot(discord.Client):
                 handler_kwargs['channel_mentions'] = list(map(message.guild.get_channel, message.raw_channel_mentions))
 
             if params.pop('voice_channel', None):
-                handler_kwargs['voice_channel'] = message.guild.me.voice.channel
+                handler_kwargs['voice_channel'] = message.guild.me.voice.channel if message.guild.me.voice else None
 
             if params.pop('leftover_args', None):
                 handler_kwargs['leftover_args'] = args
@@ -2913,3 +2913,9 @@ class MusicBot(discord.Client):
             log.debug("Pausing player in \"{}\" due to unavailability.".format(guild.name))
             self.server_specific_data[guild]['availability_paused'] = True
             player.pause()
+
+    def voice_client_in(self, guild):
+        for vc in self.voice_clients:
+            if vc.guild == guild:
+                return vc
+        return None
