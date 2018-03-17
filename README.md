@@ -1,3 +1,25 @@
+Official musicbot readme below.
+
+# Robs custom musicbot features:
+##Shorthand commands
+* play: "", "p"
+* skip: "s"
+* volume: "vol", "v"
+* pause: "stop"
+* resume: "r", "start"
+* disconnect: "dc"
+* restart: "rs"
+* shutdown: "sd"
+* queue: "q"
+* autoplaylist: "ap"
+
+##Planned features:
+Update help command to reflect shorthand commands
+Multiple playlists
+Autoplaylist backup
+Autoplaylist depends on audience
+Queue the first xx of a yyyy long playlist
+
 # MusicBot
 
 [![GitHub release](https://img.shields.io/github/release/Just-Some-Bots/MusicBot.svg?style=flat-square)](https://just-some-bots.github.io/MusicBot/)

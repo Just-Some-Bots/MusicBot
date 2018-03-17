@@ -15,4 +15,6 @@ config/autoplaylist.txt
 config/autoplaylist_removed.txt
 config/whitelist.txt
 config/blacklist.txt
+config/oldGeneratedAutoplaylist.txt
+config/autoplaylist-backup.txt
 shortcommands.txt
