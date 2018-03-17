@@ -1405,17 +1405,6 @@ class MusicBot(discord.Client):
                 expire_in=30
             )
         return True
-############################################## ROBS SHORT COMMANDS#################################################
-# play: " ", "p"
-# skip: "s"
-# volume: "vol", "v"
-# pause: "stop"
-# resume: "r", "start"
-# disconnect: "dc"
-# restart: "rs"
-# shutdown: "sd"
-# queue: "q"
-# autoplaylist: "ap"
 
     async def cmd_(self, message, player, channel, author, permissions, leftover_args, song_url):
         return await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)

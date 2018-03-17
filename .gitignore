@@ -17,4 +17,3 @@ config/whitelist.txt
 config/blacklist.txt
 config/oldGeneratedAutoplaylist.txt
 config/autoplaylist-backup.txt
-shortcommands.txt
