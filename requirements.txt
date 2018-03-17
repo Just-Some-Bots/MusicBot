@@ -2,4 +2,5 @@ discord.py[voice] ~= 0.16.0
 pip
 youtube_dl
 colorlog
+PyNaCl
 cffi --only-binary all; sys_platform == 'win32'
