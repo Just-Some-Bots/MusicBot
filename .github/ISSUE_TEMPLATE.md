@@ -6,8 +6,9 @@ Please tick all applicable boxes.
 
 Which version are you using?
 
-- [ ] The latest `master` version (1.9.6_3)
-- [ ] The latest `review` version (1.9.7-rc2)
+- [ ] The latest `master` version (1.9.7)
+- [ ] The latest `review` version
+- [ ] The latest `dpy-rewrite` version
 
 What type of issue are you creating?
 

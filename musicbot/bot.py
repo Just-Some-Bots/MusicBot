@@ -1103,8 +1103,7 @@ class MusicBot(discord.Client):
                         'The options missing are: {0}'.format(self.config.missing_keys))
             print(flush=True)
 
-        log.warning('THIS BRANCH OF MUSICBOT IS HIGHLY EXPERIMENTAL AND WILL NOT WORK AS EXPECTED. DO NOT USE THIS UNLESS YOU ARE A DEVELOPER AND ARE LOOKING TO CONTRIBUTE TO THE DEVELOPMENT OF THE BOT.\n'
-                    'IF YOU HAVE ANY ISSUES AS A RESULT OF USING THIS BRANCH OF MUSICBOT, WE WILL NOT HELP YOU.')
+        log.warning('This is an experimental branch of MusicBot and may not work correctly. Please report bugs on GitHub.')
 
         # t-t-th-th-that's all folks!
 
