@@ -1337,15 +1337,16 @@ class MusicBot(discord.Client):
             usr = user_mentions[0]
             return Response(self.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, delete_after=35)
 
-    async def cmd_save(self, player):
+    async def cmd_save(self, player, url=None):
         """
         Usage:
-            {command_prefix}save
+            {command_prefix}save [url]
 
-        Saves the current song to the autoplaylist.
+        Saves the specified song or current song if not specified to the autoplaylist.
         """
-        if player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry):
-            url = player.current_entry.url
+        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
+            if not url:
+                url = player.current_entry.url
 
             if url not in self.autoplaylist:
                 self.autoplaylist.append(url)
