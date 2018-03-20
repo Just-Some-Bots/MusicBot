@@ -1364,7 +1364,6 @@ class MusicBot(discord.Client):
             {command_prefix}save [url]
 
         Removes the specified song or current song if not specified from the autoplaylist.
-
         """
         if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
             if not url:
@@ -1378,7 +1377,7 @@ class MusicBot(discord.Client):
             else:
                 raise exceptions.CommandError(self.str.get('cmd-unsave-does-not-exist', 'This song is not yet in the autoplaylist.'))
         else:
-            raise exceptions.CommandError(self.str.get('cmd-unsave-invalid', 'The supplied song is invalid.'))
+            raise exceptions.CommandError(self.str.get('cmd-unsave-invalid', 'The supplied song link is invalid.'))
 
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):

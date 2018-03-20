@@ -14,7 +14,7 @@
     "cmd-save-invalid": "There is no valid song playing.",
     "cmd-save-success": "Added <{0}> to the autoplaylist.",
     "cmd-unsave-does-not-exist": "This song is not yet in the autoplaylist.",
-    "cmd-unsave-invalid": "The supplied song is invalid.",
+    "cmd-unsave-invalid": "The supplied song link is invalid.",
     "cmd-unsave-success": "Removed <{0}> from the autoplaylist.",
     "cmd-joinserver-response": "Click here to add me to a server: \n{}",
     "cmd-play-spotify-album-process": "Processing album `{0}`",
