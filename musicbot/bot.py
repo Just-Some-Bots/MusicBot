@@ -1358,6 +1358,28 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
+    async def cmd_unsave(self, player, url=None):
+        """
+        Usage:
+            {command_prefix}save [url]
+
+        Removes the specified song or current song if not specified from the autoplaylist.
+
+        """
+        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
+            if not url:
+                url = player.current_entry.url
+
+            if url in self.autoplaylist:
+                self.autoplaylist.remove(url)
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
+                log.debug('Removed {} from autoplaylist'.format(url))
+                return Response(self.str.get('cmd-unsave-success', 'Removed <{0}> from the autoplaylist.').format(url))
+            else:
+                raise exceptions.CommandError(self.str.get('cmd-unsave-does-not-exist', 'This song is not yet in the autoplaylist.'))
+        else:
+            raise exceptions.CommandError(self.str.get('cmd-unsave-invalid', 'The supplied song is invalid.'))
+
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
         """
