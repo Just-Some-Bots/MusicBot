@@ -1223,6 +1223,25 @@ class MusicBot(discord.Client):
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
 
+    @staticmethod
+    def _get_song_url_or_none(url, player):
+        """Return song url if provided or one is currently playing, else returns None"""
+        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
+            if not url:
+                url = player.current_entry.url
+
+            return url
+
+    def _add_url_to_autoplaylist(self, url):
+        self.autoplaylist.append(url)
+        write_file(self.config.auto_playlist_file, self.autoplaylist)
+        log.debug("Appended {} to autoplaylist".format(url))
+
+    def _remove_url_from_autoplaylist(self, url):
+        self.autoplaylist.remove(url)
+        write_file(self.config.auto_playlist_file, self.autoplaylist)
+        log.debug('Removed {} from autoplaylist'.format(url))
+
     async def cmd_resetplaylist(self, player, channel):
         """
         Usage:
@@ -1344,19 +1363,15 @@ class MusicBot(discord.Client):
 
         Saves the specified song or current song if not specified to the autoplaylist.
         """
-        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
-            if not url:
-                url = player.current_entry.url
-
+        url = self._get_song_url_or_none(url, player)
+        if url:
             if url not in self.autoplaylist:
-                self.autoplaylist.append(url)
-                write_file(self.config.auto_playlist_file, self.autoplaylist)
-                log.debug("Appended {} to autoplaylist".format(url))
-                return Response(self.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
+                self._add_url_to_autoplaylist(url)
+                return Response(self.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url), delete_after=35)
             else:
-                raise exceptions.CommandError(self.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
+                raise exceptions.CommandError(self.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'), expire_in=20)
         else:
-            raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
+            raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'), expire_in=20)
 
     async def cmd_unsave(self, player, url=None):
         """
@@ -1365,19 +1380,45 @@ class MusicBot(discord.Client):
 
         Removes the specified song or current song if not specified from the autoplaylist.
         """
-        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
-            if not url:
-                url = player.current_entry.url
-
+        url = self._get_song_url_or_none(url, player)
+        if url:
             if url in self.autoplaylist:
-                self.autoplaylist.remove(url)
-                write_file(self.config.auto_playlist_file, self.autoplaylist)
-                log.debug('Removed {} from autoplaylist'.format(url))
-                return Response(self.str.get('cmd-unsave-success', 'Removed <{0}> from the autoplaylist.').format(url))
+                self._remove_url_from_autoplaylist(url)
+                return Response(self.str.get('cmd-unsave-success', 'Removed <{0}> from the autoplaylist.').format(url), delete_after=35)
             else:
-                raise exceptions.CommandError(self.str.get('cmd-unsave-does-not-exist', 'This song is not yet in the autoplaylist.'))
+                raise exceptions.CommandError(self.str.get('cmd-unsave-does-not-exist', 'This song is not yet in the autoplaylist.'), expire_in=20)
         else:
-            raise exceptions.CommandError(self.str.get('cmd-unsave-invalid', 'The supplied song link is invalid.'))
+            raise exceptions.CommandError(self.str.get('cmd-unsave-invalid', 'The supplied song link is invalid.'), expire_in=20)
+
+    async def cmd_autoplaylist(self, player, option, url=None):
+        """
+        Usage:
+            {command_prefix}autoplaylist [ + | - | add | remove] [url]
+
+        Adds or removes the specified song or current song if not specified to/from the playlist.
+        """
+        if option not in ['+', '-', 'add', 'remove']:
+            raise exceptions.CommandError(
+                self.str.get('cmd-autoplaylist-option-invalid', 'Invalid option \"{0}\" specified, use +, -, add, or remove').format(option), expire_in=20
+            )
+
+        url = self._get_song_url_or_none(url, player)
+
+        if url:
+            if option in ['+', 'add']:
+                if url not in self.autoplaylist:
+                    self._add_url_to_autoplaylist(url)
+                    return Response(self.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url), delete_after=35)
+                else:
+                    raise exceptions.CommandError(self.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'), expire_in=20)
+            elif option in ['-', 'remove']:
+                if url in self.autoplaylist:
+                    self._remove_url_from_autoplaylist(url)
+                    return Response(self.str.get('cmd-unsave-success', 'Removed <{0}> from the autoplaylist.').format(url), delete_after=35)
+                else:
+                    raise exceptions.CommandError(self.str.get('cmd-unsave-does-not-exist', 'This song is not yet in the autoplaylist.'), expire_in=20)
+        else:
+            raise exceptions.CommandError(self.str.get('cmd-autoplaylist-invalid', 'The supplied song link is invalid'), expire_in=20)
 
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
