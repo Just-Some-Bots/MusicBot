@@ -4,8 +4,12 @@ import codecs
 import shutil
 import logging
 import configparser
+import json
 
 from .exceptions import HelpfulError
+
+from . import bot
+
 
 log = logging.getLogger(__name__)
 
@@ -75,8 +79,12 @@ class Config:
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
+        self.command_aliases_file = config.get('Files', 'CommandAliasesFile', fallback=ConfigDefaults.command_aliases_file)
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
+
+        self.command_aliases = self.get_command_aliases()
+        self.setup_command_aliases()
 
         self.run_checks()
 
@@ -293,6 +301,33 @@ class Config:
             else:
                 log.warning("No autoplaylist file found.")
 
+    def get_command_aliases(self):
+        if not os.path.exists(self.command_aliases_file):
+            log.debug('The file \'command_aliases.json\' does not exist.')
+        else:
+            try:
+                command_aliases = json.load(open(self.command_aliases_file))
+            except json.decoder.JSONDecodeError:
+                raise HelpfulError('Your command_aliases.json file is not a valid JSON!',
+                                   'Properly configure config/command_aliases.json and re-run the bot.')
+
+        return command_aliases
+
+    def setup_command_aliases(self):
+        command_aliases = self.command_aliases
+        for command_name, aliases in command_aliases.items():
+            if not hasattr(bot.MusicBot, 'cmd_{}'.format(command_name)):
+                raise HelpfulError(
+                    'Command named {} does not exist!'.format(command_name),
+                    'Re-configure config/command_aliases.json and re-run the bot.')
+
+            for alias in aliases:
+                if hasattr(bot.MusicBot, 'cmd_{}'.format(alias)):
+                    raise HelpfulError(
+                        'Command named {} already exists!'.format(alias),
+                        'Re-configure config/command_aliases.json and re-run the bot.')
+
+                setattr(bot.MusicBot, 'cmd_{}'.format(alias), getattr(bot.MusicBot, 'cmd_{}'.format(command_name)))
 
     def write_default_config(self, location):
         pass
@@ -337,6 +372,7 @@ class ConfigDefaults:
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
+    command_aliases_file = 'config/command_aliases.json'
     i18n_file = 'config/i18n/en.json'
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
