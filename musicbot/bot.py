@@ -53,7 +53,9 @@ class MusicBot(discord.Client):
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
             pass
-        
+
+        self._check_deps()  # only needed for rewrite version
+
         print()
 
         if config_file is None:
@@ -241,6 +243,10 @@ class MusicBot(discord.Client):
 
         return not sum(1 for m in vchannel.members if check(m))
 
+    def _check_deps(self):
+        if discord.version_info.major < 1:
+            raise exceptions.HelpfulError('This version of MusicBot requires version 1.0 or higher of discord.py.',
+                                          'Your version of discord.py is {0}. Upgrade using pip.'.format(discord.__version__))
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
