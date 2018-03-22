@@ -267,9 +267,8 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def get_mean_volume(self, input_file):
         log.debug('Calculating mean volume of {0}'.format(input_file))
-        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
-        # print('===', cmd)
         try:
+            cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
             output = self.run_command(cmd)
         except Exception as e:
             raise e
@@ -320,10 +319,13 @@ class MusicPlayer(EventEmitter, Serializable):
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
                 if self.bot.config.use_experimental_equalization and not isinstance(entry, StreamPlaylistEntry):
-                    mean, maximum = self.get_mean_volume(entry.filename)
-                    
-                    aoptions = '-af "volume={}dB"'.format((maximum * -1))
-                    
+                    try:
+                        mean, maximum = self.get_mean_volume(entry.filename)
+                        aoptions = '-af "volume={}dB"'.format((maximum * -1))
+                    except Exception as e:
+                        log.warning('There was a problem with EQ. The track will not be equalised. For full info, check your log file.')
+                        log.debug('{0}'.format(e))
+                        aoptions = "-vn"
                 else:
                     aoptions = "-vn"
                 

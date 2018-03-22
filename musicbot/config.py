@@ -67,6 +67,7 @@ class Config:
         self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
         self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
+        self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -331,6 +332,7 @@ class ConfigDefaults:
     queue_length = 10
     remove_ap = True
     show_config_at_start = False
+    legacy_skip = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
