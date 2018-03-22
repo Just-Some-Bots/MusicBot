@@ -1196,6 +1196,7 @@ class MusicBot(discord.Client):
             log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
+            log.info("  Legacy skip: " + ['Disabled']['Enabled'][self.config.legacy_skip])
 
         print(flush=True)
 
@@ -2168,7 +2169,7 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if param.lower() in ['force', 'f']:
+        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
             if author.id == self.config.owner_id \
                 or permissions.instaskip \
                     or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
