@@ -146,11 +146,7 @@ class MusicBot(discord.Client):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
-<<<<<<< HEAD
                 raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
-=======
-                raise exceptions.PermissionsError("only dev users can use this command", expire_in=30)
->>>>>>> 3a7b62a... logs now delete after one day yay
 
     def ensure_appinfo(func):
         @wraps(func)
@@ -2628,15 +2624,28 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-    async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
-        player = self.get_player_in(channel.server)
-        if player and player.is_paused:
-            player.resume()
-        
-        await self.disconnect_all_voice_clients()
-        raise exceptions.TerminateSignal()
+    # This uses a lot of the search command selection functionality
+    async def cmd_shutdown(self, channel, author):
+
+        warning_message = await self.safe_send_message(channel, 'This will make the bot go offline.'
+                                                                ' Are you sure you want to continue?')
+
+        reactions = ['\u2705', '\U0001F6AB']
+        for r in reactions:
+             await self.add_reaction(warning_message, r)
+        res = await self.wait_for_reaction(reactions, user=author, timeout=30, message=warning_message)
+
+        if not res:
+            await self.safe_delete_message(warning_message)
+            return
+
+        if res.reaction.emoji == '\u2705':  # check
+            await self.safe_send_message(channel, "**Powering off**! :wave::skin-tone-1:")
+            await self.disconnect_all_voice_clients()
+            raise exceptions.TerminateSignal()
+
+        elif res.reaction.emoji == '\U0001F6AB':  # cross
+                await self.safe_send_message(channel, 'Ok! I will keep working then')
 
     async def cmd_leaveserver(self, val, leftover_args):
         """
