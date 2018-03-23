@@ -15,13 +15,13 @@ import re
 import aiohttp
 import discord
 import colorlog
-
+from subprocess import call
 from io import BytesIO, StringIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from collections import defaultdict
-
+from os.path import join
 from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
 
@@ -146,10 +146,11 @@ class MusicBot(discord.Client):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
+<<<<<<< HEAD
                 raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
-
-        wrapper.dev_cmd = True
-        return wrapper
+=======
+                raise exceptions.PermissionsError("only dev users can use this command", expire_in=30)
+>>>>>>> 3a7b62a... logs now delete after one day yay
 
     def ensure_appinfo(func):
         @wraps(func)
@@ -228,6 +229,21 @@ class MusicBot(discord.Client):
             dhandler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
             dhandler.setFormatter(logging.Formatter('{asctime}:{levelname}:{name}: {message}', style='{'))
             dlogger.addHandler(dhandler)
+
+# Here's Where log clean up comes in
+    now = time.time()
+    cutoff = now - (1 * 86400)
+
+    files = os.listdir("logs")
+    for xfile in files:
+        if os.path.isfile("logs/" + xfile):
+            t = os.stat("logs/" + xfile)
+            c = t.st_ctime
+
+            # delete file if older than a day
+            if c < cutoff:
+                os.remove("logs/" + xfile)
+
 
     @staticmethod
     def _check_if_empty(vchannel: discord.Channel, *, excluding_me=True, excluding_deaf=False):
@@ -2612,15 +2628,28 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-    async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
-        player = self.get_player_in(channel.server)
-        if player and player.is_paused:
-            player.resume()
-        
-        await self.disconnect_all_voice_clients()
-        raise exceptions.TerminateSignal()
+    # This uses a lot of the search command selection functionality
+    async def cmd_shutdown(self, channel, author):
+
+        warning_message = await self.safe_send_message(channel, 'This will make the bot go offline.'
+                                                                'Are you sure you want to continue?')
+
+        reactions = ['\u2705', '\U0001F6AB']
+        for r in reactions:
+             await self.add_reaction(warning_message, r)
+        res = await self.wait_for_reaction(reactions, user=author, timeout=30, message=warning_message)
+
+        if not res:
+            await self.safe_delete_message(warning_message)
+            return
+
+        if res.reaction.emoji == '\u2705':  # check
+            await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+            await self.disconnect_all_voice_clients()
+            raise exceptions.TerminateSignal()
+
+        elif res.reaction.emoji == '\U0001F6AB':  # cross
+                await self.safe_send_message(channel, 'Ok! I will keep working')
 
     async def cmd_leaveserver(self, val, leftover_args):
         """
