@@ -1333,6 +1333,7 @@ class MusicBot(discord.Client):
                 member = message.author
         else:
             member = user_mentions[0]
+
         voice = member.voice.voice_channel
         roles = ', '.join(r.name for r in member.roles)
         join_date = member.joined_at
@@ -1345,6 +1346,7 @@ class MusicBot(discord.Client):
         creation_date = member.created_at
         avatar = member.avatar_url if member.avatar_url else member.default_avatar_url
         user_id = member.id
+        
         return Response(self.str.get('cmd-user', """
 ```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n"""
 .format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar)), delete_after=30)
