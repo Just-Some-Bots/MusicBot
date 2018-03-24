@@ -238,10 +238,11 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def play(self, _continue=False):
         self.loop.create_task(self._play(_continue=_continue))
-        
-    def run_command(self, cmd):
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        stdout, stderr = p.communicate()
+
+    async def run_command(self, cmd):
+        p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+        stdout, stderr = await p.communicate()
         return stdout + stderr
 
     def get(self, program):
@@ -265,11 +266,11 @@ class MusicPlayer(EventEmitter, Serializable):
 
         return None
 
-    def get_mean_volume(self, input_file):
+    async def get_mean_volume(self, input_file):
         log.debug('Calculating mean volume of {0}'.format(input_file))
         try:
             cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
-            output = self.run_command(cmd)
+            output = await self.run_command(cmd)
         except Exception as e:
             raise e
         output = output.decode("utf-8")
@@ -320,11 +321,12 @@ class MusicPlayer(EventEmitter, Serializable):
                 # aoptions = "-vn -b:a 192k"
                 if self.bot.config.use_experimental_equalization and not isinstance(entry, StreamPlaylistEntry):
                     try:
-                        mean, maximum = self.get_mean_volume(entry.filename)
+                        mean, maximum = await self.get_mean_volume(entry.filename)
                         aoptions = '-af "volume={}dB"'.format((maximum * -1))
                     except Exception as e:
-                        log.warning('There was a problem with EQ. The track will not be equalised. For full info, check your log file.')
-                        log.debug('{0}'.format(e))
+                        raise
+                        #log.warning('There was a problem with EQ. The track will not be equalised. For full info, check your log file.')
+                        #log.debug('{0}'.format(e))
                         aoptions = "-vn"
                 else:
                     aoptions = "-vn"
