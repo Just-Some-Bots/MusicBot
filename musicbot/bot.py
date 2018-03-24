@@ -1325,10 +1325,14 @@ class MusicBot(discord.Client):
         Provides some info on a user, if no-one mentioned returns info on message author.
         """
         if not user_mentions:
-            member = author
+            stripped = len(self.config.command_prefix)+5
+            int(stripped)
+            ph = message.content[stripped:]
+            member = discord.utils.find(lambda m: m.name == ph, channel.server.members)
+            if member == None:
+                member = message.author
         else:
             member = user_mentions[0]
-
         voice = member.voice.voice_channel
         roles = ', '.join(r.name for r in member.roles)
         join_date = member.joined_at
