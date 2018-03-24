@@ -1317,10 +1317,10 @@ class MusicBot(discord.Client):
                     reply=True, delete_after=10
                 )
 
-    async def cmd_user(self, author, server, channel, message, user_mentions):
+    async def cmd_userinfo(self, author, server, channel, message, user_mentions):
         """
         Usage:
-            {command_prefix}user [@user]
+            {command_prefix}userinfo [@user]
 
         Provides some info on a user, if no-one mentioned returns info on message author.
         """
