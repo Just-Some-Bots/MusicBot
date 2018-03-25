@@ -1,1 +1,0 @@
-The documentation for MusicBot goes here.

@@ -1,0 +1,16 @@
+---
+title: Changelog
+---
+
+<p>These are the latest changes to the MusicBot. Please check this page after bot updates to see what has changed. To learn how to update your bot, see <a href="/using/updating">this page</a>.</a></p>
+
+<div class="changelog">
+	{% for change in site.posts %}
+		<div class="changelog-item">
+			<h3>{{ change.title }}</h3>
+			<p><span class="date">{{ change.date | date: "%B %d, %Y" }}</span> <span class="badge {{ change.type }}">{{ change.type }}</span></p>
+
+			{{ change.content }}
+		</div>
+	{% endfor %}
+</div>

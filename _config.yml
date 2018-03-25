@@ -3,25 +3,29 @@
 
 title: MusicBot
 description: The documentation for the original MusicBot for Discord.
-url: https://Just-Some-Bots.github.io/MusicBot
+url: "https://Just-Some-Bots.github.io/MusicBot"
 logo: 'images/logo.png'
 google_analytics_key: UA-61418431-2
+show_full_navigation: true
+
+timezone: Etc/UTC
 permalink: pretty
 
 collections:
-  installation:
-    title: Installation
-    position: 1
-  guides:
-    title: Guides
-    position: 2
+  docs:
+    title: Documentation
+    permalink: /:path/
+    output: true
 
-gems:
+plugins:
   - jekyll-sitemap
   - jekyll-seo-tag
+  - jekyll-feed
 
 exclude:
-  - readme.md
+  - Gemfile
+  - Gemfile.lock
+  - README.md
   - LICENCE
 
 defaults:
@@ -30,3 +34,28 @@ defaults:
       path: ""
     values:
       layout: default
+  -
+    scope:
+      path: ""
+      type: "docs"
+    values:
+      seo:
+        type: Article
+      _comments:
+        category: Group navigation links with this field
+        order: Used to sort links in the navigation
+      _options:
+        content:
+          width: 800
+          height: 2000
+  -
+    scope:
+      path: ""
+      type: "posts"
+    values:
+      _comments:
+        type: Marks the impact of this release
+
+types:
+  - minor
+  - major
