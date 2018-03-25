@@ -6,7 +6,7 @@ order: 6
 
 #### How do I get an ID?
 
-<img class="doc-img" src="/images/ids.gif" alt="IDs" style="width: 350px; float: right;"/>
+<img class="doc-img" src="{{ site.baseurl }}/images/ids.gif" alt="IDs" style="width: 350px; float: right;"/>
 
 The bot has a `!listids` command that you can use to obtain IDs, or you can turn on Developer Mode in the Discord client by going to User Settings -> Appearance. Afterwards, you can right-click on any user, channel, role, whatever and you will get a Copy ID option on the context menu. The GIF demonstrates this.
 

@@ -4,7 +4,7 @@ category: Installing the bot
 order: 2
 ---
 
-<img class="doc-img" src="/images/windows.png" alt="Windows" style="width: 75px; float: right;"/>
+<img class="doc-img" src="{{ site.baseurl }}/images/windows.png" alt="Windows" style="width: 75px; float: right;"/>
 
 MusicBot can be installed on Windows 7, 8, and 10 too, though it requires installing some programs on your computer first.
 

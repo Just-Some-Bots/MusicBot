@@ -10,7 +10,7 @@ Configuring the bot is relatively straight forward. First, open your bot folder 
 
 #### Credentials
 
-<img class="doc-img" src="/images/token.png" alt="Token" style="width: 500px;"/>
+<img class="doc-img" src="{{ site.baseurl }}/images/token.png" alt="Token" style="width: 500px;"/>
 
 - `Token` - *This is the only required option for your bot to run.* You must provide the token for your Discord bot account. To create a bot account, go to your [applications page](https://discordapp.com/developers/applications/me) (logging in if prompted), and then follow this [10 second video](https://drive.google.com/file/d/1wZG_TBVfjQfj0CEYaRTzS60D-cbfeeYZ/view). If you followed it entirely, you should have revealed your token and can now copy it into the config file.
 

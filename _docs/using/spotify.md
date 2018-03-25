@@ -22,4 +22,4 @@ MusicBot has limited integration with Spotify, in that it automatically converts
 ## How to get a URI
 Right-click on any supported media in the Spotify application, go to Share, then Copy Spotify URI.
 
-<img class="doc-img" src="/images/spotify-uri.png" alt="Spotify URI example" style="width: 500px;"/>
+<img class="doc-img" src="{{ site.baseurl }}/images/spotify-uri.png" alt="Spotify URI example" style="width: 500px;"/>

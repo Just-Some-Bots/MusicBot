@@ -4,7 +4,7 @@ category: Installing the bot
 order: 4
 ---
 
-<img class="doc-img" src="/images/raspbian.png" alt="Raspbian" style="width: 75px; float: right;"/>
+<img class="doc-img" src="{{ site.baseurl }}/images/raspbian.png" alt="Raspbian" style="width: 75px; float: right;"/>
 
 Installing MusicBot on Raspbian for use with a Raspberry Pi 2 or 3B is a **long-winded process and may take a while to complete**. If you're willing to try it, you can run the following commands in order to install it:
 
