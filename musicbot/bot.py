@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import datetime
 import shlex
 import shutil
 import random
@@ -1325,7 +1326,7 @@ class MusicBot(discord.Client):
         Provides some info on a user, if no-one mentioned returns info on message author.
         """
         if not user_mentions:
-            stripped = len(self.config.command_prefix)+5
+            stripped = len(self.config.command_prefix)+9
             int(stripped)
             ph = message.content[stripped:]
             member = discord.utils.find(lambda m: m.name == ph, channel.server.members)
@@ -1336,20 +1337,42 @@ class MusicBot(discord.Client):
 
         voice = member.voice.voice_channel
         roles = ', '.join(r.name for r in member.roles)
-        join_date = member.joined_at
+        join_date = member.joined_at.strftime("%d/%m/%Y %H:%M")
         status = member.status
         game = member.game
         server = member.server
         nickname = member.nick
         color = member.colour
         top_role = member.top_role
-        creation_date = member.created_at
-        avatar = member.avatar_url if member.avatar_url else member.default_avatar_url
+        creation_date = member.created_at.strftime("%d/%m/%Y %H:%M")
+        avatar = member.avatar_url if member.avatar else member.default_avatar_url
         user_id = member.id
-        
-        return Response(self.str.get('cmd-user', """
-```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\nAvatar:``` {} \n"""
-.format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar)), delete_after=30)
+
+        if self.config.embeds:
+            if nickname == None:
+                #server doesn't work in embeds ig
+                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {}".format(member), timestamp=datetime.datetime.utcnow())
+            else:
+                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} AKA {}".format(member, nickname), timestamp=datetime.datetime.utcnow())
+            e.set_thumbnail(url=avatar)
+            e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+            e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
+            e.add_field(name='Voice', value=voice, inline=True)
+            e.add_field(name='Roles', value=roles, inline=True)
+            e.add_field(name='Joined at', value=join_date, inline=True)
+            e.add_field(name='Status', value=status, inline=True)
+            e.add_field(name='Game', value=game, inline=True)
+            e.add_field(name='Color', value=color, inline=True)
+            e.add_field(name='Top role', value=top_role, inline=True)
+            e.add_field(name='Created on', value=creation_date, inline=True)
+            e.add_field(name='User ID', value=user_id, inline=False)
+            await self.send_message(message.channel, embed=e)
+
+        else:
+            return Response(
+            self.str.get('cmd-user', """
+```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\n Avatar:``` {}""").format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar), delete_after=30
+            )
 
     async def cmd_save(self, player):
         """
