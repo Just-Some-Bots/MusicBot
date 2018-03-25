@@ -17,12 +17,12 @@ Configuring the bot is relatively straight forward. First, open your bot folder 
 After creating a bot account, you should probably add your bot to a server by clicking the 'Generate OAuth2 URL' button on the application page and copying the URL in the box to your address bar and pressing enter. You can then select what server you wish to add it to.
 {: .info }
 
-- `Spotify_ClientID` - The client ID for your Spotify application. Required for the bot's [Spotify integration](/using/spotify).
-- `Spotify_ClientSecret` - The client secret for your Spotify applicaton. Required for the bot's [Spotify integration](/using/spotify).
+- `Spotify_ClientID` - The client ID for your Spotify application. Required for the bot's [Spotify integration]({{ site.baseurl }}/using/spotify).
+- `Spotify_ClientSecret` - The client secret for your Spotify applicaton. Required for the bot's [Spotify integration]({{ site.baseurl }}/using/spotify).
 
 #### Permissions
 
-> This section is about the config options in options.ini. For help with the actual permissions file, see [here](/using/permissions).
+> This section is about the config options in options.ini. For help with the actual permissions file, see [here]({{ site.baseurl }}/using/permissions).
 
 - `OwnerID` - The ID of your Discord user, who will gain full permissions for the bot. If this is set to `auto`, the bot will automatically determine its owner from who created the bot account
 - `DevIDs` - The IDs of every Discord user that you would like to gain developer commands. These commands are dangerous and allow execution of arbitrary code. If you don't know what you're doing, don't add any IDs here

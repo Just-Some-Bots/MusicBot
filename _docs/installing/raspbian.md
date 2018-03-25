@@ -63,4 +63,4 @@ cd MusicBot
 sudo -H pip3.5 install --upgrade -r requirements.txt
 ```
 
-After this, you can find a folder called `MusicBot` inside your home directory. [Configure](#guidesconfiguration) it, and then run `./run.sh` to start the bot.
+After this, you can find a folder called `MusicBot` inside your home directory. [Configure]({{ site.baseurl }}/using/configuration) it, and then run `./run.sh` to start the bot.

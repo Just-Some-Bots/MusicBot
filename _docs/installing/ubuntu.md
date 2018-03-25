@@ -56,4 +56,4 @@ sudo python3 -m pip install -U pip
 sudo python3 -m pip install -U -r requirements.txt 
 ~~~
 
-After doing those commands, you can [configure](#guidesconfiguration) the bot and then run it using `sudo ./run.sh`.
+After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `sudo ./run.sh`.
