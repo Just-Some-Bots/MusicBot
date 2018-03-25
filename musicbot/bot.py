@@ -1340,7 +1340,7 @@ class MusicBot(discord.Client):
         join_date = member.joined_at.strftime("%d/%m/%Y %H:%M")
         status = member.status
         game = member.game
-        server = member.server
+        server = member.server.name
         nickname = member.nick
         color = member.colour
         top_role = member.top_role
@@ -1350,10 +1350,9 @@ class MusicBot(discord.Client):
 
         if self.config.embeds:
             if nickname == None:
-                #server doesn't work in embeds ig
-                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {}".format(member), timestamp=datetime.datetime.utcnow())
+                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} in {}".format(member, server), timestamp=datetime.datetime.utcnow())
             else:
-                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} AKA {}".format(member, nickname), timestamp=datetime.datetime.utcnow())
+                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} AKA {} in {}".format(member, nickname, server), timestamp=datetime.datetime.utcnow())
             e.set_thumbnail(url=avatar)
             e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
             e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
