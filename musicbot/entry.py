@@ -2,6 +2,8 @@ import os
 import asyncio
 import logging
 import traceback
+import re
+import sys
 
 from enum import Enum
 from .constructs import Serializable
@@ -88,6 +90,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.duration = duration
         self.expected_filename = expected_filename
         self.meta = meta
+        self.aoptions = '-vn'
 
         self.download_folder = self.playlist.downloader.download_folder
 
@@ -107,7 +110,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'id': obj.id,
                     'name': obj.name
                 } for name, obj in self.meta.items() if obj
-            }
+            },
+            'aoptions': self.aoptions
         })
 
     @classmethod
@@ -205,6 +209,18 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 else:
                     await self._really_download()
 
+            if self.playlist.bot.config.use_experimental_equalization:
+                try:
+                    mean, maximum = await self.get_mean_volume(self.filename)
+                    aoptions = '-af "volume={}dB"'.format((maximum * -1))
+                except Exception as e:
+                    log.warning('There was a problem with EQ. The track will not be equalised.')
+                    aoptions = "-vn"
+            else:
+                aoptions = "-vn"
+
+            self.aoptions = aoptions
+
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
 
@@ -214,6 +230,57 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         finally:
             self._is_downloading = False
+
+    async def run_command(self, cmd):
+        p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+        stdout, stderr = await p.communicate()
+        return stdout + stderr
+
+    def get(self, program):
+        def is_exe(fpath):
+            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            if not found and sys.platform == 'win32':
+                fpath = fpath + ".exe"
+                found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            return found
+
+        fpath, __ = os.path.split(program)
+        if fpath:
+            if is_exe(program):
+                return program
+        else:
+            for path in os.environ["PATH"].split(os.pathsep):
+                path = path.strip('"')
+                exe_file = os.path.join(path, program)
+                if is_exe(exe_file):
+                    return exe_file
+
+        return None
+
+    async def get_mean_volume(self, input_file):
+        log.debug('Calculating mean volume of {0}'.format(input_file))
+        try:
+            cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
+            output = await self.run_command(cmd)
+        except Exception as e:
+            raise e
+        output = output.decode("utf-8")
+        # print('----', output)
+        mean_volume_matches = re.findall(r"mean_volume: ([\-\d\.]+) dB", output)
+        if (mean_volume_matches):
+            mean_volume = float(mean_volume_matches[0])
+        else:
+            mean_volume = float(0)
+
+        max_volume_matches = re.findall(r"max_volume: ([\-\d\.]+) dB", output)
+        if (max_volume_matches):
+            max_volume = float(max_volume_matches[0])
+        else:
+            max_volume = float(0)
+
+        log.debug('Calculated mean volume as {0}'.format(mean_volume))
+        return mean_volume, max_volume
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):

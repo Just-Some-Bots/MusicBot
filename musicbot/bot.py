@@ -1200,6 +1200,7 @@ class MusicBot(discord.Client):
             log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
+            log.info("  Legacy skip: " + ['Disabled']['Enabled'][self.config.legacy_skip])
 
         print(flush=True)
 
@@ -1341,15 +1342,16 @@ class MusicBot(discord.Client):
             usr = user_mentions[0]
             return Response(self.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, delete_after=35)
 
-    async def cmd_save(self, player):
+    async def cmd_save(self, player, url=None):
         """
         Usage:
-            {command_prefix}save
+            {command_prefix}save [url]
 
-        Saves the current song to the autoplaylist.
+        Saves the specified song or current song if not specified to the autoplaylist.
         """
-        if player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry):
-            url = player.current_entry.url
+        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
+            if not url:
+                url = player.current_entry.url
 
             if url not in self.autoplaylist:
                 self.autoplaylist.append(url)
@@ -2171,7 +2173,7 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if param.lower() in ['force', 'f']:
+        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
             if author.id == self.config.owner_id \
                 or permissions.instaskip \
                     or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
