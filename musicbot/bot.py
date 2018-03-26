@@ -1329,7 +1329,8 @@ class MusicBot(discord.Client):
             stripped = len(self.config.command_prefix)+9
             int(stripped)
             ph = message.content[stripped:]
-            member = discord.utils.find(lambda m: m.name == ph, channel.server.members)
+            str(ph)
+            member = server.get_member_named(ph)
             if member == None:
                 member = message.author
         else:
