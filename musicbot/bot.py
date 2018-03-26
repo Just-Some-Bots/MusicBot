@@ -1369,7 +1369,7 @@ class MusicBot(discord.Client):
 
         else:
             return Response(
-            self.str.get('cmd-user', """
+            self.str.get('cmd-userinfo', """
 ```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\n Avatar:``` {}""").format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar), delete_after=30
             )
 
