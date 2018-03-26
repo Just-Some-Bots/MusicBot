@@ -2927,6 +2927,199 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
+    async def on_message_edit(self, before:discord.Message.content, after:discord.Message.content):
+        await self.wait_until_ready()
+        message = after
+
+        message_content = message.content.strip()
+        if not message_content.startswith(self.config.command_prefix):
+            return
+
+        if message.author == self.user:
+            log.warning("Ignoring command from myself ({})".format(message.content))
+            return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
+            return  # if I want to log this I just move it under the prefix check
+
+        command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
+        command = command[len(self.config.command_prefix):].lower().strip()
+
+        handler = getattr(self, 'cmd_' + command, None)
+        if not handler:
+            return
+
+        if message.channel.is_private:
+            if not (message.author.id == self.config.owner_id and command == 'joinserver'):
+                await self.send_message(message.channel, 'You cannot use this bot in private messages.')
+                return
+
+        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
+            log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(message.author, command))
+            return
+
+        else:
+            log.info("{0.id}/{0!s}: {1}".format(message.author, message_content.replace('\n', '\n... ')))
+
+        user_permissions = self.permissions.for_user(message.author)
+
+        argspec = inspect.signature(handler)
+        params = argspec.parameters.copy()
+
+        sentmsg = response = None
+
+        # noinspection PyBroadException
+        try:
+            if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
+                await self._check_ignore_non_voice(message)
+
+            handler_kwargs = {}
+            if params.pop('message', None):
+                handler_kwargs['message'] = message
+
+            if params.pop('channel', None):
+                handler_kwargs['channel'] = message.channel
+
+            if params.pop('author', None):
+                handler_kwargs['author'] = message.author
+
+            if params.pop('server', None):
+                handler_kwargs['server'] = message.server
+
+            if params.pop('player', None):
+                handler_kwargs['player'] = await self.get_player(message.channel)
+
+            if params.pop('_player', None):
+                handler_kwargs['_player'] = self.get_player_in(message.server)
+
+            if params.pop('permissions', None):
+                handler_kwargs['permissions'] = user_permissions
+
+            if params.pop('user_mentions', None):
+                handler_kwargs['user_mentions'] = list(map(message.server.get_member, message.raw_mentions))
+
+            if params.pop('channel_mentions', None):
+                handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
+
+            if params.pop('voice_channel', None):
+                handler_kwargs['voice_channel'] = message.server.me.voice_channel
+
+            if params.pop('leftover_args', None):
+                handler_kwargs['leftover_args'] = args
+
+            args_expected = []
+            for key, param in list(params.items()):
+
+                # parse (*args) as a list of args
+                if param.kind == param.VAR_POSITIONAL:
+                    handler_kwargs[key] = args
+                    params.pop(key)
+                    continue
+
+                # parse (*, args) as args rejoined as a string
+                # multiple of these arguments will have the same value
+                if param.kind == param.KEYWORD_ONLY and param.default == param.empty:
+                    handler_kwargs[key] = ' '.join(args)
+                    params.pop(key)
+                    continue
+
+                doc_key = '[{}={}]'.format(key, param.default) if param.default is not param.empty else key
+                args_expected.append(doc_key)
+
+                # Ignore keyword args with default values when the command had no arguments
+                if not args and param.default is not param.empty:
+                    params.pop(key)
+                    continue
+
+                # Assign given values to positional arguments
+                if args:
+                    arg_value = args.pop(0)
+                    handler_kwargs[key] = arg_value
+                    params.pop(key)
+
+            if message.author.id != self.config.owner_id:
+                if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
+                    raise exceptions.PermissionsError(
+                        "This command is not enabled for your group ({}).".format(user_permissions.name),
+                        expire_in=20)
+
+                elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
+                    raise exceptions.PermissionsError(
+                        "This command is disabled for your group ({}).".format(user_permissions.name),
+                        expire_in=20)
+
+            # Invalid usage, return docstring
+            if params:
+                docs = getattr(handler, '__doc__', None)
+                if not docs:
+                    docs = 'Usage: {}{} {}'.format(
+                        self.config.command_prefix,
+                        command,
+                        ' '.join(args_expected)
+                    )
+
+                docs = dedent(docs)
+                await self.safe_send_message(
+                    message.channel,
+                    '```\n{}\n```'.format(docs.format(command_prefix=self.config.command_prefix)),
+                    expire_in=60
+                )
+                return
+
+            response = await handler(**handler_kwargs)
+            if response and isinstance(response, Response):
+                if not isinstance(response.content, discord.Embed) and self.config.embeds:
+                    content = self._gen_embed()
+                    content.title = command
+                    content.description = response.content
+                else:
+                    content = response.content
+
+                if response.reply:
+                    if isinstance(content, discord.Embed):
+                        content.description = '{} {}'.format(message.author.mention, content.description if content.description is not discord.Embed.Empty else '')
+                    else:
+                        content = '{}: {}'.format(message.author.mention, content)
+
+                sentmsg = await self.safe_send_message(
+                    message.channel, content,
+                    expire_in=response.delete_after if self.config.delete_messages else 0,
+                    also_delete=message if self.config.delete_invoking else None
+                )
+
+        except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
+            log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e), exc_info=True)
+
+            expirein = e.expire_in if self.config.delete_messages else None
+            alsodelete = message if self.config.delete_invoking else None
+
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.add_field(name='Error', value=e.message, inline=False)
+                content.colour = 13369344
+            else:
+                content = '```\n{}\n```'.format(e.message)
+
+            await self.safe_send_message(
+                message.channel,
+                content,
+                expire_in=expirein,
+                also_delete=alsodelete
+            )
+
+        except exceptions.Signal:
+            raise
+
+        except Exception:
+            log.error("Exception in on_message", exc_info=True)
+            if self.config.debug_mode:
+                await self.safe_send_message(message.channel, '```\n{}\n```'.format(traceback.format_exc()))
+
+        finally:
+            if not sentmsg and not response and self.config.delete_invoking:
+                await asyncio.sleep(5)
+                await self.safe_delete_message(message, quiet=True)
+
     async def gen_cmd_list(self, message, list_all_cmds=False):
         for att in dir(self):
             # This will always return at least cmd_help, since they needed perms to run this command
