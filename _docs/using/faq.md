@@ -1,7 +1,7 @@
 ---
 title: FAQ
 category: Using the bot
-order: 6
+order: 7
 ---
 
 #### How do I get an ID?
