@@ -311,7 +311,7 @@ class Config:
                 raise HelpfulError('Your command_aliases.json file is not a valid JSON!',
                                    'Properly configure config/command_aliases.json and re-run the bot.')
 
-        return command_aliases
+            return command_aliases
 
     def setup_command_aliases(self):
         command_aliases = self.command_aliases
