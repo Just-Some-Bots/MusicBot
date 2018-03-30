@@ -306,12 +306,10 @@ class Config:
             log.debug('The file \'command_aliases.json\' does not exist.')
         else:
             try:
-                command_aliases = json.load(open(self.command_aliases_file))
+                return json.load(open(self.command_aliases_file))
             except json.decoder.JSONDecodeError:
                 raise HelpfulError('Your command_aliases.json file is not a valid JSON!',
                                    'Properly configure config/command_aliases.json and re-run the bot.')
-
-            return command_aliases
 
     def setup_command_aliases(self):
         command_aliases = self.command_aliases
@@ -323,9 +321,10 @@ class Config:
 
             for alias in aliases:
                 if hasattr(bot.MusicBot, 'cmd_{}'.format(alias)):
-                    raise HelpfulError(
+                    log.warning(
                         'Command named {} already exists!'.format(alias),
-                        'Re-configure config/command_aliases.json and re-run the bot.')
+                        'Skipping setting this command alias.')
+                    continue
 
                 setattr(bot.MusicBot, 'cmd_{}'.format(alias), getattr(bot.MusicBot, 'cmd_{}'.format(command_name)))
 
