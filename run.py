@@ -332,6 +332,10 @@ def main():
 
     import asyncio
 
+    if sys.platform == 'win32':
+        loop = asyncio.ProactorEventLoop()  # needed for subprocesses
+        asyncio.set_event_loop(loop)
+
     tried_requirementstxt = False
     tryagain = True
 

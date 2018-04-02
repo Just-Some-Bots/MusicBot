@@ -1167,11 +1167,11 @@ class MusicBot(discord.Client):
                 log.info("Cannot autojoin text channels:")
                 [log.info(' - {}/{}'.format(ch.server.name.strip(), ch.name.strip())) for ch in invalids if ch]
 
-            autojoin_channels = chlist
+            self.autojoin_channels = chlist
 
         else:
             log.info("Not autojoining any voice channels")
-            autojoin_channels = set()
+            self.autojoin_channels = set()
         
         if self.config.show_config_at_start:
             print(flush=True)
@@ -1196,6 +1196,7 @@ class MusicBot(discord.Client):
             log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
+            log.info("  Legacy skip: " + ['Disabled']['Enabled'][self.config.legacy_skip])
 
         print(flush=True)
 
@@ -1204,7 +1205,7 @@ class MusicBot(discord.Client):
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
 
-        await self._join_startup_channels(autojoin_channels, autosummon=self.config.auto_summon)
+        await self._join_startup_channels(self.autojoin_channels, autosummon=self.config.auto_summon)
 
         # we do this after the config stuff because it's a lot easier to notice here
         if self.config.missing_keys:
@@ -1337,15 +1338,16 @@ class MusicBot(discord.Client):
             usr = user_mentions[0]
             return Response(self.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, delete_after=35)
 
-    async def cmd_save(self, player):
+    async def cmd_save(self, player, url=None):
         """
         Usage:
-            {command_prefix}save
+            {command_prefix}save [url]
 
-        Saves the current song to the autoplaylist.
+        Saves the specified song or current song if not specified to the autoplaylist.
         """
-        if player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry):
-            url = player.current_entry.url
+        if url or (player.current_entry and not isinstance(player.current_entry, StreamPlaylistEntry)):
+            if not url:
+                url = player.current_entry.url
 
             if url not in self.autoplaylist:
                 self.autoplaylist.append(url)
@@ -2185,7 +2187,7 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if param.lower() in ['force', 'f']:
+        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
             if author.id == self.config.owner_id \
                 or permissions.instaskip \
                     or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
@@ -3082,19 +3084,11 @@ class MusicBot(discord.Client):
     async def on_server_join(self, server:discord.Server):
         log.info("Bot has been joined server: {}".format(server.name))
 
-        if not self.user.bot:
-            alertmsg = "<@{uid}> Hi I'm a musicbot please mute me."
-
-            if server.id == "81384788765712384" and not server.unavailable: # Discord API
-                playground = server.get_channel("94831883505905664") or discord.utils.get(server.channels, name='playground') or server
-                await self.safe_send_message(playground, alertmsg.format(uid="98295630480314368")) # fake abal
-
-            elif server.id == "129489631539494912" and not server.unavailable: # Rhino Bot Help
-                bot_testing = server.get_channel("134771894292316160") or discord.utils.get(server.channels, name='bot-testing') or server
-                await self.safe_send_message(bot_testing, alertmsg.format(uid="98295630480314368")) # also fake abal
-
         log.debug("Creating data folder for server %s", server.id)
         pathlib.Path('data/%s/' % server.id).mkdir(exist_ok=True)
+
+        if len(self.servers) == 1:  # assume the person only just added the bot to a server
+            await self._join_startup_channels(self.autojoin_channels, autosummon=self.config.auto_summon)
 
     async def on_server_remove(self, server: discord.Server):
         log.info("Bot has been removed from server: {}".format(server.name))
