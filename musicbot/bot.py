@@ -2710,7 +2710,12 @@ class MusicBot(discord.Client):
             return
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
-            return  # if I want to log this I just move it under the prefix check
+            if self.config.unbound_servers:
+                for channel in message.server.channels:
+                    if channel.id in self.config.bound_channels:
+                        return
+            else:
+                return  # if I want to log this I just move it under the prefix check
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
