@@ -133,7 +133,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
@@ -360,7 +360,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = ch or data['meta']['channel']['name']
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, destination=destination, **meta)
             if not destination and filename:

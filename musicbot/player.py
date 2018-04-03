@@ -7,6 +7,8 @@ import audioop
 import subprocess
 import re
 
+from discord import FFmpegPCMAudio, PCMVolumeTransformer
+
 from enum import Enum
 from array import array
 from threading import Thread
@@ -124,7 +126,7 @@ class MusicPlayer(EventEmitter, Serializable):
     def volume(self, value):
         self._volume = value
         if self._current_player:
-            self._current_player.buff.volume = value
+            self._current_player.source.volume = value
 
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
@@ -134,6 +136,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def skip(self):
         self._kill_current_player()
+        self._playback_finished()
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
@@ -179,16 +182,10 @@ class MusicPlayer(EventEmitter, Serializable):
     def _playback_finished(self):
         entry = self._current_entry
 
-        if self._current_player:
-            self._current_player.after = None
-            self._kill_current_player()
-
-        self._current_entry = None
-
-        if self._stderr_future.done() and self._stderr_future.exception():
-            # I'm not sure that this would ever not be done if it gets to this point
-            # unless ffmpeg is doing something highly questionable
-            self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
+        # if self._stderr_future.done() and self._stderr_future.exception():
+        #     # I'm not sure that this would ever not be done if it gets to this point
+        #     # unless ffmpeg is doing something highly questionable
+        #     self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
 
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
@@ -206,11 +203,11 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def _kill_current_player(self):
         if self._current_player:
-            if self.is_paused:
-                self.resume()
+            if self.voice_client.is_paused():
+                self.voice_client.resume()
 
             try:
-                self._current_player.stop()
+                self.voice_client.stop()
             except OSError:
                 pass
             self._current_player = None
@@ -275,60 +272,48 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 
-                self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
-                    entry.filename,
-                    before_options=boptions,
-                    options=aoptions,
-                    stderr=subprocess.PIPE,
-                    # Threadsafe call soon, b/c after will be called from the voice playback thread.
-                    after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
-                ))
-                self._current_player.setDaemon(True)
-                self._current_player.buff.volume = self.volume
+                source = PCMVolumeTransformer(
+                    FFmpegPCMAudio(
+                        entry.filename,
+                        before_options=boptions,
+                        options=aoptions,
+                        stderr=subprocess.PIPE
+                    ),
+                    self.volume
+                )
+                self.voice_client.play(source)
+
+                self._current_player = self.voice_client
 
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
-                self._stderr_future = asyncio.Future()
-
-                stderr_thread = Thread(
-                    target=filter_stderr,
-                    args=(self._current_player.process, self._stderr_future),
-                    name="{} stderr reader".format(self._current_player.name)
-                )
-
-                stderr_thread.start()
-                self._current_player.start()
 
                 self.emit('play', player=self, entry=entry)
 
-    def _monkeypatch_player(self, player):
-        original_buff = player.buff
-        player.buff = PatchedBuff(original_buff)
-        return player
-
     async def reload_voice(self, voice_client):
-        async with self.bot.aiolocks[_func_() + ':' + voice_client.channel.server.id]:
+        async with self.bot.aiolocks[_func_() + ':' + str(voice_client.channel.guild.id)]:
             self.voice_client = voice_client
             if self._current_player:
-                self._current_player.player = voice_client.play_audio
-                self._current_player._resumed.clear()
-                self._current_player._connected.set()
+                self._current_player = voice_client
+                self._current_player.source._resumed.clear()
+                self._current_player.source._connected.set()
 
     async def websocket_check(self):
-        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.server))
+        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.guild))
 
         while not self.is_dead:
             try:
-                async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + self.voice_client.channel.server.id]:
-                    await self.voice_client.ws.ensure_open()
+                if self.voice_client:
+                    async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + str(self.voice_client.channel.guild.id)]:
+                        await self.voice_client.ws.ensure_open()
 
             except InvalidState:
                 log.debug("Voice websocket for \"{}\" is {}, reconnecting".format(
                     self.voice_client.channel.server,
                     self.voice_client.ws.state.name
                 ))
-                await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
+                await self.bot.reconnect_voice_client(self.voice_client.channel.guild, channel=self.voice_client.channel)
                 await asyncio.sleep(3)
 
             except Exception:
@@ -342,7 +327,7 @@ class MusicPlayer(EventEmitter, Serializable):
             'current_entry': {
                 'entry': self.current_entry,
                 'progress': self.progress,
-                'progress_frames': self._current_player.buff.frame_count if self.progress is not None else None
+                'progress_frames': self._current_player._player.loops if self.progress is not None else None
             },
             'entries': self.playlist
         })
@@ -373,8 +358,8 @@ class MusicPlayer(EventEmitter, Serializable):
     def from_json(cls, raw_json, bot, voice_client, playlist):
         try:
             return json.loads(raw_json, object_hook=Serializer.deserialize)
-        except:
-            log.exception("Failed to deserialize player")
+        except Exception as e:
+            log.exception("Failed to deserialize player", e)
 
 
     @property
@@ -400,7 +385,7 @@ class MusicPlayer(EventEmitter, Serializable):
     @property
     def progress(self):
         if self._current_player:
-            return round(self._current_player.buff.frame_count * 0.02)
+            return round(self._current_player._player.loops * 0.02)
             # TODO: Properly implement this
             #       Correct calculation should be bytes_read/192k
             #       192k AKA sampleRate * (bitDepth / 8) * channelCount
