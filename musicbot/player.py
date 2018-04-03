@@ -182,10 +182,16 @@ class MusicPlayer(EventEmitter, Serializable):
     def _playback_finished(self):
         entry = self._current_entry
 
-        # if self._stderr_future.done() and self._stderr_future.exception():
-        #     # I'm not sure that this would ever not be done if it gets to this point
-        #     # unless ffmpeg is doing something highly questionable
-        #     self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
+        if self._current_player:
+            self._current_player.after = None
+            self._kill_current_player()
+
+        self._current_entry = None
+
+        if self._stderr_future.done() and self._stderr_future.exception():
+            # I'm not sure that this would ever not be done if it gets to this point
+            # unless ffmpeg is doing something highly questionable
+            self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
 
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
@@ -288,6 +294,16 @@ class MusicPlayer(EventEmitter, Serializable):
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
+
+                self._stderr_future = asyncio.Future()
+
+                stderr_thread = Thread(
+                    target=filter_stderr,
+                    args=(self._current_player._player.source.original._process, self._stderr_future),
+                    name="stderr reader"
+                )
+
+                stderr_thread.start()
 
                 self.emit('play', player=self, entry=entry)
 
