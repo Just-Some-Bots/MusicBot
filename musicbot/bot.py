@@ -1196,7 +1196,7 @@ class MusicBot(discord.Client):
             log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
-            log.info("  Legacy skip: " + ['Disabled']['Enabled'][self.config.legacy_skip])
+            log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
 
         print(flush=True)
 
