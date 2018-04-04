@@ -63,6 +63,7 @@ class MusicBot(discord.Client):
         if perms_file is None:
             perms_file = PermissionsDefaults.perms_file
 
+        self.plName = 'autoplaylist'
         self.players = {}
         self.exit_signal = None
         self.init_ok = False
@@ -75,7 +76,6 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
-
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -1196,7 +1196,7 @@ class MusicBot(discord.Client):
             log.info("  Author insta-skip: " + ['Disabled', 'Enabled'][self.config.allow_author_skip])
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
-            log.info("  Legacy skip: " + ['Disabled']['Enabled'][self.config.legacy_skip])
+            log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
 
         print(flush=True)
 
@@ -1353,7 +1353,7 @@ class MusicBot(discord.Client):
                 self.autoplaylist.append(url)
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
                 log.debug("Appended {} to autoplaylist".format(url))
-                return Response(self.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
+                return Response(self.str.get('cmd-save-success', 'Added <{0}> to the ' + self.plName + ' playlist.').format(url))
             else:
                 raise exceptions.CommandError(self.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
         else:
@@ -2290,38 +2290,122 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     self.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
    
-    async def cmd_ap(self, player, value):
+    async def cmd_ap(self, player, option, songs=None):
         """
         Usage:
-            {command_prefix}ap [on/y/enabled/off/n/disabled]
+            {command_prefix}ap [option] (song or playlist url)
 
-        Turns the autoplaylist on or off without restarting the bot. Changes aren't permanent and
-        only last until the bot is restarted. To make permanent changes, edit the
-        config file.
+        Options
+        [newPlaylist , existingPlaylist] - will change playlist and enable by default (no spaces in names)
+        [name/current/called/get] - info about current playlist
+        [on/y/enabled/off/n/disabled]) - current playlist on/off
+        leave blank to add song or playlist url to current playlist
 
-        For information about these options, see the option's comment in the config file.
+        [song or playlist url] - only youtube supported currently :P
         """
 
-        value = value.lower()
+        print(option)
+        print(songs)
         bool_y = ['on', 'y', 'enabled', 'start']
         bool_n = ['off', 'n', 'disabled', 'stop']
-        
-        if value in bool_y:
+        newtracks = 0
+        entries_added = 0
+        if 'autoplaylist' in option:
+            isap = 0
+        else:
+            isap = 1
+
+        if option in ['name','current','called','get']:
+            return Response('The current playlist is ' + self.plName + ' containing ' + str(len(self.autoplaylist)) + ' tracks.')
+        if option in bool_y:
             if self.config.auto_playlist:
                 raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-enabled', 'The autoplaylist is already enabled!'))
             else:
                 if not self.autoplaylist:
                     raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-none', 'There are no entries in the autoplaylist file.'))
                 self.config.auto_playlist = True
+                print("this happened")
                 await self.on_player_finished_playing(player)
-        elif value in bool_n:
+        elif option in bool_n:
             if not self.config.auto_playlist:
                 raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-disabled', 'The autoplaylist is already disabled!'))
             else:
                 self.config.auto_playlist = False
+        
+        # If a playlist exists, set it and load it
         else:
-            raise exceptions.CommandError(self.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
-        return Response("The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist] + '.')
+            self.config.auto_playlist = True
+
+            if ('https://www.yo' or 'https://www.youtube.com/playlist?list=') in option:
+                songs = option
+                print("this is really true")
+            else:
+                self.plName = option.lower() 
+
+            plLoc = ['config/autoplaylist.txt','config/playlists/' + self.plName + '.txt'][isap]
+            self.config.auto_playlist_file = plLoc
+
+            if songs:
+
+                print("there are songs")
+                newtracks = 1
+
+                if 'https://www.youtube.com/playlist?list=' in songs:
+                    try:
+                        info = await self.downloader.extract_info(self.loop, songs.strip('<>'), download=False, process=False)
+                    except Exception as e:
+                        raise exceptions.CommandError("Could not extract info from input url\n%s\n" % e, expire_in=25)
+
+                    if not info:
+                        raise exceptions.CommandError("Could not extract info from input url, no data.", expire_in=25)
+
+                    if not info.get('entries', None):
+                        # TODO: Retarded playlist checking
+                        # set(url, webpageurl).difference(set(url))
+
+                        if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
+                            raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
+                        else:
+                            return await self.cmd_pldump(channel, info.get(''))
+
+                    linegens = defaultdict(lambda: None, **{
+                        "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
+                        "soundcloud": lambda d: d['url'],
+                        "bandcamp":   lambda d: d['url']
+                    })
+
+                    exfunc = linegens[info['extractor'].split(':')[0]]
+                    print(info['entries'])
+                    if not exfunc:
+                        raise exceptions.CommandError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
+                    
+                    with open(plLoc, 'a', encoding='utf8') as f:
+                        for item in info['entries']:
+                            f.write(exfunc(item) + '\n')
+                            entries_added += 1
+                else:
+                    print("this happened also")
+                    with open(plLoc, 'a', encoding='utf8') as f:
+                        f.write(songs + '\n')
+                        entries_added = 1
+            
+        #TODOROB - check if same playlist is already loaded
+        #Load playlist
+        
+        if "autoplaylist" in self.config.auto_playlist_file:
+            isap = 0
+        else:
+            isap = 1
+        self.autoplaylist.clear()
+        self.autoplaylist = load_file(self.config.auto_playlist_file)
+        player.autoplaylist = list(set(self.autoplaylist))
+        print("current playlist location " + self.config.auto_playlist_file)
+        print(self.autoplaylist)
+        await self.on_player_finished_playing(player)
+        
+        return Response( ["The autoplaylist","The playlist " + self.plName][isap] + " is now " + ['disabled', 'enabled'][self.config.auto_playlist]
+         + [' and contains ' + str(len(self.autoplaylist)) + ' tracks.',' and has ' + str(entries_added) + ' new entries.'][newtracks])
+
 
     @owner_only
     async def cmd_option(self, player, option, value):
