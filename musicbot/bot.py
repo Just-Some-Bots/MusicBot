@@ -1731,7 +1731,7 @@ class MusicBot(discord.Client):
 
         service = 'youtube'
         items_requested = 3
-        max_items = 10  # this can be whatever, but since ytdl uses about 1000, a small number might be better
+        max_items = permissions.max_search_items
         services = {
             'youtube': 'ytsearch',
             'soundcloud': 'scsearch',
