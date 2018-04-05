@@ -184,7 +184,6 @@ class Config:
         self.bound_channels = set(int(item.replace(',', ' ').strip()) for item in self.bound_channels)
 
         self.autojoin_channels = set(int(item.replace(',', ' ').strip()) for item in self.autojoin_channels)
-        print(self.bound_channels)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
