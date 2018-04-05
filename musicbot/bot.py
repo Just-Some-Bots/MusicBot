@@ -1014,7 +1014,7 @@ class MusicBot(discord.Client):
             chlist.discard(None)
 
             invalids = set()
-            invalids.update(c for c in chlist if c.type == discord.ChannelType.voice)
+            invalids.update(c for c in chlist if isinstance(c, discord.VoiceChannel))
 
             chlist.difference_update(invalids)
             self.config.bound_channels.difference_update(invalids)
@@ -2604,8 +2604,10 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not isinstance(message.channel, discord.abc.GuildChannel):
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
             return  # if I want to log this I just move it under the prefix check
+        if not isinstance(message.channel, discord.abc.GuildChannel):
+            return
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()

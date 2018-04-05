@@ -181,9 +181,10 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        self.bound_channels = set(item.replace(',', ' ').strip() for item in self.bound_channels)
+        self.bound_channels = set(int(item.replace(',', ' ').strip()) for item in self.bound_channels)
 
-        self.autojoin_channels = set(item.replace(',', ' ').strip() for item in self.autojoin_channels)
+        self.autojoin_channels = set(int(item.replace(',', ' ').strip()) for item in self.autojoin_channels)
+        print(self.bound_channels)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
@@ -225,6 +226,8 @@ class Config:
 
             self.owner_id = bot.cached_app_info.owner.id
             log.debug("Acquired owner id via API")
+        else:
+            self.owner_id = int(self.owner_id)
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(
