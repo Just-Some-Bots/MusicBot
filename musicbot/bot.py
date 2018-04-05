@@ -1349,6 +1349,7 @@ class MusicBot(discord.Client):
         avatar = member.avatar_url if member.avatar else member.default_avatar_url
         user_id = member.id
 
+        await self.safe_delete_message(message)
         if self.config.embeds:
             if nickname == None:
                 e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} in {}".format(member, server), timestamp=datetime.datetime.utcnow())
