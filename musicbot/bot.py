@@ -69,7 +69,7 @@ class MusicBot(discord.Client):
         self.last_status = None
 
         self.config = Config(config_file)
-        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
+        self.permissions = Permissions(perms_file, grant_all=[int(self.config.owner_id)])
         self.str = Json(self.config.i18n_file)
 
         self.blacklist = set(load_file(self.config.blacklist_file))
@@ -128,7 +128,7 @@ class MusicBot(discord.Client):
             # Only allow the owner to use these commands
             orig_msg = _get_variable('message')
 
-            if not orig_msg or orig_msg.author.id == self.config.owner_id:
+            if not orig_msg or orig_msg.author.id == int(self.config.owner_id):
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
@@ -161,7 +161,7 @@ class MusicBot(discord.Client):
 
     def _get_owner(self, *, server=None, voice=False):
             return discord.utils.find(
-                lambda m: m.id == self.config.owner_id and (m.voice if voice else True),
+                lambda m: m.id == int(self.config.owner_id) and (m.voice if voice else True),
                 server.members if server else self.get_all_members()
             )
 
@@ -1155,7 +1155,7 @@ class MusicBot(discord.Client):
                 else:
                     raise exceptions.CommandError(self.str.get('cmd-help-invalid', "No such command"), expire_in=10)
 
-        elif message.author.id == self.config.owner_id:
+        elif message.author.id == int(self.config.owner_id):
             await self.gen_cmd_list(message, list_all_cmds=True)
 
         else:
@@ -1187,7 +1187,7 @@ class MusicBot(discord.Client):
             )
 
         for user in user_mentions.copy():
-            if user.id == self.config.owner_id:
+            if user.id == int(self.config.owner_id):
                 print("[Commands:Blacklist] The owner cannot be blacklisted.")
                 user_mentions.remove(user)
 
@@ -1997,7 +1997,7 @@ class MusicBot(discord.Client):
 
         if user_mentions:
             for user in user_mentions:
-                if author.id == self.config.owner_id or permissions.remove or author == user:
+                if author.id == int(self.config.owner_id) or permissions.remove or author == user:
                     try:
                         entry_indexes = [e for e in player.playlist.entries if e.meta.get('author', None) == user]
                         for entry in entry_indexes:
@@ -2024,7 +2024,7 @@ class MusicBot(discord.Client):
         if index > len(player.playlist.entries):
             raise exceptions.CommandError(self.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
 
-        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
+        if author.id == int(self.config.owner_id) or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
             entry = player.playlist.delete_entry_at_index((index - 1))
             await self._manual_delete_check(message)
             if entry.meta.get('channel', False) and entry.meta.get('author', False):
@@ -2065,7 +2065,7 @@ class MusicBot(discord.Client):
         current_entry = player.current_entry
 
         if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
-            if author.id == self.config.owner_id \
+            if author.id == int(self.config.owner_id) \
                 or permissions.instaskip \
                     or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
@@ -2280,7 +2280,7 @@ class MusicBot(discord.Client):
             return valid_call and not entry.content[1:2].isspace()
 
         delete_invokes = True
-        delete_all = channel.permissions_for(author).manage_messages or self.config.owner_id == author.id
+        delete_all = channel.permissions_for(author).manage_messages or int(self.config.owner_id) == author.id
 
         def check(message):
             if is_possible_command_invoke(message) and delete_invokes:
@@ -2615,11 +2615,11 @@ class MusicBot(discord.Client):
             return
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
-            if not (message.author.id == self.config.owner_id and command == 'joinserver'):
+            if not (message.author.id == int(self.config.owner_id) and command == 'joinserver'):
                 await self.send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
-        if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
+        if message.author.id in self.blacklist and message.author.id != int(self.config.owner_id):
             log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(message.author, command))
             return
 
@@ -2702,7 +2702,7 @@ class MusicBot(discord.Client):
                     handler_kwargs[key] = arg_value
                     params.pop(key)
 
-            if message.author.id != self.config.owner_id:
+            if message.author.id != int(self.config.owner_id):
                 if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
                     raise exceptions.PermissionsError(
                         "This command is not enabled for your group ({}).".format(user_permissions.name),
