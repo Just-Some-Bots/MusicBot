@@ -58,4 +58,4 @@ After creating a bot account, you should probably add your bot to a server by cl
 - `ShowConfigOnLaunch` - Whether the bot should print the configuration options when it starts
 
 #### Files
-- `i18nFile` - The internationalization file to use for the bot (relative path, e.g `i18n/en.json`)
+- `i18nFile` - The internationalization file to use for the bot (relative path, e.g `config/i18n/en.json`)
