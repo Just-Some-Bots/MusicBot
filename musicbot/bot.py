@@ -1040,7 +1040,7 @@ class MusicBot(discord.Client):
             chlist.discard(None)
 
             invalids = set()
-            invalids.update(c for c in chlist if c.type == discord.ChannelType.text)
+            invalids.update(c for c in chlist if isinstance(c, discord.TextChannel))
 
             chlist.difference_update(invalids)
             self.config.autojoin_channels.difference_update(invalids)
