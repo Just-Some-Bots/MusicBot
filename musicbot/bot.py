@@ -11,6 +11,7 @@ import pathlib
 import traceback
 import math
 import re
+import time
 
 import aiohttp
 import discord
@@ -105,13 +106,17 @@ class MusicBot(discord.Client):
 
         self.spotify = None
         if self.config._spotify:
-            self.spotify = Spotify(self.config.spotify_clientid, self.config.spotify_clientsecret, aiosession=self.aiosession, loop=self.loop)
-            if not self.spotify.token:
-                log.warning('Your Spotify credentials could not be validated. Please make sure your client ID and client secret '
-                            'in the config file are correct. Disabling Spotify integration for this session.')
+            try:
+                self.spotify = Spotify(self.config.spotify_clientid, self.config.spotify_clientsecret, aiosession=self.aiosession, loop=self.loop)
+                if not self.spotify.token:
+                    log.warning('Spotify did not provide us with a token. Disabling.')
+                    self.config._spotify = False
+                else:
+                    log.info('Authenticated with Spotify successfully using client ID and secret.')
+            except exceptions.SpotifyError as e:
+                log.warning('There was a problem initialising the connection to Spotify. Is your client ID and secret correct? Details: {0}. Continuing anyway in 5 seconds...'.format(e))
                 self.config._spotify = False
-            else:
-                log.info('Authenticated with Spotify successfully using client ID and secret.')
+                time.sleep(5)  # make sure they see the problem
 
     def __del__(self):
         # These functions return futures but it doesn't matter
