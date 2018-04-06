@@ -1883,8 +1883,8 @@ class MusicBot(discord.Client):
         Call the bot to the summoner's voice channel.
         """
 
-        if not author.voice.channel:
-            raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not in a voice channel!'))
+        if not author.voice:
+            raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
         voice_client = self.voice_client_in(guild)
         if voice_client and guild == author.voice.channel.guild:
