@@ -11,7 +11,6 @@ import pathlib
 import traceback
 import math
 import re
-import time
 
 import aiohttp
 import discord
