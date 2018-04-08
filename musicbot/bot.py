@@ -2295,13 +2295,26 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}ap [option] (song or playlist url)
 
-        Options
-        [newPlaylist , existingPlaylist] - will change playlist and enable by default (no spaces in names)
-        [name/current/called/get] - info about current playlist
-        [on/y/enabled/off/n/disabled]) - current playlist on/off
-        leave blank to add song or playlist url to current playlist
+        Example:
+        ?ap jazz https://youtu.be/9ka5bgHnHyg
+        Turns on the jazz playlist and adds A song
 
-        [song or playlist url] - only youtube supported currently :P
+        Option may be: 
+            <playlistname> 
+            <on/off>
+            <info>
+            <songurl>
+        
+        Valid [Options]:
+        "playlistname" - Change or create the active playlist and turn it on.
+
+        on/y/enabled/off/n/disabled - Active playlist on/off.
+
+        info/name/current/called/get - Info about current playlist.
+
+        *songurl* - Add song(s) to active playlist
+
+        (song or playlist url) - only youtube supported currently :P
         """
 
         print(option)
@@ -2315,7 +2328,7 @@ class MusicBot(discord.Client):
         else:
             isap = 1
 
-        if option in ['name','current','called','get']:
+        if option.lower() in ['info','name','current','called','get']:
             return Response('The current playlist is ' + self.plName + ' containing ' + str(len(self.autoplaylist)) + ' tracks.')
         if option in bool_y:
             if self.config.auto_playlist:
