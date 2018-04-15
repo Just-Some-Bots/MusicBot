@@ -55,7 +55,7 @@ class Playlist(EventEmitter, Serializable):
         return entry
 
 
-    async def add_entry(self, song_url, **meta):
+    async def add_entry(self, song_url, head=False, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
 
@@ -112,7 +112,7 @@ class Playlist(EventEmitter, Serializable):
             self.downloader.ytdl.prepare_filename(info),
             **meta
         )
-        self._add_entry(entry)
+        self._add_entry(entry, head=head)
         return entry, len(self.entries)
 
     async def add_stream_entry(self, song_url, info=None, **meta):
