@@ -54,6 +54,9 @@ class Playlist(EventEmitter, Serializable):
         self.entries.rotate(index)
         return entry
 
+    def delete_entries(self, num_entries):
+        for _ in range(0, num_entries):
+            self.entries.popleft()
 
     async def add_entry(self, song_url, **meta):
         """

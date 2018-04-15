@@ -81,6 +81,8 @@
     "cmd-skip-reply-voted-1": "`{0}` のスキップをリクエストしました。\nスキップには残り **{1}** {2}賛成が必要です。",
     "cmd-skip-reply-voted-2": "人の",
     "cmd-skip-reply-voted-3": "人の",
+    "cmd-skipto-invalid": "無効な番号。 {}キューを使用してキューの位置を検索します。",
+    "cmd-skipto-reply-skipped": "あなたの曲`{0}`へのスキップは認められました。\n{1}",
     "cmd-volume-current": "現在の音量: `%s%%`",
     "cmd-volume-invalid": "`{0}` は無効な数字です",
     "cmd-volume-reply": "音量が **%d** から **%d** に変更されました",
