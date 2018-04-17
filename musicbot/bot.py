@@ -125,6 +125,10 @@ class MusicBot(discord.Client):
         try:    self.aiosession.close()
         except: pass
 
+        super().__init__()
+        self.aiosession = aiohttp.ClientSession(loop=self.loop)
+        self.http.user_agent += ' MusicBot/%s' % BOTVERSION
+
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
