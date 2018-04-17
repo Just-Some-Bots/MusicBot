@@ -1352,9 +1352,9 @@ class MusicBot(discord.Client):
         await self.safe_delete_message(message)
         if self.config.embeds:
             if nickname == None:
-                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} in {}".format(member, server), timestamp=datetime.datetime.utcnow())
+                e = discord.Embed(title="User info", colour=color, description="information on {} in {}".format(member, server), timestamp=datetime.datetime.utcnow())
             else:
-                e = discord.Embed(title="User info", colour=discord.Colour(0x7212da), description="information on {} AKA {} in {}".format(member, nickname, server), timestamp=datetime.datetime.utcnow())
+                e = discord.Embed(title="User info", colour=color, description="information on {} AKA {} in {}".format(member, nickname, server), timestamp=datetime.datetime.utcnow())
             e.set_thumbnail(url=avatar)
             e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
             e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
@@ -1364,7 +1364,6 @@ class MusicBot(discord.Client):
             e.add_field(name='Game', value=game, inline=True)
             e.add_field(name='Status', value=status, inline=True)
             e.add_field(name='Top role', value=top_role, inline=True)
-            e.add_field(name='Color', value=color, inline=True)
             e.add_field(name='Voice', value=voice, inline=True)
             e.add_field(name='User ID', value=user_id, inline=True)
             await self.send_message(message.channel, embed=e)
