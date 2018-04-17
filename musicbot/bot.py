@@ -1349,7 +1349,8 @@ class MusicBot(discord.Client):
         avatar = member.avatar_url if member.avatar else member.default_avatar_url
         user_id = member.id
 
-        await self.safe_delete_message(message)
+        if self.config.delete_messages:
+            await self.safe_delete_message(message)
         if self.config.embeds:
             if nickname == None:
                 e = discord.Embed(title="User info", colour=color, description="information on {} in {}".format(member, server), timestamp=datetime.datetime.utcnow())
@@ -1369,10 +1370,14 @@ class MusicBot(discord.Client):
             await self.send_message(message.channel, embed=e)
 
         else:
-            return Response(
-            self.str.get('cmd-userinfo', """
-```Nim\nInfo On: {} in {}\n\nVoice: {}\nRoles: {}\nJoined: {}\nStatus: {}\nGame: {}\nNickname: {}\nColor: {}\nTop Role: {}\nCreated: {}\nUser ID: {}\n Avatar:``` {}""").format(member, server, voice, roles, join_date, status, game, nickname, color, top_role, creation_date, user_id, avatar), delete_after=30
-            )
+            if nickname == None:
+                return Response(
+                    self.str.get('cmd-userinfo-nonick', """
+```Nim\nInformation on {} in {}\nRoles: {}\nCreated on: {}\nJoined at: {}\nGame: {}\nStatus: {}\nTop role: {}\nColor: {}\nVoice: {}\nUser ID: {}\nAvatar```\n{}""").format(member.name, server, roles, creation_date, join_date, game, status, top_role, color, voice, user_id, avatar))
+            else:
+                return Response(self.str.get('cmd-userinfo-nick', """
+```Nim\nInformation on {} AKA {} in {}\nRoles: {}\nCreated on: {}\nJoined at: {}\nGame:{}\nStatus: {}\nTop role: {}\nColor:{}\nVoice: {}\nUser ID: {}\nAvatar```\n{}""").format(member.name, nickname, server, roles, creation_date, join_date, game, status, top_role, color, voice, user_id, avatar))
+
 
     async def cmd_save(self, player):
         """
