@@ -1337,19 +1337,17 @@ class MusicBot(discord.Client):
         groups = matches.groups() if matches is not None else []
         song_url = "https://www.youtube.com/playlist?" + groups[0] if len(groups) > 0 else song_url
 
-        if song_url.startswith('spotify:'):  # treat it as probably a spotify URI
-            if self.config._spotify:
-                song_url = song_url.split(":", 1)[1]
+        if self.config._spotify:
+            if 'open.spotify.com' in song_url:
+                song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':')
+            if song_url.startswith('spotify:'):
+                parts = song_url.split(":")
                 try:
-
-                    if song_url.startswith('track:'):
-                        song_url = song_url.split(":", 1)[1]
-                        res = await self.spotify.get_track(song_url)
-                        song_url = res['artists'][0]['name'] + ' ' + res['name']  # spooky
-
-                    elif song_url.startswith('album:'):
-                        song_url = song_url.split(":", 1)[1]
-                        res = await self.spotify.get_album(song_url)
+                    if 'track' in parts:
+                        res = await self.spotify.get_track(parts[-1])
+                        song_url = res['artists'][0]['name'] + ' ' + res['name'] 
+                    elif 'album' in parts:
+                        res = await self.spotify.get_album(parts[-1])
                         await self._do_playlist_checks(permissions, player, author, res['tracks']['items'])
                         procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-album-process', 'Processing album `{0}`').format(res['name']))
                         for i in res['tracks']['items']:
@@ -1358,11 +1356,8 @@ class MusicBot(discord.Client):
                             await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
                         await self.safe_delete_message(procmesg)
                         return Response(self.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
-
-                    elif song_url.startswith('user:') and 'playlist:' in song_url:
-                        user = song_url.split(":",)[1]
-                        song_url = song_url.split(":", 3)[3]
-                        res = await self.spotify.get_playlist(user, song_url)
+                    elif 'playlist' in parts:
+                        res = await self.spotify.get_playlist(parts[-3], parts[-1])
                         await self._do_playlist_checks(permissions, player, author, res['tracks']['items'])
                         procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}`').format(res['name']))
                         for i in res['tracks']['items']:
@@ -1371,14 +1366,10 @@ class MusicBot(discord.Client):
                             await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
                         await self.safe_delete_message(procmesg)
                         return Response(self.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
-
                     else:
                         raise exceptions.CommandError(self.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
-
                 except exceptions.SpotifyError:
                     raise exceptions.CommandError(self.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
-            else:
-                raise exceptions.CommandError(self.str.get('cmd-play-spotify-unavailable', 'The bot is not setup to support Spotify URIs. Check your config.'))
 
         async with self.aiolocks[_func_() + ':' + str(author.id)]:
             if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
