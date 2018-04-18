@@ -2514,41 +2514,35 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-<<<<<<< HEAD
-
     # This uses a lot of the search command selection functionality
-    async def cmd_shutdown(self, channel, author):
+    async def cmd_shutdown(self, channel, message):
 
         warning_message = await self.safe_send_message(channel, 'This will make the bot go offline.'
                                                                 ' Are you sure you want to continue?')
 
+        def check(reaction, user):
+            return user == message.author and reaction.message.id == warning_message.id  # why can't these objs be compared directly?
+
         reactions = ['\u2705', '\U0001F6AB']
         for r in reactions:
-             await self.add_reaction(warning_message, r)
-        res = await self.wait_for_reaction(reactions, user=author, timeout=30, message=warning_message)
+            await warning_message.add_reaction(r)
 
-        if not res:
+        try:
+            reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+        except asyncio.TimeoutError:
             await self.safe_delete_message(warning_message)
             return
 
-        if res.reaction.emoji == '\u2705':  # check
-            await self.safe_send_message(channel, "**Powering off**! :wave::skin-tone-1:")
+        for r in reactions:
+            await warning_message.add_reaction(r)
+
+        if str(reaction.emoji) == '\u2705':  # check
+            await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
             await self.disconnect_all_voice_clients()
             raise exceptions.TerminateSignal()
 
-        elif res.reaction.emoji == '\U0001F6AB':  # cross
-                await self.safe_send_message(channel, 'Ok! I will keep working then')
-=======
-    async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
-        
-        await self.disconnect_all_voice_clients()
-        raise exceptions.TerminateSignal()
->>>>>>> 4955e160a98cc52806bc4516760e5c50b7cd636b
+        elif str(reaction.emoji) == '\U0001F6AB':
+            await self.safe_send_message(channel, 'Ok! I will keep working then')
 
     async def cmd_leaveserver(self, val, leftover_args):
         """
