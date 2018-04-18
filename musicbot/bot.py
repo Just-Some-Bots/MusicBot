@@ -2514,6 +2514,7 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
+<<<<<<< HEAD
 
     # This uses a lot of the search command selection functionality
     async def cmd_shutdown(self, channel, author):
@@ -2537,6 +2538,17 @@ class MusicBot(discord.Client):
 
         elif res.reaction.emoji == '\U0001F6AB':  # cross
                 await self.safe_send_message(channel, 'Ok! I will keep working then')
+=======
+    async def cmd_shutdown(self, channel):
+        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        
+        player = self.get_player_in(channel.guild)
+        if player and player.is_paused:
+            player.resume()
+        
+        await self.disconnect_all_voice_clients()
+        raise exceptions.TerminateSignal()
+>>>>>>> 4955e160a98cc52806bc4516760e5c50b7cd636b
 
     async def cmd_leaveserver(self, val, leftover_args):
         """
