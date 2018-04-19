@@ -380,54 +380,6 @@ class MusicBot(discord.Client):
         else:
             return await channel.connect(timeout=60, reconnect=True)
 
-    async def reconnect_voice_client(self, guild, *, sleep=0.1, channel=None):
-        log.debug("Reconnecting voice client on \"{}\"{}".format(
-            guild, ' to "{}"'.format(channel.name) if channel else ''))
-
-        async with self.aiolocks[_func_() + ':' + str(guild.id)]:
-            vc = self.voice_client_in(guild)
-
-            if not (vc or channel):
-                return
-
-            _paused = False
-            player = self.get_player_in(guild)
-
-            if player and player.is_playing:
-                log.voicedebug("(%s) Pausing", _func_())
-
-                player.pause()
-                _paused = True
-
-            log.voicedebug("(%s) Disconnecting", _func_())
-
-            try:
-                await vc.disconnect()
-            except:
-                pass
-
-            if sleep:
-                log.voicedebug("(%s) Sleeping for %s", _func_(), sleep)
-                await asyncio.sleep(sleep)
-
-            if player:
-                log.voicedebug("(%s) Getting voice client", _func_())
-
-                if not channel:
-                    new_vc = await self.get_voice_client(vc.channel)
-                else:
-                    new_vc = await self.get_voice_client(channel)
-
-                log.voicedebug("(%s) Swapping voice client", _func_())
-                await player.reload_voice(new_vc)
-
-                if player.is_paused and _paused:
-                    log.voicedebug("Resuming")
-                    player.resume()
-
-        log.debug("Reconnected voice client on \"{}\"{}".format(
-            guild, ' to "{}"'.format(channel.name) if channel else ''))
-
     async def disconnect_voice_client(self, guild):
         vc = self.voice_client_in(guild)
         if not vc:
@@ -480,11 +432,6 @@ class MusicBot(discord.Client):
                 playlist = Playlist(self)
                 player = MusicPlayer(self, voice_client, playlist)
                 self._init_player(player, guild=guild)
-
-            async with self.aiolocks[self.reconnect_voice_client.__name__ + ':' + str(guild.id)]:
-                if self.players[guild.id].voice_client not in self.voice_clients:
-                    log.debug("Reconnect required for voice client in {}".format(guild.name))
-                    await self.reconnect_voice_client(guild, channel=channel)
 
         return self.players[guild.id]
 
@@ -2860,8 +2807,6 @@ class MusicBot(discord.Client):
     async def on_guild_update(self, before:discord.Guild, after:discord.Guild):
         if before.region != after.region:
             log.warning("Guild \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
-
-            await self.reconnect_voice_client(after)
 
     async def on_guild_join(self, guild:discord.Guild):
         log.info("Bot has been joined guild: {}".format(guild.name))
