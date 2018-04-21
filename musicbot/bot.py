@@ -15,13 +15,13 @@ import re
 import aiohttp
 import discord
 import colorlog
-
+from subprocess import call
 from io import BytesIO, StringIO
 from functools import wraps
 from textwrap import dedent
 from datetime import timedelta
 from collections import defaultdict
-
+from os.path import join
 from discord.enums import ChannelType
 
 from . import exceptions
@@ -151,9 +151,6 @@ class MusicBot(discord.Client):
             else:
                 raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
 
-        wrapper.dev_cmd = True
-        return wrapper
-
     def ensure_appinfo(func):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -231,6 +228,21 @@ class MusicBot(discord.Client):
             dhandler = logging.FileHandler(filename='logs/discord.log', encoding='utf-8', mode='w')
             dhandler.setFormatter(logging.Formatter('{asctime}:{levelname}:{name}: {message}', style='{'))
             dlogger.addHandler(dhandler)
+
+# Here's Where log clean up comes in
+    now = time.time()
+    cutoff = now - (1 * 86400)
+
+    files = os.listdir("logs")
+    for xfile in files:
+        if os.path.isfile("logs/" + xfile):
+            t = os.stat("logs/" + xfile)
+            c = t.st_ctime
+
+            # delete file if older than a day
+            if c < cutoff:
+                os.remove("logs/" + xfile)
+
 
     @staticmethod
     def _check_if_empty(vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False):
@@ -2449,15 +2461,35 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-    async def cmd_shutdown(self, channel):
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
-        
-        await self.disconnect_all_voice_clients()
-        raise exceptions.TerminateSignal()
+    # This uses a lot of the search command selection functionality
+    async def cmd_shutdown(self, channel, message):
+
+        warning_message = await self.safe_send_message(channel, 'This will make the bot go offline.'
+                                                                ' Are you sure you want to continue?')
+
+        def check(reaction, user):
+            return user == message.author and reaction.message.id == warning_message.id  # why can't these objs be compared directly?
+
+        reactions = ['\u2705', '\U0001F6AB']
+        for r in reactions:
+            await warning_message.add_reaction(r)
+
+        try:
+            reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+        except asyncio.TimeoutError:
+            await self.safe_delete_message(warning_message)
+            return
+
+        for r in reactions:
+            await warning_message.add_reaction(r)
+
+        if str(reaction.emoji) == '\u2705':  # check
+            await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+            await self.disconnect_all_voice_clients()
+            raise exceptions.TerminateSignal()
+
+        elif str(reaction.emoji) == '\U0001F6AB':
+            await self.safe_send_message(channel, 'Ok! I will keep working then')
 
     async def cmd_leaveserver(self, val, leftover_args):
         """
