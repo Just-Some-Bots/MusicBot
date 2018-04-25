@@ -940,15 +940,15 @@ class MusicBot(discord.Client):
                 ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
                 log.info(' - ' + ser)
                 if self.config.leavenonowners:
-                	unavailable_servers = 0
-                	if s.unavailable:
-                		unavailable_servers += 1
-                		log.info('Not proceeding with checks in {} servers due to unavailability'.format(unavailable_servers))
-                		#maybe need a return here? Unsure? Can't test because no unavailable servers currently.
-                    check = s.get_member(owner.id)
-                    if check == None:
-                        await s.leave()
-                        log.info('Left {} due to owner not found'.format(s.name))
+                    unavailable_servers = 0
+                    if s.unavailable:
+                        unavailable_servers += 1
+                        log.info('Not proceeding with checks in {} servers due to unavailability'.format(unavailable_servers))
+                    else:
+                        check = s.get_member(owner.id)
+                        if check == None:
+                            await s.leave()
+                            log.info('Left {} due to owner not found'.format(s.name))
 
         elif self.guilds:
             log.warning("Owner could not be found on any guild (id: %s)\n" % self.config.owner_id)
