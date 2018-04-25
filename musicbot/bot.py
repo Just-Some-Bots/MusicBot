@@ -940,6 +940,11 @@ class MusicBot(discord.Client):
                 ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
                 log.info(' - ' + ser)
                 if self.config.leavenonowners:
+                	unavailable_servers = 0
+                	if s.unavailable:
+                		unavailable_servers += 1
+                		log.info('Not proceeding with checks in {} servers due to unavailability'.format(unavailable_servers))
+                		#maybe need a return here? Unsure? Can't test because no unavailable servers currently.
                     check = s.get_member(owner.id)
                     if check == None:
                         await s.leave()
