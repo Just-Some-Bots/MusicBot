@@ -936,11 +936,11 @@ class MusicBot(discord.Client):
             ))
 
             log.info('Guild List:')
+            unavailable_servers = 0
             for s in self.guilds:
                 ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
                 log.info(' - ' + ser)
                 if self.config.leavenonowners:
-                    unavailable_servers = 0
                     if s.unavailable:
                         unavailable_servers += 1
                     else:
@@ -2828,7 +2828,7 @@ class MusicBot(discord.Client):
             if check == None:
                 await guild.leave()
                 log.info('Left {} due to bot owner not found.'.format(guild.name))
-                await self.send_message(owner, 'Left `{}` due to bot owner not being found in it.'.format(guild.name))
+                await owner.send('Left `{}` due to bot owner not being found in it.'.format(guild.name))
 
         log.debug("Creating data folder for guild %s", guild.id)
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
