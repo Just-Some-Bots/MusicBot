@@ -947,7 +947,7 @@ class MusicBot(discord.Client):
                         check = s.get_member(owner.id)
                         if check == None:
                             await s.leave()
-                            log.info('Left {} due to owner not found'.format(s.name))
+                            log.info('Left {} due to bot owner not found'.format(s.name))
             if unavailable_servers != 0:
                 log.info('Not proceeding with checks in {} servers due to unavailability'.format(str(unavailable_servers))) 
 
@@ -2827,7 +2827,8 @@ class MusicBot(discord.Client):
             check = guild.get_member(owner.id)
             if check == None:
                 await guild.leave()
-                log.info('Left {} due to owner not found.'.format(guild.name))
+                log.info('Left {} due to bot owner not found.'.format(guild.name))
+                await self.send_message(owner, 'Left `{}` due to bot owner not being found in it.'.format(guild.name))
 
         log.debug("Creating data folder for guild %s", guild.id)
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
