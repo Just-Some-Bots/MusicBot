@@ -1,32 +1,37 @@
-FROM ubuntu:14.04
+FROM alpine:edge
 
-MAINTAINER Sidesplitter, https://github.com/SexualRhinoceros/MusicBot
+# Add project source
+WORKDIR /usr/src/musicbot
+COPY . ./
 
-#Install dependencies
-RUN sudo apt-get update \
-    && sudo apt-get install software-properties-common -y \
-    && sudo add-apt-repository ppa:fkrull/deadsnakes -y \
-    && sudo add-apt-repository ppa:mc3man/trusty-media -y \
-    && sudo apt-get update -y \
-    && sudo apt-get install build-essential unzip -y \
-    && sudo apt-get install python3.5 python3.5-dev -y \
-    && sudo apt-get install ffmpeg -y \
-    && sudo apt-get install libopus-dev -y \
-    && sudo apt-get install libffi-dev -y
+# Install dependencies
+RUN apk update \
+&& apk add --no-cache \
+  ca-certificates \
+  ffmpeg \
+  opus \
+  python3 \
+\
+# Install build dependencies
+&& apk add --no-cache --virtual .build-deps \
+  gcc \
+  git \
+  libffi-dev \
+  libsodium-dev \
+  make \
+  musl-dev \
+  python3-dev \
+\
+# Install pip dependencies
+&& pip3 install --no-cache-dir -r requirements.txt \
+&& pip3 install --upgrade --force-reinstall --version websockets==4.0.1 \
+\
+# Clean up build dependencies
+&& apk del .build-deps
 
-#Install Pip
-RUN sudo apt-get install wget \
-    && wget https://bootstrap.pypa.io/get-pip.py \
-    && sudo python3.5 get-pip.py
+# Create volume for mapping the config
+VOLUME /usr/src/musicbot/config
 
-#Add musicBot
-ADD . /musicBot
-WORKDIR /musicBot
+ENV APP_ENV=docker
 
-#Install PIP dependencies
-RUN sudo pip install -r requirements.txt
-
-#Add volume for configuration
-VOLUME /musicBot/config
-
-CMD python3.5 run.py
+ENTRYPOINT ["python3", "run.py"]
