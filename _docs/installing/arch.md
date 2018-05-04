@@ -24,4 +24,4 @@ sudo pip install --upgrade pip
 sudo pip install --upgrade -r requirements.txt
 ~~~
 
-Once everything has been completed, you can go ahead and [configure]({{ site.baseurl }}/using/configuration) the bot and then run with `sudo ./run.sh`.
+Once everything has been completed, you can go ahead and [configure]({{ site.baseurl }}/using/configuration) the bot and then run with `sh ./run.sh`.
