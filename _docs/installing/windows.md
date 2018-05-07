@@ -6,6 +6,8 @@ order: 2
 
 <img class="doc-img" src="{{ site.baseurl }}/images/windows.png" alt="Windows" style="width: 75px; float: right;"/>
 
+> Due to issues with Python 3.6, please install [Python 3.5.4](https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe). Support may be limited to being told to install Python 3.5.4 if using Python 3.6.
+
 MusicBot can be installed on Windows 7, 8, and 10 too, though it requires installing some programs on your computer first.
 
 1. Install Python 3.5+. For the best results, install [Python 3.5.4](https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe).
