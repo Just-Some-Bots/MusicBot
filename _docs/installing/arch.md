@@ -12,7 +12,7 @@ Installation on Arch is **majorly untested and is not officially supported** due
 sudo pacman -Syu
 
 # Install dependencies
-sudo pacman -S git python python-pip opus libffi libsodium ncurses gdbm glibc zlib sqlite tk openssl
+sudo pacman -S git python python-pip opus libffi libsodium ncurses gdbm glibc zlib sqlite tk openssl ffmpeg
 
 # Clone the MusicBot to your home directory
 cd ~
