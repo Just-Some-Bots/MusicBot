@@ -21,7 +21,7 @@ elif [ "$PYTHON3_VERSION" -ge "5" ]; then
 elif [ "$PYTHON35_VERSION" -eq "5" ]; then
     python3.5 update.py
 elif [ "$PYTHON36_VERSION" -eq "6" ]; then
-    python3.6 run.py
+    python3.6 update.py
 else
     echo "Your version of Python is lower than 3.5, please install a more recent version."
 fi
