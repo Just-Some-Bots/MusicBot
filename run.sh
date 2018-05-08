@@ -1,10 +1,24 @@
 #!/bin/bash
 
-(command -v python3 >/dev/null 2>&1 &&
-python3 -c 'import sys; sys.exit(sys.hexversion < 0x03050000)') || {
-	echo >&2 "Python 3.5 or later not found."
-	echo >&2 "If you have python, use it to run run.py."
-	exit 1; }
+# Set variables for python versions. Could probably be done cleaner, but this works.
+PYTHON_VERSION_1=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))'`
+PYTHON_VERSION_2=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
+PYTHON3_VERSION=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
+PYTHON35_VERSION=`python3.5 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
 
-cd "$(dirname "$BASH_SOURCE")"
-python3 run.py
+# Check if the python command is python 3.5 or greater
+if [ "$PYTHON_VERSION_1" -eq "3" ]; then
+    if [ "$PYTHON_VERSION_2" -ge "5" ]; then
+        python run.py
+    else
+        echo "Your version of Python is lower than 3.5, please install a more recent version."
+    fi
+elif [ "$PYTHON3_VERSION" -ge "5" ]; then
+    python3 run.py
+# python3.5 check is to ensure that if the above two fail, the script
+# doesn't attempt to run something that doesn't exist
+elif [ "$PYTHON35_VERSION" -eq "5" ]; then
+    python3.5 run.py
+else
+    echo "Your version of Python is lower than 3.5, please install a more recent version."
+fi
