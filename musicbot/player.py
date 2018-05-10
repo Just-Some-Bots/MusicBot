@@ -178,7 +178,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._events.clear()
         self._kill_current_player()
 
-    def _playback_finished(self):
+    def _playback_finished(self, error=None):
         entry = self._current_entry
 
         if self._current_player:
@@ -286,7 +286,8 @@ class MusicPlayer(EventEmitter, Serializable):
                     ),
                     self.volume
                 )
-                self.voice_client.play(source)
+                log.debug('Playing {0} using {1}'.format(source, self.voice_client))
+                self.voice_client.play(source, after=self._playback_finished)
 
                 self._current_player = self.voice_client
 

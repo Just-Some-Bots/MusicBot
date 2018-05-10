@@ -452,6 +452,7 @@ class MusicBot(discord.Client):
         return player
 
     async def on_player_play(self, player, entry):
+        log.debug('Running on_player_play')
         await self.update_now_playing_status(entry)
         player.skip_state.reset()
 
@@ -495,16 +496,20 @@ class MusicBot(discord.Client):
         # TODO: Check channel voice state?
 
     async def on_player_resume(self, player, entry, **_):
+        log.debug('Running on_player_resume')
         await self.update_now_playing_status(entry)
 
     async def on_player_pause(self, player, entry, **_):
+        log.debug('Running on_player_pause')
         await self.update_now_playing_status(entry, True)
         # await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_stop(self, player, **_):
+        log.debug('Running on_player_stop')
         await self.update_now_playing_status()
 
     async def on_player_finished_playing(self, player, **_):
+        log.debug('Running on_player_finished_playing')
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
                 log.info("Player finished playing, autopaused in empty channel")
@@ -581,6 +586,7 @@ class MusicBot(discord.Client):
             await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
+        log.debug('Running on_player_entry_added')
         if entry.meta.get('author') and entry.meta.get('channel'):
             await self.serialize_queue(player.voice_client.channel.guild)
 
