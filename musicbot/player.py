@@ -20,7 +20,7 @@ from .utils import avg, _func_
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning
-from .entry import StreamPlaylistEntry
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -269,7 +269,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                if isinstance(entry, StreamPlaylistEntry):
+                if isinstance(entry, URLPlaylistEntry):
                     aoptions = entry.aoptions
                 else:
                     aoptions = "-vn"
