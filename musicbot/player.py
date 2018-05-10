@@ -135,7 +135,6 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def skip(self):
         self._kill_current_player()
-        self._playback_finished()
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
