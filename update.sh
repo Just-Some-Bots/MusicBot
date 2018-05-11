@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Set variables for python versions. Could probably be done cleaner, but this works.
-PYTHON_VERSION_1=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))'`
-PYTHON_VERSION_2=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
-PYTHON3_VERSION=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
-PYTHON35_VERSION=`python3.5 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
-PYTHON36_VERSION=`python3.6 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))'`
+PYTHON_VERSION_1=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))' || { echo "no py"; }`
+PYTHON_VERSION_2=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py"; }`
+PYTHON3_VERSION=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py3"; }`
+PYTHON35_VERSION=`python3.5 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py35"; }`
+PYTHON36_VERSION=`python3.6 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py36"; }`
 
 # Check if the python command is python 3.5 or greater
 if [ "$PYTHON_VERSION_1" -eq "3" ]; then
