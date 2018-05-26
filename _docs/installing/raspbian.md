@@ -10,20 +10,9 @@ Installing MusicBot on Raspbian for use with a Raspberry Pi 2 or 3B is a **long-
 
 ```bash
 # Install dependencies
-apt-get install sudo
-apt-get install git
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get dist-upgrade
-sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev
-sudo apt-get install zlib1g-dev libsqlite3-dev tk-dev
-sudo apt-get install libssl-dev openssl
-sudo apt-get install build-essential unzip -y
-sudo apt-get install software-properties-common -y
-sudo add-apt-repository ppa:deadsnakes -y
-sudo add-apt-repository ppa:mc3man/trusty-media -y
-sudo add-apt-repository ppa:chris-lea/libsodium -y
-sudo apt-get install libopus-dev libffi-dev libsodium-dev
+sudo apt-get install git build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl unzip software-properties-common libopus-dev libffi-dev libsodium-dev -y
 
 # Build Python from scratch
 cd ~
@@ -31,7 +20,7 @@ wget https://www.python.org/ftp/python/3.5.4/Python-3.5.4.tgz
 tar -zxvf Python-3.5.4.tgz
 cd Python-3.5.4
 ./configure
-sudo make  # add -j4 to the end of this if you have a quad-core Raspberry Pi
+sudo make  # add -j4 to the end of this if you have a quad-core Raspberry Pi (2B, 3B[+])
 sudo make install
 
 # Install pip
@@ -44,7 +33,7 @@ cd /usr/src
 sudo git clone git://git.videolan.org/x264
 cd x264
 sudo ./configure --host=arm-unknown-linux-gnueabi --enable-static --disable-opencl
-sudo make
+sudo make # add -j4 to the end of this if you have a quad-core Raspberry Pi (2B, 3B[+])
 sudo make install
 
 # Install FFmpeg
@@ -52,8 +41,7 @@ cd /usr/src
 sudo git clone https://github.com/FFmpeg/FFmpeg.git
 cd FFmpeg
 sudo ./configure --arch=armel --target-os=linux --enable-gpl --enable-libx264 --enable-nonfree
-
-sudo make  # add -j4 to the end of this if you have a quad-core Raspberry Pi
+sudo make  # add -j4 to the end of this if you have a quad-core Raspberry Pi (2B, 3B[+])
 sudo make install
 
 # Clone the MusicBot
