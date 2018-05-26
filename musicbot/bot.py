@@ -347,7 +347,7 @@ class MusicBot(discord.Client):
 
         async with self.aiolocks[_func_()]:
             self.autoplaylist.remove(song_url)
-            log.info("Removing unplayable song from autoplaylist: %s" % song_url)
+            log.info("Removing unplayable song from session autoplaylist: %s" % song_url)
 
             with open(self.config.auto_playlist_removed_file, 'a', encoding='utf8') as f:
                 f.write(
