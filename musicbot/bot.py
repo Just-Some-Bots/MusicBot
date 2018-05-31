@@ -646,11 +646,11 @@ class MusicBot(discord.Client):
             pprint(vars(player))
             if self.config.now_playing_mentions and author:
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
+                    entry.meta['author'].mention, player.current_entry.title, player.voice_client.channel.name)
             else:
                 song_total = str(timedelta(seconds=entry.duration)).lstrip('0').lstrip(':')
                 newmsg = "Now Playing: **{title}** `[{total}]`\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>".format(
-                    title=entry.title,
+                    title=player.current_entry.title,
                     url=entry.url,
                     total = song_total
                 )
@@ -2326,7 +2326,7 @@ class MusicBot(discord.Client):
         player.playlist.shufflemode(False)
         await self.send_message(channel, "Shuffle mode is OFF!")
 
-    async def cmd_clear(self, player, author):
+    async def cmd_clear(self, channel, player, author):
         """
         Usage:
             {command_prefix}clear
@@ -2335,6 +2335,9 @@ class MusicBot(discord.Client):
         """
 
         player.playlist.clear()
+        await self.send_typing(channel)
+        await self.begin_voting(player)
+        await self.my_update_now_playing_message(player, player.current_entry)
         return Response(self.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(player.voice_client.channel.server), delete_after=20)
 
     async def cmd_remove(self, user_mentions, message, author, permissions, channel, player, index=None):
