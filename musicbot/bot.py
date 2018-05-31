@@ -642,12 +642,13 @@ class MusicBot(discord.Client):
                         await self.safe_delete_message(last_np_msg)
                         self.server_specific_data[channel.server]['last_np_msg'] = None
                     break  # This is probably redundant
-
+            from pprint import pprint
+            pprint(vars(player))
             if self.config.now_playing_mentions and author:
                 newmsg = '%s - your song **%s** is now playing in %s!' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                song_total = str(timedelta(seconds=player.current_entry.duration)).lstrip('0').lstrip(':')
+                song_total = str(timedelta(seconds=entry.duration)).lstrip('0').lstrip(':')
                 newmsg = "Now Playing: **{title}** `[{total}]`\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>".format(
                     title=entry.title,
                     url=entry.url,
@@ -823,7 +824,8 @@ class MusicBot(discord.Client):
 
             if self.is_voting:
                 print("Getting the winning vote")
-                next_song_url = self.get_winning_vote(player)
+                next_song_url = await self.get_winning_vote(player)
+                self.is_voting = False
                 if next_song_url:
                     print("The next song is %s"%next_song_url)
                     self.autoplaylist_session.remove(next_song_url)
@@ -839,11 +841,49 @@ class MusicBot(discord.Client):
                         log.error("Error adding song from autoplaylist: {}".format(e))
                         log.debug('', exc_info=True)
 
+            elif self.autoplaylist_session:
+                try:
+                    a_bound_channel = sorted(list(self.config.bound_channels))[0]
+                    real_channel = player.voice_client.channel.server.get_channel(a_bound_channel)
+                except:
+                    real_channel = None
+                while len(self.autoplaylist_session) > 1:
+                    song_url = random.choice(self.autoplaylist_session)
 
-            if not self.autoplaylist:
-                # TODO: When I add playlist expansion, make sure that's not happening during this check
-                log.warning("No playable songs in the autoplaylist, disabling.")
-                self.config.auto_playlist = False
+                    info = {}
+
+                    try:
+                        info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+                    except downloader.youtube_dl.utils.DownloadError as e:
+                        if 'YouTube said:' in e.args[0]:
+                            # url is bork, remove from list and put in removed list
+                            log.error("Error processing youtube url:\n{}".format(e.args[0]))
+
+                        else:
+                            # Probably an error from a different extractor, but I've only seen youtube's
+                            log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+
+                        await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=True)
+                        continue
+                    except Exception as e:
+                        log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+                        log.exception()
+
+                        self.autoplaylist.remove(song_url)
+                        continue
+
+
+                    if info.get('entries', None):  # or .get('_type', '') == 'playlist'
+                        log.debug("Playlist found but is unsupported at this time, skipping.")
+                        # TODO: Playlist expansion
+                        continue
+
+                    try:
+                        await player.playlist.add_entry(song_url, channel=real_channel, author=None)
+                        break
+                    except exceptions.ExtractionError as e:
+                        log.error("Error adding song from autoplaylist: {}".format(e))
+                        log.debug('', exc_info=True)
 
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue(player.voice_client.channel.server)
@@ -2067,7 +2107,8 @@ class MusicBot(discord.Client):
             await self.safe_delete_message(result_message)
             await self.safe_delete_message(response_message)
 
-            await self.cmd_play(player, channel, author, permissions, [], e['webpage_url'])
+            await self.cmd_play(None, player, channel, author, permissions, [], e['webpage_url'])
+            # async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url):
 
             time_str = str(datetime.timedelta(seconds=e['duration']))
             return Response("Queueing **%s** (%s)"%(e['title'], time_str), delete_after=30)
