@@ -137,10 +137,10 @@ class PermissionGroup:
             self.ignore_non_voice = set(self.ignore_non_voice.lower().split())
 
         if self.granted_to_roles:
-            self.granted_to_roles = set(self.granted_to_roles.split())
+            self.granted_to_roles = set([int(x) for x in self.granted_to_roles.split()])
 
         if self.user_list:
-            self.user_list = set(self.user_list.split())
+            self.user_list = set([int(x) for x in self.user_list.split()])
 
         if self.extractors:
             self.extractors = set(self.extractors.split())
