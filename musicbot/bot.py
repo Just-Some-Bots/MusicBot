@@ -2778,7 +2778,7 @@ class MusicBot(discord.Client):
             return
 
         if not member == self.user:  # if the user is not the bot
-            if player.voice_client.channel != before.channel and player.voice_client.channel == after.channel:  # if the person left
+            if player.voice_client.channel != before.channel and player.voice_client.channel == after.channel:  # if the person joined
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
                         state = "Unpausing",
@@ -2789,16 +2789,17 @@ class MusicBot(discord.Client):
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
             elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:
-                if not auto_paused and player.is_playing:
-                    log.info(autopause_msg.format(
-                        state = "Pausing",
-                        channel = player.voice_client.channel,
-                        reason = "(empty channel)"
-                    ).strip())
+                if len(player.voice_client.channel.members) == 0:
+                    if not auto_paused and player.is_playing:
+                        log.info(autopause_msg.format(
+                            state = "Pausing",
+                            channel = player.voice_client.channel,
+                            reason = "(empty channel)"
+                        ).strip())
 
-                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
-                    player.pause()
-        else: 
+                        self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
+                        player.pause()
+        else:
             if len(player.voice_client.channel.members) > 0:  # channel is not empty
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
