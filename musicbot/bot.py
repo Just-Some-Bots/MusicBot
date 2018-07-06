@@ -2441,10 +2441,24 @@ class MusicBot(discord.Client):
 
 
     async def cmd_disconnect(self, guild):
+        """
+        Usage:
+            {command_prefix}disconnect
+        
+        Forces the bot leave the current voice channel.
+        """
         await self.disconnect_voice_client(guild)
         return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
 
     async def cmd_restart(self, channel):
+        """
+        Usage:
+            {command_prefix}restart
+        
+        Restarts the bot.
+        Will not properly load new dependencies or file updates unless fully shutdown
+        and restarted.
+        """
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
             "or its dependencies, you need to restart the bot properly, rather than using this command.")
 
@@ -2456,6 +2470,12 @@ class MusicBot(discord.Client):
         raise exceptions.RestartSignal()
 
     async def cmd_shutdown(self, channel):
+        """
+        Usage:
+            {command_prefix}shutdown
+        
+        Disconnects from voice channels and closes the bot process.
+        """
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         
         player = self.get_player_in(channel.guild)
@@ -2559,6 +2579,8 @@ class MusicBot(discord.Client):
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
+
+        args = ' '.join(args).lstrip(' ').split(' ')
 
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
