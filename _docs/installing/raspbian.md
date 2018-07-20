@@ -6,10 +6,14 @@ order: 4
 
 <img class="doc-img" src="{{ site.baseurl }}/images/raspbian.png" alt="Raspbian" style="width: 75px; float: right;"/>
 
-Installing MusicBot on Raspbian for use with a Raspberry Pi 2 or 3B **may take a while to complete and may have poor performance**. 
+Installing MusicBot on Raspbian may take a while to complete.
 If you're willing to try it, you can run the following commands in order to install it:
 
 ```bash
+# Update system packages
+sudo apt-get update -y
+sudo apt-get upgrade -y
+
 # Install dependencies
 sudo apt install python3-pip
 sudo apt install git
