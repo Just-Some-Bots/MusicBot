@@ -229,7 +229,14 @@ async def cmd_quote(self, leftover_args):
         return Response("Empty Quotes", tts=True)
 
 async def cmd_show(self, leftover_args):
-    shows_file_path = 'data/shows.pkl';
+    """
+    Usage:
+        {command_prefix}show <key> => Show an entry based on the specific key
+        {command_prefix}show list => List of all available information that previously add by `show add` command
+        {command_prefix}show add <key> <Your wise quotes> => Add the information to the key
+        {command_prefix}show del <key> => Delete key information
+    """
+    shows_file_path = 'shows.pkl';
     
     global shows
     if shows is None:
