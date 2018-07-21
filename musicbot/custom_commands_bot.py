@@ -240,7 +240,7 @@ async def cmd_show(self, leftover_args):
             if len(shows) > 0:
                 message = []
                 for k, v in shows.items():
-                    message.append("[{}]. {}".format(k, v)))
+                    message.append("[{}]. {}".format(k, v))
                 return Response('\n'.join(message), codeblock=True)
             else:
                 return Response('Empty Shows', codeblock=True)
