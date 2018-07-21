@@ -283,7 +283,7 @@ async def cmd_show(self, leftover_args):
                 return Response('Nothing to show', True)
             contents = shows.get(leftover_args[0])
             if contents:
-                return Response('%s' % contents, True)
+                return Response('%s' % contents, False)
             else:
                 return Response('Wrong key or command', True)
     else:
