@@ -50,6 +50,7 @@ from subprocess import check_output
 # Should be in a form of method with a start of 'cmd_' + {Command Name}
 # This list of method will be bound to bot object, thats why they need self param
   
+shows = None
 async def cmd_apakah(self, user_mentions, leftover_args):
     """
     Usage:
