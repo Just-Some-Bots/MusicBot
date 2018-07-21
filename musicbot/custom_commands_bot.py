@@ -273,7 +273,7 @@ async def cmd_show(self, leftover_args):
             else:
                 return Response('Please enter the key you want to delete', True, tts=True)
         else:
-            if len(shows) > 0:
+            if len(shows) == 0:
                 return Response('Nothing to show', True, tts=True)
             contents = shows.get(leftover_args[0])
             if contents:
