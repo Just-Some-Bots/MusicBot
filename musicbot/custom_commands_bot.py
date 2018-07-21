@@ -254,11 +254,11 @@ async def cmd_show(self, leftover_args):
                 value = leftover_args[2]
                 shows[key] = value
                 write_pickle(shows_file_path, shows)
-                return Response('Thanks. Your show has been added', True)
+                return Response('Thanks. Your show has been added', False)
             elif len(leftover_args < 3):
-                return Response('Please enter key and contents you want to save', True, tts=True)
+                return Response('Please enter key and contents you want to save', False)
             elif len(leftover_args > 3):
-                return Response('Too many arguments', True, tts=True)
+                return Response('Too many arguments', False)
         elif leftover_args[0] == 'del':
             # Delete specific index show
             if len(leftover_args) > 1:
@@ -266,17 +266,17 @@ async def cmd_show(self, leftover_args):
                     selected_idx = int(leftover_args[1])
                     removed_show =  shows.pop(selected_idx)
                     write_pickle(shows_file_path, shows)
-                    return Response("Show: `{}` is removed".format(selected_idx), True, tts=True) 
+                    return Response("Show: `{}` is removed".format(selected_idx), False) 
                 except Exception as e:
                     result = "Salah bangsat, {}".format(e)
-                    return Response(result, True, tts=True) 
+                    return Response(result, False) 
             else:
-                return Response('Please enter the key you want to delete', True, tts=True)
+                return Response('Please enter the key you want to delete', False)
         else:
             if len(shows) == 0:
-                return Response('Nothing to show', True, tts=True)
+                return Response('Nothing to show', False)
             contents = shows.get(leftover_args[0])
             if contents:
-                return Response('%s' % contents, True)
-            else:
-                return Response('Wrong key or command', True, tts=True)
+                return Response('%s' % contents, False)
+    else:
+        return Response('Wrong key or command', False)
