@@ -254,11 +254,11 @@ async def cmd_show(self, leftover_args):
                 value = leftover_args[2]
                 shows[key] = value
                 write_pickle(shows_file_path, shows)
-                return Response('Thanks. Your show has been added', False)
+                return Response('Thanks. Your show has been added', True)
             elif len(leftover_args < 3):
-                return Response('Please enter key and contents you want to save', False)
+                return Response('Please enter key and contents you want to save', True)
             elif len(leftover_args > 3):
-                return Response('Too many arguments', False)
+                return Response('Too many arguments', True)
         elif leftover_args[0] == 'del':
             # Delete specific index show
             if len(leftover_args) > 1:
@@ -266,19 +266,19 @@ async def cmd_show(self, leftover_args):
                     selected_idx = leftover_args[1]
                     removed_show =  shows.pop(selected_idx)
                     write_pickle(shows_file_path, shows)
-                    return Response("Show: `{}` is removed".format(selected_idx), False) 
+                    return Response("Show: `{}` is removed".format(selected_idx), True) 
                 except Exception as e:
                     result = "Salah bangsat, {}".format(e)
-                    return Response(result, False) 
+                    return Response(result, True) 
             else:
-                return Response('Please enter the key you want to delete', False)
+                return Response('Please enter the key you want to delete', True)
         else:
             if len(shows) == 0:
-                return Response('Nothing to show', False)
+                return Response('Nothing to show', True)
             contents = shows.get(leftover_args[0])
             if contents:
-                return Response('%s' % contents, False)
+                return Response('%s' % contents, True)
             else:
-                return Response('Wrong key or command', False)
+                return Response('Wrong key or command', True)
     else:
-        return Response('Wrong key or command', False)
+        return Response('Wrong key or command', True)
