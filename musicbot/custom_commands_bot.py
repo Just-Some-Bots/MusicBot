@@ -263,7 +263,7 @@ async def cmd_show(self, leftover_args):
             # Delete specific index show
             if len(leftover_args) > 1:
                 try:
-                    selected_idx = int(leftover_args[1])
+                    selected_idx = leftover_args[1]
                     removed_show =  shows.pop(selected_idx)
                     write_pickle(shows_file_path, shows)
                     return Response("Show: `{}` is removed".format(selected_idx), False) 
@@ -278,5 +278,7 @@ async def cmd_show(self, leftover_args):
             contents = shows.get(leftover_args[0])
             if contents:
                 return Response('%s' % contents, False)
+            else:
+                return Response('Wrong key or command', False)
     else:
         return Response('Wrong key or command', False)
