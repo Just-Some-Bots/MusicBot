@@ -10,11 +10,11 @@ from .constants import DISCORD_MSG_CHAR_LIMIT
 log = logging.getLogger(__name__)
 
 def write_pickle(filename, contents):
-    with open(filename) as f:
+    with open(filename, 'wb') as f:
         pickle.dump(contents, f)
 
 def load_pickle(filename):
-    with open(filename) as f:
+    with open(filename, 'rb') as f:
         contents = pickle.load(f)
     return contents
     
