@@ -229,7 +229,6 @@ async def cmd_quote(self, leftover_args):
         return Response("Empty Quotes", tts=True)
 
 async def cmd_show(self, leftover_args):
-    shows_file_path = 'data/shows.pkl';
     """
     Usage:
         {command_prefix}show <key> => Show key's content
@@ -237,6 +236,7 @@ async def cmd_show(self, leftover_args):
         {command_prefix}show add <key> <content> => Add content with corresponding key
         {command_prefix}show del <key> => Delete content with corresponding key
     """
+    shows_file_path = 'data/shows.pkl';
     global shows
     if shows is None:
         log.debug('Loading the shows first time')
