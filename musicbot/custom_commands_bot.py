@@ -229,7 +229,7 @@ async def cmd_quote(self, leftover_args):
         return Response("Empty Quotes", tts=True)
 
 async def cmd_show(self, leftover_args):
-    shows_file_path = 'shows.pkl';
+    shows_file_path = 'data/shows.pkl';
     
     global shows
     if shows is None:

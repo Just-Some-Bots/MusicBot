@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import aiohttp
@@ -10,6 +11,9 @@ from .constants import DISCORD_MSG_CHAR_LIMIT
 log = logging.getLogger(__name__)
 
 def write_pickle(filename, contents):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     with open(filename, 'wb') as f:
         pickle.dump(contents, f)
 
