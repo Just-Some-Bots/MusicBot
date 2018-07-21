@@ -2,13 +2,22 @@ import sys
 import logging
 import aiohttp
 import inspect
+import pickle
 
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
 log = logging.getLogger(__name__)
 
+def write_pickle(filename, contents):
+    with open(filename) as f:
+        pickle.dump(contents, f)
 
+def load_pickle(filename):
+    with open(filename) as f:
+        contents = pickle.load(f)
+    return contents
+    
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
         with open(filename, encoding='utf8') as f:

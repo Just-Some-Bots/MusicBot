@@ -36,7 +36,7 @@ from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .constructs import SkipState, Response, VoiceStateUpdate
-from .utils import load_file, write_file, fixg, ftimedelta, _func_
+from .utils import write_pickle, load_pickle, load_file, write_file, fixg, ftimedelta, _func_
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -226,3 +226,53 @@ async def cmd_quote(self, leftover_args):
     else:
         # We dont have any quote yet.
         return Response("Empty Quotes", tts=True)
+
+async def cmd_show(self, leftover_args):
+    shows_file_path = 'data/quotes.pkl';
+    
+    global shows
+    if shows is None:
+        log.debug('Loading the shows first time')
+        shows = load_pickle(shows_file_path)
+
+    if len(leftover_args) > 0:
+        if leftover_args[0] == 'list':
+            if len(shows) > 0:
+                message = []
+                for k, v in shows.items():
+                    message.append("[{}]. {}".format(k, v)))
+                return Response('\n'.join(message), codeblock=True)
+            else:
+                return Response('Empty Shows', codeblock=True)
+        elif leftover_args[0] == 'add':
+            if len(leftover_args) == 3:
+                key = leftover_args[1]
+                value = leftover_args[2]
+                shows[key] = value
+                write_pickle(shows_file_path, shows)
+                return Response('Thanks. Your show has been added', True)
+            elif len(leftover_args < 3):
+                return Response('Please enter key and contents you want to save', True, tts=True)
+            elif len(leftover_args > 3):
+                return Response('Too many arguments', True, tts=True)
+        elif leftover_args[0] == 'del':
+            # Delete specific index show
+            if len(leftover_args) > 1:
+                try:
+                    selected_idx = int(leftover_args[1])
+                    removed_show =  shows.pop(selected_idx)
+                    write_pickle(shows_file_path, shows)
+                    return Response("Show: `{}` is removed".format(selected_idx), True, tts=True) 
+                except Exception as e:
+                    result = "Salah bangsat, {}".format(e)
+                    return Response(result, True, tts=True) 
+            else:
+                return Response('Please enter the key you want to delete', True, tts=True)
+        else:
+            if len(shows) > 0:
+                return Response('Nothing to show', True, tts=True)
+            contents = shows.get(leftover_args[0])
+            if contents:
+                return Response('%s' % contents, True)
+            else:
+                return Response('Wrong key or command', True, tts=True)
