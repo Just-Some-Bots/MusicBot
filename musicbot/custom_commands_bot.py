@@ -38,7 +38,7 @@ from .permissions import Permissions, PermissionsDefaults
 from .constructs import SkipState, Response, VoiceStateUpdate
 from .utils import write_pickle, load_pickle, load_file, write_file, fixg, ftimedelta, _func_
 
-from .constants import VERSION as BOTVERSION
+from .constants import VERSION as BOTVERSION    
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
 log = logging.getLogger(__name__)
@@ -234,8 +234,11 @@ async def cmd_show(self, leftover_args):
     global shows
     if shows is None:
         log.debug('Loading the shows first time')
-        shows = load_pickle(shows_file_path)
-
+        try:
+            shows = load_pickle(shows_file_path)
+        except:
+            shows = {}
+            write_pickle(shows_file_path, shows)
     if len(leftover_args) > 0:
         if leftover_args[0] == 'list':
             if len(shows) > 0:
