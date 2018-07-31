@@ -199,7 +199,8 @@ class MusicPlayer(EventEmitter, Serializable):
             try:
                 self.playlist._add_entry(entry)
             except Exception:
-                log.info("Skipping repeat of \"{}\" because an error occured!".format(entry.filename))
+                self.config.repeat = not self.config.repeat
+                log.info("Disabling repeat because an error occured!".format(entry.filename))
                 
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
