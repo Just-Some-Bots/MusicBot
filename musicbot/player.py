@@ -196,8 +196,11 @@ class MusicPlayer(EventEmitter, Serializable):
 
         # Put song back on the queue for repeat
         if self.bot.config.repeat:
-            self.playlist._add_entry(entry)
-
+            try:
+                self.playlist._add_entry(entry)
+            except Exception:
+                log.info("Skipping repeat of \"{}\" because an error occured!".format(entry.filename))
+                
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
