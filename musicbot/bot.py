@@ -1043,6 +1043,7 @@ class MusicBot(discord.Client):
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
             log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
+            log.info("  Repeat: " + ['Disabled', 'Enabled'][self.config.repeat])
 
         print(flush=True)
 
@@ -1921,6 +1922,19 @@ class MusicBot(discord.Client):
         await self.safe_delete_message(hand, quiet=True)
         return Response(self.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(player.voice_client.channel.guild), delete_after=15)
 
+    async def cmd_repeat(self, player):
+        """
+        Usage:
+            {command_prefix}repeat
+            
+        Toggles playlist repeat.
+        """
+        self.config.repeat = not self.config.repeat
+        if self.config.repeat:
+            return Response('Repeat enabled!', delete_after=10)
+        else:
+            return Response('Repeat disabled!', delete_after=10)
+
     async def cmd_clear(self, player, author):
         """
         Usage:
@@ -2202,6 +2216,11 @@ class MusicBot(discord.Client):
         if not lines:
             lines.append(
                 self.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(self.config.command_prefix))
+
+        if self.config.repeat:
+            lines.append("Repeat mode is **on**")
+        else:
+            lines.append("Repeat mode is **off**")
 
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
