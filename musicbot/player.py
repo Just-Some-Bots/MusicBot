@@ -194,6 +194,10 @@ class MusicPlayer(EventEmitter, Serializable):
         if not self.is_stopped and not self.is_dead:
             self.play(_continue=True)
 
+        # Put song back on the queue for repeat
+        if self.bot.config.repeat:
+            self.playlist._add_entry(entry)
+                
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
@@ -204,6 +208,13 @@ class MusicPlayer(EventEmitter, Serializable):
                     asyncio.ensure_future(self._delete_file(entry.filename))
 
         self.emit('finished-playing', player=self, entry=entry)
+
+    def repeat_err(self, popen:subprocess.Popen, future:asyncio.Future):
+        data = popen.stderr.readline()
+        if data:
+            if self.bot.config.repeat:
+                self.bot.config.repeat = not self.bot.config.repeat
+                log.info("A possible error occured, no longer repeating!")
 
     def _kill_current_player(self):
         if self._current_player:
@@ -303,6 +314,14 @@ class MusicPlayer(EventEmitter, Serializable):
                 )
 
                 stderr_thread.start()
+
+                reperrcatch = Thread(
+                    target=self.repeat_err,
+                    args=(self._current_player._player.source.original._process, self._stderr_future),
+                    name="stderr reader"
+                )
+
+                reperrcatch.start()
 
                 self.emit('play', player=self, entry=entry)
 

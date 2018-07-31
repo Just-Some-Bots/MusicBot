@@ -68,6 +68,7 @@ class Config:
         self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
+        self.repeat = config.getboolean('MusicBot', 'Repeat', fallback=ConfigDefaults.repeat)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -335,6 +336,7 @@ class ConfigDefaults:
     remove_ap = True
     show_config_at_start = False
     legacy_skip = False
+    repeat = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
