@@ -2423,14 +2423,15 @@ class MusicBot(discord.Client):
         """
 
         if message.attachments:
-            thing = message.attachments[0]['url']
+            thing = message.attachments[0].url
         elif url:
             thing = url.strip('<>')
         else:
             raise exceptions.CommandError("You must provide a URL or attach a file.", expire_in=20)
 
         try:
-            with aiohttp.Timeout(10):
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with aiohttp.ClientSession(timeout=timeout):
                 async with self.aiosession.get(thing) as res:
                     await self.user.edit(avatar=await res.read())
 
