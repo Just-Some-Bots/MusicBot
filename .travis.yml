@@ -16,6 +16,7 @@ services:
 
 install:
 - if [ "$TYPE" = "build" ]; then ./.travis/install.sh; fi;
+- pip install -U -r requirements.txt
 
 script:
 - if [ "$TYPE" = "docker" ]; then docker build -t musicbot .; docker images -a; fi;
