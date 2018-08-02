@@ -16,7 +16,6 @@ else
     sudo add-apt-repository ppa:chris-lea/libsodium -y
     sudo apt-get update -y
     sudo apt-get install git python3.5-dev libav-tools libopus-dev libffi-dev libsodium-dev python3-pip -y
-    sudo apt-get upgrade -y
     sudo python -m pip install -U pip
     sudo python -m pip install -U -r requirements.txt
 fi
