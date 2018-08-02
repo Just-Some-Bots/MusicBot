@@ -15,7 +15,7 @@ else
     sudo add-apt-repository ppa:mc3man/trusty-media -y
     sudo add-apt-repository ppa:chris-lea/libsodium -y
     sudo apt-get update -y
-    sudo apt-get install git python3.5-dev libav-tools libopus-dev libffi-dev libsodium-dev python3-pip -y
-    sudo python -m pip install -U pip
-    sudo python -m pip install -U -r requirements.txt
+    sudo apt-get install git libav-tools libopus-dev libffi-dev libsodium-dev -y
+    sudo -H pip install -U pip
+    sudo -H pip install -U -r requirements.txt
 fi
