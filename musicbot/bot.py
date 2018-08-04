@@ -525,7 +525,7 @@ class MusicBot(discord.Client):
                     self.config.auto_playlist = False
                 else:
                     log.debug("No content in current autoplaylist. Filling with new music...")
-                    player.autoplaylist = list(set(self.autoplaylist))
+                    player.autoplaylist = list(self.autoplaylist)
 
             while player.autoplaylist:
                 if self.config.auto_playlist_random:
