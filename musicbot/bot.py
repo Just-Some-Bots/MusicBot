@@ -2028,6 +2028,7 @@ class MusicBot(discord.Client):
 
         num_voice = sum(1 for m in voice_channel.members if not (
             m.voice.deaf or m.voice.self_deaf or m == self.user))
+        num_voice += 1 # add one incase all users are deafened, to avoid divison by zero
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
