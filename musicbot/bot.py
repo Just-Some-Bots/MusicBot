@@ -1311,6 +1311,9 @@ class MusicBot(discord.Client):
                         return Response(self.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                     elif 'playlist' in parts:
                         res = await self.spotify.get_playlist(parts[-3], parts[-1])
+                        while int(res["tracks"]["total"]) > len(res['tracks']['items']):
+                            resp = await self.spotify.get_playlist(parts[-3], parts[-1], offset=len(res['tracks']['items']))
+                            res['tracks']['items'].extend(resp['tracks']['items'])
                         await self._do_playlist_checks(permissions, player, author, res['tracks']['items'])
                         procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}`').format(res['name']))
                         for i in res['tracks']['items']:
