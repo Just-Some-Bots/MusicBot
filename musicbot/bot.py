@@ -1302,7 +1302,7 @@ class MusicBot(discord.Client):
                     elif 'album' in parts:
                         res = await self.spotify.get_album(parts[-1])
                         await self._do_playlist_checks(permissions, player, author, res['tracks']['items'])
-                        procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-album-process', 'Processing album `{0}`').format(res['name']))
+                        procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
                         for i in res['tracks']['items']:
                             song_url = i['name'] + ' ' + i['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
@@ -1311,8 +1311,11 @@ class MusicBot(discord.Client):
                         return Response(self.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                     elif 'playlist' in parts:
                         res = await self.spotify.get_playlist(parts[-3], parts[-1])
+                        while int(res["tracks"]["total"]) > len(res['tracks']['items']):
+                            resp = await self.spotify.get_playlist(parts[-3], parts[-1], offset=len(res['tracks']['items']))
+                            res['tracks']['items'].extend(resp['tracks']['items'])
                         await self._do_playlist_checks(permissions, player, author, res['tracks']['items'])
-                        procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}`').format(res['name']))
+                        procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(res['name']), song_url)
                         for i in res['tracks']['items']:
                             song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
@@ -2028,6 +2031,7 @@ class MusicBot(discord.Client):
 
         num_voice = sum(1 for m in voice_channel.members if not (
             m.voice.deaf or m.voice.self_deaf or m == self.user))
+        if num_voice == 0: num_voice = 1 # incase all users are deafened, to avoid divison by zero
 
         num_skips = player.skip_state.add_skipper(author.id, message)
 
