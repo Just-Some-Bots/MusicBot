@@ -145,7 +145,7 @@ class MusicBot(discord.Client):
         async def wrapper(self, *args, **kwargs):
             orig_msg = _get_variable('message')
 
-            if orig_msg.author.id in self.config.dev_ids:
+            if str(orig_msg.author.id) in self.config.dev_ids:
                 # noinspection PyCallingNonCallable
                 return await func(self, *args, **kwargs)
             else:
@@ -2427,16 +2427,16 @@ class MusicBot(discord.Client):
         """
 
         if message.attachments:
-            thing = message.attachments[0]['url']
+            thing = message.attachments[0].url
         elif url:
             thing = url.strip('<>')
         else:
             raise exceptions.CommandError("You must provide a URL or attach a file.", expire_in=20)
 
         try:
-            with aiohttp.Timeout(10):
-                async with self.aiosession.get(thing) as res:
-                    await self.user.edit(avatar=await res.read())
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with self.aiosession.get(thing, timeout=timeout) as res:
+                await self.user.edit(avatar=await res.read())
 
         except Exception as e:
             raise exceptions.CommandError("Unable to change avatar: {}".format(e), expire_in=20)
