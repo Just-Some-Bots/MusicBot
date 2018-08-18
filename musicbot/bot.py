@@ -122,9 +122,6 @@ class MusicBot(discord.Client):
         try:    self.http.session.close()
         except: pass
 
-        try:    self.aiosession.close()
-        except: pass
-
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
@@ -849,6 +846,7 @@ class MusicBot(discord.Client):
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
+            self.loop.run_until_complete(self.aiosession.close())
         except: pass
 
         pending = asyncio.Task.all_tasks()
@@ -879,7 +877,6 @@ class MusicBot(discord.Client):
             except Exception:
                 log.error("Error in cleanup", exc_info=True)
 
-            self.loop.close()
             if self.exit_signal:
                 raise self.exit_signal
 
