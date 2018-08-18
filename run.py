@@ -265,7 +265,7 @@ def req_check_deps():
     try:
         import discord
         if discord.version_info.major < 1:
-            log.critical("This version of MusicBot requires the rewrite version of discord.py (1.0). Your version is {0}. Try running update.py.".format(discord.__version__))
+            log.critical("This version of MusicBot requires a newer version of discord.py (1.0+). Your version is {0}. Try running update.py.".format(discord.__version__))
             bugger_off()
     except ImportError:
         # if we can't import discord.py, an error will be thrown later down the line anyway
