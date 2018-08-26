@@ -9,9 +9,9 @@ order: 1
 Installing MusicBot on Ubuntu via the command line is the **recommended way to install the bot**, though the system dependencies differ depending on what version of Ubuntu you are using. Firstly, lets install the dependencies required for your system:
 
 <details>
-<summary>
+  
+<summary><strong>Ubuntu 16.04</strong></summary>
 
-## Ubuntu 16.04</summary>
 <br>
 
 ~~~ bash
@@ -38,9 +38,7 @@ sudo python3 -m pip install -U -r requirements.txt
 </details>
 
 <details>
-<summary>
-
-## Ubuntu 14.04</summary>
+<summary><strong>Ubuntu 14.04</strong></summary>
 <br>
 
 ~~~ bash
