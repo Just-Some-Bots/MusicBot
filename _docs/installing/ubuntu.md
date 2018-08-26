@@ -8,32 +8,12 @@ order: 1
 
 Installing MusicBot on Ubuntu via the command line is the **recommended way to install the bot**, though the system dependencies differ depending on what version of Ubuntu you are using. Firstly, lets install the dependencies required for your system:
 
-## Ubuntu 14.04
-~~~ bash
-# Install build tools
-sudo apt-get install build-essential unzip -y
-sudo apt-get install software-properties-common -y
+<details>
+<summary>
 
-# Add external repositories
-sudo add-apt-repository ppa:deadsnakes -y
-sudo add-apt-repository ppa:mc3man/trusty-media -y
-sudo add-apt-repository ppa:chris-lea/libsodium -y
+## Ubuntu 16.04</summary>
+<br>
 
-# Install system dependencies
-sudo apt-get update -y
-sudo apt-get install git python python3.5-dev libav-tools libopus-dev libffi-dev libsodium-dev python3-pip -y
-sudo apt-get upgrade -y
-
-# Clone the MusicBot to your home directory
-git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b master
-cd ~/MusicBot
-
-# Install Python dependencies
-sudo python3.5 -m pip install -U pip
-sudo python3.5 -m pip install -U -r requirements.txt 
-~~~
-
-## Ubuntu 16.04
 ~~~ bash
 # Install build tools
 sudo apt-get install build-essential unzip -y
@@ -55,5 +35,37 @@ cd ~/MusicBot
 sudo python3 -m pip install -U pip
 sudo python3 -m pip install -U -r requirements.txt 
 ~~~
+</details>
+
+<details>
+<summary>
+
+## Ubuntu 14.04</summary>
+<br>
+
+~~~ bash
+# Install build tools
+sudo apt-get install build-essential unzip -y
+sudo apt-get install software-properties-common -y
+
+# Add external repositories
+sudo add-apt-repository ppa:deadsnakes -y
+sudo add-apt-repository ppa:mc3man/trusty-media -y
+sudo add-apt-repository ppa:chris-lea/libsodium -y
+
+# Install system dependencies
+sudo apt-get update -y
+sudo apt-get install git python python3.5-dev libav-tools libopus-dev libffi-dev libsodium-dev python3-pip -y
+sudo apt-get upgrade -y
+
+# Clone the MusicBot to your home directory
+git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b master
+cd ~/MusicBot
+
+# Install Python dependencies
+sudo python3.5 -m pip install -U pip
+sudo python3.5 -m pip install -U -r requirements.txt
+~~~
+</details>
 
 After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `sudo ./run.sh`.
