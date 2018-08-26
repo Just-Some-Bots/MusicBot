@@ -8,9 +8,7 @@ order: 1
 
 Installing MusicBot on Ubuntu via the command line is the **recommended way to install the bot**, though the system dependencies differ depending on what version of Ubuntu you are using. Firstly, lets install the dependencies required for your system:
 
-<details>
-<summary><strong>Ubuntu 18.04</strong></summary>
-<br>
+## Ubuntu 18.04
 
 ~~~ bash
 # Install build tools
@@ -30,11 +28,8 @@ cd ~/MusicBot
 sudo python3 -m pip install -U pip
 sudo python3 -m pip install -U -r requirements.txt 
 ~~~
-</details>
 
-<details>
-<summary><strong>Ubuntu 16.04</strong></summary>
-<br>
+## Ubuntu 16.04
 
 ~~~ bash
 # Install build tools
@@ -57,11 +52,8 @@ cd ~/MusicBot
 sudo python3 -m pip install -U pip
 sudo python3 -m pip install -U -r requirements.txt 
 ~~~
-</details>
 
-<details>
-<summary><strong>Ubuntu 14.04</strong></summary>
-<br>
+## Ubuntu 14.04
 
 ~~~ bash
 # Install build tools
@@ -86,6 +78,5 @@ cd ~/MusicBot
 sudo python3.5 -m pip install -U pip
 sudo python3.5 -m pip install -U -r requirements.txt
 ~~~
-</details>
 
 After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `sudo ./run.sh`.
