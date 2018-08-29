@@ -7,4 +7,4 @@ python3 -c 'import sys; sys.exit(sys.hexversion < 0x03050000)') || {
 	exit 1; }
 
 cd "$(dirname "$BASH_SOURCE")"
-python3 run.py
+python3.6 run.py
