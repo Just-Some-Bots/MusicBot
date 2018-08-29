@@ -11,39 +11,39 @@ PYTHON37_VERSION=`python3.7 -c 'import sys; version=sys.version_info[:3]; print(
 if [ "${python[0]}" -eq "3" ]; then # Python = 3
     if [ "${python[1]}" -eq "5" ]; then # Python = 3.5
         if [ "${python[2]}" -ge "3" ]; then # Python = 3.5.3
-            python run.py
+            python update.py
             exit
         fi
     elif [ "${python[1]}" -ge "6" ]; then # Python >= 3.6
-        python run.py
+        python update.py
         exit
     fi
 fi
 
 if [ "${python3[0]}" -eq "5" ]; then # Python3 = 3.5
     if [ "${python[1]}" -ge "3" ]; then # Python3 >= 3.5.3
-            python3 run.py
+            python3 update.py
             exit
     fi
 fi
 
 if [ "${python3[0]}" -ge "6" ]; then # Python3 >= 3.6
-    python3 run.py
+    python3 update.py
     exit
 fi
 
 if [ "$PYTHON35_VERSION" -ge "3" ]; then # Python3.5 > 3.5.3
-    python3.5 run.py
+    python3.5 update.py
     exit
 fi
 
 if [ "$PYTHON36_VERSION" -eq "6" ]; then # Python3.6 = 3.6
-    python3.6 run.py
+    python3.6 update.py
     exit
 fi
 
 if [ "$PYTHON37_VERSION" -eq "7" ]; then # Python3.7 = 3.7
-    python3.7 run.py
+    python3.7 update.py
     exit
 fi
 
