@@ -52,7 +52,7 @@
     "cmd-search-decline": "แย่จัง :(",
     "cmd-np-action-streaming": "กำลังสตรีม",
     "cmd-np-action-playing": "กำลังเล่น",
-    "cmd-np-reply-author": "ตอนนี้ {action}: **{title}** เพิ่มโดย **{author}**\nProgress: {progress_bar} {progress}\n:point_right: <{url}>",
+    "cmd-np-reply-author": "ตอนนี้ {action}: **{title}** เพิ่มโดย **{author}**\nความคืบหน้า: {progress_bar} {progress}\n:point_right: <{url}>",
     "cmd-np-reply-noauthor": "ตอนนี้ {action}: **{title}**\nความคืบหน้า: {progress_bar} {progress}\n:point_right: <{url}>",
     "cmd-np-none": "ไม่มีเพลงในคิว! เพิ่มบางอย่างด้วย {0}play",
     "cmd-summon-novc": "คุณไม่ได้อยู่ในช่องสื่อสารเสียง!",
