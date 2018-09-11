@@ -30,7 +30,7 @@ if '%errorlevel%' NEQ '0' (
 CD /d "%~dp0"
 
 IF EXIST %SYSTEMROOT%\py.exe (
-    CMD /k %SYSTEMROOT%\py.exe -3 update.py
+    CMD /k %SYSTEMROOT%\py.exe -3.6 update.py
     EXIT
 )
 

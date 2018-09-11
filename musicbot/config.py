@@ -55,6 +55,8 @@ class Config:
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
         self.auto_playlist_random = config.getboolean('MusicBot', 'AutoPlaylistRandom', fallback=ConfigDefaults.auto_playlist_random)
+        self.auto_stream = config.getboolean('MusicBot', 'UseAutoStream', fallback=ConfigDefaults.auto_stream)
+        self.auto_stream_random = config.getboolean('MusicBot', 'AutoStreamRandom', fallback=ConfigDefaults.auto_stream_random)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
@@ -189,6 +191,10 @@ class Config:
         apn_name, apn_ext = os.path.splitext(ap_name)
         self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
 
+        as_path, as_name = os.path.split(self.auto_stream_file)
+        asn_name, asn_ext = os.path.splitext(as_name)
+        self.auto_stream_removed_file = os.path.join(as_path, asn_name + '_removed' + asn_ext)
+
         if hasattr(logging, self.debug_level.upper()):
             self.debug_level = getattr(logging, self.debug_level.upper())
         else:
@@ -295,6 +301,14 @@ class Config:
             else:
                 log.warning("No autoplaylist file found.")
 
+    def find_autostream(self):
+        if not os.path.exists(self.auto_stream_file):
+            if os.path.exists('config/_autostream.txt'):
+                shutil.copy('config/_autostream.txt', self.auto_stream_file)
+                log.debug("Copying _autostream.txt to autostream.txt")
+            else:
+                log.warning("No autostream file found.")
+
 
     def write_default_config(self, location):
         pass
@@ -321,6 +335,8 @@ class ConfigDefaults:
     auto_summon = True
     auto_playlist = True
     auto_playlist_random = True
+    auto_stream = True
+    auto_stream_random = True
     auto_pause = True
     delete_messages = True
     delete_invoking = False
