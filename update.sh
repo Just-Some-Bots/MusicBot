@@ -21,7 +21,7 @@ if [ "${python[0]}" -eq "3" ]; then # Python = 3
 fi
 
 if [ "${python3[0]}" -eq "5" ]; then # Python3 = 3.5
-    if [ "${python[1]}" -ge "3" ]; then # Python3 >= 3.5.3
+    if [ "${python3[1]}" -ge "3" ]; then # Python3 >= 3.5.3
             python3 update.py
             exit
     fi
