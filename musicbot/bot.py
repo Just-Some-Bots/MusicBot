@@ -2240,7 +2240,7 @@ class MusicBot(discord.Client):
         value = value.lower()
         bool_y = ['on', 'y', 'enabled']
         bool_n = ['off', 'n', 'disabled']
-        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_random',
+        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_random', 'auto_stream_random',
                    'auto_pause', 'delete_messages', 'delete_invoking',
                    'write_current_song']  # these need to match attribute names in the Config class
         if option in ['autoplaylist', 'auto_playlist']:
