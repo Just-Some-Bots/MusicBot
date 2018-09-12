@@ -105,7 +105,6 @@ class MusicPlayer(EventEmitter, Serializable):
         self.voice_client = voice_client
         self.playlist = playlist
         self.autoplaylist = None
-        self.autostream = None
         self.state = MusicPlayerState.STOPPED
         self.skip_state = None
         self.karaoke_mode = False

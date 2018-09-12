@@ -546,130 +546,131 @@ class MusicBot(discord.Client):
                 self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
 
         if not player.playlist.entries and not player.current_entry and (self.config.auto_playlist or self.config.auto_stream):
-            if self.config.auto_playlist:
+            if self.config.auto_playlist or self.config.auto_stream:
                 if not player.autoplaylist:
-                    if not self.autoplaylist:
-                        # TODO: When I add playlist expansion, make sure that's not happening during this check
-                        log.warning("No playable songs in the autoplaylist, disabling.")
-                        self.config.auto_playlist = False
-                    else:
-                        log.debug("No content in current autoplaylist. Filling with new music...")
-                        player.autoplaylist = list(self.autoplaylist)
+                    player.autoplaylist = list()
+                    if self.config.auto_playlist:
+                        if not self.autoplaylist:
+                            # TODO: When I add playlist expansion, make sure that's not happening during this check
+                            log.warning("No playable songs in the autoplaylist, disabling.")
+                            self.config.auto_playlist = False
+                        else:
+                            log.debug("No content in current autoplaylist. Filling with new music...")
+                            player.autoplaylist.extend([(url, "default") for url in list(self.autoplaylist)])
+                    if self.config.auto_stream:
+                        if not self.autostream:
+                            log.warning("No playable songs in the autostream, disabling.")
+                            self.config.auto_stream = False
+                        else:
+                            log.debug("No content in current autostream. Filling with new music...")
+                            player.autoplaylist.extend([(url, "stream") for url in list(self.autostream)])
 
                 while player.autoplaylist:
-                    if self.config.auto_playlist_random:
+                    if self.config.auto_playlist_stream_random:
                         random.shuffle(player.autoplaylist)
                         song_url = random.choice(player.autoplaylist)
                     else:
                         song_url = player.autoplaylist[0]
                     player.autoplaylist.remove(song_url)
 
-                    info = {}
+                    if song_url[1] == "default":
 
-                    try:
-                        info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                    except downloader.youtube_dl.utils.DownloadError as e:
-                        if 'YouTube said:' in e.args[0]:
-                            # url is bork, remove from list and put in removed list
-                            log.error("Error processing youtube url:\n{}".format(e.args[0]))
+                        info = {}
 
-                        else:
-                            # Probably an error from a different extractor, but I've only seen youtube's
-                            log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
+                        try:
+                            info = await self.downloader.extract_info(player.playlist.loop, song_url[0], download=False, process=False)
+                        except downloader.youtube_dl.utils.DownloadError as e:
+                            if 'YouTube said:' in e.args[0]:
+                                # url is bork, remove from list and put in removed list
+                                log.error("Error processing youtube url:\n{}".format(e.args[0]))
 
-                        await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=self.config.remove_ap)
-                        continue
+                            else:
+                                # Probably an error from a different extractor, but I've only seen youtube's
+                                log.error("Error processing \"{url}\": {ex}".format(url=song_url[0], ex=e))
 
-                    except Exception as e:
-                        log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-                        log.exception()
-
-                        self.autoplaylist.remove(song_url)
-                        continue
-
-                    if info.get('entries', None):  # or .get('_type', '') == 'playlist'
-                        log.debug("Playlist found but is unsupported at this time, skipping.")
-                        # TODO: Playlist expansion
-
-                    # Do I check the initial conditions again?
-                    # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-
-                    if self.config.auto_pause:
-                        player.once('play', lambda player, **_: _autopause(player))
-
-                    try:
-                        await player.playlist.add_entry(song_url, channel=None, author=None)
-                    except exceptions.ExtractionError as e:
-                        log.error("Error adding song from autoplaylist: {}".format(e))
-                        log.debug('', exc_info=True)
-                        continue
-
-                    break
-
-                if not self.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check
-                    log.warning("No playable songs in the autoplaylist, disabling.")
-                    self.config.auto_playlist = False
-                    
-            if self.config.auto_stream:
-                if not player.autostream:
-                    if not self.autostream:
-                        log.warning("No playable songs in the autostream, disabling.")
-                        self.config.auto_stream = False
-                    else:
-                        log.debug("No content in current autostream. Filling with new music...")
-                        player.autostream = list(self.autostream)
-
-                while player.autostream:
-                    if self.config.auto_stream_random:
-                        random.shuffle(player.autostream)
-                        song_url = random.choice(player.autostream)
-                    else:
-                        song_url = player.autostream[0]
-                    player.autostream.remove(song_url)
-
-                    info = {'extractor': None}
-
-                    try:
-                        info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                    except DownloadError as e:
-                        
-                        if e.exc_info[0] == URLError:
-                            if os.path.exists(os.path.abspath(song_url)):
-                                await self.remove_from_autostream(song_url, ex=downloader.youtube_dl.utils.ExtractionError("This is not a stream, this is a file path."), delete_from_as=self.config.remove_as)
-                                continue
-
-                            else:  # it might be a file path that just doesn't exist
-                                await self.remove_from_autostream(song_url, ex=downloader.youtube_dl.utils.ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e)), delete_from_as=self.config.remove_as)
-                                continue
-
-                        else:
-                            # traceback.print_exc()
-                            await self.remove_from_autostream(song_url, ex=downloader.youtube_dl.utils.ExtractionError("Unknown error: {}".format(e)), delete_from_as=self.config.remove_as)
+                            await self.remove_from_autoplaylist(song_url[0], ex=e, delete_from_ap=self.config.remove_ap)
                             continue
+
+                        except Exception as e:
+                            log.error("Error processing \"{url}\": {ex}".format(url=song_url[0], ex=e))
+                            log.exception()
+
+                            self.autoplaylist.remove(song_url[0])
+                            continue
+
+                        if info.get('entries', None):  # or .get('_type', '') == 'playlist'
+                            log.debug("Playlist found but is unsupported at this time, skipping.")
+                            # TODO: Playlist expansion
+
+                        # Do I check the initial conditions again?
+                        # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+
+                        if self.config.auto_pause:
+                            player.once('play', lambda player, **_: _autopause(player))
+
+                        try:
+                            await player.playlist.add_entry(song_url[0], channel=None, author=None)
+                        except exceptions.ExtractionError as e:
+                            log.error("Error adding song from autoplaylist: {}".format(e))
+                            log.debug('', exc_info=True)
+                            continue
+
+                        break
+                    
+                    elif song_url[1] == "stream":
                         
-                    except Exception as e:
-                        log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url, e), exc_info=True)
+                        info = {'extractor': None}
 
-                    if info.get('is_live') is None and info.get('extractor', None) is not 'generic':  # wew hacky
-                        await self.remove_from_autostream(song_url, ex=downloader.youtube_dl.utils.ExtractionError("This is not a stream."), delete_from_as=self.config.remove_as)
-                        continue
+                        try:
+                            info = await self.downloader.extract_info(player.playlist.loop, song_url[0], download=False, process=False)
+                        except downloader.youtube_dl.utils.DownloadError as e:
+                        
+                            if e.exc_info[0] == URLError:
+                                if os.path.exists(os.path.abspath(song_url[0])):
+                                    await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("This is not a stream, this is a file path."), delete_from_as=self.config.remove_as)
+                                    continue
 
-                    if self.config.auto_pause:
-                        player.once('play', lambda player, **_: _autopause(player))
+                                else:  # it might be a file path that just doesn't exist
+                                    await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e)), delete_from_as=self.config.remove_as)
+                                    continue
 
-                    try:
-                        await player.playlist.add_stream_entry(song_url, info=None)
-                    except exceptions.ExtractionError as e:
-                        log.error("Error adding song from autostream: {}".format(e))
-                        log.debug('', exc_info=True)
-                        continue
+                            else:
+                                # traceback.print_exc()
+                                await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("Unknown error: {}".format(e)), delete_from_as=self.config.remove_as)
+                                continue
+                        
+                        except Exception as e:
+                            log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url[0], e), exc_info=True)
 
-                    break
+                        if info.get('is_live') is None and info.get('extractor', None) is not 'generic':  # wew hacky
+                            await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("This is not a stream."), delete_from_as=self.config.remove_as)
+                            continue
 
-                if not self.autostream:
-                    log.warning("No playable songs in the autostream, disabling.")
-                    self.config.auto_stream = False
+                        if self.config.auto_pause:
+                            player.once('play', lambda player, **_: _autopause(player))
+
+                        try:
+                            await player.playlist.add_stream_entry(song_url[0], info=None)
+                        except exceptions.ExtractionError as e:
+                            log.error("Error adding song from autostream: {}".format(e))
+                            log.debug('', exc_info=True)
+                            continue
+
+                        break
+                    
+                    else:
+                        log.error("autoplaylist type undefined: {}".format(song_url[1]))
+                        
+                    if self.config.auto_playlist:
+                        if not self.autoplaylist:
+                            # TODO: When I add playlist expansion, make sure that's not happening during this check
+                            log.warning("No playable songs in the autoplaylist, disabling.")
+                            self.config.auto_playlist = False
+
+                    if self.config.auto_stream:
+                        if not self.autostream:
+                            log.warning("No playable songs in the autostream, disabling.")
+                            self.config.auto_stream = False
 
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue(player.voice_client.channel.guild)
@@ -1125,8 +1126,8 @@ class MusicBot(discord.Client):
                 self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
             log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
             log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-            log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_random] + ")")
-            log.info("  Auto-Stream: " + ['Disabled', 'Enabled'][self.config.auto_stream] + " (order: " + ['sequential', 'random'][self.config.auto_stream_random] + ")")
+            log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_stream_random] + ")")
+            log.info("  Auto-Stream: " + ['Disabled', 'Enabled'][self.config.auto_stream] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_stream_random] + ")")
             log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
             log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
             if self.config.delete_messages:
@@ -1174,17 +1175,7 @@ class MusicBot(discord.Client):
 
         Resets all songs in the server's autoplaylist
         """
-        player.autoplaylist = list(set(self.autoplaylist))
-        return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
-
-    async def cmd_resetstream(self, player, channel):
-        """
-        Usage:
-            {command_prefix}resetstream
-
-        Resets all songs in the server's autostream
-        """
-        player.autostream = list(set(self.autostream))
+        player.autoplaylist = list(set(self.autoplaylist).union(set(self.autostream)))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
     async def cmd_help(self, message, channel, command=None):
@@ -2230,7 +2221,7 @@ class MusicBot(discord.Client):
         config file.
 
         Valid options:
-            autoplaylist, autostream, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
+            autoplaylist, autostream, save_videos, now_playing_mentions, auto_playlist_stream_random, auto_pause,
             delete_messages, delete_invoking, write_current_song
 
         For information about these options, see the option's comment in the config file.
@@ -2240,7 +2231,7 @@ class MusicBot(discord.Client):
         value = value.lower()
         bool_y = ['on', 'y', 'enabled']
         bool_n = ['off', 'n', 'disabled']
-        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_random', 'auto_stream_random',
+        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_stream_random',
                    'auto_pause', 'delete_messages', 'delete_invoking',
                    'write_current_song']  # these need to match attribute names in the Config class
         if option in ['autoplaylist', 'auto_playlist']:

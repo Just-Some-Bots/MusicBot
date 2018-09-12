@@ -54,9 +54,8 @@ class Config:
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
         self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
-        self.auto_playlist_random = config.getboolean('MusicBot', 'AutoPlaylistRandom', fallback=ConfigDefaults.auto_playlist_random)
         self.auto_stream = config.getboolean('MusicBot', 'UseAutoStream', fallback=ConfigDefaults.auto_stream)
-        self.auto_stream_random = config.getboolean('MusicBot', 'AutoStreamRandom', fallback=ConfigDefaults.auto_stream_random)
+        self.auto_playlist_stream_random = config.getboolean('MusicBot', 'AutoPlaylistStreamRandom', fallback=ConfigDefaults.auto_playlist_stream_random)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
@@ -336,9 +335,8 @@ class ConfigDefaults:
     now_playing_mentions = False
     auto_summon = True
     auto_playlist = True
-    auto_playlist_random = True
     auto_stream = True
-    auto_stream_random = True
+    auto_playlist_stream_random = True
     auto_pause = True
     delete_messages = True
     delete_invoking = False
