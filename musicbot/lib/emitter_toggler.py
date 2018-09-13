@@ -6,7 +6,6 @@ class EmitterToggler:
     _eventmap = dict()
 
     def _call(self, event, value):
-        print(event, value)
         self.current_value = value
         
     def __init__(self, emitter):
