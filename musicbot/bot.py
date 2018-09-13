@@ -1314,6 +1314,27 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
+    async def cmd_savestream(self, player, url=None):
+        """
+        Usage:
+            {command_prefix}savestream [url]
+
+        Saves the specified stream or current stream if not specified to the autostream.
+        """
+        if url or (player.current_entry and isinstance(player.current_entry, StreamPlaylistEntry)):
+            if not url:
+                url = player.current_entry.url
+
+            if url not in self.autostream:
+                self.autostream.append(url)
+                write_file(self.config.auto_stream_file, self.autostream)
+                log.debug("Appended {} to autostream".format(url))
+                return Response(self.str.get('cmd-savestream-success', 'Added <{0}> to the autostream.').format(url))
+            else:
+                raise exceptions.CommandError(self.str.get('cmd-savestream-exists', 'This stream is already in the autostream.'))
+        else:
+            raise exceptions.CommandError(self.str.get('cmd-savestream-invalid', 'There is no valid stream playing.'))
+
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
         """
