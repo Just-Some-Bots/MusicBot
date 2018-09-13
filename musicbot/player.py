@@ -107,6 +107,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self.autoplaylist = None
         self.state = MusicPlayerState.STOPPED
         self.skip_state = None
+        self.auto_state = None
         self.karaoke_mode = False
 
         self._volume = bot.config.default_volume
@@ -135,6 +136,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def skip(self):
         self._kill_current_player()
+        self.emit('change-entry', player=self)
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
@@ -220,6 +222,7 @@ class MusicPlayer(EventEmitter, Serializable):
                         print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
                             os.path.relpath(filename)))
 
+        self.emit('change-entry', player=self)
         self.emit('finished-playing', player=self, entry=entry)
 
     def _kill_current_player(self):

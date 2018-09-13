@@ -37,6 +37,7 @@ from .constructs import SkipState, Response
 from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
 from .spotify import Spotify
 from .json import Json
+from .lib.emitter_toggler import EmitterToggler
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -472,6 +473,12 @@ class MusicBot(discord.Client):
                        .on('entry-added', self.on_player_entry_added) \
                        .on('error', self.on_player_error)
 
+        player.auto_state = EmitterToggler(player)
+        player.auto_state.add({
+            'autoentry': True,
+            'finishedentry': False,
+            })
+
         player.skip_state = SkipState()
 
         if guild:
@@ -609,6 +616,8 @@ class MusicBot(discord.Client):
                             player.once('play', lambda player, **_: _autopause(player))
 
                         try:
+                            player.auto_state.once('change-entry', 'finishedentry')
+                            player.auto_state.once('play', 'autoentry')
                             await player.playlist.add_entry(song_url[0], channel=None, author=None)
                         except exceptions.ExtractionError as e:
                             log.error("Error adding song from autoplaylist: {}".format(e))
@@ -650,6 +659,8 @@ class MusicBot(discord.Client):
                             player.once('play', lambda player, **_: _autopause(player))
 
                         try:
+                            player.auto_state.once('change-entry', 'finishedentry')
+                            player.auto_state.once('play', 'autoentry')
                             await player.playlist.add_stream_entry(song_url[0], info=None)
                         except exceptions.ExtractionError as e:
                             log.error("Error adding song from autostream: {}".format(e))
@@ -1586,6 +1597,8 @@ class MusicBot(discord.Client):
                     )
 
                 try:
+                    if self.config.skip_if_auto and player.auto_state.current_value and not player.is_stopped:
+                        player.skip()
                     entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
                 except exceptions.WrongEntryTypeError as e:
@@ -1735,6 +1748,8 @@ class MusicBot(discord.Client):
             )
 
         await self.send_typing(channel)
+        if self.config.skip_if_auto and player.auto_state.current_value and not player.is_stopped:
+            player.skip()
         await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
 
         return Response(self.str.get('cmd-stream-success', "Streaming."), delete_after=6)
