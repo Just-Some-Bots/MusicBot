@@ -1228,35 +1228,36 @@ class MusicBot(discord.Client):
 
         Toggle between autoplaylist and autostream
         """
-        if not permissions.toggle_playlists and not author.id == self.config.owner_id and not author == user:
-            raise exceptions.PermissionsError(
-                self.str.get('cmd-toggleplaylist-noperm', 'You have no permission to toggle autoplaylist'),
-                expire_in=30
-            )
+        if self.config.auto_mode == 'toggle':
+            if not permissions.toggle_playlists and not author.id == self.config.owner_id and not author == user:
+                raise exceptions.PermissionsError(
+                    self.str.get('cmd-toggleplaylist-noperm', 'You have no permission to toggle autoplaylist'),
+                    expire_in=30
+                )
 
-        if len(self.playlisttype) == 0:
-            return Response(self.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), delete_after=15)
-        try:
-            i = self.playlisttype.index(self.auto_toggle) + 1
-            if i == len(self.playlisttype):
+            if len(self.playlisttype) == 0:
+                return Response(self.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), delete_after=15)
+            try:
+                i = self.playlisttype.index(self.auto_toggle) + 1
+                if i == len(self.playlisttype):
+                    i = 0
+            except ValueError:
                 i = 0
-        except ValueError:
-            i = 0
-        if self.playlisttype[i] == self.auto_toggle:
-            return Response(self.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), delete_after=15)
+            if self.playlisttype[i] == self.auto_toggle:
+                return Response(self.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), delete_after=15)
+            else:
+                self.auto_toggle = self.playlisttype[i]
+                # reset playlist
+                player.autoplaylist = list()
+                # if autoing then switch
+                if player.auto_state.current_value and not player.is_stopped:
+                    player.skip()
+                # on_player_finished_playing should fill in the music
+                # done!
+                return Response(self.str.get('cmd-toggleplaylist-success', 'Switched autoplaylist to {0}').format(self.auto_toggle), delete_after=15)
         else:
-            self.auto_toggle = self.playlisttype[i]
-            # reset playlist
-            player.autoplaylist = list()
-            # if autoing then switch
-            if player.auto_state.current_value and not player.is_stopped:
-                player.skip()
-            # on_player_finished_playing should fill in the music
-            # done!
-            return Response(self.str.get('cmd-toggleplaylist-success', 'Switched autoplaylist to {0}').format(self.auto_toggle), delete_after=15)
-            
-                
-
+            return Response(self.str.get('cmd-toggleplaylist-wrongmode', 'Mode for dealing with autoplaylists is not set to \'toggle\', currently set to {0}').format(self.config.auto_mode), delete_after=15)
+        
     async def cmd_help(self, message, channel, command=None):
         """
         Usage:

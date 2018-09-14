@@ -16,6 +16,7 @@
     "cmd-savestream-exists": "This stream is already in the autostream.",
     "cmd-savestream-invalid": "There is no valid stream playing.",
     "cmd-savestram-success": "Added <{0}> to the autostream.",
+    "cmd-toggleplaylist-wrongmode": "Mode for dealing with autoplaylists is not set to \'toggle\', currently set to {0}",
     "cmd-toggleplaylist-nolist": "There is not any autoplaylist to toggle to",
     "cmd-toggleplaylist-success": "Switched autoplaylist to {0}",
     "cmd-joinserver-response": "Click here to add me to a server: \n{}",
