@@ -567,6 +567,14 @@ class MusicBot(discord.Client):
                         if not self.autoplaylist:
                             # TODO: When I add playlist expansion, make sure that's not happening during this check
                             log.warning("No playable songs in the autoplaylist, disabling.")
+                            if self.auto_toggle == 'playlist' and len(self.playlisttype) > 1:
+                                try:
+                                    i = self.playlisttype.index(self.auto_toggle) + 1
+                                    if i == len(self.playlisttype):
+                                        i = 0
+                                except ValueError:
+                                    i = 0
+                                self.auto_toggle = self.playlisttype[i]
                             self.playlisttype.remove('playlist')
                             self.config.auto_playlist = False
                         else:
@@ -576,6 +584,14 @@ class MusicBot(discord.Client):
                     if self.config.auto_stream:
                         if not self.autostream:
                             log.warning("No playable songs in the autostream, disabling.")
+                            if self.auto_toggle == 'stream' and len(self.playlisttype) > 1:
+                                try:
+                                    i = self.playlisttype.index(self.auto_toggle) + 1
+                                    if i == len(self.playlisttype):
+                                        i = 0
+                                except ValueError:
+                                    i = 0
+                                self.auto_toggle = self.playlisttype[i]
                             self.playlisttype.remove('stream')
                             self.config.auto_stream = False
                         else:
@@ -688,12 +704,28 @@ class MusicBot(discord.Client):
                             # TODO: When I add playlist expansion, make sure that's not happening during this check
                             log.warning("No playable songs in the autoplaylist, disabling.")
                             self.config.auto_playlist = False
+                            if self.auto_toggle == 'playlist' and len(self.playlisttype) > 1:
+                                try:
+                                    i = self.playlisttype.index(self.auto_toggle) + 1
+                                    if i == len(self.playlisttype):
+                                        i = 0
+                                except ValueError:
+                                    i = 0
+                                self.auto_toggle = self.playlisttype[i]
                             self.playlisttype.remove('playlist')
 
                     if self.config.auto_stream:
                         if not self.autostream:
                             log.warning("No playable songs in the autostream, disabling.")
                             self.config.auto_stream = False
+                            if self.auto_toggle == 'stream' and len(self.playlisttype) > 1:
+                                try:
+                                    i = self.playlisttype.index(self.auto_toggle) + 1
+                                    if i == len(self.playlisttype):
+                                        i = 0
+                                except ValueError:
+                                    i = 0
+                                self.auto_toggle = self.playlisttype[i]
                             self.playlisttype.remove('stream')
 
         else: # Don't serialize for autoplaylist events
@@ -1205,6 +1237,14 @@ class MusicBot(discord.Client):
                 # TODO: When I add playlist expansion, make sure that's not happening during this check
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
+                if self.auto_toggle == 'playlist' and len(self.playlisttype) > 1:
+                    try:
+                        i = self.playlisttype.index(self.auto_toggle) + 1
+                        if i == len(self.playlisttype):
+                            i = 0
+                    except ValueError:
+                        i = 0
+                    self.auto_toggle = self.playlisttype[i]
                 self.playlisttype.remove('playlist')
             else:
                 if self.config.auto_mode == 'merge' or (self.config.auto_mode == 'toggle' and self.auto_toggle == 'playlist'):
@@ -1214,6 +1254,14 @@ class MusicBot(discord.Client):
             if not self.autostream:
                 log.warning("No playable songs in the autostream, disabling.")
                 self.config.auto_stream = False
+                if self.auto_toggle == 'stream' and len(self.playlisttype) > 1:
+                    try:
+                        i = self.playlisttype.index(self.auto_toggle) + 1
+                        if i == len(self.playlisttype):
+                            i = 0
+                    except ValueError:
+                        i = 0
+                    self.auto_toggle = self.playlisttype[i]
                 self.playlisttype.remove('stream')
             else:
                 if self.config.auto_mode == 'merge' or (self.config.auto_mode == 'toggle' and self.auto_toggle == 'stream'):
