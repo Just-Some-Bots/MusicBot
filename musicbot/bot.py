@@ -77,6 +77,9 @@ class MusicBot(discord.Client):
         self.autoplaylist = load_file(self.config.auto_playlist_file)
         self.autostream = load_file(self.config.auto_stream_file)
 
+        # TODO: [TheerapakG] load this / save this
+        self.auto_toggle = 'playlist'
+
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
@@ -84,17 +87,21 @@ class MusicBot(discord.Client):
 
         log.info('Starting MusicBot {}'.format(BOTVERSION))
 
+        self.playlisttype = list()
+
         if not self.autoplaylist:
             log.warning("Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
         else:
             log.info("Loaded autoplaylist with {} entries".format(len(self.autoplaylist)))
+            self.playlisttype.append('playlist')
 
         if not self.autostream:
             log.warning("Autostream is empty, disabling.")
             self.config.auto_stream = False
         else:
             log.info("Loaded autostream with {} entries".format(len(self.autostream)))
+            self.playlisttype.append('stream')
 
         if self.blacklist:
             log.debug("Loaded blacklist with {} entries".format(len(self.blacklist)))
@@ -560,17 +567,21 @@ class MusicBot(discord.Client):
                         if not self.autoplaylist:
                             # TODO: When I add playlist expansion, make sure that's not happening during this check
                             log.warning("No playable songs in the autoplaylist, disabling.")
+                            self.playlisttype.remove('playlist')
                             self.config.auto_playlist = False
                         else:
-                            log.debug("No content in current autoplaylist. Filling with new music...")
-                            player.autoplaylist.extend([(url, "default") for url in list(self.autoplaylist)])
+                            if self.config.auto_mode == 'merge' or (self.config.auto_mode == 'toggle' and self.auto_toggle == 'playlist'):
+                                log.debug("No content in current autoplaylist. Filling with new music...")
+                                player.autoplaylist.extend([(url, "default") for url in list(self.autoplaylist)])
                     if self.config.auto_stream:
                         if not self.autostream:
                             log.warning("No playable songs in the autostream, disabling.")
+                            self.playlisttype.remove('stream')
                             self.config.auto_stream = False
                         else:
-                            log.debug("No content in current autostream. Filling with new music...")
-                            player.autoplaylist.extend([(url, "stream") for url in list(self.autostream)])
+                            if self.config.auto_mode == 'merge' or (self.config.auto_mode == 'toggle' and self.auto_toggle == 'stream'):
+                                log.debug("No content in current autostream. Filling with new music...")
+                                player.autoplaylist.extend([(url, "stream") for url in list(self.autostream)])
 
                 while player.autoplaylist:
                     if self.config.auto_playlist_stream_random:
@@ -677,11 +688,13 @@ class MusicBot(discord.Client):
                             # TODO: When I add playlist expansion, make sure that's not happening during this check
                             log.warning("No playable songs in the autoplaylist, disabling.")
                             self.config.auto_playlist = False
+                            self.playlisttype.remove('playlist')
 
                     if self.config.auto_stream:
                         if not self.autostream:
                             log.warning("No playable songs in the autostream, disabling.")
                             self.config.auto_stream = False
+                            self.playlisttype.remove('stream')
 
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue(player.voice_client.channel.guild)
@@ -1184,10 +1197,65 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}resetplaylist
 
-        Resets all songs in the server's autoplaylist
+        Resets all songs in the server's autoplaylist and autostream with no randomization
         """
-        player.autoplaylist = list(set(self.autoplaylist).union(set(self.autostream)))
+        player.autoplaylist = list()
+        if self.config.auto_playlist:
+            if not self.autoplaylist:
+                # TODO: When I add playlist expansion, make sure that's not happening during this check
+                log.warning("No playable songs in the autoplaylist, disabling.")
+                self.config.auto_playlist = False
+                self.playlisttype.remove('playlist')
+            else:
+                if self.config.auto_mode == 'merge' or (self.config.auto_mode == 'toggle' and self.auto_toggle == 'playlist'):
+                    log.debug("resetting current autoplaylist...")
+                    player.autoplaylist.extend([(url, "default") for url in list(self.autoplaylist)])
+        if self.config.auto_stream:
+            if not self.autostream:
+                log.warning("No playable songs in the autostream, disabling.")
+                self.config.auto_stream = False
+                self.playlisttype.remove('stream')
+            else:
+                if self.config.auto_mode == 'merge' or (self.config.auto_mode == 'toggle' and self.auto_toggle == 'stream'):
+                    log.debug("resetting current autostream...")
+                    player.autoplaylist.extend([(url, "stream") for url in list(self.autostream)])
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
+
+    async def cmd_toggleplaylist(self, author, permissions, player, channel):
+        """
+        Usage:
+            {command_prefix}toggleplaylist
+
+        Toggle between autoplaylist and autostream
+        """
+        if not permissions.toggle_playlists and not author.id == self.config.owner_id and not author == user:
+            raise exceptions.PermissionsError(
+                self.str.get('cmd-toggleplaylist-noperm', 'You have no permission to toggle autoplaylist'),
+                expire_in=30
+            )
+
+        if len(self.playlisttype) == 0:
+            return Response(self.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), delete_after=15)
+        try:
+            i = self.playlisttype.index(self.auto_toggle) + 1
+            if i == len(self.playlisttype):
+                i = 0
+        except ValueError:
+            i = 0
+        if self.playlisttype[i] == self.auto_toggle:
+            return Response(self.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), delete_after=15)
+        else:
+            self.auto_toggle = self.playlisttype[i]
+            # reset playlist
+            player.autoplaylist = list()
+            # if autoing then switch
+            if player.auto_state.current_value and not player.is_stopped:
+                player.skip()
+            # on_player_finished_playing should fill in the music
+            # done!
+            return Response(self.str.get('cmd-toggleplaylist-success', 'Switched autoplaylist to {0}').format(self.auto_toggle), delete_after=15)
+            
+                
 
     async def cmd_help(self, message, channel, command=None):
         """
@@ -1308,6 +1376,8 @@ class MusicBot(discord.Client):
                 self.autoplaylist.append(url)
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
                 log.debug("Appended {} to autoplaylist".format(url))
+                if 'playlist' not in self.playlisttype:
+                    self.playlisttype.append('playlist')
                 return Response(self.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
             else:
                 raise exceptions.CommandError(self.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
@@ -1328,6 +1398,8 @@ class MusicBot(discord.Client):
             if url not in self.autostream:
                 self.autostream.append(url)
                 write_file(self.config.auto_stream_file, self.autostream)
+                if 'stream' not in self.playlisttype:
+                    self.playlisttype.append('stream')
                 log.debug("Appended {} to autostream".format(url))
                 return Response(self.str.get('cmd-savestream-success', 'Added <{0}> to the autostream.').format(url))
             else:
@@ -1618,9 +1690,9 @@ class MusicBot(discord.Client):
                     )
 
                 try:
+                    entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
                     if self.config.skip_if_auto and player.auto_state.current_value and not player.is_stopped:
                         player.skip()
-                    entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
 
                 except exceptions.WrongEntryTypeError as e:
                     if e.use_url == song_url:
@@ -2278,12 +2350,14 @@ class MusicBot(discord.Client):
                     if not self.autoplaylist:
                         raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-none', 'There are no entries in the autoplaylist file.'))
                     self.config.auto_playlist = True
+                    self.playlisttype.append('playlist')
                     await self.on_player_finished_playing(player)
             elif value in bool_n:
                 if not self.config.auto_playlist:
                     raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-disabled', 'The autoplaylist is already disabled!'))
                 else:
                     self.config.auto_playlist = False
+                    self.playlisttype.remove('playlist')
             else:
                 raise exceptions.CommandError(self.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
             return Response("The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist] + '.')
@@ -2295,12 +2369,14 @@ class MusicBot(discord.Client):
                     if not self.autostream:
                         raise exceptions.CommandError(self.str.get('cmd-option-autostream-none', 'There are no entries in the autostream file.'))
                     self.config.auto_stream = True
+                    self.playlisttype.append('stream')
                     await self.on_player_finished_playing(player)
             elif value in bool_n:
                 if not self.config.auto_stream:
                     raise exceptions.CommandError(self.str.get('cmd-option-autostream-disabled', 'The autostream is already disabled!'))
                 else:
                     self.config.auto_stream = False
+                    self.playlisttype.remove('stream')
             else:
                 raise exceptions.CommandError(self.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
             return Response("The autostream is now " + ['disabled', 'enabled'][self.config.auto_stream] + '.')
