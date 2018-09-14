@@ -1002,7 +1002,7 @@ class MusicBot(discord.Client):
             self.config.autojoin_channels.difference_update(invalids)
 
             if chlist:
-                log.info("Autojoining voice chanels:")
+                log.info("Autojoining voice channels:")
                 [log.info(' - {}/{}'.format(ch.guild.name.strip(), ch.name.strip())) for ch in chlist if ch]
             else:
                 log.info("Not autojoining any voice channels")
