@@ -104,6 +104,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self.loop = bot.loop
         self.voice_client = voice_client
         self.playlist = playlist
+        self.auto_mode = None
         self.autoplaylist = None
         self.state = MusicPlayerState.STOPPED
         self.skip_state = None
