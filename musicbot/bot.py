@@ -1741,6 +1741,9 @@ class MusicBot(discord.Client):
                 info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
                 # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
                 # But this is probably fine
+            
+            # For checking if the list now contain auto and we will skip it, which would bring our position to first position
+            afterauto = False
 
             # TODO: Possibly add another check here to see about things like the bandcamp issue
             # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
@@ -1816,6 +1819,10 @@ class MusicBot(discord.Client):
                         expire_in=30
                     )
 
+                if self.config.skip_if_auto and player.auto_state.current_value and not player.is_stopped:
+                    player.skip()
+                    afterauto = True
+
                 reply_text = self.str.get('cmd-play-playlist-reply', "Enqueued **%s** songs to be played. Position in queue: %s")
                 btext = str(listlen - drop_count)
 
@@ -1836,6 +1843,7 @@ class MusicBot(discord.Client):
                     entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
                     if self.config.skip_if_auto and player.auto_state.current_value and not player.is_stopped:
                         player.skip()
+                        afterauto = True
 
                 except exceptions.WrongEntryTypeError as e:
                     if e.use_url == song_url:
@@ -1849,11 +1857,10 @@ class MusicBot(discord.Client):
                 reply_text = self.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
                 btext = entry.title
 
-
-            if position == 1 and player.is_stopped:
+            if (position == 1 and player.is_stopped) or afterauto:
                 position = self.str.get('cmd-play-next', 'Up next!')
                 reply_text %= (btext, position)
-
+            
             else:
                 try:
                     time_until = await player.playlist.estimate_time_until(position, player)
