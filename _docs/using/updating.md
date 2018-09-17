@@ -6,6 +6,8 @@ order: 4
 
 ![GitHub release](https://img.shields.io/github/release/Just-Some-Bots/MusicBot.svg?style=flat-square)
 
+> If you are updating bot from version before 1.9.7-rc2 you must follow the instructions in the 'Manual update' section to update your bot
+
 Before updating, make sure to read the [latest changes](/changelog), as some behaviour may have changed significantly.
 
 * **Linux/MacOS**: `./update.sh` (for Mac users: run this in a Terminal)
