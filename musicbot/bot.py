@@ -1497,28 +1497,58 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
-    async def cmd_savestream(self, player, url=None):
+    async def cmd_autostream(self, player, option, url=None):
         """
         Usage:
-            {command_prefix}savestream [url]
+            {command_prefix}autostream [+, -, add, remove] [url]
 
-        Saves the specified stream or current stream if not specified to the autostream.
+        Add or remove the specified stream or current stream if not specified to/from the autostream.
         """
         if url or (player.current_entry and isinstance(player.current_entry, StreamPlaylistEntry)):
             if not url:
                 url = player.current_entry.url
 
+        else:
+            raise exceptions.CommandError(self.str.get('cmd-autostream-invalid', 'There is no valid stream playing.'))
+        
+        if option in ['+', 'add']:
             if url not in self.autostream:
                 self.autostream.append(url)
                 write_file(self.config.auto_stream_file, self.autostream)
                 if 'stream' not in self.playlisttype:
                     self.playlisttype.append('stream')
                 log.debug("Appended {} to autostream".format(url))
-                return Response(self.str.get('cmd-savestream-success', 'Added <{0}> to the autostream.').format(url))
+                return Response(self.str.get('cmd-addstream-success', 'Added <{0}> to the autostream.').format(url))
             else:
-                raise exceptions.CommandError(self.str.get('cmd-savestream-exists', 'This stream is already in the autostream.'))
+                raise exceptions.CommandError(self.str.get('cmd-addstream-exists', 'This stream is already in the autostream.'))
+
+        elif option in ['-', 'remove']:
+            if song_url not in self.autostream:
+                log.debug("URL \"{}\" not in autostream, ignoring".format(song_url))
+                raise exceptions.CommandError(self.str.get('cmd-removestream-notexists', 'This stream is already not in the autostream.'))
+
+            async with self.aiolocks['remove_from_autostream']:
+                self.autostream.remove(song_url)
+                log.info("Removing song from session autostream: %s" % song_url)
+
+                with open(self.config.auto_stream_removed_file, 'a', encoding='utf8') as f:
+                    f.write(
+                        '# Entry removed {ctime}\n'
+                        '# Reason: {re}\n'
+                        '{url}\n\n{sep}\n\n'.format(
+                            ctime=time.ctime(),
+                            re='\n#' + ' ' * 10 + 'removed by user', # 10 spaces to line up with # Reason:
+                            url=song_url,
+                            sep='#' * 32
+                    ))
+
+                log.info("Updating autostream")
+                write_file(self.config.auto_stream_file, self.autostream)
+
+            return Response(self.str.get('cmd-removestream-success', 'Removed <{0}> from the autostream.').format(url))
+
         else:
-            raise exceptions.CommandError(self.str.get('cmd-savestream-invalid', 'There is no valid stream playing.'))
+            raise exceptions.CommandError(self.str.get('cmd-autostream-nooption', 'Check your specified option argument. It needs to be +, -, add or remove.'))
 
     @owner_only
     async def cmd_joinserver(self, message, server_link=None):
