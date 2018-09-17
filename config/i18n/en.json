@@ -18,7 +18,7 @@
     "cmd-removestream-notexists": "This stream is already not in the autostream.",
     "cmd-removestream-success": "Removed <{0}> from the autostream.",
     "cmd-autostream-invalid": "There is no valid stream playing.",
-    "cmd-autostream-nooption", "Check your specified option argument. It needs to be +, -, add or remove.",
+    "cmd-autostream-nooption": "Check your specified option argument. It needs to be +, -, add or remove.",
     "cmd-toggleplaylist-wrongmode": "Mode for dealing with autoplaylists is not set to 'toggle', currently set to {0}",
     "cmd-toggleplaylist-nolist": "There is not any autoplaylist to toggle to",
     "cmd-toggleplaylist-success": "Switched autoplaylist to {0}",
