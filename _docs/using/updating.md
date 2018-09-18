@@ -6,7 +6,7 @@ order: 4
 
 ![GitHub release](https://img.shields.io/github/release/Just-Some-Bots/MusicBot.svg?style=flat-square)
 
-> If you are updating your bot from the version before 1.9.7-rc2 you must follow the instructions in the 'Manual update' section.
+> If you are updating your bot from the version before 1.9.7-rc2 you must update your python to at least python 3.5 and follow the instructions in the 'Manual update' section.
 
 Before updating, make sure to read the [latest changes](/changelog), as some behaviour may have changed significantly.
 
