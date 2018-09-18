@@ -6,7 +6,13 @@ order: 4
 
 ![GitHub release](https://img.shields.io/github/release/Just-Some-Bots/MusicBot.svg?style=flat-square)
 
-> If you are updating your bot from the version before 1.9.7-rc2 you must update your python to at least python 3.5 and follow the instructions in the 'Manual update' section.
+> As of 1.9.8, the bot no longer supports Python 3.5.2 and below due to some dependency depended on newer version of python. If you are updating the bot from version below than 1.9.8 then you need to update your python to the following version
+> - Windows: Python 3.5.3 upward [[Download](https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe)]
+> - Mac: Python 3.6 [[Download](https://www.python.org/ftp/python/3.6.6/python-3.6.6-macosx10.6.pkg)]
+> - Linux: Python 3.6 (do not forget to get pip)
+> - Python 3.7 is __not__ supported on any OS at this time
+>
+> and then, follow instructions in the 'Manual update' section
 
 Before updating, make sure to read the [latest changes](/changelog), as some behaviour may have changed significantly.
 
