@@ -10,7 +10,6 @@ order: 4
 > - Windows: Python 3.5.3 upward [[Download](https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe)]
 > - Mac: Python 3.6 [[Download](https://www.python.org/ftp/python/3.6.6/python-3.6.6-macosx10.6.pkg)]
 > - Linux: Python 3.6 (do not forget to get pip)
-> - Python 3.7 is __not__ supported on any OS at this time
 >
 > and then, follow instructions in the 'Manual update' section
 
