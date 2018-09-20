@@ -10,15 +10,15 @@ log = logging.getLogger(__name__)
 
 class PermissionsDefaults:
     perms_file = 'config/permissions.ini'
-
+    #now it's unpermissive by default for most
     CommandWhiteList = set()
     CommandBlackList = set()
     IgnoreNonVoice = set()
     GrantToRoles = set()
     UserList = set()
 
-    MaxSongs = 0
-    MaxSongLength = 0
+    MaxSongs = 8
+    MaxSongLength = 210
     MaxPlaylistLength = 0
     MaxSearchItems = 10
 
@@ -28,11 +28,34 @@ class PermissionsDefaults:
     SkipWhenAbsent = True
     BypassKaraokeMode = False
 
-    Extractors = set()
-
+    Extractors = "youtube youtube:playlist"
 
 class Permissions:
     def __init__(self, config_file, grant_all=None):
+
+        # TODO: [TheerapakG] pretty this
+
+        configPermissive = configparser.ConfigParser(interpolation=None)
+        configPermissive['PermissionsPermissive'] = {}
+        configPermissive['PermissionsPermissive']['CommandWhiteList'] = ''
+        configPermissive['PermissionsPermissive']['CommandBlackList'] = ''
+        configPermissive['PermissionsPermissive']['IgnoreNonVoice'] = ''
+        configPermissive['PermissionsPermissive']['GrantToRoles'] = ''
+        configPermissive['PermissionsPermissive']['UserList'] = ''
+
+        configPermissive['PermissionsPermissive']['MaxSongs'] = '0'
+        configPermissive['PermissionsPermissive']['MaxSongLength'] = '0'
+        configPermissive['PermissionsPermissive']['MaxPlaylistLength'] = '0'
+        configPermissive['PermissionsPermissive']['MaxSearchItems'] = '20'
+
+        configPermissive['PermissionsPermissive']['AllowPlaylists'] = 'yes'
+        configPermissive['PermissionsPermissive']['InstaSkip'] = 'yes'
+        configPermissive['PermissionsPermissive']['Remove'] = 'yes'
+        configPermissive['PermissionsPermissive']['SkipWhenAbsent'] = 'no'
+        configPermissive['PermissionsPermissive']['BypassKaraokeMode'] = 'yes'
+    
+        configPermissive['PermissionsPermissive']['Extractors'] = ''
+        
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
@@ -55,7 +78,7 @@ class Permissions:
 
         # Create a fake section to fallback onto the permissive default values to grant to the owner
         # noinspection PyTypeChecker
-        owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
+        owner_group = PermissionGroup("Owner (auto)", configPermissive['PermissionsPermissive'])
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
 
