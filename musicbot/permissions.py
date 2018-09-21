@@ -31,31 +31,32 @@ class PermissionsDefaults:
     Extractors = "youtube youtube:playlist"
 
 class Permissions:
-    def __init__(self, config_file, grant_all=None):
 
-        # TODO: [TheerapakG] pretty this
-
+    def gen_permissive():
         configPermissive = configparser.ConfigParser(interpolation=None)
         configPermissive['PermissionsPermissive'] = {}
-        configPermissive['PermissionsPermissive']['CommandWhiteList'] = ''
-        configPermissive['PermissionsPermissive']['CommandBlackList'] = ''
-        configPermissive['PermissionsPermissive']['IgnoreNonVoice'] = ''
-        configPermissive['PermissionsPermissive']['GrantToRoles'] = ''
-        configPermissive['PermissionsPermissive']['UserList'] = ''
+        sectionPermissive = configPermissive['PermissionsPermissive']
+        sectionPermissive['CommandWhiteList'] = ''
+        sectionPermissive['CommandBlackList'] = ''
+        sectionPermissive['IgnoreNonVoice'] = ''
+        sectionPermissive['GrantToRoles'] = ''
+        sectionPermissive['UserList'] = ''
 
-        configPermissive['PermissionsPermissive']['MaxSongs'] = '0'
-        configPermissive['PermissionsPermissive']['MaxSongLength'] = '0'
-        configPermissive['PermissionsPermissive']['MaxPlaylistLength'] = '0'
-        configPermissive['PermissionsPermissive']['MaxSearchItems'] = '20'
+        sectionPermissive['MaxSongs'] = '0'
+        sectionPermissive['MaxSongLength'] = '0'
+        sectionPermissive['MaxPlaylistLength'] = '0'
+        sectionPermissive['MaxSearchItems'] = '20'
 
-        configPermissive['PermissionsPermissive']['AllowPlaylists'] = 'yes'
-        configPermissive['PermissionsPermissive']['InstaSkip'] = 'yes'
-        configPermissive['PermissionsPermissive']['Remove'] = 'yes'
-        configPermissive['PermissionsPermissive']['SkipWhenAbsent'] = 'no'
-        configPermissive['PermissionsPermissive']['BypassKaraokeMode'] = 'yes'
+        sectionPermissive['AllowPlaylists'] = 'yes'
+        sectionPermissive['InstaSkip'] = 'yes'
+        sectionPermissive['Remove'] = 'yes'
+        sectionPermissive['SkipWhenAbsent'] = 'no'
+        sectionPermissive['BypassKaraokeMode'] = 'yes'
     
-        configPermissive['PermissionsPermissive']['Extractors'] = ''
-        
+        sectionPermissive['Extractors'] = ''
+        return sectionPermissive
+
+    def __init__(self, config_file, grant_all=None):        
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
@@ -78,7 +79,7 @@ class Permissions:
 
         # Create a fake section to fallback onto the permissive default values to grant to the owner
         # noinspection PyTypeChecker
-        owner_group = PermissionGroup("Owner (auto)", configPermissive['PermissionsPermissive'])
+        owner_group = PermissionGroup("Owner (auto)", Permissions.gen_permissive())
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
 
