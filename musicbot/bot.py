@@ -2828,7 +2828,7 @@ class MusicBot(discord.Client):
             if check == None:
                 await guild.leave()
                 log.info('Left {} due to bot owner not found.'.format(guild.name))
-                await owner.send('Left `{}` due to bot owner not being found in it.'.format(guild.name))
+                await owner.send(self.str.get('left-no-owner-guilds', 'Left `{}` due to bot owner not being found in it.'.format(guild.name)))
 
         log.debug("Creating data folder for guild %s", guild.id)
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
