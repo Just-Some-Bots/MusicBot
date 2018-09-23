@@ -6,9 +6,9 @@ import subprocess
 import sys
 
 update = False
-    for arg in sys.argv[1:]:
-        if arg == "-update":
-            update = True
+for arg in sys.argv[1:]:
+    if arg == "-update":
+        update = True
 
 if update:
     subprocess.run('python3.5 update.py -nopull')
