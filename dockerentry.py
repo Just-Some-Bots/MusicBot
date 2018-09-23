@@ -11,6 +11,6 @@ for arg in sys.argv[1:]:
         update = True
 
 if update:
-    subprocess.run(['python3.5', 'update.py', '-nopull'])
+    subprocess.run([sys.executable, 'update.py', '-nopull'])
 
-subprocess.run(['python3.5', 'run.py'])
+subprocess.run([sys.executable, 'run.py'])
