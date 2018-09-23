@@ -8,5 +8,13 @@ python3.5 -V > /dev/null 2>&1 || {
     exit 1; }
 
 cd "$(dirname "$BASH_SOURCE")"
-python3.5 update.py -nopull
+
+while getopts update: option
+do
+case "${option}"
+in
+update) python3.5 update.py -nopull
+esac
+done
+
 python3.5 run.py
