@@ -34,4 +34,4 @@ VOLUME /usr/src/musicbot/config
 
 ENV APP_ENV=docker
 
-ENTRYPOINT ["./dockerentry.sh"]
+ENTRYPOINT ["python3", "dockerentry.py"]
