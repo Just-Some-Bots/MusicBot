@@ -20,7 +20,7 @@ from .utils import avg, _func_
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning
-from .entry import StreamPlaylistEntry
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -135,7 +135,6 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def skip(self):
         self._kill_current_player()
-        self._playback_finished()
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
@@ -178,7 +177,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._events.clear()
         self._kill_current_player()
 
-    def _playback_finished(self):
+    def _playback_finished(self, error=None):
         entry = self._current_entry
 
         if self._current_player:
@@ -202,7 +201,24 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 else:
                     log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
-                    asyncio.ensure_future(self._delete_file(entry.filename))
+                    filename = entry.filename
+                    for x in range(30):
+                        try:
+                            os.unlink(filename)
+                            log.debug('File deleted: {0}'.format(filename))
+                            break
+                        except PermissionError as e:
+                            if e.winerror == 32:  # File is in use
+                                log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
+                        except FileNotFoundError:
+                            log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
+                            break
+                        except Exception:
+                            log.error("Error trying to delete {}".format(filename), exc_info=True)
+                            break
+                    else:
+                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                            os.path.relpath(filename)))
 
         self.emit('finished-playing', player=self, entry=entry)
 
@@ -219,24 +235,6 @@ class MusicPlayer(EventEmitter, Serializable):
             return True
 
         return False
-
-    async def _delete_file(self, filename):
-        for x in range(30):
-            try:
-                os.unlink(filename)
-                break
-            except PermissionError as e:
-                if e.winerror == 32:  # File is in use
-                    await asyncio.sleep(0.25)
-            except FileNotFoundError:
-                log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
-                break
-            except Exception:
-                log.error("Error trying to delete {}".format(filename), exc_info=True)
-                break
-        else:
-            print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                os.path.relpath(filename)))
 
     def play(self, _continue=False):
         self.loop.create_task(self._play(_continue=_continue))
@@ -270,7 +268,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                if isinstance(entry, StreamPlaylistEntry):
+                if isinstance(entry, URLPlaylistEntry):
                     aoptions = entry.aoptions
                 else:
                     aoptions = "-vn"
@@ -286,7 +284,8 @@ class MusicPlayer(EventEmitter, Serializable):
                     ),
                     self.volume
                 )
-                self.voice_client.play(source)
+                log.debug('Playing {0} using {1}'.format(source, self.voice_client))
+                self.voice_client.play(source, after=self._playback_finished)
 
                 self._current_player = self.voice_client
 
