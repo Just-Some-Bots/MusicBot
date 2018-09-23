@@ -63,10 +63,16 @@ def main():
 
     print("Checking if we need to update the bot...")
 
-    try:
-        subprocess.check_call('git pull', shell=True)
-    except subprocess.CalledProcessError:
-        raise OSError("Could not update the bot. You will need to run 'git pull' yourself.")
+    nopull = False
+    for arg in sys.argv[1:]:
+        if arg == "-nopull":
+            nopull = True
+
+    if not nopull:
+        try:
+            subprocess.check_call('git pull', shell=True)
+        except subprocess.CalledProcessError:
+            raise OSError("Could not update the bot. You will need to run 'git pull' yourself.")
 
     update_deps()
     finalize()
