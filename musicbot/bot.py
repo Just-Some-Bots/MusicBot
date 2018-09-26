@@ -450,10 +450,10 @@ class MusicBot(discord.Client):
             if deserialize:
                 voice_client = await self.get_voice_client(channel)
                 player = await self.deserialize_queue(guild, voice_client)
-                player.auto_mode = await self.deserialize_json(guild, dir = 'data/%s/mode.json')
 
                 if player:
                     log.debug("Created player via deserialization for guild %s with %s entries", guild.id, len(player.playlist))
+                    player.auto_mode = await self.deserialize_json(guild, dir = 'data/%s/mode.json')                    
                     # Since deserializing only happens when the bot starts, I should never need to reconnect
                     return self._init_player(player, guild=guild)
 
