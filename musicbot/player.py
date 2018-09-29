@@ -134,9 +134,10 @@ class MusicPlayer(EventEmitter, Serializable):
         self.emit('entry-added', player=self, playlist=playlist, entry=entry)
 
     def skip(self):
-        self.skiprepeat=1
+        if self.bot.config.repeat:
+            log.info("A song was skipped, repeat disabled.")
+            self.bot.config.repeat = False
         self._kill_current_player()
-        self.skiprepeat=0
 
     def stop(self):
         self.state = MusicPlayerState.STOPPED
@@ -198,8 +199,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
         # Put song back on the queue for repeat
         if self.bot.config.repeat:
-            if self.skiprepeat != 1:
-                self.playlist._add_entry(entry)
+            self.playlist._add_entry(entry)
                 
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
