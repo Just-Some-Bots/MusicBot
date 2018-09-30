@@ -3,8 +3,8 @@ import inspect
 import logging
 
 from textwrap import dedent
-from discord.ext.commands.bot import _get_variable
 
+from .utils import _get_variable
 from .exceptions import HelpfulError
 
 class Yikes:

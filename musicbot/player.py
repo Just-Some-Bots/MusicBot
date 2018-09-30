@@ -5,6 +5,9 @@ import logging
 import asyncio
 import audioop
 import subprocess
+import re
+
+from discord import FFmpegPCMAudio, PCMVolumeTransformer
 
 from enum import Enum
 from array import array
@@ -17,6 +20,7 @@ from .utils import avg, _func_
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import FFmpegError, FFmpegWarning
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -100,8 +104,10 @@ class MusicPlayer(EventEmitter, Serializable):
         self.loop = bot.loop
         self.voice_client = voice_client
         self.playlist = playlist
+        self.autoplaylist = None
         self.state = MusicPlayerState.STOPPED
         self.skip_state = None
+        self.karaoke_mode = False
 
         self._volume = bot.config.default_volume
         self._play_lock = asyncio.Lock()
@@ -110,7 +116,6 @@ class MusicPlayer(EventEmitter, Serializable):
         self._stderr_future = None
 
         self.playlist.on('entry-added', self.on_entry_added)
-        self.loop.create_task(self.websocket_check())
 
     @property
     def volume(self):
@@ -120,7 +125,7 @@ class MusicPlayer(EventEmitter, Serializable):
     def volume(self, value):
         self._volume = value
         if self._current_player:
-            self._current_player.buff.volume = value
+            self._current_player.source.volume = value
 
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
@@ -172,7 +177,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._events.clear()
         self._kill_current_player()
 
-    def _playback_finished(self):
+    def _playback_finished(self, error=None):
         entry = self._current_entry
 
         if self._current_player:
@@ -190,45 +195,46 @@ class MusicPlayer(EventEmitter, Serializable):
             self.play(_continue=True)
 
         if not self.bot.config.save_videos and entry:
-            if any([entry.filename == e.filename for e in self.playlist.entries]):
-                log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
+            if not isinstance(entry, StreamPlaylistEntry):
+                if any([entry.filename == e.filename for e in self.playlist.entries]):
+                    log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
 
-            else:
-                log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
-                asyncio.ensure_future(self._delete_file(entry.filename))
+                else:
+                    log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
+                    filename = entry.filename
+                    for x in range(30):
+                        try:
+                            os.unlink(filename)
+                            log.debug('File deleted: {0}'.format(filename))
+                            break
+                        except PermissionError as e:
+                            if e.winerror == 32:  # File is in use
+                                log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
+                        except FileNotFoundError:
+                            log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
+                            break
+                        except Exception:
+                            log.error("Error trying to delete {}".format(filename), exc_info=True)
+                            break
+                    else:
+                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                            os.path.relpath(filename)))
 
         self.emit('finished-playing', player=self, entry=entry)
 
     def _kill_current_player(self):
         if self._current_player:
-            if self.is_paused:
-                self.resume()
+            if self.voice_client.is_paused():
+                self.voice_client.resume()
 
             try:
-                self._current_player.stop()
+                self.voice_client.stop()
             except OSError:
                 pass
             self._current_player = None
             return True
 
         return False
-
-    async def _delete_file(self, filename):
-        for x in range(30):
-            try:
-                os.unlink(filename)
-                break
-
-            except PermissionError as e:
-                if e.winerror == 32:  # File is in use
-                    await asyncio.sleep(0.25)
-
-            except Exception:
-                log.error("Error trying to delete {}".format(filename), exc_info=True)
-                break
-        else:
-            print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                os.path.relpath(filename)))
 
     def play(self, _continue=False):
         self.loop.create_task(self._play(_continue=_continue))
@@ -247,7 +253,6 @@ class MusicPlayer(EventEmitter, Serializable):
             if self.is_stopped or _continue:
                 try:
                     entry = await self.playlist.get_next_entry()
-
                 except:
                     log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
@@ -263,78 +268,49 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                aoptions = "-vn"
+                if isinstance(entry, URLPlaylistEntry):
+                    aoptions = entry.aoptions
+                else:
+                    aoptions = "-vn"
 
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 
-                self._current_player = self._monkeypatch_player(self.voice_client.create_ffmpeg_player(
-                    entry.filename,
-                    before_options=boptions,
-                    options=aoptions,
-                    stderr=subprocess.PIPE,
-                    # Threadsafe call soon, b/c after will be called from the voice playback thread.
-                    after=lambda: self.loop.call_soon_threadsafe(self._playback_finished)
-                ))
-                self._current_player.setDaemon(True)
-                self._current_player.buff.volume = self.volume
+                source = PCMVolumeTransformer(
+                    FFmpegPCMAudio(
+                        entry.filename,
+                        before_options=boptions,
+                        options=aoptions,
+                        stderr=subprocess.PIPE
+                    ),
+                    self.volume
+                )
+                log.debug('Playing {0} using {1}'.format(source, self.voice_client))
+                self.voice_client.play(source, after=self._playback_finished)
+
+                self._current_player = self.voice_client
 
                 # I need to add ytdl hooks
                 self.state = MusicPlayerState.PLAYING
                 self._current_entry = entry
+
                 self._stderr_future = asyncio.Future()
 
                 stderr_thread = Thread(
                     target=filter_stderr,
-                    args=(self._current_player.process, self._stderr_future),
-                    name="{} stderr reader".format(self._current_player.name)
+                    args=(self._current_player._player.source.original._process, self._stderr_future),
+                    name="stderr reader"
                 )
 
                 stderr_thread.start()
-                self._current_player.start()
 
                 self.emit('play', player=self, entry=entry)
-
-    def _monkeypatch_player(self, player):
-        original_buff = player.buff
-        player.buff = PatchedBuff(original_buff)
-        return player
-
-    async def reload_voice(self, voice_client):
-        async with self.bot.aiolocks[_func_() + ':' + voice_client.channel.server.id]:
-            self.voice_client = voice_client
-            if self._current_player:
-                self._current_player.player = voice_client.play_audio
-                self._current_player._resumed.clear()
-                self._current_player._connected.set()
-
-    async def websocket_check(self):
-        log.voicedebug("Starting websocket check loop for {}".format(self.voice_client.channel.server))
-
-        while not self.is_dead:
-            try:
-                async with self.bot.aiolocks[self.reload_voice.__name__ + ':' + self.voice_client.channel.server.id]:
-                    await self.voice_client.ws.ensure_open()
-
-            except InvalidState:
-                log.debug("Voice websocket for \"{}\" is {}, reconnecting".format(
-                    self.voice_client.channel.server,
-                    self.voice_client.ws.state_name
-                ))
-                await self.bot.reconnect_voice_client(self.voice_client.channel.server, channel=self.voice_client.channel)
-                await asyncio.sleep(3)
-
-            except Exception:
-                log.error("Error in websocket check loop", exc_info=True)
-
-            finally:
-                await asyncio.sleep(1)
 
     def __json__(self):
         return self._enclose_json({
             'current_entry': {
                 'entry': self.current_entry,
                 'progress': self.progress,
-                'progress_frames': self._current_player.buff.frame_count if self.progress is not None else None
+                'progress_frames': self._current_player._player.loops if self.progress is not None else None
             },
             'entries': self.playlist
         })
@@ -365,8 +341,8 @@ class MusicPlayer(EventEmitter, Serializable):
     def from_json(cls, raw_json, bot, voice_client, playlist):
         try:
             return json.loads(raw_json, object_hook=Serializer.deserialize)
-        except:
-            log.exception("Failed to deserialize player")
+        except Exception as e:
+            log.exception("Failed to deserialize player", e)
 
 
     @property
@@ -392,7 +368,7 @@ class MusicPlayer(EventEmitter, Serializable):
     @property
     def progress(self):
         if self._current_player:
-            return round(self._current_player.buff.frame_count * 0.02)
+            return round(self._current_player._player.loops * 0.02)
             # TODO: Properly implement this
             #       Correct calculation should be bytes_read/192k
             #       192k AKA sampleRate * (bitDepth / 8) * channelCount

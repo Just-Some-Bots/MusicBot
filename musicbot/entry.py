@@ -2,6 +2,8 @@ import os
 import asyncio
 import logging
 import traceback
+import re
+import sys
 
 from enum import Enum
 from .constructs import Serializable
@@ -51,6 +53,7 @@ class BasePlaylistEntry(Serializable):
             asyncio.ensure_future(self._download())
             self._waiting_futures.append(future)
 
+        log.debug('Created future for {0}'.format(self.filename))
         return future
 
     def _for_each_future(self, cb):
@@ -87,6 +90,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.duration = duration
         self.expected_filename = expected_filename
         self.meta = meta
+        self.aoptions = '-vn'
 
         self.download_folder = self.playlist.downloader.download_folder
 
@@ -106,7 +110,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     'id': obj.id,
                     'name': obj.name
                 } for name, obj in self.meta.items() if obj
-            }
+            },
+            'aoptions': self.aoptions
         })
 
     @classmethod
@@ -118,7 +123,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             url = data['url']
             title = data['title']
             duration = data['duration']
-            downloaded = data['downloaded']
+            downloaded = data['downloaded'] if playlist.bot.config.save_videos else False
             filename = data['filename'] if downloaded else None
             expected_filename = data['expected_filename']
             meta = {}
@@ -128,7 +133,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
@@ -204,6 +209,19 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 else:
                     await self._really_download()
 
+            if self.playlist.bot.config.use_experimental_equalization:
+                try:
+                    mean, maximum = await self.get_mean_volume(self.filename)
+                    aoptions = '-af "volume={}dB"'.format((maximum * -1))
+                except Exception as e:
+                    log.error('There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. '
+                              'This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.')
+                    aoptions = "-vn"
+            else:
+                aoptions = "-vn"
+
+            self.aoptions = aoptions
+
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
 
@@ -213,6 +231,54 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         finally:
             self._is_downloading = False
+
+    async def run_command(self, cmd):
+        p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+        stdout, stderr = await p.communicate()
+        return stdout + stderr
+
+    def get(self, program):
+        def is_exe(fpath):
+            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            if not found and sys.platform == 'win32':
+                fpath = fpath + ".exe"
+                found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+            return found
+
+        fpath, __ = os.path.split(program)
+        if fpath:
+            if is_exe(program):
+                return program
+        else:
+            for path in os.environ["PATH"].split(os.pathsep):
+                path = path.strip('"')
+                exe_file = os.path.join(path, program)
+                if is_exe(exe_file):
+                    return exe_file
+
+        return None
+
+    async def get_mean_volume(self, input_file):
+        log.debug('Calculating mean volume of {0}'.format(input_file))
+        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
+        output = await self.run_command(cmd)
+        output = output.decode("utf-8")
+        # print('----', output)
+        mean_volume_matches = re.findall(r"mean_volume: ([\-\d\.]+) dB", output)
+        if (mean_volume_matches):
+            mean_volume = float(mean_volume_matches[0])
+        else:
+            mean_volume = float(0)
+
+        max_volume_matches = re.findall(r"max_volume: ([\-\d\.]+) dB", output)
+        if (max_volume_matches):
+            max_volume = float(max_volume_matches[0])
+        else:
+            max_volume = float(0)
+
+        log.debug('Calculated mean volume as {0}'.format(mean_volume))
+        return mean_volume, max_volume
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
@@ -295,7 +361,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = ch or data['meta']['channel']['name']
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, destination=destination, **meta)
             if not destination and filename:
