@@ -30,31 +30,27 @@ class PermissionsDefaults:
 
     Extractors = "youtube youtube:playlist"
 
+class Permissive:
+    CommandWhiteList = set()
+    CommandBlackList = set()
+    IgnoreNonVoice = set()
+    GrantToRoles = set()
+    UserList = set()
+
+    MaxSongs = 0
+    MaxSongLength = 0
+    MaxPlaylistLength = 0
+    MaxSearchItems = 10
+
+    AllowPlaylists = True
+    InstaSkip = True
+    Remove = True
+    SkipWhenAbsent = False
+    BypassKaraokeMode = True
+
+    Extractors = ""
+
 class Permissions:
-
-    def gen_permissive():
-        configPermissive = configparser.ConfigParser(interpolation=None)
-        configPermissive['PermissionsPermissive'] = {}
-        sectionPermissive = configPermissive['PermissionsPermissive']
-        sectionPermissive['CommandWhiteList'] = ''
-        sectionPermissive['CommandBlackList'] = ''
-        sectionPermissive['IgnoreNonVoice'] = ''
-        sectionPermissive['GrantToRoles'] = ''
-        sectionPermissive['UserList'] = ''
-
-        sectionPermissive['MaxSongs'] = '0'
-        sectionPermissive['MaxSongLength'] = '0'
-        sectionPermissive['MaxPlaylistLength'] = '0'
-        sectionPermissive['MaxSearchItems'] = '20'
-
-        sectionPermissive['AllowPlaylists'] = 'yes'
-        sectionPermissive['InstaSkip'] = 'yes'
-        sectionPermissive['Remove'] = 'yes'
-        sectionPermissive['SkipWhenAbsent'] = 'no'
-        sectionPermissive['BypassKaraokeMode'] = 'yes'
-    
-        sectionPermissive['Extractors'] = ''
-        return sectionPermissive
 
     def __init__(self, config_file, grant_all=None):        
         self.config_file = config_file
@@ -75,11 +71,12 @@ class Permissions:
         self.groups = set()
 
         for section in self.config.sections():
-            self.groups.add(PermissionGroup(section, self.config[section]))
+            if section != 'Owner (auto)':
+                self.groups.add(PermissionGroup(section, self.config[section]))
 
         # Create a fake section to fallback onto the permissive default values to grant to the owner
         # noinspection PyTypeChecker
-        owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissions.gen_permissive())
+        owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
 
@@ -149,24 +146,24 @@ class PermissionGroup:
             self.extractors = section_data.get('Extractors', fallback=PermissionsDefaults.Extractors)
 
         else:
-            self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback['CommandWhiteList'])
-            self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback['CommandBlackList'])
-            self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback['IgnoreNonVoice'])
-            self.granted_to_roles = section_data.get('GrantToRoles', fallback=fallback['GrantToRoles'])
-            self.user_list = section_data.get('UserList', fallback=fallback['UserList'])
+            self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
+            self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
+            self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
+            self.granted_to_roles = section_data.get('GrantToRoles', fallback=fallback.GrantToRoles)
+            self.user_list = section_data.get('UserList', fallback=fallback.UserList)
 
-            self.max_songs = section_data.get('MaxSongs', fallback=fallback['MaxSongs'])
-            self.max_song_length = section_data.get('MaxSongLength', fallback=fallback['MaxSongLength'])
-            self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=fallback['MaxPlaylistLength'])
-            self.max_search_items = section_data.get('MaxSearchItems', fallback=fallback['MaxSearchItems'])
+            self.max_songs = section_data.get('MaxSongs', fallback=fallback.MaxSongs)
+            self.max_song_length = section_data.get('MaxSongLength', fallback=fallback.MaxSongLength)
+            self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=fallback.MaxPlaylistLength)
+            self.max_search_items = section_data.get('MaxSearchItems', fallback=fallback.MaxSearchItems)
 
-            self.allow_playlists = section_data.get('AllowPlaylists', fallback=fallback['AllowPlaylists'])
-            self.instaskip = section_data.get('InstaSkip', fallback=fallback['InstaSkip'])
-            self.remove = section_data.get('Remove', fallback=fallback['Remove'])
-            self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=fallback['SkipWhenAbsent'])
-            self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=fallback['BypassKaraokeMode'])
+            self.allow_playlists = section_data.get('AllowPlaylists', fallback=fallback.AllowPlaylists)
+            self.instaskip = section_data.get('InstaSkip', fallback=fallback.InstaSkip)
+            self.remove = section_data.get('Remove', fallback=fallback.Remove)
+            self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
+            self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
-            self.extractors = section_data.get('Extractors', fallback=fallback['Extractors'])
+            self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 
         self.validate()
 
