@@ -17,6 +17,6 @@ MusicBot can be installed on Windows 7, 8, and 10 too, though it requires instal
 5. Open Git Bash by right-clicking an empty space inside of a folder (e.g My Documents) and clicking `Git Bash here`.
 6. Run `git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master` in the command window that opens.
 
-> If `git clone` shows error `fetal: unable to access 'https://github.com/Just-Some-Bots/MusicBot.git' SSL certificate problem: self signed certificate in certificate chain` then try disabling your antivirus. Some antivirus software (such as Kaspersky Internet Security) is known to interfere with git.
+> If `git clone` shows returns the error `fatal: unable to access 'https://github.com/Just-Some-Bots/MusicBot.git' SSL certificate problem: self signed certificate in certificate chain` then try disabling your antivirus. Some antivirus software (such as Kaspersky Internet Security) is known to interfere with git.
 
 After doing that, a folder called `MusicBot` will appear in the folder you opened Git Bash in. [Configure]({{ site.baseurl }}/using/configuration) your bot, then run `update.bat` to update your dependencies, then `run.bat` to start the MusicBot.
