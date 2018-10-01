@@ -31,5 +31,5 @@ Alternatively, discard your local changes by running `git reset --hard`.
 #### fatal: Not a git repository
 This indicates that you have not installed the bot using Git. To be able to update, you need to install the bot using Git by following the guides on this site.
 
-#### fetal: unable to access 'https://github.com/Just-Some-Bots/MusicBot.git' SSL certificate problem: self signed certificate in certificate chain
-try disabling your antivirus. Some antivirus (such as Kaspersky Internet Security) is known to interfere with git.
+#### fatal: unable to access 'https://github.com/Just-Some-Bots/MusicBot.git' SSL certificate problem: self signed certificate in certificate chain
+Try disabling your antivirus. Some antivirus software (such as Kaspersky Internet Security) is known to interfere with git.
