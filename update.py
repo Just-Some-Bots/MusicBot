@@ -43,6 +43,20 @@ def main():
 
     print("Passed Git checks...")
 
+    # need to run using python 3.5 or higher to so update_deps can be running
+    # reffer to issue https://github.com/Just-Some-Bots/MusicBot/issues/1724
+
+    if not sys.version_info.major == 3:
+    	raise EnvironmentError("Please run this file using python 3.5.3 or higher ")
+
+    if sys.version_info.minor < 5:
+    	raise EnvironmentError("Please run this file using python 3.5.3 or higher ")
+
+    if sys.version_info.micro < 3:
+    	raise EnvironmentError("Please run this file using python 3.5.3 or higher ")
+
+    print('Passed python version checks... current python ' + str(sys.version_info.major) + '.' + str(sys.version_info.minor) + '.' + str(sys.version_info.micro))
+
     # Check that the current working directory is clean
     sp = subprocess.check_output('git status --porcelain', shell=True, universal_newlines=True)
     if sp:
