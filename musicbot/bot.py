@@ -23,6 +23,8 @@ from textwrap import dedent
 from datetime import timedelta
 from collections import defaultdict
 
+from urllib.error import URLError
+
 from discord.enums import ChannelType
 
 from . import exceptions
@@ -375,7 +377,7 @@ class MusicBot(discord.Client):
                 log.info("Updating autoplaylist")
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
 
-    async def remove_from_autostream(self, song_url:str, *, ex:Exception=None, delete_from_ap=False):
+    async def remove_from_autostream(self, song_url:str, *, ex:Exception=None, delete_from_as=False):
         if song_url not in self.autostream:
             log.debug("URL \"{}\" not in autostream, ignoring".format(song_url))
             return
@@ -395,7 +397,7 @@ class MusicBot(discord.Client):
                         sep='#' * 32
                 ))
 
-            if delete_from_ap:
+            if delete_from_as:
                 log.info("Updating autostream")
                 write_file(self.config.auto_stream_file, self.autostream)
 
@@ -673,23 +675,23 @@ class MusicBot(discord.Client):
                         
                         if e.exc_info[0] == URLError:
                             if os.path.exists(os.path.abspath(song_url[0])):
-                                await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("This is not a stream, this is a file path."), delete_from_as=self.config.remove_as)
+                                await self.remove_from_autostream(song_url[0], ex=exceptions.ExtractionError("This is not a stream, this is a file path."), delete_from_as=self.config.remove_as)
                                 continue
                          
                             else:  # it might be a file path that just doesn't exist
-                                await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e)), delete_from_as=self.config.remove_as)
+                                await self.remove_from_autostream(song_url[0], ex=exceptions.ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e)), delete_from_as=self.config.remove_as)
                                 continue
 
                         else:
                             # traceback.print_exc()
-                            await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("Unknown error: {}".format(e)), delete_from_as=self.config.remove_as)
+                            await self.remove_from_autostream(song_url[0], ex=exceptions.ExtractionError("Unknown error: {}".format(e)), delete_from_as=self.config.remove_as)
                             continue
                         
                     except Exception as e:
                         log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url[0], e), exc_info=True)
 
                     if info.get('is_live') is None and info.get('extractor', None) is not 'generic':  # wew hacky
-                        await self.remove_from_autostream(song_url[0], ex=downloader.youtube_dl.utils.ExtractionError("This is not a stream."), delete_from_as=self.config.remove_as)
+                        await self.remove_from_autostream(song_url[0], ex=exceptions.ExtractionError("This is not a stream."), delete_from_as=self.config.remove_as)
                         continue
 
                     if self.config.auto_pause:
@@ -1340,7 +1342,7 @@ class MusicBot(discord.Client):
             await self.serialize_json(player.auto_mode, player.voice_client.channel.guild, dir = 'data/%s/mode.json')
 
         if player.auto_mode['mode'] == 'toggle':
-            if not permissions.toggle_playlists and not author.id == self.config.owner_id and not author == user:
+            if not permissions.toggle_playlists and not author.id == self.config.owner_id:
                 raise exceptions.PermissionsError(
                     self.str.get('cmd-toggleplaylist-noperm', 'You have no permission to toggle autoplaylist'),
                     expire_in=30
@@ -1523,13 +1525,13 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(self.str.get('cmd-addstream-exists', 'This stream is already in the autostream.'))
 
         elif option in ['-', 'remove']:
-            if song_url not in self.autostream:
-                log.debug("URL \"{}\" not in autostream, ignoring".format(song_url))
+            if url not in self.autostream:
+                log.debug("URL \"{}\" not in autostream, ignoring".format(url))
                 raise exceptions.CommandError(self.str.get('cmd-removestream-notexists', 'This stream is already not in the autostream.'))
 
             async with self.aiolocks['remove_from_autostream']:
-                self.autostream.remove(song_url)
-                log.info("Removing song from session autostream: %s" % song_url)
+                self.autostream.remove(url)
+                log.info("Removing song from session autostream: %s" % url)
 
                 with open(self.config.auto_stream_removed_file, 'a', encoding='utf8') as f:
                     f.write(
@@ -1538,7 +1540,7 @@ class MusicBot(discord.Client):
                         '{url}\n\n{sep}\n\n'.format(
                             ctime=time.ctime(),
                             re='\n#' + ' ' * 10 + 'removed by user', # 10 spaces to line up with # Reason:
-                            url=song_url,
+                            url=url,
                             sep='#' * 32
                     ))
 
