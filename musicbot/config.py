@@ -69,6 +69,7 @@ class Config:
         self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
         self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
         self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
+        self.remove_as = config.getboolean('MusicBot', 'RemoveFromASOnError', fallback=ConfigDefaults.remove_as)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
 
@@ -353,6 +354,7 @@ class ConfigDefaults:
     embeds = True
     queue_length = 10
     remove_ap = True
+    remove_as = True
     show_config_at_start = False
     legacy_skip = False
 
