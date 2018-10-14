@@ -1,37 +1,15 @@
-FROM alpine:edge
+FROM alpine:3.4
+
+# Install Dependencies
+RUN apk update \
+ && apk add python3-dev ca-certificates gcc make linux-headers musl-dev ffmpeg libffi-dev bash
 
 # Add project source
-WORKDIR /usr/src/musicbot
-COPY . ./
+COPY . /usr/src/MusicBot
+WORKDIR /usr/src/MusicBot
 
-# Install dependencies
-RUN apk update \
-&& apk add --no-cache \
-  ca-certificates \
-  ffmpeg \
-  opus \
-  python3 \
-  libsodium-dev \
-\
-# Install build dependencies
-&& apk add --no-cache --virtual .build-deps \
-  gcc \
-  git \
-  libffi-dev \
-  make \
-  musl-dev \
-  python3-dev \
-\
 # Install pip dependencies
-&& pip3 install --no-cache-dir -r requirements.txt \
-&& pip3 install --upgrade --force-reinstall --version websockets==4.0.1 \
-\
-# Clean up build dependencies
-&& apk del .build-deps
+RUN pip3 install -r requirements.txt
+RUN chmod +x entrypoint.sh
 
-# Create volume for mapping the config
-VOLUME /usr/src/musicbot/config
-
-ENV APP_ENV=docker
-
-ENTRYPOINT ["python3", "run.py"]
+CMD ["./entrypoint.sh"]
