@@ -1506,12 +1506,16 @@ class MusicBot(discord.Client):
 
         Add or remove the specified stream or current stream if not specified to/from the autostream.
         """
-        if url or (player.current_entry and isinstance(player.current_entry, StreamPlaylistEntry)):
+        if (player.current_entry and isinstance(player.current_entry, StreamPlaylistEntry)):
             if not url:
                 url = player.current_entry.url
-
         else:
-            raise exceptions.CommandError(self.str.get('cmd-autostream-invalid', 'There is no valid stream playing.'))
+            if not url:
+                raise exceptions.CommandError(self.str.get('cmd-autostream-stream-invalid', 'There is no valid stream playing.'))
+
+        if not url:
+            raise exceptions.CommandError(self.str.get('cmd-autostream-nourl', '\'Emptiness\' is not a valid URL. Maybe you forget options?'))
+            
         
         if option in ['+', 'add']:
             if url not in self.autostream:
