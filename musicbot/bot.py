@@ -323,7 +323,7 @@ class MusicBot(discord.Client):
         vc = msg.guild.me.voice.channel
 
         # If we've connected to a voice chat and we're in the same voice channel
-        if not vc or vc == msg.author.voice.channel:
+        if not vc or (msg.author.voice and vc == msg.author.voice.channel):
             return True
         else:
             raise exceptions.PermissionsError(
