@@ -35,6 +35,10 @@ cd ~/MusicBot
 # Install Python dependencies
 sudo python3.6 -m pip install -U pip
 sudo python3.6 -m pip install -U -r requirements.txt 
+
+# Set python3 to Python 3.6
+sudo rm /usr/bin/python3
+sudo cp /usr/bin/python3.6 /usr/bin/python3
 ~~~
 
 ## Ubuntu 16.04
@@ -63,6 +67,10 @@ cd ~/MusicBot
 # Install Python dependencies
 sudo python3.6 -m pip install -U pip
 sudo python3.6 -m pip install -U -r requirements.txt 
+
+# Set python3 to Python 3.6
+sudo rm /usr/bin/python3
+sudo cp /usr/bin/python3.6 /usr/bin/python3
 ~~~
 
 After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `sudo ./run.sh`.
