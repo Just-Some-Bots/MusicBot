@@ -2580,7 +2580,13 @@ class MusicBot(discord.Client):
             return
 
         if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
-            return  # if I want to log this I just move it under the prefix check
+            if self.config.unbound_servers:
+                for channel in message.guild.channels:
+                    if channel.id in self.config.bound_channels:
+                        return
+            else:
+                return  # if I want to log this I just move it under the prefix check
+
         if not isinstance(message.channel, discord.abc.GuildChannel):
             return
 
