@@ -51,7 +51,7 @@ class Permissive:
     BypassKaraokeMode = True
 
     ToggleAutoPlaylists = True
-    
+
     Extractors = ""
 
 class Permissions:

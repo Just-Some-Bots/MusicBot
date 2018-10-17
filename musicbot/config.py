@@ -45,6 +45,7 @@ class Config:
 
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
+        self.unbound_servers = config.getboolean('Chat', 'AllowUnboundServers', fallback=ConfigDefaults.unbound_servers)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
@@ -72,6 +73,7 @@ class Config:
         self.remove_as = config.getboolean('MusicBot', 'RemoveFromASOnError', fallback=ConfigDefaults.remove_as)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
+        self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -329,6 +331,7 @@ class ConfigDefaults:
 
     command_prefix = '!'
     bound_channels = set()
+    unbound_servers = False
     autojoin_channels = set()
 
     default_volume = 0.15
@@ -357,6 +360,7 @@ class ConfigDefaults:
     remove_as = True
     show_config_at_start = False
     legacy_skip = False
+    leavenonowners = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

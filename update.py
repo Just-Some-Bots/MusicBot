@@ -63,6 +63,7 @@ def main():
 
     print("Checking if we need to update the bot...")
 
+    
     try:
         subprocess.check_call('git pull', shell=True)
     except subprocess.CalledProcessError:
