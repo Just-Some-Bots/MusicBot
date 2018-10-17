@@ -27,9 +27,9 @@ class PermissionsDefaults:
     Remove = False
     SkipWhenAbsent = True
     BypassKaraokeMode = False
-    
+
     ToggleAutoPlaylists = False
-    
+
     Extractors = "youtube youtube:playlist"
 
 class Permissive:
@@ -105,7 +105,7 @@ class Permissions:
         """
 
         for group in self.groups:
-            if str(user.id) in group.user_list:
+            if user.id in group.user_list:
                 return group
 
         # The only way I could search for roles is if I add a `server=None` param and pass that too
@@ -115,7 +115,7 @@ class Permissions:
         # We loop again so that we don't return a role based group before we find an assigned one
         for group in self.groups:
             for role in user.roles:
-                if str(role.id) in group.granted_to_roles:
+                if role.id in group.granted_to_roles:
                     return group
 
         return self.default_group
@@ -129,7 +129,6 @@ class Permissions:
 class PermissionGroup:
     def __init__(self, name, section_data, fallback=None):
         self.name = name
-        
         if fallback == None:
             fallback = PermissionsDefaults
             
@@ -151,7 +150,6 @@ class PermissionGroup:
         self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
         self.toggle_playlists = section_data.get('ToggleAutoPlaylists', fallback=fallback.ToggleAutoPlaylists)
-        
         self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
         
         self.validate()
