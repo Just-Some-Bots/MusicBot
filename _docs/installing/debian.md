@@ -18,7 +18,7 @@ sudo apt-get install git libopus-dev libffi-dev libsodium-dev ffmpeg -y
 sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl -y
 
 # If using Debian Stretch or lower, you need to install Python too using...
-sudo apt-get install python3.5 -y
+sudo apt-get install python3.5 python3-pip -y
 
 # Clone the MusicBot to your home directory
 cd ~
