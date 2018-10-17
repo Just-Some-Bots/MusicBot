@@ -939,9 +939,20 @@ class MusicBot(discord.Client):
             ))
 
             log.info('Guild List:')
+            unavailable_servers = 0
             for s in self.guilds:
                 ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
                 log.info(' - ' + ser)
+                if self.config.leavenonowners:
+                    if s.unavailable:
+                        unavailable_servers += 1
+                    else:
+                        check = s.get_member(owner.id)
+                        if check == None:
+                            await s.leave()
+                            log.info('Left {} due to bot owner not found'.format(s.name))
+            if unavailable_servers != 0:
+                log.info('Not proceeding with checks in {} servers due to unavailability'.format(str(unavailable_servers))) 
 
         elif self.guilds:
             log.warning("Owner could not be found on any guild (id: %s)\n" % self.config.owner_id)
@@ -1040,6 +1051,7 @@ class MusicBot(discord.Client):
             log.info("  Embeds: " + ['Disabled', 'Enabled'][self.config.embeds])
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
             log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
+            log.info("  Leave non owners: " + ['Disabled', 'Enabled'][self.config.leavenonowners])
 
         print(flush=True)
 
@@ -2851,7 +2863,14 @@ class MusicBot(discord.Client):
             log.warning("Guild \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
 
     async def on_guild_join(self, guild:discord.Guild):
-        log.info("Bot has been joined guild: {}".format(guild.name))
+        log.info("Bot has been added to guild: {}".format(guild.name))
+        owner = self._get_owner(voice=True) or self._get_owner()
+        if self.config.leavenonowners:
+            check = guild.get_member(owner.id)
+            if check == None:
+                await guild.leave()
+                log.info('Left {} due to bot owner not found.'.format(guild.name))
+                await owner.send(self.str.get('left-no-owner-guilds', 'Left `{}` due to bot owner not being found in it.'.format(guild.name)))
 
         log.debug("Creating data folder for guild %s", guild.id)
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
