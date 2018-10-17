@@ -1963,7 +1963,7 @@ class MusicBot(discord.Client):
 
         if user_mentions:
             for user in user_mentions:
-                if author.id == self.config.owner_id or permissions.remove or author == user:
+                if permissions.remove or author == user:
                     try:
                         entry_indexes = [e for e in player.playlist.entries if e.meta.get('author', None) == user]
                         for entry in entry_indexes:
@@ -1990,7 +1990,7 @@ class MusicBot(discord.Client):
         if index > len(player.playlist.entries):
             raise exceptions.CommandError(self.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
 
-        if author.id == self.config.owner_id or permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
+        if permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
             entry = player.playlist.delete_entry_at_index((index - 1))
             await self._manual_delete_check(message)
             if entry.meta.get('channel', False) and entry.meta.get('author', False):
@@ -2031,9 +2031,8 @@ class MusicBot(discord.Client):
         current_entry = player.current_entry
 
         if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
-            if author.id == self.config.owner_id \
-                or permissions.instaskip \
-                    or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
+            if permissions.instaskip \
+                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
                 player.skip()  # TODO: check autopause stuff here
                 await self._manual_delete_check(message)
