@@ -70,7 +70,6 @@ class MusicBot(discord.Client):
 
         self.config = Config(config_file)
         
-        # I noticed just now that permissions file copying log not shown up because it's way too below
         self._setup_logging()
         
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
