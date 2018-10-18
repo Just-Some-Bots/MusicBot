@@ -69,6 +69,10 @@ class MusicBot(discord.Client):
         self.last_status = None
 
         self.config = Config(config_file)
+        
+        # I noticed just now that permissions file copying log not shown up because it's way too below
+        self._setup_logging()
+        
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
         self.str = Json(self.config.i18n_file)
 
@@ -77,8 +81,6 @@ class MusicBot(discord.Client):
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
-
-        self._setup_logging()
 
         log.info('Starting MusicBot {}'.format(BOTVERSION))
 

@@ -73,10 +73,20 @@ class Permissions:
         for section in self.config.sections():
             if section != 'Owner (auto)':
                 self.groups.add(PermissionGroup(section, self.config[section]))
-
-        # Create a fake section to fallback onto the permissive default values to grant to the owner
-        # noinspection PyTypeChecker
-        owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
+                
+        if self.config.has_section('Owner (auto)'):
+            owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
+            
+        else:
+            log.info("")
+            log.warning("[Owner (auto)] section not found in permissions.ini\n1.9.8_2-rc1 introduced a band-aid fixes to permission system which require [Owner (auto)] section in permissions.ini\nPlease consider copying over the [Owner (auto)] section from example_permissions.ini into your permissions.ini")
+            log.info("")
+            log.warning("Now the bot is falling back to using bugged owner permission")
+            log.info("")
+            # Create a fake section to fallback onto the default non-permissive values to grant to the owner emulating the old behavior
+            # noinspection PyTypeChecker
+            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
+            
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
 
