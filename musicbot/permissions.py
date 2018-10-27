@@ -129,7 +129,9 @@ class Permissions:
 
 
 class PermissionGroup:
-    def __init__(self, name, section_data, fallback=PermissionsDefaults):            
+    def __init__(self, name, section_data, fallback=PermissionsDefaults):
+        self.name = name
+        
         self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
         self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
         self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
