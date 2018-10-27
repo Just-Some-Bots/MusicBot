@@ -78,14 +78,10 @@ class Permissions:
             owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
             
         else:
-            log.info("")
-            log.warning("[Owner (auto)] section not found in permissions.ini\n1.9.8_2-rc1 introduced a band-aid fixes to permission system which require [Owner (auto)] section in permissions.ini\nPlease consider copying over the [Owner (auto)] section from example_permissions.ini into your permissions.ini")
-            log.info("")
-            log.warning("Now the bot is falling back to using bugged owner permission")
-            log.info("")
+            log.info("[Owner (auto)] section not found, falling back to permissive default")
             # Create a fake section to fallback onto the default non-permissive values to grant to the owner emulating the old behavior
             # noinspection PyTypeChecker
-            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
+            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, Permissive))
             
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
@@ -133,11 +129,7 @@ class Permissions:
 
 
 class PermissionGroup:
-    def __init__(self, name, section_data, fallback=None):
-        self.name = name
-        if fallback == None:
-            fallback = PermissionsDefaults
-            
+    def __init__(self, name, section_data, fallback=PermissionsDefaults):            
         self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
         self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
         self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
