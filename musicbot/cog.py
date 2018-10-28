@@ -69,7 +69,8 @@ class Command:
             if cmd.name == self.name:
                 cmdlookup.pop(alias)
 
-
+# for the day we know there exist malformed function in module and we can get partial attr
+# very hopeful dream right there
 class UncallableCommand(Command):
     def __init__(self, cog, name):
         super().__init__(cog, name)
@@ -79,9 +80,11 @@ class UncallableCommand(Command):
         
 
 class CallableCommand(Command):
-    def __init__(self, cog, name, func):
+    def __init__(self, cog, name, func, params):
         super().__init__(cog, name)
         self.func = func
+        self.params = params
+        self.__doc__ = func.__doc__
 
     def __call__(self, *args, **kwargs):
         for itcog in cogs:
@@ -103,13 +106,17 @@ class CallableCommand(Command):
         log.error("Command {0} in cog {1} not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog))
 
 
-def command(func):
-    def wrap(cog, name, dependencies = list()):
-        return CallableCommand(cog, name, func)    
-    return wrap
+def command(cog, name, func, params):
+    return CallableCommand(cog, name, func, params)
 
 def call(cmd, *args, **kwargs):
     try:
         cmdlookup[cmd](*args, **kwargs)
+    except ValueError:
+        log.error("command (or alias) {0} not found".format(cmd))
+
+def getcmd(cmd):
+    try:
+        return cmdlookup[cmd]
     except ValueError:
         log.error("command (or alias) {0} not found".format(cmd))

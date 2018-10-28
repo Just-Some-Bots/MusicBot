@@ -41,6 +41,8 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+from .cogsmanager import load, callcmd, gen_cmd_list_with_alias
+
 
 load_opus_lib()
 
@@ -135,20 +137,6 @@ class MusicBot(discord.Client):
             else:
                 raise exceptions.PermissionsError("Only the owner can use this command.", expire_in=30)
 
-        return wrapper
-
-    def dev_only(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            orig_msg = _get_variable('message')
-
-            if str(orig_msg.author.id) in self.config.dev_ids:
-                # noinspection PyCallingNonCallable
-                return await func(self, *args, **kwargs)
-            else:
-                raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
-
-        wrapper.dev_cmd = True
         return wrapper
 
     def ensure_appinfo(func):
@@ -1214,21 +1202,6 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
-    @owner_only
-    async def cmd_joinserver(self, message, server_link=None):
-        """
-        Usage:
-            {command_prefix}joinserver invite_link
-
-        Asks the bot to join a server.  Note: Bot accounts cannot use invite links.
-        """
-
-        url = await self.generate_invite_link()
-        return Response(
-            self.str.get('cmd-joinserver-response', "Click here to add me to a server: \n{}").format(url),
-            reply=True, delete_after=30
-        )
-
     async def cmd_karaoke(self, player, channel, author):
         """
         Usage:
@@ -1841,49 +1814,7 @@ class MusicBot(discord.Client):
                 delete_after=30
             )
 
-    async def cmd_summon(self, channel, guild, author, voice_channel):
-        """
-        Usage:
-            {command_prefix}summon
-
-        Call the bot to the summoner's voice channel.
-        """
-
-        if not author.voice:
-            raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
-
-        voice_client = self.voice_client_in(guild)
-        if voice_client and guild == author.voice.channel.guild:
-            await voice_client.move_to(author.voice.channel)
-        else:
-            # move to _verify_vc_perms?
-            chperms = author.voice.channel.permissions_for(guild.me)
-
-            if not chperms.connect:
-                log.warning("Cannot join channel '{0}', no permission.".format(author.voice.channel.name))
-                raise exceptions.CommandError(
-                    self.str.get('cmd-summon-noperms-connect', "Cannot join channel `{0}`, no permission to connect.").format(author.voice.channel.name),
-                    expire_in=25
-                )
-
-            elif not chperms.speak:
-                log.warning("Cannot join channel '{0}', no permission to speak.".format(author.voice.channel.name))
-                raise exceptions.CommandError(
-                    self.str.get('cmd-summon-noperms-speak', "Cannot join channel `{0}`, no permission to speak.").format(author.voice.channel.name),
-                    expire_in=25
-                )
-
-            player = await self.get_player(author.voice.channel, create=True, deserialize=self.config.persistent_queue)
-
-            if player.is_stopped:
-                player.play()
-
-            if self.config.auto_playlist:
-                await self.on_player_finished_playing(player)
-
-        log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
-
-        return Response(self.str.get('cmd-summon-reply', 'Connected to `{0.name}`').format(author.voice.channel))
+    
 
     async def cmd_pause(self, player):
         """
@@ -2120,60 +2051,6 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     self.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
 
-    @owner_only
-    async def cmd_option(self, player, option, value):
-        """
-        Usage:
-            {command_prefix}option [option] [on/y/enabled/off/n/disabled]
-
-        Changes a config option without restarting the bot. Changes aren't permanent and
-        only last until the bot is restarted. To make permanent changes, edit the
-        config file.
-
-        Valid options:
-            autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
-            delete_messages, delete_invoking, write_current_song
-
-        For information about these options, see the option's comment in the config file.
-        """
-
-        option = option.lower()
-        value = value.lower()
-        bool_y = ['on', 'y', 'enabled']
-        bool_n = ['off', 'n', 'disabled']
-        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_random',
-                   'auto_pause', 'delete_messages', 'delete_invoking',
-                   'write_current_song']  # these need to match attribute names in the Config class
-        if option in ['autoplaylist', 'auto_playlist']:
-            if value in bool_y:
-                if self.config.auto_playlist:
-                    raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-enabled', 'The autoplaylist is already enabled!'))
-                else:
-                    if not self.autoplaylist:
-                        raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-none', 'There are no entries in the autoplaylist file.'))
-                    self.config.auto_playlist = True
-                    await self.on_player_finished_playing(player)
-            elif value in bool_n:
-                if not self.config.auto_playlist:
-                    raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-disabled', 'The autoplaylist is already disabled!'))
-                else:
-                    self.config.auto_playlist = False
-            else:
-                raise exceptions.CommandError(self.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
-            return Response("The autoplaylist is now " + ['disabled', 'enabled'][self.config.auto_playlist] + '.')
-        else:
-            is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
-            if is_generic and (value in bool_y or value in bool_n):
-                name = is_generic[0]
-                log.debug('Setting attribute {0}'.format(name))
-                setattr(self.config, name, True if value in bool_y else False)  # this is scary but should work
-                attr = getattr(self.config, name)
-                res = "The option {0} is now ".format(option) + ['disabled', 'enabled'][attr] + '.'
-                log.warning('Option overriden for this session: {0}'.format(res))
-                return Response(res)
-            else:
-                raise exceptions.CommandError(self.str.get('cmd-option-invalid-param' ,'The parameters provided were invalid.'))
-
     async def cmd_queue(self, channel, player):
         """
         Usage:
@@ -2385,200 +2262,6 @@ class MusicBot(discord.Client):
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
 
-    @owner_only
-    async def cmd_setname(self, leftover_args, name):
-        """
-        Usage:
-            {command_prefix}setname name
-
-        Changes the bot's username.
-        Note: This operation is limited by discord to twice per hour.
-        """
-
-        name = ' '.join([name, *leftover_args])
-
-        try:
-            await self.user.edit(username=name)
-
-        except discord.HTTPException:
-            raise exceptions.CommandError(
-                "Failed to change name. Did you change names too many times?  "
-                "Remember name changes are limited to twice per hour.")
-
-        except Exception as e:
-            raise exceptions.CommandError(e, expire_in=20)
-
-        return Response("Set the bot's username to **{0}**".format(name), delete_after=20)
-
-    async def cmd_setnick(self, guild, channel, leftover_args, nick):
-        """
-        Usage:
-            {command_prefix}setnick nick
-
-        Changes the bot's nickname.
-        """
-
-        if not channel.permissions_for(guild.me).change_nickname:
-            raise exceptions.CommandError("Unable to change nickname: no permission.")
-
-        nick = ' '.join([nick, *leftover_args])
-
-        try:
-            await guild.me.edit(nick=nick)
-        except Exception as e:
-            raise exceptions.CommandError(e, expire_in=20)
-
-        return Response("Set the bot's nickname to `{0}`".format(nick), delete_after=20)
-
-    @owner_only
-    async def cmd_setavatar(self, message, url=None):
-        """
-        Usage:
-            {command_prefix}setavatar [url]
-
-        Changes the bot's avatar.
-        Attaching a file and leaving the url parameter blank also works.
-        """
-
-        if message.attachments:
-            thing = message.attachments[0].url
-        elif url:
-            thing = url.strip('<>')
-        else:
-            raise exceptions.CommandError("You must provide a URL or attach a file.", expire_in=20)
-
-        try:
-            timeout = aiohttp.ClientTimeout(total=10)
-            async with self.aiosession.get(thing, timeout=timeout) as res:
-                await self.user.edit(avatar=await res.read())
-
-        except Exception as e:
-            raise exceptions.CommandError("Unable to change avatar: {}".format(e), expire_in=20)
-
-        return Response("Changed the bot's avatar.", delete_after=20)
-
-
-    async def cmd_disconnect(self, guild):
-        """
-        Usage:
-            {command_prefix}disconnect
-        
-        Forces the bot leave the current voice channel.
-        """
-        await self.disconnect_voice_client(guild)
-        return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
-
-    async def cmd_restart(self, channel):
-        """
-        Usage:
-            {command_prefix}restart
-        
-        Restarts the bot.
-        Will not properly load new dependencies or file updates unless fully shutdown
-        and restarted.
-        """
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
-            "or its dependencies, you need to restart the bot properly, rather than using this command.")
-
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
-
-        await self.disconnect_all_voice_clients()
-        raise exceptions.RestartSignal()
-
-    async def cmd_shutdown(self, channel):
-        """
-        Usage:
-            {command_prefix}shutdown
-        
-        Disconnects from voice channels and closes the bot process.
-        """
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
-        
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
-        
-        await self.disconnect_all_voice_clients()
-        raise exceptions.TerminateSignal()
-
-    async def cmd_leaveserver(self, val, leftover_args):
-        """
-        Usage:
-            {command_prefix}leaveserver <name/ID>
-
-        Forces the bot to leave a server.
-        When providing names, names are case-sensitive.
-        """
-        if leftover_args:
-            val = ' '.join([val, *leftover_args])
-
-        t = self.get_guild(val)
-        if t is None:
-            t = discord.utils.get(self.guilds, name=val)
-            if t is None:
-                raise exceptions.CommandError('No guild was found with the ID or name as `{0}`'.format(val))
-        await t.leave()
-        return Response('Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(t))
-
-    @dev_only
-    async def cmd_breakpoint(self, message):
-        log.critical("Activating debug breakpoint")
-        return
-
-    @dev_only
-    async def cmd_objgraph(self, channel, func='most_common_types()'):
-        import objgraph
-
-        await self.send_typing(channel)
-
-        if func == 'growth':
-            f = StringIO()
-            objgraph.show_growth(limit=10, file=f)
-            f.seek(0)
-            data = f.read()
-            f.close()
-
-        elif func == 'leaks':
-            f = StringIO()
-            objgraph.show_most_common_types(objects=objgraph.get_leaking_objects(), file=f)
-            f.seek(0)
-            data = f.read()
-            f.close()
-
-        elif func == 'leakstats':
-            data = objgraph.typestats(objects=objgraph.get_leaking_objects())
-
-        else:
-            data = eval('objgraph.' + func)
-
-        return Response(data, codeblock='py')
-
-    @dev_only
-    async def cmd_debug(self, message, _player, *, data):
-        codeblock = "```py\n{}\n```"
-        result = None
-
-        if data.startswith('```') and data.endswith('```'):
-            data = '\n'.join(data.rstrip('`\n').split('\n')[1:])
-
-        code = data.strip('` \n')
-
-        try:
-            result = eval(code)
-        except:
-            try:
-                exec(code)
-            except Exception as e:
-                traceback.print_exc(chain=False)
-                return Response("{}: {}".format(type(e).__name__, e))
-
-        if asyncio.iscoroutine(result):
-            result = await result
-
-        return Response(codeblock.format(result))
-
     async def on_message(self, message):
         await self.wait_until_ready()
 
@@ -2606,9 +2289,7 @@ class MusicBot(discord.Client):
 
         args = ' '.join(args).lstrip(' ').split(' ')
 
-        handler = getattr(self, 'cmd_' + command, None)
-        if not handler:
-            return
+        handler = getcmd(command)
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
@@ -2624,8 +2305,7 @@ class MusicBot(discord.Client):
 
         user_permissions = self.permissions.for_user(message.author)
 
-        argspec = inspect.signature(handler)
-        params = argspec.parameters.copy()
+        params = handler.params
 
         sentmsg = response = None
 
@@ -2782,11 +2462,11 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(message, quiet=True)
 
     async def gen_cmd_list(self, message, list_all_cmds=False):
-        for att in dir(self):
+        cmds = gen_cmd_list_with_alias()
+        for att in cmds:
             # This will always return at least cmd_help, since they needed perms to run this command
-            if att.startswith('cmd_') and not hasattr(getattr(self, att), 'dev_cmd'):
+            if not hasattr(getattr(self, att), 'dev_cmd'):
                 user_permissions = self.permissions.for_user(message.author)
-                command_name = att.replace('cmd_', '').lower()
                 whitelist = user_permissions.command_whitelist
                 blacklist = user_permissions.command_blacklist
                 if list_all_cmds:
