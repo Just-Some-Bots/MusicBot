@@ -66,7 +66,7 @@ class Command:
         try:
             cmdlookup.pop(alias)
         except KeyError:
-            log.error("{0} is not an alias of command {1}".format(alias, self.name))
+            log.error("`{0}` is not an alias of command `{1}`".format(alias, self.name))
 
     def remove_all_alias(self):
         for alias, cmd in cmdlookup.items():
@@ -80,7 +80,7 @@ class UncallableCommand(Command):
         super().__init__(cog, name)
 
     def __call__(self, *args, **kwargs):
-        log.error("Command {0} in cog {1} is not callable.".format(self.name, self.cog))
+        log.error("Command `{0}` in cog `{1}` is not callable.".format(self.name, self.cog))
         
 
 class CallableCommand(Command):
@@ -101,16 +101,16 @@ class CallableCommand(Command):
 
         except Exception:   
             cog.unload()
-            raise exceptions.CogError("unloaded cog {0}.".format(cog), traceback=traceback.format_exc())
+            raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40, traceback=traceback.format_exc())
         return res
 
     def __call__(self, **kwargs):
         for itcog in cogs:
             if itcog.name == self.cog:
                 if not itcog.loaded:
-                    raise exceptions.CogError("Command {0} in cog {1} have been unloaded.".format(self.name, self.cog), expire_in=20)
+                    raise exceptions.CogError("Command `{0}` in cog `{1}` have been unloaded.".format(self.name, self.cog), expire_in=20)
                 return self.with_callback(itcog, **kwargs)
-        raise exceptions.CogError("Command {0} in cog {1} not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog), expire_in=20)
+        raise exceptions.CogError("Command `{0}` in cog `{1}` not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog), expire_in=20)
 
     def params(self):
         argspec = inspect.signature(self.func)
@@ -124,10 +124,16 @@ async def call(cmd, **kwargs):
         res = await cmdlookup[cmd](**kwargs)
         return res
     except ValueError:
-        log.error("command (or alias) {0} not found".format(cmd))
+        raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
 
 def getcmd(cmd):
     try:
         return cmdlookup[cmd]
     except ValueError:
-        log.error("command (or alias) {0} not found".format(cmd))
+        raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
+
+def getcog(name):
+    for itcog in cogs:
+            if itcog.name == name:
+                return itcog
+    raise exceptions.CogError("cog `{0}` not found".format(name))

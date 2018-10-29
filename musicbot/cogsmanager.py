@@ -7,7 +7,7 @@ from importlib import import_module, reload
 
 from collections import defaultdict
 
-from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcmd, cmdlookup
+from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcmd, cmdlookup, getcog
 from .config import Config, ConfigDefaults
 
 log = logging.getLogger(__name__)
@@ -34,11 +34,13 @@ async def declock():
         if cmdrun == 0:
             aiolocks['lock_clear'].release()
 
+# we cannot throw exception here because this is used when starting bot, or we need to have helper function that catch these exception
 async def load(module):
     await aiolocks['lock_execute'].acquire()
     await aiolocks['lock_clear'].acquire()
+    message = ""
     try:
-        log.info("loading module {0}".format(module))
+        log.info("loading module `{0}`".format(module))
         loaded = None
         if module in imported:
             reload(imported[module])
@@ -50,24 +52,45 @@ async def load(module):
 
         try:
             cogname = getattr(loaded, 'cog_name')
-        except AttributeError:
-            log.error("module {0} doesn't specified cog name, skipping".format(module))
+            for att in dir(loaded):
+                if att.startswith('cmd_'):
+                    handler = getattr(loaded ,att, None)
+                    command(cogname, att[4:], handler)
+            log.info("successfully loaded/reloaded module `{0}`".format(module))
+            message = "successfully loaded/reloaded module `{0}`".format(module)
 
-        for att in dir(loaded):
-            if att.startswith('cmd_'):
-                handler = getattr(loaded ,att, None)
-                command(cogname, att[4:], handler)
+        except AttributeError:
+            log.error("module `{0}` doesn't specified cog name, skipping".format(module))
+            message = "module `{0}` doesn't specified cog name, skipping".format(module)
 
     except Exception:
         log.debug(traceback.format_exc())
-        log.error("can't load module {0}, skipping".format(module))
+        log.error("can't load module `{0}`, skipping".format(module))
+        message = "can't load module `{0}`, skipping".format(module)
     finally:
         aiolocks['lock_clear'].release()
         aiolocks['lock_execute'].release()
+        return message
 
 async def blockloading():
     await aiolocks['lock_execute'].acquire()
     aiolocks['lock_execute'].release()
+
+async def unloadcog(cog):
+    await blockloading()
+    await inclock()
+    cogobj = getcog(cog)
+    if cogobj:
+        cogobj.unload()
+    await declock()
+
+async def loadcog(cog):
+    await blockloading()
+    await inclock()
+    cogobj = getcog(cog)
+    if cogobj:
+        cogobj.load()
+    await declock()
 
 async def callcmd(cmd, *args, **kwargs):
     await blockloading()
