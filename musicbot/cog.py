@@ -119,9 +119,10 @@ class CallableCommand(Command):
 def command(cog, name, func):
     return CallableCommand(cog, name, func)
 
-def call(cmd, *args, **kwargs):
+async def call(cmd, **kwargs):
     try:
-        cmdlookup[cmd](*args, **kwargs)
+        res = await cmdlookup[cmd](**kwargs)
+        return res
     except ValueError:
         log.error("command (or alias) {0} not found".format(cmd))
 

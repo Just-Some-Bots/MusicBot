@@ -67,8 +67,9 @@ async def load(module):
 
 async def callcmd(cmd, *args, **kwargs):
     await inclock()
-    call(cmd, *args, **kwargs)
-    declock()
+    res = await call(cmd, *args, **kwargs)
+    await declock()
+    return res
 
 async def add_alias(cmd, alias):
     await inclock()
