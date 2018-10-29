@@ -1,5 +1,5 @@
 # higher-level function for interacting with cogs asynchronously
-
+import traceback
 import logging
 import asyncio
 
@@ -58,8 +58,8 @@ async def load(module):
                 handler = getattr(loaded ,att, None)
                 command(cogname, att[4:], handler)
 
-    except ImportError as e:
-        log.debug(e.msg)
+    except Exception:
+        log.debug(traceback.format_exc())
         log.error("can't load module {0}, skipping".format(module))
     finally:
         aiolocks['lock_execute'].release()
