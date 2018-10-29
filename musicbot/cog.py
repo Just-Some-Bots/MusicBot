@@ -1,7 +1,10 @@
+import inspect
 import logging
-from .exceptions import MusicbotException
+from . import exceptions
 
 log = logging.getLogger(__name__)
+
+# @TheerapakG: TODO: when blacklist a command, it should also blacklist alias
 
 class Cog:
     def __init__(self, name):
@@ -39,7 +42,7 @@ class Command:
     def __init__(self, cog, name):
         self.name = name
         self.cog = cog
-        if cog not in cogs:
+        if Cog(cog) not in cogs:
             cogs.add(Cog(cog))
         for itcog in cogs:
             if itcog.name == cog:
@@ -80,34 +83,41 @@ class UncallableCommand(Command):
         
 
 class CallableCommand(Command):
-    def __init__(self, cog, name, func, params):
+    def __init__(self, cog, name, func):
         super().__init__(cog, name)
         self.func = func
-        self.params = params
         self.__doc__ = func.__doc__
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, bot, *args, **kwargs):
         for itcog in cogs:
             if itcog.name == self.cog:
                 if not itcog.loaded:
                     log.error("Command {0} in cog {1} have been unloaded.".format(self.name, self.cog))
                 try:
-                    res = self.func(*args, **kwargs)
+                    res = self.func(bot, *args, **kwargs)
                     return res
-                except MusicbotException as e:
-                    log.error(e.message)
-                    log.error("Exception caught in command {0} in cog {1}, unloading cog".format(self.name, self.cog))
+                # @TheerapakG: TODO: add callback to unload cog using something similar to below instead
+                except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError):
+                    log.error("unloading cog {0}".format(self.cog))  
                     itcog.unload()
-                except Exception as e:
-                    log.error(e)
-                    log.error("Exception caught in command {0} in cog {1}, unloading cog".format(self.name, self.cog))
+                    raise
+
+                except exceptions.Signal:
+                    raise
+
+                except Exception:
+                    log.error("unloading cog {0}".format(self.cog))    
                     itcog.unload()
+                    raise
 
         log.error("Command {0} in cog {1} not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog))
 
+    def params(self):
+        argspec = inspect.signature(self.func)
+        return argspec.parameters.copy()
 
-def command(cog, name, func, params):
-    return CallableCommand(cog, name, func, params)
+def command(cog, name, func):
+    return CallableCommand(cog, name, func)
 
 def call(cmd, *args, **kwargs):
     try:

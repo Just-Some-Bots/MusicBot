@@ -12,14 +12,15 @@ log = logging.getLogger(__name__)
 
 cog_name = 'dev'
 
+# @TheerapakG: TODO: move wrappers into one place
 def dev_only(func):
         @wraps(func)
-        async def wrapper(self, *args, **kwargs):
+        async def wrapper(bot, *args, **kwargs):
             orig_msg = _get_variable('message')
 
-            if str(orig_msg.author.id) in self.config.dev_ids:
+            if str(orig_msg.author.id) in bot.config.dev_ids:
                 # noinspection PyCallingNonCallable
-                return await func(self, *args, **kwargs)
+                return await func(bot, *args, **kwargs)
             else:
                 raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
 
@@ -27,15 +28,15 @@ def dev_only(func):
         return wrapper
 
 @dev_only
-async def cmd_breakpoint(self, message):
+async def cmd_breakpoint(bot, message):
     log.critical("Activating debug breakpoint")
     return
 
 @dev_only
-async def cmd_objgraph(self, channel, func='most_common_types()'):
+async def cmd_objgraph(bot, channel, func='most_common_types()'):
     import objgraph
 
-    await self.send_typing(channel)
+    await bot.send_typing(channel)
 
     if func == 'growth':
         f = StringIO()
@@ -60,7 +61,7 @@ async def cmd_objgraph(self, channel, func='most_common_types()'):
     return Response(data, codeblock='py')
 
 @dev_only
-async def cmd_debug(self, message, _player, *, data):
+async def cmd_debug(bot, message, _player, *, data):
     codeblock = "```py\n{}\n```"
     result = None
 

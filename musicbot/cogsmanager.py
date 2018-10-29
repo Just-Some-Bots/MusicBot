@@ -2,7 +2,6 @@
 
 import logging
 import asyncio
-import inspect
 
 from importlib import import_module, reload
 
@@ -26,7 +25,7 @@ async def inclock():
     async with aiolocks['lock_cmdrun']:
         cmdrun += 1
         if cmdrun == 1:
-            aiolocks['lock_clear'].acquire()
+            await aiolocks['lock_clear'].acquire()
 
 async def declock():
     global cmdrun
@@ -39,12 +38,13 @@ async def load(module):
     await aiolocks['lock_execute'].acquire()
     await aiolocks['lock_clear'].acquire()
     try:
+        log.info("loading module {0}".format(module))
         loaded = None
         if module in imported:
             reload(imported[module])
             loaded = imported[module]
         else:
-            loaded = import_module(module, '.commands')
+            loaded = import_module('.commands.{}'.format(module), 'musicbot')
 
         cogname = None
 
@@ -56,15 +56,14 @@ async def load(module):
         for att in dir(loaded):
             if att.startswith('cmd_'):
                 handler = getattr(loaded ,att, None)
-                argspec = inspect.signature(handler)
-                params = argspec.parameters.copy()
-                command(cogname, att[4:], handler, params)
+                command(cogname, att[4:], handler)
 
-    except ImportError:
+    except ImportError as e:
+        log.debug(e.msg)
         log.error("can't load module {0}, skipping".format(module))
     finally:
-        await aiolocks['lock_execute'].release()
-        await aiolocks['lock_clear'].release()
+        aiolocks['lock_execute'].release()
+        aiolocks['lock_clear'].release()
 
 async def callcmd(cmd, *args, **kwargs):
     await inclock()
@@ -74,15 +73,15 @@ async def callcmd(cmd, *args, **kwargs):
 async def add_alias(cmd, alias):
     await inclock()
     getcmd(cmd).add_alias(alias)
-    declock()
+    await declock()
 
 async def remove_alias(cmd, alias):
     await inclock()
     getcmd(cmd).remove_alias(alias)
-    declock()
+    await declock()
 
 async def gen_cmd_list_with_alias():
     await inclock()
-    ret = cmdlookup.keys()
-    declock()
+    ret = cmdlookup
+    await declock()
     return ret

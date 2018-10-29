@@ -37,6 +37,8 @@ class Config:
 
         self.auth = ()
 
+        self.cogs = config.get('Cogs', 'Cogs_Load', fallback=ConfigDefaults.cogs)
+
         self.spotify_clientid = config.get('Credentials', 'Spotify_ClientID', fallback=ConfigDefaults.spotify_clientid)
         self.spotify_clientsecret = config.get('Credentials', 'Spotify_ClientSecret', fallback=ConfigDefaults.spotify_clientsecret)
 
@@ -135,6 +137,8 @@ class Config:
 
         else:
             self.auth = (self._login_token,)
+
+        self.cogs = self.cogs.split()
 
         if self.owner_id:
             self.owner_id = self.owner_id.lower()
@@ -307,6 +311,8 @@ class ConfigDefaults:
 
     token = None
     dev_ids = set()
+
+    cogs = 'help autoplaylist moderate info queuemanipulate botmanipulate playback dev utility'
 
     spotify_clientid = None
     spotify_clientsecret = None
