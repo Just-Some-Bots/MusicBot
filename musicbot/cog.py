@@ -1,4 +1,5 @@
 import inspect
+import traceback
 import logging
 from . import exceptions
 
@@ -88,29 +89,28 @@ class CallableCommand(Command):
         self.func = func
         self.__doc__ = func.__doc__
 
-    def __call__(self, bot, *args, **kwargs):
+    async def with_callback(self, cog, **kwargs):
+        try:
+            res = await self.func(**kwargs)
+        except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError):
+            # TODO: Check if this need unloading cogs 
+            raise
+
+        except exceptions.Signal:
+            raise
+
+        except Exception:   
+            cog.unload()
+            raise exceptions.CogError("unloaded cog {0}.".format(cog), traceback=traceback.format_exc())
+        return res
+
+    def __call__(self, **kwargs):
         for itcog in cogs:
             if itcog.name == self.cog:
                 if not itcog.loaded:
-                    log.error("Command {0} in cog {1} have been unloaded.".format(self.name, self.cog))
-                try:
-                    res = self.func(bot, *args, **kwargs)
-                    return res
-                # @TheerapakG: TODO: add callback to unload cog using something similar to below instead
-                except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError):
-                    log.error("unloading cog {0}".format(self.cog))  
-                    itcog.unload()
-                    raise
-
-                except exceptions.Signal:
-                    raise
-
-                except Exception:
-                    log.error("unloading cog {0}".format(self.cog))    
-                    itcog.unload()
-                    raise
-
-        log.error("Command {0} in cog {1} not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog))
+                    raise exceptions.CogError("Command {0} in cog {1} have been unloaded.".format(self.name, self.cog), expire_in=20)
+                return self.with_callback(itcog, **kwargs)
+        raise exceptions.CogError("Command {0} in cog {1} not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog), expire_in=20)
 
     def params(self):
         argspec = inspect.signature(self.func)

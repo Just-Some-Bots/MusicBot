@@ -16,6 +16,12 @@ class MusicbotException(Exception):
     def message_no_format(self):
         return self._message
 
+# Something went wrong in the cog system
+class CogError(MusicbotException):
+    def __init__(self, message, *, expire_in=0, traceback=None):
+        super().__init__(message, expire_in=expire_in)
+        self.traceback = traceback
+
 # Something went wrong during the processing of a command
 class CommandError(MusicbotException):
     pass

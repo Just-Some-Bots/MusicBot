@@ -1266,6 +1266,46 @@ class MusicBot(discord.Client):
                 also_delete=alsodelete
             )
 
+        except exceptions.CogError as e:
+            log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e), exc_info=True)
+            if e.traceback:
+                log.error("Traceback:\n {0}".format(e.traceback), exc_info=True)
+
+            expirein = e.expire_in if self.config.delete_messages else None
+            alsodelete = message if self.config.delete_invoking else None
+
+            if self.config.debug_mode and e.traceback:
+                if self.config.embeds:
+                    content = self._gen_embed()
+                    content.add_field(name='Error', value=e.message+", traceback below", inline=False)
+                    content.colour = 13369344
+                else:
+                    content = '```\n{}, traceback below\n```'.format(e.message)
+            else:
+                if self.config.embeds:
+                    content = self._gen_embed()
+                    content.add_field(name='Error', value=e.message, inline=False)
+                    content.colour = 13369344
+                else:
+                    content = '```\n{}\n```'.format(e.message)
+
+            await self.safe_send_message(
+                message.channel,
+                content,
+                expire_in=expirein,
+                also_delete=alsodelete
+            )
+
+            if self.config.debug_mode and e.traceback:
+                tb = '```\n{}\n```'.format(e.traceback)
+                await self.safe_send_message(
+                    message.channel,
+                    tb,
+                    expire_in=expirein,
+                    also_delete=alsodelete
+                )
+
+
         except exceptions.Signal:
             raise
 
