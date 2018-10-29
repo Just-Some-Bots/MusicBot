@@ -62,27 +62,39 @@ async def load(module):
         log.debug(traceback.format_exc())
         log.error("can't load module {0}, skipping".format(module))
     finally:
-        aiolocks['lock_execute'].release()
         aiolocks['lock_clear'].release()
+        aiolocks['lock_execute'].release()
 
 async def callcmd(cmd, *args, **kwargs):
+    # Check if we aren't gonna dismiss some function soon
+    await aiolocks['lock_execute'].acquire()
+    await aiolocks['lock_execute'].release()
     await inclock()
     res = await call(cmd, *args, **kwargs)
     await declock()
     return res
 
 async def add_alias(cmd, alias):
+    # Check if we aren't gonna dismiss some function soon
+    await aiolocks['lock_execute'].acquire()
+    await aiolocks['lock_execute'].release()
     await inclock()
     getcmd(cmd).add_alias(alias)
     await declock()
 
 async def remove_alias(cmd, alias):
+    # Check if we aren't gonna dismiss some function soon
+    await aiolocks['lock_execute'].acquire()
+    await aiolocks['lock_execute'].release()
     await inclock()
     getcmd(cmd).remove_alias(alias)
     await declock()
 
 async def gen_cmd_list_with_alias():
+    # Check if we aren't gonna dismiss some function soon
+    await aiolocks['lock_execute'].acquire()
+    await aiolocks['lock_execute'].release()
     await inclock()
-    ret = cmdlookup
+    ret = cmdlookup.copy()
     await declock()
     return ret
