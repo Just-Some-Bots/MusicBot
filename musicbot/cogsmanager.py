@@ -1,4 +1,4 @@
-# higher-level function for interacting with cogs asynchronously
+# higher-level functions for interacting with cogs asynchronously
 import traceback
 import logging
 import asyncio
@@ -65,35 +65,31 @@ async def load(module):
         aiolocks['lock_clear'].release()
         aiolocks['lock_execute'].release()
 
-async def callcmd(cmd, *args, **kwargs):
-    # Check if we aren't gonna dismiss some function soon
+async def blockloading():
     await aiolocks['lock_execute'].acquire()
-    await aiolocks['lock_execute'].release()
+    aiolocks['lock_execute'].release()
+
+async def callcmd(cmd, *args, **kwargs):
+    await blockloading()
     await inclock()
     res = await call(cmd, *args, **kwargs)
     await declock()
     return res
 
 async def add_alias(cmd, alias):
-    # Check if we aren't gonna dismiss some function soon
-    await aiolocks['lock_execute'].acquire()
-    await aiolocks['lock_execute'].release()
+    await blockloading()
     await inclock()
     getcmd(cmd).add_alias(alias)
     await declock()
 
 async def remove_alias(cmd, alias):
-    # Check if we aren't gonna dismiss some function soon
-    await aiolocks['lock_execute'].acquire()
-    await aiolocks['lock_execute'].release()
+    await blockloading()
     await inclock()
     getcmd(cmd).remove_alias(alias)
     await declock()
 
 async def gen_cmd_list_with_alias():
-    # Check if we aren't gonna dismiss some function soon
-    await aiolocks['lock_execute'].acquire()
-    await aiolocks['lock_execute'].release()
+    await blockloading()
     await inclock()
     ret = cmdlookup.copy()
     await declock()
