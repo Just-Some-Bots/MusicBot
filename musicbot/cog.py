@@ -6,8 +6,6 @@ from . import exceptions
 
 log = logging.getLogger(__name__)
 
-# @TheerapakG: TODO: when blacklist a command, it should also blacklist alias
-
 class Cog:
     def __init__(self, name):
         self.name = name

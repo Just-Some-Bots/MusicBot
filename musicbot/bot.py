@@ -1104,7 +1104,12 @@ class MusicBot(discord.Client):
 
         args = ' '.join(args).lstrip(' ').split(' ')
 
-        handler = getcmd(command)
+        # @TheerapakG: TODO: add config to warn if no command
+        handler = None
+        try:
+            handler = getcmd(command)
+        except exceptions.CogError:
+            return
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
@@ -1197,12 +1202,12 @@ class MusicBot(discord.Client):
                     params.pop(key)
 
             if message.author.id != self.config.owner_id:
-                if user_permissions.command_whitelist and command not in user_permissions.command_whitelist:
+                if user_permissions.command_whitelist and handler.name not in user_permissions.command_whitelist:
                     raise exceptions.PermissionsError(
                         "This command is not enabled for your group ({}).".format(user_permissions.name),
                         expire_in=20)
 
-                elif user_permissions.command_blacklist and command in user_permissions.command_blacklist:
+                elif user_permissions.command_blacklist and handler.name in user_permissions.command_blacklist:
                     raise exceptions.PermissionsError(
                         "This command is disabled for your group ({}).".format(user_permissions.name),
                         expire_in=20)
@@ -1229,7 +1234,7 @@ class MusicBot(discord.Client):
             if response and isinstance(response, Response):
                 if not isinstance(response.content, discord.Embed) and self.config.embeds:
                     content = self._gen_embed()
-                    content.title = command
+                    content.title = handler.name
                     content.description = response.content
                 else:
                     content = response.content
