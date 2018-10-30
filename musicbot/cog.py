@@ -1,6 +1,7 @@
 import inspect
 import traceback
 import logging
+from abc import ABC, abstractmethod
 from . import exceptions
 
 log = logging.getLogger(__name__)
@@ -37,18 +38,25 @@ class Cog:
         self.loaded = False
 
 cogs = set()
-cmdlookup = dict()
+commands = set()
 
-class Command:
+#
+class Command(ABC):
     def __init__(self, cog, name):
         self.name = name
         self.cog = cog
+        self.alias = set()
         if Cog(cog) not in cogs:
             cogs.add(Cog(cog))
         for itcog in cogs:
             if itcog.name == cog:
                 itcog.add_command(self)
         self.add_alias(name)
+        commands.add(self)
+
+    @abstractmethod
+    def __call__(self, **kwargs):
+        pass
 
     def __hash__(self):
         return hash(self.name)
@@ -60,18 +68,19 @@ class Command:
         return self.name == other.name
             
     def add_alias(self, alias):
-        cmdlookup[alias] = self
+        if alias in self.alias:
+            log.warn("`{0}` is already an alias of command `{1}`".format(alias, self.name))
+        else:
+            self.alias.add(alias)
 
     def remove_alias(self, alias):
         try:
-            cmdlookup.pop(alias)
+            self.alias.remove(alias)
         except KeyError:
-            log.error("`{0}` is not an alias of command `{1}`".format(alias, self.name))
+            log.warn("`{0}` is not an alias of command `{1}`".format(alias, self.name))
 
     def remove_all_alias(self):
-        for alias, cmd in cmdlookup.items():
-            if cmd.name == self.name:
-                cmdlookup.pop(alias)
+        self.alias = set([self.name])
 
 # for the day we know there exist malformed function in module and we can get partial attr
 # very hopeful dream right there
@@ -79,7 +88,7 @@ class UncallableCommand(Command):
     def __init__(self, cog, name):
         super().__init__(cog, name)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, **kwargs):
         log.error("Command `{0}` in cog `{1}` is not callable.".format(self.name, self.cog))
         
 
@@ -101,7 +110,7 @@ class CallableCommand(Command):
 
         except Exception:   
             cog.unload()
-            raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40, traceback=traceback.format_exc())
+            raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40, traceback=traceback.format_exc()) from None
         return res
 
     def __call__(self, **kwargs):
@@ -119,21 +128,17 @@ class CallableCommand(Command):
 def command(cog, name, func):
     return CallableCommand(cog, name, func)
 
-async def call(cmd, **kwargs):
-    try:
-        res = await cmdlookup[cmd](**kwargs)
-        return res
-    except ValueError:
-        raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
-
 def getcmd(cmd):
-    try:
-        return cmdlookup[cmd]
-    except ValueError:
-        raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
+    for command in commands:
+        if cmd in command.alias:
+            return command
+    raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
+
+async def call(cmd, **kwargs):
+    return await getcmd(cmd)(**kwargs)
 
 def getcog(name):
     for itcog in cogs:
-            if itcog.name == name:
-                return itcog
+        if itcog.name == name:
+            return itcog
     raise exceptions.CogError("cog `{0}` not found".format(name))

@@ -7,7 +7,7 @@ from importlib import import_module, reload
 
 from collections import defaultdict
 
-from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcmd, cmdlookup, getcog
+from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcmd, getcog, commands
 from .config import Config, ConfigDefaults
 
 log = logging.getLogger(__name__)
@@ -114,6 +114,6 @@ async def remove_alias(cmd, alias):
 async def gen_cmd_list_with_alias():
     await blockloading()
     await inclock()
-    ret = cmdlookup.copy()
+    ret = list(commands)
     await declock()
     return ret

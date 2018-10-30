@@ -1319,28 +1319,6 @@ class MusicBot(discord.Client):
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
-    async def gen_cmd_list(self, message, list_all_cmds=False):
-        cmds = await gen_cmd_list_with_alias()
-        commands = dict()
-        for cmd, actual in cmds.items():
-            # This will always return at least cmd_help, since they needed perms to run this command
-            if not hasattr(actual, 'dev_cmd'):
-                user_permissions = self.permissions.for_user(message.author)
-                whitelist = user_permissions.command_whitelist
-                blacklist = user_permissions.command_blacklist
-                if list_all_cmds:
-                    commands['{}{}'.format(self.config.command_prefix, cmd)] = actual
-
-                elif blacklist and cmd in blacklist:
-                    pass
-
-                elif whitelist and cmd not in whitelist:
-                    pass
-
-                else:
-                    commands["{}{}".format(self.config.command_prefix, cmd)] = actual
-        return commands
-
     async def on_voice_state_update(self, member, before, after):
         if not self.init_ok:
             return  # Ignore stuff before ready

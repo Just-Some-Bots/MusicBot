@@ -1,9 +1,35 @@
 from textwrap import dedent
 
+from ..cogsmanager import gen_cmd_list_with_alias
 from .. import exceptions
 from ..constructs import Response
 
 cog_name = 'help'
+
+async def gen_cmd_list(bot, message, list_all_cmds=False):
+    cmds = await gen_cmd_list_with_alias()
+    commands = dict()
+    for cmd in cmds:
+        if not hasattr(cmd, 'func'):
+            pass # what will you run?
+
+        # This will always return at least cmd_help, since they needed perms to run this command
+        if not hasattr(cmd.func, 'dev_cmd'):
+            user_permissions = bot.permissions.for_user(message.author)
+            whitelist = user_permissions.command_whitelist
+            blacklist = user_permissions.command_blacklist
+            if list_all_cmds:
+                commands[cmd.name] = cmd.func
+
+            elif blacklist and cmd.name in blacklist:
+                pass
+
+            elif whitelist and cmd.name not in whitelist:
+                pass
+
+            else:
+                commands[cmd.name] = cmd.func
+    return commands
 
 async def cmd_help(bot, message, channel, command=None):
     """
@@ -21,14 +47,14 @@ async def cmd_help(bot, message, channel, command=None):
     if command:
         if command.lower() == 'all':
             bot.is_all = True
-            commands = await bot.gen_cmd_list(message, list_all_cmds=True)
+            commands = await gen_cmd_list(bot, message, list_all_cmds=True)
 
         else:
-            cmd = await bot.gen_cmd_list(message, list_all_cmds=True)
+            cmd = await gen_cmd_list(bot, message, list_all_cmds=True)
             try:
-                cmd = cmd['{0}{1}'.format(prefix, command)]
+                cmd = cmd[command]
             except:
-                raise exceptions.CommandError(bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+                raise exceptions.CommandError(bot.str.get('cmd-help-invalid', "No such command"), expire_in=10) from None
             if not hasattr(cmd, 'dev_cmd'):
                 return Response(
                     "```\n{}```".format(
@@ -38,10 +64,10 @@ async def cmd_help(bot, message, channel, command=None):
                 )
 
     elif message.author.id == bot.config.owner_id:
-        commands = await bot.gen_cmd_list(message, list_all_cmds=True)
+        commands = await gen_cmd_list(bot, message, list_all_cmds=True)
 
     else:
-        commands = await bot.gen_cmd_list(message).keys()
+        commands = await gen_cmd_list(bot, message).keys()
 
     desc = '```\n' + ', '.join(commands.keys()) + '\n```\n' + bot.str.get(
         'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
