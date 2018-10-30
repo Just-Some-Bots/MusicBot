@@ -320,14 +320,15 @@ class MusicBot(discord.Client):
             await self.safe_delete_message(message, quiet=quiet)
 
     async def _check_ignore_non_voice(self, msg):
-        vc = msg.guild.me.voice.channel
+        if not msg.author.voice:
+            vc = msg.guild.me.voice.channel
 
-        # If we've connected to a voice chat and we're in the same voice channel
-        if not vc or (msg.author.voice and vc == msg.author.voice.channel):
-            return True
-        else:
-            raise exceptions.PermissionsError(
-                "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
+            # If we've connected to a voice chat and we're in the same voice channel
+            if not vc or vc == msg.author.voice.channel:
+                return True
+                
+        raise exceptions.PermissionsError(
+            "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
 
     async def _cache_app_info(self, *, update=False):
         if not self.cached_app_info and not update and self.user.bot:
