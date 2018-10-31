@@ -37,6 +37,7 @@ from .constructs import SkipState, Response
 from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
 from .spotify import Spotify
 from .json import Json
+from .wrappers import ensure_appinfo
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
@@ -126,15 +127,6 @@ class MusicBot(discord.Client):
         # These functions return futures but it doesn't matter
         try:    self.http.session.close()
         except: pass
-
-    def ensure_appinfo(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            await self._cache_app_info()
-            # noinspection PyCallingNonCallable
-            return await func(self, *args, **kwargs)
-
-        return wrapper
 
     def _get_owner(self, *, server=None, voice=False):
             return discord.utils.find(

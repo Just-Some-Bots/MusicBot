@@ -7,25 +7,11 @@ from io import StringIO
 from ..utils import _get_variable
 from .. import exceptions
 from ..constructs import Response
+from ..wrappers import dev_only
 
 log = logging.getLogger(__name__)
 
 cog_name = 'dev'
-
-# @TheerapakG: TODO: move wrappers into one place
-def dev_only(func):
-        @wraps(func)
-        async def wrapper(bot, *args, **kwargs):
-            orig_msg = _get_variable('message')
-
-            if str(orig_msg.author.id) in bot.config.dev_ids:
-                # noinspection PyCallingNonCallable
-                return await func(bot, *args, **kwargs)
-            else:
-                raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
-
-        wrapper.dev_cmd = True
-        return wrapper
 
 @dev_only
 async def cmd_breakpoint(bot, message):
