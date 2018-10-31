@@ -2,6 +2,7 @@
 import traceback
 import logging
 import asyncio
+from inspect import iscoroutinefunction
 
 from importlib import import_module, reload
 
@@ -55,7 +56,8 @@ async def load(module):
             for att in dir(loaded):
                 if att.startswith('cmd_'):
                     handler = getattr(loaded ,att, None)
-                    command(cogname, att[4:], handler)
+                    if iscoroutinefunction(handler):
+                        command(cogname, att[4:], handler)
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)
 
