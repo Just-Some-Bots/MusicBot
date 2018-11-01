@@ -19,7 +19,7 @@ async def gen_cmd_list(bot, message, list_all_cmds=False):
             whitelist = user_permissions.command_whitelist
             blacklist = user_permissions.command_blacklist
             if list_all_cmds:
-                commands[cmd.name] = cmd.func
+                commands[cmd.name] = cmd
 
             elif blacklist and cmd.name in blacklist:
                 pass
@@ -28,7 +28,7 @@ async def gen_cmd_list(bot, message, list_all_cmds=False):
                 pass
 
             else:
-                commands[cmd.name] = cmd.func
+                commands[cmd.name] = cmd
     return commands
 
 async def cmd_help(bot, message, channel, command=None):
@@ -55,7 +55,7 @@ async def cmd_help(bot, message, channel, command=None):
                 cmd = cmd[command]
             except:
                 raise exceptions.CommandError(bot.str.get('cmd-help-invalid', "No such command"), expire_in=10) from None
-            if not hasattr(cmd, 'dev_cmd'):
+            if not hasattr(cmd.func, 'dev_cmd'):
                 return Response(
                     "```\n{}```".format(
                         dedent(cmd.__doc__)

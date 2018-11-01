@@ -69,7 +69,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                     for i in res['tracks']['items']:
                         song_url = i['name'] + ' ' + i['artists'][0]['name']
                         log.debug('Processing {0}'.format(song_url))
-                        await bot.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
+                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
                     await bot.safe_delete_message(procmesg)
                     return Response(bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                 
@@ -88,7 +88,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                     for i in res:
                         song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                         log.debug('Processing {0}'.format(song_url))
-                        await bot.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
+                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
                     await bot.safe_delete_message(procmesg)
                     return Response(bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                 
@@ -158,7 +158,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
             # TODO: handle 'webpage_url' being 'ytsearch:...' or extractor type
             song_url = info['entries'][0]['webpage_url']
             info = await bot.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-            # Now I could just do: return await bot.cmd_play(player, channel, author, song_url)
+            # Now I could just do: return await cmd_play(player, channel, author, song_url)
             # But this is probably fine
 
         # TODO: Possibly add another check here to see about things like the bandcamp issue
@@ -171,7 +171,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
 
             if info['extractor'].lower() in ['youtube:playlist', 'soundcloud:set', 'bandcamp:album']:
                 try:
-                    return await bot._cmd_play_playlist_async(player, channel, author, permissions, song_url, info['extractor'])
+                    return await _cmd_play_playlist_async(bot, player, channel, author, permissions, song_url, info['extractor'])
                 except exceptions.CommandError:
                     raise
                 except Exception as e:
@@ -261,7 +261,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                 log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
                 log.debug("Using \"%s\" instead" % e.use_url)
 
-                return await bot.cmd_play(player, channel, author, permissions, leftover_args, e.use_url)
+                return await cmd_play(bot, message, player, channel, author, permissions, leftover_args, e.use_url)
 
             reply_text = bot.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
             btext = entry.title
@@ -439,7 +439,7 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
             # noinspection PyUnresolvedReferences
             raise exceptions.CommandError(
                 bot.str.get('cmd-search-noquery', "Please specify a search query.\n%s") % dedent(
-                    bot.cmd_search.__doc__.format(command_prefix=bot.config.command_prefix)),
+                    cmd_search.__doc__.format(command_prefix=bot.config.command_prefix)),
                 expire_in=60
             )
 
@@ -519,7 +519,7 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
 
         if str(reaction.emoji) == '\u2705':  # check
             await bot.safe_delete_message(result_message)
-            await bot.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
+            await cmd_play(bot, message, player, channel, author, permissions, [], e['webpage_url'])
             return Response(bot.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
         elif str(reaction.emoji) == '\U0001F6AB':  # cross
             await bot.safe_delete_message(result_message)

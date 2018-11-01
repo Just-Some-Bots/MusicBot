@@ -1,7 +1,7 @@
 import inspect
 import traceback
 import logging
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from . import exceptions
 
 log = logging.getLogger(__name__)
@@ -38,8 +38,18 @@ class Cog:
 cogs = set()
 commands = set()
 
-#
-class Command(ABC):
+# @TheerapakG: yea I know it's a hack, docstring aren't suppose to do this but I need it. Problems?
+class ModifiabledocABCMeta(ABCMeta):
+    def __new__(cls, clsname, bases, dct):
+
+        for name, val in dct.copy().items():
+            if name == 'doc':
+                dct['__doc__'] = property(val, None, None, None)
+
+        return super(ModifiabledocABCMeta, cls).__new__(cls, clsname, bases, dct)
+
+
+class Command(metaclass = ModifiabledocABCMeta):
     def __init__(self, cog, name):
         self.name = name
         self.cog = cog
@@ -94,7 +104,9 @@ class CallableCommand(Command):
     def __init__(self, cog, name, func):
         super().__init__(cog, name)
         self.func = func
-        self.__doc__ = func.__doc__
+    
+    def doc(self):
+        return "{}\n    alias: {}".format(self.func.__doc__, " ".join(self.alias))
 
     async def with_callback(self, cog, **kwargs):
         try:

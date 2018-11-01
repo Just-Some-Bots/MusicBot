@@ -1,44 +1,47 @@
 This text file serve as a guide for implementing a cog
 
-As you might already see in this folder, a cog is just a Python module but
+    As you might already see in this folder, a cog is just a Python module but
 wait, it's more than that.
 
-Modules are considered a cog if it instantiate cog_name variable, cog_name
+    Modules are considered a cog if it instantiate cog_name variable, cog_name
 shall hold string containing the cog name. This allows cogs to have characters
 that are forbidden in file name and also prevent against accidentally loading
 modules that aren't intended to be load.
 
-Cog need to hold commands, commands are asynchronous function with name
+    Cog need to hold commands, commands are asynchronous function with name
 starting with 'cmd_'. For example, command 'help' is an asynchronous function
 named 'cmd_help'. Every other functions are ignored.
 
-Command shall take first argument named 'bot'. The argument 'bot' always
+    Command shall take first argument named 'bot'. The argument 'bot' always
 receive a 'MusicBot' instance (implemented in bot.py). The instance received
 is always an instance that invoke the command.
 
-After that, command will take arguments positionally (as user invoked
+    After that, command will take arguments positionally (as user invoked
 commands) except some special arguments as will be discussed in the below
 block. Arguments got seperate based on whitespace.
 
-These are the list of special arguments and values they will get:
-    'message':          message
-    'channel':          message.channel
-    'author':           message.author
-    'guild':            message.guild
-    'player':           await self.get_player(message.channel)
-    '_player':          self.get_player_in(message.guild)
-    'permissions':      user_permissions
-    'user_mentions':    list(map(message.guild.get_member, message.raw_mentions))
-    'channel_mentions': list(map(message.guild.get_channel, message.raw_channel_mentions))
-    'voice_channel':    message.guild.me.voice.channel if message.guild.me.voice else None
-    'leftover_args':    args
+    These are the list of special arguments and values they will get:
+        'message':          message
+        'channel':          message.channel
+        'author':           message.author
+        'guild':            message.guild
+        'player':           await bot.get_player(message.channel)
+        '_player':          bot.get_player_in(message.guild)
+        'permissions':      user_permissions
+        'user_mentions':    list(map(message.guild.get_member, message.raw_mentions))
+        'channel_mentions': list(map(message.guild.get_channel, message.raw_channel_mentions))
+        'voice_channel':    message.guild.me.voice.channel if message.guild.me.voice else None
+        'leftover_args':    args
+    where message is an instance of discord.Message (refer to discord.py
+documentation). args is string containing arguments passed from user seperated
+with whitespaces.
 
-Commands can be called across cogs (currently not functions). For safety
+    Commands can be called across cogs (currently not functions). For safety
 against dynamically loading and unloading modules so your cog won't get
 unloaded when it is other cog's fault, commands should be called via callcmd
 function, which can be found in cogsmanager module. Supply first argument as
 command name and the rest argument as you would normally call. Noted that the
-function might raise an exceptions.CogError exception when command is not
+function might raise an exceptions. CogError exception when command is not
 found. For commands in the same cog there is no need to call callcmd as the
 entire cog will be unloaded anyway if non-MusicBot exception raised. For
 example of how to call command from other cog, see intercog_example.py.
