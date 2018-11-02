@@ -9,17 +9,17 @@ log = logging.getLogger(__name__)
 
 cog_name = 'autoplaylist'
 
-async def cmd_resetplaylist(self, player, channel):
+async def cmd_resetplaylist(bot, player, channel):
     """
     Usage:
         {command_prefix}resetplaylist
 
     Resets all songs in the server's autoplaylist
     """
-    player.autoplaylist = list(set(self.autoplaylist))
-    return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
+    player.autoplaylist = list(set(bot.autoplaylist))
+    return Response(bot.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
-async def cmd_save(self, player, url=None):
+async def cmd_save(bot, player, url=None):
     """
     Usage:
         {command_prefix}save [url]
@@ -30,12 +30,12 @@ async def cmd_save(self, player, url=None):
         if not url:
             url = player.current_entry.url
 
-        if url not in self.autoplaylist:
-            self.autoplaylist.append(url)
-            write_file(self.config.auto_playlist_file, self.autoplaylist)
+        if url not in bot.autoplaylist:
+            bot.autoplaylist.append(url)
+            write_file(bot.config.auto_playlist_file, bot.autoplaylist)
             log.debug("Appended {} to autoplaylist".format(url))
-            return Response(self.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
+            return Response(bot.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
         else:
-            raise exceptions.CommandError(self.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
+            raise exceptions.CommandError(bot.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
     else:
-        raise exceptions.CommandError(self.str.get('cmd-save-invalid', 'There is no valid song playing.'))
+        raise exceptions.CommandError(bot.str.get('cmd-save-invalid', 'There is no valid song playing.'))

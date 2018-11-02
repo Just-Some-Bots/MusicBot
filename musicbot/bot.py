@@ -1430,3 +1430,9 @@ class MusicBot(discord.Client):
             if vc.guild == guild:
                 return vc
         return None
+
+    def eval_bot(self, code):
+        return eval(code)
+
+    def exec_bot(self, code):
+        exec(code)
