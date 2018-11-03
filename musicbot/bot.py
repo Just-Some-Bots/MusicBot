@@ -33,6 +33,7 @@ from .entry import StreamPlaylistEntry
 from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
+from .alias import Alias, AliasDefaults
 from .constructs import SkipState, Response
 from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
 from .spotify import Spotify
@@ -42,7 +43,7 @@ from .wrappers import ensure_appinfo
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-from .cogsmanager import load, callcmd, getcmd, gen_cmd_list_with_alias
+from .cogsmanager import load, callcmd, getcmd, gen_cmd_list_with_alias, init_cog_system
 
 
 load_opus_lib()
@@ -51,7 +52,7 @@ log = logging.getLogger(__name__)
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=None, perms_file=None):
+    def __init__(self, config_file=None, perms_file=None, alias_file=None):
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
@@ -64,6 +65,8 @@ class MusicBot(discord.Client):
 
         if perms_file is None:
             perms_file = PermissionsDefaults.perms_file
+
+        init_cog_system(alias_file)
 
         self.players = {}
         self.exit_signal = None

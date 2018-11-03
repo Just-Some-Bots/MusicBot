@@ -68,9 +68,17 @@ commands = set()
 class ModifiabledocABCMeta(ABCMeta):
     def __new__(cls, clsname, bases, dct):
 
+        fget = None
+
+        fset = None
+
         for name, val in dct.copy().items():
             if name == 'doc':
-                dct['__doc__'] = property(val, None, None, None)
+                fget = val
+            if name == 'setdoc':
+                fset = val
+        
+        dct['__doc__'] = property(fget, fset, None, None)
 
         return super(ModifiabledocABCMeta, cls).__new__(cls, clsname, bases, dct)
 
@@ -79,7 +87,7 @@ class Command(metaclass = ModifiabledocABCMeta):
     def __init__(self, cog, name):
         self.name = name
         self.cog = cog
-        self.alias = set([name])
+        self.alias = set()
         self.aiolocks = defaultdict(asyncio.Lock)
         commands.add(self)
 
@@ -174,6 +182,7 @@ async def command(cog, name, func):
     for itcog in cogs:
         if itcog.name == cog:
             await itcog.add_command(cmd)
+    return cmd
 
 async def getcommand(cmd):
     for command in commands:
