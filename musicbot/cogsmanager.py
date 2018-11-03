@@ -8,7 +8,7 @@ from importlib import import_module, reload
 
 from collections import defaultdict
 
-from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcmd, getcog, commands
+from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands
 from .config import Config, ConfigDefaults
 
 log = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ async def load(module):
                 if att.startswith('cmd_'):
                     handler = getattr(loaded ,att, None)
                     if iscoroutinefunction(handler):
-                        command(cogname, att[4:], handler)
+                        await command(cogname, att[4:], handler)
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)
 
@@ -74,12 +74,12 @@ async def load(module):
         aiolocks['lock_execute'].release()
         return message
 
-async def blockloading():
+async def checkblockloading():
     await aiolocks['lock_execute'].acquire()
     aiolocks['lock_execute'].release()
 
 async def unloadcog(cog):
-    await blockloading()
+    await checkblockloading()
     await inclock()
     cogobj = getcog(cog)
     if cogobj:
@@ -87,34 +87,43 @@ async def unloadcog(cog):
     await declock()
 
 async def loadcog(cog):
-    await blockloading()
+    await checkblockloading()
     await inclock()
     cogobj = getcog(cog)
     if cogobj:
         cogobj.load()
     await declock()
 
+async def getcmd(cmd):
+    await checkblockloading()
+    await inclock()
+    res = await getcommand(cmd)
+    await declock()
+    return res
+
 async def callcmd(cmd, *args, **kwargs):
-    await blockloading()
+    await checkblockloading()
     await inclock()
     res = await call(cmd, *args, **kwargs)
     await declock()
     return res
 
 async def add_alias(cmd, alias):
-    await blockloading()
+    await checkblockloading()
     await inclock()
-    getcmd(cmd).add_alias(alias)
+    command = await getcmd(cmd)
+    await command.add_alias(alias)
     await declock()
 
 async def remove_alias(cmd, alias):
-    await blockloading()
+    await checkblockloading()
     await inclock()
-    getcmd(cmd).remove_alias(alias)
+    command = await getcmd(cmd)
+    await command.remove_alias(alias)
     await declock()
 
 async def gen_cmd_list_with_alias():
-    await blockloading()
+    await checkblockloading()
     await inclock()
     ret = list(commands)
     await declock()

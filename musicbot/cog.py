@@ -1,6 +1,9 @@
 import inspect
 import traceback
 import logging
+import asyncio
+
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from . import exceptions
 
@@ -8,9 +11,12 @@ log = logging.getLogger(__name__)
 
 class Cog:
     def __init__(self, name):
+        # @TheerapakG: For anyone who will work on this, COG NAME SHALL NOT BE CHANGEABLE VIA A COMMAND. IT'S VERY UNREASONABLE WHY YOU'D WANT TO DO IT AND WILL BREAK THIS
         self.name = name
         self.commands = set()
-        self.load()
+        self.loaded = True
+        self.cmdrun = 0
+        self.aiolocks = defaultdict(asyncio.Lock)
 
     def __hash__(self):
         return hash(self.name)
@@ -21,19 +27,39 @@ class Cog:
     def __eq__(self, other):
         return self.name == other.name
 
-    def add_command(self, command):
-        if(command in self.commands):
-            self.commands.discard(command)
-        self.commands.add(command)
+    async def inclock(self):
+        async with self.aiolocks['lock_cmdrun']:
+            self.cmdrun += 1
+            if self.cmdrun == 1:
+                await self.aiolocks['lock_clear'].acquire()
 
-    def delete_command(self, command):
-        self.commands.discard(command)
-    
-    def load(self):
-        self.loaded = True
+    async def declock(self):
+        async with self.aiolocks['lock_cmdrun']:
+            self.cmdrun -= 1
+            if self.cmdrun == 0:
+                self.aiolocks['lock_clear'].release()
 
-    def unload(self):
-        self.loaded = False
+    async def add_command(self, command):
+        async with self.aiolocks['lock_cmdrun']:
+            async with self.aiolocks['lock_clear']:
+                if(command in self.commands):
+                    self.commands.discard(command)
+                self.commands.add(command)
+
+    async def delete_command(self, command):
+        async with self.aiolocks['lock_cmdrun']:
+            async with self.aiolocks['lock_clear']:
+                self.commands.discard(command)
+
+    async def load(self):
+        async with self.aiolocks['lock_cmdrun']:
+            async with self.aiolocks['lock_clear']:
+                self.loaded = True
+
+    async def unload(self):
+        async with self.aiolocks['lock_cmdrun']:
+            async with self.aiolocks['lock_clear']:
+                self.loaded = False
 
 cogs = set()
 commands = set()
@@ -53,13 +79,8 @@ class Command(metaclass = ModifiabledocABCMeta):
     def __init__(self, cog, name):
         self.name = name
         self.cog = cog
-        self.alias = set()
-        if Cog(cog) not in cogs:
-            cogs.add(Cog(cog))
-        for itcog in cogs:
-            if itcog.name == cog:
-                itcog.add_command(self)
-        self.add_alias(name)
+        self.alias = set([name])
+        self.aiolocks = defaultdict(asyncio.Lock)
         commands.add(self)
 
     @abstractmethod
@@ -75,20 +96,27 @@ class Command(metaclass = ModifiabledocABCMeta):
     def __eq__(self, other):
         return self.name == other.name
             
-    def add_alias(self, alias):
-        if alias in self.alias:
-            log.warn("`{0}` is already an alias of command `{1}`".format(alias, self.name))
-        else:
-            self.alias.add(alias)
+    async def add_alias(self, alias):
+        async with self.aiolocks['lock_alias']:
+            if alias in self.alias:
+                log.warn("`{0}` is already an alias of command `{1}`".format(alias, self.name))
+            else:
+                self.alias.add(alias)
 
-    def remove_alias(self, alias):
-        try:
-            self.alias.remove(alias)
-        except KeyError:
-            log.warn("`{0}` is not an alias of command `{1}`".format(alias, self.name))
+    async def remove_alias(self, alias):
+        async with self.aiolocks['lock_alias']:
+            try:
+                self.alias.remove(alias)
+            except KeyError:
+                log.warn("`{0}` is not an alias of command `{1}`".format(alias, self.name))
 
-    def remove_all_alias(self):
-        self.alias = set([self.name])
+    async def remove_all_alias(self):
+        async with self.aiolocks['lock_alias']:
+            self.alias = set([self.name])
+
+    async def have_alias(self, cmd):
+        async with self.aiolocks['lock_alias']:
+            return True if cmd in self.alias else False
 
 # for the day we know there exist malformed function in module and we can get partial attr
 # very hopeful dream right there
@@ -119,33 +147,45 @@ class CallableCommand(Command):
             raise
 
         except Exception:   
-            cog.unload()
+            await cog.unload()
             raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40, traceback=traceback.format_exc()) from None
         return res
 
-    def __call__(self, **kwargs):
+    async def __call__(self, **kwargs):
         for itcog in cogs:
             if itcog.name == self.cog:
-                if not itcog.loaded:
+                await itcog.inclock()
+                loaded = itcog.loaded
+                await itcog.declock()
+                if not loaded:
                     raise exceptions.CogError("Command `{0}` in cog `{1}` have been unloaded.".format(self.name, self.cog), expire_in=20)
-                return self.with_callback(itcog, **kwargs)
+
+                return await self.with_callback(itcog, **kwargs)
         raise exceptions.CogError("Command `{0}` in cog `{1}` not found, very weird. Please try restarting the bot if this issue persist".format(self.name, self.cog), expire_in=20)
 
     def params(self):
         argspec = inspect.signature(self.func)
         return argspec.parameters.copy()
 
-def command(cog, name, func):
-    return CallableCommand(cog, name, func)
+async def command(cog, name, func):
+    cmd = CallableCommand(cog, name, func)
+    if Cog(cog) not in cogs:
+        cogs.add(Cog(cog))
+    for itcog in cogs:
+        if itcog.name == cog:
+            await itcog.add_command(cmd)
 
-def getcmd(cmd):
+async def getcommand(cmd):
     for command in commands:
-        if cmd in command.alias:
+        # log.debug("checking against {0}".format(str(command)))
+        have = await command.have_alias(cmd)
+        if have:
             return command
+    log.debug("command (or alias) `{0}` not found".format(cmd))
     raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
 
 async def call(cmd, **kwargs):
-    return await getcmd(cmd)(**kwargs)
+    return await getcommand(cmd)(**kwargs)
 
 def getcog(name):
     for itcog in cogs:

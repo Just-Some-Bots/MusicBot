@@ -1099,7 +1099,7 @@ class MusicBot(discord.Client):
         # @TheerapakG: TODO: add config to warn if no command
         handler = None
         try:
-            handler = getcmd(command)
+            handler = await getcmd(command)
         except exceptions.CogError:
             return
 
