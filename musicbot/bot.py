@@ -2900,7 +2900,7 @@ class MusicBot(discord.Client):
                 player.resume()
 
 
-    async def on_server_unavailable(self, guild:discord.Guild):
+    async def on_guild_unavailable(self, guild:discord.Guild):
         log.debug("Guild \"{}\" has become unavailable.".format(guild.name))
 
         player = self.get_player_in(guild)
