@@ -104,6 +104,7 @@ class Command(metaclass = ModifiabledocABCMeta):
     def __eq__(self, other):
         return self.name == other.name
             
+    # @TheerapakG: TODO: check if alias is taken
     async def add_alias(self, alias):
         async with self.aiolocks['lock_alias']:
             if alias in self.alias:
