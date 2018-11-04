@@ -41,6 +41,7 @@ class Config:
         self.spotify_clientsecret = config.get('Credentials', 'Spotify_ClientSecret', fallback=ConfigDefaults.spotify_clientsecret)
 
         self.cogs = config.get('Cogs', 'Cogs_Load', fallback=ConfigDefaults.cogs)
+        self.warn_no_commands = config.getboolean('Cogs', 'WarnNoCommands', fallback=ConfigDefaults.warn_no_commands)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
@@ -313,6 +314,7 @@ class ConfigDefaults:
     dev_ids = set()
 
     cogs = 'help autoplaylist moderate info queuemanipulate botmanipulate playback dev utility'
+    warn_no_commands = False
 
     spotify_clientid = None
     spotify_clientsecret = None

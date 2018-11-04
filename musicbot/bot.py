@@ -1099,11 +1099,27 @@ class MusicBot(discord.Client):
 
         args = ' '.join(args).lstrip(' ').split(' ')
 
-        # @TheerapakG: TODO: add config to warn if no command
         handler = None
         try:
             handler = await getcmd(command)
-        except exceptions.CogError:
+        except exceptions.CogError as e:
+            if self.config.warn_no_commands:
+                expirein = e.expire_in if self.config.delete_messages else None
+                alsodelete = message if self.config.delete_invoking else None
+
+                if self.config.embeds:
+                    content = self._gen_embed()
+                    content.add_field(name='Error', value=e.message, inline=False)
+                    content.colour = 13369344
+                else:
+                    content = '```\n{}\n```'.format(e.message)
+
+                await self.safe_send_message(
+                    message.channel,
+                    content,
+                    expire_in=expirein,
+                    also_delete=alsodelete
+                )
             return
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
