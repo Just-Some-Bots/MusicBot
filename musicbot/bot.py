@@ -43,7 +43,7 @@ from .wrappers import ensure_appinfo
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-from .cogsmanager import load, callcmd, getcmd, gen_cmd_list_with_alias, init_cog_system
+from .cogsmanager import load, callcmd, getcmd, init_cog_system
 
 
 load_opus_lib()

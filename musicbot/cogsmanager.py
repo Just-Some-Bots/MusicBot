@@ -144,7 +144,7 @@ async def remove_alias(cmd, als):
     alias.write_alias()
     await declock()
 
-async def gen_cmd_list_with_alias():
+async def gen_cmd_list():
     await checkblockloading()
     await inclock()
     ret = list(commands)

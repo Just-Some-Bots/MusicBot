@@ -1,13 +1,13 @@
 from textwrap import dedent
 
-from ..cogsmanager import gen_cmd_list_with_alias
+from ..cogsmanager import gen_cmd_list
 from .. import exceptions
 from ..constructs import Response
 
 cog_name = 'help'
 
-async def gen_cmd_list(bot, message, list_all_cmds=False):
-    cmds = await gen_cmd_list_with_alias()
+async def _gen_cmd_list(bot, message, list_all_cmds=False):
+    cmds = await gen_cmd_list()
     commands = dict()
     for cmd in cmds:
         if not hasattr(cmd, 'func'):
@@ -47,10 +47,10 @@ async def cmd_help(bot, message, channel, command=None):
     if command:
         if command.lower() == 'all':
             bot.is_all = True
-            commands = await gen_cmd_list(bot, message, list_all_cmds=True)
+            commands = await _gen_cmd_list(bot, message, list_all_cmds=True)
 
         else:
-            cmd = await gen_cmd_list(bot, message, list_all_cmds=True)
+            cmd = await _gen_cmd_list(bot, message, list_all_cmds=True)
             try:
                 cmd = cmd[command]
             except:
@@ -64,10 +64,10 @@ async def cmd_help(bot, message, channel, command=None):
                 )
 
     elif message.author.id == bot.config.owner_id:
-        commands = await gen_cmd_list(bot, message, list_all_cmds=True)
+        commands = await _gen_cmd_list(bot, message, list_all_cmds=True)
 
     else:
-        commands = await gen_cmd_list(bot, message).keys()
+        commands = await _gen_cmd_list(bot, message).keys()
 
     desc = '```\n' + ', '.join(commands.keys()) + '\n```\n' + bot.str.get(
         'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
