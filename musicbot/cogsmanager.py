@@ -76,6 +76,28 @@ async def load(module):
                             alias.aliases[att[4:]].append(att[4:])
                         for als in alias.aliases[att[4:]]:
                             await cmd.add_alias(als)
+
+                if att.startswith('asyncloop_'):
+                    if iscoroutinefunction(handler):
+
+                        def wraploop(func):
+
+                            async def wrapped():
+                                try:
+                                    await func()
+                                except Exception as e:
+                                    log.error(e)
+                                    return
+                                if(hasattr(func), 'delay'):
+                                    await asyncio.sleep(func.delay)
+                                else:
+                                    await asyncio.sleep(0)
+                                asyncio.create_task(wrapped)
+
+                            return wrapped
+
+                        asyncio.create_task(wraploop(handler))
+                        
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)
 
