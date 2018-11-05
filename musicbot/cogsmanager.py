@@ -10,6 +10,7 @@ from collections import defaultdict
 
 from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands
 from .alias import Alias, AliasDefaults
+from . import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ async def load(module):
                             log.debug("command `{0}` does not have alias of itself, fixing...".format(att[4:]))
                             alias.aliases[att[4:]].append(att[4:])
                         for als in alias.aliases[att[4:]]:
-                            await cmd.add_alias(als)
+                            await cmd.add_alias(als, forced = True)
 
                 if att.startswith('asyncloop_'):
                     if iscoroutinefunction(handler):
@@ -144,17 +145,18 @@ async def callcmd(cmd, *args, **kwargs):
     await declock()
     return res
 
-async def add_alias(cmd, als):
+async def add_alias(cmd, als, forced = False):
     global alias
     await checkblockloading()
     await inclock()
     command = await getcmd(cmd)
-    await command.add_alias(als)
+    await command.add_alias(als, forced)
     alias.aliases[cmd].append(als)
     # @TheerapakG: TODO: add option persistentalias
     alias.write_alias()
     await declock()
 
+# @TheerapakG: TODO: This doesn't make sense in the slightest, Why does it need command name to remove?
 async def remove_alias(cmd, als):
     global alias
     await checkblockloading()

@@ -1284,13 +1284,13 @@ class MusicBot(discord.Client):
 
         except exceptions.CogError as e:
             log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e), exc_info=True)
-            if e.traceback:
+            if e.traceback is not None:
                 log.error("Traceback:\n {0}".format(e.traceback), exc_info=True)
 
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
 
-            if self.config.debug_mode and e.traceback:
+            if self.config.debug_mode and (e.traceback is not None):
                 if self.config.embeds:
                     content = self._gen_embed()
                     content.add_field(name='Error', value=e.message+", traceback below", inline=False)
@@ -1312,7 +1312,7 @@ class MusicBot(discord.Client):
                 also_delete=alsodelete
             )
 
-            if self.config.debug_mode and e.traceback:
+            if self.config.debug_mode and (e.traceback is not None):
                 tb = '```\n{}\n```'.format(e.traceback)
                 await self.safe_send_message(
                     message.channel,

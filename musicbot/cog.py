@@ -104,13 +104,26 @@ class Command(metaclass = ModifiabledocABCMeta):
     def __eq__(self, other):
         return self.name == other.name
             
-    # @TheerapakG: TODO: check if alias is taken
-    async def add_alias(self, alias):
+    async def add_alias(self, alias, forced = False):
         async with self.aiolocks['lock_alias']:
-            if alias in self.alias:
-                log.warn("`{0}` is already an alias of command `{1}`".format(alias, self.name))
-            else:
-                self.alias.add(alias)
+            for command in commands:
+                have = False
+                if command is self:
+                    have = True if alias in self.alias else False
+                else:
+                    have = await command.have_alias(alias)
+                if have:
+                    if forced:
+                        log.info("`{0}` is already an alias of command `{1}`, removing...".format(alias, command.name))
+                        if command is self:
+                            self.alias.remove(alias)
+                        else:
+                            await command.remove_alias(alias)
+                    else:
+                        log.error("`{0}` is already an alias of command `{1}`".format(alias, command.name))
+                        raise exceptions.CogError("`{0}` is already an alias of command `{1}`".format(alias, command.name), expire_in= 40, traceback=None) from None
+            
+            self.alias.add(alias)
 
     async def remove_alias(self, alias):
         async with self.aiolocks['lock_alias']:
@@ -118,6 +131,7 @@ class Command(metaclass = ModifiabledocABCMeta):
                 self.alias.remove(alias)
             except KeyError:
                 log.warn("`{0}` is not an alias of command `{1}`".format(alias, self.name))
+                raise exceptions.CogError("`{0}` is not an alias of command `{1}`".format(alias, self.name), expire_in= 40, traceback=traceback.format_exc()) from None
 
     async def remove_all_alias(self):
         async with self.aiolocks['lock_alias']:
@@ -148,7 +162,7 @@ class CallableCommand(Command):
     async def with_callback(self, cog, **kwargs):
         try:
             res = await self.func(**kwargs)
-        except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError):
+        except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError, exceptions.CogError):
             # TODO: Check if this need unloading cogs 
             raise
 
