@@ -66,7 +66,7 @@ class MusicBot(discord.Client):
         if perms_file is None:
             perms_file = PermissionsDefaults.perms_file
 
-        init_cog_system(alias_file)
+        init_cog_system(self, alias_file)
 
         self.players = {}
         self.exit_signal = None

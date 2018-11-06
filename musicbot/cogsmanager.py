@@ -22,11 +22,15 @@ cmdrun = 0
 
 alias = None
 
-def init_cog_system(alias_file=None):
+bot = None
+
+def init_cog_system(botvar, alias_file=None):
     global alias
     if alias_file is None:
         alias_file = AliasDefaults.alias_file
     alias = Alias(alias_file)
+    global bot
+    bot = botvar
 
 # @TheerapakG: dodgy asyncio locking ahead, __in my head__ it should be correct but I can't guarantee. Can someone check?
 
@@ -68,6 +72,14 @@ async def load(module):
             message = "module `{0}` doesn't specified cog name, skipping".format(module)
         else:
             for att in dir(loaded):
+                # first pass, init
+                if att.startswith('init_'):
+                    handler = getattr(loaded ,att, None)
+                    if iscoroutinefunction(handler):
+                        asyncio.create_task(handler(bot))
+
+            for att in dir(loaded):
+                # second pass, do actual work
                 if att.startswith('cmd_'):
                     handler = getattr(loaded ,att, None)
                     if iscoroutinefunction(handler):
@@ -79,23 +91,23 @@ async def load(module):
                             await cmd.add_alias(als, forced = True)
 
                 if att.startswith('asyncloop_'):
+                    handler = getattr(loaded ,att, None)
                     if iscoroutinefunction(handler):
-
                         def wraploop(func):
 
                             async def wrapped():
                                 try:
-                                    await func()
+                                    await func(bot)
                                 except Exception as e:
                                     log.error(e)
                                     return
-                                if(hasattr(func), 'delay'):
+                                if(hasattr(func, 'delay')):
                                     await asyncio.sleep(func.delay)
                                 else:
                                     await asyncio.sleep(0)
-                                asyncio.create_task(wrapped)
+                                asyncio.create_task(wrapped())
 
-                            return wrapped
+                            return wrapped()
 
                         asyncio.create_task(wraploop(handler))
                         
