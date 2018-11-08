@@ -17,7 +17,17 @@ cog_name = 'webapi'
  
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
-botinst = None
+
+futexeclist = list()
+
+# @TheerapakG: TODO: write this
+class FutureThreadingExec:
+    def __init__(self, code):
+        self.code = code
+    def exec_code(self, executer = exec):
+        executer(self.code)
+    def __await__(self):
+        pass
 
 class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content(self):
@@ -41,10 +51,14 @@ class RequestHdlr(BaseHTTPRequestHandler):
         log.debug("{addr} - - [{dt}] {args}\n".format(addr = self.address_string(), dt = self.log_date_time_string(), args = format%args))
 
 async def init_webapi(bot):
-    botinst = bot
     log.debug('binding to port {0}'.format(bot.config.webapi_port))
     serv = ThreadingHTTPServer((host, bot.config.webapi_port), RequestHdlr)
     server_thread = threading.Thread(target=serv.serve_forever)
     # Exit the server thread when the main thread terminates
     server_thread.daemon = True
     server_thread.start()
+
+async def asyncloop_threadsafe_exec_bot(bot):
+    for fut in futexeclist:
+        fut.exec_code(executer = bot.exec_bot)
+        
