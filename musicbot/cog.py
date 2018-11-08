@@ -141,6 +141,10 @@ class Command(metaclass = ModifiabledocABCMeta):
         async with self.aiolocks['lock_alias']:
             return True if cmd in self.alias else False
 
+    async def list_alias(self):
+        async with self.aiolocks['lock_alias']:
+            return self.alias.copy()
+
 # for the day we know there exist malformed function in module and we can get partial attr
 # very hopeful dream right there
 class UncallableCommand(Command):

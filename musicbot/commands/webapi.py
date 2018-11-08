@@ -11,6 +11,10 @@ import threading
 import select
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+import discord
+
+from ..cogsmanager import gen_cmd_list
+
 log = logging.getLogger(__name__)
 
 cog_name = 'webapi'
@@ -21,7 +25,7 @@ botinst = None
 
 class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content(self):
-        return str(threadsafe_eval_bot('gen_cmd_list()'))
+        return str(get_cmd_list())
 
     def do_GET(self):
         if self.path.startswith('/api'):
@@ -52,14 +56,56 @@ async def init_webapi(bot):
     server_thread.start()
 
 def threadsafe_exec_bot(code):
-    fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
+    fut = asyncio.run_coroutine_threadsafe(botinst.async_exec_bot(code), botinst.loop)
     fut.result() # wait for exec to finish
     return
 
 def threadsafe_eval_bot(code):
-    fut = asyncio.run_coroutine_threadsafe(botinst.eval_bot(code), botinst.loop)
+    fut = asyncio.run_coroutine_threadsafe(botinst.async_eval_bot(code), botinst.loop)
     result = fut.result()
     if asyncio.iscoroutine(result):
         resultfut = asyncio.run_coroutine_threadsafe(result, botinst.loop)
         result = resultfut.result()
     return result
+
+def get_cmd_list():
+    # structure:
+    # return = list(commandinfo)
+    # commandinfo = tuple(commandname, commandaliases)
+    # commandaliases = list(commandalias)
+    fut = asyncio.run_coroutine_threadsafe(gen_cmd_list(), botinst.loop)
+    result = fut.result()
+    cmdlist = list()
+    for command in result:
+        commandfut = asyncio.run_coroutine_threadsafe(command.list_alias(), botinst.loop)
+        commandresult = commandfut.result()
+        cmdlist.append((command.name, commandresult))
+    return cmdlist
+
+def get_guild_list():
+    # structure:
+    # return = list(guildinfo)
+    # guildinfo = tuple(guildid, guildname, guildownerid, guildvoice_channelsid, guildtext_channelsid)
+    # guildvoice_channelsid = list(guildvoice_channelid)
+    # guildtext_channelsid = list(guildtext_channelid)
+    guildlist = list()
+    # do I need .copy?
+    for guild in botinst.guilds.copy():
+        guildlist.append((guild.id, guild.name, guild.owner.id, [voice_channel.id for voice_channel in guild.voice_channels], [text_channel.id for text_channel in guild.text_channels]))
+    return guildlist
+
+def get_member_list(guildid):
+    # structure:
+    # return = list(memberinfo)
+    # memberinfo = tuple(memberid, membername, memberdisplay_name, memberstatus, memberactivity)
+    # memberactivity = tuple(None) | tuple('Game', gamename) | tuple('Streaming', streamingname, streamingurl)
+    guild = threadsafe_eval_bot('self.get_guild({0})'.format(guildid))
+    memberlist = list()
+    for member in guild.members:
+        memberactivity = None
+        if isinstance(member.activity, discord.Game):
+            memberactivity = ('Game', member.activity.name)
+        elif isinstance(member.activity, discord.Streaming):
+            memberactivity = ('Streaming', member.activity.name, member.activity.url)
+        memberlist.append((member.id, member.name, member.display_name, str(member.status), memberactivity))
+    return memberlist

@@ -1453,5 +1453,11 @@ class MusicBot(discord.Client):
     def eval_bot(self, code):
         return eval(code)
 
+    async def async_eval_bot(self, code):
+        return eval(code)
+
     def exec_bot(self, code):
         exec(code)
+
+    async def async_exec_bot(self, code):
+        exec(code) 
