@@ -21,7 +21,7 @@ botinst = None
 
 class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content(self):
-        return threadsafe_eval_bot('await gen_cmd_list()')
+        return str(threadsafe_eval_bot('gen_cmd_list()'))
 
     def do_GET(self):
         if self.path.startswith('/api'):
@@ -53,8 +53,13 @@ async def init_webapi(bot):
 
 def threadsafe_exec_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
-    return fut.result()
+    fut.result() # wait for exec to finish
+    return
 
 def threadsafe_eval_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.eval_bot(code), botinst.loop)
-    return fut.result()
+    result = fut.result()
+    if asyncio.iscoroutine(result):
+        resultfut = asyncio.run_coroutine_threadsafe(result, botinst.loop)
+        result = resultfut.result()
+    return result
