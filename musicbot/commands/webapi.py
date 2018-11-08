@@ -7,8 +7,8 @@ import socket
 import sys
 import logging
 import asyncio
-import select
 import threading
+import select
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 log = logging.getLogger(__name__)
@@ -17,27 +17,18 @@ cog_name = 'webapi'
  
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
-
-futexeclist = list()
-
-# @TheerapakG: TODO: write this
-class FutureThreadingExec:
-    def __init__(self, code):
-        self.code = code
-    def exec_code(self, executer = exec):
-        executer(self.code)
-    def __await__(self):
-        pass
+botinst = None
 
 class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content(self):
-        return '{}'
+        return threadsafe_eval_bot('await gen_cmd_list()')
 
     def do_GET(self):
         if self.path.startswith('/api'):
             self.send_response(200)
             self.send_header("Connection", "close")
-            f = self.gen_content().encode('UTF-8', 'replace')
+            f = self.gen_content()
+            f = f.encode('UTF-8', 'replace')
             self.send_header("Content-Type", "application/json;charset=utf-8")
             log.debug('sending {} bytes'.format(len(f)))
             self.send_header("Content-Length", str(len(f)))
@@ -52,13 +43,18 @@ class RequestHdlr(BaseHTTPRequestHandler):
 
 async def init_webapi(bot):
     log.debug('binding to port {0}'.format(bot.config.webapi_port))
+    global botinst
+    botinst = bot
     serv = ThreadingHTTPServer((host, bot.config.webapi_port), RequestHdlr)
     server_thread = threading.Thread(target=serv.serve_forever)
     # Exit the server thread when the main thread terminates
     server_thread.daemon = True
     server_thread.start()
 
-async def asyncloop_threadsafe_exec_bot(bot):
-    for fut in futexeclist:
-        fut.exec_code(executer = bot.exec_bot)
-        
+def threadsafe_exec_bot(code):
+    fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
+    return fut.result()
+
+def threadsafe_eval_bot(code):
+    fut = asyncio.run_coroutine_threadsafe(botinst.eval_bot(code), botinst.loop)
+    return fut.result()

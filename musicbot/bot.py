@@ -43,7 +43,7 @@ from .wrappers import ensure_appinfo
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-from .cogsmanager import load, callcmd, getcmd, init_cog_system
+from .cogsmanager import load, callcmd, getcmd, init_cog_system, gen_cmd_list
 
 
 load_opus_lib()
@@ -1450,8 +1450,8 @@ class MusicBot(discord.Client):
                 return vc
         return None
 
-    def eval_bot(self, code):
+    async def eval_bot(self, code):
         return eval(code)
 
-    def exec_bot(self, code):
+    async def exec_bot(self, code):
         exec(code)
