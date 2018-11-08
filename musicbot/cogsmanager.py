@@ -168,14 +168,16 @@ async def add_alias(cmd, als, forced = False):
     alias.write_alias()
     await declock()
 
-# @TheerapakG: TODO: This doesn't make sense in the slightest, Why does it need command name to remove?
-async def remove_alias(cmd, als):
+async def remove_alias(als):
     global alias
     await checkblockloading()
     await inclock()
-    command = await getcmd(cmd)
+    command = await getcmd(als)
+    if command.name == als:
+        await declock()
+        raise exceptions.CogError('Attempt to remove command name from an alias: {0}'.format(command.name))
     await command.remove_alias(als)
-    alias.aliases[cmd].remove(als)
+    alias.aliases[command.name].remove(als)
     # @TheerapakG: TODO: add option persistentalias
     alias.write_alias()
     await declock()

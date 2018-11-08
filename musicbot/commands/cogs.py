@@ -58,12 +58,12 @@ async def cmd_addalias(bot, command, alias, param=''):
     return Response("Successfully add alias `{0}` to command `{1}`".format(alias, command), delete_after=15)
 
 @owner_only
-async def cmd_removealias(bot, command, alias):
+async def cmd_removealias(bot, alias):
     """
     Usage:
         {command_prefix}removealias command alias
 
     Remove alias from the command.
     """
-    await remove_alias(command, alias)
-    return Response("Successfully add alias `{0}` to command `{1}`".format(alias, command), delete_after=15)
+    await remove_alias(alias)
+    return Response("Successfully remove alias `{0}`".format(alias), delete_after=15)
