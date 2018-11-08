@@ -320,7 +320,10 @@ class MusicBot(discord.Client):
             await self.safe_delete_message(message, quiet=quiet)
 
     async def _check_ignore_non_voice(self, msg):
-        vc = msg.guild.me.voice.channel
+        if msg.guild.me.voice:
+            vc = msg.guild.me.voice.channel
+        else:
+            vc = None
 
         # If we've connected to a voice chat and we're in the same voice channel
         if not vc or (msg.author.voice and vc == msg.author.voice.channel):
