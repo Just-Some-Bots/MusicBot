@@ -57,10 +57,10 @@ async def cmd_debug(bot, message, _player, *, data):
     code = data.strip('` \n')
 
     try:
-        result = bot.eval_bot(code)
+        result = await bot.eval_bot(code)
     except:
         try:
-            bot.exec_bot(code)
+            await bot.exec_bot(code)
         except Exception as e:
             traceback.print_exc(chain=False)
             return Response("{}: {}".format(type(e).__name__, e))

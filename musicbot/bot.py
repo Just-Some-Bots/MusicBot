@@ -1450,14 +1450,8 @@ class MusicBot(discord.Client):
                 return vc
         return None
 
-    def eval_bot(self, code):
+    async def eval_bot(self, code):
         return eval(code)
 
-    async def async_eval_bot(self, code):
-        return eval(code)
-
-    def exec_bot(self, code):
+    async def exec_bot(self, code):
         exec(code)
-
-    async def async_exec_bot(self, code):
-        exec(code) 
