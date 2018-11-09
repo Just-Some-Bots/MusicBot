@@ -8,7 +8,7 @@ from importlib import import_module, reload
 
 from collections import defaultdict
 
-from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands
+from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands, cogs
 from .alias import Alias, AliasDefaults
 from . import exceptions
 
@@ -188,3 +188,21 @@ async def gen_cmd_list():
     ret = list(commands)
     await declock()
     return ret
+
+async def gen_cog_list():
+    await checkblockloading()
+    await inclock()
+    ret = list(cogs)
+    await declock()
+    return ret
+
+async def gen_cmd_list_from_cog(cogname):
+    await checkblockloading()
+    await inclock()
+    ret = None
+    try:
+        cog = getcog(cogname)
+        ret = list(cog.commands)
+    finally:
+        await declock()
+        return ret

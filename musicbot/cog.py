@@ -61,6 +61,11 @@ class Cog:
             async with self.aiolocks['lock_clear']:
                 self.loaded = False
 
+    async def isload(self):
+        async with self.aiolocks['lock_cmdrun']:
+            async with self.aiolocks['lock_clear']:
+                return self.loaded
+
 cogs = set()
 commands = set()
 
