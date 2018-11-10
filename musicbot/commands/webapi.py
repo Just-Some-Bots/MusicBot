@@ -1,6 +1,8 @@
 # This cogs will implement webserver that can respond to bot query, maybe useful for interfacing with external application
 # If you don't need querying via webserver, you shouldn't load this cog
 
+# If the API will be exposed to the internet, consider specifying certificate for security
+
 # This cog requires Python 3.7
 
 import socket
@@ -8,12 +10,19 @@ import sys
 import logging
 import asyncio
 import threading
-import select
+import json
+import uuid
+import traceback
+from urllib.parse import urlparse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 import discord
 
+from ssl import SSLContext
+
+from ..constructs import Response
 from ..cogsmanager import gen_cog_list, gen_cmd_list_from_cog
+from ..wrappers import dev_only
 
 log = logging.getLogger(__name__)
 
@@ -22,16 +31,59 @@ cog_name = 'webapi'
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
 botinst = None
+authtoken = set()
 
 class RequestHdlr(BaseHTTPRequestHandler):
-    def gen_content(self):
-        return str(get_guild_list())
+    def gen_content_POST(self):
+        path = self.path[4:]
+        param = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        if path == '/exec':
+            if 'token' in param and param['token'] in authtoken:
+                if 'code' in param:
+                    try:
+                        threadsafe_exec_bot(param['code'])
+                        return {'action':True, 'error':False, 'result':''}
+                    except:
+                        return {'action':True, 'error':True, 'result':traceback.format_exc()}
+            return {'action':False}
+        if path == '/eval':
+            if 'token' in param and param['token'] in authtoken:
+                if 'code' in param:
+                    try:
+                        ret = threadsafe_eval_bot(param['code'])
+                        return {'action':True, 'error':False, 'result':str(ret)}
+                    except:
+                        return {'action':True, 'error':True, 'result':traceback.format_exc()}
+            return {'action':False}
+        return None
+
+    def gen_content_GET(self):
+        path = self.path[4:]
+        parse = urlparse(path)
+        return str(parse)
+
+    def do_POST(self):
+        if self.path.startswith('/api'):
+            f = self.gen_content_POST()
+            if f:
+                self.send_response(200)
+                self.send_header("Connection", "close")
+                f = json.dumps(f)
+                f = f.encode('UTF-8', 'replace')
+                self.send_header("Content-Type", "application/json;charset=utf-8")
+                log.debug('sending {} bytes'.format(len(f)))
+                self.send_header("Content-Length", str(len(f)))
+                self.end_headers()
+                self.wfile.write(f)
+                return
+        self.send_error(404)
+        self.end_headers()
 
     def do_GET(self):
         if self.path.startswith('/api'):
             self.send_response(200)
             self.send_header("Connection", "close")
-            f = self.gen_content()
+            f = self.gen_content_GET()
             f = f.encode('UTF-8', 'replace')
             self.send_header("Content-Type", "application/json;charset=utf-8")
             log.debug('sending {} bytes'.format(len(f)))
@@ -50,10 +102,30 @@ async def init_webapi(bot):
     global botinst
     botinst = bot
     serv = ThreadingHTTPServer((host, bot.config.webapi_port), RequestHdlr)
+    if bot.config.ssl_certfile:
+        cont = SSLContext()
+        cont.load_cert_chain(bot.config.ssl_certfile)
+        serv.socket = cont.wrap_socket(sock = serv.socket, server_side = True)
     server_thread = threading.Thread(target=serv.serve_forever)
     # Exit the server thread when the main thread terminates
     server_thread.daemon = True
     server_thread.start()
+
+# @TheerapakG: TODO: dm this
+@dev_only
+async def cmd_gentoken(bot):
+    token = str(uuid.uuid4())
+    authtoken.add(token)
+    return Response("Generated token `{0}`".format(token))
+
+# @TheerapakG: TODO: dm this
+@dev_only
+async def cmd_revoketoken(bot, token):
+    try:
+        authtoken.remove(token)
+        return Response("Successfully revoked token `{0}`".format(token))
+    except KeyError:
+        return Response("Token `{0}` not found".format(token))
 
 def threadsafe_exec_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)

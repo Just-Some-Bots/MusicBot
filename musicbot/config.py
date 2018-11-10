@@ -84,6 +84,7 @@ class Config:
         self.auto_playlist_removed_file = None
 
         self.webapi_port = config.getint('WebApi', 'WebApiPort', fallback=ConfigDefaults.webapi_port)
+        self.ssl_certfile = config.get('WebApi', 'SSLCertFile', fallback=ConfigDefaults.ssl_certfile)
 
         self.run_checks()
 
@@ -356,6 +357,7 @@ class ConfigDefaults:
     i18n_file = 'config/i18n/en.json'
 
     webapi_port = 65280
+    ssl_certfile = None
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
