@@ -25,7 +25,7 @@ botinst = None
 
 class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content(self):
-        return str(get_cog_list())
+        return str(get_guild_list())
 
     def do_GET(self):
         if self.path.startswith('/api'):
@@ -56,12 +56,12 @@ async def init_webapi(bot):
     server_thread.start()
 
 def threadsafe_exec_bot(code):
-    fut = asyncio.run_coroutine_threadsafe(botinst.async_exec_bot(code), botinst.loop)
+    fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
     fut.result() # wait for exec to finish
     return
 
 def threadsafe_eval_bot(code):
-    fut = asyncio.run_coroutine_threadsafe(botinst.async_eval_bot(code), botinst.loop)
+    fut = asyncio.run_coroutine_threadsafe(botinst.eval_bot(code), botinst.loop)
     result = fut.result()
     if asyncio.iscoroutine(result):
         resultfut = asyncio.run_coroutine_threadsafe(result, botinst.loop)
@@ -124,8 +124,12 @@ def get_member_list(guildid):
         memberlist.append((member.id, member.name, member.display_name, str(member.status), memberactivity))
     return memberlist
 
-def get_queue():
-    pass
-
-def get_autoplaylist():
-    pass
+def get_player(guildid):
+    # structure:
+    # return = tuple(voiceclientid, playerplaylist, playercurrententry, playerstate, playerkaraokemode) | None
+    # playerplaylist = list(playerentry)
+    # playercurrententry = playerentry | None
+    # playerentry = tuple(entry.url, entry.title)
+    player = threadsafe_eval_bot('self.get_player_in(self.get_guild({0}))'.format(guildid))
+    # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
+    return (player.voice_client.session_id, [(entry.url, entry.title) for entry in player.playlist.entries.copy()], (player._current_entry.url, player._current_entry.title) if player._current_entry else None, str(player.state), player.karaoke_mode) if player else None
