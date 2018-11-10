@@ -76,7 +76,7 @@ async def load(module):
                 if att.startswith('init_'):
                     handler = getattr(loaded ,att, None)
                     if iscoroutinefunction(handler):
-                        asyncio.create_task(handler(bot))
+                        await handler(bot)
 
             for att in dir(loaded):
                 # second pass, do actual work
@@ -109,7 +109,7 @@ async def load(module):
 
                             return wrapped()
 
-                        asyncio.create_task(wraploop(handler))
+                        await wraploop(handler)
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)

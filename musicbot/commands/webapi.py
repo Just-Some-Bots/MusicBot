@@ -18,7 +18,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 import discord
 
-from ssl import SSLContext
+from ssl import SSLContext, SSLError
 
 from ..constructs import Response
 from ..cogsmanager import gen_cog_list, gen_cmd_list_from_cog
@@ -102,10 +102,19 @@ async def init_webapi(bot):
     global botinst
     botinst = bot
     serv = ThreadingHTTPServer((host, bot.config.webapi_port), RequestHdlr)
-    if bot.config.ssl_certfile:
-        cont = SSLContext()
-        cont.load_cert_chain(bot.config.ssl_certfile)
-        serv.socket = cont.wrap_socket(sock = serv.socket, server_side = True)
+    if bot.config.ssl_certfile and bot.config.ssl_keyfile:
+        try:
+            cont = SSLContext()
+            cont.load_cert_chain(bot.config.ssl_certfile, keyfile = bot.config.ssl_keyfile)
+        except SSLError:
+            log.error('Error loading certificate, falling back to http. Traceback below.')
+            log.error(traceback.format_exc())
+            log.info('using http for webapi')
+        else:
+            serv.socket = cont.wrap_socket(sock = serv.socket, server_side = True)
+            log.info('using https for webapi')
+    else:
+        log.info('using http for webapi')
     server_thread = threading.Thread(target=serv.serve_forever)
     # Exit the server thread when the main thread terminates
     server_thread.daemon = True
