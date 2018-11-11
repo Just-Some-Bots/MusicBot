@@ -9,6 +9,9 @@ from . import exceptions
 
 log = logging.getLogger(__name__)
 
+cogs = set()
+commands = set()
+
 class Cog:
     def __init__(self, name):
         # @TheerapakG: For anyone who will work on this, COG NAME SHALL NOT BE CHANGEABLE VIA A COMMAND. IT'S VERY UNREASONABLE WHY YOU'D WANT TO DO IT AND WILL BREAK THIS
@@ -25,7 +28,10 @@ class Cog:
         return repr(self)[:-1] + " name: {0}>".format(self.name)
 
     def __eq__(self, other):
-        return self.name == other.name
+        if isinstance(other, str):
+            return self.name == other
+        else:
+            return self.name == other.name
 
     async def inclock(self):
         async with self.aiolocks['lock_cmdrun']:
@@ -42,8 +48,13 @@ class Cog:
     async def add_command(self, command):
         async with self.aiolocks['lock_cmdrun']:
             async with self.aiolocks['lock_clear']:
-                if(command in self.commands):
-                    self.commands.discard(command)
+                for itcog in cogs:
+                    if command in itcog.commands:
+                        log.debug('found command {} already in cog {}, removing...'.format(command.name, itcog.name))
+                        if itcog is self:
+                            self.commands.discard(command)
+                        else:
+                            await itcog.delete_command(command)
                 self.commands.add(command)
 
     async def delete_command(self, command):
@@ -65,9 +76,6 @@ class Cog:
         async with self.aiolocks['lock_cmdrun']:
             async with self.aiolocks['lock_clear']:
                 return self.loaded
-
-cogs = set()
-commands = set()
 
 # @TheerapakG: yea I know it's a hack, docstring aren't suppose to do this but I need it. Problems?
 class ModifiabledocABCMeta(ABCMeta):
@@ -94,6 +102,9 @@ class Command(metaclass = ModifiabledocABCMeta):
         self.cog = cog
         self.alias = set()
         self.aiolocks = defaultdict(asyncio.Lock)
+        if name in commands:
+            # if command with this name already in command list
+            commands.discard(name)
         commands.add(self)
 
     @abstractmethod
@@ -107,7 +118,10 @@ class Command(metaclass = ModifiabledocABCMeta):
         return repr(self)[:-1] + " name: {0}>".format(self.name)
 
     def __eq__(self, other):
-        return self.name == other.name
+        if isinstance(other, str):
+            return self.name == other
+        else:
+            return self.name == other.name
             
     async def add_alias(self, alias, forced = False):
         async with self.aiolocks['lock_alias']:
@@ -201,8 +215,7 @@ class CallableCommand(Command):
 
 async def command(cog, name, func):
     cmd = CallableCommand(cog, name, func)
-    if Cog(cog) not in cogs:
-        cogs.add(Cog(cog))
+    cogs.add(Cog(cog))
     for itcog in cogs:
         if itcog.name == cog:
             await itcog.add_command(cmd)

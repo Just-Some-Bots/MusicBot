@@ -1,7 +1,7 @@
 # This cogs will implement webserver that can respond to bot query, maybe useful for interfacing with external application
 # If you don't need querying via webserver, you shouldn't load this cog
 
-# If the API will be exposed to the internet, consider specifying certificate for security
+# If the API will be exposed to the internet, consider specifying certificate for security against packet sniffing
 
 # This cog requires Python 3.7
 
@@ -13,7 +13,7 @@ import threading
 import json
 import uuid
 import traceback
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 import discord
@@ -32,6 +32,8 @@ server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
 botinst = None
 authtoken = set()
+
+webserver = None
 
 class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content_POST(self):
@@ -60,7 +62,8 @@ class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content_GET(self):
         path = self.path[4:]
         parse = urlparse(path)
-        return str(parse)
+        params = [param_list[-1] for param_list in parse_qs(parse.query)]
+        return str(params)
 
     def do_POST(self):
         if self.path.startswith('/api'):
@@ -115,10 +118,19 @@ async def init_webapi(bot):
             log.info('using https for webapi')
     else:
         log.info('using http for webapi')
+    global webserver
+    webserver = serv
     server_thread = threading.Thread(target=serv.serve_forever)
     # Exit the server thread when the main thread terminates
     server_thread.daemon = True
     server_thread.start()
+
+async def cleanup_stopserverthread(bot):
+    log.debug('stopping http server...')
+    # @TheerapakG WARN: may cause significant block time
+    global webserver
+    webserver.shutdown()
+
 
 # @TheerapakG: TODO: dm this
 @dev_only

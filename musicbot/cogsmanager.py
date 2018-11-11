@@ -55,13 +55,21 @@ async def load(module):
     await aiolocks['lock_clear'].acquire()
     message = ""
     try:
-        log.info("loading module `{0}`".format(module))
         loaded = None
         if module in imported:
+            log.info("reloading module `{0}`".format(module))
+            for att in dir(imported[module]):
+                # lookup code for cleanup
+                if att.startswith('cleanup_'):
+                    handler = getattr(imported[module] ,att, None)
+                    if iscoroutinefunction(handler):
+                        await handler(bot)
             reload(imported[module])
             loaded = imported[module]
         else:
+            log.info("loading module `{0}`".format(module))
             loaded = import_module('.commands.{}'.format(module), 'musicbot')
+            imported[module] = loaded
 
         cogname = None
 
@@ -90,6 +98,7 @@ async def load(module):
                         for als in alias.aliases[att[4:]]:
                             await cmd.add_alias(als, forced = True)
 
+                # @TheerapakG: TODO: terminate loop when reload
                 if att.startswith('asyncloop_'):
                     handler = getattr(loaded ,att, None)
                     if iscoroutinefunction(handler):
@@ -146,14 +155,22 @@ async def loadcog(cog):
 async def getcmd(cmd):
     await checkblockloading()
     await inclock()
-    res = await getcommand(cmd)
+    try:
+        res = await getcommand(cmd)
+    except:
+        await declock()
+        raise
     await declock()
     return res
 
 async def callcmd(cmd, *args, **kwargs):
     await checkblockloading()
     await inclock()
-    res = await call(cmd, *args, **kwargs)
+    try:
+        res = await call(cmd, *args, **kwargs)
+    except:
+        await declock()
+        raise
     await declock()
     return res
 
