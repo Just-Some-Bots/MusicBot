@@ -117,11 +117,6 @@ class MusicBot(discord.Client):
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
 
-    def __del__(self):
-        # These functions return futures but it doesn't matter
-        try:    self.http.session.close()
-        except: pass
-
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
