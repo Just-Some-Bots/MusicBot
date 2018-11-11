@@ -632,7 +632,7 @@ class MusicBot(discord.Client):
             oldchannel = lnp.channel
 
             if lnp.channel == oldchannel:  # If we have a channel to update it in
-                async for lmsg in self.logs_from(channel, limit=1):
+                async for lmsg in lnp.channel.history(limit=1):
                     if lmsg != lnp and lnp:  # If we need to resend it
                         await self.safe_delete_message(lnp, quiet=True)
                         m = await self.safe_send_message(channel, message, quiet=True)
