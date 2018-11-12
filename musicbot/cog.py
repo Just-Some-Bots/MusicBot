@@ -162,7 +162,7 @@ class Command(metaclass = ModifiabledocABCMeta):
 
     async def list_alias(self):
         async with self.aiolocks['lock_alias']:
-            return self.alias.copy()
+            return list(self.alias)
 
 # for the day we know there exist malformed function in module and we can get partial attr
 # very hopeful dream right there

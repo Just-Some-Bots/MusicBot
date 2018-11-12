@@ -39,36 +39,47 @@ class RequestHdlr(BaseHTTPRequestHandler):
     def gen_content_POST(self):
         path = self.path[4:]
         param = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        if path == '/exec':
-            if 'token' in param and param['token'] in authtoken:
+        if 'token' in param and param['token'] in authtoken:
+            if path == '/exec':
                 if 'code' in param:
                     try:
                         threadsafe_exec_bot(param['code'])
                         return {'action':True, 'error':False, 'result':''}
                     except:
                         return {'action':True, 'error':True, 'result':traceback.format_exc()}
-            return {'action':False}
-        if path == '/eval':
-            if 'token' in param and param['token'] in authtoken:
+                return {'action':False}
+            elif path == '/eval':
                 if 'code' in param:
                     try:
                         ret = threadsafe_eval_bot(param['code'])
                         return {'action':True, 'error':False, 'result':str(ret)}
                     except:
                         return {'action':True, 'error':True, 'result':traceback.format_exc()}
-            return {'action':False}
+                return {'action':False}
         return None
 
     def gen_content_GET(self):
         path = self.path[4:]
         parse = urlparse(path)
-        params = [param_list[-1] for param_list in parse_qs(parse.query)]
-        return str(params)
+        param = {param_k:param_arglist[-1] for param_k, param_arglist in parse_qs(parse.query).items()}
+        log.debug('params: {}'.format(str(param)))
+        if 'token' in param and param['token'] in authtoken and 'get' in param:
+            if param['get'] == 'cog':
+                return get_cog_list()
+            elif param['get'] == 'cmd' and 'cog' in param:
+                return get_cmd_list(param['cog'])
+            elif param['get'] == 'guild':
+                return get_guild_list()
+            elif param['get'] == 'member' and 'guild' in param:
+                return get_member_list(param['guild'])
+            elif param['get'] == 'player' and 'guild' in param:
+                return get_player(param['guild'])
+        return None
 
     def do_POST(self):
         if self.path.startswith('/api'):
             f = self.gen_content_POST()
-            if f:
+            if f != None:
                 self.send_response(200)
                 self.send_header("Connection", "close")
                 f = json.dumps(f)
@@ -84,18 +95,20 @@ class RequestHdlr(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith('/api'):
-            self.send_response(200)
-            self.send_header("Connection", "close")
             f = self.gen_content_GET()
-            f = f.encode('UTF-8', 'replace')
-            self.send_header("Content-Type", "application/json;charset=utf-8")
-            log.debug('sending {} bytes'.format(len(f)))
-            self.send_header("Content-Length", str(len(f)))
-            self.end_headers()
-            self.wfile.write(f)
-        else:
-            self.send_error(404)
-            self.end_headers()
+            if f != None:
+                self.send_response(200)
+                self.send_header("Connection", "close")
+                f = json.dumps(f)
+                f = f.encode('UTF-8', 'replace')
+                self.send_header("Content-Type", "application/json;charset=utf-8")
+                log.debug('sending {} bytes'.format(len(f)))
+                self.send_header("Content-Length", str(len(f)))
+                self.end_headers()
+                self.wfile.write(f)
+                return
+        self.send_error(404)
+        self.end_headers()
 
     def log_message(self, format, *args):
         log.debug("{addr} - - [{dt}] {args}\n".format(addr = self.address_string(), dt = self.log_date_time_string(), args = format%args))
@@ -164,20 +177,20 @@ def threadsafe_eval_bot(code):
 def get_cog_list():
     # structure:
     # return = list(coginfo)
-    # commandinfo = tuple(cogname, cogloaded)
+    # commandinfo = dict(cogname, cogloaded)
     fut = asyncio.run_coroutine_threadsafe(gen_cog_list(), botinst.loop)
     result = fut.result()
     coglist = list()
     for cog in result:
         cogfut = asyncio.run_coroutine_threadsafe(cog.isload(), botinst.loop)
         cogresult = cogfut.result()
-        coglist.append((cog.name, cogresult))
+        coglist.append({'cogname':cog.name, 'cogloaded':cogresult})
     return coglist
 
 def get_cmd_list(cogname):
     # structure:
     # return = list(commandinfo)
-    # commandinfo = tuple(commandname, commandaliases)
+    # commandinfo = dict(commandname, commandaliases)
     # commandaliases = list(commandalias)
     fut = asyncio.run_coroutine_threadsafe(gen_cmd_list_from_cog(cogname), botinst.loop)
     result = fut.result()
@@ -185,44 +198,44 @@ def get_cmd_list(cogname):
     for command in result:
         commandfut = asyncio.run_coroutine_threadsafe(command.list_alias(), botinst.loop)
         commandresult = commandfut.result()
-        cmdlist.append((command.name, commandresult))
+        cmdlist.append({'commandname':command.name, 'commandaliases':commandresult})
     return cmdlist
 
 def get_guild_list():
     # structure:
     # return = list(guildinfo)
-    # guildinfo = tuple(guildid, guildname, guildownerid, guildvoice_channelsid, guildtext_channelsid)
+    # guildinfo = dict(guildid, guildname, guildownerid, guildvoice_channelsid, guildtext_channelsid)
     # guildvoice_channelsid = list(guildvoice_channelid)
     # guildtext_channelsid = list(guildtext_channelid)
     guildlist = list()
     # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
     for guild in botinst.guilds.copy():
-        guildlist.append((guild.id, guild.name, guild.owner.id, [voice_channel.id for voice_channel in guild.voice_channels], [text_channel.id for text_channel in guild.text_channels]))
+        guildlist.append({'guildid':guild.id, 'guildname':guild.name, 'guildownerid':guild.owner.id, 'guildvoice_channelsid':[voice_channel.id for voice_channel in guild.voice_channels], 'guildtext_channelsid':[text_channel.id for text_channel in guild.text_channels]})
     return guildlist
 
 def get_member_list(guildid):
     # structure:
     # return = list(memberinfo)
-    # memberinfo = tuple(memberid, membername, memberdisplay_name, memberstatus, memberactivity)
-    # memberactivity = tuple(None) | tuple('Game', gamename) | tuple('Streaming', streamingname, streamingurl)
+    # memberinfo = dict(memberid, membername, memberdisplay_name, memberstatus, memberactivity)
+    # memberactivity = dict('state':'None') | dict('state':'Game', gamename) | dict('state':'Streaming', streamingname, streamingurl)
     guild = threadsafe_eval_bot('self.get_guild({0})'.format(guildid))
     memberlist = list()
     # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
     for member in guild.members.copy():
-        memberactivity = None
+        memberactivity = {'state':'None'}
         if isinstance(member.activity, discord.Game):
-            memberactivity = ('Game', member.activity.name)
+            memberactivity = {'state':'Game', 'gamename':member.activity.name}
         elif isinstance(member.activity, discord.Streaming):
-            memberactivity = ('Streaming', member.activity.name, member.activity.url)
-        memberlist.append((member.id, member.name, member.display_name, str(member.status), memberactivity))
+            memberactivity = {'state':'Streaming', 'streamingname':member.activity.name, 'streamingurl':member.activity.url}
+        memberlist.append({'memberid':member.id, 'membername':member.name, 'memberdisplay_name':member.display_name, 'memberstatus':str(member.status), 'memberactivity':memberactivity})
     return memberlist
 
 def get_player(guildid):
     # structure:
-    # return = tuple(voiceclientid, playerplaylist, playercurrententry, playerstate, playerkaraokemode) | None
+    # return = dict(voiceclientid, playerplaylist, playercurrententry, playerstate, playerkaraokemode) | dict()
     # playerplaylist = list(playerentry)
-    # playercurrententry = playerentry | None
-    # playerentry = tuple(entry.url, entry.title)
+    # playercurrententry = playerentry | dict()
+    # playerentry = dict(entryurl, entrytitle)
     player = threadsafe_eval_bot('self.get_player_in(self.get_guild({0}))'.format(guildid))
     # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
-    return (player.voice_client.session_id, [(entry.url, entry.title) for entry in player.playlist.entries.copy()], (player._current_entry.url, player._current_entry.title) if player._current_entry else None, str(player.state), player.karaoke_mode) if player else None
+    return {'voiceclientid':player.voice_client.session_id, 'playerplaylist':[{'entryurl':entry.url, 'entrytitle':entry.title} for entry in player.playlist.entries.copy()], 'playercurrententry':{'entryurl':player._current_entry.url, 'entrytitle':player._current_entry.title} if player._current_entry else dict(), 'playerstate':str(player.state), 'playerkaraokemode':player.karaoke_mode} if player else dict()
