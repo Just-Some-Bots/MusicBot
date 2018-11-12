@@ -15,6 +15,7 @@ from . import exceptions
 log = logging.getLogger(__name__)
 
 imported = dict()
+looped = dict()
 
 aiolocks = defaultdict(asyncio.Lock)
 
@@ -58,6 +59,11 @@ async def load(module):
         loaded = None
         if module in imported:
             log.info("reloading module `{0}`".format(module))
+            # stop loop
+            log.debug('stopping {} loop(s)'.format(len(looped[module])))
+            for callab in looped[module]:
+                await callab.stop()
+
             for att in dir(imported[module]):
                 # lookup code for cleanup
                 if att.startswith('cleanup_'):
@@ -71,6 +77,8 @@ async def load(module):
             loaded = import_module('.commands.{}'.format(module), 'musicbot')
             imported[module] = loaded
 
+        looped[module] = list()
+
         cogname = None
 
         try:
@@ -79,6 +87,7 @@ async def load(module):
             log.error("module `{0}` doesn't specified cog name, skipping".format(module))
             message = "module `{0}` doesn't specified cog name, skipping".format(module)
         else:
+
             for att in dir(loaded):
                 # first pass, init
                 if att.startswith('init_'):
@@ -98,27 +107,39 @@ async def load(module):
                         for als in alias.aliases[att[4:]]:
                             await cmd.add_alias(als, forced = True)
 
-                # @TheerapakG: TODO: terminate loop when reload
                 if att.startswith('asyncloop_'):
                     handler = getattr(loaded ,att, None)
                     if iscoroutinefunction(handler):
-                        def wraploop(func):
 
-                            async def wrapped():
+                        class wraploop():
+
+                            def __init__(self, func, fname):
+                                self.fname = fname
+                                self.func = func
+                                self._stop = False
+                                self.lock = defaultdict(asyncio.Lock)
+
+                            async def __call__(self):
                                 try:
-                                    await func(bot)
+                                    await self.func(bot)
                                 except Exception as e:
                                     log.error(e)
                                     return
-                                if(hasattr(func, 'delay')):
-                                    await asyncio.sleep(func.delay)
+                                if(hasattr(self.func, 'delay')):
+                                    await asyncio.sleep(self.func.delay)
                                 else:
                                     await asyncio.sleep(0)
-                                asyncio.create_task(wrapped())
+                                async with self.lock['stop']:
+                                    if not self._stop:
+                                        asyncio.create_task(self())
 
-                            return wrapped()
+                            async def stop(self):
+                                async with self.lock['stop']:
+                                    log.debug('{} will stop looping'.format(self.fname))
+                                    self._stop = True
 
-                        await wraploop(handler)
+                        looped[module].append(wraploop(handler, att))
+                        await looped[module][-1]()
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)
