@@ -144,21 +144,22 @@ async def cleanup_stopserverthread(bot):
     webserver.shutdown()
 
 
-# @TheerapakG: TODO: dm this
 @dev_only
-async def cmd_gentoken(bot):
+async def cmd_gentoken(bot, author):
     token = str(uuid.uuid4())
     authtoken.add(token)
-    return Response("Generated token `{0}`".format(token))
+    await author.send("Generated token `{0}`.".format(token))
+    return Response("Sent a message containing the token generated.", delete_after=20)
 
-# @TheerapakG: TODO: dm this
 @dev_only
-async def cmd_revoketoken(bot, token):
+async def cmd_revoketoken(bot, author, token):
     try:
         authtoken.remove(token)
-        return Response("Successfully revoked token `{0}`".format(token))
+        await author.send("Successfully revoked token `{0}`".format(token))
     except KeyError:
-        return Response("Token `{0}` not found".format(token))
+        await author.send("Token `{0}` not found".format(token))
+    finally:
+        return Response("Sent a message with information regarding the action.", delete_after=20)
 
 def threadsafe_exec_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
