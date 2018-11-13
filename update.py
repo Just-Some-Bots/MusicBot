@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import subprocess
 import sys
@@ -12,7 +14,7 @@ def update_deps():
     print("Attempting to update dependencies...")
 
     try:
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-U', '-r', 'requirements.txt'], shell=True)
+        subprocess.check_call('{} -m pip install -U -r requirements.txt'.format(sys.executable), shell=True)
     except subprocess.CalledProcessError:
         raise OSError("Could not update dependencies. You will need to run '{0} -m pip install -U -r requirements.txt' yourself.".format(sys.executable))
 

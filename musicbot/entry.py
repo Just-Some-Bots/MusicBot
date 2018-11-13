@@ -133,7 +133,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
@@ -214,7 +214,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     mean, maximum = await self.get_mean_volume(self.filename)
                     aoptions = '-af "volume={}dB"'.format((maximum * -1))
                 except Exception as e:
-                    log.warning('There was a problem with EQ. The track will not be equalised.')
+                    log.error('There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. '
+                              'This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.')
                     aoptions = "-vn"
             else:
                 aoptions = "-vn"
@@ -260,11 +261,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     async def get_mean_volume(self, input_file):
         log.debug('Calculating mean volume of {0}'.format(input_file))
-        try:
-            cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
-            output = await self.run_command(cmd)
-        except Exception as e:
-            raise e
+        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
+        output = await self.run_command(cmd)
         output = output.decode("utf-8")
         # print('----', output)
         mean_volume_matches = re.findall(r"mean_volume: ([\-\d\.]+) dB", output)
@@ -286,10 +284,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
     async def _really_download(self, *, hash=False):
         log.info("Download started: {}".format(self.url))
 
-        try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
-        except Exception as e:
-            raise ExtractionError(e)
+        retry = True
+        while retry:
+            try:
+                result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
+                break
+            except Exception as e:
+                raise ExtractionError(e)
 
         log.info("Download complete: {}".format(self.url))
 
@@ -360,7 +361,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 meta['channel'] = ch or data['meta']['channel']['name']
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].server.get_member(data['meta']['author']['id'])
+                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
 
             entry = cls(playlist, url, title, destination=destination, **meta)
             if not destination and filename:
