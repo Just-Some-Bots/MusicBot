@@ -11,7 +11,7 @@ import logging
 import asyncio
 import threading
 import json
-import uuid
+from secrets import token_urlsafe
 import traceback
 from urllib.parse import urlparse, parse_qs
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -146,7 +146,8 @@ async def cleanup_stopserverthread(bot):
 
 @dev_only
 async def cmd_gentoken(bot, author):
-    token = str(uuid.uuid4())
+    token = str(token_urlsafe(64))
+    # @TheerpakG: TODO: salt this
     authtoken.add(token)
     await author.send("Generated token `{0}`.".format(token))
     return Response("Sent a message containing the token generated.", delete_after=20)
