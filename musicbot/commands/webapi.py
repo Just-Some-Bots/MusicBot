@@ -62,7 +62,6 @@ class RequestHdlr(BaseHTTPRequestHandler):
         path = self.path[4:]
         parse = urlparse(path)
         param = {param_k:param_arglist[-1] for param_k, param_arglist in parse_qs(parse.query).items()}
-        log.debug('params: {}'.format(str(param)))
         if 'token' in param and param['token'] in authtoken and 'get' in param:
             if param['get'] == 'cog':
                 return get_cog_list()
@@ -71,9 +70,9 @@ class RequestHdlr(BaseHTTPRequestHandler):
             elif param['get'] == 'guild':
                 return get_guild_list()
             elif param['get'] == 'member' and 'guild' in param:
-                return get_member_list(param['guild'])
+                return get_member_list(int(param['guild']))
             elif param['get'] == 'player' and 'guild' in param:
-                return get_player(param['guild'])
+                return get_player(int(param['guild']))
         return None
 
     def do_POST(self):
@@ -207,28 +206,32 @@ def get_guild_list():
     # guildinfo = dict(guildid, guildname, guildownerid, guildvoice_channelsid, guildtext_channelsid)
     # guildvoice_channelsid = list(guildvoice_channelid)
     # guildtext_channelsid = list(guildtext_channelid)
-    guildlist = list()
-    # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
-    for guild in botinst.guilds.copy():
-        guildlist.append({'guildid':guild.id, 'guildname':guild.name, 'guildownerid':guild.owner.id, 'guildvoice_channelsid':[voice_channel.id for voice_channel in guild.voice_channels], 'guildtext_channelsid':[text_channel.id for text_channel in guild.text_channels]})
-    return guildlist
+    async def bot_context_get_guild_list(self):
+        guildlist = list()
+        for guild in self.guilds.copy():
+            guildlist.append({'guildid':guild.id, 'guildname':guild.name, 'guildownerid':guild.owner.id, 'guildvoice_channelsid':[voice_channel.id for voice_channel in guild.voice_channels], 'guildtext_channelsid':[text_channel.id for text_channel in guild.text_channels]})
+        return guildlist
+    fut = asyncio.run_coroutine_threadsafe(bot_context_get_guild_list(botinst), botinst.loop)
+    return fut.result()
 
 def get_member_list(guildid):
     # structure:
     # return = list(memberinfo)
     # memberinfo = dict(memberid, membername, memberdisplay_name, memberstatus, memberactivity)
     # memberactivity = dict('state':'None') | dict('state':'Game', gamename) | dict('state':'Streaming', streamingname, streamingurl)
-    guild = threadsafe_eval_bot('self.get_guild({0})'.format(guildid))
-    memberlist = list()
-    # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
-    for member in guild.members.copy():
-        memberactivity = {'state':'None'}
-        if isinstance(member.activity, discord.Game):
-            memberactivity = {'state':'Game', 'gamename':member.activity.name}
-        elif isinstance(member.activity, discord.Streaming):
-            memberactivity = {'state':'Streaming', 'streamingname':member.activity.name, 'streamingurl':member.activity.url}
-        memberlist.append({'memberid':member.id, 'membername':member.name, 'memberdisplay_name':member.display_name, 'memberstatus':str(member.status), 'memberactivity':memberactivity})
-    return memberlist
+    async def bot_context_get_member_list(self, guildid):
+        guild = self.get_guild(guildid)
+        memberlist = list()
+        for member in guild.members.copy():
+            memberactivity = {'state':'None'}
+            if isinstance(member.activity, discord.Game):
+                memberactivity = {'state':'Game', 'gamename':member.activity.name}
+            elif isinstance(member.activity, discord.Streaming):
+                memberactivity = {'state':'Streaming', 'streamingname':member.activity.name, 'streamingurl':member.activity.url}
+            memberlist.append({'memberid':member.id, 'membername':member.name, 'memberdisplay_name':member.display_name, 'memberstatus':str(member.status), 'memberactivity':memberactivity})
+        return memberlist
+    fut = asyncio.run_coroutine_threadsafe(bot_context_get_member_list(botinst, guildid), botinst.loop)
+    return fut.result()
 
 def get_player(guildid):
     # structure:
@@ -236,6 +239,8 @@ def get_player(guildid):
     # playerplaylist = list(playerentry)
     # playercurrententry = playerentry | dict()
     # playerentry = dict(entryurl, entrytitle)
-    player = threadsafe_eval_bot('self.get_player_in(self.get_guild({0}))'.format(guildid))
-    # @TheerapakG: TODO: thread unsafe, need deep copy in the bot thread or lock bot execution up
-    return {'voiceclientid':player.voice_client.session_id, 'playerplaylist':[{'entryurl':entry.url, 'entrytitle':entry.title} for entry in player.playlist.entries.copy()], 'playercurrententry':{'entryurl':player._current_entry.url, 'entrytitle':player._current_entry.title} if player._current_entry else dict(), 'playerstate':str(player.state), 'playerkaraokemode':player.karaoke_mode} if player else dict()
+    async def bot_context_get_player(self, guildid):
+        player = self.get_player_in(self.get_guild(guildid))
+        return {'voiceclientid':player.voice_client.session_id, 'playerplaylist':[{'entryurl':entry.url, 'entrytitle':entry.title} for entry in player.playlist.entries.copy()], 'playercurrententry':{'entryurl':player._current_entry.url, 'entrytitle':player._current_entry.title} if player._current_entry else dict(), 'playerstate':str(player.state), 'playerkaraokemode':player.karaoke_mode} if player else dict()
+    fut = asyncio.run_coroutine_threadsafe(bot_context_get_player(botinst, guildid), botinst.loop)
+    return fut.result()
