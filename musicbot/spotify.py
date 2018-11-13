@@ -34,9 +34,9 @@ class Spotify:
         """Get an album's info from its URI"""
         return await self.make_spotify_req(self.API_BASE + 'albums/{0}'.format(uri))
 
-    async def get_playlist(self, user, uri):
+    async def get_playlist(self, user, uri, offset=0):
         """Get a playlist's info from its URI"""
-        return await self.make_spotify_req(self.API_BASE + 'users/{0}/playlists/{1}'.format(user, uri))
+        return await self.make_spotify_req(self.API_BASE + 'users/{0}/playlists/{1}{2}'.format(user, uri, "/tracks?offset={}".format(offset) if offset > 0 else ""))
 
     async def make_spotify_req(self, url):
         """Proxy method for making a Spotify req using the correct Auth headers"""

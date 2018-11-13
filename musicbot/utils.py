@@ -151,3 +151,17 @@ def color_supported():
 def _func_():
     # emulate __func__ from C++
     return inspect.currentframe().f_back.f_code.co_name
+
+def _get_variable(name):
+    stack = inspect.stack()
+    try:
+        for frames in stack:
+            try:
+                frame = frames[0]
+                current_locals = frame.f_locals
+                if name in current_locals:
+                    return current_locals[name]
+            finally:
+                del frame
+    finally:
+        del stack
