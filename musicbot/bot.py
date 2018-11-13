@@ -2778,8 +2778,9 @@ class MusicBot(discord.Client):
 
         # noinspection PyBroadException
         try:
-            if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
-                await self._check_ignore_non_voice(message)
+            # removed check so I can use alexa 
+            # if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
+            #     await self._check_ignore_non_voice(message)
 
             handler_kwargs = {}
             if params.pop('message', None):
