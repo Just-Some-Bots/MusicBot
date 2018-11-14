@@ -202,8 +202,8 @@ async def add_alias(cmd, als, forced = False):
     command = await getcmd(cmd)
     await command.add_alias(als, forced)
     alias.aliases[cmd].append(als)
-    # @TheerapakG: TODO: add option persistentalias
-    alias.write_alias()
+    if bot.config.persistent_alias:
+        alias.write_alias()
     await declock()
 
 async def remove_alias(als):
@@ -216,8 +216,8 @@ async def remove_alias(als):
         raise exceptions.CogError('Attempt to remove command name from an alias: {0}'.format(command.name))
     await command.remove_alias(als)
     alias.aliases[command.name].remove(als)
-    # @TheerapakG: TODO: add option persistentalias
-    alias.write_alias()
+    if bot.config.persistent_alias:
+        alias.write_alias()
     await declock()
 
 async def gen_cmd_list():

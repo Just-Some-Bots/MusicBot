@@ -147,7 +147,7 @@ async def cleanup_stopserverthread(bot):
 @dev_only
 async def cmd_gentoken(bot, author):
     token = str(token_urlsafe(64))
-    # @TheerpakG: TODO: salt this
+    # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
     authtoken.add(token)
     await author.send("Generated token `{0}`.".format(token))
     return Response("Sent a message containing the token generated.", delete_after=20)
