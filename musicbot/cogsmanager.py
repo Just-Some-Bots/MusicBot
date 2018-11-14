@@ -139,7 +139,7 @@ async def load(module):
                                     self._stop = True
 
                         looped[module].append(wraploop(handler, att))
-                        await looped[module][-1]()
+                        asyncio.create_task(looped[module][-1]())
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)

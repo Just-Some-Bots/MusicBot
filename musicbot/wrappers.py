@@ -40,3 +40,15 @@ def ensure_appinfo(func):
         return await func(self, *args, **kwargs)
 
     return wrapper
+
+def loop_delay(delay):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(bot, *args, **kwargs):
+            return await func(bot, *args, **kwargs)
+        wrapper.delay = delay
+        if func.__name__.startswith('asyncloop_'):
+            return wrapper
+        else:
+            raise exceptions.WrapperUnmatchedError("'loop_delay' wrapper can only be used on 'asyncloop_' functions")
+    return decorator

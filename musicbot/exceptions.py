@@ -22,6 +22,10 @@ class CogError(MusicbotException):
         super().__init__(message, expire_in=expire_in)
         self.traceback = traceback
 
+# Wrapper applied to wrong function
+class WrapperUnmatchedError(MusicbotException):
+    pass
+
 # Something went wrong during the processing of a command
 class CommandError(MusicbotException):
     pass
