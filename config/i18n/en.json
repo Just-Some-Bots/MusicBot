@@ -103,5 +103,14 @@
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!",
-    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it."
+    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it.",
+    "cogs?cmd?loadcog?success": "Successfully reloaded cog `{0}`",
+    "cogs?cmd?unloadcog?success": "Successfully unloaded cog `{0}`",
+    "cogs?cmd?addalias?success": "Successfully add alias `{0}` to command `{1}`",
+    "cogs?cmd?removealias?success": "Successfully remove alias `{0}`",
+    "webapi?cmd?gentoken?success@gentoken": "Generated token `{0}`.",
+    "webapi?cmd?gentoken?success@sent": "Sent a message containing the token generated.",
+    "webapi?cmd?revoketoken?success@revtoken": "Successfully revoked token `{0}`",
+    "webapi?cmd?revoketoken?fail@revtoken": "Token `{0}` not found",
+    "webapi?cmd?revoketoken?info@action": "Sent a message with information regarding the action."
 }

@@ -31,6 +31,7 @@ cog_name = 'webapi'
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
 botinst = None
+# @TheerapakG: TODO: save tokens
 authtoken = set()
 
 webserver = None
@@ -149,18 +150,18 @@ async def cmd_gentoken(bot, author):
     token = str(token_urlsafe(64))
     # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
     authtoken.add(token)
-    await author.send("Generated token `{0}`.".format(token))
-    return Response("Sent a message containing the token generated.", delete_after=20)
+    await author.send(bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
+    return Response(bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), delete_after=20)
 
 @dev_only
 async def cmd_revoketoken(bot, author, token):
     try:
         authtoken.remove(token)
-        await author.send("Successfully revoked token `{0}`".format(token))
+        await author.send(bot.str.get('webapi?cmd?revoketoken?success@revtoken', "Successfully revoked token `{0}`").format(token))
     except KeyError:
-        await author.send("Token `{0}` not found".format(token))
+        await author.send(bot.str.get('webapi?cmd?revoketoken?fail@revtoken', "Token `{0}` not found").format(token))
     finally:
-        return Response("Sent a message with information regarding the action.", delete_after=20)
+        return Response(bot.str.get('webapi?cmd?revoketoken?info@action', "Sent a message with information regarding the action."), delete_after=20)
 
 def threadsafe_exec_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
