@@ -6,8 +6,9 @@ If you don't need querying via webserver, you shouldn't load this cog
 If the API will be exposed to the internet, consider specifying
 certificate for security against packet sniffing from third party
 
-DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!! ANYONE WITH TOKENS
-CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec METHODS.
+DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!! ANYONE WITH TOKEN
+CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec METHODS. FAILING TO DO
+THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S SECURITY.
 
 This cog require Python 3.7+
 """
