@@ -49,12 +49,10 @@ async def declock():
         if cmdrun == 0:
             aiolocks['lock_clear'].release()
 
-# we cannot throw exception here because this is used when starting bot, or we need to have helper function that catch these exception
 async def load(module):
     global alias
     await aiolocks['lock_execute'].acquire()
     await aiolocks['lock_clear'].acquire()
-    message = ""
     try:
         loaded = None
         if module in imported:
@@ -84,8 +82,7 @@ async def load(module):
         try:
             cogname = getattr(loaded, 'cog_name')
         except AttributeError:
-            log.error("module `{0}` doesn't specified cog name, skipping".format(module))
-            message = "module `{0}` doesn't specified cog name, skipping".format(module)
+            raise exceptions.CogError("module `{0}` doesn't specified cog name, skipping".format(module)) from None
         else:
             importfuncs = dict()
             importfuncs['init'] = list()
@@ -148,18 +145,12 @@ async def load(module):
                     asyncio.create_task(looped[module][-1]())
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
-            message = "successfully loaded/reloaded module `{0}`".format(module)
 
     except Exception:
-        log.debug(traceback.format_exc())
-        log.error("can't load module `{0}`, skipping".format(module))
-        message = "can't load module `{0}`, skipping".format(module)
-    except:
-        pass
+        raise exceptions.CogError("can't load module `{0}`, skipping".format(module), traceback=traceback.format_exc()) from None
     finally:
         aiolocks['lock_clear'].release()
         aiolocks['lock_execute'].release()
-        return message
 
 async def checkblockloading():
     await aiolocks['lock_execute'].acquire()

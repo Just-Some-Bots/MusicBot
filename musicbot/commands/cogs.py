@@ -18,8 +18,12 @@ async def cmd_loadmodule(bot, module):
 
     Load (or reload) specified module.
     """
-    message = await load(module)
-    return Response(message, delete_after=15)
+    try:
+        await load(module)
+    except:
+        raise
+    else:
+        return Response("successfully loaded/reloaded module `{0}`".format(module), delete_after=15)
 
 @owner_only
 async def cmd_loadcog(bot, name):

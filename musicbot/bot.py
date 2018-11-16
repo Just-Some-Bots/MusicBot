@@ -123,8 +123,16 @@ class MusicBot(discord.Client):
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
 
-        for module in self.config.cogs:
-            self.loop.create_task(load(module))
+        async def init_modules_importer():
+            for module in self.config.cogs:
+                try:
+                    await load(module)
+                except exceptions.CogError as e:
+                    log.error("Error loading module {0}: {1.__class__.__name__}: {1.message}".format(module, e))
+                    if e.traceback is not None:
+                        log.error("Traceback:\n {0}".format(e.traceback))
+
+        self.loop.create_task(init_modules_importer())
 
     def __del__(self):
         # These functions return futures but it doesn't matter
@@ -1286,9 +1294,9 @@ class MusicBot(discord.Client):
             )
 
         except exceptions.CogError as e:
-            log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e), exc_info=True)
+            log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e))
             if e.traceback is not None:
-                log.error("Traceback:\n {0}".format(e.traceback), exc_info=True)
+                log.error("Traceback:\n {0}".format(e.traceback))
 
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
