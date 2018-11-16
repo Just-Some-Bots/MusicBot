@@ -87,6 +87,7 @@ class Config:
         self.webapi_port = config.getint('WebApi', 'WebApiPort', fallback=ConfigDefaults.webapi_port)
         self.ssl_certfile = config.get('WebApi', 'SSLCertFile', fallback=ConfigDefaults.ssl_certfile)
         self.ssl_keyfile = config.get('WebApi', 'SSLKeyFile', fallback=ConfigDefaults.ssl_keyfile)
+        self.webapi_persistent_tokens = config.get('WebApi', 'WebApiPersistentTokens', fallback=ConfigDefaults.webapi_persistent_tokens)
 
         self.run_checks()
 
@@ -362,6 +363,7 @@ class ConfigDefaults:
     webapi_port = 65280
     ssl_certfile = None
     ssl_keyfile = None
+    webapi_persistent_tokens = True
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)

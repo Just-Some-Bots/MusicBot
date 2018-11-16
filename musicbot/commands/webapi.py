@@ -11,8 +11,10 @@ import logging
 import asyncio
 import threading
 import json
-from secrets import token_urlsafe
 import traceback
+import os
+from collections import defaultdict
+from secrets import token_urlsafe
 from urllib.parse import urlparse, parse_qs
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
@@ -27,12 +29,36 @@ from ..wrappers import dev_only
 log = logging.getLogger(__name__)
 
 cog_name = 'webapi'
+
+aiolocks = defaultdict(asyncio.Lock)
  
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = ''
 botinst = None
-# @TheerapakG: TODO: save tokens
-authtoken = set()
+
+authtoken = list()
+
+async def serialize_tokens():
+    directory = 'data/tokens.json'
+    async with aiolocks['token_serialization']:
+        log.debug("Serializing tokens")
+
+        with open(directory, 'w', encoding='utf8') as f:
+            f.write(json.dumps(authtoken))
+
+async def deserialize_tokens() -> list:
+    directory = 'data/tokens.json'
+
+    async with aiolocks['token_serialization']:
+        if not os.path.isfile(directory):
+            return list()
+
+        log.debug("Deserializing tokens")
+
+        with open(directory, 'r', encoding='utf8') as f:
+            data = f.read()
+    
+    return json.loads(data)
 
 webserver = None
 
@@ -115,8 +141,14 @@ class RequestHdlr(BaseHTTPRequestHandler):
 
 async def init_webapi(bot):
     log.debug('binding to port {0}'.format(bot.config.webapi_port))
+
     global botinst
     botinst = bot
+
+    if bot.config.webapi_persistent_tokens:
+        global authtoken
+        authtoken = await deserialize_tokens()
+
     serv = ThreadingHTTPServer((host, bot.config.webapi_port), RequestHdlr)
     if bot.config.ssl_certfile and bot.config.ssl_keyfile:
         try:
@@ -149,7 +181,9 @@ async def cleanup_stopserverthread(bot):
 async def cmd_gentoken(bot, author):
     token = str(token_urlsafe(64))
     # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
-    authtoken.add(token)
+    authtoken.append(token)
+    if bot.config.webapi_persistent_tokens:
+        await serialize_tokens()
     await author.send(bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
     return Response(bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), delete_after=20)
 
@@ -157,8 +191,10 @@ async def cmd_gentoken(bot, author):
 async def cmd_revoketoken(bot, author, token):
     try:
         authtoken.remove(token)
+        if bot.config.webapi_persistent_tokens:
+            await serialize_tokens()
         await author.send(bot.str.get('webapi?cmd?revoketoken?success@revtoken', "Successfully revoked token `{0}`").format(token))
-    except KeyError:
+    except ValueError:
         await author.send(bot.str.get('webapi?cmd?revoketoken?fail@revtoken', "Token `{0}` not found").format(token))
     finally:
         return Response(bot.str.get('webapi?cmd?revoketoken?info@action', "Sent a message with information regarding the action."), delete_after=20)
