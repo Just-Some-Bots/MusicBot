@@ -87,59 +87,65 @@ async def load(module):
             log.error("module `{0}` doesn't specified cog name, skipping".format(module))
             message = "module `{0}` doesn't specified cog name, skipping".format(module)
         else:
+            importfuncs = dict()
+            importfuncs['init'] = list()
+            importfuncs['cmd'] = list()
+            importfuncs['asyncloop'] = list()
 
             for att in dir(loaded):
-                # first pass, init
                 if att.startswith('init_'):
-                    handler = getattr(loaded ,att, None)
-                    if iscoroutinefunction(handler):
-                        await handler(bot)
-
-            for att in dir(loaded):
-                # second pass, do actual work
+                    importfuncs['init'].append((att, getattr(loaded ,att, None)))
                 if att.startswith('cmd_'):
-                    handler = getattr(loaded ,att, None)
-                    if iscoroutinefunction(handler):
-                        cmd = await command(cogname, att[4:], handler)
-                        if att[4:] not in alias.aliases[att[4:]]:
-                            log.debug("command `{0}` does not have alias of itself, fixing...".format(att[4:]))
-                            alias.aliases[att[4:]].append(att[4:])
-                        for als in alias.aliases[att[4:]]:
-                            await cmd.add_alias(als, forced = True)
-
+                    importfuncs['cmd'].append((att, getattr(loaded ,att, None)))
                 if att.startswith('asyncloop_'):
-                    handler = getattr(loaded ,att, None)
-                    if iscoroutinefunction(handler):
+                    importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
 
-                        class wraploop():
+            for att, handler in importfuncs['init']:
+                if iscoroutinefunction(handler):
+                    await handler(bot)
 
-                            def __init__(self, func, fname):
-                                self.fname = fname
-                                self.func = func
-                                self._stop = False
-                                self.lock = defaultdict(asyncio.Lock)
+            for att, handler in importfuncs['cmd']:
+                # second pass, do actual work
+                if iscoroutinefunction(handler):
+                    cmd = await command(cogname, att[4:], handler)
+                    if att[4:] not in alias.aliases[att[4:]]:
+                        log.debug("command `{0}` does not have alias of itself, fixing...".format(att[4:]))
+                        alias.aliases[att[4:]].append(att[4:])
+                    for als in alias.aliases[att[4:]]:
+                        await cmd.add_alias(als, forced = True)
 
-                            async def __call__(self):
-                                try:
-                                    await self.func(bot)
-                                except Exception as e:
-                                    log.error(e)
-                                    return
-                                if(hasattr(self.func, 'delay')):
-                                    await asyncio.sleep(self.func.delay)
-                                else:
-                                    await asyncio.sleep(0)
-                                async with self.lock['stop']:
-                                    if not self._stop:
-                                        asyncio.create_task(self())
+            for att, handler in importfuncs['asyncloop']:
+                if iscoroutinefunction(handler):
 
-                            async def stop(self):
-                                async with self.lock['stop']:
-                                    log.debug('{} will stop looping'.format(self.fname))
-                                    self._stop = True
+                    class wraploop():
 
-                        looped[module].append(wraploop(handler, att))
-                        asyncio.create_task(looped[module][-1]())
+                        def __init__(self, func, fname):
+                            self.fname = fname
+                            self.func = func
+                            self._stop = False
+                            self.lock = defaultdict(asyncio.Lock)
+
+                        async def __call__(self):
+                            try:
+                                await self.func(bot)
+                            except Exception as e:
+                                log.error(e)
+                                return
+                            if(hasattr(self.func, 'delay')):
+                                await asyncio.sleep(self.func.delay)
+                            else:
+                                await asyncio.sleep(0)
+                            async with self.lock['stop']:
+                                if not self._stop:
+                                    asyncio.create_task(self())
+
+                        async def stop(self):
+                            async with self.lock['stop']:
+                                log.debug('{} will stop looping'.format(self.fname))
+                                self._stop = True
+
+                    looped[module].append(wraploop(handler, att))
+                    asyncio.create_task(looped[module][-1]())
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
             message = "successfully loaded/reloaded module `{0}`".format(module)
