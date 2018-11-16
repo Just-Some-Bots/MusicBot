@@ -2,6 +2,7 @@
 import traceback
 import logging
 import asyncio
+from textwrap import dedent
 from inspect import iscoroutinefunction
 
 from importlib import import_module, reload
@@ -96,6 +97,10 @@ async def load(module):
                     importfuncs['cmd'].append((att, getattr(loaded ,att, None)))
                 if att.startswith('asyncloop_'):
                     importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
+
+            # print doc if exist
+            if loaded.__doc__:
+                log.info(dedent(loaded.__doc__))
 
             for att, handler in importfuncs['init']:
                 if iscoroutinefunction(handler):

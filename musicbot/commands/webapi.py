@@ -1,9 +1,16 @@
-# This cogs will implement webserver that can respond to bot query, maybe useful for interfacing with external application
-# If you don't need querying via webserver, you shouldn't load this cog
+"""
+This cog implement webserver that can respond to bot query which
+maybe useful for interfacing with external application.
+If you don't need querying via webserver, you shouldn't load this cog
 
-# If the API will be exposed to the internet, consider specifying certificate for security against packet sniffing
+If the API will be exposed to the internet, consider specifying
+certificate for security against packet sniffing from third party
 
-# This cog requires Python 3.7
+DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!! ANYONE WITH TOKENS
+CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec METHODS.
+
+This cog require Python 3.7+
+"""
 
 import socket
 import sys
