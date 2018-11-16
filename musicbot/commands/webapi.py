@@ -187,6 +187,15 @@ async def cleanup_stopserverthread(bot):
 
 @dev_only
 async def cmd_gentoken(bot, author):
+    """
+    Usage:
+        {command_prefix}gentoken
+
+    Generate a token. DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!!
+    ANYONE WITH TOKEN CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec
+    METHODS. FAILING TO DO THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S
+    SECURITY.
+    """
     token = str(token_urlsafe(64))
     # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
     authtoken.append(token)
@@ -197,6 +206,12 @@ async def cmd_gentoken(bot, author):
 
 @dev_only
 async def cmd_revoketoken(bot, author, token):
+    """
+    Usage:
+        {command_prefix}revoketoken token
+
+    Revoke a token's access to the api.
+    """
     try:
         authtoken.remove(token)
         if bot.config.webapi_persistent_tokens:
