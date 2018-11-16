@@ -104,6 +104,7 @@
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!",
     "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it.",
+    "cogs?cmd?loadmodule?success": "successfully loaded/reloaded module `{0}`",
     "cogs?cmd?loadcog?success": "Successfully reloaded cog `{0}`",
     "cogs?cmd?unloadcog?success": "Successfully unloaded cog `{0}`",
     "cogs?cmd?addalias?success": "Successfully add alias `{0}` to command `{1}`",

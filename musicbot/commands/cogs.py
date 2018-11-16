@@ -23,7 +23,7 @@ async def cmd_loadmodule(bot, module):
     except:
         raise
     else:
-        return Response("successfully loaded/reloaded module `{0}`".format(module), delete_after=15)
+        return Response(bot.str.get('cogs?cmd?loadmodule?success', "successfully loaded/reloaded module `{0}`").format(module), delete_after=15)
 
 @owner_only
 async def cmd_loadcog(bot, name):
