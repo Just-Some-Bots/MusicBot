@@ -129,8 +129,8 @@ class MusicBot(discord.Client):
                     await load(module)
                 except exceptions.CogError as e:
                     log.error("Error loading module {0}: {1.__class__.__name__}: {1.message}".format(module, e))
-                    if e.traceback is not None:
-                        log.error("Traceback:\n {0}".format(e.traceback))
+                    if e.__cause__ is not None:
+                        log.error("Traceback:\n{0}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))))) # pylint: disable=E1101
 
         self.loop.create_task(init_modules_importer())
 
@@ -1295,13 +1295,13 @@ class MusicBot(discord.Client):
 
         except exceptions.CogError as e:
             log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e))
-            if e.traceback is not None:
-                log.error("Traceback:\n {0}".format(e.traceback))
+            if e.__cause__ is not None:
+                log.error("Traceback:\n{}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))))) # pylint: disable=E1101
 
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
 
-            if self.config.debug_mode and (e.traceback is not None):
+            if self.config.debug_mode and (e.__cause__ is not None):
                 if self.config.embeds:
                     content = self._gen_embed()
                     content.add_field(name='Error', value=e.message+", traceback below", inline=False)
@@ -1323,8 +1323,8 @@ class MusicBot(discord.Client):
                 also_delete=alsodelete
             )
 
-            if self.config.debug_mode and (e.traceback is not None):
-                tb = '```\n{}\n```'.format(e.traceback)
+            if self.config.debug_mode and (e.__cause__ is not None):
+                tb = '```\n{}\n```'.format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__)))) # pylint: disable=E1101
                 await self.safe_send_message(
                     message.channel,
                     tb,

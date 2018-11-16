@@ -140,7 +140,7 @@ class Command(metaclass = ModifiabledocABCMeta):
                             await command.remove_alias(alias)
                     else:
                         log.error("`{0}` is already an alias of command `{1}`".format(alias, command.name))
-                        raise exceptions.CogError("`{0}` is already an alias of command `{1}`".format(alias, command.name), expire_in= 40, traceback=None) from None
+                        raise exceptions.CogError("`{0}` is already an alias of command `{1}`".format(alias, command.name), expire_in= 40) from None
             
             self.alias.add(alias)
 
@@ -150,7 +150,7 @@ class Command(metaclass = ModifiabledocABCMeta):
                 self.alias.remove(alias)
             except KeyError:
                 log.warn("`{0}` is not an alias of command `{1}`".format(alias, self.name))
-                raise exceptions.CogError("`{0}` is not an alias of command `{1}`".format(alias, self.name), expire_in= 40, traceback=traceback.format_exc()) from None
+                raise exceptions.CogError("`{0}` is not an alias of command `{1}`".format(alias, self.name), expire_in= 40) from None
 
     async def remove_all_alias(self):
         async with self.aiolocks['lock_alias']:
@@ -192,9 +192,9 @@ class CallableCommand(Command):
         except exceptions.Signal:
             raise
 
-        except Exception:   
+        except Exception as e:   
             await cog.unload()
-            raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40, traceback=traceback.format_exc()) from None
+            raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40) from e
         return res
 
     async def __call__(self, **kwargs):

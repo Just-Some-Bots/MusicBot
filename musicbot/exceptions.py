@@ -18,9 +18,7 @@ class MusicbotException(Exception):
 
 # Something went wrong in the cog system
 class CogError(MusicbotException):
-    def __init__(self, message, *, expire_in=0, traceback=None):
-        super().__init__(message, expire_in=expire_in)
-        self.traceback = traceback
+    pass
 
 # Wrapper applied to wrong function
 class WrapperUnmatchedError(MusicbotException):

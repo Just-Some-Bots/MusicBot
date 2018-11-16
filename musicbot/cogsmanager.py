@@ -151,8 +151,8 @@ async def load(module):
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
 
-    except Exception:
-        raise exceptions.CogError("can't load module `{0}`, skipping".format(module), traceback=traceback.format_exc()) from None
+    except Exception as e:
+        raise exceptions.CogError("can't load module `{0}`, skipping".format(module)) from e
     finally:
         aiolocks['lock_clear'].release()
         aiolocks['lock_execute'].release()
@@ -201,12 +201,17 @@ async def add_alias(cmd, als, forced = False):
     global alias
     await checkblockloading()
     await inclock()
-    command = await getcmd(cmd)
-    await command.add_alias(als, forced)
-    alias.aliases[cmd].append(als)
-    if bot.config.persistent_alias:
-        alias.write_alias()
-    await declock()
+    try:
+        command = await getcmd(cmd)
+        await command.add_alias(als, forced)
+    except exceptions.CogError:
+        await declock()
+        raise exceptions.CogError('Attempt to add existing alias: {0}'.format(als)) from None
+    else:
+        alias.aliases[cmd].append(als)
+        if bot.config.persistent_alias:
+            alias.write_alias()
+        await declock()
 
 async def remove_alias(als):
     global alias
