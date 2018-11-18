@@ -130,7 +130,7 @@ class MusicBot(discord.Client):
                 except exceptions.CogError as e:
                     log.error("Error loading module {0}: {1.__class__.__name__}: {1.message}".format(module, e))
                     if e.__cause__ is not None:
-                        log.error("Traceback:\n{0}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))))) # pylint: disable=E1101
+                        log.error("Traceback:\n{0}{1}: {2}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))), type(e.__cause__).__name__, e.__context__)) # pylint: disable=E1101
 
         self.loop.create_task(init_modules_importer())
 
@@ -1296,7 +1296,7 @@ class MusicBot(discord.Client):
         except exceptions.CogError as e:
             log.error("Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e))
             if e.__cause__ is not None:
-                log.error("Traceback:\n{}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))))) # pylint: disable=E1101
+                log.error("Traceback:\n{0}{1}: {2}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))), type(e.__cause__).__name__, e.__context__)) # pylint: disable=E1101
 
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
@@ -1324,7 +1324,7 @@ class MusicBot(discord.Client):
             )
 
             if self.config.debug_mode and (e.__cause__ is not None):
-                tb = '```\n{}\n```'.format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__)))) # pylint: disable=E1101
+                tb = '```\n{}{}: {}\n```'.format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))), type(e.__cause__).__name__, str(e.__context__)) # pylint: disable=E1101
                 await self.safe_send_message(
                     message.channel,
                     tb,

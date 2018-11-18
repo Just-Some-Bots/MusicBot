@@ -1,12 +1,12 @@
 from textwrap import dedent
 
-from ..cogsmanager import gen_cmd_list
+from ..cogsmanager import gen_cmd_list, gen_cog_list, gen_cmd_list_from_cog
 from .. import exceptions
 from ..constructs import Response
 
 cog_name = 'help'
 
-async def _gen_cmd_list(bot, message, list_all_cmds=False):
+async def _gen_cmd_dict(bot, message, list_all_cmds=False):
     cmds = await gen_cmd_list()
     commands = dict()
     for cmd in cmds:
@@ -31,6 +31,37 @@ async def _gen_cmd_list(bot, message, list_all_cmds=False):
                 commands[cmd.name] = cmd
     return commands
 
+async def _gen_cog_cmd_dict(bot, message, list_all_cmds=False):
+    ret = dict()
+
+    cogs = await gen_cog_list()
+    for cog in cogs:
+        cmds = await gen_cmd_list_from_cog(cog.name)
+        commands = list()
+        for cmd in cmds:
+            if not hasattr(cmd, 'func'):
+                pass # what will you run?
+
+            # This will always return at least cmd_help, since they needed perms to run this command
+            if not hasattr(cmd.func, 'dev_cmd'):
+                user_permissions = bot.permissions.for_user(message.author)
+                whitelist = user_permissions.command_whitelist
+                blacklist = user_permissions.command_blacklist
+                if list_all_cmds:
+                    commands.append(cmd)
+
+                elif blacklist and cmd.name in blacklist:
+                    pass
+
+                elif whitelist and cmd.name not in whitelist:
+                    pass
+
+                else:
+                    commands.append(cmd)
+
+        ret[cog] = commands
+    return ret
+
 async def cmd_help(bot, message, channel, command=None):
     """
     Usage:
@@ -40,17 +71,17 @@ async def cmd_help(bot, message, channel, command=None):
     If a command is specified, it prints a help message for that command.
     Otherwise, it lists the available commands.
     """
-    commands = dict()
+    cogs = dict()
     bot.is_all = False
     prefix = bot.config.command_prefix
 
     if command:
         if command.lower() == 'all':
             bot.is_all = True
-            commands = await _gen_cmd_list(bot, message, list_all_cmds=True)
+            cogs = _gen_cog_cmd_dict(bot, message, list_all_cmds=True)
 
         else:
-            cmd = await _gen_cmd_list(bot, message, list_all_cmds=True)
+            cmd = await _gen_cmd_dict(bot, message, list_all_cmds=True)
             try:
                 cmd = cmd[command]
             except:
@@ -64,12 +95,17 @@ async def cmd_help(bot, message, channel, command=None):
                 )
 
     elif message.author.id == bot.config.owner_id:
-        commands = await _gen_cmd_list(bot, message, list_all_cmds=True)
+        cogs = await _gen_cog_cmd_dict(bot, message, list_all_cmds=True)
 
     else:
-        commands = await _gen_cmd_list(bot, message).keys()
+        cogs = await _gen_cog_cmd_dict(bot, message)
 
-    desc = '```\n' + ', '.join(commands.keys()) + '\n```\n' + bot.str.get(
+    cmdlisto = ''
+    for cog, cmdlist in cogs.items():
+        cmdlisto += cog.name + ':\n'
+        cmdlisto += ', '.join([cmd.name for cmd in cmdlist]) + '\n\n'
+
+    desc = '```\n' + cmdlisto + '\n```\n' + bot.str.get(
         'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
     if not bot.is_all:
