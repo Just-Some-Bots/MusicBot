@@ -100,12 +100,14 @@ async def cmd_help(bot, message, channel, command=None):
     else:
         cogs = await _gen_cog_cmd_dict(bot, message)
 
-    cmdlisto = ''
+    cmdlisto = '\n'
     for cog, cmdlist in cogs.items():
-        cmdlisto += cog.name + ':\n'
-        cmdlisto += ', '.join([cmd.name for cmd in cmdlist]) + '\n\n'
+        if len(cmdlist) > 0:
+            cmdlisto += (':white_small_square: ' if await cog.isload() else ':black_small_square: ')
+            cmdlisto += cog.name + ' [' + str(len(cmdlist)) + ']:\n'
+            cmdlisto += '```' + '\n'.join(['    '+cmd.name for cmd in cmdlist]) + '```\n'
 
-    desc = '```\n' + cmdlisto + '\n```\n' + bot.str.get(
+    desc = '\n' + cmdlisto + '\n' + bot.str.get(
         'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
                                 'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
     if not bot.is_all:
