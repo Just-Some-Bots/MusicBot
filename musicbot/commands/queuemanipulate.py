@@ -15,7 +15,7 @@ from ..constructs import Response
 
 log = logging.getLogger(__name__)
 
-cog_name = 'queuemanipulate'
+cog_name = 'queue_management'
 
 async def cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url):
     """

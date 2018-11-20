@@ -9,7 +9,7 @@ from ..wrappers import owner_only
 
 log = logging.getLogger(__name__)
 
-cog_name = 'botmanipulate'
+cog_name = 'bot_management'
 
 async def cmd_disconnect(bot, guild):
     """

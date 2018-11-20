@@ -2,7 +2,7 @@ from .. import exceptions
 from ..utils import write_file
 from ..constructs import Response
 
-cog_name = 'moderate'
+cog_name = 'moderation'
 
 async def cmd_karaoke(bot, player, channel, author):
     """
