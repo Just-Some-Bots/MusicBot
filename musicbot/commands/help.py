@@ -105,7 +105,7 @@ async def cmd_help(bot, message, channel, command=None):
         if len(cmdlist) > 0:
             cmdlisto += (':white_small_square: ' if await cog.isload() else ':black_small_square: ')
             cmdlisto += cog.name + ' [' + str(len(cmdlist)) + ']:\n'
-            cmdlisto += '```' + '\n'.join(['    '+cmd.name for cmd in cmdlist]) + '```\n'
+            cmdlisto += '```' + ', '.join([cmd.name for cmd in cmdlist]) + '```\n'
 
     desc = '\n' + cmdlisto + '\n' + bot.str.get(
         'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
