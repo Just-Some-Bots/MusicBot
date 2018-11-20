@@ -98,10 +98,6 @@ async def load(module):
                 if att.startswith('asyncloop_'):
                     importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
 
-            # print doc if exist
-            if loaded.__doc__:
-                log.info(dedent(loaded.__doc__))
-
             for att, handler in importfuncs['init']:
                 if iscoroutinefunction(handler):
                     await handler(bot)
@@ -148,6 +144,12 @@ async def load(module):
 
                     looped[module].append(wraploop(handler, att))
                     asyncio.create_task(looped[module][-1]())
+            
+            # print doc if exist
+            if loaded.__doc__:
+                log.info(dedent(loaded.__doc__))
+                
+            getcog(cogname).__doc__ = loaded.__doc__
                         
             log.info("successfully loaded/reloaded module `{0}`".format(module))
 

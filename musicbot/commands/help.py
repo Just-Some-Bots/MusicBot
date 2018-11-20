@@ -62,13 +62,15 @@ async def _gen_cog_cmd_dict(bot, message, list_all_cmds=False):
         ret[cog] = commands
     return ret
 
-async def cmd_help(bot, message, channel, command=None):
+async def cmd_help(bot, message, channel, command=None, spcog=None):
     """
     Usage:
         {command_prefix}help [command]
+        {command_prefix}help cog [cog]
 
     Prints a help message.
     If a command is specified, it prints a help message for that command.
+    If a cog is specified, it prints a documentation of the cog.
     Otherwise, it lists the available commands.
     """
     cogs = dict()
@@ -78,7 +80,19 @@ async def cmd_help(bot, message, channel, command=None):
     if command:
         if command.lower() == 'all':
             bot.is_all = True
-            cogs = _gen_cog_cmd_dict(bot, message, list_all_cmds=True)
+            cogs = await _gen_cog_cmd_dict(bot, message, list_all_cmds=True)
+
+        elif command.lower() == 'cog':
+            cogs = await _gen_cog_cmd_dict(bot, message, list_all_cmds=True)
+            for cog in cogs:
+                if spcog == cog:
+                    return Response(
+                        "```\n{}```".format(
+                            dedent(cog.__doc__)
+                        ).format(command_prefix=bot.config.command_prefix),
+                        delete_after=60
+                    )
+            raise exceptions.CommandError(bot.str.get('cmd-help-invalid', "No such cog"), expire_in=10) from None
 
         else:
             cmd = await _gen_cmd_dict(bot, message, list_all_cmds=True)

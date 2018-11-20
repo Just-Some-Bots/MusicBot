@@ -12,7 +12,30 @@ log = logging.getLogger(__name__)
 cogs = set()
 commands = set()
 
-class Cog:
+# @TheerapakG: yea I know it's a hack, docstring aren't suppose to do this but I need it. Problems?
+class ModifiabledocABCMeta(ABCMeta):
+    def __new__(cls, clsname, bases, dct):
+
+        def doc(self):
+            return self.doc
+
+        def setdoc(self, doc):
+            self.doc = doc
+
+        fget = doc
+        fset = setdoc
+
+        for name, val in dct.copy().items():
+            if name == 'doc':
+                fget = val
+            if name == 'setdoc':
+                fset = val
+        
+        dct['__doc__'] = property(fget, fset, None, None)
+
+        return super(ModifiabledocABCMeta, cls).__new__(cls, clsname, bases, dct)
+
+class Cog(metaclass = ModifiabledocABCMeta):
     def __init__(self, name):
         # @TheerapakG: For anyone who will work on this, COG NAME SHALL NOT BE CHANGEABLE VIA A COMMAND. IT'S VERY UNREASONABLE WHY YOU'D WANT TO DO IT AND WILL BREAK THIS
         self.name = name
@@ -20,6 +43,9 @@ class Cog:
         self.loaded = True
         self.cmdrun = 0
         self.aiolocks = defaultdict(asyncio.Lock)
+
+    def doc(self):
+        return 'Cog: {0.name}\n{0.doc}'.format(self)
 
     def __hash__(self):
         return hash(self.name)
@@ -76,25 +102,6 @@ class Cog:
         async with self.aiolocks['lock_cmdrun']:
             async with self.aiolocks['lock_clear']:
                 return self.loaded
-
-# @TheerapakG: yea I know it's a hack, docstring aren't suppose to do this but I need it. Problems?
-class ModifiabledocABCMeta(ABCMeta):
-    def __new__(cls, clsname, bases, dct):
-
-        fget = None
-
-        fset = None
-
-        for name, val in dct.copy().items():
-            if name == 'doc':
-                fget = val
-            if name == 'setdoc':
-                fset = val
-        
-        dct['__doc__'] = property(fget, fset, None, None)
-
-        return super(ModifiabledocABCMeta, cls).__new__(cls, clsname, bases, dct)
-
 
 class Command(metaclass = ModifiabledocABCMeta):
     def __init__(self, cog, name):
