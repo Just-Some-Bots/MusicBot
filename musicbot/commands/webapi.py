@@ -32,7 +32,7 @@ from ssl import SSLContext, SSLError
 
 from ..constructs import Response
 from ..cogsmanager import gen_cog_list, gen_cmd_list_from_cog
-from ..wrappers import dev_only
+from ..wrappers import owner_only
 
 log = logging.getLogger(__name__)
 
@@ -185,16 +185,15 @@ async def cleanup_stopserverthread(bot):
     webserver.shutdown()
 
 
-@dev_only
+@owner_only
 async def cmd_gentoken(bot, author):
     """
     Usage:
         {command_prefix}gentoken
 
     Generate a token. DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!!
-    ANYONE WITH TOKEN CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec
-    METHODS. FAILING TO DO THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S
-    SECURITY.
+    ANYONE WITH TOKEN CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec METHODS.
+    FAILING TO DO THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S SECURITY.
     """
     token = str(token_urlsafe(64))
     # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
@@ -204,7 +203,7 @@ async def cmd_gentoken(bot, author):
     await author.send(bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
     return Response(bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), delete_after=20)
 
-@dev_only
+@owner_only
 async def cmd_revoketoken(bot, author, token):
     """
     Usage:
