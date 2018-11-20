@@ -113,5 +113,6 @@
     "webapi?cmd?gentoken?success@sent": "Sent a message containing the token generated.",
     "webapi?cmd?revoketoken?success@revtoken": "Successfully revoked token `{0}`",
     "webapi?cmd?revoketoken?fail@revtoken": "Token `{0}` not found",
-    "webapi?cmd?revoketoken?info@action": "Sent a message with information regarding the action."
+    "webapi?cmd?revoketoken?info@action": "Sent a message with information regarding the action.",
+    "help?cmd?help?fail@cog": "No such cog"
 }

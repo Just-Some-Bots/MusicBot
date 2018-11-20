@@ -92,7 +92,7 @@ async def cmd_help(bot, message, channel, command=None, spcog=None):
                         ).format(command_prefix=bot.config.command_prefix),
                         delete_after=60
                     )
-            raise exceptions.CommandError(bot.str.get('cmd-help-invalid', "No such cog"), expire_in=10) from None
+            raise exceptions.CommandError(bot.str.get('help?cmd?help?fail@cog', "No such cog"), expire_in=10) from None
 
         else:
             cmd = await _gen_cmd_dict(bot, message, list_all_cmds=True)
