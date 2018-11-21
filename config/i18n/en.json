@@ -103,5 +103,15 @@
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!",
-    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it."
+    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it.",
+    "vcutil-invalid-user": "Please specify a valid user.",
+    "vcutil-invalid-permissions": "You have no permissions to mute members on this server.",
+    "vcutil-invalid-option": "{} you didn't type a valid voice utility option.",
+    "vcutil-mute-succesful": "{} I've succesfully server muted {}\nReason: {}",
+    "vcutil-unmute-succesful": "{} I've succesfully server unmuted {}\nReason: {}",
+    "vcutil-deafen-succesful": "{} I've succesfully server deafened {}\nReason: {}",
+    "vcutil-undeafen-succesful": "{} I've succesfully server undeafened {}\nReason: {}",
+    "vcutil-all-succesful": "{} I've succesfully server muted and deafened {}\nReason: {}",
+    "vcutil-unall-succesful": "{} I've succesfully server unmuted and undeafened {}\nReason: {}"
+}
 }

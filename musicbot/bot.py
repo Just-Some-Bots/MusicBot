@@ -2582,6 +2582,62 @@ class MusicBot(discord.Client):
 
         return Response(codeblock.format(result))
 
+    async def cmd_vcutil(self, server, message, channel, author, option, user_mentions, args, leftover_args):
+        """
+        Usage: {command_prefix}vcutil mute | unmute | deafen | undeafen | all | unall [@a valid user] "reason"
+
+        Changes the server voice status of a member eg server muted
+        """
+
+        v_perms = lambda u: channel.permissions_for(u).mute_members
+
+        if not leftover_args:
+            reason = str(self.str.get('vcutil-no-reason', 'No reason provided'))
+        else:
+            reason = ' '.join([*leftover_args])
+
+        if not user_mentions:
+            stripped = len(self.config.command_prefix)+7
+            int(stripped)
+            ph = message.content[stripped:]
+            str(ph)
+            member = server.get_member_named(ph)
+        else:
+            member = user_mentions[0]
+
+        if member == None:
+            await self.safe_send_message(channel, self.str.get('vcutil-invalid-user', "Please specify a valid user."))
+
+        if not v_perms(author):
+            await self.safe_send_message(channel, self.str.get('vcutil-invalid-permissions', "You have no permissions to mute members on this server."))
+            return
+
+        try:
+            if not option in ['mute', 'unmute', 'deafen', 'undeafen', 'all', 'unall']:
+                await self.safe_send_message(channel, self.str.get("vcutil-invalid-option", "{} you didn't type a valid voice utility option.".format(message.author.name)))
+            else:
+                if option in ['mute']:
+                    await self.server_voice_state(member, mute=True)
+                    await self.safe_send_message(channel, self.str.get("vcutil-mute-succesful", "{} I've succesfully server muted {}\nReason: {}".format(message.author.name, member, reason)))
+                if option in ['unmute']:
+                    await self.server_voice_state(member, mute=False)
+                    await self.safe_send_message(channel, self.str.get("vcutil-unmute-succesful", "{} I've succesfully server unmuted {}\nReason: {}".format(message.author.name, member, reason)))
+                if option in ['deafen']:
+                    await self.server_voice_state(member, mute=False, deafen=True)
+                    await self.safe_send_message(channel, self.str.get("vcutil-deafen-succesful", "{} I've succesfully server deafened {}\nReason: {}".format(message.author.name, member, reason)))
+                if option in ['undeafen']:
+                    await self.server_voice_state(member, mute=False, deafen=False)
+                    await self.safe_send_message(channel, self.str.get("vcutil-undeafen-succesful", "{} I've succesfully server undeafened {}\nReason: {}".format(message.author.name, member, reason)))
+                if option in ['all']:
+                    await self.server_voice_state(member, mute=True, deafen=True)
+                    await self.safe_send_message(channel, self.str.get("vcutil-all-succesful", "{} I've succesfully server muted and deafened {}\nReason: {}".format(message.author.name, member, reason)))
+                if option in ['unall']:
+                    await self.server_voice_state(member, mute=False, deafen=False)
+                    await self.safe_send_message(channel, self.str.get("vcutil-unall-succesful", "{} I've succesfully server unmuted and undeafened {}\nReason: {}".format(message.author.name, member, reason)))
+        except:
+            await self.safe_send_message(channel, self.str.get('vcutil-error', "Something went wrong, try again!"))
+        await self.safe_delete_message(message)
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
