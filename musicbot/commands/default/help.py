@@ -1,8 +1,8 @@
 from textwrap import dedent
 
-from ..cogsmanager import gen_cmd_list, gen_cog_list, gen_cmd_list_from_cog
-from .. import exceptions
-from ..constructs import Response
+from ...cogsmanager import gen_cmd_list, gen_cog_list, gen_cmd_list_from_cog
+from ... import exceptions
+from ...constructs import Response
 
 cog_name = 'help'
 

@@ -1,7 +1,7 @@
 import logging
 
-from .. import exceptions
-from ..constructs import Response
+from ... import exceptions
+from ...constructs import Response
 
 log = logging.getLogger(__name__)
 

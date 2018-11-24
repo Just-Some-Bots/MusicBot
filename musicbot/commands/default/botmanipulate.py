@@ -2,10 +2,10 @@ import logging
 import discord
 import aiohttp
 
-from ..utils import _get_variable
-from .. import exceptions
-from ..constructs import Response
-from ..wrappers import owner_only
+from ...utils import _get_variable
+from ... import exceptions
+from ...constructs import Response
+from ...wrappers import owner_only
 
 log = logging.getLogger(__name__)
 

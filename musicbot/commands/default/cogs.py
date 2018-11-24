@@ -1,10 +1,10 @@
 import logging
 
-from ..utils import _get_variable
-from .. import exceptions
-from ..constructs import Response
-from ..cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias
-from ..wrappers import owner_only
+from ...utils import _get_variable
+from ... import exceptions
+from ...constructs import Response
+from ...cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias
+from ...wrappers import owner_only
 
 log = logging.getLogger(__name__)
 

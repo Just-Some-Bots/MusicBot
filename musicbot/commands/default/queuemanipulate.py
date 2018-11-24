@@ -9,9 +9,9 @@ import math
 
 from textwrap import dedent
 
-from ..utils import fixg, ftimedelta, _func_
-from .. import exceptions
-from ..constructs import Response
+from ...utils import fixg, ftimedelta, _func_
+from ... import exceptions
+from ...constructs import Response
 
 log = logging.getLogger(__name__)
 

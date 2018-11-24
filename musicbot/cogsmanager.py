@@ -2,6 +2,7 @@
 import traceback
 import logging
 import asyncio
+import pkgutil
 from textwrap import dedent
 from inspect import iscoroutinefunction
 
@@ -17,6 +18,7 @@ log = logging.getLogger(__name__)
 
 imported = dict()
 looped = dict()
+cleanup = dict()
 
 aiolocks = defaultdict(asyncio.Lock)
 
@@ -50,6 +52,83 @@ async def declock():
         if cmdrun == 0:
             aiolocks['lock_clear'].release()
 
+async def _init_load_cog(loaded, modname, module):
+    try:
+        cogname = getattr(loaded, 'cog_name')
+    except AttributeError:
+        raise exceptions.CogError("module/submodule `{0}` doesn't specified cog name, skipping".format(modname)) from None
+    else:
+        log.info("loading cog `{0}`".format(cogname))
+
+        importfuncs = dict()
+        importfuncs['init'] = list()
+        importfuncs['cmd'] = list()
+        importfuncs['asyncloop'] = list()
+
+        for att in dir(loaded):
+            if att.startswith('init_'):
+                importfuncs['init'].append((att, getattr(loaded ,att, None)))
+            if att.startswith('cmd_'):
+                importfuncs['cmd'].append((att, getattr(loaded ,att, None)))
+            if att.startswith('asyncloop_'):
+                importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
+            if att.startswith('cleanup_'):
+                cleanup[module].append((att, getattr(loaded ,att, None)))
+
+        for att, handler in importfuncs['init']:
+            if iscoroutinefunction(handler):
+                await handler(bot)
+
+        for att, handler in importfuncs['cmd']:
+            # second pass, do actual work
+            if iscoroutinefunction(handler):
+                cmd = await command(cogname, att[4:], handler)
+                if att[4:] not in alias.aliases[att[4:]]:
+                    log.debug("command `{0}` does not have alias of itself, fixing...".format(att[4:]))
+                    alias.aliases[att[4:]].append(att[4:])
+                for als in alias.aliases[att[4:]]:
+                    await cmd.add_alias(als, forced = True)
+
+        for att, handler in importfuncs['asyncloop']:
+            if iscoroutinefunction(handler):
+
+                class wraploop():
+
+                    def __init__(self, func, fname):
+                        self.fname = fname
+                        self.func = func
+                        self._stop = False
+                        self.lock = defaultdict(asyncio.Lock)
+
+                    async def __call__(self):
+                        try:
+                            await self.func(bot)
+                        except Exception as e:
+                            log.error(e)
+                            return
+                        if(hasattr(self.func, 'delay')):
+                            await asyncio.sleep(self.func.delay)
+                        else:
+                            await asyncio.sleep(0)
+                        async with self.lock['stop']:
+                            if not self._stop:
+                                asyncio.create_task(self())
+
+                    async def stop(self):
+                        async with self.lock['stop']:
+                            log.debug('{} will stop looping'.format(self.fname))
+                            self._stop = True
+
+                looped[module].append(wraploop(handler, att))
+                asyncio.create_task(looped[module][-1]())
+        
+        # print doc if exist
+        if loaded.__doc__:
+            log.info(dedent(loaded.__doc__))
+            
+        getcog(cogname).__doc__ = loaded.__doc__
+        log.info("successfully loaded/reloaded cog `{0}`".format(cogname))
+
 async def load(module):
     global alias
     await aiolocks['lock_execute'].acquire()
@@ -57,101 +136,44 @@ async def load(module):
     try:
         loaded = None
         if module in imported:
-            log.info("reloading module `{0}`".format(module))
+            log.info("reloading module/package `{0}`".format(module))
             # stop loop
             log.debug('stopping {} loop(s)'.format(len(looped[module])))
             for callab in looped[module]:
                 await callab.stop()
 
-            for att in dir(imported[module]):
-                # lookup code for cleanup
-                if att.startswith('cleanup_'):
-                    handler = getattr(imported[module] ,att, None)
-                    if iscoroutinefunction(handler):
-                        await handler(bot)
+            for hdlr in cleanup[module]:
+                await hdlr(bot)
             reload(imported[module])
             loaded = imported[module]
         else:
-            log.info("loading module `{0}`".format(module))
+            log.info("loading module/package `{0}`".format(module))
             loaded = import_module('.commands.{}'.format(module), 'musicbot')
             imported[module] = loaded
 
         looped[module] = list()
+        cleanup[module] = list()
 
-        cogname = None
+        if hasattr(loaded, 'use_multicog_loader') and getattr(loaded, 'use_multicog_loader'):
+            log.debug("package `{0}` is specified as multicog, using multicog handler...".format(module))
+            for importer, modname, ispkg in pkgutil.iter_modules(loaded.__path__): # pylint: disable=unused-variable
+                if ispkg:
+                    log.info("`{0}` is subpackage, skipping...".format(modname))
+                else:
+                    if modname in imported:
+                        log.info("reloading submodule `{0}`".format(modname))
+                        reload(imported[module])
+                        submodule = imported[module]
+                    else:
+                        log.info("loading submodule `{0}`".format(modname))
+                        submodule = import_module('.commands.{}.{}'.format(module, modname), 'musicbot')
+                        imported[module] = submodule
+                    await _init_load_cog(submodule, modname, module)
 
-        try:
-            cogname = getattr(loaded, 'cog_name')
-        except AttributeError:
-            raise exceptions.CogError("module `{0}` doesn't specified cog name, skipping".format(module)) from None
         else:
-            importfuncs = dict()
-            importfuncs['init'] = list()
-            importfuncs['cmd'] = list()
-            importfuncs['asyncloop'] = list()
+            await _init_load_cog(loaded, module, module)
 
-            for att in dir(loaded):
-                if att.startswith('init_'):
-                    importfuncs['init'].append((att, getattr(loaded ,att, None)))
-                if att.startswith('cmd_'):
-                    importfuncs['cmd'].append((att, getattr(loaded ,att, None)))
-                if att.startswith('asyncloop_'):
-                    importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
-
-            for att, handler in importfuncs['init']:
-                if iscoroutinefunction(handler):
-                    await handler(bot)
-
-            for att, handler in importfuncs['cmd']:
-                # second pass, do actual work
-                if iscoroutinefunction(handler):
-                    cmd = await command(cogname, att[4:], handler)
-                    if att[4:] not in alias.aliases[att[4:]]:
-                        log.debug("command `{0}` does not have alias of itself, fixing...".format(att[4:]))
-                        alias.aliases[att[4:]].append(att[4:])
-                    for als in alias.aliases[att[4:]]:
-                        await cmd.add_alias(als, forced = True)
-
-            for att, handler in importfuncs['asyncloop']:
-                if iscoroutinefunction(handler):
-
-                    class wraploop():
-
-                        def __init__(self, func, fname):
-                            self.fname = fname
-                            self.func = func
-                            self._stop = False
-                            self.lock = defaultdict(asyncio.Lock)
-
-                        async def __call__(self):
-                            try:
-                                await self.func(bot)
-                            except Exception as e:
-                                log.error(e)
-                                return
-                            if(hasattr(self.func, 'delay')):
-                                await asyncio.sleep(self.func.delay)
-                            else:
-                                await asyncio.sleep(0)
-                            async with self.lock['stop']:
-                                if not self._stop:
-                                    asyncio.create_task(self())
-
-                        async def stop(self):
-                            async with self.lock['stop']:
-                                log.debug('{} will stop looping'.format(self.fname))
-                                self._stop = True
-
-                    looped[module].append(wraploop(handler, att))
-                    asyncio.create_task(looped[module][-1]())
-            
-            # print doc if exist
-            if loaded.__doc__:
-                log.info(dedent(loaded.__doc__))
-                
-            getcog(cogname).__doc__ = loaded.__doc__
-                        
-            log.info("successfully loaded/reloaded module `{0}`".format(module))
+        log.info("successfully loaded/reloaded module/package `{0}`".format(module))
 
     except Exception as e:
         raise exceptions.CogError("can't load module `{0}`, skipping".format(module)) from e

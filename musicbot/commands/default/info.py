@@ -5,11 +5,11 @@ from io import BytesIO
 from datetime import timedelta
 from collections import defaultdict
 
-from .. import exceptions
-from ..entry import StreamPlaylistEntry
-from ..utils import ftimedelta
-from ..constructs import Response
-from ..constants import DISCORD_MSG_CHAR_LIMIT
+from ... import exceptions
+from ...entry import StreamPlaylistEntry
+from ...utils import ftimedelta
+from ...constructs import Response
+from ...constants import DISCORD_MSG_CHAR_LIMIT
 
 log = logging.getLogger(__name__)
 

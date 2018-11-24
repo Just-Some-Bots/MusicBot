@@ -1,4 +1,4 @@
-from ..constructs import Response
+from ...constructs import Response
 
 cog_name = 'utility'
 
