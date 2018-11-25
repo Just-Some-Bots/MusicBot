@@ -52,13 +52,13 @@ async def declock():
         if cmdrun == 0:
             aiolocks['lock_clear'].release()
 
-async def _init_load_cog(loaded, modname, module):
+async def _init_load_cog(loaded, modname):
     try:
         cogname = getattr(loaded, 'cog_name')
     except AttributeError:
         raise exceptions.CogError("module/submodule `{0}` doesn't specified cog name, skipping".format(modname)) from None
     else:
-        log.info("loading cog `{0}`".format(cogname))
+        log.info("loading/reloading cog `{0}`".format(cogname))
 
         importfuncs = dict()
         importfuncs['init'] = list()
@@ -73,7 +73,7 @@ async def _init_load_cog(loaded, modname, module):
             if att.startswith('asyncloop_'):
                 importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
             if att.startswith('cleanup_'):
-                cleanup[module].append((att, getattr(loaded ,att, None)))
+                cleanup[modname].append((att, getattr(loaded ,att, None)))
 
         for att, handler in importfuncs['init']:
             if iscoroutinefunction(handler):
@@ -119,8 +119,8 @@ async def _init_load_cog(loaded, modname, module):
                             log.debug('{} will stop looping'.format(self.fname))
                             self._stop = True
 
-                looped[module].append(wraploop(handler, att))
-                asyncio.create_task(looped[module][-1]())
+                looped[modname].append(wraploop(handler, att))
+                asyncio.create_task(looped[modname][-1]())
         
         # print doc if exist
         if loaded.__doc__:
@@ -128,6 +128,36 @@ async def _init_load_cog(loaded, modname, module):
             
         getcog(cogname).__doc__ = loaded.__doc__
         log.info("successfully loaded/reloaded cog `{0}`".format(cogname))
+
+async def _init_load_multicog(loaded, modname):
+    log.debug("package `{0}` is specified as multicog, using multicog handler...".format(modname))
+    coglist = getattr(loaded, 'coglist', 'ALL')
+    if coglist == 'ALL':
+        log.debug('loading all cogs on no coglist')
+    for importer, submodname, ispkg in pkgutil.iter_modules(loaded.__path__): # pylint: disable=unused-variable
+        if coglist == 'ALL' or submodname in coglist:
+            if ispkg:
+                log.info("`{0}` is subpackage...".format(submodname))
+                if '{}.{}'.format(modname, submodname) in imported:
+                    log.info("reloading `{0}`".format(submodname))
+                    reload(imported['{}.{}'.format(modname, submodname)])
+                    subpkg = imported['{}.{}'.format(modname, submodname)]
+                else:
+                    log.info("loading `{0}`".format(submodname))
+                    subpkg = import_module('.commands.{}.{}'.format(modname, submodname), 'musicbot')
+                    imported['{}.{}'.format(modname, submodname)] = subpkg
+                if hasattr(subpkg, 'use_multicog_loader') and getattr(subpkg, 'use_multicog_loader'):
+                    await _init_load_multicog(subpkg, '{}.{}'.format(modname, submodname))
+            else:
+                if '{}.{}'.format(modname, submodname) in imported:
+                    log.info("reloading submodule `{0}`".format(submodname))
+                    reload(imported['{}.{}'.format(modname, submodname)])
+                    submodule = imported['{}.{}'.format(modname, submodname)]
+                else:
+                    log.info("loading submodule `{0}`".format(submodname))
+                    submodule = import_module('.commands.{}.{}'.format(modname, submodname), 'musicbot')
+                    imported['{}.{}'.format(modname, submodname)] = submodule
+                await _init_load_cog(submodule, '{}.{}'.format(modname, submodname))
 
 async def load(module):
     global alias
@@ -155,23 +185,10 @@ async def load(module):
         cleanup[module] = list()
 
         if hasattr(loaded, 'use_multicog_loader') and getattr(loaded, 'use_multicog_loader'):
-            log.debug("package `{0}` is specified as multicog, using multicog handler...".format(module))
-            for importer, modname, ispkg in pkgutil.iter_modules(loaded.__path__): # pylint: disable=unused-variable
-                if ispkg:
-                    log.info("`{0}` is subpackage, skipping...".format(modname))
-                else:
-                    if modname in imported:
-                        log.info("reloading submodule `{0}`".format(modname))
-                        reload(imported[module])
-                        submodule = imported[module]
-                    else:
-                        log.info("loading submodule `{0}`".format(modname))
-                        submodule = import_module('.commands.{}.{}'.format(module, modname), 'musicbot')
-                        imported[module] = submodule
-                    await _init_load_cog(submodule, modname, module)
+            await _init_load_multicog(loaded, module)
 
         else:
-            await _init_load_cog(loaded, module, module)
+            await _init_load_cog(loaded, module)
 
         log.info("successfully loaded/reloaded module/package `{0}`".format(module))
 
