@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 imported = dict()
 looped = dict()
 cleanup = dict()
+cogmodule = dict()
 
 aiolocks = defaultdict(asyncio.Lock)
 
@@ -52,6 +53,18 @@ async def declock():
         if cmdrun == 0:
             aiolocks['lock_clear'].release()
 
+async def _try_cleanup_module(modname):
+    if modname in looped:
+        # stop loop
+        log.debug('stopping {} loop(s)'.format(len(looped[modname])))
+        for callab in looped[modname]:
+            await callab.stop()
+    
+    if modname in cleanup:
+        log.debug('running {} cleanup(s)'.format(len(cleanup[modname])))
+        for hdlr in cleanup[modname]:
+            await hdlr(bot)
+
 async def _init_load_cog(loaded, modname):
     try:
         cogname = getattr(loaded, 'cog_name')
@@ -59,6 +72,11 @@ async def _init_load_cog(loaded, modname):
         raise exceptions.CogError("module/submodule `{0}` doesn't specified cog name, skipping".format(modname)) from None
     else:
         log.info("loading/reloading cog `{0}`".format(cogname))
+
+        looped[modname] = list()
+        cleanup[modname] = list()
+
+        cogmodule[cogname] = modname
 
         importfuncs = dict()
         importfuncs['init'] = list()
@@ -73,7 +91,7 @@ async def _init_load_cog(loaded, modname):
             if att.startswith('asyncloop_'):
                 importfuncs['asyncloop'].append((att, getattr(loaded ,att, None)))
             if att.startswith('cleanup_'):
-                cleanup[modname].append((att, getattr(loaded ,att, None)))
+                cleanup[modname].append(getattr(loaded ,att, None))
 
         for att, handler in importfuncs['init']:
             if iscoroutinefunction(handler):
@@ -153,6 +171,7 @@ async def _init_load_multicog(loaded, modname):
                     log.info("reloading submodule `{0}`".format(submodname))
                     reload(imported['{}.{}'.format(modname, submodname)])
                     submodule = imported['{}.{}'.format(modname, submodname)]
+                    await _try_cleanup_module('{}.{}'.format(modname, submodname))
                 else:
                     log.info("loading submodule `{0}`".format(submodname))
                     submodule = import_module('.commands.{}.{}'.format(modname, submodname), 'musicbot')
@@ -166,23 +185,14 @@ async def load(module):
     try:
         loaded = None
         if module in imported:
+            await _try_cleanup_module(module)
             log.info("reloading module/package `{0}`".format(module))
-            # stop loop
-            log.debug('stopping {} loop(s)'.format(len(looped[module])))
-            for callab in looped[module]:
-                await callab.stop()
-
-            for hdlr in cleanup[module]:
-                await hdlr(bot)
             reload(imported[module])
             loaded = imported[module]
         else:
             log.info("loading module/package `{0}`".format(module))
             loaded = import_module('.commands.{}'.format(module), 'musicbot')
             imported[module] = loaded
-
-        looped[module] = list()
-        cleanup[module] = list()
 
         if hasattr(loaded, 'use_multicog_loader') and getattr(loaded, 'use_multicog_loader'):
             await _init_load_multicog(loaded, module)
@@ -215,6 +225,16 @@ async def loadcog(cog):
     cogobj = getcog(cog)
     await cogobj.load()
     await declock()
+
+async def getcogmodule(cog):
+    await checkblockloading()
+    await inclock()
+    try:
+        return cogmodule[cog]
+    except KeyError:
+        raise exceptions.CogError('No specified cog: {0}'.format(cog)) from None
+    finally:
+        await declock()
 
 async def getcmd(cmd):
     await checkblockloading()

@@ -3,7 +3,7 @@ import logging
 from ...utils import _get_variable
 from ... import exceptions
 from ...constructs import Response
-from ...cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias
+from ...cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias, getcogmodule
 from ...wrappers import owner_only
 
 log = logging.getLogger(__name__)
@@ -31,7 +31,8 @@ async def cmd_loadcog(bot, name):
     Usage:
         {command_prefix}loadcog cog
 
-    Load (or reload) specified cog. The module that implement the cog must already be loaded.
+    Load (or reload) specified cog. The module that implement the cog must already have been loaded.
+    This does not update cog if the cog got updated. For that, use loadmodule command
     """
     await loadcog(name)
     return Response(bot.str.get('cogs?cmd?loadcog?success', "Successfully reloaded cog `{0}`").format(name), delete_after=15)
@@ -46,6 +47,17 @@ async def cmd_unloadcog(bot, name):
     """
     await unloadcog(name)
     return Response(bot.str.get('cogs?cmd?unloadcog?success', "Successfully unloaded cog `{0}`").format(name), delete_after=15)
+
+@owner_only
+async def cmd_cogmodule(bot, name):
+    """
+    Usage:
+        {command_prefix}cogmodule cog
+
+    Get module name of specified cog.
+    """
+    module = await getcogmodule(name)
+    return Response('```{}```'.format(module), delete_after=15)
 
 @owner_only
 async def cmd_addalias(bot, command, alias, param=''):
