@@ -149,6 +149,7 @@ class Config:
                         "instructions in the options or ask in the help server.",
                         preface=self._confpreface
                     )
+                self.owner_id = int(self.owner_id)
 
             elif self.owner_id == 'auto':
                 pass # defer to async check
@@ -227,8 +228,6 @@ class Config:
 
             self.owner_id = bot.cached_app_info.owner.id
             log.debug("Acquired owner id via API")
-        else:
-            self.owner_id = int(self.owner_id)
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(
