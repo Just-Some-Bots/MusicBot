@@ -73,10 +73,16 @@ class Permissions:
         for section in self.config.sections():
             if section != 'Owner (auto)':
                 self.groups.add(PermissionGroup(section, self.config[section]))
-
-        # Create a fake section to fallback onto the permissive default values to grant to the owner
-        # noinspection PyTypeChecker
-        owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
+                
+        if self.config.has_section('Owner (auto)'):
+            owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
+            
+        else:
+            log.info("[Owner (auto)] section not found, falling back to permissive default")
+            # Create a fake section to fallback onto the default non-permissive values to grant to the owner emulating the old behavior
+            # noinspection PyTypeChecker
+            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, Permissive))
+            
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
 
@@ -123,11 +129,9 @@ class Permissions:
 
 
 class PermissionGroup:
-    def __init__(self, name, section_data, fallback=None):
+    def __init__(self, name, section_data, fallback=PermissionsDefaults):
         self.name = name
-        if fallback == None:
-            fallback = PermissionsDefaults
-            
+        
         self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
         self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
         self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
