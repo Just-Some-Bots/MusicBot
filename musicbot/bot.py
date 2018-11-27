@@ -118,11 +118,6 @@ class MusicBot(discord.Client):
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
 
-    def __del__(self):
-        # These functions return futures but it doesn't matter
-        try:    self.http.session.close()
-        except: pass
-
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
@@ -638,7 +633,7 @@ class MusicBot(discord.Client):
             oldchannel = lnp.channel
 
             if lnp.channel == oldchannel:  # If we have a channel to update it in
-                async for lmsg in self.logs_from(channel, limit=1):
+                async for lmsg in lnp.channel.history(limit=1):
                     if lmsg != lnp and lnp:  # If we need to resend it
                         await self.safe_delete_message(lnp, quiet=True)
                         m = await self.safe_send_message(channel, message, quiet=True)
@@ -882,7 +877,7 @@ class MusicBot(discord.Client):
                 log.error("Error in cleanup", exc_info=True)
 
             if self.exit_signal:
-                raise self.exit_signal
+                raise self.exit_signal # pylint: disable=E0702
 
     async def logout(self):
         await self.disconnect_all_voice_clients()
@@ -2602,7 +2597,7 @@ class MusicBot(discord.Client):
             else:
                 return  # if I want to log this I just move it under the prefix check
 
-        if not isinstance(message.channel, discord.abc.GuildChannel):
+        if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):
             return
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
@@ -2616,7 +2611,7 @@ class MusicBot(discord.Client):
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
-                await self.send_message(message.channel, 'You cannot use this bot in private messages.')
+                await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
