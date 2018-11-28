@@ -13,6 +13,8 @@ THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S SECURITY.
 This cog require Python 3.7+
 """
 
+# @TheerapakG: TODO: FUTURE#1776: use websockets instead
+
 import socket
 import sys
 import logging
