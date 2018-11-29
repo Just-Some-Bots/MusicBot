@@ -13,7 +13,9 @@ THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S SECURITY.
 This cog require Python 3.7+
 """
 
-# @TheerapakG: TODO: FUTURE#1776: use websockets instead
+# @TheerapakG: TODO: FUTURE#1776?WEBAPI: use websockets instead
+# websockets is already a dependency of discord.py and we shouldn't have to add it to requirements.txt
+# it is non-blocking (compared to this which is mostly non-blocking except closing down the server) and easier to deal with than http.server and doesn't require py 3.7 but lose some benefits of concurrency
 
 import socket
 import sys
