@@ -10,7 +10,7 @@ from importlib import import_module, reload
 
 from collections import defaultdict
 
-from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands, cogs
+from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands, cogs, cog
 from .alias import Alias, AliasDefaults
 from . import exceptions
 
@@ -100,6 +100,8 @@ async def _init_load_cog(loaded, modname):
         for att, handler in importfuncs['init']:
             if iscoroutinefunction(handler):
                 await handler(bot)
+
+        await cog(cogname)
 
         for att, handler in importfuncs['cmd']:
             # second pass, do actual work

@@ -220,6 +220,11 @@ class CallableCommand(Command):
         argspec = inspect.signature(self.func)
         return argspec.parameters.copy()
 
+async def cog(name):
+    cg = Cog(name)
+    cogs.add(cg)
+    return cg
+
 async def command(cog, name, func):
     cmd = CallableCommand(cog, name, func)
     cogs.add(Cog(cog))
