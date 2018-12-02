@@ -130,10 +130,12 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             # TODO: Better [name] fallbacks
             if 'channel' in data['meta']:
-                meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
+                # int() it because persistent queue from pre-rewrite days saved ids as strings
+                meta['channel'] = playlist.bot.get_channel(int(data['meta']['channel']['id']))
 
             if 'author' in data['meta']:
-                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
+                # int() it because persistent queue from pre-rewrite days saved ids as strings
+                meta['author'] = meta['channel'].guild.get_member(int(data['meta']['author']['id']))
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
