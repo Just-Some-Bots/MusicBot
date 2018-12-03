@@ -166,14 +166,14 @@ class Config:
 
         if self.bound_channels:
             try:
-                self.bound_channels = set(x for x in self.bound_channels.split() if x)
+                self.bound_channels = set(x for x in self.bound_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
-                self.autojoin_channels = set(x for x in self.autojoin_channels.split() if x)
+                self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
@@ -184,9 +184,9 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        self.bound_channels = set(int(item.replace(',', ' ').strip()) for item in self.bound_channels)
+        self.bound_channels = set(int(item) for item in self.bound_channels)
 
-        self.autojoin_channels = set(int(item.replace(',', ' ').strip()) for item in self.autojoin_channels)
+        self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
