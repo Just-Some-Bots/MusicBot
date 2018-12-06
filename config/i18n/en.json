@@ -102,5 +102,6 @@
     "playlists-noperms": "You are not allowed to request playlists",
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
-    "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!"
+    "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!",
+    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it."
 }
