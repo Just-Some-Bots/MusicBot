@@ -580,6 +580,7 @@ class MusicBot(discord.Client):
 
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue(player.voice_client.channel.guild)
+            player.play(_continue = True)
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
         log.debug('Running on_player_entry_added')
