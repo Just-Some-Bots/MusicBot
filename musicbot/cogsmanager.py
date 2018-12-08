@@ -75,7 +75,7 @@ async def _init_load_cog(loaded, modname):
     except AttributeError:
         raise exceptions.CogError("module/submodule `{0}` doesn't specified cog name, skipping".format(modname)) from None
     else:
-        log.info("loading/reloading cog `{0}`".format(cogname))
+        log.debug("loading/reloading cog `{0}`".format(cogname))
 
         looped[modname] = list()
         cleanup[modname] = list()
@@ -148,10 +148,11 @@ async def _init_load_cog(loaded, modname):
         
         # print doc if exist
         if loaded.__doc__:
+            log.info("Information from cog {}:".format(cogname))
             log.info(dedent(loaded.__doc__))
             
         getcog(cogname).__doc__ = loaded.__doc__
-        log.info("successfully loaded/reloaded cog `{0}`".format(cogname))
+        log.debug("successfully loaded/reloaded cog `{0}`".format(cogname))
 
 async def _init_load_multicog(loaded, modname):
     log.debug("package `{0}` is specified as multicog, using multicog handler...".format(modname))
@@ -161,25 +162,25 @@ async def _init_load_multicog(loaded, modname):
     for importer, submodname, ispkg in pkgutil.iter_modules(loaded.__path__): # pylint: disable=unused-variable
         if coglist == 'ALL' or submodname in coglist:
             if ispkg:
-                log.info("`{0}` is subpackage...".format(submodname))
+                log.debug("`{0}` is subpackage...".format(submodname))
                 if '{}.{}'.format(modname, submodname) in imported:
-                    log.info("reloading `{0}`".format(submodname))
+                    log.debug("reloading `{0}`".format(submodname))
                     reload(imported['{}.{}'.format(modname, submodname)])
                     subpkg = imported['{}.{}'.format(modname, submodname)]
                 else:
-                    log.info("loading `{0}`".format(submodname))
+                    log.debug("loading `{0}`".format(submodname))
                     subpkg = import_module('.commands.{}.{}'.format(modname, submodname), 'musicbot')
                     imported['{}.{}'.format(modname, submodname)] = subpkg
                 if hasattr(subpkg, 'use_multicog_loader') and getattr(subpkg, 'use_multicog_loader'):
                     await _init_load_multicog(subpkg, '{}.{}'.format(modname, submodname))
             else:
                 if '{}.{}'.format(modname, submodname) in imported:
-                    log.info("reloading submodule `{0}`".format(submodname))
+                    log.debug("reloading submodule `{0}`".format(submodname))
                     reload(imported['{}.{}'.format(modname, submodname)])
                     submodule = imported['{}.{}'.format(modname, submodname)]
                     await _try_cleanup_module('{}.{}'.format(modname, submodname))
                 else:
-                    log.info("loading submodule `{0}`".format(submodname))
+                    log.debug("loading submodule `{0}`".format(submodname))
                     submodule = import_module('.commands.{}.{}'.format(modname, submodname), 'musicbot')
                     imported['{}.{}'.format(modname, submodname)] = submodule
                 await _init_load_cog(submodule, '{}.{}'.format(modname, submodname))
@@ -192,11 +193,11 @@ async def load(module):
         loaded = None
         if module in imported:
             await _try_cleanup_module(module)
-            log.info("reloading module/package `{0}`".format(module))
+            log.debug("reloading module/package `{0}`".format(module))
             reload(imported[module])
             loaded = imported[module]
         else:
-            log.info("loading module/package `{0}`".format(module))
+            log.debug("loading module/package `{0}`".format(module))
             loaded = import_module('.commands.{}'.format(module), 'musicbot')
             imported[module] = loaded
 
@@ -206,7 +207,7 @@ async def load(module):
         else:
             await _init_load_cog(loaded, module)
 
-        log.info("successfully loaded/reloaded module/package `{0}`".format(module))
+        log.debug("successfully loaded/reloaded module/package `{0}`".format(module))
 
     except Exception as e:
         raise exceptions.CogError("can't load module `{0}`, skipping".format(module)) from e
