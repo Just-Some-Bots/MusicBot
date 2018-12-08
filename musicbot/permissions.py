@@ -143,11 +143,11 @@ class PermissionGroup:
         self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=fallback.MaxPlaylistLength)
         self.max_search_items = section_data.get('MaxSearchItems', fallback=fallback.MaxSearchItems)
 
-        self.allow_playlists = section_data.get('AllowPlaylists', fallback=fallback.AllowPlaylists)
-        self.instaskip = section_data.get('InstaSkip', fallback=fallback.InstaSkip)
-        self.remove = section_data.get('Remove', fallback=fallback.Remove)
-        self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
-        self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
+        self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=fallback.AllowPlaylists)
+        self.instaskip = section_data.getboolean('InstaSkip', fallback=fallback.InstaSkip)
+        self.remove = section_data.getboolean('Remove', fallback=fallback.Remove)
+        self.skip_when_absent = section_data.getboolean('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
+        self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
         self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 
@@ -195,26 +195,6 @@ class PermissionGroup:
         if int(self.max_search_items) > 100:
             log.warning('Max search items can\'t be larger than 100. Setting to 100.')
             self.max_search_items = 100
-
-        self.allow_playlists = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.allow_playlists, PermissionsDefaults.AllowPlaylists
-        )
-
-        self.instaskip = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.instaskip, PermissionsDefaults.InstaSkip
-        )
-
-        self.remove = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.remove, PermissionsDefaults.Remove
-        )
-
-        self.skip_when_absent = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.skip_when_absent, PermissionsDefaults.SkipWhenAbsent
-        )
-
-        self.bypass_karaoke_mode = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.bypass_karaoke_mode, PermissionsDefaults.BypassKaraokeMode
-        )
 
     @staticmethod
     def _process_list(seq, *, split=' ', lower=True, strip=', ', coerce=str, rcoerce=list):
