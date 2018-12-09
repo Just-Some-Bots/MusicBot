@@ -146,10 +146,11 @@ async def _init_load_cog(loaded, modname):
                 looped[modname].append(wraploop(handler, att))
                 asyncio.create_task(looped[modname][-1]())
         
-        # print doc if exist
-        if loaded.__doc__:
-            log.info("Information from cog {}:".format(cogname))
-            log.info(dedent(loaded.__doc__))
+        # print notification if exist
+        doc = getattr(loaded ,'notify', None)
+        if doc:
+            log.info("Notification from cog {}:".format(cogname))
+            log.info(dedent(doc()))
             
         getcog(cogname).__doc__ = loaded.__doc__
         log.debug("successfully loaded/reloaded cog `{0}`".format(cogname))
