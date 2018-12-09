@@ -691,3 +691,45 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
             reply=True,
             delete_after=20
         )
+
+async def cmd_replay(bot, player, channel, author, permissions):
+    current_entry = player.current_entry
+
+    async with bot.aiolocks['cmd_play' + ':' + str(author.id)]:
+        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
+            raise exceptions.PermissionsError(
+                bot.str.get('cmd-stream-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
+            )
+
+        if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+            raise exceptions.PermissionsError(
+                bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
+            )
+
+        if permissions.max_song_length and current_entry.duration > permissions.max_song_length:
+            raise exceptions.PermissionsError(
+                bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(current_entry.duration, permissions.max_song_length),
+                expire_in=30
+            )
+
+    player.playlist._add_entry(current_entry)
+    position = len(player.playlist.entries)
+
+    reply_text = bot.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
+    btext = current_entry.title
+
+    if position == 1 and player.is_stopped:
+        position = bot.str.get('cmd-play-next', 'Up next!')
+        reply_text %= (btext, position)
+
+    else:
+        try:
+            time_until = await player.playlist.estimate_time_until(position, player)
+            reply_text += bot.str.get('cmd-play-eta', ' - estimated time until playing: %s')
+        except:
+            traceback.print_exc()
+            time_until = ''
+
+        reply_text %= (btext, position, ftimedelta(time_until))
+
+    return Response(reply_text, delete_after=30)
