@@ -692,7 +692,14 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
             delete_after=20
         )
 
-async def cmd_replay(bot, player, channel, author, permissions):
+async def cmd_replay(bot, player, channel, author, permissions, param=''):
+    """
+    Usage:
+        {command_prefix}replay [head/h]
+
+    Add currently playing song to the end queue, if added 'head' or 'h' to the
+    command current entry will be added to the head of the queue instead.
+    """
     current_entry = player.current_entry
 
     async with bot.aiolocks['cmd_play' + ':' + str(author.id)]:
@@ -712,8 +719,12 @@ async def cmd_replay(bot, player, channel, author, permissions):
                 expire_in=30
             )
 
-    player.playlist._add_entry(current_entry)
-    position = len(player.playlist.entries)
+    if (param.lower() in ['head', 'h']):
+        player.playlist._add_entry(current_entry, head = True)
+        position = 1
+    else:
+        player.playlist._add_entry(current_entry)
+        position = len(player.playlist.entries)        
 
     reply_text = bot.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
     btext = current_entry.title
