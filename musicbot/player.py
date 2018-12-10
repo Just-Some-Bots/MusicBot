@@ -108,6 +108,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self.state = MusicPlayerState.STOPPED
         self.skip_state = None
         self.karaoke_mode = False
+        self.effects = list()
 
         self._volume = bot.config.default_volume
         self._play_lock = asyncio.Lock()
@@ -272,6 +273,9 @@ class MusicPlayer(EventEmitter, Serializable):
                     aoptions = entry.aoptions
                 else:
                     aoptions = "-vn"
+
+                if self.effects:
+                    aoptions += " -af \"{}\"".format(', '.join(["{}{}".format(key, arg) for key, arg in self.effects]))
 
                 log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
 

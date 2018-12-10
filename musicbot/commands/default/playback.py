@@ -79,3 +79,34 @@ async def cmd_pause(bot, player):
 
     else:
         raise exceptions.CommandError(bot.str.get('cmd-pause-none', 'Player is not playing.'), expire_in=30)
+
+async def cmd_effect(bot, channel, player, mode, fx, leftover_args):
+    """
+    Usage:
+        {command_prefix}effect add/a [effect] [args]
+        {command_prefix}effect remove/r [position]
+        {command_prefix}effect move/m [positionbef] [positionaft]
+
+    Apply or remove effects to the playback player, took effect on next entry.
+    """
+    reply_msg = ''
+    await bot.safe_send_message(channel, 'warning! effect command is highly experimental, use it with care!', expire_in=10)
+    if mode in ['add', 'a']:
+        if fx in ['fadein']:
+            duration = leftover_args[0]
+            player.effects.append(('afade=in:', 'd={}'.format(duration)))
+            reply_msg += 'Successfully add effect {} '.format('fadein')
+            reply_msg += 'with duration {} '.format(duration)
+        elif fx in ['fadeout']:
+            duration = leftover_args[0]
+            player.effects.append(('afade=out:', 'd={}'.format(duration)))
+            reply_msg += 'Successfully add effect {} '.format('fadeout')
+            reply_msg += 'with duration {} '.format(duration)
+    elif mode in ['remove', 'r']:
+        position = int(fx)-1
+        player.effects.pop(position)
+    elif mode in ['move', 'm']:
+        positionbef = int(fx)-1
+        positionaft = int(leftover_args[0]) -1
+        player.effects.insert(positionaft, player.effects.pop(positionbef))
+    return Response(reply_msg, delete_after=15)
