@@ -191,6 +191,8 @@ class CallableCommand(Command):
 
     async def with_callback(self, cog, **kwargs):
         try:
+            if 'bot' not in self.params():
+                kwargs.pop('bot', None)
             res = await self.func(**kwargs)
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError, exceptions.CogError):
             # TODO: Check if this need unloading cogs 
@@ -199,9 +201,12 @@ class CallableCommand(Command):
         except exceptions.Signal:
             raise
 
-        except Exception as e:   
-            await cog.unload()
-            raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40) from e
+        except Exception as e:
+            if kwargs['bot'].config.strict_unload_cog:
+                await cog.unload()
+                raise exceptions.CogError("unloaded cog `{0}`.".format(cog), expire_in= 40) from e
+            else:
+                raise e from None
         return res
 
     async def __call__(self, **kwargs):

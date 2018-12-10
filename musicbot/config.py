@@ -43,6 +43,7 @@ class Config:
         self.cogs = config.get('Cogs', 'Cogs_Load', fallback=ConfigDefaults.cogs)
         self.warn_no_commands = config.getboolean('Cogs', 'WarnNoCommands', fallback=ConfigDefaults.warn_no_commands)
         self.persistent_alias = config.getboolean('Cogs', 'PersistentAlias', fallback=ConfigDefaults.persistent_alias)
+        self.strict_unload_cog = config.getboolean('Cogs', 'UseStrictCogUnloadRule', fallback=ConfigDefaults.strict_unload_cog)
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
@@ -318,9 +319,10 @@ class ConfigDefaults:
     token = None
     dev_ids = set()
 
-    cogs = 'help autoplaylist moderate info queuemanipulate botmanipulate playback dev utility'
+    cogs = 'default'
     warn_no_commands = False
     persistent_alias = True
+    strict_unload_cog = False
 
     spotify_clientid = None
     spotify_clientsecret = None

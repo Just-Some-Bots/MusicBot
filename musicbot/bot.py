@@ -1153,8 +1153,10 @@ class MusicBot(discord.Client):
                 await self._check_ignore_non_voice(message)
 
             handler_kwargs = {}
-            if params.pop('bot', None):
-                handler_kwargs['bot'] = self
+
+            # bot args needed to be sent in all cases, even if cmd doesn't use it
+            params.pop('bot', None)
+            handler_kwargs['bot'] = self
 
             if params.pop('message', None):
                 handler_kwargs['message'] = message
