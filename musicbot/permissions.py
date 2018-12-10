@@ -7,6 +7,8 @@ import discord
 
 log = logging.getLogger(__name__)
 
+# PermissionDefaults class define the strictest value of each permissions
+# Permissive class define the permissive value of each permissions
 
 class PermissionsDefaults:
     perms_file = 'config/permissions.ini'
@@ -79,9 +81,9 @@ class Permissions:
             
         else:
             log.info("[Owner (auto)] section not found, falling back to permissive default")
-            # Create a fake section to fallback onto the default non-permissive values to grant to the owner emulating the old behavior
+            # Create a fake section to fallback onto the default permissive values to grant to the owner
             # noinspection PyTypeChecker
-            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, Permissive))
+            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, "Owner (auto)"), fallback=Permissive)
             
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
