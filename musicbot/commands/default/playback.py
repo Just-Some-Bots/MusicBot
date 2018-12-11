@@ -89,6 +89,7 @@ async def cmd_effect(bot, channel, player, mode, fx, leftover_args):
 
     Apply or remove effects to the playback player, took effect on next entry.
     """
+    # @TheerapakG: TODO: FUTURE#1776?EFFECT: effectloader
     reply_msg = ''
     await bot.safe_send_message(channel, 'warning! effect command is highly experimental, use it with care!', expire_in=10)
     if mode in ['add', 'a']:
@@ -102,6 +103,47 @@ async def cmd_effect(bot, channel, player, mode, fx, leftover_args):
             player.effects.append(('afade=out:', 'd={}'.format(duration)))
             reply_msg += 'Successfully add effect {} '.format('fadeout')
             reply_msg += 'with duration {} '.format(duration)
+        elif fx in ['declick']:
+            player.effects.append(('adeclick', ''))
+            reply_msg += 'Successfully add effect {} '.format('declick')
+        elif fx in ['echo']:
+            await bot.safe_send_message(channel, 'warning! echo effect is untested', expire_in=10)
+            # @TheerapakG: untested
+            ingain = leftover_args[0]
+            outgain = leftover_args[1]
+            delaydecay = leftover_args[2:]
+            delays = []
+            decays = []
+            for idx, el in enumerate(delaydecay):
+                if el == '|':
+                    delays = delaydecay[:idx]
+                    decays = delaydecay[idx+1:]
+            player.effects.append(('aecho=', '{}:{}:{}:{}'.format(ingain, outgain, '|'.join(delays), '|'.join(decays))))
+            reply_msg += 'Successfully add effect {} '.format('echo')
+        elif fx in ['phaser']:
+            ingain = leftover_args[0]
+            outgain = leftover_args[1]
+            delay = leftover_args[2]
+            decay = leftover_args[3]
+            speed = leftover_args[4]
+            ptype = leftover_args[5]
+            if ptype in ['triangular', 't', 'sinusoidal', 's']:
+                player.effects.append(('aphaser=', '{}:{}:{}:{}:{}:{}'.format(ingain, outgain, delay, decay, speed, ptype)))
+                reply_msg += 'Successfully add effect {} '.format('phaser')
+            else:
+                reply_msg += '{} argument in effect {} need to be {}'.format('ptype', 'echo', ['triangular', 't', 'sinusoidal', 's'])
+        elif fx in ['reverse']:
+            player.effects.append(('areverse', ''))
+            reply_msg += 'Successfully add effect {} '.format('reverse')
+        elif fx in ['tempo']:
+            tempo = leftover_args[0]
+            player.effects.append(('atempo=', '{}'.format(tempo)))
+            reply_msg += 'Successfully add effect {} '.format('tempo')
+        elif fx in ['trim']:
+            start = leftover_args[0]
+            end = leftover_args[1]
+            player.effects.append(('atrim=', '{}:{}'.format(start, end)))
+            reply_msg += 'Successfully add effect {} '.format('trim')
     elif mode in ['remove', 'r']:
         position = int(fx)-1
         player.effects.pop(position)
