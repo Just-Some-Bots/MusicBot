@@ -581,6 +581,9 @@ class MusicBot(discord.Client):
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue(player.voice_client.channel.guild)
 
+        if not player.is_stopped and not player.is_dead:
+            player.play(_continue=True)
+
     async def on_player_entry_added(self, player, playlist, entry, **_):
         log.debug('Running on_player_entry_added')
         if entry.meta.get('author') and entry.meta.get('channel'):
@@ -2055,6 +2058,7 @@ class MusicBot(discord.Client):
 
         if skips_remaining <= 0:
             player.skip()  # check autopause stuff here
+            # @TheerapakG: Check for pausing state in the player.py make more sense
             return Response(
                 self.str.get('cmd-skip-reply-skipped-1', 'Your skip for `{0}` was acknowledged.\nThe vote to skip has been passed.{1}').format(
                     current_entry.title,
