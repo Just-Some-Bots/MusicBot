@@ -43,7 +43,7 @@ from .wrappers import ensure_appinfo
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-from .cogsmanager import load, callcmd, getcmd, init_cog_system, gen_cmd_list
+from .cogsmanager import load, callcmd, getcmd, init_cog_system, uninit_cog_system, gen_cmd_list
 
 
 load_opus_lib()
@@ -825,6 +825,7 @@ class MusicBot(discord.Client):
         asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
 
     def _cleanup(self):
+        self.loop.run_until_complete(uninit_cog_system())
         try:
             self.loop.run_until_complete(self.logout())
             self.loop.run_until_complete(self.aiosession.close())

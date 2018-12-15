@@ -34,6 +34,8 @@ bot = None
 # As I probably mentioned already in the PR that I won't do anything more, this will probably not be implement in #1766. #1766's main purpose is only to organize commands into place
 
 def init_cog_system(botvar, alias_file=None):
+    # @TheerapakG: TODO: FUTURE#1776?COG: prevent double initialization
+    # @TheerapakG: TODO: FUTURE#1776?COG: commands should not work when not init
     global alias
     if alias_file is None:
         alias_file = AliasDefaults.alias_file
@@ -185,6 +187,25 @@ async def _init_load_multicog(loaded, modname):
                     submodule = import_module('.commands.{}.{}'.format(modname, submodname), 'musicbot')
                     imported['{}.{}'.format(modname, submodname)] = submodule
                 await _init_load_cog(submodule, '{}.{}'.format(modname, submodname))
+
+async def uninit_cog_system():
+    # @TheerapakG: TODO: FUTURE#1776?COG: clear commands when uninit
+    # @TheerapakG: TODO: FUTURE#1776?COG: commands should not work when uninit
+    await aiolocks['lock_execute'].acquire()
+    await aiolocks['lock_clear'].acquire()
+    for modname in looped:
+        # stop loop
+        log.debug('stopping {} loop(s)'.format(len(looped[modname])))
+        for callab in looped[modname]:
+            await callab.stop()
+
+    for modname in cleanup:
+        log.debug('running {} cleanup(s)'.format(len(cleanup[modname])))
+        for hdlr in cleanup[modname]:
+            await hdlr(bot)
+
+    aiolocks['lock_clear'].release()
+    aiolocks['lock_execute'].release()
 
 async def load(module):
     global alias
