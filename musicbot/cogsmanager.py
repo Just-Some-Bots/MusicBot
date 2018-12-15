@@ -7,6 +7,7 @@ from textwrap import dedent
 from inspect import iscoroutinefunction
 
 from importlib import import_module, reload
+from functools import partial
 
 from collections import defaultdict
 
@@ -29,19 +30,11 @@ alias = None
 
 bot = None
 
+_init = False
+
 # @TheerapakG: TODO: FUTURE#1776?COG: implement cog class that will make it possible to have multiple cogs in one file
 # for efficiency on loading (no need to iterate on which var is considered cog), I will probably implement it as some sort of metaclass (again)
 # As I probably mentioned already in the PR that I won't do anything more, this will probably not be implement in #1766. #1766's main purpose is only to organize commands into place
-
-def init_cog_system(botvar, alias_file=None):
-    # @TheerapakG: TODO: FUTURE#1776?COG: prevent double initialization
-    # @TheerapakG: TODO: FUTURE#1776?COG: commands should not work when not init
-    global alias
-    if alias_file is None:
-        alias_file = AliasDefaults.alias_file
-    alias = Alias(alias_file)
-    global bot
-    bot = botvar
 
 # @TheerapakG: dodgy asyncio locking ahead, __in my head__ it should be correct but I can't guarantee. Can someone check?
 
@@ -188,9 +181,53 @@ async def _init_load_multicog(loaded, modname):
                     imported['{}.{}'.format(modname, submodname)] = submodule
                 await _init_load_cog(submodule, '{}.{}'.format(modname, submodname))
 
+_futures = list()
+
+def init_cog_system(botvar, alias_file=None):
+    async def check_init():
+        async with aiolocks['lock_init']:
+            global _init
+            if _init:
+                raise exceptions.CogError('Cogsystem already initialized')
+
+    def real_init(botvar, alias_file, future):
+        global alias
+        if alias_file is None:
+            alias_file = AliasDefaults.alias_file
+        alias = Alias(alias_file)
+        global bot
+        bot = botvar
+
+        async def set_init():
+            async with aiolocks['lock_init_future']:
+                async with aiolocks['lock_init']:
+                    global _init
+                    _init = True
+                log.debug('Cogsystem initialized! will resume {} awaiter(s)'.format(len(_futures)))
+                for future in _futures:
+                    future.set_result(None)
+
+        botvar.loop.create_task(set_init())
+
+    botvar.loop.create_task(check_init()).add_done_callback(partial(real_init, botvar, alias_file))
+
+async def wait_cog_system():
+    async with aiolocks['lock_init_future']:
+        async with aiolocks['lock_init']:
+            global _init
+            if _init:
+                return
+        future = asyncio.Future()
+        _futures.append(future)
+    await future
+
 async def uninit_cog_system():
     # @TheerapakG: TODO: FUTURE#1776?COG: clear commands when uninit
-    # @TheerapakG: TODO: FUTURE#1776?COG: commands should not work when uninit
+    async with aiolocks['lock_init']:
+        global _init
+        if not _init:
+            raise exceptions.CogError('Cogsystem not initialized')
+
     await aiolocks['lock_execute'].acquire()
     await aiolocks['lock_clear'].acquire()
     for modname in looped:
@@ -204,10 +241,17 @@ async def uninit_cog_system():
         for hdlr in cleanup[modname]:
             await hdlr(bot)
 
+    async with aiolocks['lock_init']:
+        _init = False
+
     aiolocks['lock_clear'].release()
     aiolocks['lock_execute'].release()
 
 async def load(module):
+    async with aiolocks['lock_init']:
+        global _init
+        if not _init:
+            raise exceptions.CogError('Cogsystem not initialized')
     global alias
     await aiolocks['lock_execute'].acquire()
     await aiolocks['lock_clear'].acquire()
@@ -238,6 +282,10 @@ async def load(module):
         aiolocks['lock_execute'].release()
 
 async def checkblockloading():
+    async with aiolocks['lock_init']:
+        global _init
+        if not _init:
+            raise exceptions.CogError('Cogsystem not initialized')
     await aiolocks['lock_execute'].acquire()
     aiolocks['lock_execute'].release()
 

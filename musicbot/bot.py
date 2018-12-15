@@ -43,7 +43,7 @@ from .wrappers import ensure_appinfo
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-from .cogsmanager import load, callcmd, getcmd, init_cog_system, uninit_cog_system, gen_cmd_list
+from .cogsmanager import load, callcmd, getcmd, init_cog_system, uninit_cog_system, gen_cmd_list, wait_cog_system
 
 
 load_opus_lib()
@@ -65,8 +65,6 @@ class MusicBot(discord.Client):
 
         if perms_file is None:
             perms_file = PermissionsDefaults.perms_file
-
-        init_cog_system(self, alias_file)
 
         self.players = {}
         self.exit_signal = None
@@ -125,6 +123,7 @@ class MusicBot(discord.Client):
                 time.sleep(5)  # make sure they see the problem
 
         async def init_modules_importer():
+            await wait_cog_system()
             for module in self.config.cogs:
                 try:
                     await load(module)
@@ -133,6 +132,7 @@ class MusicBot(discord.Client):
                     if e.__cause__ is not None:
                         log.error("Traceback:\n{0}{1}: {2}".format("".join(traceback.format_list(traceback.extract_tb(e.__cause__.__traceback__))), type(e.__cause__).__name__, e.__context__)) # pylint: disable=E1101
 
+        init_cog_system(self, alias_file)
         self.loop.create_task(init_modules_importer())
 
     def _get_owner(self, *, server=None, voice=False):
