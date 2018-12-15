@@ -50,8 +50,8 @@ class BasePlaylistEntry(Serializable):
 
         else:
             # If we request a ready future, let's ensure that it'll actually resolve at one point.
-            asyncio.ensure_future(self._download())
             self._waiting_futures.append(future)
+            asyncio.ensure_future(self._download())
 
         log.debug('Created future for {0}'.format(self.filename))
         return future

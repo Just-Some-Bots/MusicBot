@@ -650,6 +650,7 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
             or (bot.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
             player.skip()  # TODO: check autopause stuff here
+            # @TheerapakG: Check for pausing state in the player.py make more sense
             await bot._manual_delete_check(message)
             return Response(bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
         else:
