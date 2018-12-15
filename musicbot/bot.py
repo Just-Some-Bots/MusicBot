@@ -1254,7 +1254,7 @@ class MusicBot(discord.Client):
                 )
                 return
 
-            response = await handler(**handler_kwargs)
+            response = await callcmd(command, **handler_kwargs)
             if response and isinstance(response, Response):
                 if not isinstance(response.content, discord.Embed) and self.config.embeds:
                     content = self._gen_embed()

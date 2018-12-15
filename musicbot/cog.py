@@ -248,7 +248,8 @@ async def getcommand(cmd):
     raise exceptions.CogError("command (or alias) `{0}` not found".format(cmd))
 
 async def call(cmd, **kwargs):
-    return await getcommand(cmd)(**kwargs)
+    command = await getcommand(cmd)
+    return await command(**kwargs)
 
 def getcog(name):
     for itcog in cogs:

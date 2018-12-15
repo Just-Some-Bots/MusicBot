@@ -3,8 +3,8 @@ import logging
 from ...utils import _get_variable
 from ... import exceptions
 from ...constructs import Response
-from ...cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias, getcogmodule
-from ...wrappers import owner_only
+from ...cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias, getcogmodule, get_highlevel_cog_operations
+from ...wrappers import owner_only, dev_only
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +58,18 @@ async def cmd_cogmodule(bot, name):
     """
     module = await getcogmodule(name)
     return Response('```{}```'.format(module), delete_after=15)
+
+@dev_only
+async def cmd_cogoperations(bot):
+    """
+    Usage:
+        {command_prefix}cogoperations
+
+    Get number of running high-level cog operations (functions in cogsmanager).
+    Does not count operations that execute directly to cog or command objects.
+    """
+    ops = await get_highlevel_cog_operations()
+    return Response('{} operations'.format(ops), delete_after=10)
 
 @owner_only
 async def cmd_addalias(bot, command, alias, param=''):

@@ -401,3 +401,11 @@ async def gen_cmd_list_from_cog(cogname):
     finally:
         await declock()
         return ret
+
+async def get_highlevel_cog_operations():
+    await checkblockloading()
+    await inclock()
+    async with aiolocks['lock_cmdrun']:
+        num = cmdrun
+    await declock()
+    return num
