@@ -199,6 +199,7 @@ def init_cog_system(botvar, alias_file=None):
         bot = botvar
 
         async def set_init():
+            global _futures
             async with aiolocks['lock_init_future']:
                 async with aiolocks['lock_init']:
                     global _init
@@ -206,6 +207,7 @@ def init_cog_system(botvar, alias_file=None):
                 log.debug('Cogsystem initialized! will resume {} awaiter(s)'.format(len(_futures)))
                 for future in _futures:
                     future.set_result(None)
+                _futures = list()
 
         botvar.loop.create_task(set_init())
 
@@ -222,7 +224,6 @@ async def wait_cog_system():
     await future
 
 async def uninit_cog_system():
-    # @TheerapakG: TODO: FUTURE#1776?COG: clear commands when uninit
     async with aiolocks['lock_init']:
         global _init
         if not _init:
@@ -230,16 +231,27 @@ async def uninit_cog_system():
 
     await aiolocks['lock_execute'].acquire()
     await aiolocks['lock_clear'].acquire()
+    global looped
     for modname in looped:
         # stop loop
         log.debug('stopping {} loop(s)'.format(len(looped[modname])))
         for callab in looped[modname]:
             await callab.stop()
 
+    looped = dict()
+
+    global cleanup
     for modname in cleanup:
         log.debug('running {} cleanup(s)'.format(len(cleanup[modname])))
         for hdlr in cleanup[modname]:
             await hdlr(bot)
+
+    cleanup = dict()
+
+    global imported
+    global cogmodule
+    imported = dict()
+    cogmodule = dict()
 
     async with aiolocks['lock_init']:
         _init = False
