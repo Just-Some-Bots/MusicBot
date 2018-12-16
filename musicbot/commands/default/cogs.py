@@ -60,10 +60,10 @@ async def cmd_cogmodule(bot, name):
     return Response('```{}```'.format(module), delete_after=15)
 
 @dev_only
-async def cmd_cogoperations(bot):
+async def cmd_cogops(bot):
     """
     Usage:
-        {command_prefix}cogoperations
+        {command_prefix}cogops
 
     Get number of running high-level cog operations (functions in cogsmanager).
     Does not count operations that execute directly to cog or command objects.
