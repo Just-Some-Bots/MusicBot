@@ -11,7 +11,7 @@ from functools import partial
 
 from collections import defaultdict
 
-from .cog import Cog, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands, cogs, cog
+from .cog import Cogobj, CallableCommand, UncallableCommand, command, call, getcommand, getcog, commands, cogs, cog
 from .alias import Alias, AliasDefaults
 from . import exceptions
 
