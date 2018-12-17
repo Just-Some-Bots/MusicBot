@@ -184,6 +184,30 @@ class MusicBot(discord.Client):
             log.debug("Skipping logger setup, already set up")
             return
 
+        # @TheerapakG: TODO: config
+        if True:
+            import queue
+            recordqueue = queue.Queue
+            qhandler = logging.handlers.QueueHandler(queue=recordqueue)
+            qhandler.setFormatter(
+                fmt = {
+                    'DEBUG': '[{levelname}:{module}] {message}',
+                    'INFO': '{message}',
+                    'WARNING': '{levelname}: {message}',
+                    'ERROR': '[{levelname}:{module}] {message}',
+                    'CRITICAL': '[{levelname}:{module}] {message}',
+
+                    'EVERYTHING': '[{levelname}:{module}] {message}',
+                    'NOISY': '[{levelname}:{module}] {message}',
+                    'VOICEDEBUG': '[{levelname}:{module}][{relativeCreated:.9f}] {message}',
+                    'FFMPEG': '[{levelname}:{module}][{relativeCreated:.9f}] {message}'
+                }
+            )
+            qhandler.setLevel(self.config.debug_level)
+            logging.getLogger(__package__).addHandler(qhandler)
+
+            # @TheerapakG: TODO: queuelistener
+
         shandler = logging.StreamHandler(stream=sys.stdout)
         shandler.setFormatter(colorlog.LevelFormatter(
             fmt = {
