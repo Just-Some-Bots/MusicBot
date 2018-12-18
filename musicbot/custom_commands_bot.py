@@ -24,7 +24,6 @@ from datetime import timedelta
 from collections import defaultdict
 
 from discord.enums import ChannelType
-from discord.ext.commands.bot import _get_variable
 
 from . import exceptions
 from . import downloader
@@ -35,11 +34,15 @@ from .entry import StreamPlaylistEntry
 from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
-from .constructs import SkipState, Response, VoiceStateUpdate
-from .utils import write_pickle, load_pickle, load_file, write_file, fixg, ftimedelta, _func_
+from .constructs import SkipState, Response
+from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
+from .spotify import Spotify
+from .json import Json
 
-from .constants import VERSION as BOTVERSION    
+from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+
+load_opus_lib()
 
 log = logging.getLogger(__name__)
 
