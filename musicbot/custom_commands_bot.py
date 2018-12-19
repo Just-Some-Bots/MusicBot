@@ -48,6 +48,7 @@ log = logging.getLogger(__name__)
 
 # Extra import that needed in custom command
 from subprocess import check_output
+from .utils import write_pickle, load_pickle
 
 # List of custom command
 # Should be in a form of method with a start of 'cmd_' + {Command Name}
