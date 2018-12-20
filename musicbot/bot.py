@@ -6,6 +6,8 @@ import shutil
 import random
 import inspect
 import logging
+import logging.handlers
+import functools
 import asyncio
 import pathlib
 import traceback
@@ -67,6 +69,8 @@ class MusicBot(discord.Client):
         self.init_ok = False
         self.cached_app_info = None
         self.last_status = None
+
+        self.init_ok_event = asyncio.Event()
 
         self.config = Config(config_file)
         
@@ -184,12 +188,51 @@ class MusicBot(discord.Client):
             log.debug("Skipping logger setup, already set up")
             return
 
-        # @TheerapakG: TODO: config
-        if True:
+        if self.config.log_channels:
             import queue
-            recordqueue = queue.Queue
+            recordqueue = queue.SimpleQueue()
             qhandler = logging.handlers.QueueHandler(queue=recordqueue)
-            qhandler.setFormatter(
+
+            class LevelFormatter(logging.Formatter):
+                def __init__(self, fmt=dict(), datefmt=None, style='%'):
+                    self._rfmt = fmt
+                    super().__init__(None, datefmt, style)
+                    for key, f in self._rfmt.items():
+                        self._rfmt[key] = logging.Formatter(f, datefmt, style)
+
+                def format(self, record):
+                    # Call the original formatter
+                    result = self._rfmt[record.levelname].format(record)
+
+                    return result
+
+            qhandler.setLevel(self.config.debug_level)
+            logging.getLogger(__package__).addHandler(qhandler)
+
+            class MessageHandler(logging.Handler):
+                def __init__(self, bot):
+                    self.bot = bot
+                    super().__init__()
+
+                async def wait_ready_safe_send_message_logchannel(self, content, **kwargs):
+                    if self.bot.init_ok:
+                        for channel in self.bot.config.log_channels:
+                            await self.bot.safe_send_message(self.bot.get_channel(channel), content, **kwargs)
+                    else:
+                        await self.bot.init_ok_event.wait()
+                        for channel in self.bot.config.log_channels:
+                            await self.bot.safe_send_message(self.bot.get_channel(channel), content, **kwargs)
+
+                def emit(self, record):
+                    if hasattr(self.bot, 'loop'):
+                        self.bot.loop.call_soon_threadsafe(functools.partial(
+                            self.bot.loop.create_task,
+                            self.wait_ready_safe_send_message_logchannel(self.format(record))
+                        ))
+
+            sendhandler = MessageHandler(bot = self)
+
+            sendhandler.setFormatter(fmt=LevelFormatter(
                 fmt = {
                     'DEBUG': '[{levelname}:{module}] {message}',
                     'INFO': '{message}',
@@ -201,12 +244,15 @@ class MusicBot(discord.Client):
                     'NOISY': '[{levelname}:{module}] {message}',
                     'VOICEDEBUG': '[{levelname}:{module}][{relativeCreated:.9f}] {message}',
                     'FFMPEG': '[{levelname}:{module}][{relativeCreated:.9f}] {message}'
-                }
-            )
-            qhandler.setLevel(self.config.debug_level)
-            logging.getLogger(__package__).addHandler(qhandler)
+                },
+                datefmt = '',
+                style = '{'
+            ))
+            sendhandler.setLevel(self.config.debug_level)
 
-            # @TheerapakG: TODO: queuelistener
+            qlistener = logging.handlers.QueueListener(recordqueue, sendhandler)
+
+            qlistener.start()
 
         shandler = logging.StreamHandler(stream=sys.stdout)
         shandler.setFormatter(colorlog.LevelFormatter(
@@ -947,6 +993,7 @@ class MusicBot(discord.Client):
         await self._on_ready_sanity_checks()
 
         self.init_ok = True
+        self.init_ok_event.set()
 
         ################################
 

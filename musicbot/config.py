@@ -47,6 +47,7 @@ class Config:
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.unbound_servers = config.getboolean('Chat', 'AllowUnboundServers', fallback=ConfigDefaults.unbound_servers)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.log_channels = config.get('Chat', 'LogChannels', fallback=ConfigDefaults.log_channels)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -188,6 +189,8 @@ class Config:
 
         self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
 
+        self.log_channels = set(int(x) for x in self.log_channels.replace(',', ' ').split() if x)
+
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
         self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
@@ -314,6 +317,7 @@ class ConfigDefaults:
     bound_channels = set()
     unbound_servers = False
     autojoin_channels = set()
+    log_channels = set()
 
     default_volume = 0.15
     skips_required = 4
