@@ -117,7 +117,7 @@ async def cmd_help(bot, message, channel, command=None, spcog=None):
     cmdlisto = '\n'
     for cog, cmdlist in cogs.items():
         if len(cmdlist) > 0:
-            cmdlisto += (':white_small_square: ' if await cog.isload() else ':black_small_square: ')
+            cmdlisto += ('\N{WHITE SMALL SQUARE} ' if await cog.isload() else '\N{BLACK SMALL SQUARE} ')
             cmdlisto += cog.name + ' [' + str(len(cmdlist)) + ']:\n'
             cmdlisto += '```' + ', '.join([cmd.name for cmd in cmdlist]) + '```\n'
 
