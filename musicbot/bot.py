@@ -2617,22 +2617,22 @@ class MusicBot(discord.Client):
                 await self.safe_send_message(channel, self.str.get("vcutil-invalid-option", "{} you didn't type a valid voice utility option.".format(message.author.name)))
             else:
                 if option in ['mute']:
-                    await self.server_voice_state(member, mute=True)
+                    await member.edit(mute=True, deafen=False)
                     await self.safe_send_message(channel, self.str.get("vcutil-mute-succesful", "{} I've succesfully server muted {}\nReason: {}".format(message.author.name, member, reason)))
                 if option in ['unmute']:
-                    await self.server_voice_state(member, mute=False)
+                    await member.edit(mute=False, deafen=False)
                     await self.safe_send_message(channel, self.str.get("vcutil-unmute-succesful", "{} I've succesfully server unmuted {}\nReason: {}".format(message.author.name, member, reason)))
                 if option in ['deafen']:
-                    await self.server_voice_state(member, mute=False, deafen=True)
+                    await member.edit(mute=False, deafen=True)
                     await self.safe_send_message(channel, self.str.get("vcutil-deafen-succesful", "{} I've succesfully server deafened {}\nReason: {}".format(message.author.name, member, reason)))
                 if option in ['undeafen']:
-                    await self.server_voice_state(member, mute=False, deafen=False)
+                    await member.edit(mute=False, deafen=False)
                     await self.safe_send_message(channel, self.str.get("vcutil-undeafen-succesful", "{} I've succesfully server undeafened {}\nReason: {}".format(message.author.name, member, reason)))
                 if option in ['all']:
-                    await self.server_voice_state(member, mute=True, deafen=True)
+                    await member.edit(mute=True, deafen=True)
                     await self.safe_send_message(channel, self.str.get("vcutil-all-succesful", "{} I've succesfully server muted and deafened {}\nReason: {}".format(message.author.name, member, reason)))
                 if option in ['unall']:
-                    await self.server_voice_state(member, mute=False, deafen=False)
+                    await member.edit(mute=False, deafen=False)
                     await self.safe_send_message(channel, self.str.get("vcutil-unall-succesful", "{} I've succesfully server unmuted and undeafened {}\nReason: {}".format(message.author.name, member, reason)))
         except:
             await self.safe_send_message(channel, self.str.get('vcutil-error', "Something went wrong, try again!"))
