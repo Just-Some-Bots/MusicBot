@@ -462,17 +462,6 @@ class MusicBot(discord.Client):
         author = entry.meta.get('author', None)
 
         if channel and author:
-            last_np_msg = self.server_specific_data[channel.guild]['last_np_msg']
-            if last_np_msg and last_np_msg.channel == channel:
-
-                async for lmsg in channel.history(limit=1):
-                    if lmsg.id != last_np_msg.id and last_np_msg:
-                        # for some reason discord.py Message object does not support comparison
-                        # (maybe because comparison on Messages is ambiguous), so we check if ids are equal instead 
-                        await self.safe_delete_message(last_np_msg)
-                        self.server_specific_data[channel.guild]['last_np_msg'] = None
-                    break  # This is probably redundant
-
             author_perms = self.permissions.for_user(author)
 
             if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
@@ -485,13 +474,42 @@ class MusicBot(discord.Client):
             else:
                 newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+        else:
+            # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
+            newmsg = 'Now playing in `%s`: `%s` added as an automatic entry' % (
+                player.voice_client.channel.name, entry.title)
 
-            if self.server_specific_data[channel.guild]['last_np_msg']:
+        if newmsg:
+            guild = player.voice_client.guild
+            last_np_msg = self.server_specific_data[guild]['last_np_msg']
+
+            # @TheerapakG: TODO: np message in preconfigured channel if specified
+            if channel:
+                pass
+            elif not channel and last_np_msg:
+                channel = last_np_msg.channel
+            else:
+                log.debug('no channel to put now playing message into')
+                return
+
+            # delete last_np_msg somewhere if we have cached it and it's not the last message in the given channel
+            async for lmsg in channel.history(limit=1):
+                if last_np_msg and lmsg.id != last_np_msg.id:
+                    # for some reason discord.py Message object does not support comparison
+                    # (maybe because comparison on Messages is ambiguous), so we check if ids are equal instead 
+                    await self.safe_delete_message(last_np_msg)
+                    self.server_specific_data[guild]['last_np_msg'] = None
+                break  # This is probably redundant
+
+            if self.server_specific_data[guild]['last_np_msg']:
                 # editing message already transform the Message object so we don't have to change the specific data
                 # actually, message.edit does not even spit out return value
                 await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+
             else:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
+                # send it in specified channel
+                self.server_specific_data[guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
+
 
         # TODO: Check channel voice state?
 
