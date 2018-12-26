@@ -476,8 +476,8 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
         else:
             # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
-            newmsg = 'Now playing in `%s`: `%s` added as an automatic entry' % (
-                player.voice_client.channel.name, entry.title)
+            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
+                entry.title, player.voice_client.channel.name)
 
         if newmsg:
             guild = player.voice_client.guild
