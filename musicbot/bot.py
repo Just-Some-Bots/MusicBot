@@ -466,7 +466,9 @@ class MusicBot(discord.Client):
             if last_np_msg and last_np_msg.channel == channel:
 
                 async for lmsg in channel.history(limit=1):
-                    if lmsg != last_np_msg and last_np_msg:
+                    if lmsg.id != last_np_msg.id and last_np_msg:
+                        # for some reason discord.py Message object does not support comparison
+                        # (maybe because comparison on Messages is ambiguous), so we check if ids are equal instead 
                         await self.safe_delete_message(last_np_msg)
                         self.server_specific_data[channel.guild]['last_np_msg'] = None
                     break  # This is probably redundant
@@ -485,7 +487,9 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
 
             if self.server_specific_data[channel.guild]['last_np_msg']:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+                # editing message already transform the Message object so we don't have to change the specific data
+                # actually, message.edit does not even spit out return value
+                await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
             else:
                 self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
