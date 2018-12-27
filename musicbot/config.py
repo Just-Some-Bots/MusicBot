@@ -47,6 +47,8 @@ class Config:
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.unbound_servers = config.getboolean('Chat', 'AllowUnboundServers', fallback=ConfigDefaults.unbound_servers)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.nowplaying_channels =  config.get('Chat', 'NowPlayingChannels', fallback=ConfigDefaults.nowplaying_channels)
+        self.delete_nowplaying = config.getboolean('Chat', 'DeleteNowPlaying', fallback=ConfigDefaults.delete_nowplaying)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -176,6 +178,13 @@ class Config:
                 self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
+                self.autojoin_channels = set()
+
+        if self.nowplaying_channels:
+            try:
+                self.nowplaying_channels = set(x for x in self.nowplaying_channels.replace(',', ' ').split() if x)
+            except:
+                log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
                 self.autojoin_channels = set()
 
         self._spotify = False
@@ -314,6 +323,8 @@ class ConfigDefaults:
     bound_channels = set()
     unbound_servers = False
     autojoin_channels = set()
+    nowplaying_channels = set()
+    delete_nowplaying = True
 
     default_volume = 0.15
     skips_required = 4
