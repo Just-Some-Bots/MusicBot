@@ -489,7 +489,6 @@ class MusicBot(discord.Client):
                     if potential_channel and potential_channel.guild == guild:
                         channel = potential_channel
                         break
-                
 
             if channel:
                 pass
@@ -499,25 +498,8 @@ class MusicBot(discord.Client):
                 log.debug('no channel to put now playing message into')
                 return
 
-            # delete last_np_msg somewhere if we have cached it and it's not the last message in the given channel
-            if self.config.delete_nowplaying:
-                async for lmsg in channel.history(limit=1):
-                    if last_np_msg and lmsg.id != last_np_msg.id:
-                        # for some reason discord.py Message object does not support comparison
-                        # (maybe because comparison on Messages is ambiguous), so we check if ids are equal instead 
-                        await self.safe_delete_message(last_np_msg)
-                        self.server_specific_data[guild]['last_np_msg'] = None
-                    break  # This is probably redundant
-
-            if self.server_specific_data[guild]['last_np_msg'] and self.config.delete_nowplaying:
-                # editing message already transform the Message object so we don't have to change the specific data
-                # actually, message.edit does not even spit out return value
-                await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
-
-            else:
-                # send it in specified channel
-                self.server_specific_data[guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
-
+            # send it in specified channel
+            self.server_specific_data[guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
         # TODO: Check channel voice state?
 
@@ -536,6 +518,13 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         log.debug('Running on_player_finished_playing')
+
+        # delete last_np_msg somewhere if we have cached it
+        if self.config.delete_nowplaying:
+            last_np_msg = self.server_specific_data[guild]['last_np_msg']
+            if last_np_msg:
+                await self.safe_delete_message(last_np_msg)
+
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
                 log.info("Player finished playing, autopaused in empty channel")
