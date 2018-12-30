@@ -33,6 +33,7 @@ This is a list of the commands that can be used to control the MusicBot. You can
 #### Admin
 
 - `!joinserver` - Provides the URL that can be used to add the bot to another server. This command is always restricted to the owner of the bot.
+- `!leaveserver <name or id>` - Forces the bot to leave a server. You must specify either the server name or id.
 - `!pldump <playlist>` - Collects URLs from a YouTube playlist or Soundcloud set and dumps them into a text file that can be copied into the autoplaylist.
 - `!setavatar [url]` - Changes the bot's avatar to the specified URL or uploaded image. A URL does not need to be specified if an image is uploaded with the command as the message (comment).
 - `!setname <name>` - Changes the bot's Discord username (not nickname). Discord limits these changes to 2/hr.
