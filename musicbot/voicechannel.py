@@ -1,19 +1,23 @@
 import discord
+from .utils import add_method
 
-class VoiceChannel:
-    __slots__ = ('original')
+@add_method(discord.VoiceChannel)
+def is_empty(self, exclude_me = True, exclude_deaf = False):
+    def check(member: discord.Member):
+        if exclude_me and member == self.guild.me:
+            return False
 
-    def __init__(self, discord_voicechannel: discord.VoiceChannel):
-        self.original = discord_voicechannel
+        if exclude_deaf and any([member.voice.deaf, member.voice.self_deaf]):
+            return False
 
-    def is_empty(self, exclude_me = True, exclude_deaf = False):
-        def check(member: discord.Member):
-            if exclude_me and member == self.original.guild.me:
-                return False
+        return True
 
-            if exclude_deaf and any([member.voice.deaf, member.voice.self_deaf]):
-                return False
+    return not sum(1 for m in self.members if check(m))
 
-            return True
+@add_method(discord.VoiceChannel)
+async def get_voice_client(self):
+    if self.guild.voice_client:
+        return self.guild.voice_client
+    else:
+        return await self.connect(timeout=60, reconnect=True)
 
-        return not sum(1 for m in self.original.members if check(m))
