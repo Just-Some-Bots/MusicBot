@@ -336,15 +336,28 @@ async def getcmd(cmd):
     await declock()
     return res
 
-async def callcmd(cmd, *args, **kwargs):
+async def callcmd(cmd, **kwargs):
     await checkblockloading()
     await inclock()
     try:
-        res = await call(cmd, *args, **kwargs)
+        cmd = await getcommand(cmd)
     except:
         await declock()
         raise
-    await declock()
+    
+    if getattr(cmd.func, 'bypass_opscount', False):
+        await declock()
+
+    try:
+        res = await cmd(**kwargs)
+    except:
+        if not getattr(cmd.func, 'bypass_opscount', False):
+            await declock()
+        raise
+
+    if not getattr(cmd.func, 'bypass_opscount', False):
+        await declock()
+
     return res
 
 async def add_alias(cmd, als, forced = False):

@@ -32,6 +32,10 @@ def dev_only(func):
     wrapper.dev_cmd = True
     return wrapper
 
+def command_bypass_opscount(func):
+    func.bypass_opscount = True
+    return func
+
 def ensure_appinfo(func):
     @wraps(func)
     async def wrapper(self, *args, **kwargs):
