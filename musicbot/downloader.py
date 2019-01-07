@@ -20,7 +20,16 @@ ytdl_format_options = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    'usenetrc': True
+    'usenetrc': True,
+    'writesubtitles': True,
+    'allsubtitles': True,
+    'subtitlesformat': 'srt',
+    'postprocessors': [
+        {
+            'key': 'FFmpegSubtitlesConvertor',
+            'format': 'srt'
+        }
+    ]
 }
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
