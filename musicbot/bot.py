@@ -2525,6 +2525,52 @@ class MusicBot(discord.Client):
         await t.leave()
         return Response('Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(t))
 
+    async def cmd_caption(self, player, channel, guild, message, lang):
+        """
+        Usage:
+            {command_prefix}cmd_caption lang
+
+        Displays the caption of the current song in the specified language in chat.
+        """
+
+        if player.current_entry:
+
+            streaming = isinstance(player.current_entry, StreamPlaylistEntry)
+            if streaming:
+                return Response(
+                    self.str.get('cmd-caption-stream', 'Current entry is a stream, cannot extract caption.') .format(self.config.command_prefix),
+                    delete_after=30
+                )
+            else:
+                # @theerapakG: TODO: Do things more elegant
+                curfile = player.current_entry.filename.split('.')
+                curfile[-1] = '{}.srt'.format(lang)
+                curfile = '.'.join(curfile)
+                try:
+                    f = open(curfile, mode='r', encoding='utf-8')
+                except IOError:
+                    return Response(
+                        self.str.get('cmd-caption-nofile', 'Cannot open caption file specified.'),
+                        delete_after=30
+                    )
+                else:
+                    content = f.read()
+                    # @theerapakG: TODO: interpret srt file
+                    # @theerapakG: TODO: cutoff on linebreak
+                    content = [content[i:i+DISCORD_MSG_CHAR_LIMIT] for i in range(0, len(content), DISCORD_MSG_CHAR_LIMIT)]
+                    for cut in content:
+                        await self.safe_send_message(
+                            channel,
+                            cut
+                        )
+
+            await self._manual_delete_check(message)
+        else:
+            return Response(
+                self.str.get('cmd-caption-none', 'There are no songs queued! Queue something with {0}play.') .format(self.config.command_prefix),
+                delete_after=30
+            )
+
     @dev_only
     async def cmd_breakpoint(self, message):
         log.critical("Activating debug breakpoint")
