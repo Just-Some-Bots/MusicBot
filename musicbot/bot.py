@@ -41,6 +41,8 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+from .lib.srtdecode.parser import gen_srt_block_list_from_file, get_transcript
+
 
 load_opus_lib()
 
@@ -2554,8 +2556,13 @@ class MusicBot(discord.Client):
                         delete_after=30
                     )
                 else:
-                    content = f.read()
-                    # @theerapakG: TODO: interpret srt file
+                    content = gen_srt_block_list_from_file(f)
+                    # for el in content:
+                    #     log.debug(el)
+                    content = get_transcript(content)
+                    log.debug(content)
+                    content = '\n'.join(content)
+
                     # @theerapakG: TODO: cutoff on linebreak
                     content = [content[i:i+DISCORD_MSG_CHAR_LIMIT] for i in range(0, len(content), DISCORD_MSG_CHAR_LIMIT)]
                     for cut in content:
@@ -2564,7 +2571,6 @@ class MusicBot(discord.Client):
                             cut
                         )
 
-            await self._manual_delete_check(message)
         else:
             return Response(
                 self.str.get('cmd-caption-none', 'There are no songs queued! Queue something with {0}play.') .format(self.config.command_prefix),
