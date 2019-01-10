@@ -2527,17 +2527,17 @@ class MusicBot(discord.Client):
         await t.leave()
         return Response('Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(t))
 
-    async def cmd_caption(self, player, channel, guild, message, lang):
+    async def cmd_caption(self, player, author, channel, guild, message, lang):
         """
         Usage:
             {command_prefix}cmd_caption lang
 
         Displays the caption of the current song in the specified language in chat.
         """
+        entry = player.current_entry
+        if entry:
 
-        if player.current_entry:
-
-            streaming = isinstance(player.current_entry, StreamPlaylistEntry)
+            streaming = isinstance(entry, StreamPlaylistEntry)
             if streaming:
                 return Response(
                     self.str.get('cmd-caption-stream', 'Current entry is a stream, cannot extract caption.') .format(self.config.command_prefix),
@@ -2545,14 +2545,14 @@ class MusicBot(discord.Client):
                 )
             else:
                 # @theerapakG: TODO: Do things more elegant
-                curfile = player.current_entry.filename.split('.')
+                curfile = entry.filename.split('.')
                 curfile[-1] = '{}.srt'.format(lang)
                 curfile = '.'.join(curfile)
                 try:
                     f = open(curfile, mode='r', encoding='utf-8')
-                except IOError:
+                except OSError:
                     return Response(
-                        self.str.get('cmd-caption-nofile', 'Cannot open caption file specified.'),
+                        self.str.get('cmd-caption-nofile', 'Cannot open caption file specified (caption does not exist). If the caption do exist on the platform then try clearing cache of this song and try again.'),
                         delete_after=30
                     )
                 else:
@@ -2561,15 +2561,28 @@ class MusicBot(discord.Client):
                     #     log.debug(el)
                     content = get_transcript(content)
                     log.debug(content)
-                    content = '\n'.join(content)
+                    content_cut = ['']
+                    for el in content:
+                        if len('\n'.join((content_cut[-1], el))) > DISCORD_MSG_CHAR_LIMIT:
+                            content_cut.append('')
+                        content_cut[-1] = '\n'.join((content_cut[-1], el))
 
-                    # @theerapakG: TODO: cutoff on linebreak
-                    content = [content[i:i+DISCORD_MSG_CHAR_LIMIT] for i in range(0, len(content), DISCORD_MSG_CHAR_LIMIT)]
-                    for cut in content:
-                        await self.safe_send_message(
-                            channel,
-                            cut
-                        )
+                    await self.safe_send_message(
+                        author,
+                        self.str.get('cmd-caption-captionof', 'Caption of `{0}`:' .format(entry.title))
+                    )
+
+                    for cut in content_cut:
+                        if cut:
+                            await self.safe_send_message(
+                                author,
+                                cut
+                            )
+
+                    await self.safe_send_message(
+                        channel,
+                        self.str.get('cmd-caption-sent', 'Finished sending caption of `{0}` as direct message.' .format(entry.title))
+                    )
 
         else:
             return Response(
