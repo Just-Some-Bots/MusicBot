@@ -2540,7 +2540,7 @@ class MusicBot(discord.Client):
             streaming = isinstance(entry, StreamPlaylistEntry)
             if streaming:
                 return Response(
-                    self.str.get('cmd-caption-stream', 'Current entry is a stream, cannot extract caption.') .format(self.config.command_prefix),
+                    self.str.get('cmd?caption?stream', 'Current entry is a stream, cannot extract caption.') .format(self.config.command_prefix),
                     delete_after=30
                 )
             else:
@@ -2552,7 +2552,7 @@ class MusicBot(discord.Client):
                     f = open(curfile, mode='r', encoding='utf-8')
                 except OSError:
                     return Response(
-                        self.str.get('cmd-caption-nofile', 'Cannot open caption file specified (caption does not exist). If the caption do exist on the platform then try clearing cache of this song and try again.'),
+                        self.str.get('cmd?caption?nofile', 'Cannot open caption file specified (caption does not exist). If the caption do exist on the platform then try clearing cache of this song and try again.'),
                         delete_after=30
                     )
                 else:
@@ -2569,7 +2569,7 @@ class MusicBot(discord.Client):
 
                     await self.safe_send_message(
                         author,
-                        self.str.get('cmd-caption-captionof', 'Caption of `{0}`:' .format(entry.title))
+                        self.str.get('cmd?caption?captionof', 'Caption of `{0}`:').format(entry.title)
                     )
 
                     for cut in content_cut:
@@ -2581,12 +2581,12 @@ class MusicBot(discord.Client):
 
                     await self.safe_send_message(
                         channel,
-                        self.str.get('cmd-caption-sent', 'Finished sending caption of `{0}` as direct message.' .format(entry.title))
+                        self.str.get('cmd?caption?sent', 'Finished sending caption of `{0}` as direct message.').format(entry.title)
                     )
 
         else:
             return Response(
-                self.str.get('cmd-caption-none', 'There are no songs queued! Queue something with {0}play.') .format(self.config.command_prefix),
+                self.str.get('cmd?caption?none', 'There are no songs queued! Queue something with {0}play.').format(self.config.command_prefix),
                 delete_after=30
             )
 

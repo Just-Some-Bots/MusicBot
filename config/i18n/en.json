@@ -103,5 +103,10 @@
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!",
-    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it."
+    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it.",
+    "cmd?caption?stream": "Current entry is a stream, cannot extract caption.",
+    "cmd?caption?nofile": "Cannot open caption file specified (caption does not exist). If the caption do exist on the platform then try clearing cache of this song and try again.",
+    "cmd?caption?captionof": "Caption of `{0}`:",
+    "cmd?caption?sent": "Finished sending caption of `{0}` as direct message.",
+    "cmd?caption?none": "There are no songs queued! Queue something with {0}play."
 }
