@@ -134,25 +134,19 @@ def get_transcript(block_list, time_sep: int = 4):
     if len(block_list) == 0:
         return []
     ret = block_list[0].text_list.copy()
-    ltime = block_list[0].time_end.to_millisecond()
     for i, el in enumerate(block_list[1:]):
         # log.debug((block_list[i].time_end.to_millisecond() + time_sep*1000 , el.time_start.to_millisecond()))
         if block_list[i].time_end.to_millisecond() + time_sep*1000 < el.time_start.to_millisecond():
             ret.append('')
             ret += el.text_list
-            ltime = el.time_end.to_millisecond()
-        else:
-            if set(block_list[i].text_list) == set(el.text_list):
-                # @TheerapakG: hopefully won't break
-                ret += el.text_list
-                ltime = el.time_end.to_millisecond()
 
-            else:
-                # @TheerapakG: probably a terrible bad sub fix
-                for t in el.text_list:
-                    if t not in block_list[i].text_list:
-                        if ltime + time_sep*1000 < el.time_start.to_millisecond():
-                            ret.append('')
-                        ret.append(t)
-                        ltime = el.time_end.to_millisecond()
+        elif set(block_list[i].text_list) == set(el.text_list):
+            # @TheerapakG: hopefully this won't break. This case is built especially for repeated text that assumed intentional
+            ret += el.text_list
+
+        else:
+            # @TheerapakG: probably a terrible bad sub fix
+            for t in el.text_list:
+                if t not in block_list[i].text_list:
+                    ret.append(t)
     return ret
