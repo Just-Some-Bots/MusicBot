@@ -82,6 +82,7 @@ class MusicBot(discord.Client):
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
+        self.capt_downloader = downloader.Capt_Downloader(download_folder='audio_cache')
 
         log.info('Starting MusicBot {}'.format(BOTVERSION))
 
@@ -2589,6 +2590,21 @@ class MusicBot(discord.Client):
                 self.str.get('cmd?caption?none', 'There are no songs queued! Queue something with {0}play.').format(self.config.command_prefix),
                 delete_after=30
             )
+
+    async def cmd_reloadcapt(self, player):
+        entry = player.current_entry
+        if entry:
+            retry = True
+            while retry:
+                try:
+                    await entry.playlist.capt_downloader.extract_info(entry.playlist.loop, entry.url, download = True)
+                    break
+                except Exception as e:
+                    raise exceptions.ExtractionError(e)
+        return Response(
+            self.str.get('cmd?reloadcapt?success', 'Successfully redownloaded captions.'),
+            delete_after=30
+        )
 
     @dev_only
     async def cmd_breakpoint(self, message):

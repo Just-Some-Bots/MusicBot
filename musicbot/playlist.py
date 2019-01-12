@@ -28,6 +28,7 @@ class Playlist(EventEmitter, Serializable):
         self.bot = bot
         self.loop = bot.loop
         self.downloader = bot.downloader
+        self.capt_downloader = bot.capt_downloader
         self.entries = deque()
 
     def __iter__(self):
