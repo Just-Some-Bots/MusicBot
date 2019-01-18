@@ -217,7 +217,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     try:
                         await self._really_download()
                     except ExtractionError as e:
-                        log.error(f"Error Extracting, rebooting: {e}")
+                        log.error("Error Extracting, rebooting: {}".format(e))
                         raise RestartSignal()
 
             if self.playlist.bot.config.use_experimental_equalization:
