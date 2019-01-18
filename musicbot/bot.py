@@ -2227,13 +2227,15 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
-    async def cmd_clean(self, message, channel, guild, author, search_range=50):
+    async def cmd_clean(self, message, channel, guild, author, search_range):
         """
         Usage:
             {command_prefix}clean [range]
 
         Removes up to [range] messages the bot has posted in chat. Default: 50, Max: 1000
         """
+
+        search_range = search_range if not search_range == '' else self.config.clean_default_lines
 
         try:
             float(search_range)  # lazy check
