@@ -7,7 +7,7 @@ import sys
 
 from enum import Enum
 from .constructs import Serializable
-from .exceptions import ExtractionError, RestartSignal
+from .exceptions import ExtractionError
 from .utils import get_header, md5sum
 
 log = logging.getLogger(__name__)
@@ -214,11 +214,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         self.filename.rsplit('.', 1)[-1]
                     ))
                 else:
-                    try:
-                        await self._really_download()
-                    except ExtractionError as e:
-                        log.error("Error Extracting, rebooting: {}".format(e))
-                        raise RestartSignal()
+                    await self._really_download()
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
