@@ -2167,7 +2167,7 @@ class MusicBot(discord.Client):
         else:
             is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
             if is_generic and (value in bool_y or value in bool_n):
-                name = is_generic[0]
+                name = is_generic   [0]
                 log.debug('Setting attribute {0}'.format(name))
                 setattr(self.config, name, True if value in bool_y else False)  # this is scary but should work
                 attr = getattr(self.config, name)
@@ -2838,7 +2838,7 @@ class MusicBot(discord.Client):
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
             elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:
-                if len(player.voice_client.channel.members) == 0:
+                if len(player.voice_client.channel.members) == 1:
                     if not auto_paused and player.is_playing:
                         log.info(autopause_msg.format(
                             state = "Pausing",
