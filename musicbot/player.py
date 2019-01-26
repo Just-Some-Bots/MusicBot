@@ -191,9 +191,6 @@ class MusicPlayer(EventEmitter, Serializable):
             # unless ffmpeg is doing something highly questionable
             self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
 
-        if not self.is_stopped and not self.is_dead:
-            self.play(_continue=True)
-
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
@@ -201,7 +198,24 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 else:
                     log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
-                    asyncio.ensure_future(self._delete_file(entry.filename))
+                    filename = entry.filename
+                    for x in range(30):
+                        try:
+                            os.unlink(filename)
+                            log.debug('File deleted: {0}'.format(filename))
+                            break
+                        except PermissionError as e:
+                            if e.winerror == 32:  # File is in use
+                                log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
+                        except FileNotFoundError:
+                            log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
+                            break
+                        except Exception:
+                            log.error("Error trying to delete {}".format(filename), exc_info=True)
+                            break
+                    else:
+                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                            os.path.relpath(filename)))
 
         self.emit('finished-playing', player=self, entry=entry)
 
@@ -219,24 +233,6 @@ class MusicPlayer(EventEmitter, Serializable):
 
         return False
 
-    async def _delete_file(self, filename):
-        for x in range(30):
-            try:
-                os.unlink(filename)
-                break
-            except PermissionError as e:
-                if e.winerror == 32:  # File is in use
-                    await asyncio.sleep(0.25)
-            except FileNotFoundError:
-                log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
-                break
-            except Exception:
-                log.error("Error trying to delete {}".format(filename), exc_info=True)
-                break
-        else:
-            print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                os.path.relpath(filename)))
-
     def play(self, _continue=False):
         self.loop.create_task(self._play(_continue=_continue))
 
@@ -244,7 +240,7 @@ class MusicPlayer(EventEmitter, Serializable):
         """
             Plays the next entry from the playlist, or resumes playback of the current entry if paused.
         """
-        if self.is_paused:
+        if self.is_paused and self._current_player:
             return self.resume()
 
         if self.is_dead:

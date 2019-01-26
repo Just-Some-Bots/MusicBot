@@ -50,8 +50,8 @@ class BasePlaylistEntry(Serializable):
 
         else:
             # If we request a ready future, let's ensure that it'll actually resolve at one point.
-            asyncio.ensure_future(self._download())
             self._waiting_futures.append(future)
+            asyncio.ensure_future(self._download())
 
         log.debug('Created future for {0}'.format(self.filename))
         return future
@@ -130,10 +130,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             # TODO: Better [name] fallbacks
             if 'channel' in data['meta']:
-                meta['channel'] = playlist.bot.get_channel(data['meta']['channel']['id'])
-
-            if 'author' in data['meta']:
-                meta['author'] = meta['channel'].guild.get_member(data['meta']['author']['id'])
+                # int() it because persistent queue from pre-rewrite days saved ids as strings
+                meta['channel'] = playlist.bot.get_channel(int(data['meta']['channel']['id']))
+                if not meta['channel']:
+                    log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel']['id']))
+                    meta.pop('channel')
+                elif 'author' in data['meta']:
+                    # int() it because persistent queue from pre-rewrite days saved ids as strings
+                    meta['author'] = meta['channel'].guild.get_member(int(data['meta']['author']['id']))
+                    if not meta['author']:
+                        log.warning('Cannot find author in an entry loaded from persistent queue. Author id: {}'.format(data['meta']['author']['id']))
+                        meta.pop('author')
 
             entry = cls(playlist, url, title, duration, expected_filename, **meta)
             entry.filename = filename
@@ -284,10 +291,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
     async def _really_download(self, *, hash=False):
         log.info("Download started: {}".format(self.url))
 
-        try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
-        except Exception as e:
-            raise ExtractionError(e)
+        retry = True
+        while retry:
+            try:
+                result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
+                break
+            except Exception as e:
+                raise ExtractionError(e)
 
         log.info("Download complete: {}".format(self.url))
 

@@ -7,10 +7,32 @@ import discord
 
 log = logging.getLogger(__name__)
 
+# PermissionDefaults class define the strictest value of each permissions
+# Permissive class define the permissive value of each permissions
 
 class PermissionsDefaults:
     perms_file = 'config/permissions.ini'
+    #now it's unpermissive by default for most
+    CommandWhiteList = set()
+    CommandBlackList = set()
+    IgnoreNonVoice = set()
+    GrantToRoles = set()
+    UserList = set()
 
+    MaxSongs = 8
+    MaxSongLength = 210
+    MaxPlaylistLength = 0
+    MaxSearchItems = 10
+
+    AllowPlaylists = True
+    InstaSkip = False
+    Remove = False
+    SkipWhenAbsent = True
+    BypassKaraokeMode = False
+
+    Extractors = "generic youtube youtube:playlist"
+
+class Permissive:
     CommandWhiteList = set()
     CommandBlackList = set()
     IgnoreNonVoice = set()
@@ -23,16 +45,16 @@ class PermissionsDefaults:
     MaxSearchItems = 10
 
     AllowPlaylists = True
-    InstaSkip = False
-    Remove = False
-    SkipWhenAbsent = True
-    BypassKaraokeMode = False
+    InstaSkip = True
+    Remove = True
+    SkipWhenAbsent = False
+    BypassKaraokeMode = True
 
-    Extractors = set()
-
+    Extractors = ""
 
 class Permissions:
-    def __init__(self, config_file, grant_all=None):
+
+    def __init__(self, config_file, grant_all=None):        
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
@@ -51,11 +73,18 @@ class Permissions:
         self.groups = set()
 
         for section in self.config.sections():
-            self.groups.add(PermissionGroup(section, self.config[section]))
-
-        # Create a fake section to fallback onto the permissive default values to grant to the owner
-        # noinspection PyTypeChecker
-        owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, None))
+            if section != 'Owner (auto)':
+                self.groups.add(PermissionGroup(section, self.config[section]))
+                
+        if self.config.has_section('Owner (auto)'):
+            owner_group = PermissionGroup('Owner (auto)', self.config['Owner (auto)'], fallback=Permissive)
+            
+        else:
+            log.info("[Owner (auto)] section not found, falling back to permissive default")
+            # Create a fake section to fallback onto the default permissive values to grant to the owner
+            # noinspection PyTypeChecker
+            owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, "Owner (auto)"), fallback=Permissive)
+            
         if hasattr(grant_all, '__iter__'):
             owner_group.user_list = set(grant_all)
 
@@ -102,27 +131,27 @@ class Permissions:
 
 
 class PermissionGroup:
-    def __init__(self, name, section_data):
+    def __init__(self, name, section_data, fallback=PermissionsDefaults):
         self.name = name
+        
+        self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
+        self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
+        self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
+        self.granted_to_roles = section_data.get('GrantToRoles', fallback=fallback.GrantToRoles)
+        self.user_list = section_data.get('UserList', fallback=fallback.UserList)
 
-        self.command_whitelist = section_data.get('CommandWhiteList', fallback=PermissionsDefaults.CommandWhiteList)
-        self.command_blacklist = section_data.get('CommandBlackList', fallback=PermissionsDefaults.CommandBlackList)
-        self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=PermissionsDefaults.IgnoreNonVoice)
-        self.granted_to_roles = section_data.get('GrantToRoles', fallback=PermissionsDefaults.GrantToRoles)
-        self.user_list = section_data.get('UserList', fallback=PermissionsDefaults.UserList)
+        self.max_songs = section_data.get('MaxSongs', fallback=fallback.MaxSongs)
+        self.max_song_length = section_data.get('MaxSongLength', fallback=fallback.MaxSongLength)
+        self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=fallback.MaxPlaylistLength)
+        self.max_search_items = section_data.get('MaxSearchItems', fallback=fallback.MaxSearchItems)
 
-        self.max_songs = section_data.get('MaxSongs', fallback=PermissionsDefaults.MaxSongs)
-        self.max_song_length = section_data.get('MaxSongLength', fallback=PermissionsDefaults.MaxSongLength)
-        self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=PermissionsDefaults.MaxPlaylistLength)
-        self.max_search_items = section_data.get('MaxSearchItems', fallback=PermissionsDefaults.MaxSearchItems)
+        self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=fallback.AllowPlaylists)
+        self.instaskip = section_data.getboolean('InstaSkip', fallback=fallback.InstaSkip)
+        self.remove = section_data.getboolean('Remove', fallback=fallback.Remove)
+        self.skip_when_absent = section_data.getboolean('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
+        self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
-        self.allow_playlists = section_data.get('AllowPlaylists', fallback=PermissionsDefaults.AllowPlaylists)
-        self.instaskip = section_data.get('InstaSkip', fallback=PermissionsDefaults.InstaSkip)
-        self.remove = section_data.get('Remove', fallback=PermissionsDefaults.Remove)
-        self.skip_when_absent = section_data.get('SkipWhenAbsent', fallback=PermissionsDefaults.SkipWhenAbsent)
-        self.bypass_karaoke_mode = section_data.get('BypassKaraokeMode', fallback=PermissionsDefaults.BypassKaraokeMode)
-
-        self.extractors = section_data.get('Extractors', fallback=PermissionsDefaults.Extractors)
+        self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 
         self.validate()
 
@@ -137,10 +166,10 @@ class PermissionGroup:
             self.ignore_non_voice = set(self.ignore_non_voice.lower().split())
 
         if self.granted_to_roles:
-            self.granted_to_roles = set(self.granted_to_roles.split())
+            self.granted_to_roles = set([int(x) for x in self.granted_to_roles.split()])
 
         if self.user_list:
-            self.user_list = set(self.user_list.split())
+            self.user_list = set([int(x) for x in self.user_list.split()])
 
         if self.extractors:
             self.extractors = set(self.extractors.split())
@@ -168,26 +197,6 @@ class PermissionGroup:
         if int(self.max_search_items) > 100:
             log.warning('Max search items can\'t be larger than 100. Setting to 100.')
             self.max_search_items = 100
-
-        self.allow_playlists = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.allow_playlists, PermissionsDefaults.AllowPlaylists
-        )
-
-        self.instaskip = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.instaskip, PermissionsDefaults.InstaSkip
-        )
-
-        self.remove = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.remove, PermissionsDefaults.Remove
-        )
-
-        self.skip_when_absent = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.skip_when_absent, PermissionsDefaults.SkipWhenAbsent
-        )
-
-        self.bypass_karaoke_mode = configparser.RawConfigParser.BOOLEAN_STATES.get(
-            self.bypass_karaoke_mode, PermissionsDefaults.BypassKaraokeMode
-        )
 
     @staticmethod
     def _process_list(seq, *, split=' ', lower=True, strip=', ', coerce=str, rcoerce=list):
