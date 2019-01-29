@@ -33,6 +33,7 @@ from .entry import StreamPlaylistEntry
 from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
+from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
 from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
 from .spotify import Spotify
@@ -48,7 +49,7 @@ log = logging.getLogger(__name__)
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=None, perms_file=None):
+    def __init__(self, config_file=None, perms_file=None, aliases_file=None):
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
@@ -62,6 +63,9 @@ class MusicBot(discord.Client):
         if perms_file is None:
             perms_file = PermissionsDefaults.perms_file
 
+        if aliases_file is None:
+            aliases_file = AliasesDefault.aliases_file
+
         self.players = {}
         self.exit_signal = None
         self.init_ok = False
@@ -74,6 +78,9 @@ class MusicBot(discord.Client):
         
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
         self.str = Json(self.config.i18n_file)
+
+        if self.config.usealias:
+            self.aliases = Aliases(aliases_file)
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
@@ -739,7 +746,7 @@ class MusicBot(discord.Client):
             pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
 
         with open('data/server_names.txt', 'w', encoding='utf8') as f:
-            for guilds in sorted(self.guilds, key=lambda s:int(s.id)):
+            for guild in sorted(self.guilds, key=lambda s:int(s.id)):
                 f.write('{:<22} {}\n'.format(guild.id, guild.name))
 
         if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
@@ -2167,7 +2174,7 @@ class MusicBot(discord.Client):
         else:
             is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
             if is_generic and (value in bool_y or value in bool_n):
-                name = is_generic[0]
+                name = is_generic   [0]
                 log.debug('Setting attribute {0}'.format(name))
                 setattr(self.config, name, True if value in bool_y else False)  # this is scary but should work
                 attr = getattr(self.config, name)
@@ -2607,11 +2614,22 @@ class MusicBot(discord.Client):
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
 
-        args = ' '.join(args).lstrip(' ').split(' ')
+        # [] produce [''] which is not what we want (it break things)
+        if args:
+            args = ' '.join(args).lstrip(' ').split(' ')
+        else:
+            args = []
 
         handler = getattr(self, 'cmd_' + command, None)
         if not handler:
-            return
+            # alias handler
+            if self.config.usealias:
+                command = self.aliases.get(command)
+                handler = getattr(self, 'cmd_' + command, None)
+                if not handler:
+                    return
+            else:
+                return
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
@@ -2838,7 +2856,7 @@ class MusicBot(discord.Client):
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
             elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:
-                if len(player.voice_client.channel.members) == 0:
+                if len(player.voice_client.channel.members) == 1:
                     if not auto_paused and player.is_playing:
                         log.info(autopause_msg.format(
                             state = "Pausing",
