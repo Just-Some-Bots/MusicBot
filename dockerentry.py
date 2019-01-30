@@ -11,6 +11,6 @@ for arg in sys.argv[1:]:
         update = True
 
 if update:
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt'])
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-U', '-r', 'requirements.txt'])
 
 subprocess.run([sys.executable, 'run.py'])
