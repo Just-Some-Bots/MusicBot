@@ -32,7 +32,7 @@ class PermissionsDefaults:
 
     ToggleAutoPlaylists = False
 
-    Extractors = "youtube youtube:playlist"
+    Extractors = "generic youtube youtube:playlist"
 
 class Permissive:
     CommandWhiteList = set()
