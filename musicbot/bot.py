@@ -1344,6 +1344,7 @@ class MusicBot(discord.Client):
                 except exceptions.SpotifyError:
                     raise exceptions.CommandError(self.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
 
+        # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
         async with self.aiolocks[_func_() + ':' + str(author.id)]:
             if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
                 raise exceptions.PermissionsError(
@@ -1355,6 +1356,7 @@ class MusicBot(discord.Client):
                     self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
                 )
 
+            # Try to determine entry type, if _type is playlist then there should be entries
             while True:
                 try:
                     info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
@@ -1364,7 +1366,7 @@ class MusicBot(discord.Client):
                         use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
                         if use_url == song_url:
                             log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
-                            break
+                            break # If we break here it will break things down the line and give "This is a playlist" exception as a result
 
                         log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
                         log.debug("Using \"%s\" instead" % use_url)
@@ -1421,9 +1423,7 @@ class MusicBot(discord.Client):
                 # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
                 # But this is probably fine
 
-            # TODO: Possibly add another check here to see about things like the bandcamp issue
-            # TODO: Where ytdl gets the generic extractor version with no processing, but finds two different urls
-
+            # If it's playlist
             if 'entries' in info:
                 await self._do_playlist_checks(permissions, player, author, info['entries'])
 
@@ -1498,7 +1498,9 @@ class MusicBot(discord.Client):
                 reply_text = self.str.get('cmd-play-playlist-reply', "Enqueued **%s** songs to be played. Position in queue: %s")
                 btext = str(listlen - drop_count)
 
+            # If it's an entry
             else:
+                # youtube:playlist extractor but it's actually an entry
                 if info.get('extractor', '').startswith('youtube:playlist'):
                     try:
                         info = await self.downloader.extract_info(player.playlist.loop, 'https://www.youtube.com/watch?v=%s' % info.get('url', ''), download=False, process=False)
