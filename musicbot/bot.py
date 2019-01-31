@@ -79,9 +79,6 @@ class MusicBot(discord.Client):
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
         self.str = Json(self.config.i18n_file)
 
-        if self.config.usealias:
-            self.aliases = Aliases(aliases_file)
-
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
 
