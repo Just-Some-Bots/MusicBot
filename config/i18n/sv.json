@@ -51,7 +51,7 @@
     "cmd-search-accept": "Okej, kommer härnäst!",
     "cmd-search-decline": "Åh! :(",
     "cmd-np-action-streaming": "Strömmar",
-    "cmd-np-action-playing": "Spelar",
+    "cmd-np-action-playing": "Spelas",
     "cmd-np-reply-author": "Nu {action}: **{title}** lades till av **{author}**\nDuration: {progress_bar} {progress}\n:point_right: <{url}>",
     "cmd-np-reply-noauthor": "Nu {action}: **{title}**\nDuration: {progress_bar} {progress}\n:point_right: <{url}>",
     "cmd-np-none": "Det finns inga låtar köade! Köa något med {0}play.",
