@@ -1,9 +1,8 @@
-from discord import Guild, Message, VoiceChannel
-from messagemanager import safe_delete_message, safe_edit_message, safe_send_message
-from playlist import Playlist
-from player import MusicPlayer
+from discord import Guild, Message, VoiceChannel, VoiceClient, Client
+from .messagemanager import safe_delete_message, safe_edit_message, safe_send_message
+from .playlist import Playlist
+from .player import MusicPlayer
 from collections import defaultdict
-from guildmanager import clientdata
 import os
 import asyncio
 import logging
@@ -19,8 +18,20 @@ _guild_data_defaults = {
     }
 
 class ManagedGuild:
-    def __init__(self, guild: Guild):
+    """
+    ManagedGuild is an object that abstract the discord's Guild object.
+
+    Parameters
+    -----------
+    client: discord.Client
+        Client that will be use to manage the guild
+    guild: discord.Guild
+        Guild that you want to be managed
+    """
+
+    def __init__(self, client: Client, guild: Guild):
         self._aiolocks = defaultdict(asyncio.Lock)
+        self._client = client
         self._guild = guild
         self._player_channel = None
         self._data = defaultdict(lambda: None, _guild_data_defaults)
@@ -88,8 +99,7 @@ class ManagedGuild:
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(player.serialize(sort_keys=True))
 
-    # @TheerapakG TODO: rw
-    async def deserialize_queue(self, voice_client, playlist=None, *, dir=None) -> MusicPlayer:
+    async def deserialize_queue(self, voice_client: VoiceClient, playlist=None, *, dir=None) -> MusicPlayer:
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
         """
@@ -143,13 +153,13 @@ class ManagedGuild:
         guild = self._guild
 
         log.info("Bot has been added to guild: {}".format(guild.name))
-        owner = self.get_owner(voice=True) or self.get_owner()
-        if self.config.leavenonowners:
+        owner = self._client.get_owner(voice=True) or self._client.get_owner()
+        if self._client.config.leavenonowners:
             check = guild.get_member(owner.id)
             if check == None:
                 await guild.leave()
                 log.info('Left {} due to bot owner not found.'.format(guild.name))
-                await owner.send(self.str.get('left-no-owner-guilds', 'Left `{}` due to bot owner not being found in it.'.format(guild.name)))
+                await owner.send(self._client.str.get('left-no-owner-guilds', 'Left `{}` due to bot owner not being found in it.'.format(guild.name)))
 
         log.debug("Creating data folder for guild %s", guild.id)
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
@@ -167,7 +177,7 @@ class ManagedGuild:
 
         guild = self._guild
 
-        if not self.init_ok:
+        if not self._client.init_ok:
             return # Ignore pre-ready events
 
         log.debug("Guild \"{}\" has become available.".format(guild.name))
