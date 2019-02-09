@@ -1,7 +1,8 @@
-from discord import Guild, Message, VoiceChannel, VoiceClient, Client
+from discord import Guild, Message, VoiceChannel, VoiceClient
 from .messagemanager import safe_delete_message, safe_edit_message, safe_send_message
 from .playlist import Playlist
 from .player import MusicPlayer
+from .bot import MusicBot
 from collections import defaultdict
 import os
 import asyncio
@@ -23,13 +24,13 @@ class ManagedGuild:
 
     Parameters
     -----------
-    client: discord.Client
+    client: MusicBot
         Client that will be use to manage the guild
     guild: discord.Guild
         Guild that you want to be managed
     """
 
-    def __init__(self, client: Client, guild: Guild):
+    def __init__(self, client: MusicBot, guild: Guild):
         self._aiolocks = defaultdict(asyncio.Lock)
         self._client = client
         self._guild = guild
