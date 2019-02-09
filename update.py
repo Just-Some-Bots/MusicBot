@@ -14,9 +14,9 @@ def update_deps():
     print("Attempting to update dependencies...")
 
     try:
-        subprocess.check_call('{} -m pip install -U -r requirements.txt'.format(sys.executable), shell=True)
+        subprocess.check_call('"{}" -m pip install -U -r requirements.txt'.format(sys.executable), shell=True)
     except subprocess.CalledProcessError:
-        raise OSError("Could not update dependencies. You will need to run '{0} -m pip install -U -r requirements.txt' yourself.".format(sys.executable))
+        raise OSError("Could not update dependencies. You will need to run '\"{0}\" -m pip install -U -r requirements.txt' yourself.".format(sys.executable))
 
 def finalize():
     try:
@@ -63,6 +63,7 @@ def main():
 
     print("Checking if we need to update the bot...")
 
+    
     try:
         subprocess.check_call('git pull', shell=True)
     except subprocess.CalledProcessError:

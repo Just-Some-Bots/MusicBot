@@ -191,9 +191,6 @@ class MusicPlayer(EventEmitter, Serializable):
             # unless ffmpeg is doing something highly questionable
             self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
 
-        if not self.is_stopped and not self.is_dead:
-            self.play(_continue=True)
-
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
@@ -243,7 +240,7 @@ class MusicPlayer(EventEmitter, Serializable):
         """
             Plays the next entry from the playlist, or resumes playback of the current entry if paused.
         """
-        if self.is_paused:
+        if self.is_paused and self._current_player:
             return self.resume()
 
         if self.is_dead:
