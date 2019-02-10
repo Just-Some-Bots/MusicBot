@@ -37,6 +37,12 @@ class ManagedGuild:
         self._player_channel = None
         self._data = defaultdict(lambda: None, _guild_data_defaults)
 
+    def __str__(self):
+        return self._guild.name
+
+    def __repr__(self):
+        return '<ManagedGuild guild={guild} client={client}>'.format(guild=repr(self._guild), client=repr(self._client))
+
     async def handle_command(self, msg: Message):
         pass
 
@@ -144,6 +150,10 @@ class ManagedGuild:
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(entry.title)
 
+    def get_player_in(self) -> MusicPlayer:
+        if self._player_channel:
+            return self._player_channel._player
+
     # @TheerapakG TODO: rw
     async def on_guild_update(self, before:Guild, after:Guild):
         if before.region != after.region:
@@ -206,4 +216,8 @@ class ManagedGuild:
             log.debug("Pausing player in \"{}\" due to unavailability.".format(guild.name))
             self._data['availability_paused'] = True
             player.pause()
+
+    def voice_client_in(self):
+        if self._player_channel and self._player_channel._player:
+            return self._player_channel._player.voice_client
 

@@ -66,6 +66,7 @@ class MusicBot(discord.Client):
         if aliases_file is None:
             aliases_file = AliasesDefault.aliases_file
 
+        self._m_guilds = {}
         self.players = {}
         self.exit_signal = None
         self.init_ok = False
@@ -313,15 +314,6 @@ class MusicBot(discord.Client):
             else:
                 log.warning("Invalid channel thing: {}".format(channel))
 
-    async def _wait_delete_msg(self, message, after):
-        await asyncio.sleep(after)
-        await self.safe_delete_message(message, quiet=True)
-
-    # TODO: Check to see if I can just move this to on_message after the response check
-    async def _manual_delete_check(self, message, *, quiet=False):
-        if self.config.delete_invoking:
-            await self.safe_delete_message(message, quiet=quiet)
-
     async def _check_ignore_non_voice(self, msg):
         if msg.guild.me.voice:
             vc = msg.guild.me.voice.channel
@@ -371,18 +363,7 @@ class MusicBot(discord.Client):
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
-    async def get_voice_client(self, channel: discord.abc.GuildChannel):
-        if isinstance(channel, discord.Object):
-            channel = self.get_channel(channel.id)
-
-        if not isinstance(channel, discord.VoiceChannel):
-            raise AttributeError('Channel passed must be a voice channel')
-
-        if channel.guild.voice_client:
-            return channel.guild.voice_client
-        else:
-            return await channel.connect(timeout=60, reconnect=True)
-
+    # @TheerapakG TODO: impl
     async def disconnect_voice_client(self, guild):
         vc = self.voice_client_in(guild)
         if not vc:
@@ -397,19 +378,6 @@ class MusicBot(discord.Client):
         for vc in list(self.voice_clients).copy():
             await self.disconnect_voice_client(vc.channel.guild)
 
-    async def set_voice_state(self, vchannel, *, mute=False, deaf=False):
-        if isinstance(vchannel, discord.Object):
-            vchannel = self.get_channel(vchannel.id)
-
-        if getattr(vchannel, 'type', ChannelType.text) != ChannelType.voice:
-            raise AttributeError('Channel passed must be a voice channel')
-
-        await self.ws.voice_state(vchannel.guild.id, vchannel.id, mute, deaf)
-        # I hope I don't have to set the channel here
-        # instead of waiting for the event to update it
-
-    def get_player_in(self, guild:discord.Guild) -> MusicPlayer:
-        return self.players.get(guild.id)
 
     async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
         guild = channel.guild
@@ -438,173 +406,6 @@ class MusicBot(discord.Client):
 
         return self.players[guild.id]
 
-    def _init_player(self, player, *, guild=None):
-        player = player.on('play', self.on_player_play) \
-                       .on('resume', self.on_player_resume) \
-                       .on('pause', self.on_player_pause) \
-                       .on('stop', self.on_player_stop) \
-                       .on('finished-playing', self.on_player_finished_playing) \
-                       .on('entry-added', self.on_player_entry_added) \
-                       .on('error', self.on_player_error)
-
-        player.skip_state = SkipState()
-
-        if guild:
-            self.players[guild.id] = player
-
-        return player
-
-    async def on_player_play(self, player, entry):
-        log.debug('Running on_player_play')
-        await self.update_now_playing_status(entry)
-        player.skip_state.reset()
-
-        # This is the one event where its ok to serialize autoplaylist entries
-        await self.serialize_queue(player.voice_client.channel.guild)
-
-        if self.config.write_current_song:
-            await self.write_current_song(player.voice_client.channel.guild, entry)
-
-        channel = entry.meta.get('channel', None)
-        author = entry.meta.get('author', None)
-
-        if channel and author:
-            last_np_msg = self.server_specific_data[channel.guild]['last_np_msg']
-            if last_np_msg and last_np_msg.channel == channel:
-
-                async for lmsg in channel.history(limit=1):
-                    if lmsg != last_np_msg and last_np_msg:
-                        await self.safe_delete_message(last_np_msg)
-                        self.server_specific_data[channel.guild]['last_np_msg'] = None
-                    break  # This is probably redundant
-
-            author_perms = self.permissions.for_user(author)
-
-            if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
-                newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
-                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
-                player.skip()
-            elif self.config.now_playing_mentions:
-                newmsg = '%s - your song `%s` is now playing in `%s`!' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
-            else:
-                newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
-                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
-
-            if self.server_specific_data[channel.guild]['last_np_msg']:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
-            else:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
-
-        # TODO: Check channel voice state?
-
-    async def on_player_resume(self, player, entry, **_):
-        log.debug('Running on_player_resume')
-        await self.update_now_playing_status(entry)
-
-    async def on_player_pause(self, player, entry, **_):
-        log.debug('Running on_player_pause')
-        await self.update_now_playing_status(entry, True)
-        # await self.serialize_queue(player.voice_client.channel.guild)
-
-    async def on_player_stop(self, player, **_):
-        log.debug('Running on_player_stop')
-        await self.update_now_playing_status()
-
-    async def on_player_finished_playing(self, player, **_):
-        log.debug('Running on_player_finished_playing')
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Player finished playing, autopaused in empty channel")
-
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
-
-        if not player.playlist.entries and not player.current_entry and self.config.auto_playlist:
-            if not player.autoplaylist:
-                if not self.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check
-                    log.warning("No playable songs in the autoplaylist, disabling.")
-                    self.config.auto_playlist = False
-                else:
-                    log.debug("No content in current autoplaylist. Filling with new music...")
-                    player.autoplaylist = list(self.autoplaylist)
-
-            while player.autoplaylist:
-                if self.config.auto_playlist_random:
-                    random.shuffle(player.autoplaylist)
-                    song_url = random.choice(player.autoplaylist)
-                else:
-                    song_url = player.autoplaylist[0]
-                player.autoplaylist.remove(song_url)
-
-                info = {}
-
-                try:
-                    info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                except downloader.youtube_dl.utils.DownloadError as e:
-                    if 'YouTube said:' in e.args[0]:
-                        # url is bork, remove from list and put in removed list
-                        log.error("Error processing youtube url:\n{}".format(e.args[0]))
-
-                    else:
-                        # Probably an error from a different extractor, but I've only seen youtube's
-                        log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-
-                    await self.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=self.config.remove_ap)
-                    continue
-
-                except Exception as e:
-                    log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-                    log.exception()
-
-                    self.autoplaylist.remove(song_url)
-                    continue
-
-                if info.get('entries', None):  # or .get('_type', '') == 'playlist'
-                    log.debug("Playlist found but is unsupported at this time, skipping.")
-                    # TODO: Playlist expansion
-
-                # Do I check the initial conditions again?
-                # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-
-                if self.config.auto_pause:
-                    player.once('play', lambda player, **_: _autopause(player))
-
-                try:
-                    await player.playlist.add_entry(song_url, channel=None, author=None)
-                except exceptions.ExtractionError as e:
-                    log.error("Error adding song from autoplaylist: {}".format(e))
-                    log.debug('', exc_info=True)
-                    continue
-
-                break
-
-            if not self.autoplaylist:
-                # TODO: When I add playlist expansion, make sure that's not happening during this check
-                log.warning("No playable songs in the autoplaylist, disabling.")
-                self.config.auto_playlist = False
-
-        else: # Don't serialize for autoplaylist events
-            await self.serialize_queue(player.voice_client.channel.guild)
-
-        if not player.is_stopped and not player.is_dead:
-            player.play(_continue=True)
-
-    async def on_player_entry_added(self, player, playlist, entry, **_):
-        log.debug('Running on_player_entry_added')
-        if entry.meta.get('author') and entry.meta.get('channel'):
-            await self.serialize_queue(player.voice_client.channel.guild)
-
-    async def on_player_error(self, player, entry, ex, **_):
-        if 'channel' in entry.meta:
-            await self.safe_send_message(
-                entry.meta['channel'],
-                "```\nError from FFmpeg:\n{}\n```".format(ex)
-            )
-        else:
-            log.exception("Player error", exc_info=ex)
-
     async def update_now_playing_status(self, entry=None, is_paused=False):
         game = None
 
@@ -632,98 +433,9 @@ class MusicBot(discord.Client):
                 await self.change_presence(activity=game)
                 self.last_status = game
 
-    async def update_now_playing_message(self, guild, message, *, channel=None):
-        lnp = self.server_specific_data[guild]['last_np_msg']
-        m = None
-
-        if message is None and lnp:
-            await self.safe_delete_message(lnp, quiet=True)
-
-        elif lnp:  # If there was a previous lp message
-            oldchannel = lnp.channel
-
-            if lnp.channel == oldchannel:  # If we have a channel to update it in
-                async for lmsg in lnp.channel.history(limit=1):
-                    if lmsg != lnp and lnp:  # If we need to resend it
-                        await self.safe_delete_message(lnp, quiet=True)
-                        m = await self.safe_send_message(channel, message, quiet=True)
-                    else:
-                        m = await self.safe_edit_message(lnp, message, send_if_fail=True, quiet=False)
-
-            elif channel: # If we have a new channel to send it to
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(channel, message, quiet=True)
-
-            else:  # we just resend it in the old channel
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(oldchannel, message, quiet=True)
-
-        elif channel: # No previous message
-            m = await self.safe_send_message(channel, message, quiet=True)
-
-        self.server_specific_data[guild]['last_np_msg'] = m
-
-
-    async def serialize_queue(self, guild, *, dir=None):
-        """
-        Serialize the current queue for a server's player to json.
-        """
-
-        player = self.get_player_in(guild)
-        if not player:
-            return
-
-        if dir is None:
-            dir = 'data/%s/queue.json' % guild.id
-
-        async with self.aiolocks['queue_serialization' + ':' + str(guild.id)]:
-            log.debug("Serializing queue for %s", guild.id)
-
-            with open(dir, 'w', encoding='utf8') as f:
-                f.write(player.serialize(sort_keys=True))
-
     async def serialize_all_queues(self, *, dir=None):
         coros = [self.serialize_queue(s, dir=dir) for s in self.guilds]
         await asyncio.gather(*coros, return_exceptions=True)
-
-    async def deserialize_queue(self, guild, voice_client, playlist=None, *, dir=None) -> MusicPlayer:
-        """
-        Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
-        """
-
-        if playlist is None:
-            playlist = Playlist(self)
-
-        if dir is None:
-            dir = 'data/%s/queue.json' % guild.id
-
-        async with self.aiolocks['queue_serialization' + ':' + str(guild.id)]:
-            if not os.path.isfile(dir):
-                return None
-
-            log.debug("Deserializing queue for %s", guild.id)
-
-            with open(dir, 'r', encoding='utf8') as f:
-                data = f.read()
-
-        return MusicPlayer.from_json(data, self, voice_client, playlist)
-
-    async def write_current_song(self, guild, entry, *, dir=None):
-        """
-        Writes the current song to file
-        """
-        player = self.get_player_in(guild)
-        if not player:
-            return
-
-        if dir is None:
-            dir = 'data/%s/current.txt' % guild.id
-
-        async with self.aiolocks['current_song' + ':' + str(guild.id)]:
-            log.debug("Writing current song for %s", guild.id)
-
-            with open(dir, 'w', encoding='utf8') as f:
-                f.write(entry.title)
 
     @ensure_appinfo
     async def _on_ready_sanity_checks(self):
@@ -774,76 +486,6 @@ class MusicBot(discord.Client):
 
 
 #######################################################################################################################
-
-
-    async def safe_send_message(self, dest, content, **kwargs):
-        tts = kwargs.pop('tts', False)
-        quiet = kwargs.pop('quiet', False)
-        expire_in = kwargs.pop('expire_in', 0)
-        allow_none = kwargs.pop('allow_none', True)
-        also_delete = kwargs.pop('also_delete', None)
-
-        msg = None
-        lfunc = log.debug if quiet else log.warning
-
-        try:
-            if content is not None or allow_none:
-                if isinstance(content, discord.Embed):
-                    msg = await dest.send(embed=content)
-                else:
-                    msg = await dest.send(content, tts=tts)
-
-        except discord.Forbidden:
-            lfunc("Cannot send message to \"%s\", no permission", dest.name)
-
-        except discord.NotFound:
-            lfunc("Cannot send message to \"%s\", invalid channel?", dest.name)
-
-        except discord.HTTPException:
-            if len(content) > DISCORD_MSG_CHAR_LIMIT:
-                lfunc("Message is over the message size limit (%s)", DISCORD_MSG_CHAR_LIMIT)
-            else:
-                lfunc("Failed to send message")
-                log.noise("Got HTTPException trying to send message to %s: %s", dest, content)
-
-        finally:
-            if msg and expire_in:
-                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
-
-            if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
-
-        return msg
-
-    async def safe_delete_message(self, message, *, quiet=False):
-        lfunc = log.debug if quiet else log.warning
-
-        try:
-            return await message.delete()
-
-        except discord.Forbidden:
-            lfunc("Cannot delete message \"{}\", no permission".format(message.clean_content))
-
-        except discord.NotFound:
-            lfunc("Cannot delete message \"{}\", message not found".format(message.clean_content))
-
-    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
-        lfunc = log.debug if quiet else log.warning
-
-        try:
-            return await message.edit(content=new)
-
-        except discord.NotFound:
-            lfunc("Cannot edit message \"{}\", message not found".format(message.clean_content))
-            if send_if_fail:
-                lfunc("Sending message instead")
-                return await self.safe_send_message(message.channel, new)
-
-    async def send_typing(self, destination):
-        try:
-            return await destination.trigger_typing()
-        except discord.Forbidden:
-            log.warning("Could not send typing to {}, no permission".format(destination))
 
     async def restart(self):
         self.exit_signal = exceptions.RestartSignal()
@@ -1080,7 +722,7 @@ class MusicBot(discord.Client):
 
         # t-t-th-th-that's all folks!
 
-    def _gen_embed(self):
+    def _gen_embed():
         """Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = 7506394
@@ -2935,8 +2577,3 @@ class MusicBot(discord.Client):
             self.server_specific_data[guild]['availability_paused'] = True
             player.pause()
 
-    def voice_client_in(self, guild):
-        for vc in self.voice_clients:
-            if vc.guild == guild:
-                return vc
-        return None

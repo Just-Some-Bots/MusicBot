@@ -11,6 +11,11 @@ async def _wait_delete_msg(message, after):
     await asyncio.sleep(after)
     await safe_delete_message(message, quiet=True)
 
+# TODO: Check to see if I can just move this to on_message after the response check (this todo is there before spliting the code)
+async def _manual_delete_check(self, message, *, quiet=False):
+    if self.config.delete_invoking:
+        await self.safe_delete_message(message, quiet=quiet)
+
 async def safe_delete_message(message, *, quiet=False):
     lfunc = log.debug if quiet else log.warning
 
@@ -74,8 +79,8 @@ async def safe_send_message(dest, content, **kwargs):
 
     return msg
 
-async def send_typing(self, destination):
-        try:
-            return await destination.trigger_typing()
-        except discord.Forbidden:
-            log.warning("Could not send typing to {}, no permission".format(destination))
+async def send_typing(destination):
+    try:
+        return await destination.trigger_typing()
+    except discord.Forbidden:
+        log.warning("Could not send typing to {}, no permission".format(destination))

@@ -16,6 +16,16 @@ class ManagedVC:
         self._vc = vc
         self._player = None
 
+    def __str__(self):
+        return self._vc.name
+
+    def __repr__(self):
+        return '<ManagedVC vc={vc} guild={guild} player={player}>'.format(
+            vc=repr(self._vc),
+            guild=repr(self._guild),
+            player=repr(self._player)
+            )
+
     def _init_player(self, player: MusicPlayer):
         player = player.on('play', self.on_player_play) \
                        .on('resume', self.on_player_resume) \
@@ -36,7 +46,7 @@ class ManagedVC:
 
     async def on_player_play(self, player: MusicPlayer, entry):
         log.debug('Running on_player_play')
-        await self._guild.update_now_playing_status(entry)
+        await self._guild._client.update_now_playing_status(entry)
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
@@ -80,16 +90,16 @@ class ManagedVC:
 
     async def on_player_resume(self, player: MusicPlayer, entry, **_):
         log.debug('Running on_player_resume')
-        await self._guild.update_now_playing_status(entry)
+        await self._guild._client.update_now_playing_status(entry)
 
     async def on_player_pause(self, player: MusicPlayer, entry, **_):
         log.debug('Running on_player_pause')
-        await self._guild.update_now_playing_status(entry, True)
+        await self._guild._client.update_now_playing_status(entry, True)
         # await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_stop(self, player: MusicPlayer, **_):
         log.debug('Running on_player_stop')
-        await self._guild.update_now_playing_status()
+        await self._guild._client.update_now_playing_status()
 
     async def on_player_finished_playing(self, player: MusicPlayer, **_):
         log.debug('Running on_player_finished_playing')
