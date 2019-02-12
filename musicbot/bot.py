@@ -42,6 +42,8 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+import guildmanager
+
 
 load_opus_lib()
 
@@ -66,7 +68,6 @@ class MusicBot(discord.Client):
         if aliases_file is None:
             aliases_file = AliasesDefault.aliases_file
 
-        self._m_guilds = {}
         self.players = {}
         self.exit_signal = None
         self.init_ok = False
@@ -434,7 +435,7 @@ class MusicBot(discord.Client):
                 self.last_status = game
 
     async def serialize_all_queues(self, *, dir=None):
-        coros = [self.serialize_queue(s, dir=dir) for s in self.guilds]
+        coros = [s.serialize_queue(s, dir=dir) for s in guildmanager.getguildlist()]
         await asyncio.gather(*coros, return_exceptions=True)
 
     @ensure_appinfo
@@ -571,6 +572,9 @@ class MusicBot(discord.Client):
 
         await self._on_ready_sanity_checks()
 
+        # prepare guildmanager
+        guildmanager.registerguildmanage(self)
+
         self.init_ok = True
 
         ################################
@@ -590,18 +594,14 @@ class MusicBot(discord.Client):
             ))
 
             log.info('Guild List:')
-            unavailable_servers = 0
             for s in self.guilds:
                 ser = ('{} (unavailable)'.format(s.name) if s.unavailable else s.name)
                 log.info(' - ' + ser)
-                if self.config.leavenonowners:
-                    if s.unavailable:
-                        unavailable_servers += 1
-                    else:
-                        check = s.get_member(owner.id)
-                        if check == None:
-                            await s.leave()
-                            log.info('Left {} due to bot owner not found'.format(s.name))
+
+            unavailable_servers = 0
+            if self.config.leavenonowners:
+                unavailable_servers = guildmanager.prunenoowner(self)
+                
             if unavailable_servers != 0:
                 log.info('Not proceeding with checks in {} servers due to unavailability'.format(str(unavailable_servers))) 
 
@@ -722,7 +722,7 @@ class MusicBot(discord.Client):
 
         # t-t-th-th-that's all folks!
 
-    def _gen_embed():
+    def _gen_embed(self):
         """Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = 7506394
@@ -2530,6 +2530,9 @@ class MusicBot(discord.Client):
 
     async def on_guild_join(self, guild:discord.Guild):
         log.info("Bot has been added to guild: {}".format(guild.name))
+
+        guildmanager.add_guild(self, guild)
+
         owner = self._get_owner(voice=True) or self._get_owner()
         if self.config.leavenonowners:
             check = guild.get_member(owner.id)
@@ -2537,43 +2540,17 @@ class MusicBot(discord.Client):
                 await guild.leave()
                 log.info('Left {} due to bot owner not found.'.format(guild.name))
                 await owner.send(self.str.get('left-no-owner-guilds', 'Left `{}` due to bot owner not being found in it.'.format(guild.name)))
+                return
 
         log.debug("Creating data folder for guild %s", guild.id)
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
 
     async def on_guild_remove(self, guild:discord.Guild):
-        log.info("Bot has been removed from guild: {}".format(guild.name))
-        log.debug('Updated guild list:')
-        [log.debug(' - ' + s.name) for s in self.guilds]
-
-        if guild.id in self.players:
-            self.players.pop(guild.id).kill()
-
+        await guildmanager.getguild().on_guild_remove()
 
     async def on_guild_available(self, guild:discord.Guild):
-        if not self.init_ok:
-            return # Ignore pre-ready events
-
-        log.debug("Guild \"{}\" has become available.".format(guild.name))
-
-        player = self.get_player_in(guild)
-
-        if player and player.is_paused:
-            av_paused = self.server_specific_data[guild]['availability_paused']
-
-            if av_paused:
-                log.debug("Resuming player in \"{}\" due to availability.".format(guild.name))
-                self.server_specific_data[guild]['availability_paused'] = False
-                player.resume()
-
+        await guildmanager.getguild().on_guild_available()
 
     async def on_guild_unavailable(self, guild:discord.Guild):
-        log.debug("Guild \"{}\" has become unavailable.".format(guild.name))
-
-        player = self.get_player_in(guild)
-
-        if player and player.is_playing:
-            log.debug("Pausing player in \"{}\" due to unavailability.".format(guild.name))
-            self.server_specific_data[guild]['availability_paused'] = True
-            player.pause()
+        await guildmanager.getguild().on_guild_unavailable()
 

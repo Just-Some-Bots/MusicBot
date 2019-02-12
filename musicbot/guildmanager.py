@@ -1,4 +1,5 @@
 from discord import Guild, Message, VoiceChannel, VoiceClient
+from discord import utils as discordutils
 from .messagemanager import safe_delete_message, safe_edit_message, safe_send_message
 from .playlist import Playlist
 from .player import MusicPlayer
@@ -18,6 +19,8 @@ _guild_data_defaults = {
     'availability_paused': False
     }
 
+_guild_dict = {}
+
 class ManagedGuild:
     """
     ManagedGuild is an object that abstract the discord's Guild object.
@@ -33,15 +36,25 @@ class ManagedGuild:
     def __init__(self, client: MusicBot, guild: Guild):
         self._aiolocks = defaultdict(asyncio.Lock)
         self._client = client
-        self._guild = guild
+        self._guildid = guild.id
         self._player_channel = None
         self._data = defaultdict(lambda: None, _guild_data_defaults)
+
+    @property
+    def _guild(self):
+        return self._client.get_guild(self._guildid)
 
     def __str__(self):
         return self._guild.name
 
     def __repr__(self):
         return '<ManagedGuild guild={guild} client={client}>'.format(guild=repr(self._guild), client=repr(self._client))
+
+    def get_owner(self, *, voice=False):
+        return discordutils.find(
+            lambda m: m.id == self._client.config.owner_id and (m.voice if voice else True),
+            self._guild.members
+        )
 
     async def handle_command(self, msg: Message):
         pass
@@ -91,17 +104,15 @@ class ManagedGuild:
         Serialize the current queue for a server's player to json.
         """
 
-        guild = self._guild
-
         player = self._player_channel._player
         if not player:
             return
 
         if dir is None:
-            dir = 'data/%s/queue.json' % guild.id
+            dir = 'data/%s/queue.json' % self._guildid
 
         async with self._aiolocks['queue_serialization']:
-            log.debug("Serializing queue for %s", guild.id)
+            log.debug("Serializing queue for %s", self._guildid)
 
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(player.serialize(sort_keys=True))
@@ -111,19 +122,17 @@ class ManagedGuild:
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
         """
 
-        guild = self._guild
-
         if playlist is None:
             playlist = Playlist(self)
 
         if dir is None:
-            dir = 'data/%s/queue.json' % guild.id
+            dir = 'data/%s/queue.json' % self._guildid
 
         async with self._aiolocks['queue_serialization']:
             if not os.path.isfile(dir):
                 return None
 
-            log.debug("Deserializing queue for %s", guild.id)
+            log.debug("Deserializing queue for %s", self._guildid)
 
             with open(dir, 'r', encoding='utf8') as f:
                 data = f.read()
@@ -135,17 +144,15 @@ class ManagedGuild:
         Writes the current song to file
         """
 
-        guild = self._guild
-
         player = self._player_channel._player
         if not player:
             return
 
         if dir is None:
-            dir = 'data/%s/current.txt' % guild.id
+            dir = 'data/%s/current.txt' % self._guildid
 
         async with self._aiolocks['current_song']:
-            log.debug("Writing current song for %s", guild.id)
+            log.debug("Writing current song for %s", self._guildid)
 
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(entry.title)
@@ -154,34 +161,13 @@ class ManagedGuild:
         if self._player_channel:
             return self._player_channel._player
 
-    # @TheerapakG TODO: rw
-    async def on_guild_update(self, before:Guild, after:Guild):
-        if before.region != after.region:
-            log.warning("Guild \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
-
-    async def on_guild_join(self):
-
-        guild = self._guild
-
-        log.info("Bot has been added to guild: {}".format(guild.name))
-        owner = self._client.get_owner(voice=True) or self._client.get_owner()
-        if self._client.config.leavenonowners:
-            check = guild.get_member(owner.id)
-            if check == None:
-                await guild.leave()
-                log.info('Left {} due to bot owner not found.'.format(guild.name))
-                await owner.send(self._client.str.get('left-no-owner-guilds', 'Left `{}` due to bot owner not being found in it.'.format(guild.name)))
-
-        log.debug("Creating data folder for guild %s", guild.id)
-        pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
-
     async def on_guild_remove(self):
 
-        guild = self._guild
-
-        log.info("Bot has been removed from guild: {}".format(guild.name))
+        log.info("Bot has been removed from guild: {}".format(self._guild.name))
 
         self._player_channel.kill_player()
+
+        del _guild_dict[self._client][self._guildid]
 
 
     async def on_guild_available(self):
@@ -221,3 +207,24 @@ class ManagedGuild:
         if self._player_channel and self._player_channel._player:
             return self._player_channel._player.voice_client
 
+def registerguildmanage(client: MusicBot):
+    _guild_dict[client] = {guild.id:ManagedGuild(client, guild) for guild in client.guilds}
+
+def getguildlist(client: MusicBot) -> list:
+    return list(_guild_dict[client].values())
+
+def getguild(client: MusicBot, guild: Guild) -> ManagedGuild:
+    return _guild_dict[client][guild]
+
+def prunenoowner(client: MusicBot) -> int:
+    unavailable_servers = 0
+    for server in getguildlist(client):
+        if server._guild.unavailable:
+            unavailable_servers += 1
+        elif server.get_owner() == None:
+            server._guild.leave()
+            log.info('Left {} due to bot owner not found'.format(server._guild.name))
+    return unavailable_servers
+
+def add_guild(client: MusicBot, guild: Guild):
+    _guild_dict[client][guild.id] = ManagedGuild(client, guild)
