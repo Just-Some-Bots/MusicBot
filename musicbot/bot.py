@@ -249,7 +249,7 @@ class MusicBot(discord.Client):
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
-        channel_map = {c.guild: c for c in channels}
+        channel_map = {guildmanager.get_guild(self, c.guild): c for c in channels}
 
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
@@ -258,16 +258,16 @@ class MusicBot(discord.Client):
                 player.pause()
                 self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
 
-        for guild in self.guilds:
-            if guild.unavailable or guild in channel_map:
+        for guild in guildmanager.getguildlist():
+            if guild._guild.unavailable or guild in channel_map:
                 continue
 
-            if guild.me.voice:
-                log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.me.voice.channel))
-                channel_map[guild] = guild.me.voice.channel
+            if guild._guild.me.voice:
+                log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild._guild.me.voice.channel))
+                channel_map[guild] = guild._guild.me.voice.channel
 
             if autosummon:
-                owner = self._get_owner(server=guild, voice=True)
+                owner = guild.get_owner(voice=True)
                 if owner:
                     log.info("Found owner in \"{}\"".format(owner.voice.channel.name))
                     channel_map[guild] = owner.voice.channel
@@ -280,7 +280,7 @@ class MusicBot(discord.Client):
             if channel and isinstance(channel, discord.VoiceChannel):
                 log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
 
-                chperms = channel.permissions_for(guild.me)
+                chperms = channel.permissions_for(guild._guild.me)
 
                 if not chperms.connect:
                     log.info("Cannot join channel \"{}\", no permission.".format(channel.name))
@@ -364,21 +364,9 @@ class MusicBot(discord.Client):
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
-    # @TheerapakG TODO: impl
-    async def disconnect_voice_client(self, guild):
-        vc = self.voice_client_in(guild)
-        if not vc:
-            return
-
-        if guild.id in self.players:
-            self.players.pop(guild.id).kill()
-
-        await vc.disconnect()
-
     async def disconnect_all_voice_clients(self):
         for vc in list(self.voice_clients).copy():
             await self.disconnect_voice_client(vc.channel.guild)
-
 
     async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
         guild = channel.guild
@@ -2546,11 +2534,11 @@ class MusicBot(discord.Client):
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
 
     async def on_guild_remove(self, guild:discord.Guild):
-        await guildmanager.getguild().on_guild_remove()
+        await guildmanager.get_guild(self, guild).on_guild_remove()
 
     async def on_guild_available(self, guild:discord.Guild):
-        await guildmanager.getguild().on_guild_available()
+        await guildmanager.get_guild(self, guild).on_guild_available()
 
     async def on_guild_unavailable(self, guild:discord.Guild):
-        await guildmanager.getguild().on_guild_unavailable()
+        await guildmanager.get_guild(self, guild).on_guild_unavailable()
 

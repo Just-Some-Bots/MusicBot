@@ -4,6 +4,7 @@ from .messagemanager import safe_delete_message, safe_edit_message, safe_send_me
 from .playlist import Playlist
 from .player import MusicPlayer
 from .bot import MusicBot
+from . import exceptions
 from collections import defaultdict
 import os
 import asyncio
@@ -61,6 +62,16 @@ class ManagedGuild:
 
     async def change_player_channel(self, channel: VoiceChannel):
         pass
+
+    async def get_voice_client(self):
+        guild = self._guild
+        if guild.voice_client:
+            return guild.voice_client
+        else:
+            if self._player_channel:
+                return await self._player_channel._vc.connect(timeout=60, reconnect=True)
+            else:
+                raise exceptions.MusicbotException("There is no voice channel associated with the bot in this guild")
 
     async def disconnect_voice_client(self):
         if not self._player_channel:
@@ -203,18 +214,14 @@ class ManagedGuild:
             self._data['availability_paused'] = True
             player.pause()
 
-    def voice_client_in(self):
-        if self._player_channel and self._player_channel._player:
-            return self._player_channel._player.voice_client
-
 def registerguildmanage(client: MusicBot):
-    _guild_dict[client] = {guild.id:ManagedGuild(client, guild) for guild in client.guilds}
+    _guild_dict[client.user.id] = {guild.id:ManagedGuild(client, guild) for guild in client.guilds}
 
 def getguildlist(client: MusicBot) -> list:
-    return list(_guild_dict[client].values())
+    return list(_guild_dict[client.user.id].values())
 
-def getguild(client: MusicBot, guild: Guild) -> ManagedGuild:
-    return _guild_dict[client][guild]
+def get_guild(client: MusicBot, guild: Guild) -> ManagedGuild:
+    return _guild_dict[client.user.id][guild.id]
 
 def prunenoowner(client: MusicBot) -> int:
     unavailable_servers = 0
@@ -227,4 +234,4 @@ def prunenoowner(client: MusicBot) -> int:
     return unavailable_servers
 
 def add_guild(client: MusicBot, guild: Guild):
-    _guild_dict[client][guild.id] = ManagedGuild(client, guild)
+    _guild_dict[client.user.id][guild.id] = ManagedGuild(client, guild)

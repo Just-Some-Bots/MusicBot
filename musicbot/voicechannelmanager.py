@@ -20,7 +20,7 @@ class ManagedVC:
         return self._vc.name
 
     def __repr__(self):
-        return '<ManagedVC vc={vc} guild={guild} player={player}>'.format(
+        return '<ManagedVC voicechannel={vc} guild={guild} player={player}>'.format(
             vc=repr(self._vc),
             guild=repr(self._guild),
             player=repr(self._player)
@@ -207,14 +207,14 @@ class ManagedVC:
 
         return not sum(1 for m in self._vc.members if check(m))
 
-    async def get_voice_client(self):
-        if self._vc.guild.voice_client:
-            return self._vc.guild.voice_client
-        else:
-            return await self._vc.connect(timeout=60, reconnect=True)
-
     async def disconnect_voice_client(self):
-        pass
+        v = self._guild.voice_client()
+        if not v:
+            return
+        if self._player:
+            self._player.kill()
+        await v.disconnect()
+        
 
     async def set_voice_state(self, *, mute=False, deaf=False):
         await self._vc.ws.voice_state(self._vc.guild.id, self._vc.id, mute, deaf)
