@@ -1453,7 +1453,7 @@ class MusicBot(discord.Client):
                 )
 
             self.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(channel, np_text)
-            await messagemanager._manual_delete_check(message)
+            await messagemanager._manual_delete_check(self, message)
         else:
             return Response(
                 self.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(self.config.command_prefix),
@@ -1611,7 +1611,7 @@ class MusicBot(discord.Client):
 
         if permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
             entry = player.playlist.delete_entry_at_index((index - 1))
-            await messagemanager._manual_delete_check(message)
+            await messagemanager._manual_delete_check(self, message)
             if entry.meta.get('channel', False) and entry.meta.get('author', False):
                 return Response(self.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, entry.meta['author'].name).strip())
             else:
@@ -1654,7 +1654,7 @@ class MusicBot(discord.Client):
                 or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
                 player.skip()  # TODO: check autopause stuff here
-                await messagemanager._manual_delete_check(message)
+                await messagemanager._manual_delete_check(self, message)
                 return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
             else:
                 raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
