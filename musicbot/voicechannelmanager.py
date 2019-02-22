@@ -15,6 +15,7 @@ class ManagedVC:
         self._guild = guild
         self._vc = vc
         self._player = None
+        guild._player_channel = self
 
     def __str__(self):
         return self._vc.name
@@ -43,6 +44,33 @@ class ManagedVC:
 
     async def kill_player(self):
         pass
+
+    async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
+        guild = channel.guild
+
+        async with self.aiolocks[_func_() + ':' + str(guild.id)]:
+            if deserialize:
+                voice_client = await self.get_voice_client(channel)
+                player = await self.deserialize_queue(guild, voice_client)
+
+                if player:
+                    log.debug("Created player via deserialization for guild %s with %s entries", guild.id, len(player.playlist))
+                    # Since deserializing only happens when the bot starts, I should never need to reconnect
+                    return self._init_player(player, guild=guild)
+
+            if guild.id not in self.players:
+                if not create:
+                    raise exceptions.CommandError(
+                        'The bot is not in a voice channel.  '
+                        'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
+
+                voice_client = await self.get_voice_client(channel)
+
+                playlist = Playlist(self)
+                player = MusicPlayer(self, voice_client, playlist)
+                self._init_player(player, guild=guild)
+
+        return self.players[guild.id]
 
     async def on_player_play(self, player: MusicPlayer, entry):
         log.debug('Running on_player_play')

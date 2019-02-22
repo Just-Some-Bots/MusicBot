@@ -68,7 +68,6 @@ class MusicBot(discord.Client):
         if aliases_file is None:
             aliases_file = AliasesDefault.aliases_file
 
-        self.players = {}
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
@@ -258,7 +257,7 @@ class MusicBot(discord.Client):
                 player.pause()
                 self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
 
-        for guild in guildmanager.getguildlist():
+        for guild in guildmanager.getguildlist(self):
             if guild._guild.unavailable or guild in channel_map:
                 continue
 
@@ -291,7 +290,8 @@ class MusicBot(discord.Client):
                     continue
 
                 try:
-                    player = await self.get_player(channel, create=True, deserialize=self.config.persistent_queue)
+                    mchannel = voicechannelmanager.ManagedVC(guild, channel)
+                    player = await mchannel.get_player(channel, create=True, deserialize=self.config.persistent_queue)
                     joined_servers.add(guild)
 
                     log.info("Joined {0.guild.name}/{0.name}".format(channel))
@@ -365,35 +365,8 @@ class MusicBot(discord.Client):
         return discord.utils.oauth_url(self.cached_app_info.id, permissions=permissions, guild=guild)
 
     async def disconnect_all_voice_clients(self):
-        for vc in list(self.voice_clients).copy():
-            await self.disconnect_voice_client(vc.channel.guild)
-
-    async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
-        guild = channel.guild
-
-        async with self.aiolocks[_func_() + ':' + str(guild.id)]:
-            if deserialize:
-                voice_client = await self.get_voice_client(channel)
-                player = await self.deserialize_queue(guild, voice_client)
-
-                if player:
-                    log.debug("Created player via deserialization for guild %s with %s entries", guild.id, len(player.playlist))
-                    # Since deserializing only happens when the bot starts, I should never need to reconnect
-                    return self._init_player(player, guild=guild)
-
-            if guild.id not in self.players:
-                if not create:
-                    raise exceptions.CommandError(
-                        'The bot is not in a voice channel.  '
-                        'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
-
-                voice_client = await self.get_voice_client(channel)
-
-                playlist = Playlist(self)
-                player = MusicPlayer(self, voice_client, playlist)
-                self._init_player(player, guild=guild)
-
-        return self.players[guild.id]
+        for guild in guildmanager.getguildlist(self):
+            await guild.disconnect_voice_client()
 
     async def update_now_playing_status(self, entry=None, is_paused=False):
         game = None
