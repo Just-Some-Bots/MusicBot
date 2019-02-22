@@ -42,7 +42,9 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
-import guildmanager
+from . import guildmanager
+from . import voicechannelmanager
+from . import messagemanager
 
 
 load_opus_lib()
@@ -373,13 +375,14 @@ class MusicBot(discord.Client):
 
         if not self.config.status_message:
             if self.user.bot:
-                activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+                players = [guild.get_player_in() for guild in guildmanager.getguildlist(self) if guild.get_player_in()]
+                activeplayers = sum(1 for player in players if player.is_playing)
                 if activeplayers > 1:
                     game = discord.Game(type=0, name="music on %s guilds" % activeplayers)
                     entry = None
 
                 elif activeplayers == 1:
-                    player = discord.utils.get(self.players.values(), is_playing=True)
+                    player = discord.utils.get(players, is_playing=True)
                     entry = player.current_entry
 
             if entry:
@@ -396,7 +399,7 @@ class MusicBot(discord.Client):
                 self.last_status = game
 
     async def serialize_all_queues(self, *, dir=None):
-        coros = [s.serialize_queue(s, dir=dir) for s in guildmanager.getguildlist()]
+        coros = [s.serialize_queue(s, dir=dir) for s in guildmanager.getguildlist(self)]
         await asyncio.gather(*coros, return_exceptions=True)
 
     @ensure_appinfo
@@ -891,7 +894,7 @@ class MusicBot(discord.Client):
 
         song_url = song_url.strip('<>')
 
-        await self.send_typing(channel)
+        await messagemanager.send_typing(channel)
 
         if leftover_args:
             song_url = ' '.join([song_url, *leftover_args])
@@ -927,7 +930,7 @@ class MusicBot(discord.Client):
                             song_url = i['name'] + ' ' + i['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
                             await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
-                        await self.safe_delete_message(procmesg)
+                        await messagemanager.safe_delete_message(procmesg)
                         return Response(self.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                     
                     elif 'playlist' in parts:
@@ -941,12 +944,12 @@ class MusicBot(discord.Client):
                             else:
                                 break
                         await self._do_playlist_checks(permissions, player, author, res)
-                        procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
+                        procmesg = await messagemanager.safe_send_message(channel, self.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
                         for i in res:
                             song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
                             await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
-                        await self.safe_delete_message(procmesg)
+                        await messagemanager.safe_delete_message(procmesg)
                         return Response(self.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                     
                     else:
@@ -1012,7 +1015,7 @@ class MusicBot(discord.Client):
                     download=False,
                     process=True,    # ASYNC LAMBDAS WHEN
                     on_error=lambda e: asyncio.ensure_future(
-                        self.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=self.loop),
+                        messagemanager.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=self.loop),
                     retry_on_error=True
                 )
 
@@ -1057,7 +1060,7 @@ class MusicBot(discord.Client):
                 # Different playlists might download at different speeds though
                 wait_per_song = 1.2
 
-                procmesg = await self.safe_send_message(
+                procmesg = await messagemanager.safe_send_message(
                     channel,
                     self.str.get('cmd-play-playlist-gathering-1', 'Gathering playlist information for {0} songs{1}').format(
                         num_songs,
@@ -1066,7 +1069,7 @@ class MusicBot(discord.Client):
 
                 # We don't have a pretty way of doing this yet.  We need either a loop
                 # that sends these every 10 seconds or a nice context manager.
-                await self.send_typing(channel)
+                await messagemanager.send_typing(channel)
 
                 # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
                 #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
@@ -1097,7 +1100,7 @@ class MusicBot(discord.Client):
                     fixg(wait_per_song * num_songs))
                 )
 
-                await self.safe_delete_message(procmesg)
+                await messagemanager.safe_delete_message(procmesg)
 
                 if not listlen - drop_count:
                     raise exceptions.CommandError(
@@ -1149,7 +1152,7 @@ class MusicBot(discord.Client):
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
 
-        await self.send_typing(channel)
+        await messagemanager.send_typing(channel)
         info = await self.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
 
         if not info:
@@ -1158,9 +1161,9 @@ class MusicBot(discord.Client):
         num_songs = sum(1 for _ in info['entries'])
         t0 = time.time()
 
-        busymsg = await self.safe_send_message(
+        busymsg = await messagemanager.safe_send_message(
             channel, self.str.get('cmd-play-playlist-process', "Processing {0} songs...").format(num_songs))  # TODO: From playlist_title
-        await self.send_typing(channel)
+        await messagemanager.send_typing(channel)
 
         entries_added = 0
         if extractor_type == 'youtube:playlist':
@@ -1204,13 +1207,13 @@ class MusicBot(discord.Client):
                 log.debug("Dropped %s songs" % drop_count)
 
             if player.current_entry and player.current_entry.duration > permissions.max_song_length:
-                await self.safe_delete_message(self.server_specific_data[channel.guild]['last_np_msg'])
+                await messagemanager.safe_delete_message(self.server_specific_data[channel.guild]['last_np_msg'])
                 self.server_specific_data[channel.guild]['last_np_msg'] = None
                 skipped = True
                 player.skip()
                 entries_added.pop()
 
-        await self.safe_delete_message(busymsg)
+        await messagemanager.safe_delete_message(busymsg)
 
         songs_added = len(entries_added)
         tnow = time.time()
@@ -1261,7 +1264,7 @@ class MusicBot(discord.Client):
                 self.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
 
-        await self.send_typing(channel)
+        await messagemanager.send_typing(channel)
         await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
 
         return Response(self.str.get('cmd-stream-success', "Streaming."), delete_after=6)
@@ -1346,23 +1349,23 @@ class MusicBot(discord.Client):
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
-        search_msg = await self.safe_send_message(channel, self.str.get('cmd-search-searching', "Searching for videos..."))
-        await self.send_typing(channel)
+        search_msg = await messagemanager.safe_send_message(channel, self.str.get('cmd-search-searching', "Searching for videos..."))
+        await messagemanager.send_typing(channel)
 
         try:
             info = await self.downloader.extract_info(player.playlist.loop, search_query, download=False, process=True)
 
         except Exception as e:
-            await self.safe_edit_message(search_msg, str(e), send_if_fail=True)
+            await messagemanager.safe_edit_message(search_msg, str(e), send_if_fail=True)
             return
         else:
-            await self.safe_delete_message(search_msg)
+            await messagemanager.safe_delete_message(search_msg)
 
         if not info:
             return Response(self.str.get('cmd-search-none', "No videos found."), delete_after=30)
 
         for e in info['entries']:
-            result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
+            result_message = await messagemanager.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
                 info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
 
             def check(reaction, user):
@@ -1375,18 +1378,18 @@ class MusicBot(discord.Client):
             try:
                 reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
             except asyncio.TimeoutError:
-                await self.safe_delete_message(result_message)
+                await messagemanager.safe_delete_message(result_message)
                 return
 
             if str(reaction.emoji) == '\u2705':  # check
-                await self.safe_delete_message(result_message)
+                await messagemanager.safe_delete_message(result_message)
                 await self.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
                 return Response(self.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
             elif str(reaction.emoji) == '\U0001F6AB':  # cross
-                await self.safe_delete_message(result_message)
+                await messagemanager.safe_delete_message(result_message)
                 continue
             else:
-                await self.safe_delete_message(result_message)
+                await messagemanager.safe_delete_message(result_message)
                 break
 
         return Response(self.str.get('cmd-search-decline', "Oh well :("), delete_after=30)
@@ -1401,7 +1404,7 @@ class MusicBot(discord.Client):
 
         if player.current_entry:
             if self.server_specific_data[guild]['last_np_msg']:
-                await self.safe_delete_message(self.server_specific_data[guild]['last_np_msg'])
+                await messagemanager.safe_delete_message(self.server_specific_data[guild]['last_np_msg'])
                 self.server_specific_data[guild]['last_np_msg'] = None
 
             # TODO: Fix timedelta garbage with util function
@@ -1449,8 +1452,8 @@ class MusicBot(discord.Client):
                     url=player.current_entry.url
                 )
 
-            self.server_specific_data[guild]['last_np_msg'] = await self.safe_send_message(channel, np_text)
-            await self._manual_delete_check(message)
+            self.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(channel, np_text)
+            await messagemanager._manual_delete_check(message)
         else:
             return Response(
                 self.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(self.config.command_prefix),
@@ -1544,15 +1547,15 @@ class MusicBot(discord.Client):
         cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
         random.shuffle(cards)
 
-        hand = await self.safe_send_message(channel, ' '.join(cards))
+        hand = await messagemanager.safe_send_message(channel, ' '.join(cards))
         await asyncio.sleep(0.6)
 
         for x in range(4):
             random.shuffle(cards)
-            await self.safe_edit_message(hand, ' '.join(cards))
+            await messagemanager.safe_edit_message(hand, ' '.join(cards))
             await asyncio.sleep(0.6)
 
-        await self.safe_delete_message(hand, quiet=True)
+        await messagemanager.safe_delete_message(hand, quiet=True)
         return Response(self.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(player.voice_client.channel.guild), delete_after=15)
 
     async def cmd_clear(self, player, author):
@@ -1608,7 +1611,7 @@ class MusicBot(discord.Client):
 
         if permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
             entry = player.playlist.delete_entry_at_index((index - 1))
-            await self._manual_delete_check(message)
+            await messagemanager._manual_delete_check(message)
             if entry.meta.get('channel', False) and entry.meta.get('author', False):
                 return Response(self.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, entry.meta['author'].name).strip())
             else:
@@ -1651,7 +1654,7 @@ class MusicBot(discord.Client):
                 or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
                 player.skip()  # TODO: check autopause stuff here
-                await self._manual_delete_check(message)
+                await messagemanager._manual_delete_check(message)
                 return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
             else:
                 raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
@@ -1855,7 +1858,7 @@ class MusicBot(discord.Client):
         except:
             return Response(self.str.get('cmd-clean-invalid', "Invalid parameter. Please provide a number of messages to search."), reply=True, delete_after=8)
 
-        await self.safe_delete_message(message, quiet=True)
+        await messagemanager.safe_delete_message(message, quiet=True)
 
         def is_possible_command_invoke(entry):
             valid_call = any(
@@ -1998,7 +2001,7 @@ class MusicBot(discord.Client):
 
             lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
-        await self.safe_send_message(author, '\n'.join(lines))
+        await messagemanager.safe_send_message(author, '\n'.join(lines))
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
 
@@ -2094,7 +2097,7 @@ class MusicBot(discord.Client):
         Will not properly load new dependencies or file updates unless fully shutdown
         and restarted.
         """
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
+        await messagemanager.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
             "or its dependencies, you need to restart the bot properly, rather than using this command.")
 
         player = self.get_player_in(channel.guild)
@@ -2111,7 +2114,7 @@ class MusicBot(discord.Client):
         
         Disconnects from voice channels and closes the bot process.
         """
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        await messagemanager.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         
         player = self.get_player_in(channel.guild)
         if player and player.is_paused:
@@ -2148,7 +2151,7 @@ class MusicBot(discord.Client):
     async def cmd_objgraph(self, channel, func='most_common_types()'):
         import objgraph
 
-        await self.send_typing(channel)
+        await messagemanager.send_typing(channel)
 
         if func == 'growth':
             f = StringIO()
@@ -2240,7 +2243,7 @@ class MusicBot(discord.Client):
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
-                await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
+                await messagemanager.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
@@ -2348,7 +2351,7 @@ class MusicBot(discord.Client):
                     )
 
                 docs = dedent(docs)
-                await self.safe_send_message(
+                await messagemanager.safe_send_message(
                     message.channel,
                     '```\n{}\n```'.format(docs.format(command_prefix=self.config.command_prefix)),
                     expire_in=60
@@ -2370,7 +2373,7 @@ class MusicBot(discord.Client):
                     else:
                         content = '{}: {}'.format(message.author.mention, content)
 
-                sentmsg = await self.safe_send_message(
+                sentmsg = await messagemanager.safe_send_message(
                     message.channel, content,
                     expire_in=response.delete_after if self.config.delete_messages else 0,
                     also_delete=message if self.config.delete_invoking else None
@@ -2389,7 +2392,7 @@ class MusicBot(discord.Client):
             else:
                 content = '```\n{}\n```'.format(e.message)
 
-            await self.safe_send_message(
+            await messagemanager.safe_send_message(
                 message.channel,
                 content,
                 expire_in=expirein,
@@ -2402,12 +2405,12 @@ class MusicBot(discord.Client):
         except Exception:
             log.error("Exception in on_message", exc_info=True)
             if self.config.debug_mode:
-                await self.safe_send_message(message.channel, '```\n{}\n```'.format(traceback.format_exc()))
+                await messagemanager.safe_send_message(message.channel, '```\n{}\n```'.format(traceback.format_exc()))
 
         finally:
             if not sentmsg and not response and self.config.delete_invoking:
                 await asyncio.sleep(5)
-                await self.safe_delete_message(message, quiet=True)
+                await messagemanager.safe_delete_message(message, quiet=True)
 
     async def gen_cmd_list(self, message, list_all_cmds=False):
         for att in dir(self):

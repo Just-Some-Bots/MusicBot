@@ -168,7 +168,7 @@ class ManagedGuild:
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(entry.title)
 
-    def get_player_in(self) -> MusicPlayer:
+    def get_player_in(self):
         if self._player_channel:
             return self._player_channel._player
 
