@@ -63,15 +63,17 @@ class ManagedGuild:
     async def change_player_channel(self, channel: VoiceChannel):
         pass
 
-    async def get_voice_client(self):
+    async def get_voice_client(self, create=True):
         guild = self._guild
         if guild.voice_client:
             return guild.voice_client
-        else:
+        elif create:
             if self._player_channel:
                 return await self._player_channel._vc.connect(timeout=60, reconnect=True)
             else:
                 raise exceptions.MusicbotException("There is no voice channel associated with the bot in this guild")
+        else:
+            return
 
     async def disconnect_voice_client(self):
         if not self._player_channel:

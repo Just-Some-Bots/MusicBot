@@ -925,7 +925,7 @@ class MusicBot(discord.Client):
                     elif 'album' in parts:
                         res = await self.spotify.get_album(parts[-1])
                         await self._do_playlist_checks(permissions, player, author, res['tracks']['items'])
-                        procmesg = await self.safe_send_message(channel, self.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
+                        procmesg = await messagemanager.safe_send_message(channel, self.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
                         for i in res['tracks']['items']:
                             song_url = i['name'] + ' ' + i['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
@@ -1471,7 +1471,7 @@ class MusicBot(discord.Client):
         if not author.voice:
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
-        voice_client = self.voice_client_in(guild)
+        voice_client = guildmanager.get_guild(self, guild).get_voice_client(create=False)
         if voice_client and guild == author.voice.channel.guild:
             await voice_client.move_to(author.voice.channel)
         else:
@@ -1901,7 +1901,7 @@ class MusicBot(discord.Client):
             if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
                 raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
             else:
-                return await self.cmd_pldump(channel, info.get(''))
+                return await self.cmd_pldump(channel, author, info.get(''))
 
         linegens = defaultdict(lambda: None, **{
             "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
