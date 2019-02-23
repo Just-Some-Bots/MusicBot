@@ -305,7 +305,7 @@ class MusicBot(discord.Client):
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
                         if not player.playlist.entries:
-                            await self.on_player_finished_playing(player)
+                            await mchannel.on_player_finished_playing(player)
 
                 except Exception:
                     log.debug("Error joining {0.guild.name}/{0.name}".format(channel), exc_info=True)
@@ -1492,13 +1492,13 @@ class MusicBot(discord.Client):
                     expire_in=25
                 )
 
-            player = await self.get_player(author.voice.channel, create=True, deserialize=self.config.persistent_queue)
+            player = await guildmanager.get_guild(self, guild)._player_channel.create_player()
 
             if player.is_stopped:
                 player.play()
 
             if self.config.auto_playlist:
-                await self.on_player_finished_playing(player)
+                await guildmanager.get_guild(self, guild)._player_channel.on_player_finished_playing(player)
 
         log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
 
@@ -1741,7 +1741,7 @@ class MusicBot(discord.Client):
                     self.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
 
     @owner_only
-    async def cmd_option(self, player, option, value):
+    async def cmd_option(self, guild, player, option, value):
         """
         Usage:
             {command_prefix}option [option] [on/y/enabled/off/n/disabled]
@@ -1772,7 +1772,7 @@ class MusicBot(discord.Client):
                     if not self.autoplaylist:
                         raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-none', 'There are no entries in the autoplaylist file.'))
                     self.config.auto_playlist = True
-                    await self.on_player_finished_playing(player)
+                    await guildmanager.get_guild(self, guild)._player_channel.on_player_finished_playing(player)
             elif value in bool_n:
                 if not self.config.auto_playlist:
                     raise exceptions.CommandError(self.str.get('cmd-option-autoplaylist-disabled', 'The autoplaylist is already disabled!'))
@@ -2085,7 +2085,7 @@ class MusicBot(discord.Client):
         
         Forces the bot leave the current voice channel.
         """
-        await self.disconnect_voice_client(guild)
+        await guildmanager.get_guild(self, guild).disconnect_voice_client()
         return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
 
     async def cmd_restart(self, channel):
@@ -2100,7 +2100,7 @@ class MusicBot(discord.Client):
         await messagemanager.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
             "or its dependencies, you need to restart the bot properly, rather than using this command.")
 
-        player = self.get_player_in(channel.guild)
+        player = guildmanager.get_guild(self, channel.guild).get_player_in()
         if player and player.is_paused:
             player.resume()
 
@@ -2116,7 +2116,7 @@ class MusicBot(discord.Client):
         """
         await messagemanager.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         
-        player = self.get_player_in(channel.guild)
+        player = guildmanager.get_guild(self, channel.guild).get_player_in()
         if player and player.is_paused:
             player.resume()
         
@@ -2265,6 +2265,8 @@ class MusicBot(discord.Client):
             if user_permissions.ignore_non_voice and command in user_permissions.ignore_non_voice:
                 await self._check_ignore_non_voice(message)
 
+            mguild = guildmanager.get_guild(self, message.channel.guild)
+
             handler_kwargs = {}
             if params.pop('message', None):
                 handler_kwargs['message'] = message
@@ -2279,10 +2281,10 @@ class MusicBot(discord.Client):
                 handler_kwargs['guild'] = message.guild
 
             if params.pop('player', None):
-                handler_kwargs['player'] = await self.get_player(message.channel)
+                handler_kwargs['player'] = guildmanager.get_guild(self, message.channel.guild).get_player_in()
 
             if params.pop('_player', None):
-                handler_kwargs['_player'] = self.get_player_in(message.guild)
+                handler_kwargs['_player'] = guildmanager.get_guild(self, message.channel.guild).get_player_in()
 
             if params.pop('permissions', None):
                 handler_kwargs['permissions'] = user_permissions
@@ -2449,7 +2451,7 @@ class MusicBot(discord.Client):
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
 
         auto_paused = self.server_specific_data[channel.guild]['auto_paused']
-        player = await self.get_player(channel)
+        player = await guildmanager.get_guild(self, channel.guild).get_player_in()
 
         if not player:
             return

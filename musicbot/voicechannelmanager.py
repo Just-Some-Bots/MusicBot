@@ -45,8 +45,13 @@ class ManagedVC:
     async def kill_player(self):
         pass
 
-    async def get_player(self, channel, create=False, *, deserialize=False) -> MusicPlayer:
-        guild = channel.guild
+    async def move_channel(self):
+        pass
+
+    async def create_player(self):
+        pass
+
+    async def get_player(self, create=False, *, deserialize=False) -> MusicPlayer:
 
         async with self.aiolocks[_func_() + ':' + str(guild.id)]:
             if deserialize:
