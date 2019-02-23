@@ -1,12 +1,12 @@
 Please tick all applicable boxes.
 
-- [ ] I am using Python 3.5 or higher (run `python --version` on the command line)
+- [ ] I am using Python 3.5.3 or higher (run `python --version` on the command line)
 - [ ] I have followed the [official guides](https://github.com/Just-Some-Bots/MusicBot/wiki) to install the bot for my system
 - [ ] I have updated my dependencies to the latest version using the appropriate `update` script
 
 Which version are you using?
 
-- [ ] The latest `master` version (1.9.8)
+- [ ] The latest `master` version (1.9.8_4)
 - [ ] The latest `review` version
 
 What type of issue are you creating?
