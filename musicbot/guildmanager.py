@@ -3,7 +3,6 @@ from discord import utils as discordutils
 from .messagemanager import safe_delete_message, safe_edit_message, safe_send_message
 from .playlist import Playlist
 from .player import MusicPlayer
-from .bot import MusicBot
 from . import exceptions
 from collections import defaultdict
 import os
@@ -25,6 +24,7 @@ _guild_dict = {}
 class ManagedGuild:
     """
     ManagedGuild is an object that abstract the discord's Guild object.
+    This class should not be instantiated manually.
 
     Parameters
     -----------
@@ -34,7 +34,7 @@ class ManagedGuild:
         Guild that you want to be managed
     """
 
-    def __init__(self, client: MusicBot, guild: Guild):
+    def __init__(self, client, guild: Guild):
         self._aiolocks = defaultdict(asyncio.Lock)
         self._client = client
         self._guildid = guild.id
@@ -61,7 +61,7 @@ class ManagedGuild:
         pass
 
     async def change_player_channel(self, channel: VoiceChannel):
-        pass
+        await self._player_channel.move_channel()
 
     async def get_voice_client(self, create=True):
         guild = self._guild
@@ -136,7 +136,7 @@ class ManagedGuild:
         """
 
         if playlist is None:
-            playlist = Playlist(self)
+            playlist = Playlist(self._client)
 
         if dir is None:
             dir = 'data/%s/queue.json' % self._guildid
@@ -150,7 +150,7 @@ class ManagedGuild:
             with open(dir, 'r', encoding='utf8') as f:
                 data = f.read()
 
-        return MusicPlayer.from_json(data, self, voice_client, playlist)
+        return MusicPlayer.from_json(data, self._client, voice_client, playlist)
 
     async def write_current_song(self, entry, *, dir=None):
         """
@@ -187,9 +187,6 @@ class ManagedGuild:
 
         guild = self._guild
 
-        if not self._client.init_ok:
-            return # Ignore pre-ready events
-
         log.debug("Guild \"{}\" has become available.".format(guild.name))
 
         player = self._player_channel._player
@@ -216,16 +213,16 @@ class ManagedGuild:
             self._data['availability_paused'] = True
             player.pause()
 
-def registerguildmanage(client: MusicBot):
+def registerguildmanage(client):
     _guild_dict[client.user.id] = {guild.id:ManagedGuild(client, guild) for guild in client.guilds}
 
-def getguildlist(client: MusicBot) -> list:
+def getguildlist(client) -> list:
     return list(_guild_dict[client.user.id].values())
 
-def get_guild(client: MusicBot, guild: Guild) -> ManagedGuild:
+def get_guild(client, guild: Guild) -> ManagedGuild:
     return _guild_dict[client.user.id][guild.id]
 
-def prunenoowner(client: MusicBot) -> int:
+def prunenoowner(client) -> int:
     unavailable_servers = 0
     for server in getguildlist(client):
         if server._guild.unavailable:
@@ -235,5 +232,5 @@ def prunenoowner(client: MusicBot) -> int:
             log.info('Left {} due to bot owner not found'.format(server._guild.name))
     return unavailable_servers
 
-def add_guild(client: MusicBot, guild: Guild):
+def add_guild(client, guild: Guild):
     _guild_dict[client.user.id][guild.id] = ManagedGuild(client, guild)

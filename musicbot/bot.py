@@ -1471,7 +1471,7 @@ class MusicBot(discord.Client):
         if not author.voice:
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
-        voice_client = guildmanager.get_guild(self, guild).get_voice_client(create=False)
+        voice_client = await guildmanager.get_guild(self, guild).get_voice_client(create=False)
         if voice_client and guild == author.voice.channel.guild:
             await voice_client.move_to(author.voice.channel)
         else:
@@ -2434,6 +2434,7 @@ class MusicBot(discord.Client):
                 else:
                     self.commands.append("{}{}".format(self.config.command_prefix, command_name))
 
+    # @TheerapakG: TODO: rw
     async def on_voice_state_update(self, member, before, after):
         if not self.init_ok:
             return  # Ignore stuff before ready
@@ -2451,7 +2452,7 @@ class MusicBot(discord.Client):
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
 
         auto_paused = self.server_specific_data[channel.guild]['auto_paused']
-        player = await guildmanager.get_guild(self, channel.guild).get_player_in()
+        player = guildmanager.get_guild(self, channel.guild).get_player_in()
 
         if not player:
             return
@@ -2512,11 +2513,17 @@ class MusicBot(discord.Client):
         pathlib.Path('data/%s/' % guild.id).mkdir(exist_ok=True)
 
     async def on_guild_remove(self, guild:discord.Guild):
+        if not self.init_ok:
+            return # Ignore pre-ready events
         await guildmanager.get_guild(self, guild).on_guild_remove()
 
     async def on_guild_available(self, guild:discord.Guild):
+        if not self.init_ok:
+            return # Ignore pre-ready events
         await guildmanager.get_guild(self, guild).on_guild_available()
 
     async def on_guild_unavailable(self, guild:discord.Guild):
+        if not self.init_ok:
+            return # Ignore pre-ready events
         await guildmanager.get_guild(self, guild).on_guild_unavailable()
 

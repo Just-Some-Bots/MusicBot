@@ -6,7 +6,7 @@ from .messagemanager import safe_delete_message, safe_edit_message, safe_send_me
 from . import downloader
 from . import exceptions
 from .utils import _func_
-from guildmanager import ManagedGuild
+from .guildmanager import ManagedGuild
 from collections import defaultdict
 import logging
 import random
@@ -50,11 +50,11 @@ class ManagedVC:
     async def kill_player(self):
         self._player.kill()
 
-    async def move_channel(self):
-        pass
-
-    async def create_player(self):
-        pass
+    async def move_channel(self, channel: VoiceChannel):
+        voice_client = self._guild.voice_client_in()
+        if voice_client and self._guild._guild == channel.guild:
+            self._vc = channel
+            await voice_client.move_to(channel)
 
     async def get_player(self, *, create=False, deserialize=False) -> MusicPlayer:
 
@@ -88,10 +88,10 @@ class ManagedVC:
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
-        await self._guild.serialize_queue(player.voice_client.channel.guild)
+        await self._guild.serialize_queue()
 
         if self._guild._client.config.write_current_song:
-            await self._guild.write_current_song(player.voice_client.channel.guild, entry)
+            await self._guild.write_current_song(entry)
 
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
@@ -133,7 +133,7 @@ class ManagedVC:
     async def on_player_pause(self, player: MusicPlayer, entry, **_):
         log.debug('Running on_player_pause')
         await self._guild._client.update_now_playing_status(entry, True)
-        # await self.serialize_queue(player.voice_client.channel.guild)
+        # await self._guild.serialize_queue()
 
     async def on_player_stop(self, player: MusicPlayer, **_):
         log.debug('Running on_player_stop')
@@ -214,7 +214,7 @@ class ManagedVC:
                 self._guild._client.config.auto_playlist = False
 
         else: # Don't serialize for autoplaylist events
-            await self._guild.serialize_queue(player.voice_client.channel.guild)
+            await self._guild.serialize_queue()
 
         if not player.is_stopped and not player.is_dead:
             player.play(_continue=True)
@@ -222,7 +222,7 @@ class ManagedVC:
     async def on_player_entry_added(self, player: MusicPlayer, playlist, entry, **_):
         log.debug('Running on_player_entry_added')
         if entry.meta.get('author') and entry.meta.get('channel'):
-            await self._guild.serialize_queue(player.voice_client.channel.guild)
+            await self._guild.serialize_queue()
 
     async def on_player_error(self, player: MusicPlayer, entry, ex, **_):
         if 'channel' in entry.meta:
@@ -246,9 +246,10 @@ class ManagedVC:
         return not sum(1 for m in self._vc.members if check(m))
 
     async def disconnect_voice_client(self):
-        v = self._guild.voice_client()
+        v = await self._guild.get_voice_client(create=False)
         if not v:
             return
+        log.debug('disconnecting voice client in {}'.format(self._guild._guild.name))
         if self._player:
             self._player.kill()
         await v.disconnect()
