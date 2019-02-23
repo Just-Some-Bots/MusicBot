@@ -293,7 +293,7 @@ class MusicBot(discord.Client):
 
                 try:
                     mchannel = voicechannelmanager.ManagedVC(guild, channel)
-                    player = await mchannel.get_player(channel, create=True, deserialize=self.config.persistent_queue)
+                    player = await mchannel.get_player(create=True, deserialize=self.config.persistent_queue)
                     joined_servers.add(guild)
 
                     log.info("Joined {0.guild.name}/{0.name}".format(channel))
@@ -2281,10 +2281,10 @@ class MusicBot(discord.Client):
                 handler_kwargs['guild'] = message.guild
 
             if params.pop('player', None):
-                handler_kwargs['player'] = guildmanager.get_guild(self, message.channel.guild).get_player_in()
+                handler_kwargs['player'] = mguild.get_player_in()
 
             if params.pop('_player', None):
-                handler_kwargs['_player'] = guildmanager.get_guild(self, message.channel.guild).get_player_in()
+                handler_kwargs['_player'] = mguild.get_player_in()
 
             if params.pop('permissions', None):
                 handler_kwargs['permissions'] = user_permissions

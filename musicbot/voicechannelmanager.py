@@ -1,17 +1,22 @@
 from discord import VoiceChannel, Member
 from .player import MusicPlayer
+from .playlist import Playlist
 from .constructs import SkipState
 from .messagemanager import safe_delete_message, safe_edit_message, safe_send_message
 from . import downloader
 from . import exceptions
+from .utils import _func_
 from guildmanager import ManagedGuild
+from collections import defaultdict
 import logging
 import random
+import asyncio
 
 log = logging.getLogger(__name__)
 
 class ManagedVC:
     def __init__(self, guild: ManagedGuild, vc: VoiceChannel):
+        self._aiolocks = defaultdict(asyncio.Lock)
         self._guild = guild
         self._vc = vc
         self._player = None
@@ -43,7 +48,7 @@ class ManagedVC:
         return player
 
     async def kill_player(self):
-        pass
+        self._player.kill()
 
     async def move_channel(self):
         pass
@@ -51,31 +56,31 @@ class ManagedVC:
     async def create_player(self):
         pass
 
-    async def get_player(self, create=False, *, deserialize=False) -> MusicPlayer:
+    async def get_player(self, *, create=False, deserialize=False) -> MusicPlayer:
 
-        async with self.aiolocks[_func_() + ':' + str(guild.id)]:
+        async with self._aiolocks[_func_()]:
             if deserialize:
-                voice_client = await self.get_voice_client(channel)
-                player = await self.deserialize_queue(guild, voice_client)
+                voice_client = await self._guild.get_voice_client()
+                player = await self._guild.deserialize_queue(voice_client)
 
                 if player:
-                    log.debug("Created player via deserialization for guild %s with %s entries", guild.id, len(player.playlist))
+                    log.debug("Created player via deserialization for guild %s with %s entries", self._guild._guildid, len(player.playlist))
                     # Since deserializing only happens when the bot starts, I should never need to reconnect
-                    return self._init_player(player, guild=guild)
+                    return self._init_player(player)
 
-            if guild.id not in self.players:
+            if not self._player:
                 if not create:
                     raise exceptions.CommandError(
                         'The bot is not in a voice channel.  '
-                        'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
+                        'Use %ssummon to summon it to your voice channel.' % self._guild._client.config.command_prefix)
 
-                voice_client = await self.get_voice_client(channel)
+                voice_client = await self._guild.get_voice_client()
 
                 playlist = Playlist(self)
                 player = MusicPlayer(self, voice_client, playlist)
-                self._init_player(player, guild=guild)
+                self._init_player(player)
 
-        return self.players[guild.id]
+        return self._player
 
     async def on_player_play(self, player: MusicPlayer, entry):
         log.debug('Running on_player_play')
