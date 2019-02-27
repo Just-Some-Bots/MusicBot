@@ -9,6 +9,10 @@ from ... import exceptions
 from ...constructs import Response
 from ...wrappers import dev_only
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'dev'
@@ -22,7 +26,7 @@ async def cmd_breakpoint(bot, message):
 async def cmd_objgraph(bot, channel, func='most_common_types()'):
     import objgraph
 
-    await bot.send_typing(channel)
+    await messagemanager.send_typing(channel)
 
     if func == 'growth':
         f = StringIO()

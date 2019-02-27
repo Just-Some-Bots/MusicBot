@@ -6,6 +6,10 @@ from ...constructs import Response
 from ...cogsmanager import load, unloadcog, loadcog, add_alias, remove_alias, getcogmodule, get_highlevel_cog_operations
 from ...wrappers import owner_only, dev_only, command_bypass_opscount
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'cogs'

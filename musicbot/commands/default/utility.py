@@ -4,6 +4,10 @@ import copy
 
 from ...constructs import Response
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'utility'
@@ -22,7 +26,7 @@ async def cmd_clean(bot, message, channel, guild, author, search_range=50):
     except:
         return Response(bot.str.get('cmd-clean-invalid', "Invalid parameter. Please provide a number of messages to search."), reply=True, delete_after=8)
 
-    await bot.safe_delete_message(message, quiet=True)
+    await messagemanager.safe_delete_message(message, quiet=True)
 
     def is_possible_command_invoke(entry):
         valid_call = any(
@@ -49,7 +53,7 @@ async def cmd_sudo(bot, user_mentions, message, channel, guild, leftover_args):
 
     Run command as another user in current text channel. Only supply users (not roles, everyone nor here) to users argument
     """
-    await bot.safe_send_message(channel, 'warning! sudo command is highly experimental, use it with care!', expire_in=10)
+    await messagemanager.safe_send_message(channel, 'warning! sudo command is highly experimental, use it with care!', expire_in=10)
     mention = re.compile('<@[!]?(?P<id>[0-9]+)>')
     command = leftover_args
     usr = [] # we need to resolve each user because some commands rely on user_mention
@@ -74,4 +78,4 @@ async def cmd_sudo(bot, user_mentions, message, channel, guild, leftover_args):
         fakemsg.content = ' '.join(command)
         fakemsg.mentions = usr_command
         await bot.on_message(fakemsg)
-    await bot.safe_send_message(channel, 'sudo ran successfully', expire_in=10)
+    await messagemanager.safe_send_message(channel, 'sudo ran successfully', expire_in=10)

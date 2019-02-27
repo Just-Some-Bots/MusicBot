@@ -3,6 +3,10 @@ import logging
 from ... import exceptions
 from ...constructs import Response
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'playback'
@@ -91,7 +95,7 @@ async def cmd_effect(bot, channel, player, mode, fx, leftover_args):
     """
     # @TheerapakG: TODO: FUTURE#1776?EFFECT: effectloader
     reply_msg = ''
-    await bot.safe_send_message(channel, 'warning! effect command is highly experimental, use it with care!', expire_in=10)
+    await messagemanager.safe_send_message(channel, 'warning! effect command is highly experimental, use it with care!', expire_in=10)
     if mode in ['add', 'a']:
         if fx in ['fadein']:
             duration = leftover_args[0]
@@ -107,7 +111,7 @@ async def cmd_effect(bot, channel, player, mode, fx, leftover_args):
             player.effects.append(('adeclick', ''))
             reply_msg += 'Successfully add effect {} '.format('declick')
         elif fx in ['echo']:
-            await bot.safe_send_message(channel, 'warning! echo effect is untested', expire_in=10)
+            await messagemanager.safe_send_message(channel, 'warning! echo effect is untested', expire_in=10)
             # @TheerapakG: untested
             ingain = leftover_args[0]
             outgain = leftover_args[1]

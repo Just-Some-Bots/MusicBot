@@ -2,6 +2,10 @@ from ... import exceptions
 from ...utils import write_file
 from ...constructs import Response
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 cog_name = 'moderation'
 
 async def cmd_karaoke(bot, player, channel, author):

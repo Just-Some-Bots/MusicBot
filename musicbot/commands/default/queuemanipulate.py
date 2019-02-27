@@ -13,6 +13,10 @@ from ...utils import fixg, ftimedelta, _func_
 from ... import exceptions
 from ...constructs import Response
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'queue_management'
@@ -34,7 +38,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
 
     song_url = song_url.strip('<>')
 
-    await bot.send_typing(channel)
+    await messagemanager.send_typing(channel)
 
     if leftover_args:
         song_url = ' '.join([song_url, *leftover_args])
@@ -65,12 +69,12 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                 elif 'album' in parts:
                     res = await bot.spotify.get_album(parts[-1])
                     await bot._do_playlist_checks(permissions, player, author, res['tracks']['items'])
-                    procmesg = await bot.safe_send_message(channel, bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
+                    procmesg = await messagemanager.safe_send_message(channel, bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
                     for i in res['tracks']['items']:
                         song_url = i['name'] + ' ' + i['artists'][0]['name']
                         log.debug('Processing {0}'.format(song_url))
                         await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
-                    await bot.safe_delete_message(procmesg)
+                    await messagemanager.safe_delete_message(procmesg)
                     return Response(bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                 
                 elif 'playlist' in parts:
@@ -84,12 +88,12 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                         else:
                             break
                     await bot._do_playlist_checks(permissions, player, author, res)
-                    procmesg = await bot.safe_send_message(channel, bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
+                    procmesg = await messagemanager.safe_send_message(channel, bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
                     for i in res:
                         song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                         log.debug('Processing {0}'.format(song_url))
                         await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
-                    await bot.safe_delete_message(procmesg)
+                    await messagemanager.safe_delete_message(procmesg)
                     return Response(bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                 
                 else:
@@ -155,7 +159,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                 download=False,
                 process=True,    # ASYNC LAMBDAS WHEN
                 on_error=lambda e: asyncio.ensure_future(
-                    bot.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=bot.loop),
+                    messagemanager.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=bot.loop),
                 retry_on_error=True
             )
 
@@ -200,7 +204,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
             # Different playlists might download at different speeds though
             wait_per_song = 1.2
 
-            procmesg = await bot.safe_send_message(
+            procmesg = await messagemanager.safe_send_message(
                 channel,
                 bot.str.get('cmd-play-playlist-gathering-1', 'Gathering playlist information for {0} songs{1}').format(
                     num_songs,
@@ -209,7 +213,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
 
             # We don't have a pretty way of doing this yet.  We need either a loop
             # that sends these every 10 seconds or a nice context manager.
-            await bot.send_typing(channel)
+            await messagemanager.send_typing(channel)
 
             # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
             #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
@@ -240,7 +244,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                 fixg(wait_per_song * num_songs))
             )
 
-            await bot.safe_delete_message(procmesg)
+            await messagemanager.safe_delete_message(procmesg)
 
             if not listlen - drop_count:
                 raise exceptions.CommandError(
@@ -292,7 +296,7 @@ async def _cmd_play_playlist_async(bot, player, channel, author, permissions, pl
     Secret handler to use the async wizardry to make playlist queuing non-"blocking"
     """
 
-    await bot.send_typing(channel)
+    await messagemanager.send_typing(channel)
     info = await bot.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
 
     if not info:
@@ -301,9 +305,9 @@ async def _cmd_play_playlist_async(bot, player, channel, author, permissions, pl
     num_songs = sum(1 for _ in info['entries'])
     t0 = time.time()
 
-    busymsg = await bot.safe_send_message(
+    busymsg = await messagemanager.safe_send_message(
         channel, bot.str.get('cmd-play-playlist-process', "Processing {0} songs...").format(num_songs))  # TODO: From playlist_title
-    await bot.send_typing(channel)
+    await messagemanager.send_typing(channel)
 
     entries_added = 0
     if extractor_type == 'youtube:playlist':
@@ -347,13 +351,13 @@ async def _cmd_play_playlist_async(bot, player, channel, author, permissions, pl
             log.debug("Dropped %s songs" % drop_count)
 
         if player.current_entry and player.current_entry.duration > permissions.max_song_length:
-            await bot.safe_delete_message(bot.server_specific_data[channel.guild]['last_np_msg'])
+            await messagemanager.safe_delete_message(bot.server_specific_data[channel.guild]['last_np_msg'])
             bot.server_specific_data[channel.guild]['last_np_msg'] = None
             skipped = True
             player.skip()
             entries_added.pop()
 
-    await bot.safe_delete_message(busymsg)
+    await messagemanager.safe_delete_message(busymsg)
 
     songs_added = len(entries_added)
     tnow = time.time()
@@ -404,7 +408,7 @@ async def cmd_stream(bot, player, channel, author, permissions, song_url):
             bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
         )
 
-    await bot.send_typing(channel)
+    await messagemanager.send_typing(channel)
     await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
 
     return Response(bot.str.get('cmd-stream-success', "Streaming."), delete_after=6)
@@ -489,23 +493,23 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
 
     search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
-    search_msg = await bot.safe_send_message(channel, bot.str.get('cmd-search-searching', "Searching for videos..."))
-    await bot.send_typing(channel)
+    search_msg = await messagemanager.safe_send_message(channel, bot.str.get('cmd-search-searching', "Searching for videos..."))
+    await messagemanager.send_typing(channel)
 
     try:
         info = await bot.downloader.extract_info(player.playlist.loop, search_query, download=False, process=True)
 
     except Exception as e:
-        await bot.safe_edit_message(search_msg, str(e), send_if_fail=True)
+        await messagemanager.safe_edit_message(search_msg, str(e), send_if_fail=True)
         return
     else:
-        await bot.safe_delete_message(search_msg)
+        await messagemanager.safe_delete_message(search_msg)
 
     if not info:
         return Response(bot.str.get('cmd-search-none', "No videos found."), delete_after=30)
 
     for e in info['entries']:
-        result_message = await bot.safe_send_message(channel, bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
+        result_message = await messagemanager.safe_send_message(channel, bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
             info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
 
         def check(reaction, user):
@@ -518,18 +522,18 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
         try:
             reaction, user = await bot.wait_for('reaction_add', timeout=30.0, check=check) # pylint: disable=unused-variable
         except asyncio.TimeoutError:
-            await bot.safe_delete_message(result_message)
+            await messagemanager.safe_delete_message(result_message)
             return
 
         if str(reaction.emoji) == '\u2705':  # check
-            await bot.safe_delete_message(result_message)
+            await messagemanager.safe_delete_message(result_message)
             await cmd_play(bot, message, player, channel, author, permissions, [], e['webpage_url'])
             return Response(bot.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
         elif str(reaction.emoji) == '\U0001F6AB':  # cross
-            await bot.safe_delete_message(result_message)
+            await messagemanager.safe_delete_message(result_message)
             continue
         else:
-            await bot.safe_delete_message(result_message)
+            await messagemanager.safe_delete_message(result_message)
             break
 
     return Response(bot.str.get('cmd-search-decline', "Oh well :("), delete_after=30)
@@ -547,15 +551,15 @@ async def cmd_shuffle(bot, channel, player):
     cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
     random.shuffle(cards)
 
-    hand = await bot.safe_send_message(channel, ' '.join(cards))
+    hand = await messagemanager.safe_send_message(channel, ' '.join(cards))
     await asyncio.sleep(0.6)
 
     for x in range(4): # pylint: disable=unused-variable
         random.shuffle(cards)
-        await bot.safe_edit_message(hand, ' '.join(cards))
+        await messagemanager.safe_edit_message(hand, ' '.join(cards))
         await asyncio.sleep(0.6)
 
-    await bot.safe_delete_message(hand, quiet=True)
+    await messagemanager.safe_delete_message(hand, quiet=True)
     return Response(bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(player.voice_client.channel.guild), delete_after=15)
 
 async def cmd_clear(bot, player, author):
@@ -611,7 +615,7 @@ async def cmd_remove(bot, user_mentions, message, author, permissions, channel, 
 
     if permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
         entry = player.playlist.delete_entry_at_index((index - 1))
-        await bot._manual_delete_check(message)
+        await messagemanager._manual_delete_check(bot, message)
         if entry.meta.get('channel', False) and entry.meta.get('author', False):
             return Response(bot.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, entry.meta['author'].name).strip())
         else:
@@ -655,7 +659,7 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
 
             player.skip()  # TODO: check autopause stuff here
             # @TheerapakG: Check for pausing state in the player.py make more sense
-            await bot._manual_delete_check(message)
+            await messagemanager._manual_delete_check(bot, message)
             return Response(bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
         else:
             raise exceptions.PermissionsError(bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)

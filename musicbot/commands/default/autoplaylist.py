@@ -5,6 +5,10 @@ from ...entry import StreamPlaylistEntry
 from ...utils import write_file
 from ...constructs import Response
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'autoplaylist'

@@ -11,6 +11,10 @@ from ...utils import ftimedelta
 from ...constructs import Response
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'information'
@@ -188,7 +192,7 @@ async def cmd_perms(bot, author, user_mentions, channel, guild, permissions):
 
         lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
-    await bot.safe_send_message(author, '\n'.join(lines))
+    await messagemanager.safe_send_message(author, '\n'.join(lines))
     return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
 async def cmd_np(bot, player, channel, guild, message):
@@ -201,7 +205,7 @@ async def cmd_np(bot, player, channel, guild, message):
 
     if player.current_entry:
         if bot.server_specific_data[guild]['last_np_msg']:
-            await bot.safe_delete_message(bot.server_specific_data[guild]['last_np_msg'])
+            await messagemanager.safe_delete_message(bot.server_specific_data[guild]['last_np_msg'])
             bot.server_specific_data[guild]['last_np_msg'] = None
 
         # TODO: Fix timedelta garbage with util function
@@ -249,8 +253,8 @@ async def cmd_np(bot, player, channel, guild, message):
                 url=player.current_entry.url
             )
 
-        bot.server_specific_data[guild]['last_np_msg'] = await bot.safe_send_message(channel, np_text)
-        await bot._manual_delete_check(message)
+        bot.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(channel, np_text)
+        await messagemanager._manual_delete_check(bot, message)
     else:
         return Response(
             bot.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(bot.config.command_prefix),

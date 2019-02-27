@@ -38,6 +38,10 @@ from ..constructs import Response
 from ..cogsmanager import gen_cog_list, gen_cmd_list_from_cog
 from ..wrappers import owner_only
 
+from .. import guildmanager
+from .. import voicechannelmanager
+from .. import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'webapi'

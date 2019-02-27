@@ -7,6 +7,10 @@ from ... import exceptions
 from ...constructs import Response
 from ...wrappers import owner_only
 
+from ... import guildmanager
+from ... import voicechannelmanager
+from ... import messagemanager
+
 log = logging.getLogger(__name__)
 
 cog_name = 'bot_management'
@@ -18,7 +22,7 @@ async def cmd_disconnect(bot, guild):
     
     Forces the bot leave the current voice channel.
     """
-    await bot.disconnect_voice_client(guild)
+    await guildmanager.get_guild(bot, guild).disconnect_voice_client()
     return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
 
 async def cmd_restart(bot, channel):
@@ -30,10 +34,10 @@ async def cmd_restart(bot, channel):
     Will not properly load new dependencies or file updates unless fully shutdown
     and restarted.
     """
-    await bot.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
+    await messagemanager.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
         "or its dependencies, you need to restart the bot properly, rather than using this command.")
 
-    player = bot.get_player_in(channel.guild)
+    player = guildmanager.get_guild(bot, channel.guild).get_player_in()
     if player and player.is_paused:
         player.resume()
 
@@ -47,9 +51,9 @@ async def cmd_shutdown(bot, channel):
     
     Disconnects from voice channels and closes the bot process.
     """
-    await bot.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+    await messagemanager.safe_send_message(channel, "\N{WAVING HAND SIGN}")
     
-    player = bot.get_player_in(channel.guild)
+    player = guildmanager.get_guild(bot, channel.guild).get_player_in()
     if player and player.is_paused:
         player.resume()
     
@@ -148,7 +152,7 @@ async def cmd_setname(bot, leftover_args, name):
     return Response("Set the bot's username to **{0}**".format(name), delete_after=20)
 
 @owner_only
-async def cmd_option(bot, player, option, value):
+async def cmd_option(bot, guild, player, option, value):
     """
     Usage:
         {command_prefix}option [option] [on/y/enabled/off/n/disabled]
@@ -179,7 +183,7 @@ async def cmd_option(bot, player, option, value):
                 if not bot.autoplaylist:
                     raise exceptions.CommandError(bot.str.get('cmd-option-autoplaylist-none', 'There are no entries in the autoplaylist file.'))
                 bot.config.auto_playlist = True
-                await bot.on_player_finished_playing(player)
+                await guildmanager.get_guild(bot, guild)._player_channel.on_player_finished_playing(player)
         elif value in bool_n:
             if not bot.config.auto_playlist:
                 raise exceptions.CommandError(bot.str.get('cmd-option-autoplaylist-disabled', 'The autoplaylist is already disabled!'))
@@ -212,7 +216,7 @@ async def cmd_summon(bot, channel, guild, author, voice_channel):
     if not author.voice:
         raise exceptions.CommandError(bot.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
-    voice_client = bot.voice_client_in(guild)
+    voice_client = await guildmanager.get_guild(bot, guild).get_voice_client(create=False)
     if voice_client and guild == author.voice.channel.guild:
         await voice_client.move_to(author.voice.channel)
     else:
@@ -233,13 +237,13 @@ async def cmd_summon(bot, channel, guild, author, voice_channel):
                 expire_in=25
             )
 
-        player = await bot.get_player(author.voice.channel, create=True, deserialize=bot.config.persistent_queue)
+        player = await guildmanager.get_guild(bot, guild)._player_channel.create_player()
 
         if player.is_stopped:
             player.play()
 
         if bot.config.auto_playlist:
-            await bot.on_player_finished_playing(player)
+            await guildmanager.get_guild(bot, guild)._player_channel.on_player_finished_playing(player)
 
     log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
 
