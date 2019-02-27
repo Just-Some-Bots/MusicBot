@@ -174,6 +174,58 @@ class ManagedGuild:
         if self._player_channel:
             return self._player_channel._player
 
+    async def on_voice_state_update(self, member, before, after):
+        if not self._client.init_ok:
+            return  # Ignore stuff before ready
+
+        if self._client.config.auto_pause:
+            autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
+
+            auto_paused = self._data['auto_paused']
+            player = self.get_player_in()
+
+            if not player:
+                return
+
+            if not member == self._client.user:  # if the user is not the bot
+                if player.voice_client.channel != before.channel and player.voice_client.channel == after.channel:  # if the person joined
+                    if auto_paused and player.is_paused:
+                        log.info(autopause_msg.format(
+                            state = "Unpausing",
+                            channel = player.voice_client.channel,
+                            reason = ""
+                        ).strip())
+
+                        self._data['auto_paused'] = False
+                        player.resume()
+                elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:  # if the person leaved
+                    if len(player.voice_client.channel.members) == 1:
+                        if not auto_paused and player.is_playing:
+                            log.info(autopause_msg.format(
+                                state = "Pausing",
+                                channel = player.voice_client.channel,
+                                reason = "(empty channel)"
+                            ).strip())
+
+                            self._data['auto_paused'] = True
+                            player.pause()
+            else:
+                self._player_channel._vc = after.channel
+                if len(player.voice_client.channel.members) > 0:  # channel is not empty
+                    if auto_paused and player.is_paused:
+                        log.info(autopause_msg.format(
+                            state = "Unpausing",
+                            channel = player.voice_client.channel,
+                            reason = ""
+                        ).strip())
+    
+                        self._data['auto_paused'] = False
+                        player.resume()
+
+        else:
+            if member == self._client.user:
+                self._player_channel._vc = after.channel
+
     async def on_guild_remove(self):
 
         log.info("Bot has been removed from guild: {}".format(self._guild.name))
