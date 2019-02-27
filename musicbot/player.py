@@ -118,6 +118,9 @@ class MusicPlayer(EventEmitter, Serializable):
 
         self.playlist.on('entry-added', self.on_entry_added)
 
+    def __repr__(self):
+        return "<MusicPlayer bot={0.bot} voice_client={0.voice_client} state={0.state} entry={0._current_entry} playlist={0.playlist}>".format(self)
+
     @property
     def volume(self):
         return self._volume
@@ -174,9 +177,9 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def kill(self):
         self.state = MusicPlayerState.DEAD
-        self.playlist.clear()
-        self._events.clear()
         self._kill_current_player()
+        self._events.clear()
+        self.playlist.clear()
 
     def _playback_finished(self, error=None):
         entry = self._current_entry
