@@ -211,7 +211,7 @@ class ManagedGuild:
                             player.pause()
             else:
                 self._player_channel._vc = after.channel
-                if len(player.voice_client.channel.members) > 0:  # channel is not empty
+                if len(player.voice_client.channel.members) > 1:  # channel is not empty
                     if auto_paused and player.is_paused:
                         log.info(autopause_msg.format(
                             state = "Unpausing",
@@ -221,6 +221,16 @@ class ManagedGuild:
     
                         self._data['auto_paused'] = False
                         player.resume()
+                elif len(player.voice_client.channel.members) == 1:  # channel is empty
+                    if not auto_paused and player.is_playing:
+                        log.info(autopause_msg.format(
+                            state = "Pausing",
+                            channel = player.voice_client.channel,
+                            reason = "(empty channel after forced move)"
+                        ).strip())
+    
+                        self._data['auto_paused'] = True
+                        player.pause()
 
         else:
             if member == self._client.user:
