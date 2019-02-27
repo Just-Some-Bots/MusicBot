@@ -1,5 +1,4 @@
 import discord
-from .utils import add_method
 from .constants import DISCORD_MSG_CHAR_LIMIT
 import asyncio
 
