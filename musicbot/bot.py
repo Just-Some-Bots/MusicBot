@@ -1290,10 +1290,13 @@ class MusicBot(discord.Client):
 
         if _player:
             player = _player
-        elif self.config.summonplay:
+        elif permissions.summonplay:
             vc = author.voice.channel if author.voice else None
-            await self.cmd_summon(channel, channel.guild, author, vc)
-            player = await self.get_player_in(channel.guild)
+            await self.cmd_summon(channel, channel.guild, author, vc) # @TheerapakG: As far as I know voice_channel param is unused
+            player = self.get_player_in(channel.guild)
+
+        if not player:
+            pass # @TheerapakG: raise smth here
 
         song_url = song_url.strip('<>')
 
@@ -1644,7 +1647,7 @@ class MusicBot(discord.Client):
         return Response(self.str.get('cmd-play-playlist-reply-secs', "Enqueued {0} songs to be played in {1} seconds").format(
             songs_added, fixg(ttime, 1)), delete_after=30)
 
-    async def cmd_stream(self, player, channel, author, permissions, song_url):
+    async def cmd_stream(self, _player, channel, author, permissions, song_url):
         """
         Usage:
             {command_prefix}stream song_link
@@ -1654,6 +1657,16 @@ class MusicBot(discord.Client):
         media without predownloading it.  Note: FFmpeg is notoriously bad at handling
         streams, especially on poor connections.  You have been warned.
         """
+
+        if _player:
+            player = _player
+        elif permissions.summonplay:
+            vc = author.voice.channel if author.voice else None
+            await self.cmd_summon(channel, channel.guild, author, vc) # @TheerapakG: As far as I know voice_channel param is unused
+            player = self.get_player_in(channel.guild)
+
+        if not player:
+            pass # @TheerapakG: raise smth here
 
         song_url = song_url.strip('<>')
 
@@ -1870,6 +1883,8 @@ class MusicBot(discord.Client):
 
         Call the bot to the summoner's voice channel.
         """
+
+        # @TheerapakG: Maybe summon should have async lock?
 
         if not author.voice:
             raise exceptions.CommandError(self.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
