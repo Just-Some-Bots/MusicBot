@@ -1292,11 +1292,24 @@ class MusicBot(discord.Client):
             player = _player
         elif permissions.summonplay:
             vc = author.voice.channel if author.voice else None
-            await self.cmd_summon(channel, channel.guild, author, vc) # @TheerapakG: As far as I know voice_channel param is unused
+            response = await self.cmd_summon(channel, channel.guild, author, vc) # @TheerapakG: As far as I know voice_channel param is unused
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = 'summon'
+                content.description = response.content
+            else:
+                content = response.content
+            sentmsg = await self.safe_send_message(
+                message.channel, content,
+                expire_in=response.delete_after if self.config.delete_messages else 0,
+                also_delete=message if self.config.delete_invoking else None
+            )
             player = self.get_player_in(channel.guild)
 
         if not player:
-            pass # @TheerapakG: raise smth here
+            raise exceptions.CommandError(
+                'The bot is not in a voice channel.  '
+                'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
 
         song_url = song_url.strip('<>')
 
@@ -1662,11 +1675,24 @@ class MusicBot(discord.Client):
             player = _player
         elif permissions.summonplay:
             vc = author.voice.channel if author.voice else None
-            await self.cmd_summon(channel, channel.guild, author, vc) # @TheerapakG: As far as I know voice_channel param is unused
+            response = await self.cmd_summon(channel, channel.guild, author, vc) # @TheerapakG: As far as I know voice_channel param is unused
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = 'summon'
+                content.description = response.content
+            else:
+                content = response.content
+            sentmsg = await self.safe_send_message(
+                message.channel, content,
+                expire_in=response.delete_after if self.config.delete_messages else 0,
+                also_delete=message if self.config.delete_invoking else None
+            )
             player = self.get_player_in(channel.guild)
 
         if not player:
-            pass # @TheerapakG: raise smth here
+            raise exceptions.CommandError(
+                'The bot is not in a voice channel.  '
+                'Use %ssummon to summon it to your voice channel.' % self.config.command_prefix)
 
         song_url = song_url.strip('<>')
 
