@@ -1300,9 +1300,8 @@ class MusicBot(discord.Client):
             else:
                 content = response.content
             await self.safe_send_message(
-                message.channel, content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
-                also_delete=message if self.config.delete_invoking else None
+                channel, content,
+                expire_in=response.delete_after if self.config.delete_messages else 0
             )
             player = self.get_player_in(channel.guild)
 
@@ -1683,9 +1682,8 @@ class MusicBot(discord.Client):
             else:
                 content = response.content
             await self.safe_send_message(
-                message.channel, content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
-                also_delete=message if self.config.delete_invoking else None
+                channel, content,
+                expire_in=response.delete_after if self.config.delete_messages else 0
             )
             player = self.get_player_in(channel.guild)
 
