@@ -1299,7 +1299,7 @@ class MusicBot(discord.Client):
                 content.description = response.content
             else:
                 content = response.content
-            sentmsg = await self.safe_send_message(
+            await self.safe_send_message(
                 message.channel, content,
                 expire_in=response.delete_after if self.config.delete_messages else 0,
                 also_delete=message if self.config.delete_invoking else None
@@ -1682,7 +1682,7 @@ class MusicBot(discord.Client):
                 content.description = response.content
             else:
                 content = response.content
-            sentmsg = await self.safe_send_message(
+            await self.safe_send_message(
                 message.channel, content,
                 expire_in=response.delete_after if self.config.delete_messages else 0,
                 also_delete=message if self.config.delete_invoking else None
