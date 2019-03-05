@@ -2542,7 +2542,7 @@ class MusicBot(discord.Client):
     async def cmd_caption(self, player, author, channel, guild, message, lang):
         """
         Usage:
-            {command_prefix}cmd_caption lang
+            {command_prefix}caption lang
 
         Displays the caption of the current song in the specified language in chat.
         """
