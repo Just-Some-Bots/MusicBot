@@ -1,8 +1,8 @@
-import logging
+# import logging
 
 from .exceptions import SRTParseError
 
-log = logging.getLogger(__name__)
+# log = logging.getLogger(__name__)
 
 # This is basically writing a parser of a LR(1) compiler
 
