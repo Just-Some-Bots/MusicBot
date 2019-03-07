@@ -1,4 +1,5 @@
 import os
+import glob
 import sys
 import time
 import shlex
@@ -2599,6 +2600,52 @@ class MusicBot(discord.Client):
         else:
             return Response(
                 self.str.get('cmd?caption?none', 'There are no songs queued! Queue something with {0}play.').format(self.config.command_prefix),
+                delete_after=30
+            )
+
+    async def cmd_captlang(self, player, author, channel, guild, message):
+        """
+        Usage:
+            {command_prefix}captlang
+
+        Displays languages that are possible to get caption.
+        """
+        entry = player.current_entry
+        if entry:
+
+            streaming = isinstance(entry, StreamPlaylistEntry)
+            if streaming:
+                return Response(
+                    self.str.get('cmd?caption?stream', 'Current entry is a stream, cannot extract caption.') .format(self.config.command_prefix),
+                    delete_after=30
+                )
+            else:
+                curfile = entry.filename.split('.')
+                curfile[-1] = '*.srt'
+                curfile = '.'.join(curfile)
+                flist = glob.glob(curfile)
+                
+                if flist:
+
+                    mstr = '.*\.(?P<lang>.*)\.srt'
+                    matcher = re.compile(mstr)
+
+                    flist = [matcher.match(f).group('lang') for f in flist]
+
+                    return Response(
+                        ', '.join(flist),
+                        delete_after=30
+                    )
+
+                else:
+                    return  Response(
+                        self.str.get('cmd?captlang?nocapt', 'There is no cached caption in the bot. Try {0}reloadcapt to force the bot to download additional captions.').format(self.config.command_prefix),
+                        delete_after=30
+                    )      
+
+        else:
+            return Response(
+                self.str.get('cmd?captlang?none', 'There are no songs queued! Queue something with {0}play.').format(self.config.command_prefix),
                 delete_after=30
             )
 
