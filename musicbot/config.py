@@ -81,6 +81,8 @@ class Config:
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
 
+        self.caption_split_duration = config.getint('Caption', 'CaptionSplitDuration', fallback=ConfigDefaults.caption_split_duration)
+
         self.run_checks()
 
         self.missing_keys = set()
@@ -345,6 +347,8 @@ class ConfigDefaults:
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
     i18n_file = 'config/i18n/en.json'
+
+    caption_split_duration = 4
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
