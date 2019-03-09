@@ -2572,7 +2572,7 @@ class MusicBot(discord.Client):
                     content = gen_srt_block_list_from_file(f)
                     # for el in content:
                     #     log.debug(el)
-                    content = get_transcript(content)
+                    content = get_transcript(content, self.config.caption_split_duration)
                     log.debug(content)
                     content_cut = ['']
                     for el in content:
