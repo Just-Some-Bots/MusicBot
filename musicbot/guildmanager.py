@@ -41,6 +41,10 @@ class ManagedGuild:
         self._player_channel = None
         self._data = defaultdict(lambda: None, _guild_data_defaults)
 
+    # @TheerapakG: TODO: property player_channel
+    # when set to None -> disconnect
+    # when set to voicechannel -> summon
+
     @property
     def _guild(self):
         return self._client.get_guild(self._guildid)
