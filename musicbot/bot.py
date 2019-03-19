@@ -1140,7 +1140,10 @@ class MusicBot(discord.Client):
         if not self.is_all:
             desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
-        return Response(desc, reply=True, delete_after=60)
+        if self.config.dmhelp:
+            await self.safe_send_message(author, desc, expire_in=60)
+        else:
+            return Response(desc, reply=True, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
