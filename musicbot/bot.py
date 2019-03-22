@@ -2639,7 +2639,7 @@ class MusicBot(discord.Client):
                 return
 
         if isinstance(message.channel, discord.abc.PrivateChannel):
-            if not (message.author.id == self.config.owner_id and command == 'joinserver'):
+            if not (message.author.id == self.config.owner_id and command == 'joinserver' or command == 'help'):
                 await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
