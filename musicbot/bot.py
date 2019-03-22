@@ -1141,7 +1141,7 @@ class MusicBot(discord.Client):
             desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
         if self.config.dmhelp:
-            await self.safe_send_message(author, desc, expire_in=60)
+            await self.safe_send_message(message.author, desc, expire_in=60)
         else:
             return Response(desc, reply=True, delete_after=60)
 
