@@ -528,6 +528,7 @@ class MusicBot(discord.Client):
 
         # delete last_np_msg somewhere if we have cached it
         if self.config.delete_nowplaying:
+            guild = player.voice_client.guild
             last_np_msg = self.server_specific_data[guild]['last_np_msg']
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
