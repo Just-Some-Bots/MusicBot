@@ -17,7 +17,18 @@ log = logging.getLogger(__name__)
 
 cog_name = 'queue_management'
 
-async def cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url):
+async def cmd_playnext(bot, message, player, channel, author, permissions, leftover_args, song_url):
+    """
+    Usage:
+        {command_prefix}playnext song_link
+        {command_prefix}playnext text to search for
+        {command_prefix}playnext spotify_uri
+
+    The play command, but prepend instead
+    """
+    return await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url, head = True)
+
+async def cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url, *, head = False):
     """
     Usage:
         {command_prefix}play song_link
@@ -69,7 +80,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                     for i in res['tracks']['items']:
                         song_url = i['name'] + ' ' + i['artists'][0]['name']
                         log.debug('Processing {0}'.format(song_url))
-                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
+                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url, head = head)
                     await bot.safe_delete_message(procmesg)
                     return Response(bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                 
@@ -88,7 +99,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                     for i in res:
                         song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                         log.debug('Processing {0}'.format(song_url))
-                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
+                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url, head = head)
                     await bot.safe_delete_message(procmesg)
                     return Response(bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                 
@@ -184,7 +195,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
 
             if info['extractor'].lower() in ['youtube:playlist', 'soundcloud:set', 'bandcamp:album']:
                 try:
-                    return await _cmd_play_playlist_async(bot, player, channel, author, permissions, song_url, info['extractor'])
+                    return await _cmd_play_playlist_async(bot, player, channel, author, permissions, song_url, info['extractor'], head = head)
                 except exceptions.CommandError:
                     raise
                 except Exception as e:
@@ -214,7 +225,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
             # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
             #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
 
-            entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
+            entry_list, position = await player.playlist.import_from(song_url, head = head, channel=channel, author=author)
 
             tnow = time.time()
             ttime = tnow - t0
@@ -266,7 +277,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
                     expire_in=30
                 )
 
-            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+            entry, position = await player.playlist.add_entry(song_url, head = head, channel=channel, author=author)
 
             reply_text = bot.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
             btext = entry.title
@@ -287,7 +298,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
 
     return Response(reply_text, delete_after=30)
 
-async def _cmd_play_playlist_async(bot, player, channel, author, permissions, playlist_url, extractor_type):
+async def _cmd_play_playlist_async(bot, player, channel, author, permissions, playlist_url, extractor_type, *, head = False):
     """
     Secret handler to use the async wizardry to make playlist queuing non-"blocking"
     """
@@ -309,7 +320,7 @@ async def _cmd_play_playlist_async(bot, player, channel, author, permissions, pl
     if extractor_type == 'youtube:playlist':
         try:
             entries_added = await player.playlist.async_process_youtube_playlist(
-                playlist_url, channel=channel, author=author)
+                playlist_url, head = head, channel=channel, author=author)
             # TODO: Add hook to be called after each song
             # TODO: Add permissions
 
@@ -320,7 +331,7 @@ async def _cmd_play_playlist_async(bot, player, channel, author, permissions, pl
     elif extractor_type.lower() in ['soundcloud:set', 'bandcamp:album']:
         try:
             entries_added = await player.playlist.async_process_sc_bc_playlist(
-                playlist_url, channel=channel, author=author)
+                playlist_url, head = head, channel=channel, author=author)
             # TODO: Add hook to be called after each song
             # TODO: Add permissions
 

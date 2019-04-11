@@ -55,7 +55,7 @@ class Playlist(EventEmitter, Serializable):
         return entry
 
 
-    async def add_entry(self, song_url, **meta):
+    async def add_entry(self, song_url, *, head = False, **meta):
         """
             Validates and adds a song_url to be played. This does not start the download of the song.
 
@@ -112,8 +112,11 @@ class Playlist(EventEmitter, Serializable):
             self.downloader.ytdl.prepare_filename(info),
             **meta
         )
-        self._add_entry(entry)
-        return entry, len(self.entries)
+        self._add_entry(entry, head = head)
+        if head:
+            return entry, 1
+        else:
+            return entry, len(self.entries)
 
     async def add_stream_entry(self, song_url, info=None, **meta):
         if info is None:
@@ -164,7 +167,7 @@ class Playlist(EventEmitter, Serializable):
         self._add_entry(entry)
         return entry, len(self.entries)
 
-    async def import_from(self, playlist_url, **meta):
+    async def import_from(self, playlist_url, *, head = False, **meta):
         """
             Imports the songs from `playlist_url` and queues them to be played.
 
@@ -173,7 +176,10 @@ class Playlist(EventEmitter, Serializable):
             :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
             :param meta: Any additional metadata to add to the playlist entry
         """
-        position = len(self.entries) + 1
+        if head:
+            position = 1
+        else:
+            position = len(self.entries) + 1
         entry_list = []
 
         try:
@@ -203,7 +209,7 @@ class Playlist(EventEmitter, Serializable):
                         **meta
                     )
 
-                    self._add_entry(entry)
+                    self._add_entry(entry, head = head)
                     entry_list.append(entry)
                 except Exception as e:
                     baditems += 1
@@ -217,7 +223,7 @@ class Playlist(EventEmitter, Serializable):
 
         return entry_list, position
 
-    async def async_process_youtube_playlist(self, playlist_url, **meta):
+    async def async_process_youtube_playlist(self, playlist_url, *, head = False, **meta):
         """
             Processes youtube playlists links from `playlist_url` in a questionable, async fashion.
 
@@ -242,7 +248,7 @@ class Playlist(EventEmitter, Serializable):
                 song_url = baseurl + 'watch?v=%s' % entry_data['id']
 
                 try:
-                    entry, elen = await self.add_entry(song_url, **meta)
+                    entry, elen = await self.add_entry(song_url, head = head, **meta)
                     gooditems.append(entry)
 
                 except ExtractionError:
@@ -259,7 +265,7 @@ class Playlist(EventEmitter, Serializable):
 
         return gooditems
 
-    async def async_process_sc_bc_playlist(self, playlist_url, **meta):
+    async def async_process_sc_bc_playlist(self, playlist_url, *, head = False, **meta):
         """
             Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
 
@@ -283,7 +289,7 @@ class Playlist(EventEmitter, Serializable):
                 song_url = entry_data['url']
 
                 try:
-                    entry, elen = await self.add_entry(song_url, **meta)
+                    entry, elen = await self.add_entry(song_url, head = head, **meta)
                     gooditems.append(entry)
 
                 except ExtractionError:
