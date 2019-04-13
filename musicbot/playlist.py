@@ -314,6 +314,23 @@ class Playlist(EventEmitter, Serializable):
     def remove_entry(self, index):
         del self.entries[index]
 
+    def promote_position(self, position):
+        rotDist = -1 * (position - 1)
+        self.entries.rotate(rotDist)
+        entry = self.entries.popleft()
+        self.entries.rotate(-1 * rotDist)
+        self.entries.appendleft(entry)
+        self.emit('entry-added', playlist=self, entry=entry)
+        entry.get_ready_future()
+        return entry
+
+    def promote_last(self):
+        entry = self.entries.pop()
+        self.entries.appendleft(entry)
+        self.emit('entry-added', playlist=self, entry=entry)
+        entry.get_ready_future()
+        return entry
+
     async def get_next_entry(self, predownload_next=True):
         """
             A coroutine which will return the next song or None if no songs left to play.
