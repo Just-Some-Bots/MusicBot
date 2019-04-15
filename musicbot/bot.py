@@ -605,27 +605,21 @@ class MusicBot(discord.Client):
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def lookup_status(self, string):
-        string = string.lower().strip()
-    
-        if string.startswith("on"):
-            return discord.Status.online
-        if string.startswith("of"):
-            return discord.Status.offline
-        if string.startswith("d"):
-            return discord.Status.dnd
-        if string.startswith("id"):
-            return discord.Status.idle
-        if string.startswith("in"):
-            return discord.Status.invisible
+async def lookup_status(self, string):
+    string = string.lower().strip()
+    if string.startswith("of"):
+        return discord.Status.offline
+    if string.startswith("d"):
+        return discord.Status.dnd
+    if string.startswith("i"):
+        return discord.Status.idle
+    return discord.Status.online
     
     async def update_now_playing_status(self, is_paused=False):
         
         name = ''
         
         activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-        if activeplayers == 0 and not self.config.status_message:
-            name = '%shelp' % self.config.command_prefix
         if activeplayers > 1:
             name="music on %s guilds" % activeplayers
         elif activeplayers == 1:
@@ -635,17 +629,25 @@ class MusicBot(discord.Client):
             
         if self.config.status_message:
             name = self.config.status_message.strip()[:128]
-                
-        game = discord.Game(
-                type=int(self.config.activitystatus), 
+        
+        activity_type = await self.lookup_activity(self.config.activitystatus)
+        if activity_type not in ['0','1', '2', '3', 'playing', 'streaming', 'listening to', 'watching']:
+            activity_type = discord.ActivityType.playing
+        if not self.config.streamer.startswith("https://www.twitch.tv/"):
+            url = "https://www.twitch.tv/"
+        else:
+            url = self.config.streamer
+        
+        game = discord.Activity(
+                type=activity_type, 
                 name=name, 
-                url=self.config.streamer
+                url=url
                 )
         status = await self.lookup_status(self.config.status)
-        if self.last_status and self.last_status[0] == game and self.last_status[1] == status:
-            return
+        if status not in ['online', 'offline', 'dnd', 'idle']:
+            status = discord.Status.online
+        
         await self.change_presence(activity=game, status=status)
-        self.last_status = (game, status)
 
     async def update_now_playing_message(self, guild, message, *, channel=None):
         lnp = self.server_specific_data[guild]['last_np_msg']

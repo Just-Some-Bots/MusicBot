@@ -67,6 +67,26 @@ async def get_header(session, url, headerfield=None, *, timeout=5):
             else:
                 return response.headers
 
+async def lookup_status(self, string):
+    string = string.lower().strip()
+    if string.startswith("of"):
+        return discord.Status.offline
+    if string.startswith("d"):
+        return discord.Status.dnd
+    if string.startswith("i"):
+        return discord.Status.idle
+    return discord.Status.online
+
+async def lookup_activity(self, string):
+    string = str(string).lower().strip()
+    if string.startswith("s") or string.startswith("1"):
+        return discord.ActivityType.streaming
+    if string.startswith("l") or string.startswith("2"):
+        return discord.ActivityType.listening
+    if string.startswith("w") or string.startswith("3"):
+        return discord.ActivityType.watching
+    return discord.ActivityType.playing
+
 
 def md5sum(filename, limit=0):
     fhash = md5()
