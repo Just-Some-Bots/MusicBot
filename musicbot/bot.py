@@ -605,32 +605,47 @@ class MusicBot(discord.Client):
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def update_now_playing_status(self, entry=None, is_paused=False):
-        game = None
-
-        if not self.config.status_message:
-            if self.user.bot:
-                activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-                if activeplayers > 1:
-                    game = discord.Game(type=0, name="music on %s guilds" % activeplayers)
-                    entry = None
-
-                elif activeplayers == 1:
-                    player = discord.utils.get(self.players.values(), is_playing=True)
-                    entry = player.current_entry
-
-            if entry:
-                prefix = u'\u275A\u275A ' if is_paused else ''
-
-                name = u'{}{}'.format(prefix, entry.title)[:128]
-                game = discord.Game(type=0, name=name)
-        else:
-            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
-
-        async with self.aiolocks[_func_()]:
-            if game != self.last_status:
-                await self.change_presence(activity=game)
-                self.last_status = game
+    async def lookup_status(self, string):
+        string = string.lower().strip()
+    
+        if string.startswith("on"):
+            return discord.Status.online
+        if string.startswith("of"):
+            return discord.Status.offline
+        if string.startswith("d"):
+            return discord.Status.dnd
+        if string.startswith("id"):
+            return discord.Status.idle
+        if string.startswith("in"):
+            return discord.Status.invisible
+    
+    async def update_now_playing_status(self, is_paused=False):
+        
+        name = ''
+        
+        activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+        if activeplayers == 0 and not self.config.status_message:
+            name = '%shelp' % self.config.command_prefix
+        if activeplayers > 1:
+            name="music on %s guilds" % activeplayers
+        elif activeplayers == 1:
+            player = discord.utils.get(self.players.values(), is_playing=True)
+            prefix = u'\u275A\u275A ' if is_paused else ''
+            name = u'{}{}'.format(prefix, player.current_entry.title)[:128]
+            
+        if self.config.status_message:
+            name = self.config.status_message.strip()[:128]
+                
+        game = discord.Game(
+                type=int(self.config.activitystatus), 
+                name=name, 
+                url=self.config.streamer
+                )
+        status = await self.lookup_status(self.config.status)
+        if self.last_status and self.last_status[0] == game and self.last_status[1] == status:
+            return
+        await self.change_presence(activity=game, status=status)
+        self.last_status = (game, status)
 
     async def update_now_playing_message(self, guild, message, *, channel=None):
         lnp = self.server_specific_data[guild]['last_np_msg']
@@ -1061,6 +1076,10 @@ class MusicBot(discord.Client):
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
             log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
             log.info("  Leave non owners: " + ['Disabled', 'Enabled'][self.config.leavenonowners])
+            log.info("  Activity status: " + self.config.activitystatus)
+            log.info("  Status: " + self.config.status)
+            if self.config.activitystatus == 1:
+                log.info(" Twitch.tv url: " + self.config.streamer)
 
         print(flush=True)
 
