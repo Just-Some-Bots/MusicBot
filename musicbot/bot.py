@@ -604,16 +604,6 @@ class MusicBot(discord.Client):
             )
         else:
             log.exception("Player error", exc_info=ex)
-
-async def lookup_status(self, string):
-    string = string.lower().strip()
-    if string.startswith("of"):
-        return discord.Status.offline
-    if string.startswith("d"):
-        return discord.Status.dnd
-    if string.startswith("i"):
-        return discord.Status.idle
-    return discord.Status.online
     
     async def update_now_playing_status(self, is_paused=False):
         
