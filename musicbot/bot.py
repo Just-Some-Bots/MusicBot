@@ -35,7 +35,7 @@ from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
-from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
+from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable, lookup_activity, lookup_status
 from .spotify import Spotify
 from .json import Json
 
