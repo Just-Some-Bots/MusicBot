@@ -6,6 +6,8 @@ import inspect
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
+import discord
+
 log = logging.getLogger(__name__)
 
 
@@ -67,7 +69,7 @@ async def get_header(session, url, headerfield=None, *, timeout=5):
             else:
                 return response.headers
 
-async def lookup_status(self, string):
+async def lookup_status(string):
     string = string.lower().strip()
     if string.startswith("of"):
         return discord.Status.offline
@@ -77,7 +79,7 @@ async def lookup_status(self, string):
         return discord.Status.idle
     return discord.Status.online
 
-async def lookup_activity(self, string):
+async def lookup_activity(string):
     string = str(string).lower().strip()
     if string.startswith("s") or string.startswith("1"):
         return discord.ActivityType.streaming

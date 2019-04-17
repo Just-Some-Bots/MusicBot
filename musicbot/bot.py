@@ -456,7 +456,7 @@ class MusicBot(discord.Client):
 
     async def on_player_play(self, player, entry):
         log.debug('Running on_player_play')
-        await self.update_now_playing_status(entry)
+        await self.update_now_playing_status()
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
@@ -500,11 +500,11 @@ class MusicBot(discord.Client):
 
     async def on_player_resume(self, player, entry, **_):
         log.debug('Running on_player_resume')
-        await self.update_now_playing_status(entry)
+        await self.update_now_playing_status()
 
     async def on_player_pause(self, player, entry, **_):
         log.debug('Running on_player_pause')
-        await self.update_now_playing_status(entry, True)
+        await self.update_now_playing_status(is_paused = True)
         # await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_stop(self, player, **_):
@@ -620,9 +620,7 @@ class MusicBot(discord.Client):
         if self.config.status_message:
             name = self.config.status_message.strip()[:128]
         
-        activity_type = await self.lookup_activity(self.config.activitystatus)
-        if activity_type not in ['0','1', '2', '3', 'playing', 'streaming', 'listening to', 'watching']:
-            activity_type = discord.ActivityType.playing
+        activity_type = await lookup_activity(self.config.activitystatus)
         if not self.config.streamer.startswith("https://www.twitch.tv/"):
             url = "https://www.twitch.tv/"
         else:
@@ -633,9 +631,7 @@ class MusicBot(discord.Client):
                 name=name, 
                 url=url
                 )
-        status = await self.lookup_status(self.config.status)
-        if status not in ['online', 'offline', 'dnd', 'idle']:
-            status = discord.Status.online
+        status = await lookup_status(self.config.status)
         
         await self.change_presence(activity=game, status=status)
 
