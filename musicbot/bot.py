@@ -1061,7 +1061,7 @@ class MusicBot(discord.Client):
             log.info("  Spotify integration: " + ['Disabled', 'Enabled'][self.config._spotify])
             log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
             log.info("  Leave non owners: " + ['Disabled', 'Enabled'][self.config.leavenonowners])
-            log.info("  Direct message help: " + ['Disabled', 'Enabled'][self.config.leavenonowners])
+            log.info("  Direct message help: " + ['Disabled', 'Enabled'][self.config.dmhelp])
 
         print(flush=True)
 
@@ -1143,6 +1143,7 @@ class MusicBot(discord.Client):
 
         if self.config.dmhelp:
             await self.safe_send_message(message.author, desc, expire_in=60)
+            return Response(":mailbox_with_mail:", reply=False, expire_in=15)
         else:
             return Response(desc, reply=True, delete_after=60)
 
