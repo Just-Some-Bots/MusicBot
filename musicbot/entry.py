@@ -311,12 +311,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 
         if self.playlist.bot.config.storage_limit:
-            capacity_exceeded = float(self.playlist.bot.config.storage_limit) < folder_size(self.download_folder) + float(os.path.getsize(self.filename))
-            # ensure we aren't deleting songs on the queue
-            songs_on_queue = set()
-            if capacity_exceeded:
-
-                # add all queued songs to set
+            # set of songs not allowed to be deleted
+            # start this set with the song currently being downloaded
+            songs_on_queue = set([self.expected_filename[12:]])
+            if float(self.playlist.bot.config.storage_limit) < folder_size(self.download_folder) + float(os.path.getsize(self.filename)):
+                # add all queued songs to songs_on_queue from queue.json file
                 for root, dirs, files in os.walk('data'):
                     for file in files:
                         try:
@@ -330,6 +329,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                             continue
 
                 while float(self.playlist.bot.config.storage_limit) < folder_size(self.download_folder) + float(os.path.getsize(self.filename)):
+                    # single song is larger than the entire audio cache limit -- happens when playing large files like albums
                     if float(os.path.getsize(self.filename)) >= float(self.playlist.bot.config.storage_limit) and len(os.listdir(self.download_folder)) == 1:
                         log.info( 
                             "Song is larger than audio cache limit. " 
@@ -337,6 +337,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                             "Refer to StorageLimit in options.ini.")
                         break
                     log.info("Audio cache at over capacity. Deleting oldest song.")
+                    # remove the oldest file that isn't on the queue
                     removed_file = remove_oldest_file(self.download_folder, songs_on_queue)
                     if removed_file == None:
                         # if oldest song is still on the queue, the songs after are also on the queue
