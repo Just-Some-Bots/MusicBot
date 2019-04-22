@@ -1,4 +1,5 @@
 import os
+import json
 import asyncio
 import logging
 import traceback
@@ -7,8 +8,8 @@ import sys
 
 from enum import Enum
 from .constructs import Serializable
-from .exceptions import ExtractionError
-from .utils import get_header, md5sum
+from .exceptions import ExtractionError, HelpfulError
+from .utils import get_header, md5sum, folder_size, remove_oldest_file
 
 log = logging.getLogger(__name__)
 
@@ -307,6 +308,42 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # What the fuck do I do now?
 
         self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(result)
+
+
+        if self.playlist.bot.config.storage_limit:
+            capacity_exceeded = float(self.playlist.bot.config.storage_limit) < folder_size(self.download_folder) + float(os.path.getsize(self.filename))
+            # ensure we aren't deleting songs on the queue
+            songs_on_queue = set()
+            if capacity_exceeded:
+
+                # add all queued songs to set
+                for root, dirs, files in os.walk('data'):
+                    for file in files:
+                        try:
+                            if file == 'queue.json':
+                                with open(os.path.join(root, file), "r") as f:
+                                    data = json.load(f)
+                                    for entry in data['data']['entries']['data']['entries']:
+                                        # start on index 12 because first 12 chars is audio_cache
+                                        songs_on_queue.add(entry['data']['expected_filename'][12:])
+                        except Exception as e:
+                            continue
+
+                while float(self.playlist.bot.config.storage_limit) < folder_size(self.download_folder) + float(os.path.getsize(self.filename)):
+                    if float(os.path.getsize(self.filename)) >= float(self.playlist.bot.config.storage_limit) and len(os.listdir(self.download_folder)) == 1:
+                        log.info( 
+                            "Song is larger than audio cache limit. " 
+                            "Deleting the song after it plays. "
+                            "Refer to StorageLimit in options.ini.")
+                        break
+                    log.info("Audio cache at over capacity. Deleting oldest song.")
+                    removed_file = remove_oldest_file(self.download_folder, songs_on_queue)
+                    if removed_file == None:
+                        # if oldest song is still on the queue, the songs after are also on the queue
+                        log.info("Can't delete songs, they are still on the queue. Trying again on next download.")
+                        break
+                    log.info("Removed " + removed_file)
+
 
         if hash:
             # insert the 8 last characters of the file hash to the file name to ensure uniqueness

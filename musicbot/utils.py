@@ -1,3 +1,4 @@
+import os
 import sys
 import logging
 import aiohttp
@@ -147,6 +148,25 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
 def color_supported():
     return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+
+def folder_size(dir):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(dir):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
+
+def remove_oldest_file(dir, restricted_set):
+    list_of_files = os.listdir(dir)
+    full_path = [(dir + "/{0}").format(x) for x in list_of_files if x not in restricted_set]
+
+    if len(full_path) >= 1:
+        oldest_file = min(full_path, key=os.path.getctime)
+        os.remove(oldest_file)
+        return oldest_file
+    else:
+        return None
 
 def _func_():
     # emulate __func__ from C++

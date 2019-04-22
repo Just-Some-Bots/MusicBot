@@ -35,7 +35,7 @@ from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
-from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
+from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable, folder_size
 from .spotify import Spotify
 from .json import Json
 
@@ -1097,6 +1097,19 @@ class MusicBot(discord.Client):
         """
         player.autoplaylist = list(set(self.autoplaylist))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
+
+    async def cmd_space(self, message, channel, command=None):
+        """
+        Usage:
+            {command_prefix}space
+        Prints a message showing how much space is being used in the cache
+        and the storage limit if it is specified
+        """
+        if not self.config.storage_limit:
+            return Response("`{0}` bytes being used in the audio cache".format(str(folder_size('audio_cache'))))
+        else:
+            return Response("`{0}/{1}` bytes being used in the audio cache".format(str(folder_size('audio_cache')), int(self.config.storage_limit)), delete_after=45)
+
 
     async def cmd_help(self, message, channel, command=None):
         """
