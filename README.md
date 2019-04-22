@@ -1,11 +1,5 @@
 # MusicBot
 
-**About this branch**
-
-This branch of MusicBot is only compatible with the `rewrite` version of the discord.py library, which can be installed using `python3 -m pip install -U git+https://github.com/Rapptz/discord.py@rewrite#egg=discord.py[voice]`. Since it is a dependency in `requirements.txt`, the library should be automatically installed with running `update.py`.
-
----
-
 [![GitHub release](https://img.shields.io/github/release/Just-Some-Bots/MusicBot.svg?style=flat-square)](https://just-some-bots.github.io/MusicBot/)
 [![Python](https://img.shields.io/badge/python-3.5%2C%203.6-blue.svg?style=flat-square)](https://www.python.org/downloads/)
 [![Discord](https://discordapp.com/api/guilds/129489631539494912/widget.png?style=shield)](https://discord.gg/bots)
