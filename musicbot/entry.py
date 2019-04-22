@@ -337,7 +337,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                             "Refer to StorageLimit in options.ini.")
                         break
                     log.info("Audio cache at over capacity. Deleting oldest song.")
-                    # remove the oldest file that isn't on the queue
+                    # remove the oldest file that isn't in the set of queued songs
                     removed_file = remove_oldest_file(self.download_folder, songs_on_queue)
                     if removed_file == None:
                         # if oldest song is still on the queue, the songs after are also on the queue
