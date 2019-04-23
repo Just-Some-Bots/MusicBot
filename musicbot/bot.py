@@ -469,15 +469,6 @@ class MusicBot(discord.Client):
         author = entry.meta.get('author', None)
 
         if channel and author:
-            last_np_msg = self.server_specific_data[channel.guild]['last_np_msg']
-            if last_np_msg and last_np_msg.channel == channel:
-
-                async for lmsg in channel.history(limit=1):
-                    if lmsg != last_np_msg and last_np_msg:
-                        await self.safe_delete_message(last_np_msg)
-                        self.server_specific_data[channel.guild]['last_np_msg'] = None
-                    break  # This is probably redundant
-
             author_perms = self.permissions.for_user(author)
 
             if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
@@ -490,11 +481,32 @@ class MusicBot(discord.Client):
             else:
                 newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+        else:
+            # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
+            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
+                entry.title, player.voice_client.channel.name)
 
-            if self.server_specific_data[channel.guild]['last_np_msg']:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+        if newmsg:
+            guild = player.voice_client.guild
+            last_np_msg = self.server_specific_data[guild]['last_np_msg']
+
+            if self.config.nowplaying_channels:
+                for potential_channel_id in self.config.nowplaying_channels:
+                    potential_channel = self.get_channel(potential_channel_id)
+                    if potential_channel and potential_channel.guild == guild:
+                        channel = potential_channel
+                        break
+
+            if channel:
+                pass
+            elif not channel and last_np_msg:
+                channel = last_np_msg.channel
             else:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
+                log.debug('no channel to put now playing message into')
+                return
+
+            # send it in specified channel
+            self.server_specific_data[guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
         # TODO: Check channel voice state?
 
@@ -513,6 +525,14 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         log.debug('Running on_player_finished_playing')
+
+        # delete last_np_msg somewhere if we have cached it
+        if self.config.delete_nowplaying:
+            guild = player.voice_client.guild
+            last_np_msg = self.server_specific_data[guild]['last_np_msg']
+            if last_np_msg:
+                await self.safe_delete_message(last_np_msg)
+
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
                 log.info("Player finished playing, autopaused in empty channel")
