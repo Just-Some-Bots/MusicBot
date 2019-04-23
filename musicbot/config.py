@@ -183,7 +183,7 @@ class Config:
 
         if self.nowplaying_channels:
             try:
-                self.nowplaying_channels = set(x for x in self.nowplaying_channels.replace(',', ' ').split() if x)
+                self.nowplaying_channels = set(int(x) for x in self.nowplaying_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
                 self.autojoin_channels = set()
