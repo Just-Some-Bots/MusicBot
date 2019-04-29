@@ -1110,6 +1110,8 @@ class MusicBot(discord.Client):
         self.commands = []
         self.is_all = False
         prefix = self.config.command_prefix
+        desc = ""
+        j = 0
 
         if command:
             if command.lower() == 'all':
@@ -1134,7 +1136,11 @@ class MusicBot(discord.Client):
         else:
             await self.gen_cmd_list(message)
 
-        desc = '```\n' + ', '.join(self.commands) + '\n```\n' + self.str.get(
+        for i in self.commands:
+            j = j + 1
+            desc += "\n" + str(j) + ". " + i + "\n"
+
+        desc += '\n' + self.str.get(
             'cmd-help-response', 'For information about a particular command, run `{}help [command]`\n'
                                  'For further help, see https://just-some-bots.github.io/MusicBot/').format(prefix)
         if not self.is_all:
