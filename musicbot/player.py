@@ -102,8 +102,10 @@ class SourcePlaybackCounter(AudioSource):
         self.progress = progress
 
     def read(self):
-        self.progress += 1
-        return self._source.read()
+        res = self._source.read()
+        if res:
+            self.progress += 1
+        return res
 
     def get_progress(self):
         return self.progress * 0.02
