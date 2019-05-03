@@ -1143,7 +1143,7 @@ class MusicBot(discord.Client):
 
         if self.config.dmhelp:
             await self.safe_send_message(message.author, desc, expire_in=60)
-            return Response(":mailbox_with_mail:", reply=False, expire_in=15)
+            return Response(":mailbox_with_mail:", reply=False, delete_after=15)
         else:
             return Response(desc, reply=True, delete_after=60)
 
