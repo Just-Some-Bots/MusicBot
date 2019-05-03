@@ -1329,6 +1329,8 @@ class MusicBot(discord.Client):
         if self.config._spotify:
             if 'open.spotify.com' in song_url:
                 song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':')
+                # remove session id (and other query stuff)
+                song_url = re.sub('\?.*', '', song_url)
             if song_url.startswith('spotify:'):
                 parts = song_url.split(":")
                 try:
