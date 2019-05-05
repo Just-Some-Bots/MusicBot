@@ -4,7 +4,9 @@ category: Using the bot
 order: 4
 ---
 
-![GitHub release](https://img.shields.io/github/release/Just-Some-Bots/MusicBot.svg?style=flat-square)
+[![GitHub stars](https://img.shields.io/github/stars/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/network)
+[![Python version](https://img.shields.io/badge/python-3.5%2C%203.6%2C%203.7-blue.svg)](https://python.org)
 
 > MucicBot version 1.9.8 requires Python 3.5.3 or higher. If you are updating the MusicBot with version below than 1.9.8, reinstall Python with the following version.
 > - Windows: [[Download](https://www.python.org/ftp/python/3.7.0/python-3.7.0.exe)]
