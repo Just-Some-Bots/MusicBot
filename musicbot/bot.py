@@ -2900,6 +2900,16 @@ class MusicBot(discord.Client):
 
                         self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
                         player.pause()
+            elif player.voice_client.channel == before.channel and player.voice_client.channel == after.channel:  # if the person undeafen
+                if auto_paused and player.is_paused:
+                    log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = player.voice_client.channel,
+                        reason = ""
+                    ).strip())
+
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
+                    player.resume()
         else:
             if any(is_active(m) for m in player.voice_client.channel.members):  # channel is not empty
                 if auto_paused and player.is_paused:
