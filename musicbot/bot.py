@@ -2905,7 +2905,7 @@ class MusicBot(discord.Client):
                     log.info(autopause_msg.format(
                         state = "Unpausing",
                         channel = player.voice_client.channel,
-                        reason = ""
+                        reason = "member undeafen"
                     ).strip())
 
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
