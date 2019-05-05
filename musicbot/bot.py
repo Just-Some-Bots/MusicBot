@@ -2912,6 +2912,17 @@ class MusicBot(discord.Client):
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
 
+            else:
+                if not auto_paused and player.is_playing:
+                    log.info(autopause_msg.format(
+                        state = "Pausing",
+                        channel = player.voice_client.channel,
+                        reason = "(empty channel)"
+                    ).strip())
+
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
+                    player.pause()
+
     async def on_guild_update(self, before:discord.Guild, after:discord.Guild):
         if before.region != after.region:
             log.warning("Guild \"%s\" changed regions: %s -> %s" % (after.name, before.region, after.region))
