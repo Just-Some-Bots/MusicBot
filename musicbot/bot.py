@@ -2874,9 +2874,9 @@ class MusicBot(discord.Client):
 
         def is_active(member):
             if any([member.deaf, member.self_deaf, member.bot]):
-                return True
+                return False
 
-            return False
+            return True
 
         if not member == self.user and is_active(member):  # if the user is not inactive
             if player.voice_client.channel != before.channel and player.voice_client.channel == after.channel:  # if the person joined
