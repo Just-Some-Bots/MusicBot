@@ -2873,7 +2873,10 @@ class MusicBot(discord.Client):
             return
 
         def is_active(member):
-            if any([member.deaf, member.self_deaf, member.bot]):
+            if not member.voice:
+                return False
+                
+            if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
                 return False
 
             return True
