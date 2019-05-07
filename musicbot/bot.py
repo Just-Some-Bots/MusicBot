@@ -1293,13 +1293,18 @@ class MusicBot(discord.Client):
         """
 
         song_url = song_url.strip('<>')
-
+        print(f"surl: {song_url}")
         await self.send_typing(channel)
-
+        if song_url == "attachment":
+            attachment = message.attachments
+            if len(attachment) == 0:
+                print("EMPTY ATTACHMENT")
+            else:
+                attachment = attachment[0] 
+                song_url = attachment.url
         if leftover_args:
             song_url = ' '.join([song_url, *leftover_args])
-        leftover_args = None  # prevent some crazy shit happening down the line
-
+        leftover_args = None  # prevent some crazy shit happening down the line]
         # Make sure forward slashes work properly in search queries
         linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
         pattern = re.compile(linksRegex)
