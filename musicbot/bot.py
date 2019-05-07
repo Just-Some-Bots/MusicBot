@@ -488,10 +488,7 @@ class MusicBot(discord.Client):
 
         if newmsg:
             if self.config.dm_nowplaying and author:
-                if not author.dm_channel:
-                    await author.create_dm()
-                channel = author.dm_channel
-                await self.safe_send_message(channel, newmsg)
+                await self.safe_send_message(author, newmsg)
                 return
 
             if self.config.no_nowplaying_auto and not author:
