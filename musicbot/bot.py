@@ -487,6 +487,13 @@ class MusicBot(discord.Client):
                 entry.title, player.voice_client.channel.name)
 
         if newmsg:
+            if self.config.dm_nowplaying and author:
+                await self.safe_send_message(author, newmsg)
+                return
+
+            if self.config.no_nowplaying_auto and not author:
+                return
+
             guild = player.voice_client.guild
             last_np_msg = self.server_specific_data[guild]['last_np_msg']
 
