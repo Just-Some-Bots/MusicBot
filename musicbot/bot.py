@@ -2638,7 +2638,15 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
+        command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
+        command = command[len(self.config.command_prefix):].lower().strip()
+
+        if isinstance(message.channel, discord.abc.PrivateChannel):
+            if not (message.author.id == self.config.owner_id and command == 'joinserver' or command == 'help'):
+                await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
+                return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not isinstance(message.channel, discord.abc.PrivateChannel):
             if self.config.unbound_servers:
                 for channel in message.guild.channels:
                     if channel.id in self.config.bound_channels:
@@ -2648,9 +2656,6 @@ class MusicBot(discord.Client):
 
         if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):
             return
-
-        command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
-        command = command[len(self.config.command_prefix):].lower().strip()
 
         # [] produce [''] which is not what we want (it break things)
         if args:
@@ -2667,11 +2672,6 @@ class MusicBot(discord.Client):
                 if not handler:
                     return
             else:
-                return
-
-        if isinstance(message.channel, discord.abc.PrivateChannel):
-            if not (message.author.id == self.config.owner_id and command == 'joinserver' or command == 'help'):
-                await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
