@@ -1168,11 +1168,23 @@ class MusicBot(discord.Client):
         if not self.is_all:
             desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
-        if self.config.dmhelp and not isinstance(message.channel, discord.abc.PrivateChannel):
-            await self.safe_send_message(message.author, desc, expire_in=60)
-            return Response(":mailbox_with_mail:", reply=False, delete_after=15)
+        if self.config.dmhelp:
+            content = desc
+
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = 'Help'
+                content.add_field(name="Commands", value='{}'.format(desc), inline=True)
+            await self.safe_send_message(message.author, content, expire_in=60)
+
+            if not isinstance(message.channel, discord.abc.PrivateChannel):
+                return Response(":mailbox_with_mail:", reply=False, delete_after=15)
         else:
-            return Response(desc, reply=True, delete_after=60)
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = 'Help'
+                content.add_field(name="Commands", value='{}'.format(desc), inline=True)
+            return Response(content, reply=True, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
