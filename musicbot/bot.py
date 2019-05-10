@@ -1283,6 +1283,13 @@ class MusicBot(discord.Client):
             )
         return True
     async def cmd_plswitch(self, new_filename,player):
+         """
+        Usage:
+            {command_prefix}plswitch filename
+            
+        Switches the playlist to a file added into the config folder. Youtube 
+        links can be added into the files to be cached and downloaded.
+        """
         player.playlist.clear()
         new_playlist = load_file(f'config/{new_filename}.txt')
         for song in new_playlist:
