@@ -490,7 +490,7 @@ class MusicBot(discord.Client):
             if self.config.dm_nowplaying and author:
                 await self.safe_send_message(author, newmsg)
                 return
-
+              
             if self.config.no_nowplaying_auto and not author:
                 return
 
@@ -2613,11 +2613,14 @@ class MusicBot(discord.Client):
 
         code = data.strip('` \n')
 
+        scope = globals().copy()
+        scope.update({'self': self})
+
         try:
-            result = eval(code)
+            result = eval(code, scope)
         except:
             try:
-                exec(code)
+                exec(code, scope)
             except Exception as e:
                 traceback.print_exc(chain=False)
                 return Response("{}: {}".format(type(e).__name__, e))
