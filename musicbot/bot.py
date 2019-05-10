@@ -1282,7 +1282,14 @@ class MusicBot(discord.Client):
                 expire_in=30
             )
         return True
-
+    async def cmd_plswitch(self, new_filename,player):
+        player.playlist.clear()
+        new_playlist = load_file(f'config/{new_filename}.txt')
+        for song in new_playlist:
+            await player.playlist.add_entry(song)
+        player.skip()
+        
+        
     async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url):
         """
         Usage:
@@ -1296,8 +1303,7 @@ class MusicBot(discord.Client):
         If enabled in the config, the bot will also support Spotify URIs, however
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
-        """
-
+        """  
         song_url = song_url.strip('<>')
         print(f"surl: {song_url}")
         await self.send_typing(channel)
