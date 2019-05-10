@@ -1168,7 +1168,7 @@ class MusicBot(discord.Client):
         if not self.is_all:
             desc += self.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
-        if self.config.dmhelp:
+        if self.config.dmhelp and not isinstance(message.channel, discord.abc.PrivateChannel):
             await self.safe_send_message(message.author, desc, expire_in=60)
             return Response(":mailbox_with_mail:", reply=False, delete_after=15)
         else:
