@@ -140,8 +140,8 @@ class MusicPlayer(EventEmitter, Serializable):
     @volume.setter
     def volume(self, value):
         self._volume = value
-        if self._current_player:
-            self._current_player.source.volume = value
+        if self._source:
+            self._source._source.volume = value
 
     def on_entry_added(self, playlist, entry):
         if self.is_stopped:
