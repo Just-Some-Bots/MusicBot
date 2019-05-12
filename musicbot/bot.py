@@ -1282,20 +1282,24 @@ class MusicBot(discord.Client):
                 expire_in=30
             )
         return True
-    async def cmd_plswitch(self, new_filename,player):
-         """
+
+    async def cmd_plswitch(self, new_filename,player,channel):
+        """
         Usage:
             {command_prefix}plswitch filename
             
-        Switches the playlist to a file added into the config folder. Youtube 
+        Switches the playlist to a text file added into the config folder. Youtube
         links can be added into the files to be cached and downloaded.
         """
-        player.playlist.clear()
         new_playlist = load_file(f'config/{new_filename}.txt')
-        for song in new_playlist:
-            await player.playlist.add_entry(song)
-        player.skip()
-        
+        if len(new_playlist) != 0:
+            player.playlist.clear()
+            await self.safe_send_message(channel, "Now Swapping to {0}".format(new_filename))
+            for song in new_playlist:
+                await player.playlist.add_entry(song)
+            player.skip()
+        else:
+            await self.safe_send_message(channel, "{0} is an empty playlist or a non-existent playlist, resuming current playlist ".format(new_filename))
         
     async def cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url):
         """
