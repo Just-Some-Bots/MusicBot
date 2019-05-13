@@ -7,6 +7,13 @@ Issue 902 play embeded file in the chat
     put the music file in the playlist and play it after finishing the playlist
 4. !play attachment with an attachment other file
    show invalid content type
+   
+Issue 893 implement song title in commands
+1.!pause you can see the song title implemented into the
+    pause command
+    
+2.!resume you can see the song title when the command
+    is called in the bot
 
 Issue 1613 improvement on the help command
 1. !help in the channel with the bot as a person with owner permissions
