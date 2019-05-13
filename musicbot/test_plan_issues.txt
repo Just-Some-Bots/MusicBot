@@ -8,12 +8,27 @@ Issue 902 play embeded file in the chat
 4. !play attachment with an attachment other file
    show invalid content type
 
+Issue 1613 improvement on the help command
+1. !help in the channel with the bot as a person with owner permissions
+    - view all 31 commands available to you formatted in an easy-to-read manner with bold numbers and underlined commands
+
+2. !help in the channel with the bot as a person with non-owner permissions
+    - view all basic commmands available to you formatted in an easy-to-read manner with bold numbers and underlined commands
+
+(the !help command can be executed on specific commmands but i did not touch that part of the function)
+
 Group Issue switching playlist
-1. !plswitch filename given an exsit file with urls
-   play the list
-2. given a not exsit file and an empty file
-   print out "empty playlist or not exsit file "
-3. given a file with bad information
-   error catch no video results
+(These tests must be executed while in the channel with the bot)
+1. !plswitch filename given an existing file in the config folder with youtube urls
+   - the player should stop and swap to that playlist
+   - the swap can be proved successful if you run the !np commmand and you see it playing the first song on your list.
+
+2. !plswitch filename with an non-existent filename or an empty txt file in the config folder
+   - the player will not stop your current playlist
+   - the player will print out an error message saying that the playlist is empty or non-existent
+
+3. !plswitch filename given a file with non-youtube links or some other garbage text
+   - the player will not stop your current playlist
+   - an error message will print in discord saying that it failed to extract information from the url
    
     
