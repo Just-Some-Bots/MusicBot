@@ -1,0 +1,19 @@
+Issue 902 play embeded file in the chat
+1. !play attachment without an attachment file
+    print out "NO ATTACHMENT FOUND" in the channel
+2. !Play random words
+    search the song from the list is exsit or not
+3. !play attachment with an attachment music file
+    put the music file in the playlist and play it after finishing the playlist
+4. !play attachment with an attachment other file
+   show invalid content type
+
+Group Issue switching playlist
+1. !plswitch filename given an exsit file with urls
+   play the list
+2. given a not exsit file and an empty file
+   print out "empty playlist or not exsit file "
+3. given a file with bad information
+   error catch no video results
+   
+    

@@ -1321,7 +1321,7 @@ class MusicBot(discord.Client):
         if song_url == "attachment":
             attachment = message.attachments
             if len(attachment) == 0:
-                print("EMPTY ATTACHMENT")
+                await self.safe_send_message(channel, "NO ATTACHMENT FOUND!")
             else:
                 attachment = attachment[0] 
                 song_url = attachment.url
