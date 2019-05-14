@@ -13,6 +13,7 @@ class RichGuild:
         self._voice_channel = None
         self._voice_client = None
         self._player = None
+        self.autoplaylist = bot.autoplaylist.copy()
 
     @property
     def id(self):

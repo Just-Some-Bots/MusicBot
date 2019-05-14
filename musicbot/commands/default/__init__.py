@@ -1,1 +1,3 @@
-use_multicog_loader = True
+cogs = list()
+from . import autoplaylist
+cogs.extend(autoplaylist.cogs)
