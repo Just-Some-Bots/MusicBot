@@ -14,6 +14,9 @@ import os
 
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
+import logging
+
+log = logging.getLogger()
 
 class Entry(Serializable):
     def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False):
@@ -27,6 +30,47 @@ class Entry(Serializable):
         self._metadata = metadata
         self._local_url = None
         self.stream = stream
+
+    def __json__(self):
+        return self._enclose_json({
+            'version': 1,
+            'source_url': self.source_url,
+            'title': self.title,
+            'duration': self.duration,
+            'queuer_id': self.queuer_id,
+            '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
+            'stream': self.stream,
+            'meta': {
+                name: {
+                    'id': obj
+                } for name, obj in self._metadata.items() if obj
+            }
+        })
+
+    @classmethod
+    def _deserialize(cls, data):
+
+        try:
+            # TODO: version check
+            source_url = data['source_url']
+            title = data['title']
+            duration = data['duration']
+            queuer_id = data['queuer_id']
+            _local_url = data['_local_url']
+            stream = data['stream']
+            meta = {}
+
+            # TODO: Better [name] fallbacks
+            if 'channel_id' in data['meta']:
+                meta['channel_id'] = int(data['meta']['channel']['id'])
+                if not meta['channel_id']:
+                    log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
+                    meta.pop('channel_id')
+            entry = cls(source_url, title, duration, queuer_id, meta, stream = stream)
+
+            return entry
+        except Exception as e:
+            log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     async def is_preparing_cache(self):
         async with self._aiolocks['preparing_cache_set']:
@@ -64,6 +108,25 @@ class Playlist(EventEmitter, Serializable):
         self._list = deque()
         self._cache_task = deque()
         self._precache = 1
+
+    def __json__(self):
+        return self._enclose_json({
+            'name': self._name,
+            'entries': list(self._list)
+        })
+
+    @classmethod
+    def _deserialize(cls, data, bot=None):
+        assert bot is not None, cls._bad('bot')
+
+        data_n = data.get('name')
+        playlist = cls(data_n, bot)
+
+        data_e = data.get('entries')
+        if data_e:
+            playlist._list.extend(data_e)
+
+        return playlist
 
     async def __getitem__(self, item: Union[int, slice]):
         async with self._aiolocks['list']:
