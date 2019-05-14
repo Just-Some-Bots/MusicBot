@@ -9,7 +9,9 @@ import logging
 import tempfile
 import traceback
 import subprocess
+import threading
 
+from platform import system
 from shutil import disk_usage, rmtree
 from base64 import b64decode
 
@@ -179,6 +181,8 @@ def finalize_logging():
     dlh.setFormatter(logging.Formatter('.'))
     dlog.addHandler(dlh)
 
+    return fh
+
 
 def bugger_off(msg="Press enter to continue . . .", code=1):
     input(msg)
@@ -337,6 +341,34 @@ def pyexec(pycom, *args, pycom2=None):
     pycom2 = pycom2 or pycom
     os.execlp(pycom, pycom2, *args)
 
+def streamhandler():
+    import colorlog
+    sh = logging.StreamHandler(stream=sys.stdout)
+    sh.setFormatter(colorlog.LevelFormatter(
+        fmt = {
+            'DEBUG': '{log_color}[{levelname}:{module}:{name}] {message}',
+            'INFO': '{log_color}[{levelname}:{module}:{name}] {message}',
+            'WARNING': '{log_color}[{levelname}:{module}:{name}] {message}',
+            'ERROR': '{log_color}[{levelname}:{module}:{name}] {message}',
+            'CRITICAL': '{log_color}[{levelname}:{module}:{name}] {message}',
+
+            'EVERYTHING': '{log_color}[{levelname}:{module}:{name}] {message}',
+            'NOISY': '{log_color}[{levelname}:{module}:{name}] {message}'
+        },
+        log_colors = {
+            'DEBUG':    'cyan',
+            'INFO':     'white',
+            'WARNING':  'yellow',
+            'ERROR':    'red',
+            'CRITICAL': 'bold_red',
+
+            'EVERYTHING': 'white',
+            'NOISY':      'white'
+        },
+            style = '{'
+    ))
+    log.addHandler(sh)
+    return sh
 
 def main():
     # TODO: *actual* argparsing
@@ -344,7 +376,7 @@ def main():
     if '--no-checks' not in sys.argv:
         sanity_checks()
 
-    finalize_logging()
+    fh = finalize_logging()
 
     import asyncio
 
@@ -365,12 +397,98 @@ def main():
         m = None
         try:
             from musicbot import MusicBot
-            m = MusicBot()
+            m = MusicBot(loghandlerlist = [streamhandler(), fh])
+            m.loop.run_until_complete(m.load_modules([('default',{})]))
 
-            sh.terminator = ''
-            sh.terminator = '\n'
+            shutdown = False
+            safe_shutdown = threading.Lock()
+            spawned_thread_safe_exit = threading.Lock()
 
-            m.run()
+            thread = False
+
+            def logouthandler(sig, stackframe=None):
+                global thread
+                if system() == 'Windows':
+                    thread = True
+                log.debug('\nAcquiring ... (logouthandler/{})'.format(system()))
+                safe_shutdown.acquire()
+                global shutdown
+                if not shutdown:            
+                    shutdown = True
+                    log.info('\nShutting down ... (logouthandler/{})'.format(system()))
+                    log.info(sig)
+                    m.logout()
+                log.debug('\nReleasing ... (logouthandler/{})'.format(system()))
+                safe_shutdown.release()
+                log.debug('\nAcquiring safe ... (logouthandler/{})'.format(system()))
+                spawned_thread_safe_exit.acquire() # This help main thread to not get KeyboardInterrupt while doing work
+                log.debug('\nReleasing safe ... (logouthandler/{})'.format(system()))
+                spawned_thread_safe_exit.release() # At least for pywin32
+
+            abortKeyboardInterrupt = False
+            
+            if system() == 'Windows':
+                try:
+                    from win32.win32api import SetConsoleCtrlHandler
+                    SetConsoleCtrlHandler(logouthandler, True)
+                    abortKeyboardInterrupt = True
+                except ImportError:
+                    version = '.'.join(map(str, sys.version_info))
+                    log.warning('pywin32 not installed for Python {}. Please stop the bot using KeyboardInterrupt instead of the close button.'.format(version))
+            
+            else:
+                import atexit
+                atexit.register(logouthandler, 0)
+            
+            try:
+                m.run()
+                log.debug('\nAcquiring safe ...')
+                spawned_thread_safe_exit.acquire()
+                log.debug('\nAcquiring ... (RunExit)')
+                safe_shutdown.acquire()
+                if not shutdown:            
+                    shutdown = True
+                    log.info('\nShutting down ... (RunExit)')
+                    m.logout()
+                log.debug('\nReleasing ... (RunExit)')
+                safe_shutdown.release()
+            except KeyboardInterrupt:
+                if not abortKeyboardInterrupt:
+                    log.debug('\nAcquiring ... (KeyboardInterrupt)')
+                    safe_shutdown.acquire()
+                    if not shutdown:
+                        shutdown = True
+                        log.info('\nShutting down ... (KeyboardInterrupt)')
+                        m.logout()
+                    log.debug('\nReleasing ... (KeyboardInterrupt)')
+                    safe_shutdown.release()
+            except RuntimeError:
+                log.debug('\nAcquiring ... (RuntimeError)')
+                safe_shutdown.acquire()
+                if not shutdown:
+                    shutdown = True
+                    log.info('\nShutting down ... (RuntimeError)')
+                    m.logout()
+                log.debug('\nReleasing ... (RuntimeError)')
+                safe_shutdown.release()
+
+            log.debug('\nAcquiring ... (Final)')
+            safe_shutdown.acquire()
+            log.debug('\nReleasing ... (Final)')
+            safe_shutdown.release()
+
+            interrupt = False
+
+            try:
+                spawned_thread_safe_exit.release()
+                log.debug('\nWaiting ...')
+                while thread and not interrupt:
+                    pass
+            except KeyboardInterrupt:
+                interrupt = True
+            finally:
+                log.debug('\nThis console can now be closed')
+                return
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")

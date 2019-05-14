@@ -2,12 +2,27 @@ import sys
 import logging
 import aiohttp
 import inspect
-
 from hashlib import md5
+from typing import Any, Callable, Optional, TypeVar
+
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
 log = logging.getLogger(__name__)
 
+T = TypeVar('T')
+
+def callback_dummy_future(cb: Callable[[], T]) -> T:
+    def _dummy(future):
+        cb()
+    return _dummy
+
+def isiterable(x):
+    try:
+        iter(x)
+    except TypeError:
+        return False
+    else:
+        return True
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:

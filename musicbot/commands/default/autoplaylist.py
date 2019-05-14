@@ -5,15 +5,11 @@ from ...entry import StreamPlaylistEntry
 from ...utils import write_file
 from ...constructs import Response
 
-from ... import guildmanager
-from ... import voicechannelmanager
 from ... import messagemanager
-
-log = logging.getLogger(__name__)
 
 cog_name = 'autoplaylist'
 
-async def cmd_resetplaylist(bot, player, channel):
+async def cmd_resetplaylist(ctx, player, channel):
     """
     Usage:
         {command_prefix}resetplaylist
@@ -23,7 +19,7 @@ async def cmd_resetplaylist(bot, player, channel):
     player.autoplaylist = list(set(bot.autoplaylist))
     return Response(bot.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
-async def cmd_save(bot, player, url=None):
+async def cmd_save(ctx, player, url=None):
     """
     Usage:
         {command_prefix}save [url]
