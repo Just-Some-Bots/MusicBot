@@ -240,6 +240,7 @@ class SourcePlaybackCounter(AudioSource):
 
 class Player(EventEmitter, Serializable):
     def __init__(self, guild, volume = 0.15):
+        super().__init__()
         self._aiolocks = defaultdict(Lock)
         self._current = None
         self._playlist = None

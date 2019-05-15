@@ -62,7 +62,7 @@ async def cmd_pldump(bot, channel, author, song_url):
         fcontent.seek(0)
         await author.send("Here's the playlist dump for <%s>" % song_url, file=discord.File(fcontent, filename='playlist.txt'))
 
-    return Response("Sent a message with a playlist file.", delete_after=20)
+    return Response("Sent a message with a playlist file.", expire_in=20)
 
 async def cmd_queue(bot, channel, player):
     """
@@ -112,7 +112,7 @@ async def cmd_queue(bot, channel, player):
             bot.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(bot.config.command_prefix))
 
     message = '\n'.join(lines)
-    return Response(message, delete_after=30)
+    return Response(message, expire_in=30)
 
 async def cmd_listids(bot, guild, author, leftover_args, cat='all'):
     """
@@ -129,7 +129,7 @@ async def cmd_listids(bot, guild, author, leftover_args, cat='all'):
         return Response(
             "Valid categories: " + ' '.join(['`%s`' % c for c in cats]),
             reply=True,
-            delete_after=25
+            expire_in=25
         )
 
     if cat == 'all':
@@ -169,7 +169,7 @@ async def cmd_listids(bot, guild, author, leftover_args, cat='all'):
         # TODO: Fix naming (Discord20API-ids.txt)
         await author.send(file=discord.File(sdata, filename='%s-ids-%s.txt' % (guild.name.replace(' ', '_'), cat)))
 
-    return Response("Sent a message with a list of IDs.", delete_after=20)
+    return Response("Sent a message with a list of IDs.", expire_in=20)
 
 
 async def cmd_perms(bot, author, user_mentions, channel, guild, permissions):
@@ -193,7 +193,7 @@ async def cmd_perms(bot, author, user_mentions, channel, guild, permissions):
         lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
     await messagemanager.safe_send_message(author, '\n'.join(lines))
-    return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
+    return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", expire_in=20)
 
 async def cmd_np(bot, player, channel, guild, message):
     """
@@ -258,7 +258,7 @@ async def cmd_np(bot, player, channel, guild, message):
     else:
         return Response(
             bot.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(bot.config.command_prefix),
-            delete_after=30
+            expire_in=30
         )
 
 async def cmd_id(bot, author, user_mentions):
@@ -269,7 +269,7 @@ async def cmd_id(bot, author, user_mentions):
     Tells the user their id or the id of another user.
     """
     if not user_mentions:
-        return Response(bot.str.get('cmd-id-self', 'Your ID is `{0}`').format(author.id), reply=True, delete_after=35)
+        return Response(bot.str.get('cmd-id-self', 'Your ID is `{0}`').format(author.id), reply=True, expire_in=35)
     else:
         usr = user_mentions[0]
-        return Response(bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, delete_after=35)
+        return Response(bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, expire_in=35)

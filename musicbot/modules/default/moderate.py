@@ -17,7 +17,7 @@ async def cmd_karaoke(bot, player, channel, author):
     permission in the config file can queue music.
     """
     player.karaoke_mode = not player.karaoke_mode
-    return Response("\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][player.karaoke_mode], delete_after=15)
+    return Response("\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][player.karaoke_mode], expire_in=15)
 
 async def cmd_blacklist(bot, message, user_mentions, option, something):
     """
@@ -50,12 +50,12 @@ async def cmd_blacklist(bot, message, user_mentions, option, something):
 
         return Response(
             bot.str.get('cmd-blacklist-added', '{0} users have been added to the blacklist').format(len(bot.blacklist) - old_len),
-            reply=True, delete_after=10
+            reply=True, expire_in=10
         )
 
     else:
         if bot.blacklist.isdisjoint(user.id for user in user_mentions):
-            return Response(bot.str.get('cmd-blacklist-none', 'None of those users are in the blacklist.'), reply=True, delete_after=10)
+            return Response(bot.str.get('cmd-blacklist-none', 'None of those users are in the blacklist.'), reply=True, expire_in=10)
 
         else:
             bot.blacklist.difference_update(user.id for user in user_mentions)
@@ -63,5 +63,5 @@ async def cmd_blacklist(bot, message, user_mentions, option, something):
 
             return Response(
                 bot.str.get('cmd-blacklist-removed', '{0} users have been removed from the blacklist').format(old_len - len(bot.blacklist)),
-                reply=True, delete_after=10
+                reply=True, expire_in=10
             )

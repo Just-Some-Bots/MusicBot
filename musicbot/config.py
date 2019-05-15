@@ -250,7 +250,7 @@ class Config:
                     preface=self._confpreface2
                 )
 
-            self.owner_id = bot.cached_app_info.owner.id
+            self.owner_id = bot._owner_id
             log.debug("Acquired owner id via API")
 
         if self.owner_id == bot.user.id:

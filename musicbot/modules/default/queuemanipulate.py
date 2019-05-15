@@ -289,7 +289,7 @@ async def cmd_play(bot, message, player, channel, author, permissions, leftover_
 
             reply_text %= (btext, position, ftimedelta(time_until))
 
-    return Response(reply_text, delete_after=30)
+    return Response(reply_text, expire_in=30)
 
 async def _cmd_play_playlist_async(bot, player, channel, author, permissions, playlist_url, extractor_type):
     """
@@ -383,7 +383,7 @@ async def _cmd_play_playlist_async(bot, player, channel, author, permissions, pl
         raise exceptions.CommandError(basetext, expire_in=30)
 
     return Response(bot.str.get('cmd-play-playlist-reply-secs', "Enqueued {0} songs to be played in {1} seconds").format(
-        songs_added, fixg(ttime, 1)), delete_after=30)
+        songs_added, fixg(ttime, 1)), expire_in=30)
 
 async def cmd_stream(bot, player, channel, author, permissions, song_url):
     """
@@ -411,7 +411,7 @@ async def cmd_stream(bot, player, channel, author, permissions, song_url):
     await messagemanager.send_typing(channel)
     await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
 
-    return Response(bot.str.get('cmd-stream-success', "Streaming."), delete_after=6)
+    return Response(bot.str.get('cmd-stream-success', "Streaming."), expire_in=6)
 
 async def cmd_search(bot, message, player, channel, author, permissions, leftover_args):
     """
@@ -506,7 +506,7 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
         await messagemanager.safe_delete_message(search_msg)
 
     if not info:
-        return Response(bot.str.get('cmd-search-none', "No videos found."), delete_after=30)
+        return Response(bot.str.get('cmd-search-none', "No videos found."), expire_in=30)
 
     for e in info['entries']:
         result_message = await messagemanager.safe_send_message(channel, bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
@@ -528,7 +528,7 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
         if str(reaction.emoji) == '\u2705':  # check
             await messagemanager.safe_delete_message(result_message)
             await cmd_play(bot, message, player, channel, author, permissions, [], e['webpage_url'])
-            return Response(bot.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
+            return Response(bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
         elif str(reaction.emoji) == '\U0001F6AB':  # cross
             await messagemanager.safe_delete_message(result_message)
             continue
@@ -536,7 +536,7 @@ async def cmd_search(bot, message, player, channel, author, permissions, leftove
             await messagemanager.safe_delete_message(result_message)
             break
 
-    return Response(bot.str.get('cmd-search-decline', "Oh well :("), delete_after=30)
+    return Response(bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
 
 async def cmd_shuffle(bot, channel, player):
     """
@@ -560,7 +560,7 @@ async def cmd_shuffle(bot, channel, player):
         await asyncio.sleep(0.6)
 
     await messagemanager.safe_delete_message(hand, quiet=True)
-    return Response(bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(player.voice_client.channel.guild), delete_after=15)
+    return Response(bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(player.voice_client.channel.guild), expire_in=15)
 
 async def cmd_clear(bot, player, author):
     """
@@ -571,7 +571,7 @@ async def cmd_clear(bot, player, author):
     """
 
     player.playlist.clear()
-    return Response(bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(player.voice_client.channel.guild), delete_after=20)
+    return Response(bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(player.voice_client.channel.guild), expire_in=20)
 
 async def cmd_remove(bot, user_mentions, message, author, permissions, channel, player, index=None):
     """
@@ -660,7 +660,7 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
             player.skip()  # TODO: check autopause stuff here
             # @TheerapakG: Check for pausing state in the player.py make more sense
             await messagemanager._manual_delete_check(bot, message)
-            return Response(bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
+            return Response(bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, expire_in=30)
         else:
             raise exceptions.PermissionsError(bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
@@ -686,7 +686,7 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
                 bot.str.get('cmd-skip-reply-skipped-2', ' Next song coming up!') if player.playlist.peek() else ''
             ),
             reply=True,
-            delete_after=20
+            expire_in=20
         )
 
     else:
@@ -698,7 +698,7 @@ async def cmd_skip(bot, player, channel, author, message, permissions, voice_cha
                 bot.str.get('cmd-skip-reply-voted-2', 'person is') if skips_remaining == 1 else bot.str.get('cmd-skip-reply-voted-3', 'people are')
             ),
             reply=True,
-            delete_after=20
+            expire_in=20
         )
 
 async def cmd_replay(bot, player, channel, author, permissions, param=''):
@@ -752,4 +752,4 @@ async def cmd_replay(bot, player, channel, author, permissions, param=''):
 
         reply_text %= (btext, position, ftimedelta(time_until))
 
-    return Response(reply_text, delete_after=30)
+    return Response(reply_text, expire_in=30)

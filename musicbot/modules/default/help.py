@@ -94,7 +94,7 @@ async def cmd_help(bot, message, channel, command=None, spcog=None):
                         "```\n{}```".format(
                             dedent(cog.__doc__)
                         ).format(command_prefix=bot.config.command_prefix),
-                        delete_after=60
+                        expire_in=60
                     )
             raise exceptions.CommandError(bot.str.get('help?cmd?help?fail@cog', "No such cog"), expire_in=10) from None
 
@@ -109,7 +109,7 @@ async def cmd_help(bot, message, channel, command=None, spcog=None):
                     "```\n{}```".format(
                         dedent(cmd.__doc__)
                     ).format(command_prefix=bot.config.command_prefix),
-                    delete_after=60
+                    expire_in=60
                 )
 
     elif message.author.id == bot.config.owner_id:
@@ -131,4 +131,4 @@ async def cmd_help(bot, message, channel, command=None, spcog=None):
     if not bot.is_all:
         desc += bot.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
-    return Response(desc, reply=True, delete_after=60)
+    return Response(desc, reply=True, expire_in=60)

@@ -38,12 +38,12 @@ class SkipState:
 
 
 class Response:
-    __slots__ = ['_content', 'reply', 'delete_after', 'codeblock', '_codeblock']
+    __slots__ = ['_content', 'reply', 'expire_in', 'codeblock', '_codeblock']
 
-    def __init__(self, content, reply=False, delete_after=0, codeblock=None):
+    def __init__(self, content, reply=False, expire_in=0, codeblock=None):
         self._content = content
         self.reply = reply
-        self.delete_after = delete_after
+        self.expire_in = expire_in
         self.codeblock = codeblock
         self._codeblock = "```{!s}\n{{}}\n```".format('' if codeblock is True else codeblock)
 
@@ -56,8 +56,8 @@ class Response:
 
 # Alright this is going to take some actual thinking through
 class AnimatedResponse(Response):
-    def __init__(self, content, *sequence, delete_after=0):
-        super().__init__(content, delete_after=delete_after)
+    def __init__(self, content, *sequence, expire_in=0):
+        super().__init__(content, expire_in=expire_in)
         self.sequence = sequence
 
 

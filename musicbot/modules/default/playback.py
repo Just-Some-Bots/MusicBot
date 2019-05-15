@@ -21,7 +21,7 @@ async def cmd_volume(bot, message, player, new_volume=None):
     """
 
     if not new_volume:
-        return Response(bot.str.get('cmd-volume-current', 'Current volume: `%s%%`') % int(player.volume * 100), reply=True, delete_after=20)
+        return Response(bot.str.get('cmd-volume-current', 'Current volume: `%s%%`') % int(player.volume * 100), reply=True, expire_in=20)
 
     relative = False
     if new_volume[0] in '+-':
@@ -43,7 +43,7 @@ async def cmd_volume(bot, message, player, new_volume=None):
     if 0 < new_volume <= 100:
         player.volume = new_volume / 100.0
 
-        return Response(bot.str.get('cmd-volume-reply', 'Updated volume from **%d** to **%d**') % (old_volume, new_volume), reply=True, delete_after=20)
+        return Response(bot.str.get('cmd-volume-reply', 'Updated volume from **%d** to **%d**') % (old_volume, new_volume), reply=True, expire_in=20)
 
     else:
         if relative:
@@ -64,7 +64,7 @@ async def cmd_resume(bot, player):
 
     if player.is_paused:
         player.resume()
-        return Response(bot.str.get('cmd-resume-reply', 'Resumed music in `{0.name}`').format(player.voice_client.channel), delete_after=15)
+        return Response(bot.str.get('cmd-resume-reply', 'Resumed music in `{0.name}`').format(player.voice_client.channel), expire_in=15)
 
     else:
         raise exceptions.CommandError(bot.str.get('cmd-resume-none', 'Player is not paused.'), expire_in=30)
@@ -155,4 +155,4 @@ async def cmd_effect(bot, channel, player, mode, fx, leftover_args):
         positionbef = int(fx)-1
         positionaft = int(leftover_args[0]) -1
         player.effects.insert(positionaft, player.effects.pop(positionbef))
-    return Response(reply_msg, delete_after=15)
+    return Response(reply_msg, expire_in=15)

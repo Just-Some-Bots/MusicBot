@@ -1,4 +1,5 @@
 from discord import Guild
+import discord
 from asyncio import Lock
 from collections import defaultdict
 from .playback import Player
@@ -85,6 +86,12 @@ class RichGuild:
     async def get_playlist(self):
         async with self._aiolocks['c_voice_channel']:
             return await self._player.get_playlist()
+
+    def get_owner(self, *, voice=False):
+            return discord.utils.find(
+                lambda m: m.id == self._bot.config.owner_id and (m.voice if voice else True),
+                self.guild.members
+            )
 
 def get_guild(bot, guild) -> RichGuild:
     return guilds[bot.user.id][guild.id]

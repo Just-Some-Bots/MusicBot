@@ -310,9 +310,10 @@ class ModuBot(Bot):
             module = self.crossmodule.imported[modulename]
         else:
             try:
-                module = import_module('.modules.{}'.format(modulename), 'bot')
-            except:
-                pass
+                module = import_module('.modules.{}'.format(modulename), 'musicbot')
+            except Exception as e:
+                self.log.error('error fetching module:')
+                self.log.error('{}'.format(e))
                 return
 
         return module
@@ -475,12 +476,12 @@ class ModuBot(Bot):
                 self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
 
         for guild in get_guild_list(self):
-            if guild._guild.unavailable or guild in channel_map:
+            if guild.guild.unavailable or guild in channel_map:
                 continue
 
-            if guild._guild.me.voice:
-                self.log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild._guild.me.voice.channel))
-                channel_map[guild] = guild._guild.me.voice.channel
+            if guild.guild.me.voice:
+                self.log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.guild.me.voice.channel))
+                channel_map[guild] = guild.guild.me.voice.channel
 
             if autosummon:
                 owner = guild.get_owner(voice=True)
@@ -496,7 +497,7 @@ class ModuBot(Bot):
             if channel and isinstance(channel, discord.VoiceChannel):
                 self.log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
 
-                chperms = channel.permissions_for(guild._guild.me)
+                chperms = channel.permissions_for(guild.guild.me)
 
                 if not chperms.connect:
                     self.log.info("Cannot join channel \"{}\", no permission.".format(channel.name))
@@ -537,18 +538,7 @@ class ModuBot(Bot):
             self.log.debug("Received additional READY event, may have failed to resume")
             return
 
-        await self._on_ready_sanity_checks()
-        
-        self.log.info("Connected")
-        self.log.info("Client:\n    ID: {id}\n    name: {name}#{discriminator}\n".format(
-            id = self.user.id,
-            name = self.user.name,
-            discriminator = self.user.discriminator
-            ))
-        register_bot(self)
-
-        app_info = await self.application_info()
-
+        app_info = await self.application_info()  
         if self._owner_id == 'auto' or not self._owner_id:
             self.log.info('Using application\'s owner')
             self._owner_id = app_info.owner.id
@@ -556,7 +546,18 @@ class ModuBot(Bot):
         else:
             if not self.get_user(self._owner_id):
                 self.log.warning('Cannot find specified owner, falling back to application\'s owner')
-                self._owner_id = app_info.owner.id            
+                self._owner_id = app_info.owner.id  
+
+        await self._on_ready_sanity_checks()
+
+        register_bot(self)
+        
+        self.log.info("Connected")
+        self.log.info("Client:\n    ID: {id}\n    name: {name}#{discriminator}\n".format(
+            id = self.user.id,
+            name = self.user.name,
+            discriminator = self.user.discriminator
+            ))        
 
         self.log.info("Owner:\n    ID: {id}\n    name: {name}#{discriminator}\n".format(
             id = self._owner_id,

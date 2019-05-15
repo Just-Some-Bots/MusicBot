@@ -396,8 +396,8 @@ def main():
 
         m = None
         try:
-            from musicbot import MusicBot
-            m = MusicBot(loghandlerlist = [streamhandler(), fh])
+            from musicbot import ModuBot
+            m = ModuBot(loghandlerlist = [streamhandler(), fh])
             m.loop.run_until_complete(m.load_modules([('default',{})]))
 
             shutdown = False
@@ -407,12 +407,12 @@ def main():
             thread = False
 
             def logouthandler(sig, stackframe=None):
-                global thread
                 if system() == 'Windows':
+                    nonlocal thread
                     thread = True
                 log.debug('\nAcquiring ... (logouthandler/{})'.format(system()))
                 safe_shutdown.acquire()
-                global shutdown
+                nonlocal shutdown
                 if not shutdown:            
                     shutdown = True
                     log.info('\nShutting down ... (logouthandler/{})'.format(system()))
@@ -534,7 +534,7 @@ def main():
                 log.exception("Error starting bot")
 
         finally:
-            if not m or not m.init_ok:
+            if not m or not m._init:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
                     traceback.print_exc()

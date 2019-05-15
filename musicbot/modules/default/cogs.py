@@ -28,7 +28,7 @@ async def cmd_loadmodule(bot, module):
     except:
         raise
     else:
-        return Response(bot.str.get('cogs?cmd?loadmodule?success', "successfully loaded/reloaded module `{0}`").format(module), delete_after=15)
+        return Response(bot.str.get('cogs?cmd?loadmodule?success', "successfully loaded/reloaded module `{0}`").format(module), expire_in=15)
 
 @owner_only
 async def cmd_loadcog(bot, name):
@@ -40,7 +40,7 @@ async def cmd_loadcog(bot, name):
     This does not update cog if the cog got updated. For that, use loadmodule command
     """
     await loadcog(name)
-    return Response(bot.str.get('cogs?cmd?loadcog?success', "Successfully reloaded cog `{0}`").format(name), delete_after=15)
+    return Response(bot.str.get('cogs?cmd?loadcog?success', "Successfully reloaded cog `{0}`").format(name), expire_in=15)
 
 @owner_only
 async def cmd_unloadcog(bot, name):
@@ -51,7 +51,7 @@ async def cmd_unloadcog(bot, name):
     Unload specified cog.
     """
     await unloadcog(name)
-    return Response(bot.str.get('cogs?cmd?unloadcog?success', "Successfully unloaded cog `{0}`").format(name), delete_after=15)
+    return Response(bot.str.get('cogs?cmd?unloadcog?success', "Successfully unloaded cog `{0}`").format(name), expire_in=15)
 
 @owner_only
 async def cmd_cogmodule(bot, name):
@@ -62,7 +62,7 @@ async def cmd_cogmodule(bot, name):
     Get module name of specified cog.
     """
     module = await getcogmodule(name)
-    return Response('```{}```'.format(module), delete_after=15)
+    return Response('```{}```'.format(module), expire_in=15)
 
 @dev_only
 async def cmd_cogops(bot):
@@ -74,7 +74,7 @@ async def cmd_cogops(bot):
     Does not count operations that execute directly to cog or command objects.
     """
     ops = await get_highlevel_cog_operations()
-    return Response('{} operations'.format(ops), delete_after=10)
+    return Response('{} operations'.format(ops), expire_in=10)
 
 @owner_only
 async def cmd_addalias(bot, command, alias, param=''):
@@ -88,7 +88,7 @@ async def cmd_addalias(bot, command, alias, param=''):
         await add_alias(command, alias, forced = True)
     else:
         await add_alias(command, alias)
-    return Response(bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), delete_after=15)
+    return Response(bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), expire_in=15)
 
 @owner_only
 async def cmd_removealias(bot, alias):
@@ -99,4 +99,4 @@ async def cmd_removealias(bot, alias):
     Remove alias from the command.
     """
     await remove_alias(alias)
-    return Response(bot.str.get('cogs?cmd?removealias?success', "Successfully remove alias `{0}`").format(alias), delete_after=15)
+    return Response(bot.str.get('cogs?cmd?removealias?success', "Successfully remove alias `{0}`").format(alias), expire_in=15)

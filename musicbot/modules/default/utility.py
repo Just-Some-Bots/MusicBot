@@ -24,7 +24,7 @@ async def cmd_clean(bot, message, channel, guild, author, search_range=50):
         float(search_range)  # lazy check
         search_range = min(int(search_range), 1000)
     except:
-        return Response(bot.str.get('cmd-clean-invalid', "Invalid parameter. Please provide a number of messages to search."), reply=True, delete_after=8)
+        return Response(bot.str.get('cmd-clean-invalid', "Invalid parameter. Please provide a number of messages to search."), reply=True, expire_in=8)
 
     await messagemanager.safe_delete_message(message, quiet=True)
 
@@ -44,7 +44,7 @@ async def cmd_clean(bot, message, channel, guild, author, search_range=50):
     if bot.user.bot:
         if channel.permissions_for(guild.me).manage_messages:
             deleted = await channel.purge(check=check, limit=search_range, before=message)
-            return Response(bot.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), delete_after=15)
+            return Response(bot.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), expire_in=15)
 
 async def cmd_sudo(bot, user_mentions, message, channel, guild, leftover_args):
     """

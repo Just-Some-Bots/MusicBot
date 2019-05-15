@@ -6,13 +6,13 @@ from .utils import _get_variable
 # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
 def owner_only(func):
     @wraps(func)
-    async def wrapper(bot, *args, **kwargs):
+    async def wrapper(fself, ctx, *args, **kwargs):
         # Only allow the owner to use these commands
-        orig_msg = _get_variable('message')
+        author = ctx.author
 
-        if not orig_msg or orig_msg.author.id == bot.config.owner_id:
+        if author.id == ctx.bot.config.owner_id:
             # noinspection PyCallingNonCallable
-            return await func(bot, *args, **kwargs)
+            return await func(fself, ctx, *args, **kwargs)
         else:
             raise exceptions.PermissionsError("Only the owner can use this command.", expire_in=30)
 
@@ -20,21 +20,17 @@ def owner_only(func):
 
 def dev_only(func):
     @wraps(func)
-    async def wrapper(bot, *args, **kwargs):
-        orig_msg = _get_variable('message')
+    async def wrapper(fself, ctx, *args, **kwargs):
+        author = ctx.author
 
-        if str(orig_msg.author.id) in bot.config.dev_ids:
+        if str(author.id) in ctx.bot.config.dev_ids:
             # noinspection PyCallingNonCallable
-            return await func(bot, *args, **kwargs)
+            return await func(fself, ctx, *args, **kwargs)
         else:
             raise exceptions.PermissionsError("Only dev users can use this command.", expire_in=30)
 
     wrapper.dev_cmd = True
     return wrapper
-
-def command_bypass_opscount(func):
-    func.bypass_opscount = True
-    return func
 
 def ensure_appinfo(func):
     @wraps(func)
