@@ -1,6 +1,7 @@
 import logging
 import discord
 import aiohttp
+from threading import Thread
 from discord.ext.commands import Cog, command
 from typing import Optional
 
@@ -25,7 +26,6 @@ class BotManagement(Cog):
         await messagemanager.safe_send_message(ctx, "Disconnected from `{0.name}`".format(ctx.guild), expire_in=20)
         return
 
-    # TODO: figure this out (create a thread which logout and restart the bot)
     @command()
     async def restart(self, ctx):
         """
@@ -38,6 +38,8 @@ class BotManagement(Cog):
         """
         await messagemanager.safe_send_message(ctx, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
             "or its dependencies, you need to restart the bot properly, rather than using this command.")
+        ctx.bot._restart = True
+        ctx.bot.loop.stop()
 
     @command()
     async def shutdown(self, ctx):
@@ -49,7 +51,7 @@ class BotManagement(Cog):
         """
         await messagemanager.safe_send_message(ctx, "\N{WAVING HAND SIGN}")
         
-        ctx.bot.logout() # TODO: check if suffice
+        ctx.bot.loop.stop()
 
     @command()
     async def leaveserver(self, ctx, guild: discord.Guild):
@@ -216,7 +218,7 @@ class BotManagement(Cog):
 
     @command()
     @owner_only
-    async def cmd_joinserver(self, ctx):
+    async def joinserver(self, ctx):
         """
         Usage:
             {command_prefix}joinserver invite_link

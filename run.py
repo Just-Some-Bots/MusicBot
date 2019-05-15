@@ -390,6 +390,8 @@ def main():
     loops = 0
     max_wait_time = 60
 
+    sh = streamhandler()
+
     while tryagain:
         # Maybe I need to try to import stuff first, then actually import stuff
         # It'd save me a lot of pain with all that awful exception type checking
@@ -397,7 +399,7 @@ def main():
         m = None
         try:
             from musicbot import ModuBot
-            m = ModuBot(loghandlerlist = [streamhandler(), fh])
+            m = ModuBot(loghandlerlist = [sh, fh])
             m.loop.run_until_complete(m.load_modules([('default',{})]))
 
             shutdown = False
@@ -534,7 +536,7 @@ def main():
                 log.exception("Error starting bot")
 
         finally:
-            if not m or not m._init:
+            if not m:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
                     traceback.print_exc()

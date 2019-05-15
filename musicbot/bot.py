@@ -740,7 +740,7 @@ class ModuBot(Bot):
         gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
         gathered.cancel()
         async def await_gathered():
-            with suppress(asyncio.CancelledError):
+            with suppress(Exception):
                 await gathered
         self.loop.run_until_complete(await_gathered())
         self.log.info('closing loop...')
@@ -764,7 +764,7 @@ class ModuBot(Bot):
         gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
         gathered.cancel()
         async def await_gathered():
-            with suppress(asyncio.CancelledError, ConnectionClosed):
+            with suppress(Exception):
                 await gathered
         self.loop.run_until_complete(await_gathered())
         self.log.info('closing loop...')
@@ -777,6 +777,9 @@ class ModuBot(Bot):
             self.logout_looprunning()
         else:
             self.logout_loopstopped()
+        self._init = False
+        if getattr(self, '_restart', None):
+            raise exceptions.RestartSignal('restarting...')
 
     class check_online:
         def __call__(self, func):
