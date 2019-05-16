@@ -44,7 +44,7 @@ MODUBOT_STR = 'ModuBot {}'.format(MODUBOT_VERSION)
 
 class ModuBot(Bot):
 
-    ModuleTuple = namedtuple('ModuleTuple', ['name', 'module', 'module_spfc_config'])
+    ModuleTuple = namedtuple('ModuleTuple', ['name', 'module'])
 
     def __init__(self, *args, logname = "MusicBot", loghandlerlist = [], **kwargs):
         self._aiolocks = defaultdict(asyncio.Lock)
@@ -201,6 +201,7 @@ class ModuBot(Bot):
                 else:
                     self.log.debug('deps is not an iterable')
 
+        # TODO: assign alias from alias.py
         for moduleinfo in modulelist:
             if 'cogs' in dir(moduleinfo.module):
                 cogs = getattr(moduleinfo.module, 'cogs')
@@ -214,9 +215,9 @@ class ModuBot(Bot):
                             self.log.debug(str(potential.__func__))
                             try:
                                 if iscoroutinefunction(potential.__func__):
-                                    await potential(self, moduleinfo.module_spfc_config)
+                                    await potential(self)
                                 elif isfunction(potential.__func__):
-                                    potential(self, moduleinfo.module_spfc_config)
+                                    potential(self)
                                 else:
                                     self.log.debug('pre_init is neither funtion nor coroutine function')
                             except Exception:
@@ -318,17 +319,17 @@ class ModuBot(Bot):
 
         return module
 
-    async def _gen_modulelist(self, modulesname_config):
+    async def _gen_modulelist(self, modulesname):
         modules = list()
-        for modulename, moduleconfig in modulesname_config:
+        for modulename in modulesname:
             module = await self._prepare_load_module(modulename)
             if module:
-                modules.append(self.ModuleTuple(modulename, module, moduleconfig))
+                modules.append(self.ModuleTuple(modulename, module))
 
         return modules
 
-    async def load_modules(self, modulesname_config):
-        modulelist = await self._gen_modulelist(modulesname_config)
+    async def load_modules(self, modulesname):
+        modulelist = await self._gen_modulelist(modulesname)
         await self._load_modules(modulelist)
 
     async def unload_modules(self, modulenames, *, unimport = False):

@@ -7,7 +7,6 @@ from typing import Optional
 
 from ...utils import _get_variable
 from ... import exceptions
-from ...constructs import Response
 from ...rich_guild import get_guild
 from ...wrappers import owner_only
 
