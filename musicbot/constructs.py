@@ -36,12 +36,6 @@ class SkipState:
         self.skip_msgs.add(msg)
         return self.skip_count
 
-# Alright this is going to take some actual thinking through
-class AnimatedResponse(Response):
-    def __init__(self, content, *sequence, expire_in=0):
-        super().__init__(content, expire_in=expire_in)
-        self.sequence = sequence
-
 
 class Serializer(json.JSONEncoder):
     def default(self, o):
