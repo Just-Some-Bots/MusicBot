@@ -208,6 +208,7 @@ class ModuBot(Bot):
                 if isiterable(cogs):
                     for cog in cogs:
                         cg = cog()
+                        self.log.debug('found cog {}'.format(cg.qualified_name))
                         if 'pre_init' in dir(cg):
                             self.log.debug('executing pre_init in {}'.format(cg.qualified_name))
                             potential = getattr(cg, 'pre_init')
@@ -731,6 +732,7 @@ class ModuBot(Bot):
     async def _logout(self):
         await super().logout()
         await self.unload_all_module()
+        await self.aiosession.close()
         self.log.debug('finished cleaning up')
 
     def logout_loopstopped(self):
