@@ -36,24 +36,6 @@ class SkipState:
         self.skip_msgs.add(msg)
         return self.skip_count
 
-
-class Response:
-    __slots__ = ['_content', 'reply', 'expire_in', 'codeblock', '_codeblock']
-
-    def __init__(self, content, reply=False, expire_in=0, codeblock=None):
-        self._content = content
-        self.reply = reply
-        self.expire_in = expire_in
-        self.codeblock = codeblock
-        self._codeblock = "```{!s}\n{{}}\n```".format('' if codeblock is True else codeblock)
-
-    @property
-    def content(self):
-        if self.codeblock:
-            return self._codeblock.format(self._content)
-        else:
-            return self._content
-
 # Alright this is going to take some actual thinking through
 class AnimatedResponse(Response):
     def __init__(self, content, *sequence, expire_in=0):

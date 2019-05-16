@@ -1,75 +1,80 @@
 import logging
 import asyncio
 import traceback
+from typing import Optional
 from functools import wraps
 from io import StringIO
 
+from discord.ext.commands import Cog, command
+
 from ...utils import _get_variable
 from ... import exceptions
-from ...constructs import Response
 from ...wrappers import dev_only
 
-from ... import guildmanager
-from ... import voicechannelmanager
 from ... import messagemanager
 
 log = logging.getLogger(__name__)
 
-cog_name = 'dev'
+class Dev(Cog):
+    @command()
+    @dev_only
+    async def breakpoint(self, ctx):
+        log.critical("Activating debug breakpoint")
+        return
 
-@dev_only
-async def cmd_breakpoint(bot, message):
-    log.critical("Activating debug breakpoint")
-    return
+    @command()
+    @dev_only
+    async def objgraph(self, ctx, *, func:Optional[str]='most_common_types()'):
+        import objgraph
 
-@dev_only
-async def cmd_objgraph(bot, channel, func='most_common_types()'):
-    import objgraph
+        async with ctx.typing():
 
-    await messagemanager.send_typing(channel)
+            if func == 'growth':
+                f = StringIO()
+                objgraph.show_growth(limit=10, file=f)
+                f.seek(0)
+                data = f.read()
+                f.close()
 
-    if func == 'growth':
-        f = StringIO()
-        objgraph.show_growth(limit=10, file=f)
-        f.seek(0)
-        data = f.read()
-        f.close()
+            elif func == 'leaks':
+                f = StringIO()
+                objgraph.show_most_common_types(objects=objgraph.get_leaking_objects(), file=f)
+                f.seek(0)
+                data = f.read()
+                f.close()
 
-    elif func == 'leaks':
-        f = StringIO()
-        objgraph.show_most_common_types(objects=objgraph.get_leaking_objects(), file=f)
-        f.seek(0)
-        data = f.read()
-        f.close()
+            elif func == 'leakstats':
+                data = objgraph.typestats(objects=objgraph.get_leaking_objects())
 
-    elif func == 'leakstats':
-        data = objgraph.typestats(objects=objgraph.get_leaking_objects())
+            else:
+                data = eval('objgraph.' + func)
 
-    else:
-        data = eval('objgraph.' + func)
+            await messagemanager.safe_send_message(ctx, '```py{}```'.format(data))
 
-    return Response(data, codeblock='py')
+    @command()
+    @dev_only
+    async def debug(self, ctx, *, data: str):
+        codeblock = "```py\n{}\n```"
+        result = None
 
-@dev_only
-async def cmd_debug(bot, message, _player, *, data):
-    codeblock = "```py\n{}\n```"
-    result = None
+        if data.startswith('```') and data.endswith('```'):
+            data = '\n'.join(data.rstrip('`\n').split('\n')[1:])
 
-    if data.startswith('```') and data.endswith('```'):
-        data = '\n'.join(data.rstrip('`\n').split('\n')[1:])
+        code = data.strip('` \n')
 
-    code = data.strip('` \n')
-
-    try:
-        result = await bot.eval_bot(code)
-    except:
         try:
-            await bot.exec_bot(code)
-        except Exception as e:
-            traceback.print_exc(chain=False)
-            return Response("{}: {}".format(type(e).__name__, e))
+            result = await ctx.bot.eval_bot(code)
+        except:
+            try:
+                await ctx.bot.exec_bot(code)
+            except Exception as e:
+                traceback.print_exc(chain=False)
+                await messagemanager.safe_send_message(ctx, "{}: {}".format(type(e).__name__, e))
+                return
 
-    if asyncio.iscoroutine(result):
-        result = await result
+        if asyncio.iscoroutine(result):
+            result = await result
 
-    return Response(codeblock.format(result))
+        await messagemanager.safe_send_message(ctx, codeblock.format(result))
+
+cogs = [Dev]

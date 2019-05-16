@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 class CogManagement(Cog):
     @command()
     @owner_only
-    async def cmd_loadmodule(self, ctx, *, module:str):
+    async def loadmodule(self, ctx, *, module:str):
         """
         Usage:
             {command_prefix}loadmodule module
@@ -32,7 +32,7 @@ class CogManagement(Cog):
 
     @command()
     @owner_only
-    async def cmd_loadcog(self, ctx, *, name:str):
+    async def loadcog(self, ctx, *, name:str):
         """
         Usage:
             {command_prefix}loadcog cog
@@ -45,7 +45,7 @@ class CogManagement(Cog):
 
     @command()
     @owner_only
-    async def cmd_unloadcog(self, ctx, *, name:str):
+    async def unloadcog(self, ctx, *, name:str):
         """
         Usage:
             {command_prefix}unloadcog cog
@@ -57,7 +57,7 @@ class CogManagement(Cog):
 
     @command()
     @owner_only
-    async def cmd_cogmodule(self, ctx, *, name:str):
+    async def cogmodule(self, ctx, *, name:str):
         """
         Usage:
             {command_prefix}cogmodule cog
@@ -70,7 +70,7 @@ class CogManagement(Cog):
 
     @command()
     @owner_only
-    async def cmd_addalias(self, ctx, command:str, alias:str, *, param:Optional[str]):
+    async def addalias(self, ctx, command:str, alias:str, *, param:Optional[str]):
         """
         Usage:
             {command_prefix}addalias command alias [force/f]
@@ -91,8 +91,9 @@ class CogManagement(Cog):
 
         await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), expire_in=15)
 
+    @command()
     @owner_only
-    async def cmd_removealias(self, ctx, alias:str):
+    async def removealias(self, ctx, alias:str):
         """
         Usage:
             {command_prefix}removealias command alias
