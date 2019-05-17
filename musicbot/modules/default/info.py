@@ -4,272 +4,291 @@ import logging
 from io import BytesIO
 from datetime import timedelta
 from collections import defaultdict
+from typing import Optional
+
+from discord.ext.commands import Cog, command
 
 from ... import exceptions
-from ...entry import StreamPlaylistEntry
+from ...rich_guild import get_guild
 from ...utils import ftimedelta
-from ...constructs import Response
 from ...constants import DISCORD_MSG_CHAR_LIMIT
+from ...playback import PlayerState
 
-from ... import guildmanager
-from ... import voicechannelmanager
 from ... import messagemanager
 
 log = logging.getLogger(__name__)
 
-cog_name = 'information'
+class Information(Cog):
+    @command()
+    async def pldump(self, ctx, *, song_url:str):
+        """
+        Usage:
+            {command_prefix}pldump url
 
-async def cmd_pldump(bot, channel, author, song_url):
-    """
-    Usage:
-        {command_prefix}pldump url
+        Dumps the individual urls of a playlist
+        """
 
-    Dumps the individual urls of a playlist
-    """
+        try:
+            info = await ctx.bot.downloader.extract_info(song_url.strip('<>'), download=False, process=False)
+        except Exception as e:
+            raise exceptions.CommandError("Could not extract info from input url\n%s\n" % e, expire_in=25)
 
-    try:
-        info = await bot.downloader.extract_info(bot.loop, song_url.strip('<>'), download=False, process=False)
-    except Exception as e:
-        raise exceptions.CommandError("Could not extract info from input url\n%s\n" % e, expire_in=25)
+        if not info:
+            raise exceptions.CommandError("Could not extract info from input url, no data.", expire_in=25)
 
-    if not info:
-        raise exceptions.CommandError("Could not extract info from input url, no data.", expire_in=25)
+        if not info.get('entries', None):
+            # TODO: Retarded playlist checking
+            # set(url, webpageurl).difference(set(url))
 
-    if not info.get('entries', None):
-        # TODO: Retarded playlist checking
-        # set(url, webpageurl).difference(set(url))
+            if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
+                raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
+            else:
+                return await self.pldump(ctx, song_url = info.get(''))
 
-        if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
-            raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
+        linegens = defaultdict(lambda: None, **{
+            "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
+            "soundcloud": lambda d: d['url'],
+            "bandcamp":   lambda d: d['url']
+        })
+
+        exfunc = linegens[info['extractor'].split(':')[0]]
+
+        if not exfunc:
+            raise exceptions.CommandError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
+
+        with BytesIO() as fcontent:
+            for item in info['entries']:
+                fcontent.write(exfunc(item).encode('utf8') + b'\n')
+
+            fcontent.seek(0)
+            await messagemanager.safe_send_message(ctx.author, "Here's the playlist dump for <%s>" % song_url, file=discord.File(fcontent, filename='playlist.txt'))
+
+        return messagemanager.safe_send_message(ctx, "Sent a message with a playlist file.", expire_in=20)
+
+    @command()
+    async def queue(self, ctx):
+        """
+        Usage:
+            {command_prefix}queue
+
+        Prints the current song queue.
+        """
+
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        entry = await player.get_current_entry()
+        playlist = await player.get_playlist()
+
+        lines = []
+        unlisted = 0
+        andmoretext = '* ... and %s more*' % ('x' * len(await playlist.get_length()))
+
+        if (await player.status()) == PlayerState.PLAYING:
+            # TODO: Fix timedelta garbage with util function
+            song_progress = ftimedelta(timedelta(seconds=await player.progress()))
+            song_total = ftimedelta(timedelta(seconds=entry.duration))
+            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+
+            if entry.queuer_id:
+                lines.append(ctx.bot.str.get('cmd-queue-playing-author', "Currently playing: `{0}` added by `{1}` {2}\n").format(
+                    entry.title, guild.guild.get_member(entry.queuer_id).name, prog_str))
+            else:
+                lines.append(ctx.bot.str.get('cmd-queue-playing-noauthor', "Currently playing: `{0}` {1}\n").format(entry.title, prog_str))
+
+
+        for i, item in enumerate(playlist):
+            if item.queuer_id:
+                nextline = ctx.bot.str.get('cmd-queue-entry-author', '{0} -- `{1}` by `{2}`').format(i, item.title, guild.guild.get_member(item.queuer_id).name).strip()
+            else:
+                nextline = ctx.bot.str.get('cmd-queue-entry-noauthor', '{0} -- `{1}`').format(i, item.title).strip()
+
+            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
+
+            if (currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT) or (i > ctx.bot.config.queue_length):
+                if currentlinesum + len(andmoretext):
+                    unlisted += 1
+                    continue
+
+            lines.append(nextline)
+
+        if unlisted:
+            lines.append(ctx.bot.str.get('cmd-queue-more', '\n... and %s more') % unlisted)
+
+        if not lines:
+            lines.append(
+                ctx.bot.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(ctx.bot.config.command_prefix))
+
+        message = '\n'.join(lines)
+        await messagemanager.safe_send_message(ctx, message, expire_in=30)
+
+    @command()
+    async def listids(self, ctx, *, cat:Optional[str]='all'):
+        """
+        Usage:
+            {command_prefix}listids [categories]
+
+        Lists the ids for various things.  Categories are:
+            all, users, roles, channels
+        """
+
+        cats = ['channels', 'roles', 'users']
+
+        if cat not in cats and cat != 'all':
+            await messagemanager.safe_send_message(
+                ctx,
+                "Valid categories: " + ' '.join(['`%s`' % c for c in cats]),
+                reply=True,
+                expire_in=25
+            )
+            return
+
+        if cat == 'all':
+            requested_cats = cats
         else:
-            return await cmd_pldump(bot, channel, author, info.get(''))
+            requested_cats = [c.strip(',') for c in cat]
 
-    linegens = defaultdict(lambda: None, **{
-        "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
-        "soundcloud": lambda d: d['url'],
-        "bandcamp":   lambda d: d['url']
-    })
+        data = ['Your ID: %s' % ctx.author.id]
 
-    exfunc = linegens[info['extractor'].split(':')[0]]
+        for cur_cat in requested_cats:
+            rawudata = None
 
-    if not exfunc:
-        raise exceptions.CommandError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
+            if cur_cat == 'users':
+                data.append("\nUser IDs:")
+                rawudata = ['%s #%s: %s' % (m.name, m.discriminator, m.id) for m in ctx.guild.members]
 
-    with BytesIO() as fcontent:
-        for item in info['entries']:
-            fcontent.write(exfunc(item).encode('utf8') + b'\n')
+            elif cur_cat == 'roles':
+                data.append("\nRole IDs:")
+                rawudata = ['%s: %s' % (r.name, r.id) for r in ctx.guild.roles]
 
-        fcontent.seek(0)
-        await author.send("Here's the playlist dump for <%s>" % song_url, file=discord.File(fcontent, filename='playlist.txt'))
+            elif cur_cat == 'channels':
+                data.append("\nText Channel IDs:")
+                tchans = [c for c in ctx.guild.channels if isinstance(c, discord.TextChannel)]
+                rawudata = ['%s: %s' % (c.name, c.id) for c in tchans]
 
-    return Response("Sent a message with a playlist file.", expire_in=20)
+                rawudata.append("\nVoice Channel IDs:")
+                vchans = [c for c in ctx.guild.channels if isinstance(c, discord.VoiceChannel)]
+                rawudata.extend('%s: %s' % (c.name, c.id) for c in vchans)
 
-async def cmd_queue(bot, channel, player):
-    """
-    Usage:
-        {command_prefix}queue
+            if rawudata:
+                data.extend(rawudata)
 
-    Prints the current song queue.
-    """
+        with BytesIO() as sdata:
+            sdata.writelines(d.encode('utf8') + b'\n' for d in data)
+            sdata.seek(0)
 
-    lines = []
-    unlisted = 0
-    andmoretext = '* ... and %s more*' % ('x' * len(player.playlist.entries))
+            # TODO: Fix naming (Discord20API-ids.txt)
+            await messagemanager.safe_send_message(ctx.author, discord.File(sdata, filename='%s-ids-%s.txt' % (ctx.guild.name.replace(' ', '_'), cat)))
 
-    if player.is_playing:
-        # TODO: Fix timedelta garbage with util function
-        song_progress = ftimedelta(timedelta(seconds=player.progress))
-        song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
-        prog_str = '`[%s/%s]`' % (song_progress, song_total)
+        await messagemanager.safe_send_message(ctx, "Sent a message with a list of IDs.", expire_in=20)
 
-        if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-            lines.append(bot.str.get('cmd-queue-playing-author', "Currently playing: `{0}` added by `{1}` {2}\n").format(
-                player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
-        else:
-            lines.append(bot.str.get('cmd-queue-playing-noauthor', "Currently playing: `{0}` {1}\n").format(player.current_entry.title, prog_str))
+    @command()
+    async def perms(self, ctx, user:Optional[discord.User]):
+        """
+        Usage:
+            {command_prefix}perms [user_id|user_mention|user_name#discrim|user_name]
 
+        Sends the user a list of their permissions, or the permissions of the user specified.
+        """
 
-    for i, item in enumerate(player.playlist, 1):
-        if item.meta.get('channel', False) and item.meta.get('author', False):
-            nextline = bot.str.get('cmd-queue-entry-author', '{0} -- `{1}` by `{2}`').format(i, item.title, item.meta['author'].name).strip()
-        else:
-            nextline = bot.str.get('cmd-queue-entry-noauthor', '{0} -- `{1}`').format(i, item.title).strip()
+        lines = ['Command permissions in %s\n' % ctx.guild.name, '```', '```']
 
-        currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
+        member = ctx.guild.get_member(user.id)
+        if member:
+            user = member
 
-        if (currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT) or (i > bot.config.queue_length):
-            if currentlinesum + len(andmoretext):
-                unlisted += 1
+        if user:
+            permissions = ctx.bot.permissions.for_user(user)
+
+        for perm in permissions.__dict__:
+            if perm in ['user_list'] or permissions.__dict__[perm] == set():
                 continue
 
-        lines.append(nextline)
+            lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
-    if unlisted:
-        lines.append(bot.str.get('cmd-queue-more', '\n... and %s more') % unlisted)
+        await messagemanager.safe_send_message(ctx.author, '\n'.join(lines))
+        await messagemanager.safe_send_message(ctx, "\N{OPEN MAILBOX WITH RAISED FLAG}", expire_in=20)
 
-    if not lines:
-        lines.append(
-            bot.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(bot.config.command_prefix))
+    @command()
+    async def np(self, ctx):
+        """
+        Usage:
+            {command_prefix}np
 
-    message = '\n'.join(lines)
-    return Response(message, expire_in=30)
+        Displays the current song in chat.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        entry = await player.get_current_entry()
 
-async def cmd_listids(bot, guild, author, leftover_args, cat='all'):
-    """
-    Usage:
-        {command_prefix}listids [categories]
+        if entry:
+            if ctx.bot.server_specific_data[guild]['last_np_msg']:
+                await messagemanager.safe_delete_message(ctx.bot.server_specific_data[guild]['last_np_msg'])
+                ctx.bot.server_specific_data[guild]['last_np_msg'] = None
 
-    Lists the ids for various things.  Categories are:
-        all, users, roles, channels
-    """
+            # TODO: Fix timedelta garbage with util function
+            song_progress = ftimedelta(timedelta(seconds=await player.progress()))
+            song_total = ftimedelta(timedelta(seconds=entry.duration))
 
-    cats = ['channels', 'roles', 'users']
+            streaming = entry.stream
+            prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
+                progress=song_progress, total=song_total
+            )
+            prog_bar_str = ''
 
-    if cat not in cats and cat != 'all':
-        return Response(
-            "Valid categories: " + ' '.join(['`%s`' % c for c in cats]),
-            reply=True,
-            expire_in=25
-        )
+            # percentage shows how much of the current song has already been played
+            percentage = 0.0
+            if entry.duration > 0:
+                percentage = (await player.progress()) / entry.duration
 
-    if cat == 'all':
-        requested_cats = cats
-    else:
-        requested_cats = [cat] + [c.strip(',') for c in leftover_args]
+            # create the actual bar
+            progress_bar_length = 30
+            for i in range(progress_bar_length):
+                if (percentage < 1 / progress_bar_length * i):
+                    prog_bar_str += '□'
+                else:
+                    prog_bar_str += '■'
 
-    data = ['Your ID: %s' % author.id]
+            action_text = ctx.bot.str.get('cmd-np-action-streaming', 'Streaming') if streaming else ctx.bot.str.get('cmd-np-action-playing', 'Playing')
 
-    for cur_cat in requested_cats:
-        rawudata = None
-
-        if cur_cat == 'users':
-            data.append("\nUser IDs:")
-            rawudata = ['%s #%s: %s' % (m.name, m.discriminator, m.id) for m in guild.members]
-
-        elif cur_cat == 'roles':
-            data.append("\nRole IDs:")
-            rawudata = ['%s: %s' % (r.name, r.id) for r in guild.roles]
-
-        elif cur_cat == 'channels':
-            data.append("\nText Channel IDs:")
-            tchans = [c for c in guild.channels if isinstance(c, discord.TextChannel)]
-            rawudata = ['%s: %s' % (c.name, c.id) for c in tchans]
-
-            rawudata.append("\nVoice Channel IDs:")
-            vchans = [c for c in guild.channels if isinstance(c, discord.VoiceChannel)]
-            rawudata.extend('%s: %s' % (c.name, c.id) for c in vchans)
-
-        if rawudata:
-            data.extend(rawudata)
-
-    with BytesIO() as sdata:
-        sdata.writelines(d.encode('utf8') + b'\n' for d in data)
-        sdata.seek(0)
-
-        # TODO: Fix naming (Discord20API-ids.txt)
-        await author.send(file=discord.File(sdata, filename='%s-ids-%s.txt' % (guild.name.replace(' ', '_'), cat)))
-
-    return Response("Sent a message with a list of IDs.", expire_in=20)
-
-
-async def cmd_perms(bot, author, user_mentions, channel, guild, permissions):
-    """
-    Usage:
-        {command_prefix}perms [@user]
-
-    Sends the user a list of their permissions, or the permissions of the user specified.
-    """
-
-    lines = ['Command permissions in %s\n' % guild.name, '```', '```']
-
-    if user_mentions:
-        user = user_mentions[0]
-        permissions = bot.permissions.for_user(user)
-
-    for perm in permissions.__dict__:
-        if perm in ['user_list'] or permissions.__dict__[perm] == set():
-            continue
-
-        lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
-
-    await messagemanager.safe_send_message(author, '\n'.join(lines))
-    return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", expire_in=20)
-
-async def cmd_np(bot, player, channel, guild, message):
-    """
-    Usage:
-        {command_prefix}np
-
-    Displays the current song in chat.
-    """
-
-    if player.current_entry:
-        if bot.server_specific_data[guild]['last_np_msg']:
-            await messagemanager.safe_delete_message(bot.server_specific_data[guild]['last_np_msg'])
-            bot.server_specific_data[guild]['last_np_msg'] = None
-
-        # TODO: Fix timedelta garbage with util function
-        song_progress = ftimedelta(timedelta(seconds=player.progress))
-        song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
-
-        streaming = isinstance(player.current_entry, StreamPlaylistEntry)
-        prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
-            progress=song_progress, total=song_total
-        )
-        prog_bar_str = ''
-
-        # percentage shows how much of the current song has already been played
-        percentage = 0.0
-        if player.current_entry.duration > 0:
-            percentage = player.progress / player.current_entry.duration
-
-        # create the actual bar
-        progress_bar_length = 30
-        for i in range(progress_bar_length):
-            if (percentage < 1 / progress_bar_length * i):
-                prog_bar_str += '□'
+            if entry.queuer_id:
+                np_text = ctx.bot.str.get('cmd-np-reply-author', "Now {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>").format(
+                    action=action_text,
+                    title=entry.title,
+                    author=guild.guild.get_member(entry.queuer_id).name,
+                    progress_bar=prog_bar_str,
+                    progress=prog_str,
+                    url=entry.source_url
+                )
             else:
-                prog_bar_str += '■'
 
-        action_text = bot.str.get('cmd-np-action-streaming', 'Streaming') if streaming else bot.str.get('cmd-np-action-playing', 'Playing')
+                np_text = ctx.bot.str.get('cmd-np-reply-noauthor', "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>").format(
 
-        if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-            np_text = bot.str.get('cmd-np-reply-author', "Now {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>").format(
-                action=action_text,
-                title=player.current_entry.title,
-                author=player.current_entry.meta['author'].name,
-                progress_bar=prog_bar_str,
-                progress=prog_str,
-                url=player.current_entry.url
-            )
+                    action=action_text,
+                    title=entry.title,
+                    progress_bar=prog_bar_str,
+                    progress=prog_str,
+                    url=entry.source_url
+                )
+
+            ctx.bot.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(ctx, np_text)
         else:
-
-            np_text = bot.str.get('cmd-np-reply-noauthor', "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>").format(
-
-                action=action_text,
-                title=player.current_entry.title,
-                progress_bar=prog_bar_str,
-                progress=prog_str,
-                url=player.current_entry.url
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(ctx.bot.config.command_prefix),
+                expire_in=30
             )
 
-        bot.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(channel, np_text)
-        await messagemanager._manual_delete_check(bot, message)
-    else:
-        return Response(
-            bot.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(bot.config.command_prefix),
-            expire_in=30
-        )
+    @command()
+    async def id(self, ctx, user:Optional[discord.User]):
+        """
+        Usage:
+            {command_prefix}id [user_id|user_mention|user_name#discrim|user_name]
 
-async def cmd_id(bot, author, user_mentions):
-    """
-    Usage:
-        {command_prefix}id [@user]
+        Tells the user their id or the id of another user.
+        """
+        if not user:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-id-self', 'Your ID is `{0}`').format(ctx.author.id), reply=True, expire_in=35)
+        else:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(user.name, user.id), reply=True, expire_in=35)
 
-    Tells the user their id or the id of another user.
-    """
-    if not user_mentions:
-        return Response(bot.str.get('cmd-id-self', 'Your ID is `{0}`').format(author.id), reply=True, expire_in=35)
-    else:
-        usr = user_mentions[0]
-        return Response(bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(usr.name, usr.id), reply=True, expire_in=35)
+cogs = [Information]

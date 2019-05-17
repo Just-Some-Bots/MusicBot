@@ -23,6 +23,7 @@ from websockets import ConnectionClosed
 from . import config
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
+from .ytdldownloader import YtdlDownloader
 from .utils import isiterable, load_file, fixg
 from .constants import VERSION as BOTVERSION
 from .constants import AUDIO_CACHE_PATH
@@ -68,6 +69,7 @@ class ModuBot(Bot):
             self.log.addHandler(handler)
 
         self.config = Config(config_file)
+        self.downloader = YtdlDownloader(self, 'audio_cache')
 
         self.log.setLevel(self.config.debug_level)
 
@@ -94,6 +96,7 @@ class ModuBot(Bot):
             'auto_paused': False,
             'availability_paused': False
         }
+        # guild are of type RichGuild
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
         super().__init__(command_prefix = self.config.command_prefix, *args, **kwargs)

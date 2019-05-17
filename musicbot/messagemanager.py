@@ -53,6 +53,10 @@ async def safe_send_message(dest, content, **kwargs):
         if content is not None or allow_none:
             if isinstance(content, discord.Embed):
                 msg = await dest.send(embed=content)
+            elif isinstance(content, discord.File):
+                msg = await dest.send(file=content)
+            elif isinstance(content, list) and all(isinstance(o, discord.File) for o in content):
+                msg = await dest.send(files=content)
             else:
                 msg = await dest.send(content, tts=tts)
 
