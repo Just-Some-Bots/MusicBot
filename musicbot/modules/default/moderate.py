@@ -1,67 +1,84 @@
 from ... import exceptions
 from ...utils import write_file
-from ...constructs import Response
 
-from ... import guildmanager
-from ... import voicechannelmanager
+from discord import User
+from discord.ext.commands import Cog, command, Greedy
+
+from ...rich_guild import get_guild
 from ... import messagemanager
 
-cog_name = 'moderation'
+class Moderation(Cog):
+    @command()
+    async def karaoke(self, ctx):
+        """
+        Usage:
+            {command_prefix}karaoke
 
-async def cmd_karaoke(bot, player, channel, author):
-    """
-    Usage:
-        {command_prefix}karaoke
+        Activates karaoke mode. During karaoke mode, only groups with the BypassKaraokeMode
+        permission in the config file can queue music.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        playlist = await guild.get_playlist()
+        playlist.karaoke_mode = not playlist.karaoke_mode
+        await messagemanager.safe_send_message(ctx, "\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][playlist.karaoke_mode], expire_in=15)
 
-    Activates karaoke mode. During karaoke mode, only groups with the BypassKaraokeMode
-    permission in the config file can queue music.
-    """
-    player.karaoke_mode = not player.karaoke_mode
-    return Response("\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][player.karaoke_mode], expire_in=15)
+    @command()
+    async def blacklist(self, ctx, option:str, users: Greedy[User]):
+        """
+        Usage:
+            {command_prefix}blacklist option users...
 
-async def cmd_blacklist(bot, message, user_mentions, option, something):
-    """
-    Usage:
-        {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
+        Options:
+            +, add       add users to the blacklist
+            -, remove    remove users from the blacklist
 
-    Add or remove users to the blacklist.
-    Blacklisted users are forbidden from using bot commands.
-    """
+        Blacklisted users are forbidden from using bot commands.
+        """
 
-    if not user_mentions:
-        raise exceptions.CommandError("No users listed.", expire_in=20)
+        if not users:
+            await messagemanager.safe_send_message(ctx, "No users listed.", expire_in=20)
+            raise exceptions.CommandError("No users listed.", expire_in=20)
 
-    if option not in ['+', '-', 'add', 'remove']:
-        raise exceptions.CommandError(
-            bot.str.get('cmd-blacklist-invalid', 'Invalid option "{0}" specified, use +, -, add, or remove').format(option), expire_in=20
-        )
+        if option not in ['+', '-', 'add', 'remove']:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-blacklist-invalid', 'Invalid option "{0}" specified, use +, -, add, or remove').format(option), expire_in=20
+            )
+            raise exceptions.CommandError(
+                ctx.bot.str.get('cmd-blacklist-invalid', 'Invalid option "{0}" specified, use +, -, add, or remove').format(option), expire_in=20
+            )
 
-    for user in user_mentions.copy():
-        if user.id == bot.config.owner_id:
-            print("[Commands:Blacklist] The owner cannot be blacklisted.")
-            user_mentions.remove(user)
+        for user in users.copy():
+            if user.id == ctx.bot.config.owner_id:
+                print("[Commands:Blacklist] The owner cannot be blacklisted.")
+                users.remove(user)
 
-    old_len = len(bot.blacklist)
+        old_len = len(ctx.bot.blacklist)
 
-    if option in ['+', 'add']:
-        bot.blacklist.update(user.id for user in user_mentions)
+        if option in ['+', 'add']:
+            ctx.bot.blacklist.update(user.id for user in users)
 
-        write_file(bot.config.blacklist_file, bot.blacklist)
+            write_file(ctx.bot.config.blacklist_file, ctx.bot.blacklist)
 
-        return Response(
-            bot.str.get('cmd-blacklist-added', '{0} users have been added to the blacklist').format(len(bot.blacklist) - old_len),
-            reply=True, expire_in=10
-        )
-
-    else:
-        if bot.blacklist.isdisjoint(user.id for user in user_mentions):
-            return Response(bot.str.get('cmd-blacklist-none', 'None of those users are in the blacklist.'), reply=True, expire_in=10)
-
-        else:
-            bot.blacklist.difference_update(user.id for user in user_mentions)
-            write_file(bot.config.blacklist_file, bot.blacklist)
-
-            return Response(
-                bot.str.get('cmd-blacklist-removed', '{0} users have been removed from the blacklist').format(old_len - len(bot.blacklist)),
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-blacklist-added', '{0} users have been added to the blacklist').format(len(ctx.bot.blacklist) - old_len),
                 reply=True, expire_in=10
             )
+
+        else:
+            if ctx.bot.blacklist.isdisjoint(user.id for user in users):
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('cmd-blacklist-none', 'None of those users are in the blacklist.'), reply=True, expire_in=10
+                )
+
+            else:
+                ctx.bot.blacklist.difference_update(user.id for user in users)
+                write_file(ctx.bot.config.blacklist_file, ctx.bot.blacklist)
+
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('cmd-blacklist-removed', '{0} users have been removed from the blacklist').format(old_len - len(ctx.bot.blacklist)),
+                    reply=True, expire_in=10
+                )

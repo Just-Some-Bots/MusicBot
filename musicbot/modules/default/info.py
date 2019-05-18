@@ -77,7 +77,7 @@ class Information(Cog):
         guild = get_guild(ctx.bot, ctx.guild)
         player = await guild.get_player()
         entry = await player.get_current_entry()
-        playlist = await player.get_playlist()
+        playlist = await guild.get_playlist()
 
         lines = []
         unlisted = 0

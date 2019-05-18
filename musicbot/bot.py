@@ -513,7 +513,7 @@ class ModuBot(Bot):
                     continue
 
                 try:
-                    mchannel = await guild.set_connected_voice_channel(channel)
+                    await guild.set_connected_voice_channel(channel)
                     joined_servers.add(guild)
 
                     self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
