@@ -82,3 +82,5 @@ class Moderation(Cog):
                     ctx.bot.str.get('cmd-blacklist-removed', '{0} users have been removed from the blacklist').format(old_len - len(ctx.bot.blacklist)),
                     reply=True, expire_in=10
                 )
+
+cogs = [Moderation]
