@@ -14,6 +14,7 @@ import os
 
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
+from .exceptions import VersionError
 import logging
 
 log = logging.getLogger()
@@ -33,7 +34,7 @@ class Entry(Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 1,
+            'version': 2,
             'source_url': self.source_url,
             'title': self.title,
             'duration': self.duration,
@@ -49,6 +50,9 @@ class Entry(Serializable):
 
     @classmethod
     def _deserialize(cls, data):
+
+        if 'version' not in data or data['version'] < 2:
+            raise VersionError('data version needs to be higher than 2')
 
         try:
             # TODO: version check
@@ -112,6 +116,7 @@ class Playlist(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
+            'version': 2,
             'name': self._name,
             'karaoke': self.karaoke,
             'entries': list(self._list)
@@ -120,6 +125,9 @@ class Playlist(EventEmitter, Serializable):
     @classmethod
     def _deserialize(cls, data, bot=None):
         assert bot is not None, cls._bad('bot')
+
+        if 'version' not in data or data['version'] < 2:
+            raise VersionError('data version needs to be higher than 2')
 
         data_n = data.get('name')
         playlist = cls(data_n, bot)
@@ -261,6 +269,7 @@ class Player(EventEmitter, Serializable):
     def __json__(self):
         return self._enclose_json({
             'current_entry': {
+                'version': 2,
                 'entry': self._current,
                 'progress': self._source.progress
             },
@@ -270,6 +279,9 @@ class Player(EventEmitter, Serializable):
     @classmethod
     def _deserialize(cls, data, guild=None):
         assert guild is not None, cls._bad('guild')
+
+        if 'version' not in data or data['version'] < 2:
+            raise VersionError('data version needs to be higher than 2')
 
         player = cls(guild)
 
