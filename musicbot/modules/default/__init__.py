@@ -7,7 +7,8 @@ from . import cogsmanipulate
 cogs.extend(cogsmanipulate.cogs)
 from . import dev
 cogs.extend(dev.cogs)
-# help
+from . import helpmsg
+cogs.extend(helpmsg.cogs)
 from . import info
 cogs.extend(info.cogs)
 from . import moderate

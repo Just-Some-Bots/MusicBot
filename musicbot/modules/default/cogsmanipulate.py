@@ -32,31 +32,6 @@ class CogManagement(Cog):
 
     @command()
     @owner_only
-    async def loadcog(self, ctx, *, name:str):
-        """
-        Usage:
-            {command_prefix}loadcog cog
-
-        Load (or reload) specified cog. The module that implement the cog must already have been loaded.
-        This does not update cog if the cog got updated. For that, use loadmodule command
-        """
-        # TODO:
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cogs?cmd?loadcog?success', "Successfully reloaded cog `{0}`").format(name), expire_in=15)
-
-    @command()
-    @owner_only
-    async def unloadcog(self, ctx, *, name:str):
-        """
-        Usage:
-            {command_prefix}unloadcog cog
-
-        Unload specified cog.
-        """
-        # TODO:
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cogs?cmd?unloadcog?success', "Successfully unloaded cog `{0}`").format(name), expire_in=15)
-
-    @command()
-    @owner_only
     async def cogmodule(self, ctx, *, name:str):
         """
         Usage:
