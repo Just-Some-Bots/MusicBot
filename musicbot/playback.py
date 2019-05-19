@@ -11,6 +11,7 @@ import traceback
 import subprocess
 import json
 import os
+from random import shuffle
 
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
@@ -160,6 +161,13 @@ class Playlist(EventEmitter, Serializable):
                     entry._preparing_cache = False
                     entry._cached = False
 
+    async def shuffle(self):
+        async with self._aiolocks['list']:
+            shuffle(self._list)
+            for entry in self._list[:self._precache]:
+                if not entry._cache_task:
+                    entry._cache_task = ensure_future(entry.prepare_cache())
+
     def get_name(self):
         return self._name
 
@@ -173,7 +181,9 @@ class Playlist(EventEmitter, Serializable):
                 entry._cache_task = ensure_future(entry.prepare_cache())
 
             if self._precache <= len(self._list):
-                self._list[self._precache - 1]._cache_task = ensure_future(self._list[self._precache - 1].prepare_cache())
+                consider = self._list[self._precache - 1]
+                if not consider:
+                    consider._cache_task = ensure_future(consider.prepare_cache())
 
         return (entry, entry._cache_task)
 
@@ -201,7 +211,9 @@ class Playlist(EventEmitter, Serializable):
                 self._list[position]._cache_task.cancel()
                 self._list[position]._cache_task = None
                 if self._precache <= len(self._list):
-                    self._list[self._precache - 1].cache_task = self._list[self._precache - 1].prepare_cache()
+                    consider = self._list[self._precache - 1]
+                    if not consider.cache_task:
+                        consider.cache_task = ensure_future(consider.prepare_cache())
             del self._list[position]
 
     async def get_entry_position(self, entry):
