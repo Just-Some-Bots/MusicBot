@@ -28,6 +28,7 @@ class Entry(Serializable):
         self._aiolocks = defaultdict(Lock)
         self._preparing_cache = False
         self._cached = False
+        self._cache_task = None # playlists set this
         self._metadata = metadata
         self._local_url = None
         self.stream = stream
@@ -111,7 +112,6 @@ class Playlist(EventEmitter, Serializable):
         self._name = name
         self._aiolocks = defaultdict(Lock)
         self._list = deque()
-        self._cache_task = deque()
         self._precache = 1
 
     def __json__(self):
@@ -149,12 +149,16 @@ class Playlist(EventEmitter, Serializable):
 
     async def stop(self):
         async with self._aiolocks['list']:
-            for cache in self._cache_task:
-                cache.cancel()
-                try:
-                    await cache
-                except:
-                    pass
+            for entry in self._list:
+                if entry._cache_task:
+                    entry._cache_task.cancel()
+                    try:
+                        await entry._cache_task
+                    except:
+                        pass
+                    entry._cache_task = None
+                    entry._preparing_cache = False
+                    entry._cached = False
 
     def get_name(self):
         return self._name
@@ -165,17 +169,13 @@ class Playlist(EventEmitter, Serializable):
                 return
 
             entry = self._list.popleft()
-            try:
-                cache = self._cache_task.popleft()
-            except IndexError:
-                cache = ensure_future(self._list[self._precache - 1].prepare_cache())
+            if not entry._cache_task:
+                entry._cache_task = ensure_future(entry.prepare_cache())
 
             if self._precache <= len(self._list):
-                self._cache_task.append(
-                    create_task(self._list[self._precache - 1].prepare_cache())
-                    )
+                self._list[self._precache - 1]._cache_task = ensure_future(self._list[self._precache - 1].prepare_cache())
 
-        return (entry, cache)
+        return (entry, entry._cache_task)
 
     async def add_entry(self, entry, *, head = False):
         async with self._aiolocks['list']:
@@ -186,7 +186,7 @@ class Playlist(EventEmitter, Serializable):
                 self._list.append(entry)
                 position = len(self._list) - 1
             if self._precache > position:
-                self._cache_task.insert(position, create_task(self._list[position].prepare_cache()))
+                entry._cache_task = ensure_future(entry.prepare_cache())
             return position + 1
 
         self.emit('entry-added', playlist=self, entry=entry)
@@ -197,14 +197,12 @@ class Playlist(EventEmitter, Serializable):
 
     async def remove_position(self, position):
         async with self._aiolocks['list']:
-            del self._list[position]
             if position < self._precache:
-                self._cache_task[position].cancel()
-                del self._cache_task[position]
+                self._list[position]._cache_task.cancel()
+                self._list[position]._cache_task = None
                 if self._precache <= len(self._list):
-                    self._cache_task.append(
-                        create_task(self._list[self._precache - 1].prepare_cache())
-                        )
+                    self._list[self._precache - 1].cache_task = self._list[self._precache - 1].prepare_cache()
+            del self._list[position]
 
     async def get_entry_position(self, entry):
         async with self._aiolocks['list']:
