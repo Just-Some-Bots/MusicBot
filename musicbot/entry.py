@@ -150,6 +150,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     # noinspection PyTypeChecker
+
+    async def download(self):
+        await self._download()
+
     async def _download(self):
         if self._is_downloading:
             return

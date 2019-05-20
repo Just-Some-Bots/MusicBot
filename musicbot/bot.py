@@ -1683,6 +1683,59 @@ class MusicBot(discord.Client):
 
         return Response(self.str.get('cmd-stream-success', "Streaming."), delete_after=6)
 
+    async def cmd_soundboard(self, message, player, channel, author, permissions, leftover_args):
+        await self.safe_delete_message(message)
+
+        loadingMsg = await self.safe_send_message(channel, "Building soundboard");
+
+        sounds = leftover_args[::2]
+        entries = []
+        for i, sound in enumerate(sounds):
+            await self.safe_edit_message(loadingMsg, "Downloading Song " + str(i+1) + " of " + str(len(sounds)))
+            entry = await player.playlist.build_entry(sound, channel=channel, author=author)
+            await entry.download()
+            entries.append(entry)
+
+        await self.safe_delete_message(loadingMsg)
+        emojis = leftover_args[1::2]
+        controlerString = ""
+        for i, sound in enumerate(sounds):
+            controlerString += emojis[i]+ " : " + entries[i].title + "\n"
+        controls = await self.safe_send_message(channel, controlerString)
+        for emoji in emojis:
+            if emoji.endswith('>'):
+                await controls.add_reaction(emoji[:-1])
+            else:
+                await controls.add_reaction(emoji)
+        await controls.add_reaction('🛑')
+
+        def check(reaction, user):
+            return user != self.user
+
+        stop = False
+        while not stop:
+            try:
+                reaction, reactor = await self.wait_for("reaction_add", check=check)
+                if reaction.emoji == '🛑':
+                    stop = True
+                    await self.safe_delete_message(controls)
+                else:
+                    index = None
+                    if hasattr(reaction.emoji, "name"):
+                        index = emojis.index("<:" + reaction.emoji.name + ":" + str(reaction.emoji.id) + ">")
+                    else:
+                        index = emojis.index(reaction.emoji)
+                    await reaction.remove(reactor)
+                    for entry in player.playlist.entries:
+                        player.skip()
+                    if player.is_playing:
+                        player.skip()
+
+                    player.playlist.direct_add_entry(entries[index]);
+            except Exception as e:
+                await self.safe_send_message(channel, "Something went wrong:\n" + str(e))
+        return
+
     async def cmd_search(self, message, player, channel, author, permissions, leftover_args):
         """
         Usage:
