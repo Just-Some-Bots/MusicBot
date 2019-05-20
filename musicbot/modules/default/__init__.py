@@ -13,7 +13,8 @@ from . import info
 cogs.extend(info.cogs)
 from . import moderate
 cogs.extend(moderate.cogs)
-# playback
+from . import playback
+cogs.extend(playback.cogs)
 # queuemanipulate
 from . import utility
 cogs.extend(utility.cogs)

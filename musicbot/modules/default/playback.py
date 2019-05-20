@@ -13,7 +13,7 @@ from ...playback import PlayerState
 log = logging.getLogger(__name__)
 
 class Playback(Cog):
-
+    @command()
     async def volume(self, ctx, new_volume:Optional[str]=None):
         """
         Usage:
@@ -64,6 +64,7 @@ class Playback(Cog):
                     ctx, 
                     ctx.bot.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
 
+    @command()
     async def resume(self, ctx):
         """
         Usage:
@@ -85,11 +86,12 @@ class Playback(Cog):
             ensure_future(_success())
         def wait():
             async def _wait():
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('playback?cmd?resume?reply@wait', 'Resumed music in `{0.name}, waiting for entries to be added`'.format(guild._voice_channel), expire_in=15))
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('playback?cmd?resume?reply@wait', 'Resumed music in `{0.name}`, waiting for entries to be added').format(guild._voice_channel), expire_in=15)
             ensure_future(_wait())
         await player.play(play_fail_cb = fail, play_success_cb = success, play_wait_cb = wait)
 
-    async def cmd_pause(self, ctx):
+    @command()
+    async def pause(self, ctx):
         """
         Usage:
             {command_prefix}pause
@@ -101,11 +103,84 @@ class Playback(Cog):
         state = await player.status()
         if state != PlayerState.PAUSE:
             await player.pause()
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-pause-reply', 'Paused music in `{0.name}`').format(player.voice_client.channel))
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-pause-reply', 'Paused music in `{0.name}`').format(guild._voice_channel))
 
         else:
             await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-pause-none', 'Player is not playing.'), expire_in=30)
 
-    # TODO: effects
+    @command()
+    async def effect(self, ctx, mode, fx, *leftover_args):
+        """
+        Usage:
+            {command_prefix}effect add/a [effect] [args]
+            {command_prefix}effect remove/r [position]
+            {command_prefix}effect move/m [positionbef] [positionaft]
+        Apply or remove effects to the playback player, took effect on next entry.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        # @TheerapakG: TODO: FUTURE#1776?EFFECT: effectloader
+        reply_msg = ''
+        await messagemanager.safe_send_message(ctx, 'warning! effect command is highly experimental!', expire_in=10)
+        if mode in ['add', 'a']:
+            if fx in ['fadein']:
+                duration = leftover_args[0]
+                player.effects.append(('afade=in:', 'd={}'.format(duration)))
+                reply_msg += 'Successfully add effect {} '.format('fadein')
+                reply_msg += 'with duration {} '.format(duration)
+            elif fx in ['fadeout']:
+                duration = leftover_args[0]
+                player.effects.append(('afade=out:', 'd={}'.format(duration)))
+                reply_msg += 'Successfully add effect {} '.format('fadeout')
+                reply_msg += 'with duration {} '.format(duration)
+            elif fx in ['declick']:
+                player.effects.append(('adeclick', ''))
+                reply_msg += 'Successfully add effect {} '.format('declick')
+            elif fx in ['echo']:
+                await messagemanager.safe_send_message(ctx, 'warning! echo effect is untested', expire_in=10)
+                # @TheerapakG: untested
+                ingain = leftover_args[0]
+                outgain = leftover_args[1]
+                delaydecay = leftover_args[2:]
+                delays = []
+                decays = []
+                for idx, el in enumerate(delaydecay):
+                    if el == '|':
+                        delays = delaydecay[:idx]
+                        decays = delaydecay[idx+1:]
+                player.effects.append(('aecho=', '{}:{}:{}:{}'.format(ingain, outgain, '|'.join(delays), '|'.join(decays))))
+                reply_msg += 'Successfully add effect {} '.format('echo')
+            elif fx in ['phaser']:
+                ingain = leftover_args[0]
+                outgain = leftover_args[1]
+                delay = leftover_args[2]
+                decay = leftover_args[3]
+                speed = leftover_args[4]
+                ptype = leftover_args[5]
+                if ptype in ['triangular', 't', 'sinusoidal', 's']:
+                    player.effects.append(('aphaser=', '{}:{}:{}:{}:{}:{}'.format(ingain, outgain, delay, decay, speed, ptype)))
+                    reply_msg += 'Successfully add effect {} '.format('phaser')
+                else:
+                    reply_msg += '{} argument in effect {} need to be {}'.format('ptype', 'echo', ['triangular', 't', 'sinusoidal', 's'])
+            elif fx in ['reverse']:
+                player.effects.append(('areverse', ''))
+                reply_msg += 'Successfully add effect {} '.format('reverse')
+            elif fx in ['tempo']:
+                tempo = leftover_args[0]
+                player.effects.append(('atempo=', '{}'.format(tempo)))
+                reply_msg += 'Successfully add effect {} '.format('tempo')
+            elif fx in ['trim']:
+                start = leftover_args[0]
+                end = leftover_args[1]
+                player.effects.append(('atrim=', '{}:{}'.format(start, end)))
+                reply_msg += 'Successfully add effect {} '.format('trim')
+        elif mode in ['remove', 'r']:
+            position = int(fx)-1
+            player.effects.pop(position)
+        elif mode in ['move', 'm']:
+            positionbef = int(fx)-1
+            positionaft = int(leftover_args[0]) -1
+            player.effects.insert(positionaft, player.effects.pop(positionbef))
+        await messagemanager.safe_send_message(ctx, reply_msg, delete_after=15)
 
 cogs = [Playback]

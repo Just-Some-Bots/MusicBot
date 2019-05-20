@@ -2,6 +2,7 @@ import os
 import asyncio
 import functools
 import youtube_dl
+from .exceptions import VersionError
 from .playback import Entry
 from .utils import get_header, md5sum
 
@@ -159,6 +160,51 @@ class YtdlUrlEntry(Entry):
         self._download_folder = self._extractor.download_folder
         self._expected_filename = expected_filename
 
+    def __json__(self):
+        return self._enclose_json({
+            'version': 2,
+            'source_url': self.source_url,
+            'title': self.title,
+            'duration': self.duration,
+            'queuer_id': self.queuer_id,
+            'expected_file': self._expected_filename,
+            '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
+            'meta': {
+                name: {
+                    'id': obj
+                } for name, obj in self._metadata.items() if obj
+            }
+        })
+
+    @classmethod
+    def _deserialize(cls, data, extractor=None):
+        assert extractor is not None, cls._bad('extractor')
+
+        if 'version' not in data or data['version'] < 2:
+            raise VersionError('data version needs to be higher than 2')
+
+        try:
+            # TODO: version check
+            source_url = data['source_url']
+            title = data['title']
+            duration = data['duration']
+            queuer_id = data['queuer_id']
+            _expected_filename = data['expected_file']
+            _local_url = data['_full_local_url']
+            meta = {}
+
+            # TODO: Better [name] fallbacks
+            if 'channel_id' in data['meta']:
+                meta['channel_id'] = int(data['meta']['channel']['id'])
+                if not meta['channel_id']:
+                    extractor._bot.log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
+                    meta.pop('channel_id')
+            entry = cls(source_url, title, duration, queuer_id, meta, extractor, _expected_filename)
+
+            return entry
+        except Exception as e:
+            extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
+
     async def prepare_cache(self):
         async with self._aiolocks['preparing_cache_set']:
             if self._preparing_cache:
@@ -267,6 +313,49 @@ class YtdlStreamEntry(Entry):
         self._extractor = extractor
         super().__init__(source_url, title, 0, queuer_id, metadata, stream = True)
         self._destination = destination
+
+    def __json__(self):
+        return self._enclose_json({
+            'version': 2,
+            'source_url': self.source_url,
+            'title': self.title,
+            'queuer_id': self.queuer_id,
+            'destination': self._destination,
+            '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
+            'meta': {
+                name: {
+                    'id': obj
+                } for name, obj in self._metadata.items() if obj
+            }
+        })
+
+    @classmethod
+    def _deserialize(cls, data, extractor=None):
+        assert extractor is not None, cls._bad('extractor')
+
+        if 'version' not in data or data['version'] < 2:
+            raise VersionError('data version needs to be higher than 2')
+
+        try:
+            # TODO: version check
+            source_url = data['source_url']
+            title = data['title']
+            queuer_id = data['queuer_id']
+            _destination = data['destination']
+            _local_url = data['_full_local_url']
+            meta = {}
+
+            # TODO: Better [name] fallbacks
+            if 'channel_id' in data['meta']:
+                meta['channel_id'] = int(data['meta']['channel']['id'])
+                if not meta['channel_id']:
+                    extractor._bot.log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
+                    meta.pop('channel_id')
+            entry = cls(source_url, title, queuer_id, meta, extractor, _destination)
+
+            return entry
+        except Exception as e:
+            extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     async def prepare_cache(self):
         async with self._aiolocks['preparing_cache_set']:

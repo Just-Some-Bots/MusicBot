@@ -62,7 +62,7 @@ class Entry(Serializable):
             title = data['title']
             duration = data['duration']
             queuer_id = data['queuer_id']
-            _local_url = data['_local_url']
+            _local_url = data['_full_local_url']
             stream = data['stream']
             meta = {}
 
@@ -108,6 +108,7 @@ class Entry(Serializable):
 
 class Playlist(EventEmitter, Serializable):
     def __init__(self, name, bot, *, persistent = False):
+        super().__init__()
         self.karaoke = False
         self._bot = bot
         self._name = name
@@ -273,17 +274,19 @@ class Player(EventEmitter, Serializable):
         self._source = None
         self._volume = volume
         self.state = PlayerState.PAUSE
+        self.effects = list()
 
         create_task(self.play())
 
     def __json__(self):
         return self._enclose_json({
+            'version': 2,
             'current_entry': {
-                'version': 2,
                 'entry': self._current,
-                'progress': self._source.progress
+                'progress': self._source.progress if self._source else None
             },
-            'entries': self._playlist
+            'entries': self._playlist,
+            'effects': self.effects
         })
 
     @classmethod
@@ -306,15 +309,27 @@ class Player(EventEmitter, Serializable):
             # how do I even do this
             # this would have to be in the entry class right?
             # some sort of progress indicator to skip ahead with ffmpeg (however that works, reading and ignoring frames?)
+        if player._playlist:
+            player._playlist.on('entry-added', player.on_playlist_entry_added)
+
+        player.effects = data['effects']
 
         return player
 
     @classmethod
-    def from_json(cls, raw_json, guild):
+    def from_json(cls, raw_json, guild, bot, extractor):
         try:
-            return json.loads(raw_json, object_hook=Serializer.deserialize)
+            obj = json.loads(raw_json, object_hook=Serializer.deserialize)
+            if isinstance(obj, dict):
+                guild._bot.log.warning('Cannot parse incompatible player data. Instantiating new player instead.')
+                guild._bot.log.debug(raw_json)
+                obj = cls(guild)
+            return obj
         except Exception as e:
             guild._bot.log.exception("Failed to deserialize player", e)
+
+    async def on_playlist_entry_added(self, playlist, entry):
+        self.emit('entry-added', player = self, playlist = playlist, entry = entry)
 
     @property
     def volume(self):
@@ -335,120 +350,125 @@ class Player(EventEmitter, Serializable):
 
     async def set_playlist(self, playlist: Optional[Playlist]):
         async with self._aiolocks['playlist']:
-            self._playlist = playlist
+            if self._playlist:
+                self._playlist.off('entry-added', self.on_playlist_entry_added)
+            self._playlist = playlist.on('entry-added', self.on_playlist_entry_added)
 
     async def get_playlist(self):
         async with self._aiolocks['playlist']:
             return self._playlist
 
     async def _play(self, *, play_wait_cb = None, play_success_cb = None):
-        async with self._aiolocks['playtask']:
-            async with self._aiolocks['player']:
-                self.state = PlayerState.WAITING
-                self._current = None
-            entry = None
-            while not entry:
-                try:
-                    async with self._aiolocks['playlist']:
-                        entry, cache = await self._playlist._get_entry()
-                        async with self._aiolocks['player']:
-                            self.state = PlayerState.DOWNLOADING
-                            self._guild._bot.log.debug('got entry...')
-                            self._guild._bot.log.debug(str(entry))
-                            self._guild._bot.log.debug(str(cache))
-                            self._current = entry
-                except (TypeError, AttributeError):
-                    if play_wait_cb:
-                        play_wait_cb()
-                        play_wait_cb = None
-                        play_success_cb = None
-                    await sleep(1)                 
-
-            if play_success_cb:
-                play_success_cb()
-
-            def _playback_finished(error = None):
-                async def _async_playback_finished():
-                    entry = self._current
+        async with self._aiolocks['player']:
+            self.state = PlayerState.WAITING
+            self._current = None
+        entry = None
+        while not entry:
+            try:
+                async with self._aiolocks['playlist']:
+                    entry, cache = await self._playlist._get_entry()
                     async with self._aiolocks['player']:
-                        self._current = None
-                        self._player = None
-                        self._source = None
+                        self.state = PlayerState.DOWNLOADING
+                        self._guild._bot.log.debug('got entry...')
+                        self._guild._bot.log.debug(str(entry))
+                        self._guild._bot.log.debug(str(cache))
+                        self._current = entry
+            except (TypeError, AttributeError):
+                if play_wait_cb:
+                    play_wait_cb()
+                    play_wait_cb = None
+                    play_success_cb = None
+                await sleep(1)                 
 
-                    if error:
-                        self.emit('error', player=self, entry=entry, ex=error)
+        if play_success_cb:
+            play_success_cb()
 
-                    if not self._guild._bot.config.save_videos and entry:
-                        if not entry.stream:
-                            if any([entry._local_url == e._local_url for e in self._playlist._list]):
-                                self._guild._bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
-
-                            else:
-                                self._guild._bot.log.debug("Deleting file: {}".format(os.path.relpath(entry._local_url)))
-                                filename = entry._local_url
-                                for x in range(30):
-                                    try:
-                                        os.unlink(filename)
-                                        self._guild._bot.log.debug('File deleted: {0}'.format(filename))
-                                        break
-                                    except PermissionError as e:
-                                        if e.winerror == 32:  # File is in use
-                                            self._guild._bot.log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
-                                            break
-                                    except FileNotFoundError:
-                                        self._guild._bot.log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
-                                        break
-                                    except Exception:
-                                        self._guild._bot.log.error("Error trying to delete {}".format(filename), exc_info=True)
-                                        break
-                                else:
-                                    print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                                        os.path.relpath(filename)))
-
-                    self.emit('finished-playing', player=self, entry=entry)
-                    create_task(self._play())
-
-                future = run_coroutine_threadsafe(_async_playback_finished(), self._guild._bot.loop)
-                future.result()
-
-            async def _download_and_play():
-                try:
-                    self._guild._bot.log.debug('waiting for cache...')
-                    await cache
-                    self._guild._bot.log.debug('finish cache...')
-                except:
-                    self._guild._bot.log.error('cannot cache...')
-                    self._guild._bot.log.error(traceback.format_exc())
-                    async with self._aiolocks['player']:
-                        if self.state != PlayerState.PAUSE:
-                            await self._play()                    
-
-                boptions = "-nostdin"
-                aoptions = "-vn"
-
-                self._guild._bot.log.debug("Creating player with options: {} {} {}".format(boptions, aoptions, entry._local_url))
-
-                source = SourcePlaybackCounter(
-                    PCMVolumeTransformer(
-                        FFmpegPCMAudio(
-                            entry._local_url,
-                            before_options=boptions,
-                            options=aoptions,
-                            stderr=subprocess.PIPE
-                        ),
-                        self._volume
-                    )
-                )
-
+        def _playback_finished(error = None):
+            async def _async_playback_finished():
+                entry = self._current
                 async with self._aiolocks['player']:
-                    self._player = self._guild._voice_client
-                    self._guild._voice_client.play(source, after=_playback_finished)
-                    self._source = source
-                    self.state = PlayerState.PLAYING
+                    self._current = None
+                    self._player = None
+                    self._source = None
 
-                self.emit('play', player=self, entry=self._current)
+                if error:
+                    self.emit('error', player=self, entry=entry, ex=error)
+
+                if not self._guild._bot.config.save_videos and entry:
+                    if not entry.stream:
+                        if any([entry._local_url == e._local_url for e in self._playlist._list]):
+                            self._guild._bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
+
+                        else:
+                            self._guild._bot.log.debug("Deleting file: {}".format(os.path.relpath(entry._local_url)))
+                            filename = entry._local_url
+                            for x in range(30):
+                                try:
+                                    os.unlink(filename)
+                                    self._guild._bot.log.debug('File deleted: {0}'.format(filename))
+                                    break
+                                except PermissionError as e:
+                                    if e.winerror == 32:  # File is in use
+                                        self._guild._bot.log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
+                                        break
+                                except FileNotFoundError:
+                                    self._guild._bot.log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
+                                    break
+                                except Exception:
+                                    self._guild._bot.log.error("Error trying to delete {}".format(filename), exc_info=True)
+                                    break
+                            else:
+                                print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                                    os.path.relpath(filename)))
+
+                self.emit('finished-playing', player=self, entry=entry)
+                create_task(self._play())
+
+            future = run_coroutine_threadsafe(_async_playback_finished(), self._guild._bot.loop)
+            future.result()
+
+        async def _download_and_play():
+            try:
+                self._guild._bot.log.debug('waiting for cache...')
+                await cache
+                self._guild._bot.log.debug('finish cache...')
+            except:
+                self._guild._bot.log.error('cannot cache...')
+                self._guild._bot.log.error(traceback.format_exc())
+                async with self._aiolocks['player']:
+                    if self.state != PlayerState.PAUSE:
+                        await self._play()                    
+
+            boptions = "-nostdin"
+            aoptions = "-vn"
+
+            if self.effects:
+                aoptions += " -af \"{}\"".format(', '.join(["{}{}".format(key, arg) for key, arg in self.effects]))
+
+            self._guild._bot.log.debug("Creating player with options: {} {} {}".format(boptions, aoptions, entry._local_url))
+
+            source = SourcePlaybackCounter(
+                PCMVolumeTransformer(
+                    FFmpegPCMAudio(
+                        entry._local_url,
+                        before_options=boptions,
+                        options=aoptions,
+                        stderr=subprocess.PIPE
+                    ),
+                    self._volume
+                )
+            )
+
+            async with self._aiolocks['player']:
+                self._player = self._guild._voice_client
+                self._guild._voice_client.play(source, after=_playback_finished)
+                self._source = source
+                self.state = PlayerState.PLAYING
+
+            self.emit('play', player=self, entry=self._current)
         
-            self._play_task = create_task(_download_and_play())
+        async with self._aiolocks['playtask']:
+            self._play_task = ensure_future(_download_and_play())            
 
         try:
             self._guild._bot.log.debug('waiting for task to play...')
@@ -461,13 +481,13 @@ class Player(EventEmitter, Serializable):
     async def _play_safe(self, *callback, play_wait_cb = None, play_success_cb = None):
         async with self._aiolocks['playsafe']:
             if not self._play_safe_task:
-                task = create_task(self._play(play_wait_cb = play_wait_cb, play_success_cb = play_success_cb))
+                self._play_safe_task = ensure_future(self._play(play_wait_cb = play_wait_cb, play_success_cb = play_success_cb))
                 def clear_play_safe_task(future):
                     self._play_safe_task = None
-                task.add_done_callback(clear_play_safe_task)
+                self._play_safe_task.add_done_callback(clear_play_safe_task)
 
                 for cb in callback:
-                    task.add_done_callback(callback_dummy_future(cb))
+                    self._play_safe_task.add_done_callback(callback_dummy_future(cb))
             else:
                 return
 
@@ -511,13 +531,19 @@ class Player(EventEmitter, Serializable):
                     self.emit('pause', player=self, entry=self._current)
                     return
 
-                elif self.state == PlayerState.DOWNLOADING or self.state == PlayerState.WAITING:
+                elif self.state == PlayerState.DOWNLOADING:
                     async with self._aiolocks['playtask']:
                         self._play_task.add_done_callback(
                             callback_dummy_future(
                                 partial(create_task, self._pause())
                             )
                         )
+                    return
+
+                elif self.state == PlayerState.WAITING:
+                    self._play_safe_task.cancel()
+                    self.state = PlayerState.PAUSE
+                    self.emit('pause', player=self, entry=self._current)
                     return
         
 

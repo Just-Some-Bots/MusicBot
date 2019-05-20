@@ -23,6 +23,7 @@ from websockets import ConnectionClosed
 from . import config
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
+from .playback import PlayerState
 from .ytdldownloader import YtdlDownloader
 from .utils import isiterable, load_file, fixg
 from .constants import VERSION as BOTVERSION
@@ -474,11 +475,11 @@ class ModuBot(Bot):
         channel_map = {get_guild(self, c.guild): c for c in channels}
 
         def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
+            if self._check_if_empty(player._guild._voice_channel):
                 self.log.info("Initial autopause in empty channel")
 
                 asyncio.ensure_future(player.pause())
-                self.server_specific_data[player.voice_client.channel.guild]['auto_paused'] = True
+                self.server_specific_data[player._guild]['auto_paused'] = True
 
         for guild in get_guild_list(self):
             if guild.guild.unavailable or guild in channel_map:
@@ -522,7 +523,8 @@ class ModuBot(Bot):
                         player = await guild.get_player()
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
-                        # TODO: play autoplaylist
+                        if not player._playlist._list:
+                            await guild.on_player_finished_playing(player)
 
                 except Exception:
                     self.log.debug("Error joining {0.guild.name}/{0.name}".format(channel), exc_info=True)
@@ -812,6 +814,29 @@ class ModuBot(Bot):
         async with self._aiolocks['presence']:
             await self.change_presence(activity = activity, status = status)
             self._presence = (activity, status)
+
+    async def update_now_playing_status(self, entry=None, is_paused=False):
+        game = None
+
+        if not self.config.status_message:
+            if self.user.bot:
+                activeplayers = sum(1 for g in get_guild_list(self) if g._player and g._player.state == PlayerState.PLAYING)
+                if activeplayers > 1:
+                    game = discord.Game(type=0, name="music on %s guilds" % activeplayers)
+                    entry = None
+
+            if entry:
+                prefix = u'\u275A\u275A ' if is_paused else ''
+
+                name = u'{}{}'.format(prefix, entry.title)[:128]
+                game = discord.Game(type=0, name=name)
+        else:
+            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
+
+        async with self._aiolocks['presence']:
+            await self.change_presence(activity = game)
+            self._presence = (game, self._presence[1])
+
 
     async def eval_bot(self, code):
         return eval(code)
