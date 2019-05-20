@@ -4,7 +4,7 @@ from asyncio import Lock, ensure_future
 from collections import defaultdict
 import os
 import random
-from .playback import Player, Playlist
+from .playback import Player, Playlist, PlayerState
 from .constructs import SkipState
 from .messagemanager import safe_send_message, safe_delete_message
 from .ytdldownloader import get_entry
@@ -104,7 +104,7 @@ class RichGuild:
             await self._voice_client.disconnect()
             self.voice_channel = None
             self._voice_client = None
-            self._player.kill()
+            await self._player.kill()
             self._player = None
 
     async def _connect_channel(self, new_channel):
@@ -380,16 +380,63 @@ def register_bot(bot):
             c = before.channel
             c = after.channel if not c else c
             guild = c.guild
+            rguild = get_guild(bot, guild)
 
             if member == bot.user:
-                async with guilds[bot.user.id][guild.id]._aiolocks['c_voice_channel']:
-                    rguild = get_guild(bot, guild)
+                async with guilds[bot.user.id][guild.id]._aiolocks['c_voice_channel']:                    
                     if not after.channel:
                         rguild._voice_client = None
-                        await rguild._player.kill()
-                        rguild._player = None
+                        if rguild._player:
+                            await rguild._player.kill()
+                            rguild._player = None
                     rguild._voice_channel = after.channel
-            bot.log.info('member {}#{} changed voice state in guild {}'.format(member.name, member.discriminator, guild.name))
+
+            if not rguild._bot.config.auto_pause:
+                return
+
+            autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
+
+            auto_paused = rguild._bot.server_specific_data[rguild]['auto_paused']
+
+            try:
+                player = await rguild.get_player()
+            except:
+                return
+
+            if not member == rguild._bot.user:  # if the user is not the bot
+                if rguild._voice_channel != before.channel and rguild._voice_channel == after.channel:  # if the person joined
+                    if auto_paused and player.state == PlayerState.PAUSE:
+                        rguild._bot.log.info(autopause_msg.format(
+                            state = "Unpausing",
+                            channel = rguild._voice_channel,
+                            reason = ""
+                        ).strip())
+
+                        rguild._bot.server_specific_data[rguild]['auto_paused'] = False
+                        await player.play()
+                elif rguild._voice_channel == before.channel and rguild._voice_channel != after.channel:
+                    if len(rguild._voice_channel.members) == 1:
+                        if not auto_paused and player.state != PlayerState.PAUSE:
+                            rguild._bot.log.info(autopause_msg.format(
+                                state = "Pausing",
+                                channel = rguild._voice_channel,
+                                reason = "(empty channel)"
+                            ).strip())
+
+                            rguild._bot.server_specific_data[rguild]['auto_paused'] = True
+                            await player.pause()
+            else:
+                if len(rguild._voice_channel.members) > 0:  # channel is not empty
+                    if auto_paused and player.state == PlayerState.PAUSE:
+                        rguild._bot.log.info(autopause_msg.format(
+                            state = "Unpausing",
+                            channel = rguild._voice_channel,
+                            reason = ""
+                        ).strip())
+    
+                        rguild._bot.server_specific_data[rguild]['auto_paused'] = False
+                        await player.play()
+
 
     bot.event(on_voice_state_update)
 

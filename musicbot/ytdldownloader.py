@@ -42,8 +42,8 @@ class YtdlDownloader:
         self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl.params['ignoreerrors'] = True
-        os.makedirs(os.path.dirname('/data/{}/'.format(download_folder)), exist_ok=True)
-        self.download_folder = '/data/{}'.format(download_folder)
+        os.makedirs(download_folder, exist_ok=True)
+        self.download_folder = download_folder
 
         if self.download_folder:
             otmpl = self.unsafe_ytdl.params['outtmpl']
@@ -251,6 +251,8 @@ class YtdlUrlEntry(Entry):
 
             # idk wtf this is but its probably legacy code
             # or i have youtube to blame for changing shit again
+
+            self._extractor._bot.log.info("Expecting file: {} in {}".format(expected_fname_base, self._download_folder))
 
             if expected_fname_base in ldir:
                 self._local_url = os.path.join(self._download_folder, expected_fname_base)

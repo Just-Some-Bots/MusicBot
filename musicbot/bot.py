@@ -735,8 +735,14 @@ class ModuBot(Bot):
         self.loop.run_forever()
 
     async def _logout(self):
-        await super().logout()
+        guilds = get_guild_list(self)
+        for guild in guilds:
+            try:
+                await guild.set_connected_voice_channel(None)
+            except:
+                pass
         await self.unload_all_module()
+        await super().logout()
         await self.aiosession.close()
         self.log.debug('finished cleaning up')
 
@@ -751,6 +757,7 @@ class ModuBot(Bot):
             with suppress(Exception):
                 await gathered
         self.loop.run_until_complete(await_gathered())
+        self.downloader.shutdown()
         self.log.info('closing loop...')
         self.loop.close()
         self.log.info('finished!')
@@ -775,6 +782,7 @@ class ModuBot(Bot):
             with suppress(Exception):
                 await gathered
         self.loop.run_until_complete(await_gathered())
+        self.downloader.shutdown()
         self.log.info('closing loop...')
         self.loop.close()
         self.log.info('finished!')

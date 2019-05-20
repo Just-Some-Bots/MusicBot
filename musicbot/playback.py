@@ -1,4 +1,4 @@
-from asyncio import Lock, create_task, CancelledError, run_coroutine_threadsafe, sleep, Future, ensure_future
+from asyncio import Lock, CancelledError, run_coroutine_threadsafe, sleep, Future, ensure_future
 from enum import Enum
 from collections import defaultdict, deque
 from typing import Union, Optional
@@ -276,7 +276,7 @@ class Player(EventEmitter, Serializable):
         self.state = PlayerState.PAUSE
         self.effects = list()
 
-        create_task(self.play())
+        ensure_future(self.play())
 
     def __json__(self):
         return self._enclose_json({
@@ -342,7 +342,7 @@ class Player(EventEmitter, Serializable):
             async with self._aiolocks['player']:
                 if self._source:
                     self._source._source.volume = val
-        create_task(set_if_source())
+        ensure_future(set_if_source())
 
     async def status(self):
         async with self._aiolocks['player']:
@@ -422,7 +422,7 @@ class Player(EventEmitter, Serializable):
                                     os.path.relpath(filename)))
 
                 self.emit('finished-playing', player=self, entry=entry)
-                create_task(self._play())
+                ensure_future(self._play())
 
             future = run_coroutine_threadsafe(_async_playback_finished(), self._guild._bot.loop)
             future.result()
@@ -505,7 +505,8 @@ class Player(EventEmitter, Serializable):
                 if self._player:
                     self.state = PlayerState.PLAYING
                     self._player.resume()
-                    play_success_cb()
+                    if play_success_cb:
+                        play_success_cb()
                     self.emit('resume', player=self, entry=self._current)
                     return
 
@@ -535,7 +536,7 @@ class Player(EventEmitter, Serializable):
                     async with self._aiolocks['playtask']:
                         self._play_task.add_done_callback(
                             callback_dummy_future(
-                                partial(create_task, self._pause())
+                                partial(ensure_future, self._pause())
                             )
                         )
                     return
@@ -551,7 +552,7 @@ class Player(EventEmitter, Serializable):
         async with self._aiolocks['skip']:
             async with self._aiolocks['player']:
                 if self.state == PlayerState.PAUSE:
-                    await self._play_safe(partial(create_task, self._pause()))
+                    await self._play_safe(partial(ensure_future, self._pause()))
                     return
 
                 elif self.state == PlayerState.PLAYING:
@@ -590,7 +591,7 @@ class Player(EventEmitter, Serializable):
                         future.set_result(await self.estimate_time_until(position))
                     self._play_task.add_done_callback(
                         callback_dummy_future(
-                            partial(create_task, call_after_downloaded())
+                            partial(ensure_future, call_after_downloaded())
                         )
                     )
                 if self._current:
@@ -617,7 +618,7 @@ class Player(EventEmitter, Serializable):
                         future.set_result(await self.estimate_time_until_entry(entry))
                     self._play_task.add_done_callback(
                         callback_dummy_future(
-                            partial(create_task, call_after_downloaded())
+                            partial(ensure_future, call_after_downloaded())
                         )
                     )
                 if self._current is entry:

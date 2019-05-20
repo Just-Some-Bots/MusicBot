@@ -489,7 +489,7 @@ def main():
             except KeyboardInterrupt:
                 interrupt = True
             finally:
-                log.debug('\nThis console can now be closed')
+                log.info('\nThis console can now be closed')
                 return
 
         except SyntaxError:
