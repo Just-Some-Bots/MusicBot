@@ -169,6 +169,10 @@ class Playlist(EventEmitter, Serializable):
                 if not entry._cache_task:
                     entry._cache_task = ensure_future(entry.prepare_cache())
 
+    async def clear(self):
+        async with self._aiolocks['list']:
+            self._list.clear()
+
     def get_name(self):
         return self._name
 
@@ -215,7 +219,9 @@ class Playlist(EventEmitter, Serializable):
                     consider = self._list[self._precache - 1]
                     if not consider.cache_task:
                         consider.cache_task = ensure_future(consider.prepare_cache())
+            val = self._list[position]
             del self._list[position]
+            return val
 
     async def get_entry_position(self, entry):
         async with self._aiolocks['list']:

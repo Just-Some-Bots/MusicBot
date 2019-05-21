@@ -6,750 +6,696 @@ import logging
 import shlex
 import random
 import math
+from typing import Optional
+from datetime import timedelta
+from collections import defaultdict
 
 from textwrap import dedent
 
+from discord.ext.commands import Cog, command
+
 from ...utils import fixg, ftimedelta, _func_
 from ... import exceptions
-from ...constructs import Response
 
-from ... import guildmanager
-from ... import voicechannelmanager
 from ... import messagemanager
+from ...rich_guild import get_guild
+from ...playback import PlayerState
+from ...ytdldownloader import get_entry_list_from_playlist_url, get_stream_entry, get_entry
 
 log = logging.getLogger(__name__)
 
 cog_name = 'queue_management'
 
-async def cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url):
-    """
-    Usage:
-        {command_prefix}play song_link
-        {command_prefix}play text to search for
-        {command_prefix}play spotify_uri
+class QueueManagement(Cog):
+    def __init__(self):
+        self._aiolocks = defaultdict(asyncio.Lock)
 
-    Adds the song to the playlist.  If a link is not provided, the first
-    result from a youtube search is added to the queue.
+    async def _do_playlist_checks(self, ctx, testobj):
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
 
-    If enabled in the config, the bot will also support Spotify URIs, however
-    it will use the metadata (e.g song name and artist) to find a YouTube
-    equivalent of the song. Streaming from Spotify is not possible.
-    """
+        num_songs = sum(1 for _ in testobj)
 
-    song_url = song_url.strip('<>')
+        permissions = ctx.bot.permissions.for_user(ctx.author)
 
-    await messagemanager.send_typing(channel)
+        # I have to do exe extra checks anyways because you can request an arbitrary number of search results
+        if not permissions.allow_playlists and num_songs > 1:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
+            raise exceptions.PermissionsError(ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
 
-    if leftover_args:
-        song_url = ' '.join([song_url, *leftover_args])
-    leftover_args = None  # prevent some crazy shit happening down the line
-
-    # Make sure forward slashes work properly in search queries
-    linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
-    pattern = re.compile(linksRegex)
-    matchUrl = pattern.match(song_url)
-    song_url = song_url.replace('/', '%2F') if matchUrl is None else song_url
-
-    # Rewrite YouTube playlist URLs if the wrong URL type is given
-    playlistRegex = r'watch\?v=.+&(list=[^&]+)'
-    matches = re.search(playlistRegex, song_url)
-    groups = matches.groups() if matches is not None else []
-    song_url = "https://www.youtube.com/playlist?" + groups[0] if len(groups) > 0 else song_url
-
-    if bot.config._spotify:
-        if 'open.spotify.com' in song_url:
-            song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':') # pylint: disable=anomalous-backslash-in-string
-        if song_url.startswith('spotify:'):
-            parts = song_url.split(":")
-            try:
-                if 'track' in parts:
-                    res = await bot.spotify.get_track(parts[-1])
-                    song_url = res['artists'][0]['name'] + ' ' + res['name'] 
-
-                elif 'album' in parts:
-                    res = await bot.spotify.get_album(parts[-1])
-                    await bot._do_playlist_checks(permissions, player, author, res['tracks']['items'])
-                    procmesg = await messagemanager.safe_send_message(channel, bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
-                    for i in res['tracks']['items']:
-                        song_url = i['name'] + ' ' + i['artists'][0]['name']
-                        log.debug('Processing {0}'.format(song_url))
-                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
-                    await messagemanager.safe_delete_message(procmesg)
-                    return Response(bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
-                
-                elif 'playlist' in parts:
-                    res = []
-                    r = await bot.spotify.get_playlist_tracks(parts[-1])
-                    while True:
-                        res.extend(r['items'])
-                        if r['next'] is not None:
-                            r = await bot.spotify.make_spotify_req(r['next'])
-                            continue
-                        else:
-                            break
-                    await bot._do_playlist_checks(permissions, player, author, res)
-                    procmesg = await messagemanager.safe_send_message(channel, bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
-                    for i in res:
-                        song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
-                        log.debug('Processing {0}'.format(song_url))
-                        await cmd_play(bot, message, player, channel, author, permissions, leftover_args, song_url)
-                    await messagemanager.safe_delete_message(procmesg)
-                    return Response(bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
-                
-                else:
-                    raise exceptions.CommandError(bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
-            except exceptions.SpotifyError:
-                raise exceptions.CommandError(bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
-
-    # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
-    async with bot.aiolocks[_func_() + ':' + str(author.id)]:
-        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
-            raise exceptions.PermissionsError(
-                bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
+        if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(num_songs, permissions.max_playlist_length),
+                expire_in=30
             )
-
-        if player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
-                bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
-            )
-
-        # Try to determine entry type, if _type is playlist then there should be entries
-        while True:
-            try:
-                info = await bot.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                info_process = await bot.downloader.extract_info(player.playlist.loop, song_url, download=False)
-                log.debug(info)
-                if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
-                    use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
-                    if use_url == song_url:
-                        log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
-                        break # If we break here it will break things down the line and give "This is a playlist" exception as a result
-
-                    log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
-                    log.debug("Using \"%s\" instead" % use_url)
-                    song_url = use_url
-                else:
-                    break
-
-            except Exception as e:
-                if 'unknown url type' in str(e):
-                    song_url = song_url.replace(':', '')  # it's probably not actually an extractor
-                    info = await bot.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                else:
-                    raise exceptions.CommandError(e, expire_in=30)
-
-        if not info:
-            raise exceptions.CommandError(
-                bot.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(bot.config.command_prefix),
+                ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(num_songs, permissions.max_playlist_length),
                 expire_in=30
             )
 
-        if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
+        # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
+        if permissions.max_songs and player.playlist.count_for_user(ctx.author) + num_songs > permissions.max_songs:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
+                    num_songs, player.playlist.count_for_user(ctx.author), permissions.max_songs),
+                expire_in=30
+            )
             raise exceptions.PermissionsError(
-                bot.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
+                ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
+                    num_songs, player.playlist.count_for_user(ctx.author), permissions.max_songs),
+                expire_in=30
             )
+        return True
 
-        # abstract the search handling away from the user
-        # our ytdl options allow us to use search strings as input urls
-        if info.get('url', '').startswith('ytsearch'):
-            # print("[Command:play] Searching for \"%s\"" % song_url)
-            info = await bot.downloader.extract_info(
-                player.playlist.loop,
-                song_url,
-                download=False,
-                process=True,    # ASYNC LAMBDAS WHEN
-                on_error=lambda e: asyncio.ensure_future(
-                    messagemanager.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=bot.loop),
-                retry_on_error=True
-            )
+    @command()
+    async def play(self, ctx, *song_url):
+        """
+        Usage:
+            {command_prefix}play song_link
+            {command_prefix}play text to search for
+            {command_prefix}play spotify_uri
 
-            if not info:
-                raise exceptions.CommandError(
-                    bot.str.get('cmd-play-nodata', "Error extracting info from search string, youtubedl returned no data. "
-                                                    "You may need to restart the bot if this continues to happen."), expire_in=30
+        Adds the song to the playlist.  If a link is not provided, the first
+        result from a youtube search is added to the queue.
+
+        If enabled in the config, the bot will also support Spotify URIs, however
+        it will use the metadata (e.g song name and artist) to find a YouTube
+        equivalent of the song. Streaming from Spotify is not possible.
+        """
+        await self._play(ctx, song_url = ' '.join(song_url))
+
+    @command()
+    async def replay(self, ctx, option):
+        """
+        Usage:
+            {command_prefix}replay [head/h]
+
+        Add currently playing song to the end queue, if added 'head' or 'h' to the
+        command current entry will be added to the head of the queue instead.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        current_entry = await player.get_current_entry()
+
+        head = False
+        if option in ['head', 'h']:
+            head = True
+
+        await self._play(ctx, current_entry.source_url, head = head)
+
+    async def _play(self, ctx, song_url, *, head=False):
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+
+        permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        song_url = song_url.strip('<>')
+
+        # Make sure forward slashes work properly in search queries
+        linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
+        pattern = re.compile(linksRegex)
+        matchUrl = pattern.match(song_url)
+        song_url = song_url.replace('/', '%2F') if matchUrl is None else song_url
+
+        # Rewrite YouTube playlist URLs if the wrong URL type is given
+        playlistRegex = r'watch\?v=.+&(list=[^&]+)'
+        matches = re.search(playlistRegex, song_url)
+        groups = matches.groups() if matches is not None else []
+        song_url = "https://www.youtube.com/playlist?" + groups[0] if len(groups) > 0 else song_url
+
+        if ctx.bot.config._spotify:
+            if 'open.spotify.com' in song_url:
+                song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':') # pylint: disable=anomalous-backslash-in-string
+            if song_url.startswith('spotify:'):
+                parts = song_url.split(":")
+                try:
+                    if 'track' in parts:
+                        res = await ctx.bot.spotify.get_track(parts[-1])
+                        song_url = res['artists'][0]['name'] + ' ' + res['name'] 
+
+                    elif 'album' in parts:
+                        res = await ctx.bot.spotify.get_album(parts[-1])
+                        await self._do_playlist_checks(ctx, res['tracks']['items'])
+                        procmesg = await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
+                        for i in res['tracks']['items']:
+                            song_url = i['name'] + ' ' + i['artists'][0]['name']
+                            log.debug('Processing {0}'.format(song_url))
+                            await self._play(ctx, song_url = song_url, head = head)
+                        await messagemanager.safe_delete_message(procmesg)
+                        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
+                        return
+
+                    elif 'playlist' in parts:
+                        res = []
+                        r = await ctx.bot.spotify.get_playlist_tracks(parts[-1])
+                        while True:
+                            res.extend(r['items'])
+                            if r['next'] is not None:
+                                r = await ctx.bot.spotify.make_spotify_req(r['next'])
+                                continue
+                            else:
+                                break
+                        await self._do_playlist_checks(ctx, res)
+                        procmesg = await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
+                        for i in res:
+                            song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
+                            log.debug('Processing {0}'.format(song_url))
+                            await self._play(ctx, song_url = song_url, head=head)
+                        await messagemanager.safe_delete_message(procmesg)
+                        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
+                        return
+
+                    else:
+                        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
+                        return
+                except exceptions.SpotifyError:
+                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
+                    return
+
+        # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
+        async with ctx.bot.aiolocks[_func_() + ':' + str(ctx.author.id)]:
+            if permissions.max_songs and player.playlist.count_for_user(ctx.author) >= permissions.max_songs:
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
                 )
-
-            if not all(info.get('entries', [])):
-                # empty list, no data
-                log.debug("Got empty list, no data")
                 return
 
-            # TODO: handle 'webpage_url' being 'ytsearch:...' or extractor type
-            song_url = info['entries'][0]['webpage_url']
-            info = await bot.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-            # Now I could just do: return await cmd_play(player, channel, author, song_url)
-            # But this is probably fine
-
-        # If it's playlist
-        if 'entries' in info:
-            await bot._do_playlist_checks(permissions, player, author, info['entries'])
-
-            num_songs = sum(1 for _ in info['entries'])
-
-            if info['extractor'].lower() in ['youtube:playlist', 'soundcloud:set', 'bandcamp:album']:
-                try:
-                    return await _cmd_play_playlist_async(bot, player, channel, author, permissions, song_url, info['extractor'])
-                except exceptions.CommandError:
-                    raise
-                except Exception as e:
-                    log.error("Error queuing playlist", exc_info=True)
-                    raise exceptions.CommandError(bot.str.get('cmd-play-playlist-error', "Error queuing playlist:\n`{0}`").format(e), expire_in=30)
-
-            t0 = time.time()
-
-            # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
-            # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
-            # I don't think we can hook into it anyways, so this will have to do.
-            # It would probably be a thread to check a few playlists and get the speed from that
-            # Different playlists might download at different speeds though
-            wait_per_song = 1.2
-
-            procmesg = await messagemanager.safe_send_message(
-                channel,
-                bot.str.get('cmd-play-playlist-gathering-1', 'Gathering playlist information for {0} songs{1}').format(
-                    num_songs,
-                    bot.str.get('cmd-play-playlist-gathering-2', ', ETA: {0} seconds').format(fixg(
-                        num_songs * wait_per_song)) if num_songs >= 10 else '.'))
-
-            # We don't have a pretty way of doing this yet.  We need either a loop
-            # that sends these every 10 seconds or a nice context manager.
-            await messagemanager.send_typing(channel)
-
-            # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
-            #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
-
-            entry_list, position = await player.playlist.import_from(song_url, channel=channel, author=author)
-
-            tnow = time.time()
-            ttime = tnow - t0
-            listlen = len(entry_list)
-            drop_count = 0
-
-            if permissions.max_song_length:
-                for e in entry_list.copy():
-                    if e.duration > permissions.max_song_length:
-                        player.playlist.entries.remove(e)
-                        entry_list.remove(e)
-                        drop_count += 1
-                        # Im pretty sure there's no situation where this would ever break
-                        # Unless the first entry starts being played, which would make this a race condition
-                if drop_count:
-                    print("Dropped %s songs" % drop_count)
-
-            log.info("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-                listlen,
-                fixg(ttime),
-                ttime / listlen if listlen else 0,
-                ttime / listlen - wait_per_song if listlen - wait_per_song else 0,
-                fixg(wait_per_song * num_songs))
-            )
-
-            await messagemanager.safe_delete_message(procmesg)
-
-            if not listlen - drop_count:
-                raise exceptions.CommandError(
-                    bot.str.get('cmd-play-playlist-maxduration', "No songs were added, all songs were over max duration (%ss)") % permissions.max_song_length,
+            if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"),
                     expire_in=30
                 )
+                return
 
-            reply_text = bot.str.get('cmd-play-playlist-reply', "Enqueued **%s** songs to be played. Position in queue: %s")
-            btext = str(listlen - drop_count)
-
-        # If it's an entry
-        else:
-            # youtube:playlist extractor but it's actually an entry
-            if info.get('extractor', '').startswith('youtube:playlist'):
+            # Try to determine entry type, if _type is playlist then there should be entries
+            while True:
                 try:
-                    info = await bot.downloader.extract_info(player.playlist.loop, 'https://www.youtube.com/watch?v=%s' % info.get('url', ''), download=False, process=False)
-                except Exception as e:
-                    raise exceptions.CommandError(e, expire_in=30)
+                    info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
+                    try:
+                        info_process = await ctx.bot.downloader.extract_info(song_url, download=False)
+                    except:
+                        info_process = None
+                    log.debug(info)
+                    if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
+                        use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
+                        if use_url == song_url:
+                            log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
+                            break # If we break here it will break things down the line and give "This is a playlist" exception as a result
 
-            if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
-                raise exceptions.PermissionsError(
-                    bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(info['duration'], permissions.max_song_length),
+                        log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
+                        log.debug("Using \"%s\" instead" % use_url)
+                        song_url = use_url
+                    else:
+                        break
+
+                except Exception as e:
+                    if 'unknown url type' in str(e):
+                        song_url = song_url.replace(':', '')  # it's probably not actually an extractor
+                        info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
+                    else:
+                        await messagemanager.safe_send_message(ctx, str(e), expire_in=30)
+
+            if not info:
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(ctx.bot.config.command_prefix),
                     expire_in=30
                 )
+                return
 
-            entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+            if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
+                )
+                return
 
-            reply_text = bot.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
-            btext = entry.title
+            async with self._aiolocks['play_{}'.format(ctx.author.id)]:
+                async with ctx.typing():
+                    # If it's playlist
+                    if 'entries' in info:
+                        await self._do_playlist_checks(ctx, info['entries'])
 
-        if position == 1 and player.is_stopped:
-            position = bot.str.get('cmd-play-next', 'Up next!')
-            reply_text %= (btext, position)
+                        num_songs = sum(1 for _ in info['entries'])
 
-        else:
-            try:
-                time_until = await player.playlist.estimate_time_until(position, player)
-                reply_text += bot.str.get('cmd-play-eta', ' - estimated time until playing: %s')
-            except:
-                traceback.print_exc()
-                time_until = ''
+                        playlist = await player.get_playlist()
 
-            reply_text %= (btext, position, ftimedelta(time_until))
+                        num_songs_playlist = await playlist.num_entry_of(ctx.author)
+                        total_songs = num_songs + num_songs_playlist
 
-    return Response(reply_text, expire_in=30)
+                        t0 = time.time()
 
-async def _cmd_play_playlist_async(bot, player, channel, author, permissions, playlist_url, extractor_type):
-    """
-    Secret handler to use the async wizardry to make playlist queuing non-"blocking"
-    """
+                        # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+                        # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+                        # I don't think we can hook into it anyways, so this will have to do.
+                        # It would probably be a thread to check a few playlists and get the speed from that
+                        # Different playlists might download at different speeds though
+                        wait_per_song = 1.2
+                        drop_count = 0
 
-    await messagemanager.send_typing(channel)
-    info = await bot.downloader.extract_info(player.playlist.loop, playlist_url, download=False, process=False)
+                        procmesg = await messagemanager.safe_send_message(
+                            ctx,
+                            'Gathering playlist information for {0} songs{1}'.format(
+                                num_songs,
+                                ', ETA: {0} seconds'.format(
+                                    fixg(num_songs * wait_per_song)
+                                ) if num_songs >= 10 else '.'
+                            )
+                        )
 
-    if not info:
-        raise exceptions.CommandError(bot.str.get('cmd-play-playlist-invalid', "That playlist cannot be played."))
+                        # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
+                        #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
 
-    num_songs = sum(1 for _ in info['entries'])
-    t0 = time.time()
+                        entry_list = await get_entry_list_from_playlist_url(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
+                        entry = None
+                        position = None
+                        for entry_proc in entry_list:
+                            duration = entry_proc.get_duration()
+                            if duration > permissions.max_song_length:
+                                drop_count += 1
+                                continue
+                            position_potent = await playlist.add_entry(entry_proc)
+                            if not position:
+                                entry = entry_proc
+                                position = position_potent
 
-    busymsg = await messagemanager.safe_send_message(
-        channel, bot.str.get('cmd-play-playlist-process', "Processing {0} songs...").format(num_songs))  # TODO: From playlist_title
-    await messagemanager.send_typing(channel)
+                        tnow = time.time()
+                        ttime = tnow - t0
+                        listlen = len(entry_list)
 
-    entries_added = 0
-    if extractor_type == 'youtube:playlist':
-        try:
-            entries_added = await player.playlist.async_process_youtube_playlist(
-                playlist_url, channel=channel, author=author)
-            # TODO: Add hook to be called after each song
-            # TODO: Add permissions
+                        ctx.bot.log.info("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
+                            listlen,
+                            fixg(ttime),
+                            ttime / listlen if listlen else 0,
+                            ttime / listlen - wait_per_song if listlen - wait_per_song else 0,
+                            fixg(wait_per_song * num_songs))
+                        )
 
-        except Exception:
-            log.error("Error processing playlist", exc_info=True)
-            raise exceptions.CommandError(bot.str.get('cmd-play-playlist-queueerror', 'Error handling playlist {0} queuing.').format(playlist_url), expire_in=30)
+                        await procmesg.delete()
 
-    elif extractor_type.lower() in ['soundcloud:set', 'bandcamp:album']:
-        try:
-            entries_added = await player.playlist.async_process_sc_bc_playlist(
-                playlist_url, channel=channel, author=author)
-            # TODO: Add hook to be called after each song
-            # TODO: Add permissions
+                        reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
+                        btext = str(listlen - drop_count)
 
-        except Exception:
-            log.error("Error processing playlist", exc_info=True)
-            raise exceptions.CommandError(bot.str.get('cmd-play-playlist-queueerror', 'Error handling playlist {0} queuing.').format(playlist_url), expire_in=30)
+                    # If it's an entry
+                    else:
+                        playlist = await player.get_playlist()
 
+                        if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
+                            await messagemanager.safe_send_message(
+                                ctx,
+                                ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(info['duration'], permissions.max_song_length),
+                                expire_in=30
+                            )
+                            return
+                        entry = await get_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
+                        position = await playlist.add_entry(entry)
 
-    songs_processed = len(entries_added)
-    drop_count = 0
-    skipped = False
+                        reply_text = "Enqueued `%s` to be played. Position in queue: %s"
+                        btext = entry.title
 
-    if permissions.max_song_length:
-        for e in entries_added.copy():
-            if e.duration > permissions.max_song_length:
-                try:
-                    player.playlist.entries.remove(e)
-                    entries_added.remove(e)
-                    drop_count += 1
-                except:
-                    pass
+                    # Position msgs
+                    time_until = await player.estimate_time_until_entry(entry)
+                    if time_until == timedelta(seconds=0):
+                        position = 'Up next!'
+                        reply_text %= (btext, position)
 
-        if drop_count:
-            log.debug("Dropped %s songs" % drop_count)
+                    else:                    
+                        reply_text += ' - estimated time until playing: %s'
+                        reply_text %= (btext, position, ftimedelta(time_until))
 
-        if player.current_entry and player.current_entry.duration > permissions.max_song_length:
-            await messagemanager.safe_delete_message(bot.server_specific_data[channel.guild]['last_np_msg'])
-            bot.server_specific_data[channel.guild]['last_np_msg'] = None
-            skipped = True
-            player.skip()
-            entries_added.pop()
+            await ctx.send(reply_text)
 
-    await messagemanager.safe_delete_message(busymsg)
+    @command()
+    async def stream(self, ctx, song_url:str):
+        """
+        Usage:
+            {command_prefix}stream song_link
 
-    songs_added = len(entries_added)
-    tnow = time.time()
-    ttime = tnow - t0
-    wait_per_song = 1.2
-    # TODO: actually calculate wait per song in the process function and return that too
+        Enqueue a media stream.
+        This could mean an actual stream like Twitch or shoutcast, or simply streaming
+        media without predownloading it.  Note: FFmpeg is notoriously bad at handling
+        streams, especially on poor connections.  You have been warned.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
 
-    # This is technically inaccurate since bad songs are ignored but still take up time
-    log.info("Processed {}/{} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-        songs_processed,
-        num_songs,
-        fixg(ttime),
-        ttime / num_songs if num_songs else 0,
-        ttime / num_songs - wait_per_song if num_songs - wait_per_song else 0,
-        fixg(wait_per_song * num_songs))
-    )
+        permissions = ctx.bot.permissions.for_user(ctx.author)
 
-    if not songs_added:
-        basetext = bot.str.get('cmd-play-playlist-maxduration', "No songs were added, all songs were over max duration (%ss)") % permissions.max_song_length
-        if skipped:
-            basetext += bot.str.get('cmd-play-playlist-skipped', "\nAdditionally, the current song was skipped for being too long.")
+        song_url = song_url.strip('<>')
 
-        raise exceptions.CommandError(basetext, expire_in=30)
-
-    return Response(bot.str.get('cmd-play-playlist-reply-secs', "Enqueued {0} songs to be played in {1} seconds").format(
-        songs_added, fixg(ttime, 1)), expire_in=30)
-
-async def cmd_stream(bot, player, channel, author, permissions, song_url):
-    """
-    Usage:
-        {command_prefix}stream song_link
-
-    Enqueue a media stream.
-    This could mean an actual stream like Twitch or shoutcast, or simply streaming
-    media without predownloading it.  Note: FFmpeg is notoriously bad at handling
-    streams, especially on poor connections.  You have been warned.
-    """
-
-    song_url = song_url.strip('<>')
-
-    if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
-        raise exceptions.PermissionsError(
-            bot.str.get('cmd-stream-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
-        )
-
-    if player.karaoke_mode and not permissions.bypass_karaoke_mode:
-        raise exceptions.PermissionsError(
-            bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
-        )
-
-    await messagemanager.send_typing(channel)
-    await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
-
-    return Response(bot.str.get('cmd-stream-success', "Streaming."), expire_in=6)
-
-async def cmd_search(bot, message, player, channel, author, permissions, leftover_args):
-    """
-    Usage:
-        {command_prefix}search [service] [number] query
-
-    Searches a service for a video and adds it to the queue.
-    - service: any one of the following services:
-        - youtube (yt) (default if unspecified)
-        - soundcloud (sc)
-        - yahoo (yh)
-    - number: return a number of video results and waits for user to choose one
-        - defaults to 3 if unspecified
-        - note: If your search query starts with a number,
-                you must put your query in quotes
-        - ex: {command_prefix}search 2 "I ran seagulls"
-    The command issuer can use reactions to indicate their response to each result.
-    """
-
-    if permissions.max_songs and player.playlist.count_for_user(author) > permissions.max_songs:
-        raise exceptions.PermissionsError(
-            bot.str.get('cmd-search-limit', "You have reached your playlist item limit ({0})").format(permissions.max_songs),
-            expire_in=30
-        )
-
-    if player.karaoke_mode and not permissions.bypass_karaoke_mode:
-        raise exceptions.PermissionsError(
-            bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
-        )
-
-    def argcheck():
-        if not leftover_args:
-            # noinspection PyUnresolvedReferences
-            raise exceptions.CommandError(
-                bot.str.get('cmd-search-noquery', "Please specify a search query.\n%s") % dedent(
-                    cmd_search.__doc__.format(command_prefix=bot.config.command_prefix)),
-                expire_in=60
+        if permissions.max_songs and (await playlist.num_entry_of(ctx.author.id)) >= permissions.max_songs:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-stream-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
             )
-
-    argcheck()
-
-    try:
-        leftover_args = shlex.split(' '.join(leftover_args))
-    except ValueError:
-        raise exceptions.CommandError(bot.str.get('cmd-search-noquote', "Please quote your search query properly."), expire_in=30)
-
-    service = 'youtube'
-    items_requested = 3
-    max_items = permissions.max_search_items
-    services = {
-        'youtube': 'ytsearch',
-        'soundcloud': 'scsearch',
-        'yahoo': 'yvsearch',
-        'yt': 'ytsearch',
-        'sc': 'scsearch',
-        'yh': 'yvsearch'
-    }
-
-    if leftover_args[0] in services:
-        service = leftover_args.pop(0)
-        argcheck()
-
-    if leftover_args[0].isdigit():
-        items_requested = int(leftover_args.pop(0))
-        argcheck()
-
-        if items_requested > max_items:
-            raise exceptions.CommandError(bot.str.get('cmd-search-searchlimit', "You cannot search for more than %s videos") % max_items)
-
-    # Look jake, if you see this and go "what the fuck are you doing"
-    # and have a better idea on how to do this, i'd be delighted to know.
-    # I don't want to just do ' '.join(leftover_args).strip("\"'")
-    # Because that eats both quotes if they're there
-    # where I only want to eat the outermost ones
-    if leftover_args[0][0] in '\'"':
-        lchar = leftover_args[0][0]
-        leftover_args[0] = leftover_args[0].lstrip(lchar)
-        leftover_args[-1] = leftover_args[-1].rstrip(lchar)
-
-    search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
-
-    search_msg = await messagemanager.safe_send_message(channel, bot.str.get('cmd-search-searching', "Searching for videos..."))
-    await messagemanager.send_typing(channel)
-
-    try:
-        info = await bot.downloader.extract_info(player.playlist.loop, search_query, download=False, process=True)
-
-    except Exception as e:
-        await messagemanager.safe_edit_message(search_msg, str(e), send_if_fail=True)
-        return
-    else:
-        await messagemanager.safe_delete_message(search_msg)
-
-    if not info:
-        return Response(bot.str.get('cmd-search-none', "No videos found."), expire_in=30)
-
-    for e in info['entries']:
-        result_message = await messagemanager.safe_send_message(channel, bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
-            info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
-
-        def check(reaction, user):
-            return user == message.author and reaction.message.id == result_message.id  # why can't these objs be compared directly?
-
-        reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
-        for r in reactions:
-            await result_message.add_reaction(r)
-
-        try:
-            reaction, user = await bot.wait_for('reaction_add', timeout=30.0, check=check) # pylint: disable=unused-variable
-        except asyncio.TimeoutError:
-            await messagemanager.safe_delete_message(result_message)
             return
 
-        if str(reaction.emoji) == '\u2705':  # check
-            await messagemanager.safe_delete_message(result_message)
-            await cmd_play(bot, message, player, channel, author, permissions, [], e['webpage_url'])
-            return Response(bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
-        elif str(reaction.emoji) == '\U0001F6AB':  # cross
-            await messagemanager.safe_delete_message(result_message)
-            continue
-        else:
-            await messagemanager.safe_delete_message(result_message)
-            break
-
-    return Response(bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
-
-async def cmd_shuffle(bot, channel, player):
-    """
-    Usage:
-        {command_prefix}shuffle
-
-    Shuffles the server's queue.
-    """
-
-    player.playlist.shuffle()
-
-    cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
-    random.shuffle(cards)
-
-    hand = await messagemanager.safe_send_message(channel, ' '.join(cards))
-    await asyncio.sleep(0.6)
-
-    for x in range(4): # pylint: disable=unused-variable
-        random.shuffle(cards)
-        await messagemanager.safe_edit_message(hand, ' '.join(cards))
-        await asyncio.sleep(0.6)
-
-    await messagemanager.safe_delete_message(hand, quiet=True)
-    return Response(bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(player.voice_client.channel.guild), expire_in=15)
-
-async def cmd_clear(bot, player, author):
-    """
-    Usage:
-        {command_prefix}clear
-
-    Clears the playlist.
-    """
-
-    player.playlist.clear()
-    return Response(bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(player.voice_client.channel.guild), expire_in=20)
-
-async def cmd_remove(bot, user_mentions, message, author, permissions, channel, player, index=None):
-    """
-    Usage:
-        {command_prefix}remove [# in queue]
-
-    Removes queued songs. If a number is specified, removes that song in the queue, otherwise removes the most recently queued song.
-    """
-
-    if not player.playlist.entries:
-        raise exceptions.CommandError(bot.str.get('cmd-remove-none', "There's nothing to remove!"), expire_in=20)
-
-    if user_mentions:
-        for user in user_mentions:
-            if permissions.remove or author == user:
-                try:
-                    entry_indexes = [e for e in player.playlist.entries if e.meta.get('author', None) == user]
-                    for entry in entry_indexes:
-                        player.playlist.entries.remove(entry)
-                    entry_text = '%s ' % len(entry_indexes) + 'item'
-                    if len(entry_indexes) > 1:
-                        entry_text += 's'
-                    return Response(bot.str.get('cmd-remove-reply', "Removed `{0}` added by `{1}`").format(entry_text, user.name).strip())
-
-                except ValueError:
-                    raise exceptions.CommandError(bot.str.get('cmd-remove-missing', "Nothing found in the queue from user `%s`") % user.name, expire_in=20)
-
-            raise exceptions.PermissionsError(
-                bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20)
-
-    if not index:
-        index = len(player.playlist.entries)
-
-    try:
-        index = int(index)
-    except (TypeError, ValueError):
-        raise exceptions.CommandError(bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(bot.config.command_prefix), expire_in=20)
-
-    if index > len(player.playlist.entries):
-        raise exceptions.CommandError(bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(bot.config.command_prefix), expire_in=20)
-
-    if permissions.remove or author == player.playlist.get_entry_at_index(index - 1).meta.get('author', None):
-        entry = player.playlist.delete_entry_at_index((index - 1))
-        await messagemanager._manual_delete_check(bot, message)
-        if entry.meta.get('channel', False) and entry.meta.get('author', False):
-            return Response(bot.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, entry.meta['author'].name).strip())
-        else:
-            return Response(bot.str.get('cmd-remove-reply-noauthor', "Removed entry `{0}`").format(entry.title).strip())
-    else:
-        raise exceptions.PermissionsError(
-            bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
-        )
-
-async def cmd_skip(bot, player, channel, author, message, permissions, voice_channel, param=''):
-    """
-    Usage:
-        {command_prefix}skip [force/f]
-
-    Skips the current song when enough votes are cast.
-    Owners and those with the instaskip permission can add 'force' or 'f' after the command to force skip.
-    """
-
-    if player.is_stopped:
-        raise exceptions.CommandError(bot.str.get('cmd-skip-none', "Can't skip! The player is not playing!"), expire_in=20)
-
-    if not player.current_entry:
-        if player.playlist.peek():
-            if player.playlist.peek()._is_downloading:
-                return Response(bot.str.get('cmd-skip-dl', "The next song (`%s`) is downloading, please wait.") % player.playlist.peek().title)
-
-            elif player.playlist.peek().is_downloaded:
-                print("The next song will be played shortly.  Please wait.")
-            else:
-                print("Something odd is happening.  "
-                        "You might want to restart the bot if it doesn't start working.")
-        else:
-            print("Something strange is happening.  "
-                    "You might want to restart the bot if it doesn't start working.")
-    
-    current_entry = player.current_entry
-
-    if (param.lower() in ['force', 'f']) or bot.config.legacy_skip:
-        if permissions.instaskip \
-            or (bot.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
-
-            player.skip()  # TODO: check autopause stuff here
-            # @TheerapakG: Check for pausing state in the player.py make more sense
-            await messagemanager._manual_delete_check(bot, message)
-            return Response(bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, expire_in=30)
-        else:
-            raise exceptions.PermissionsError(bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
-
-    # TODO: ignore person if they're deaf or take them out of the list or something?
-    # Currently is recounted if they vote, deafen, then vote
-
-    num_voice = sum(1 for m in voice_channel.members if not (
-        m.voice.deaf or m.voice.self_deaf or m == bot.user))
-    if num_voice == 0: num_voice = 1 # incase all users are deafened, to avoid divison by zero
-
-    num_skips = player.skip_state.add_skipper(author.id, message)
-
-    skips_remaining = min(
-        bot.config.skips_required,
-        math.ceil(bot.config.skip_ratio_required / (1 / num_voice))  # Number of skips from config ratio
-    ) - num_skips
-
-    if skips_remaining <= 0:
-        player.skip()  # check autopause stuff here
-        return Response(
-            bot.str.get('cmd-skip-reply-skipped-1', 'Your skip for `{0}` was acknowledged.\nThe vote to skip has been passed.{1}').format(
-                current_entry.title,
-                bot.str.get('cmd-skip-reply-skipped-2', ' Next song coming up!') if player.playlist.peek() else ''
-            ),
-            reply=True,
-            expire_in=20
-        )
-
-    else:
-        # TODO: When a song gets skipped, delete the old x needed to skip messages
-        return Response(
-            bot.str.get('cmd-skip-reply-voted-1', 'Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.').format(
-                current_entry.title,
-                skips_remaining,
-                bot.str.get('cmd-skip-reply-voted-2', 'person is') if skips_remaining == 1 else bot.str.get('cmd-skip-reply-voted-3', 'people are')
-            ),
-            reply=True,
-            expire_in=20
-        )
-
-async def cmd_replay(bot, player, channel, author, permissions, param=''):
-    """
-    Usage:
-        {command_prefix}replay [head/h]
-
-    Add currently playing song to the end queue, if added 'head' or 'h' to the
-    command current entry will be added to the head of the queue instead.
-    """
-    current_entry = player.current_entry
-
-    async with bot.aiolocks['cmd_play' + ':' + str(author.id)]:
-        if permissions.max_songs and player.playlist.count_for_user(author) >= permissions.max_songs:
-            raise exceptions.PermissionsError(
-                bot.str.get('cmd-stream-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
-            )
-
         if player.karaoke_mode and not permissions.bypass_karaoke_mode:
-            raise exceptions.PermissionsError(
-                bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
+            return
 
-        if permissions.max_song_length and current_entry.duration > permissions.max_song_length:
-            raise exceptions.PermissionsError(
-                bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(current_entry.duration, permissions.max_song_length),
+        entry = await get_stream_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
+        position = await playlist.add_entry(entry)
+
+        reply_text = "Enqueued `%s` to be streamed. Position in queue: %s"
+        btext = entry.title
+
+        # Position msgs
+        time_until = await player.estimate_time_until_entry(entry)
+        if time_until == timedelta(seconds=0):
+            position = 'Up next!'
+            reply_text %= (btext, position)
+
+        else:                    
+            reply_text += ' - estimated time until streaming: %s'
+            reply_text %= (btext, position, ftimedelta(time_until))
+
+        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-stream-success', "Streaming."), expire_in=6)
+
+    @command()
+    async def search(self, ctx, *, leftover_args):
+        """
+        Usage:
+            {command_prefix}search [service] [number] query
+
+        Searches a service for a video and adds it to the queue.
+        - service: any one of the following services:
+            - youtube (yt) (default if unspecified)
+            - soundcloud (sc)
+            - yahoo (yh)
+        - number: return a number of video results and waits for user to choose one
+            - defaults to 3 if unspecified
+            - note: If your search query starts with a number,
+                    you must put your query in quotes
+            - ex: {command_prefix}search 2 "I ran seagulls"
+        The command issuer can use reactions to indicate their response to each result.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
+
+        permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        if permissions.max_songs and (await playlist.num_entry_of(ctx.author)) > permissions.max_songs:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-search-limit', "You have reached your playlist item limit ({0})").format(permissions.max_songs),
                 expire_in=30
             )
+            return
 
-    if (param.lower() in ['head', 'h']):
-        player.playlist._add_entry(current_entry, head = True)
-        position = 1
-    else:
-        player.playlist._add_entry(current_entry)
-        position = len(player.playlist.entries)        
+        if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
+            )
+            return
 
-    reply_text = bot.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
-    btext = current_entry.title
+        def argcheck():
+            if not leftover_args:
+                # noinspection PyUnresolvedReferences
+                await messagemanager.safe_send_message(
+                    ctx,
+                    ctx.bot.str.get('cmd-search-noquery', "Please specify a search query.\n%s") % dedent(
+                        self.search.help_doc.format(command_prefix=ctx.bot.config.command_prefix)),          # pylint: disable=no-member
+                    expire_in=60
+                )
+                raise exceptions.CommandError(
+                    ctx.bot.str.get('cmd-search-noquery', "Please specify a search query.\n%s") % dedent(
+                        self.search.help_doc.format(command_prefix=ctx.bot.config.command_prefix)),          # pylint: disable=no-member
+                    expire_in=60
+                )
 
-    if position == 1 and player.is_stopped:
-        position = bot.str.get('cmd-play-next', 'Up next!')
-        reply_text %= (btext, position)
+        argcheck()
 
-    else:
         try:
-            time_until = await player.playlist.estimate_time_until(position, player)
-            reply_text += bot.str.get('cmd-play-eta', ' - estimated time until playing: %s')
-        except:
-            traceback.print_exc()
-            time_until = ''
+            leftover_args = shlex.split(' '.join(leftover_args))
+        except ValueError:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-noquote', "Please quote your search query properly."), expire_in=30)
+            return
 
-        reply_text %= (btext, position, ftimedelta(time_until))
+        service = 'youtube'
+        items_requested = 3
+        max_items = permissions.max_search_items
+        services = {
+            'youtube': 'ytsearch',
+            'soundcloud': 'scsearch',
+            'yahoo': 'yvsearch',
+            'yt': 'ytsearch',
+            'sc': 'scsearch',
+            'yh': 'yvsearch'
+        }
 
-    return Response(reply_text, expire_in=30)
+        if leftover_args[0] in services:
+            service = leftover_args.pop(0)
+            argcheck()
+
+        if leftover_args[0].isdigit():
+            items_requested = int(leftover_args.pop(0))
+            argcheck()
+
+            if items_requested > max_items:
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-searchlimit', "You cannot search for more than %s videos") % max_items)
+                return
+
+        # Look jake, if you see this and go "what the fuck are you doing"
+        # and have a better idea on how to do this, i'd be delighted to know.
+        # I don't want to just do ' '.join(leftover_args).strip("\"'")
+        # Because that eats both quotes if they're there
+        # where I only want to eat the outermost ones
+        if leftover_args[0][0] in '\'"':
+            lchar = leftover_args[0][0]
+            leftover_args[0] = leftover_args[0].lstrip(lchar)
+            leftover_args[-1] = leftover_args[-1].rstrip(lchar)
+
+        search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
+
+        search_msg = await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-searching', "Searching for videos..."))
+        # TODO: context mgr
+        await messagemanager.send_typing(ctx)
+
+        try:
+            info = await ctx.bot.downloader.extract_info(search_query, download=False, process=True)
+
+        except Exception as e:
+            await messagemanager.safe_edit_message(search_msg, str(e), send_if_fail=True)
+            return
+        else:
+            await messagemanager.safe_delete_message(search_msg)
+
+        if not info:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-none', "No videos found."), expire_in=30)
+            return
+
+        for e in info['entries']:
+            result_message = messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
+                info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
+
+            def check(reaction, user):
+                return user == ctx.message.author and reaction.message.id == result_message.id  # why can't these objs be compared directly?
+
+            reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
+            for r in reactions:
+                await result_message.add_reaction(r)
+
+            try:
+                reaction, user = await ctx.bot.wait_for('reaction_add', timeout=30.0, check=check) # pylint: disable=unused-variable
+            except asyncio.TimeoutError:
+                await messagemanager.safe_delete_message(result_message)
+                return
+
+            if str(reaction.emoji) == '\u2705':  # check
+                await messagemanager.safe_delete_message(result_message)
+                await self._play(ctx, song_url = e['webpage_url'])
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
+                return
+            elif str(reaction.emoji) == '\U0001F6AB':  # cross
+                await messagemanager.safe_delete_message(result_message)
+                continue
+            else:
+                await messagemanager.safe_delete_message(result_message)
+                break
+
+        messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
+
+    @command()
+    async def shuffle(self, ctx):
+        """
+        Usage:
+            {command_prefix}shuffle
+
+        Shuffles the server's queue.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
+
+        await playlist.shuffle()
+
+        cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
+        random.shuffle(cards)
+
+        hand = await messagemanager.safe_send_message(ctx, ' '.join(cards))
+        await asyncio.sleep(0.6)
+
+        for x in range(4): # pylint: disable=unused-variable
+            random.shuffle(cards)
+            await messagemanager.safe_edit_message(hand, ' '.join(cards))
+            await asyncio.sleep(0.6)
+
+        await messagemanager.safe_delete_message(hand, quiet=True)
+        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(guild.guild), expire_in=15)
+
+    @command()
+    async def clear(self, ctx):
+        """
+        Usage:
+            {command_prefix}clear
+
+        Clears the playlist.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
+
+        await playlist.clear()
+        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(guild.guild), expire_in=20)
+
+    @command()
+    async def cmd_remove(self, ctx, index=None):
+        """
+        Usage:
+            {command_prefix}remove [# in queue]
+
+        Removes queued songs. If a number is specified, removes that song in the queue, otherwise removes the most recently queued song.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
+        permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        num = await playlist.get_length()
+
+        if num == 0:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-none', "There's nothing to remove!"), expire_in=20)
+            return
+
+        # TODO:
+        '''
+        if user_mentions:
+            for user in user_mentions:
+                if permissions.remove or author == user:
+                    try:
+                        entry_indexes = [e for e in player.playlist.entries if e.meta.get('author', None) == user]
+                        for entry in entry_indexes:
+                            player.playlist.entries.remove(entry)
+                        entry_text = '%s ' % len(entry_indexes) + 'item'
+                        if len(entry_indexes) > 1:
+                            entry_text += 's'
+                        return Response(bot.str.get('cmd-remove-reply', "Removed `{0}` added by `{1}`").format(entry_text, user.name).strip())
+
+                    except ValueError:
+                        raise exceptions.CommandError(bot.str.get('cmd-remove-missing', "Nothing found in the queue from user `%s`") % user.name, expire_in=20)
+
+                raise exceptions.PermissionsError(
+                    bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20)
+        '''
+        if not index:
+            index = num
+
+        try:
+            index = int(index)
+        except (TypeError, ValueError):
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(ctx.bot.config.command_prefix), expire_in=20)
+            return
+
+        if index > num:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(ctx.bot.config.command_prefix), expire_in=20)
+
+        if permissions.remove or ctx.author.id == playlist[index - 1].queuer_id:
+            entry = await playlist.remove_position((index - 1))
+            if entry.queuer_id:
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, guild.guild.get_member(entry.queuer_id)).strip())
+                return
+            else:
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-reply-noauthor', "Removed entry `{0}`").format(entry.title).strip())
+                return
+        else:
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
+            )
+
+    async def cmd_skip(self, ctx, param:Optional[str]=''):
+        """
+        Usage:
+            {command_prefix}skip [force/f]
+
+        Skips the current song when enough votes are cast.
+        Owners and those with the instaskip permission can add 'force' or 'f' after the command to force skip.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
+        permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        current_entry = await player.get_current_entry()
+
+        if (param.lower() in ['force', 'f']) or ctx.bot.config.legacy_skip:
+            if permissions.instaskip \
+                or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id):
+
+                await player.skip()
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, expire_in=30)
+                return
+            else:
+                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
+                return
+
+        # TODO: ignore person if they're deaf or take them out of the list or something?
+        # Currently is recounted if they vote, deafen, then vote
+
+        num_voice = sum(1 for m in guild._voice_channel.members if not (
+            m.voice.deaf or m.voice.self_deaf or m == ctx.bot.user))
+        if num_voice == 0: num_voice = 1 # incase all users are deafened, to avoid divison by zero
+
+        num_skips = guild.skip_state.add_skipper(ctx.author.id, ctx.message)
+
+        skips_remaining = min(
+            ctx.bot.config.skips_required,
+            math.ceil(ctx.bot.config.skip_ratio_required / (1 / num_voice))  # Number of skips from config ratio
+        ) - num_skips
+
+        if skips_remaining <= 0:
+            await player.skip()
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-skip-reply-skipped-1', 'Your skip for `{0}` was acknowledged.\nThe vote to skip has been passed.{1}').format(
+                    current_entry.title,
+                    ctx.bot.str.get('cmd-skip-reply-skipped-2', ' Next song coming up!') if (((await playlist.get_length()) > 0) or ((await player.status()) != PlayerState.WAITING)) else ''
+                ),
+                reply=True,
+                expire_in=20
+            )
+
+        else:
+            # TODO: When a song gets skipped, delete the old x needed to skip messages
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-skip-reply-voted-1', 'Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.').format(
+                    current_entry.title,
+                    skips_remaining,
+                    ctx.bot.str.get('cmd-skip-reply-voted-2', 'person is') if skips_remaining == 1 else ctx.bot.str.get('cmd-skip-reply-voted-3', 'people are')
+                ),
+                reply=True,
+                expire_in=20
+            )
+    
