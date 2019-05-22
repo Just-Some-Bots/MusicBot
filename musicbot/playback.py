@@ -109,7 +109,7 @@ class Entry(Serializable):
 class Playlist(EventEmitter, Serializable):
     def __init__(self, name, bot, *, persistent = False):
         super().__init__()
-        self.karaoke = False
+        self.karaoke_mode = False
         self._bot = bot
         self._name = name
         self._aiolocks = defaultdict(Lock)
@@ -120,7 +120,7 @@ class Playlist(EventEmitter, Serializable):
         return self._enclose_json({
             'version': 2,
             'name': self._name,
-            'karaoke': self.karaoke,
+            'karaoke': self.karaoke_mode,
             'entries': list(self._list)
         })
 
@@ -138,7 +138,7 @@ class Playlist(EventEmitter, Serializable):
         if data_e:
             playlist._list.extend(data_e)
         data_k = data.get('karaoke')
-        playlist.karaoke = data_k
+        playlist.karaoke_mode = data_k
 
         return playlist
 

@@ -6,13 +6,14 @@ import logging
 import shlex
 import random
 import math
-from typing import Optional
+from typing import Optional, Union
 from datetime import timedelta
 from collections import defaultdict
 
 from textwrap import dedent
 
-from discord.ext.commands import Cog, command
+from discord.ext.commands import Cog, command, Greedy
+from discord import User
 
 from ...utils import fixg, ftimedelta, _func_
 from ... import exceptions
@@ -108,6 +109,7 @@ class QueueManagement(Cog):
     async def _play(self, ctx, song_url, *, head=False):
         guild = get_guild(ctx.bot, ctx.guild)
         player = await guild.get_player()
+        playlist = await player.get_playlist()
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
@@ -183,7 +185,7 @@ class QueueManagement(Cog):
                 )
                 return
 
-            if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+            if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
                 await messagemanager.safe_send_message(
                     ctx,
                     ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"),
@@ -241,8 +243,6 @@ class QueueManagement(Cog):
                         await self._do_playlist_checks(ctx, info['entries'])
 
                         num_songs = sum(1 for _ in info['entries'])
-
-                        playlist = await player.get_playlist()
 
                         num_songs_playlist = await playlist.num_entry_of(ctx.author)
                         total_songs = num_songs + num_songs_playlist
@@ -302,8 +302,6 @@ class QueueManagement(Cog):
 
                     # If it's an entry
                     else:
-                        playlist = await player.get_playlist()
-
                         if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
                             await messagemanager.safe_send_message(
                                 ctx,
@@ -355,7 +353,7 @@ class QueueManagement(Cog):
             )
             return
 
-        if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+        if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
             await messagemanager.safe_send_message(
                 ctx,
                 ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
@@ -412,7 +410,7 @@ class QueueManagement(Cog):
             )
             return
 
-        if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+        if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
             await messagemanager.safe_send_message(
                 ctx,
                 ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
@@ -570,7 +568,7 @@ class QueueManagement(Cog):
         await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(guild.guild), expire_in=20)
 
     @command()
-    async def cmd_remove(self, ctx, index=None):
+    async def cmd_remove(self, ctx, index:Optional[Union[int, User]]=None):
         """
         Usage:
             {command_prefix}remove [# in queue]
@@ -588,26 +586,30 @@ class QueueManagement(Cog):
             await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-none', "There's nothing to remove!"), expire_in=20)
             return
 
-        # TODO:
-        '''
-        if user_mentions:
-            for user in user_mentions:
-                if permissions.remove or author == user:
-                    try:
-                        entry_indexes = [e for e in player.playlist.entries if e.meta.get('author', None) == user]
-                        for entry in entry_indexes:
-                            player.playlist.entries.remove(entry)
-                        entry_text = '%s ' % len(entry_indexes) + 'item'
-                        if len(entry_indexes) > 1:
-                            entry_text += 's'
-                        return Response(bot.str.get('cmd-remove-reply', "Removed `{0}` added by `{1}`").format(entry_text, user.name).strip())
+        if isinstance(index, User):
+            if permissions.remove or ctx.author == index:
+                try:
+                    entry_indexes = [e for e in playlist if e.queuer_id == index.id]
+                    for entry in entry_indexes:
+                        pos = await playlist.get_entry_position(entry)
+                        await playlist.remove_position(pos)
+                    entry_text = '%s ' % len(entry_indexes) + 'item'
+                    if len(entry_indexes) > 1:
+                        entry_text += 's'
+                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-reply', "Removed `{0}` added by `{1}`").format(entry_text, index.name).strip())
+                    return
 
-                    except ValueError:
-                        raise exceptions.CommandError(bot.str.get('cmd-remove-missing', "Nothing found in the queue from user `%s`") % user.name, expire_in=20)
+                except ValueError:
+                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-missing', "Nothing found in the queue from user `%s`") % index.name, expire_in=20)
+                    return
 
-                raise exceptions.PermissionsError(
-                    bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20)
-        '''
+            await messagemanager.safe_send_message(
+                ctx,
+                ctx.bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"),
+                expire_in=20
+            )
+            return
+
         if not index:
             index = num
 
@@ -698,4 +700,5 @@ class QueueManagement(Cog):
                 reply=True,
                 expire_in=20
             )
-    
+
+cogs = [QueueManagement]

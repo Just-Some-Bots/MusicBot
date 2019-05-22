@@ -25,6 +25,7 @@ import threading
 import json
 import traceback
 import os
+from discord.ext.commands import Cog, command
 from collections import defaultdict
 from secrets import token_urlsafe
 from urllib.parse import urlparse, parse_qs
@@ -34,17 +35,12 @@ import discord
 
 from ssl import SSLContext, SSLError
 
-from ..constructs import Response
-from ..cogsmanager import gen_cog_list, gen_cmd_list_from_cog
 from ..wrappers import owner_only
 
-from .. import guildmanager
-from .. import voicechannelmanager
 from .. import messagemanager
+from ..rich_guild import get_guild
 
 log = logging.getLogger(__name__)
-
-cog_name = 'webapi'
 
 aiolocks = defaultdict(asyncio.Lock)
  
@@ -109,11 +105,7 @@ class RequestHdlr(BaseHTTPRequestHandler):
         parse = urlparse(path)
         param = {param_k:param_arglist[-1] for param_k, param_arglist in parse_qs(parse.query).items()}
         if 'token' in param and param['token'] in authtoken and 'get' in param:
-            if param['get'] == 'cog':
-                return get_cog_list()
-            elif param['get'] == 'cmd' and 'cog' in param:
-                return get_cmd_list(param['cog'])
-            elif param['get'] == 'guild':
+            if param['get'] == 'guild':
                 return get_guild_list()
             elif param['get'] == 'member' and 'guild' in param:
                 return get_member_list(int(param['guild']))
@@ -158,79 +150,87 @@ class RequestHdlr(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         log.debug("{addr} - - [{dt}] {args}\n".format(addr = self.address_string(), dt = self.log_date_time_string(), args = format%args))
 
-async def init_webapi(bot):
-    log.debug('binding to port {0}'.format(bot.config.webapi_port))
+class Webapi(Cog):
+    async def __init__(self):
+        self.bot = None
 
-    global botinst
-    botinst = bot
+    async def pre_init(self, bot):
+        self.bot = bot
+        global botinst
+        botinst = bot
 
-    if bot.config.webapi_persistent_tokens:
-        global authtoken
-        authtoken = await deserialize_tokens()
+    async def init(self):
+        log.debug('binding to port {0}'.format(self.bot.config.webapi_port))
 
-    serv = ThreadingHTTPServer((host, bot.config.webapi_port), RequestHdlr)
-    if bot.config.ssl_certfile and bot.config.ssl_keyfile:
-        try:
-            cont = SSLContext()
-            cont.load_cert_chain(bot.config.ssl_certfile, keyfile = bot.config.ssl_keyfile)
-        except SSLError:
-            log.error('Error loading certificate, falling back to http. Traceback below.')
-            log.error(traceback.format_exc())
-            log.info('using http for webapi')
+        if self.bot.config.webapi_persistent_tokens:
+            global authtoken
+            authtoken = await deserialize_tokens()
+
+        serv = ThreadingHTTPServer((host, self.bot.config.webapi_port), RequestHdlr)
+        if self.bot.config.ssl_certfile and self.bot.config.ssl_keyfile:
+            try:
+                cont = SSLContext()
+                cont.load_cert_chain(self.bot.config.ssl_certfile, keyfile = self.bot.config.ssl_keyfile)
+            except SSLError:
+                log.error('Error loading certificate, falling back to http. Traceback below.')
+                log.error(traceback.format_exc())
+                log.info('using http for webapi')
+            else:
+                serv.socket = cont.wrap_socket(sock = serv.socket, server_side = True)
+                log.info('using https for webapi')
         else:
-            serv.socket = cont.wrap_socket(sock = serv.socket, server_side = True)
-            log.info('using https for webapi')
-    else:
-        log.info('using http for webapi')
-    global webserver
-    webserver = serv
-    server_thread = threading.Thread(target=serv.serve_forever)
-    # Exit the server thread when the main thread terminates
-    server_thread.daemon = True
-    server_thread.start()
+            log.info('using http for webapi')
+        global webserver
+        webserver = serv
+        server_thread = threading.Thread(target=serv.serve_forever)
+        # Exit the server thread when the main thread terminates
+        server_thread.daemon = True
+        server_thread.start()
 
-async def cleanup_stopserverthread(bot):
-    log.debug('stopping http server...')
-    # @TheerapakG WARN: may cause significant block time
-    global webserver
-    webserver.shutdown()
+    async def uninit(self):
+        log.debug('stopping http server...')
+        # @TheerapakG WARN: may cause significant block time
+        global webserver
+        webserver.shutdown()
 
 
-@owner_only
-async def cmd_gentoken(bot, author):
-    """
-    Usage:
-        {command_prefix}gentoken
+    @owner_only
+    @command()
+    async def cmd_gentoken(self, ctx):
+        """
+        Usage:
+            {command_prefix}gentoken
 
-    Generate a token. DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!!
-    ANYONE WITH TOKEN CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec METHODS.
-    FAILING TO DO THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S SECURITY.
-    """
-    token = str(token_urlsafe(64))
-    # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
-    authtoken.append(token)
-    if bot.config.webapi_persistent_tokens:
-        await serialize_tokens()
-    await author.send(bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
-    return Response(bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), expire_in=20)
-
-@owner_only
-async def cmd_revoketoken(bot, author, token):
-    """
-    Usage:
-        {command_prefix}revoketoken token
-
-    Revoke a token's access to the api.
-    """
-    try:
-        authtoken.remove(token)
-        if bot.config.webapi_persistent_tokens:
+        Generate a token. DO NOT GIVE GENERATED TOKENS TO UNKNOWN RANDOM PEOPLE!!
+        ANYONE WITH TOKEN CAN ISSUE REMOTE EXECUTION VIA post:eval and post:exec METHODS.
+        FAILING TO DO THIS CAN RESULT IN COMPROMISE OF YOUR MACHINE'S SECURITY.
+        """
+        token = str(token_urlsafe(64))
+        # @TheerapakG: MAYDO: salt this (actually nevermind, if they got this they probably got the bot token too, and that's worse)
+        authtoken.append(token)
+        if ctx.bot.config.webapi_persistent_tokens:
             await serialize_tokens()
-        await author.send(bot.str.get('webapi?cmd?revoketoken?success@revtoken', "Successfully revoked token `{0}`").format(token))
-    except ValueError:
-        await author.send(bot.str.get('webapi?cmd?revoketoken?fail@revtoken', "Token `{0}` not found").format(token))
-    finally:
-        return Response(bot.str.get('webapi?cmd?revoketoken?info@action', "Sent a message with information regarding the action."), expire_in=20)
+        await messagemanager.safe_send_message(ctx.author, ctx.bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
+        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), expire_in=20)
+
+    @owner_only
+    @command()
+    async def cmd_revoketoken(self, ctx, token:str):
+        """
+        Usage:
+            {command_prefix}revoketoken token
+
+        Revoke a token's access to the api.
+        """
+        try:
+            authtoken.remove(token)
+            if ctx.bot.config.webapi_persistent_tokens:
+                await serialize_tokens()
+            await messagemanager.safe_send_message(ctx.author, ctx.bot.str.get('webapi?cmd?revoketoken?success@revtoken', "Successfully revoked token `{0}`").format(token))
+        except ValueError:
+            await messagemanager.safe_send_message(ctx.author, ctx.bot.str.get('webapi?cmd?revoketoken?fail@revtoken', "Token `{0}` not found").format(token))
+        finally:
+            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('webapi?cmd?revoketoken?info@action', "Sent a message with information regarding the action."), expire_in=20)
 
 def threadsafe_exec_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
@@ -244,33 +244,6 @@ def threadsafe_eval_bot(code):
         resultfut = asyncio.run_coroutine_threadsafe(result, botinst.loop)
         result = resultfut.result()
     return result
-
-def get_cog_list():
-    # structure:
-    # return = list(coginfo)
-    # commandinfo = dict(cogname, cogloaded)
-    fut = asyncio.run_coroutine_threadsafe(gen_cog_list(), botinst.loop)
-    result = fut.result()
-    coglist = list()
-    for cog in result:
-        cogfut = asyncio.run_coroutine_threadsafe(cog.isload(), botinst.loop)
-        cogresult = cogfut.result()
-        coglist.append({'cogname':cog.name, 'cogloaded':cogresult})
-    return coglist
-
-def get_cmd_list(cogname):
-    # structure:
-    # return = list(commandinfo)
-    # commandinfo = dict(commandname, commandaliases)
-    # commandaliases = list(commandalias)
-    fut = asyncio.run_coroutine_threadsafe(gen_cmd_list_from_cog(cogname), botinst.loop)
-    result = fut.result()
-    cmdlist = list()
-    for command in result:
-        commandfut = asyncio.run_coroutine_threadsafe(command.list_alias(), botinst.loop)
-        commandresult = commandfut.result()
-        cmdlist.append({'commandname':command.name, 'commandaliases':commandresult})
-    return cmdlist
 
 def get_guild_list():
     # structure:
@@ -312,7 +285,9 @@ def get_player(guildid):
     # playercurrententry = playerentry | dict()
     # playerentry = dict(entryurl, entrytitle)
     async def bot_context_get_player(self, guildid):
-        player = guildmanager.get_guild(self, self.get_guild(guildid)).get_player_in()
-        return {'voiceclientid':player.voice_client.session_id, 'playerplaylist':[{'entryurl':entry.url, 'entrytitle':entry.title} for entry in player.playlist.entries.copy()], 'playercurrententry':{'entryurl':player._current_entry.url, 'entrytitle':player._current_entry.title} if player._current_entry else dict(), 'playerstate':str(player.state), 'playerkaraokemode':player.karaoke_mode} if player else dict()
+        guild = get_guild(self, self.get_guild(guildid))
+        player = await guild.get_player()
+        playlist = await player.get_playlist()
+        return {'voiceclientid':guild._voice_client.session_id, 'playerplaylist':[{'entryurl':entry.source_url, 'entrytitle':entry.title} for entry in playlist], 'playercurrententry':{'entryurl':player._current.source_url, 'entrytitle':player._current.title} if player._current else dict(), 'playerstate':str(player.state), 'playlistkaraokemode':playlist.karaoke_mode} if player else dict()
     fut = asyncio.run_coroutine_threadsafe(bot_context_get_player(botinst, guildid), botinst.loop)
     return fut.result()
