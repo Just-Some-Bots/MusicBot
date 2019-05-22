@@ -417,7 +417,7 @@ class QueueManagement(Cog):
             )
             return
 
-        def argcheck():
+        async def argcheck():
             if not leftover_args:
                 # noinspection PyUnresolvedReferences
                 await messagemanager.safe_send_message(
@@ -432,7 +432,7 @@ class QueueManagement(Cog):
                     expire_in=60
                 )
 
-        argcheck()
+        await argcheck()
 
         try:
             leftover_args = shlex.split(' '.join(leftover_args))
@@ -454,11 +454,11 @@ class QueueManagement(Cog):
 
         if leftover_args[0] in services:
             service = leftover_args.pop(0)
-            argcheck()
+            await argcheck()
 
         if leftover_args[0].isdigit():
             items_requested = int(leftover_args.pop(0))
-            argcheck()
+            await argcheck()
 
             if items_requested > max_items:
                 await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-searchlimit', "You cannot search for more than %s videos") % max_items)

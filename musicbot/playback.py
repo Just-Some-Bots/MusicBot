@@ -145,7 +145,10 @@ class Playlist(EventEmitter, Serializable):
     async def __getitem__(self, item: Union[int, slice]):
         async with self._aiolocks['list']:
             if isinstance(item, slice):
-                return [await entry.get_metadata() for entry in self._list[item]]
+                ret = list()
+                for entry in self._list[item]:
+                    ret = await entry.get_metadata()
+                return ret
             else:
                 return await self._list[item].get_metadata()
 
