@@ -232,6 +232,8 @@ class Webapi(Cog):
         finally:
             await messagemanager.safe_send_message(ctx, ctx.bot.str.get('webapi?cmd?revoketoken?info@action', "Sent a message with information regarding the action."), expire_in=20)
 
+cogs = [Webapi]
+
 def threadsafe_exec_bot(code):
     fut = asyncio.run_coroutine_threadsafe(botinst.exec_bot(code), botinst.loop)
     fut.result() # wait for exec to finish
