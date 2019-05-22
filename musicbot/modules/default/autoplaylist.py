@@ -6,7 +6,7 @@ from discord.ext.commands import Cog, command
 from ... import exceptions
 from ...utils import write_file
 
-from ...messagemanager import safe_send_message
+from ...messagemanager import safe_send_message, content_gen, ContentTypeColor
 from ...rich_guild import get_guild
 
 class Autoplaylist(Cog):
@@ -21,7 +21,7 @@ class Autoplaylist(Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
         guild.autoplaylist = list(set(bot.autoplaylist))
-        await safe_send_message(ctx, bot.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), expire_in=15)
+        await safe_send_message(ctx, content_gen(ctx, bot.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}')), expire_in=15)
 
     @command()
     async def save(self, ctx, *, url:Optional[str] = None):
@@ -43,12 +43,12 @@ class Autoplaylist(Cog):
                 bot.autoplaylist.append(url)
                 write_file(bot.config.auto_playlist_file, bot.autoplaylist)
                 ctx.bot.log.debug("Appended {} to autoplaylist".format(url))
-                await safe_send_message(ctx, bot.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
+                await safe_send_message(ctx, content_gen(ctx, bot.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url)))
             else:
-                await safe_send_message(ctx, bot.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
+                await safe_send_message(ctx, content_gen(ctx, bot.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'), ContentTypeColor.ERROR))
                 raise exceptions.CommandError(bot.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
         else:
-            await safe_send_message(ctx, bot.str.get('cmd-save-invalid', 'There is no valid song playing.'))
+            await safe_send_message(ctx, content_gen(ctx, bot.str.get('cmd-save-invalid', 'There is no valid song playing.'), ContentTypeColor.ERROR))
             raise exceptions.CommandError(bot.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
 cogs = [Autoplaylist]

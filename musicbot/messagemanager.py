@@ -1,5 +1,7 @@
 import discord
+from enum import Enum
 from .constants import DISCORD_MSG_CHAR_LIMIT
+from .constants import VERSION as BOTVERSION
 import asyncio
 
 import logging
@@ -38,6 +40,29 @@ async def safe_edit_message(message, new, *, send_if_fail=False, quiet=False):
         if send_if_fail:
             lfunc("Sending message instead")
             return await message.channel.safe_send_message(message.channel, new)
+
+class ContentTypeColor(Enum):
+    NORMAL = discord.Color.blurple()
+    ERROR = discord.Color.red()
+
+def content_gen(ctx, fields, color = ContentTypeColor.NORMAL):
+    if ctx.bot.config.embeds:
+        e = discord.Embed()
+        e.colour = color
+        e.title = ctx.command.name
+        e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+        e.set_author(name=ctx.bot.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=ctx.bot.user.avatar_url)
+        if isinstance(fields, list):
+            for field in fields:
+                e.add_field(**field)
+        else:
+            e.description = fields
+        return e
+    else:
+        if isinstance(fields, list):
+            return '\n\n'.join(['{}:\n{}'.format(field.name, field.value) for field in fields])
+        else:
+            return fields
 
 async def safe_send_message(dest, content, **kwargs):
     tts = kwargs.pop('tts', False)
