@@ -57,7 +57,12 @@ def content_gen(ctx, fields, color = ContentTypeColor.NORMAL):
         if ctx.command:
             e.title = ctx.command.name
         else:
-            e.title = discord.utils.find((lambda c: ctx.invoked_with in c.aliases), ctx.bot.walk_commands()).name
+            cmd = discord.utils.find((lambda c: ctx.invoked_with in c.aliases), ctx.bot.walk_commands())
+            if cmd:
+                e.title = cmd.name
+            else:
+                e.title = 'cannot find the command'
+
         e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
         e.set_author(name=ctx.bot.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=ctx.bot.user.avatar_url)
         if isinstance(fields, list):

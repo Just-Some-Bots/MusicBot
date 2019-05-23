@@ -240,9 +240,10 @@ class ModuBot(Bot):
                 if isiterable(commands):
                     for command in commands:
                         cmd = command()
-                        self.add_command(cmd)
                         if cmd.name in self.alias.aliases:
+                            self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
                             cmd.aliases = self.alias.aliases[cmd.name]
+                        self.add_command(cmd)
                         self.crossmodule._commands[moduleinfo.name].append(cmd.name)
                         self.log.debug('loaded {}'.format(cmd.name))
                 else:
@@ -286,10 +287,11 @@ class ModuBot(Bot):
 
         self.log.debug('loading cogs')
         for modulename, cog in load_cogs:
-            self.add_cog(cog)
             for cmd in cog.get_commands():
                 if cmd.name in self.alias.aliases:
+                    self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
                     cmd.aliases = self.alias.aliases[cmd.name]
+            self.add_cog(cog)
             self.crossmodule._cogs[modulename].append(cog)
             self.log.debug('loaded {}'.format(cog.qualified_name))
 

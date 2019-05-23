@@ -90,12 +90,14 @@ class Alias:
         elif origc:
             try:
                 origc.aliases.remove(alias)
+                self.bot.remove_command(alias)
                 self.aliases[command].remove(alias)
             except ValueError:
                 raise Exception('alias is a command')
 
         c = self.bot.get_command(command)
         c.aliases.append(alias)
+        self.bot.all_commands[alias] = c
         self.aliases[command].append(alias)
         if self.bot.config.persistent_alias:
             self.write_alias()
@@ -105,6 +107,7 @@ class Alias:
         if origc:
             try:
                 origc.aliases.remove(alias)
+                self.bot.remove_command(alias)
                 self.aliases[origc.name].remove(alias)
                 if self.bot.config.persistent_alias:
                     self.write_alias()
