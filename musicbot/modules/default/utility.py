@@ -6,6 +6,7 @@ from typing import Optional
 from discord.ext.commands import Cog, command
 
 from ... import messagemanager
+from ... import exceptions
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class Utility(Cog):
             float(search_range)  # lazy check
             search_range = min(int(search_range), 1000)
         except:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-clean-invalid', "Invalid parameter. Please provide a number of messages to search."), reply=True, expire_in=8)
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-clean-invalid', "Invalid parameter. Please provide a number of messages to search."), expire_in=8)
 
         def is_possible_command_invoke(entry):
             valid_call = any(
@@ -43,6 +44,6 @@ class Utility(Cog):
             if ctx.channel.permissions_for(ctx.guild.me).manage_messages:
                 deleted = await ctx.channel.purge(check=check, limit=search_range, before=ctx.message)
                 await messagemanager.safe_delete_message(ctx.message, quiet=True)
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), expire_in=15)
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), expire_in=15)
 
 cogs = [Utility]

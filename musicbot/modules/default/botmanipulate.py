@@ -22,7 +22,7 @@ class BotManagement(Cog):
         Forces the bot leave the current voice channel.
         """
         get_guild(ctx.bot, ctx.guild).set_connected_voice_channel(None)
-        await messagemanager.safe_send_message(ctx, "Disconnected from `{0.name}`".format(ctx.guild), expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx, "Disconnected from `{0.name}`".format(ctx.guild), expire_in=20)
         return
 
     @command()
@@ -35,7 +35,7 @@ class BotManagement(Cog):
         Will not properly load new dependencies or file updates unless fully shutdown
         and restarted.
         """
-        await messagemanager.safe_send_message(ctx, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
+        await messagemanager.safe_send_normal(ctx, ctx, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
             "or its dependencies, you need to restart the bot properly, rather than using this command.")
         ctx.bot._restart = True
         ctx.bot.loop.stop()
@@ -48,7 +48,7 @@ class BotManagement(Cog):
         
         Disconnects from voice channels and closes the bot process.
         """
-        await messagemanager.safe_send_message(ctx, "\N{WAVING HAND SIGN}")
+        await messagemanager.safe_send_normal(ctx, ctx, "\N{WAVING HAND SIGN}")
         
         ctx.bot.loop.stop()
 
@@ -62,7 +62,7 @@ class BotManagement(Cog):
         When providing names, names are case-sensitive.
         """
         await guild.leave()
-        await messagemanager.safe_send_message(ctx, 'Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(guild))
+        await messagemanager.safe_send_normal(ctx, ctx, 'Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(guild))
 
     @command()
     async def setnick(self, ctx, *, nick:str):
@@ -81,7 +81,7 @@ class BotManagement(Cog):
         except Exception as e:
             raise exceptions.CommandError(e, expire_in=20)
 
-        await messagemanager.safe_send_message(ctx, "Set the bot's nickname to `{0}`".format(nick), expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx, "Set the bot's nickname to `{0}`".format(nick), expire_in=20)
         return
 
     @command()
@@ -110,7 +110,7 @@ class BotManagement(Cog):
         except Exception as e:
             raise exceptions.CommandError("Unable to change avatar: {}".format(e), expire_in=20)
 
-        await messagemanager.safe_send_message(ctx, "Changed the bot's avatar.", expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx, "Changed the bot's avatar.", expire_in=20)
         return
 
     @command()
@@ -135,7 +135,7 @@ class BotManagement(Cog):
         except Exception as e:
             raise exceptions.CommandError(e, expire_in=20)
 
-        await messagemanager.safe_send_message(ctx, "Set the bot's username to **{0}**".format(name), expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx, "Set the bot's username to **{0}**".format(name), expire_in=20)
         return
 
     @command()
@@ -179,7 +179,7 @@ class BotManagement(Cog):
                     ctx.bot.config.auto_playlist = False
             else:
                 raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
-            await messagemanager.safe_send_message(ctx, "The autoplaylist is now " + ['disabled', 'enabled'][ctx.bot.config.auto_playlist] + '.')
+            await messagemanager.safe_send_normal(ctx, ctx, "The autoplaylist is now " + ['disabled', 'enabled'][ctx.bot.config.auto_playlist] + '.')
             return
         else:
             is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
@@ -190,7 +190,7 @@ class BotManagement(Cog):
                 attr = getattr(ctx.bot.config, name)
                 res = "The option {0} is now ".format(option) + ['disabled', 'enabled'][attr] + '.'
                 ctx.bot.log.warning('Option overriden for this session: {0}'.format(res))
-                await messagemanager.safe_send_message(ctx, res)
+                await messagemanager.safe_send_normal(ctx, ctx, res)
                 return
             else:
                 raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-param' ,'The parameters provided were invalid.'))
@@ -213,7 +213,7 @@ class BotManagement(Cog):
 
         ctx.bot.log.info("Joining {0.guild.name}/{0.name}".format(ctx.author.voice.channel))
 
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-summon-reply', 'Connected to `{0.name}`').format(ctx.author.voice.channel))
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-summon-reply', 'Connected to `{0.name}`').format(ctx.author.voice.channel))
 
     @command()
     @owner_only
@@ -226,7 +226,8 @@ class BotManagement(Cog):
         """
 
         url = await ctx.bot.generate_invite_link()
-        await messagemanager.safe_send_message(
+        await messagemanager.safe_send_normal(
+            ctx,
             ctx,
             ctx.bot.str.get('cmd-joinserver-response', "Click here to add me to a server: \n{}").format(url),
             reply=True, expire_in=30

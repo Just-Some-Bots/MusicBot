@@ -6,7 +6,7 @@ import os
 import random
 from .playback import Player, Playlist, PlayerState
 from .constructs import SkipState
-from .messagemanager import safe_send_message, safe_delete_message
+from .messagemanager import safe_send_message, safe_delete_message, content_gen, ContentTypeColor
 from .ytdldownloader import get_entry
 from youtube_dl.utils import DownloadError
 from . import exceptions
@@ -437,8 +437,14 @@ def register_bot(bot):
                         rguild._bot.server_specific_data[rguild]['auto_paused'] = False
                         await player.play()
 
-
     bot.event(on_voice_state_update)
+
+    async def on_command_error(ctx, exception):
+        message = exception.message if isinstance(exception, exceptions.MusicbotException) else str(exception)
+        expire_in = exception.expire_in if isinstance(exception, exceptions.MusicbotException) else None
+        await safe_send_message(ctx, content_gen(ctx, message, color = ContentTypeColor.ERROR), expire_in = expire_in)
+
+    bot.event(on_command_error)
 
 def prunenoowner(client) -> int:
     unavailable_servers = 0

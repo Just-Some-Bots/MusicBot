@@ -26,7 +26,7 @@ class Playback(Cog):
         player = await guild.get_player()
 
         if not new_volume:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-volume-current', 'Current volume: `%s%%`') % int(player.volume * 100), reply=True, expire_in=20)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-volume-current', 'Current volume: `%s%%`') % int(player.volume * 100), reply=True, expire_in=20)
             return
 
         relative = False
@@ -37,7 +37,6 @@ class Playback(Cog):
             new_volume = int(new_volume)
 
         except ValueError:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-volume-invalid', '`{0}` is not a valid number').format(new_volume), expire_in=20)
             raise exceptions.CommandError(ctx.bot.str.get('cmd-volume-invalid', '`{0}` is not a valid number').format(new_volume), expire_in=20)
 
         vol_change = None
@@ -50,18 +49,16 @@ class Playback(Cog):
         if 0 < new_volume <= 100:
             player.volume = new_volume / 100.0
 
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-volume-reply', 'Updated volume from **%d** to **%d**') % (old_volume, new_volume), reply=True, expire_in=20)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-volume-reply', 'Updated volume from **%d** to **%d**') % (old_volume, new_volume), reply=True, expire_in=20)
             return
 
         else:
             if relative:
-                await messagemanager.safe_send_message(
-                    ctx, 
+                raise exceptions.CommandError(
                     ctx.bot.str.get('cmd-volume-unreasonable-relative', 'Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.').format(
                         old_volume, vol_change, old_volume + vol_change, 1 - old_volume, 100 - old_volume), expire_in=20)
             else:
-                await messagemanager.safe_send_message(
-                    ctx, 
+                raise exceptions.CommandError(
                     ctx.bot.str.get('cmd-volume-unreasonable-absolute', 'Unreasonable volume provided: {}%. Provide a value between 1 and 100.').format(new_volume), expire_in=20)
 
     @command()
@@ -82,11 +79,11 @@ class Playback(Cog):
             ensure_future(_fail())
         def success():
             async def _success():
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-resume-reply', 'Resumed music in `{0.name}`'.format(guild._voice_channel), expire_in=15))
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-resume-reply', 'Resumed music in `{0.name}`'.format(guild._voice_channel), expire_in=15))
             ensure_future(_success())
         def wait():
             async def _wait():
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('playback?cmd?resume?reply@wait', 'Resumed music in `{0.name}`, waiting for entries to be added').format(guild._voice_channel), expire_in=15)
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('playback?cmd?resume?reply@wait', 'Resumed music in `{0.name}`, waiting for entries to be added').format(guild._voice_channel), expire_in=15)
             ensure_future(_wait())
         await player.play(play_fail_cb = fail, play_success_cb = success, play_wait_cb = wait)
 
@@ -103,10 +100,10 @@ class Playback(Cog):
         state = await player.status()
         if state != PlayerState.PAUSE:
             await player.pause()
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-pause-reply', 'Paused music in `{0.name}`').format(guild._voice_channel))
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-pause-reply', 'Paused music in `{0.name}`').format(guild._voice_channel))
 
         else:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-pause-none', 'Player is not playing.'), expire_in=30)
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-pause-none', 'Player is not playing.'), expire_in=30)
 
     @command()
     async def effect(self, ctx, mode, fx, *leftover_args):
@@ -121,7 +118,7 @@ class Playback(Cog):
         player = await guild.get_player()
         # @TheerapakG: TODO: FUTURE#1776?EFFECT: effectloader
         reply_msg = ''
-        await messagemanager.safe_send_message(ctx, 'warning! effect command is highly experimental!', expire_in=10)
+        await messagemanager.safe_send_normal(ctx, ctx, 'warning! effect command is highly experimental!', expire_in=10)
         if mode in ['add', 'a']:
             if fx in ['fadein']:
                 duration = leftover_args[0]
@@ -137,7 +134,7 @@ class Playback(Cog):
                 player.effects.append(('adeclick', ''))
                 reply_msg += 'Successfully add effect {} '.format('declick')
             elif fx in ['echo']:
-                await messagemanager.safe_send_message(ctx, 'warning! echo effect is untested', expire_in=10)
+                await messagemanager.safe_send_normal(ctx, ctx, 'warning! echo effect is untested', expire_in=10)
                 # @TheerapakG: untested
                 ingain = leftover_args[0]
                 outgain = leftover_args[1]
@@ -181,6 +178,6 @@ class Playback(Cog):
             positionbef = int(fx)-1
             positionaft = int(leftover_args[0]) -1
             player.effects.insert(positionaft, player.effects.pop(positionbef))
-        await messagemanager.safe_send_message(ctx, reply_msg, delete_after=15)
+        await messagemanager.safe_send_normal(ctx, ctx, reply_msg, delete_after=15)
 
 cogs = [Playback]

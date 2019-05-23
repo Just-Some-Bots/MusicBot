@@ -41,15 +41,9 @@ class QueueManagement(Cog):
 
         # I have to do exe extra checks anyways because you can request an arbitrary number of search results
         if not permissions.allow_playlists and num_songs > 1:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
             raise exceptions.PermissionsError(ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
 
         if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
-            await messagemanager.safe_send_message(
-                ctx,
-                ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(num_songs, permissions.max_playlist_length),
-                expire_in=30
-            )
             raise exceptions.PermissionsError(
                 ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(num_songs, permissions.max_playlist_length),
                 expire_in=30
@@ -57,12 +51,6 @@ class QueueManagement(Cog):
 
         # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
         if permissions.max_songs and player.playlist.count_for_user(ctx.author) + num_songs > permissions.max_songs:
-            await messagemanager.safe_send_message(
-                ctx,
-                ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
-                    num_songs, player.playlist.count_for_user(ctx.author), permissions.max_songs),
-                expire_in=30
-            )
             raise exceptions.PermissionsError(
                 ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
                     num_songs, player.playlist.count_for_user(ctx.author), permissions.max_songs),
@@ -140,13 +128,13 @@ class QueueManagement(Cog):
                     elif 'album' in parts:
                         res = await ctx.bot.spotify.get_album(parts[-1])
                         await self._do_playlist_checks(ctx, res['tracks']['items'])
-                        procmesg = await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
+                        procmesg = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
                         for i in res['tracks']['items']:
                             song_url = i['name'] + ' ' + i['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
                             await self._play(ctx, song_url = song_url, head = head)
                         await messagemanager.safe_delete_message(procmesg)
-                        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
+                        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                         return
 
                     elif 'playlist' in parts:
@@ -160,38 +148,32 @@ class QueueManagement(Cog):
                             else:
                                 break
                         await self._do_playlist_checks(ctx, res)
-                        procmesg = await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
+                        procmesg = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
                         for i in res:
                             song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
                             await self._play(ctx, song_url = song_url, head=head)
                         await messagemanager.safe_delete_message(procmesg)
-                        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
+                        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                         return
 
                     else:
-                        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
-                        return
+                        raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
                 except exceptions.SpotifyError:
-                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
-                    return
+                    raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
 
         # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
         async with ctx.bot.aiolocks[_func_() + ':' + str(ctx.author.id)]:
             if permissions.max_songs and player.playlist.count_for_user(ctx.author) >= permissions.max_songs:
-                await messagemanager.safe_send_message(
-                    ctx,
+                raise exceptions.PermissionsError(
                     ctx.bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
                 )
-                return
 
             if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
-                await messagemanager.safe_send_message(
-                    ctx,
+                raise exceptions.PermissionsError(
                     ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"),
                     expire_in=30
                 )
-                return
 
             # Try to determine entry type, if _type is playlist then there should be entries
             while True:
@@ -219,22 +201,18 @@ class QueueManagement(Cog):
                         song_url = song_url.replace(':', '')  # it's probably not actually an extractor
                         info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
                     else:
-                        await messagemanager.safe_send_message(ctx, str(e), expire_in=30)
+                        raise exceptions.ExtractionError(str(e), expire_in=30)
 
             if not info:
-                await messagemanager.safe_send_message(
-                    ctx,
+                raise exceptions.ExtractionError(
                     ctx.bot.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(ctx.bot.config.command_prefix),
                     expire_in=30
                 )
-                return
 
             if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
-                await messagemanager.safe_send_message(
-                    ctx,
+                raise exceptions.PermissionsError(
                     ctx.bot.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
                 )
-                return
 
             async with self._aiolocks['play_{}'.format(ctx.author.id)]:
                 async with ctx.typing():
@@ -257,7 +235,8 @@ class QueueManagement(Cog):
                         wait_per_song = 1.2
                         drop_count = 0
 
-                        procmesg = await messagemanager.safe_send_message(
+                        procmesg = await messagemanager.safe_send_normal(
+                            ctx,
                             ctx,
                             'Gathering playlist information for {0} songs{1}'.format(
                                 num_songs,
@@ -295,7 +274,7 @@ class QueueManagement(Cog):
                             fixg(wait_per_song * num_songs))
                         )
 
-                        await procmesg.delete()
+                        await messagemanager.safe_delete_message(procmesg.delete)
 
                         reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
                         btext = str(listlen - drop_count)
@@ -303,12 +282,10 @@ class QueueManagement(Cog):
                     # If it's an entry
                     else:
                         if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
-                            await messagemanager.safe_send_message(
-                                ctx,
+                            raise exceptions.PermissionsError(
                                 ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(info['duration'], permissions.max_song_length),
                                 expire_in=30
                             )
-                            return
                         entry = await get_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
                         position = await playlist.add_entry(entry)
 
@@ -347,18 +324,14 @@ class QueueManagement(Cog):
         song_url = song_url.strip('<>')
 
         if permissions.max_songs and (await playlist.num_entry_of(ctx.author.id)) >= permissions.max_songs:
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.PermissionsError(
                 ctx.bot.str.get('cmd-stream-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
             )
-            return
 
         if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.PermissionsError(
                 ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
-            return
 
         entry = await get_stream_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
         position = await playlist.add_entry(entry)
@@ -376,7 +349,7 @@ class QueueManagement(Cog):
             reply_text += ' - estimated time until streaming: %s'
             reply_text %= (btext, position, ftimedelta(time_until))
 
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-stream-success', "Streaming."), expire_in=6)
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-stream-success', "Streaming."), expire_in=6)
 
     @command()
     async def search(self, ctx, *, leftover_args):
@@ -403,29 +376,19 @@ class QueueManagement(Cog):
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         if permissions.max_songs and (await playlist.num_entry_of(ctx.author)) > permissions.max_songs:
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.PermissionsError(
                 ctx.bot.str.get('cmd-search-limit', "You have reached your playlist item limit ({0})").format(permissions.max_songs),
                 expire_in=30
             )
-            return
 
         if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.PermissionsError(
                 ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"), expire_in=30
             )
-            return
 
         async def argcheck():
             if not leftover_args:
                 # noinspection PyUnresolvedReferences
-                await messagemanager.safe_send_message(
-                    ctx,
-                    ctx.bot.str.get('cmd-search-noquery', "Please specify a search query.\n%s") % dedent(
-                        self.search.help_doc.format(command_prefix=ctx.bot.config.command_prefix)),          # pylint: disable=no-member
-                    expire_in=60
-                )
                 raise exceptions.CommandError(
                     ctx.bot.str.get('cmd-search-noquery', "Please specify a search query.\n%s") % dedent(
                         self.search.help_doc.format(command_prefix=ctx.bot.config.command_prefix)),          # pylint: disable=no-member
@@ -437,8 +400,7 @@ class QueueManagement(Cog):
         try:
             leftover_args = shlex.split(' '.join(leftover_args))
         except ValueError:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-noquote', "Please quote your search query properly."), expire_in=30)
-            return
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-search-noquote', "Please quote your search query properly."), expire_in=30)
 
         service = 'youtube'
         items_requested = 3
@@ -461,8 +423,7 @@ class QueueManagement(Cog):
             await argcheck()
 
             if items_requested > max_items:
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-searchlimit', "You cannot search for more than %s videos") % max_items)
-                return
+                raise exceptions.PermissionsError(ctx.bot.str.get('cmd-search-searchlimit', "You cannot search for more than %s videos") % max_items)
 
         # Look jake, if you see this and go "what the fuck are you doing"
         # and have a better idea on how to do this, i'd be delighted to know.
@@ -476,7 +437,7 @@ class QueueManagement(Cog):
 
         search_query = '%s%s:%s' % (services[service], items_requested, ' '.join(leftover_args))
 
-        search_msg = await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-searching', "Searching for videos..."))
+        search_msg = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-searching', "Searching for videos..."))
         # TODO: context mgr
         await messagemanager.send_typing(ctx)
 
@@ -484,17 +445,17 @@ class QueueManagement(Cog):
             info = await ctx.bot.downloader.extract_info(search_query, download=False, process=True)
 
         except Exception as e:
+            # TODO: embed
             await messagemanager.safe_edit_message(search_msg, str(e), send_if_fail=True)
             return
         else:
             await messagemanager.safe_delete_message(search_msg)
 
         if not info:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-none', "No videos found."), expire_in=30)
-            return
+            raise exceptions.ExtractionError(ctx.bot.str.get('cmd-search-none', "No videos found."), expire_in=30)
 
         for e in info['entries']:
-            result_message = messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
+            result_message = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
                 info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
 
             def check(reaction, user):
@@ -513,7 +474,7 @@ class QueueManagement(Cog):
             if str(reaction.emoji) == '\u2705':  # check
                 await messagemanager.safe_delete_message(result_message)
                 await self._play(ctx, song_url = e['webpage_url'])
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
                 return
             elif str(reaction.emoji) == '\U0001F6AB':  # cross
                 await messagemanager.safe_delete_message(result_message)
@@ -522,7 +483,7 @@ class QueueManagement(Cog):
                 await messagemanager.safe_delete_message(result_message)
                 break
 
-        messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
+        messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
 
     @command()
     async def shuffle(self, ctx):
@@ -541,16 +502,16 @@ class QueueManagement(Cog):
         cards = ['\N{BLACK SPADE SUIT}', '\N{BLACK CLUB SUIT}', '\N{BLACK HEART SUIT}', '\N{BLACK DIAMOND SUIT}']
         random.shuffle(cards)
 
-        hand = await messagemanager.safe_send_message(ctx, ' '.join(cards))
+        hand = await messagemanager.safe_send_normal(ctx, ctx, ' '.join(cards))
         await asyncio.sleep(0.6)
 
         for x in range(4): # pylint: disable=unused-variable
             random.shuffle(cards)
-            await messagemanager.safe_edit_message(hand, ' '.join(cards))
+            await messagemanager.safe_edit_normal(ctx, hand, ' '.join(cards))
             await asyncio.sleep(0.6)
 
         await messagemanager.safe_delete_message(hand, quiet=True)
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(guild.guild), expire_in=15)
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-shuffle-reply', "Shuffled `{0}`'s queue.").format(guild.guild), expire_in=15)
 
     @command()
     async def clear(self, ctx):
@@ -565,7 +526,7 @@ class QueueManagement(Cog):
         playlist = await player.get_playlist()
 
         await playlist.clear()
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(guild.guild), expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(guild.guild), expire_in=20)
 
     @command()
     async def cmd_remove(self, ctx, index:Optional[Union[int, User]]=None):
@@ -583,8 +544,7 @@ class QueueManagement(Cog):
         num = await playlist.get_length()
 
         if num == 0:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-none', "There's nothing to remove!"), expire_in=20)
-            return
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-remove-none', "There's nothing to remove!"), expire_in=20)
 
         if isinstance(index, User):
             if permissions.remove or ctx.author == index:
@@ -596,19 +556,16 @@ class QueueManagement(Cog):
                     entry_text = '%s ' % len(entry_indexes) + 'item'
                     if len(entry_indexes) > 1:
                         entry_text += 's'
-                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-reply', "Removed `{0}` added by `{1}`").format(entry_text, index.name).strip())
+                    await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-remove-reply', "Removed `{0}` added by `{1}`").format(entry_text, index.name).strip())
                     return
 
                 except ValueError:
-                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-missing', "Nothing found in the queue from user `%s`") % index.name, expire_in=20)
-                    return
+                    raise exceptions.CommandError(ctx.bot.str.get('cmd-remove-missing', "Nothing found in the queue from user `%s`") % index.name, expire_in=20)
 
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.PermissionsError(
                 ctx.bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"),
                 expire_in=20
             )
-            return
 
         if not index:
             index = num
@@ -616,23 +573,21 @@ class QueueManagement(Cog):
         try:
             index = int(index)
         except (TypeError, ValueError):
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(ctx.bot.config.command_prefix), expire_in=20)
-            return
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(ctx.bot.config.command_prefix), expire_in=20)
 
         if index > num:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(ctx.bot.config.command_prefix), expire_in=20)
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-remove-invalid', "Invalid number. Use {}queue to find queue positions.").format(ctx.bot.config.command_prefix), expire_in=20)
 
         if permissions.remove or ctx.author.id == playlist[index - 1].queuer_id:
             entry = await playlist.remove_position((index - 1))
             if entry.queuer_id:
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, guild.guild.get_member(entry.queuer_id)).strip())
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, guild.guild.get_member(entry.queuer_id)).strip())
                 return
             else:
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-remove-reply-noauthor', "Removed entry `{0}`").format(entry.title).strip())
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-remove-reply-noauthor', "Removed entry `{0}`").format(entry.title).strip())
                 return
         else:
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.PermissionsError(
                 ctx.bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
             )
 
@@ -656,11 +611,10 @@ class QueueManagement(Cog):
                 or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id):
 
                 await player.skip()
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, expire_in=30)
+                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, expire_in=30)
                 return
             else:
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
-                return
+                raise exceptions.PermissionsError(ctx.bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
@@ -678,7 +632,8 @@ class QueueManagement(Cog):
 
         if skips_remaining <= 0:
             await player.skip()
-            await messagemanager.safe_send_message(
+            await messagemanager.safe_send_normal(
+                ctx,
                 ctx,
                 ctx.bot.str.get('cmd-skip-reply-skipped-1', 'Your skip for `{0}` was acknowledged.\nThe vote to skip has been passed.{1}').format(
                     current_entry.title,
@@ -690,7 +645,8 @@ class QueueManagement(Cog):
 
         else:
             # TODO: When a song gets skipped, delete the old x needed to skip messages
-            await messagemanager.safe_send_message(
+            await messagemanager.safe_send_normal(
+                ctx,
                 ctx,
                 ctx.bot.str.get('cmd-skip-reply-voted-1', 'Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.').format(
                     current_entry.title,

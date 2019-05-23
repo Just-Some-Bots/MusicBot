@@ -1,3 +1,5 @@
+!!!THIS GUIDE IS OBSOLETE!!!
+
 This text file serve as a guide for implementing a cog
 
     As you might already see in this folder, a cog is just a Python module but

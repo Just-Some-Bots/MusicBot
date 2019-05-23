@@ -31,17 +31,17 @@ class Information(Cog):
         try:
             info = await ctx.bot.downloader.extract_info(song_url.strip('<>'), download=False, process=False)
         except Exception as e:
-            raise exceptions.CommandError("Could not extract info from input url\n%s\n" % e, expire_in=25)
+            raise exceptions.ExtractionError("Could not extract info from input url\n%s\n" % e, expire_in=25)
 
         if not info:
-            raise exceptions.CommandError("Could not extract info from input url, no data.", expire_in=25)
+            raise exceptions.ExtractionError("Could not extract info from input url, no data.", expire_in=25)
 
         if not info.get('entries', None):
             # TODO: Retarded playlist checking
             # set(url, webpageurl).difference(set(url))
 
             if info.get('url', None) != info.get('webpage_url', info.get('url', None)):
-                raise exceptions.CommandError("This does not seem to be a playlist.", expire_in=25)
+                raise exceptions.ExtractionError("This does not seem to be a playlist.", expire_in=25)
             else:
                 return await self.pldump(ctx, song_url = info.get(''))
 
@@ -54,7 +54,7 @@ class Information(Cog):
         exfunc = linegens[info['extractor'].split(':')[0]]
 
         if not exfunc:
-            raise exceptions.CommandError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
+            raise exceptions.ExtractionError("Could not extract info from input url, unsupported playlist type.", expire_in=25)
 
         with BytesIO() as fcontent:
             for item in info['entries']:
@@ -63,7 +63,7 @@ class Information(Cog):
             fcontent.seek(0)
             await messagemanager.safe_send_message(ctx.author, "Here's the playlist dump for <%s>" % song_url, file=discord.File(fcontent, filename='playlist.txt'))
 
-        return messagemanager.safe_send_message(ctx, "Sent a message with a playlist file.", expire_in=20)
+        return messagemanager.safe_send_normal(ctx, ctx, "Sent a message with a playlist file.", expire_in=20)
 
     @command()
     async def queue(self, ctx):
@@ -119,7 +119,7 @@ class Information(Cog):
                 ctx.bot.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(ctx.bot.config.command_prefix))
 
         message = '\n'.join(lines)
-        await messagemanager.safe_send_message(ctx, message, expire_in=30)
+        await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
 
     @command()
     async def listids(self, ctx, *, cat:Optional[str]='all'):
@@ -134,7 +134,8 @@ class Information(Cog):
         cats = ['channels', 'roles', 'users']
 
         if cat not in cats and cat != 'all':
-            await messagemanager.safe_send_message(
+            await messagemanager.safe_send_normal(
+                ctx,
                 ctx,
                 "Valid categories: " + ' '.join(['`%s`' % c for c in cats]),
                 reply=True,
@@ -179,7 +180,7 @@ class Information(Cog):
             # TODO: Fix naming (Discord20API-ids.txt)
             await messagemanager.safe_send_message(ctx.author, discord.File(sdata, filename='%s-ids-%s.txt' % (ctx.guild.name.replace(' ', '_'), cat)))
 
-        await messagemanager.safe_send_message(ctx, "Sent a message with a list of IDs.", expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx, "Sent a message with a list of IDs.", expire_in=20)
 
     @command()
     async def perms(self, ctx, user:Optional[discord.User]):
@@ -205,8 +206,8 @@ class Information(Cog):
 
             lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
-        await messagemanager.safe_send_message(ctx.author, '\n'.join(lines))
-        await messagemanager.safe_send_message(ctx, "\N{OPEN MAILBOX WITH RAISED FLAG}", expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx.author, '\n'.join(lines))
+        await messagemanager.safe_send_normal(ctx, ctx, "\N{OPEN MAILBOX WITH RAISED FLAG}", expire_in=20)
 
     @command()
     async def np(self, ctx):
@@ -272,8 +273,7 @@ class Information(Cog):
 
             ctx.bot.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(ctx, np_text)
         else:
-            await messagemanager.safe_send_message(
-                ctx,
+            raise exceptions.CommandError(
                 ctx.bot.str.get('cmd-np-none', 'There are no songs queued! Queue something with {0}play.') .format(ctx.bot.config.command_prefix),
                 expire_in=30
             )
@@ -287,8 +287,8 @@ class Information(Cog):
         Tells the user their id or the id of another user.
         """
         if not user:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-id-self', 'Your ID is `{0}`').format(ctx.author.id), reply=True, expire_in=35)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-id-self', 'Your ID is `{0}`').format(ctx.author.id), reply=True, expire_in=35)
         else:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(user.name, user.id), reply=True, expire_in=35)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(user.name, user.id), reply=True, expire_in=35)
 
 cogs = [Information]

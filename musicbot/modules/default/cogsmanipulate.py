@@ -28,7 +28,7 @@ class CogManagement(Cog):
         except:
             raise
         else:
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cogs?cmd?loadmodule?success', "successfully loaded/reloaded module `{0}`").format(module), expire_in=15)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?loadmodule?success', "successfully loaded/reloaded module `{0}`").format(module), expire_in=15)
 
     @command()
     @owner_only
@@ -40,8 +40,8 @@ class CogManagement(Cog):
         Get module name of specified cog.
         """
         # TODO:
-        module = None
-        await messagemanager.safe_send_message(ctx, '```{}```'.format(module), expire_in=15)
+        module = 'not implemented'
+        await messagemanager.safe_send_normal(ctx, ctx, '```{}```'.format(module), expire_in=15)
 
     @command()
     @owner_only
@@ -64,7 +64,7 @@ class CogManagement(Cog):
         c = ctx.bot.get_command(command)
         c.aliases.append(alias)
 
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), expire_in=15)
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), expire_in=15)
 
     @command()
     @owner_only
@@ -81,7 +81,7 @@ class CogManagement(Cog):
                 origc.aliases.remove(alias)
             except ValueError:
                 raise Exception('alias is a command')
-            await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cogs?cmd?removealias?success', "Successfully remove alias `{0}`").format(alias), expire_in=15)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?removealias?success', "Successfully remove alias `{0}`").format(alias), expire_in=15)
         else:
             raise Exception('no such alias')
 

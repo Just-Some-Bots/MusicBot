@@ -33,7 +33,12 @@ async def safe_edit_message(message, new, *, send_if_fail=False, quiet=False):
     lfunc = log.debug if quiet else log.warning
 
     try:
-        return await message.edit(content=new)
+        if new is not None:
+            if isinstance(new, discord.Embed):
+                msg = await message.edit(embed=new)
+            else:
+                msg = await message.edit(content=new)
+            return msg
 
     except discord.NotFound:
         lfunc("Cannot edit message \"{}\", message not found".format(message.clean_content))
@@ -106,6 +111,18 @@ async def safe_send_message(dest, content, **kwargs):
             asyncio.ensure_future(_wait_delete_msg(also_delete, expire_in))
 
     return msg
+
+async def safe_send_normal(ctx, dest, fields, **kwargs):
+    '''
+    shorthand for safe_send_message(dest, content_gen(ctx, fields), **kwargs)
+    '''
+    return await safe_send_message(dest, content_gen(ctx, fields), **kwargs)
+
+async def safe_edit_normal(ctx, message, fields, **kwargs):
+    '''
+    shorthand for safe_edit_message(message, content_gen(ctx, fields), **kwargs)
+    '''
+    return await safe_edit_message(message, content_gen(ctx, fields), **kwargs)
 
 async def send_typing(destination):
     try:

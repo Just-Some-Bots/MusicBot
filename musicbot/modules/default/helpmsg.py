@@ -91,8 +91,7 @@ class Help(Cog):
                 cogs = {name: cogs[name]}
                 cogdesc = ctx.bot.cogs[name].description
             except KeyError:
-                await messagemanager.safe_send_message(ctx, ctx.bot.str.get('help?cmd?help?fail@cog', "No such cog"), expire_in=10)
-                return
+                raise exceptions.CommandError(ctx.bot.str.get('help?cmd?help?fail@cog', "No such cog"), expire_in=10)
             desc = '\N{WHITE SMALL SQUARE} {}:\n{}\n\n'.format(name, cogdesc) if cogdesc else '\N{WHITE SMALL SQUARE} {}:\n'.format(name)
             
         else:
@@ -101,9 +100,10 @@ class Help(Cog):
                 try:
                     cmd = cmd[name]
                 except:
-                    await messagemanager.safe_send_message(ctx, ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
+                    raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
                 if not hasattr(cmd.callback, 'dev_cmd'):
-                    await messagemanager.safe_send_message(
+                    await messagemanager.safe_send_normal(
+                        ctx,
                         ctx,
                         "```\n{}```".format(
                             dedent(cmd.help)
@@ -129,6 +129,6 @@ class Help(Cog):
         if not list_all:
             desc += ctx.bot.str.get('cmd-help-all', '\nOnly showing commands you can use, for a list of all commands, run `{}help all`').format(prefix)
 
-        await messagemanager.safe_send_message(ctx, desc, reply=True, expire_in=60)
+        await messagemanager.safe_send_normal(ctx, ctx, desc, reply=True, expire_in=60)
 
 cogs = [Help]

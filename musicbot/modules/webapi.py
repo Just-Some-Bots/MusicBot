@@ -210,8 +210,8 @@ class Webapi(Cog):
         authtoken.append(token)
         if ctx.bot.config.webapi_persistent_tokens:
             await serialize_tokens()
-        await messagemanager.safe_send_message(ctx.author, ctx.bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
-        await messagemanager.safe_send_message(ctx, ctx.bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), expire_in=20)
+        await messagemanager.safe_send_normal(ctx, ctx.author, ctx.bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), expire_in=20)
 
     @owner_only
     @command()
@@ -226,9 +226,9 @@ class Webapi(Cog):
             authtoken.remove(token)
             if ctx.bot.config.webapi_persistent_tokens:
                 await serialize_tokens()
-            await messagemanager.safe_send_message(ctx.author, ctx.bot.str.get('webapi?cmd?revoketoken?success@revtoken', "Successfully revoked token `{0}`").format(token))
+            await messagemanager.safe_send_normal(ctx, ctx.author, ctx.bot.str.get('webapi?cmd?revoketoken?success@revtoken', "Successfully revoked token `{0}`").format(token))
         except ValueError:
-            await messagemanager.safe_send_message(ctx.author, ctx.bot.str.get('webapi?cmd?revoketoken?fail@revtoken', "Token `{0}` not found").format(token))
+            await messagemanager.safe_send_message(ctx.author, messagemanager.content_gen(ctx, ctx.bot.str.get('webapi?cmd?revoketoken?fail@revtoken', "Token `{0}` not found").format(token), color = messagemanager.ContentTypeColor.ERROR))
         finally:
             await messagemanager.safe_send_message(ctx, ctx.bot.str.get('webapi?cmd?revoketoken?info@action', "Sent a message with information regarding the action."), expire_in=20)
 
