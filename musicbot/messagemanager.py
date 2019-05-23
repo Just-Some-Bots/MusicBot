@@ -53,8 +53,11 @@ class ContentTypeColor(Enum):
 def content_gen(ctx, fields, color = ContentTypeColor.NORMAL):
     if ctx.bot.config.embeds:
         e = discord.Embed()
-        e.colour = color
-        e.title = ctx.command.name
+        e.colour = color.value
+        if ctx.command:
+            e.title = ctx.command.name
+        else:
+            e.title = discord.utils.find((lambda c: ctx.invoked_with in c.aliases), ctx.bot.walk_commands()).name
         e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
         e.set_author(name=ctx.bot.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=ctx.bot.user.avatar_url)
         if isinstance(fields, list):

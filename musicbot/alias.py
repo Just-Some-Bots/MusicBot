@@ -13,9 +13,10 @@ log = logging.getLogger(__name__)
 
 class Alias:
     # noinspection PyUnresolvedReferences
-    def __init__(self, alias_file):
+    def __init__(self, bot, alias_file):
         self.alias_file = alias_file
         self.find_alias_file()
+        self.bot = bot
         self.aliases = defaultdict(list)
 
         config = configparser.ConfigParser(interpolation=None)
@@ -81,6 +82,37 @@ class Alias:
             config.set('Aliases', key, ' '.join(value))
         with open(location, 'w') as f:
             config.write(f)
+
+    def add_alias(self, command, alias, force = False):
+        origc = self.bot.get_command(alias)
+        if origc and not force:
+            raise Exception('already have alias')
+        elif origc:
+            try:
+                origc.aliases.remove(alias)
+                self.aliases[command].remove(alias)
+            except ValueError:
+                raise Exception('alias is a command')
+
+        c = self.bot.get_command(command)
+        c.aliases.append(alias)
+        self.aliases[command].append(alias)
+        if self.bot.config.persistent_alias:
+            self.write_alias()
+
+    def remove_alias(self, alias):
+        origc = self.bot.get_command(alias)
+        if origc:
+            try:
+                origc.aliases.remove(alias)
+                self.aliases[origc.name].remove(alias)
+                if self.bot.config.persistent_alias:
+                    self.write_alias()
+                return
+            except ValueError:
+                raise Exception('alias is a command')
+        else:
+            raise Exception('no such alias')
             
 class AliasDefaults:
     alias_file = 'config/alias.ini' 

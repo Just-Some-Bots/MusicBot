@@ -70,6 +70,7 @@ class ModuBot(Bot):
             self.log.addHandler(handler)
 
         self.config = Config(config_file)
+        self.alias = Alias(self, AliasDefaults.alias_file)
         self.downloader = YtdlDownloader(self, 'audio_cache')
 
         self.log.setLevel(self.config.debug_level)
@@ -240,6 +241,8 @@ class ModuBot(Bot):
                     for command in commands:
                         cmd = command()
                         self.add_command(cmd)
+                        if cmd.name in self.alias.aliases:
+                            cmd.aliases = self.alias.aliases[cmd.name]
                         self.crossmodule._commands[moduleinfo.name].append(cmd.name)
                         self.log.debug('loaded {}'.format(cmd.name))
                 else:
@@ -284,6 +287,9 @@ class ModuBot(Bot):
         self.log.debug('loading cogs')
         for modulename, cog in load_cogs:
             self.add_cog(cog)
+            for cmd in cog.get_commands():
+                if cmd.name in self.alias.aliases:
+                    cmd.aliases = self.alias.aliases[cmd.name]
             self.crossmodule._cogs[modulename].append(cog)
             self.log.debug('loaded {}'.format(cog.qualified_name))
 

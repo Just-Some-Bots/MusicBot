@@ -52,18 +52,7 @@ class CogManagement(Cog):
 
         Add alias to the command.
         """
-        origc = ctx.bot.get_command(alias)
-        if origc and not (param.lower() in ['force', 'f']):
-            raise Exception('already have alias')
-        elif origc:
-            try:
-                origc.aliases.remove(alias)
-            except ValueError:
-                raise Exception('alias is a command')
-
-        c = ctx.bot.get_command(command)
-        c.aliases.append(alias)
-
+        ctx.bot.alias.add_alias(command, alias, param.lower() in ['force', 'f'])
         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), expire_in=15)
 
     @command()
@@ -71,18 +60,11 @@ class CogManagement(Cog):
     async def removealias(self, ctx, alias:str):
         """
         Usage:
-            {command_prefix}removealias command alias
+            {command_prefix}removealias alias
 
         Remove alias from the command.
         """
-        origc = ctx.bot.get_command(alias)
-        if origc:
-            try:
-                origc.aliases.remove(alias)
-            except ValueError:
-                raise Exception('alias is a command')
-            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?removealias?success', "Successfully remove alias `{0}`").format(alias), expire_in=15)
-        else:
-            raise Exception('no such alias')
+        ctx.bot.alias.remove_alias(alias)
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?removealias?success', "Successfully remove alias `{0}`").format(alias), expire_in=15)
 
 cogs = [CogManagement]
