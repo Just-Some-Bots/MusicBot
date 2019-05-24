@@ -117,6 +117,8 @@ class QueueManagement(Cog):
 
         if ctx.bot.config._spotify:
             if 'open.spotify.com' in song_url:
+                # remove session id (and other query stuff)
+                song_url = re.sub('\?.*', '', song_url)
                 song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':') # pylint: disable=anomalous-backslash-in-string
             if song_url.startswith('spotify:'):
                 parts = song_url.split(":")
