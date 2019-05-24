@@ -151,7 +151,7 @@ class RequestHdlr(BaseHTTPRequestHandler):
         log.debug("{addr} - - [{dt}] {args}\n".format(addr = self.address_string(), dt = self.log_date_time_string(), args = format%args))
 
 class Webapi(Cog):
-    async def __init__(self):
+    def __init__(self):
         self.bot = None
 
     async def pre_init(self, bot):
@@ -193,10 +193,9 @@ class Webapi(Cog):
         global webserver
         webserver.shutdown()
 
-
-    @owner_only
     @command()
-    async def cmd_gentoken(self, ctx):
+    @owner_only
+    async def gentoken(self, ctx):
         """
         Usage:
             {command_prefix}gentoken
@@ -213,9 +212,9 @@ class Webapi(Cog):
         await messagemanager.safe_send_normal(ctx, ctx.author, ctx.bot.str.get('webapi?cmd?gentoken?success@gentoken', "Generated token `{0}`.").format(token))
         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('webapi?cmd?gentoken?success@sent', "Sent a message containing the token generated."), expire_in=20)
 
-    @owner_only
     @command()
-    async def cmd_revoketoken(self, ctx, token:str):
+    @owner_only
+    async def revoketoken(self, ctx, token:str):
         """
         Usage:
             {command_prefix}revoketoken token

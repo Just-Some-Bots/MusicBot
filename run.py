@@ -400,7 +400,7 @@ def main():
         try:
             from musicbot import ModuBot
             m = ModuBot(loghandlerlist = [sh, fh])
-            m.loop.run_until_complete(m.load_modules(['default']))
+            m.loop.run_until_complete(m.load_modules(m.config.cogs))
 
             shutdown = False
             safe_shutdown = threading.Lock()
