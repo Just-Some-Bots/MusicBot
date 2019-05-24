@@ -232,7 +232,6 @@ class ModuBot(Bot):
                 else:
                     self.log.debug('deps is not an iterable')
 
-        # TODO: assign alias from alias.py
         for moduleinfo in modulelist:
             if 'cogs' in dir(moduleinfo.module):
                 cogs = getattr(moduleinfo.module, 'cogs')
