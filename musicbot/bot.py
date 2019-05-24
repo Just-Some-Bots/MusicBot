@@ -859,3 +859,4 @@ class ModuBot(Bot):
 
     async def exec_bot(self, code):
         exec(code)
+        

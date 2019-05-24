@@ -6,7 +6,7 @@ import os
 import random
 from .playback import Player, Playlist, PlayerState
 from .constructs import SkipState
-from .messagemanager import safe_send_message, safe_delete_message, content_gen, ContentTypeColor
+from .messagemanager import safe_send_message, safe_send_normal, safe_delete_message, content_gen, ContentTypeColor
 from .ytdldownloader import get_entry
 from youtube_dl.utils import DownloadError
 from . import exceptions
@@ -445,6 +445,42 @@ def register_bot(bot):
         await safe_send_message(ctx, content_gen(ctx, message, color = ContentTypeColor.ERROR), expire_in = expire_in)
 
     bot.event(on_command_error)
+
+    async def context_check(ctx):
+        if ctx.author == ctx.bot.user:
+            ctx.bot.log.info("Ignoring command from myself ({})".format(ctx.message.content))
+            return False
+
+        if (not isinstance(ctx.message.channel, discord.abc.GuildChannel)) and (not isinstance(ctx.message.channel, discord.abc.PrivateChannel)):
+            ctx.bot.log.info("WTF is the message channel then")
+            return False
+
+        if isinstance(ctx.message.channel, discord.abc.PrivateChannel):
+            if not (ctx.author.id == ctx.bot.config.owner_id and ctx.command.name == 'joinserver'):
+                await safe_send_normal(ctx, ctx, 'You cannot use this bot in private messages.')
+                ctx.bot.log.info('Ignoring command via private messages.')
+                return False
+
+        if ctx.bot.config.bound_channels and ctx.message.channel.id not in ctx.bot.config.bound_channels:
+            if ctx.bot.config.unbound_servers:
+                for channel in ctx.message.guild.channels:
+                    if channel.id in ctx.bot.config.bound_channels:
+                        ctx.bot.log.info('Ignoring command that is not sent in bounded channels.')
+                        return False
+            else:
+               ctx.bot.log.info('Ignoring command that is not sent in bounded channels.')
+               return False
+
+        if ctx.author.id in ctx.bot.blacklist and ctx.author.id != ctx.bot.config.owner_id:
+            ctx.bot.log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(ctx.author, ctx.command.name))
+            ctx.bot.log.info('Ignoring command from blacklisted users')
+            return False
+
+        else:
+            ctx.bot.log.info("{0.id}/{0!s}: {1}".format(ctx.author, ctx.message.content.replace('\n', '\n... ')))
+            return True
+
+    bot.check_once(context_check)
 
 def prunenoowner(client) -> int:
     unavailable_servers = 0
