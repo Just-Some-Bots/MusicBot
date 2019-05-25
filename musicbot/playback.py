@@ -44,9 +44,7 @@ class Entry(Serializable):
             '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
             'stream': self.stream,
             'meta': {
-                name: {
-                    'id': obj
-                } for name, obj in self._metadata.items() if obj
+                name: obj for name, obj in self._metadata.items() if obj
             }
         })
 
@@ -68,7 +66,7 @@ class Entry(Serializable):
 
             # TODO: Better [name] fallbacks
             if 'channel_id' in data['meta']:
-                meta['channel_id'] = int(data['meta']['channel']['id'])
+                meta['channel_id'] = int(data['meta']['channel_id'])
                 if not meta['channel_id']:
                     log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
                     meta.pop('channel_id')

@@ -165,7 +165,7 @@ class QueueManagement(Cog):
                     raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
 
         # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
-        async with ctx.bot.aiolocks[_func_() + ':' + str(ctx.author.id)]:
+        async with self._aiolocks[_func_() + ':' + str(ctx.author.id)]:
             if permissions.max_songs and player.playlist.count_for_user(ctx.author) >= permissions.max_songs:
                 raise exceptions.PermissionsError(
                     ctx.bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
@@ -251,7 +251,7 @@ class QueueManagement(Cog):
                         # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
                         #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
 
-                        entry_list = await get_entry_list_from_playlist_url(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
+                        entry_list = await get_entry_list_from_playlist_url(song_url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
                         entry = None
                         position = None
                         for entry_proc in entry_list:
@@ -288,7 +288,7 @@ class QueueManagement(Cog):
                                 ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(info['duration'], permissions.max_song_length),
                                 expire_in=30
                             )
-                        entry = await get_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel':ctx.channel})
+                        entry = await get_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
                         position = await playlist.add_entry(entry)
 
                         reply_text = "Enqueued `%s` to be played. Position in queue: %s"
@@ -531,7 +531,7 @@ class QueueManagement(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(guild.guild), expire_in=20)
 
     @command()
-    async def cmd_remove(self, ctx, index:Optional[Union[int, User]]=None):
+    async def remove(self, ctx, index:Optional[Union[int, User]]=None):
         """
         Usage:
             {command_prefix}remove [# in queue]
@@ -593,7 +593,8 @@ class QueueManagement(Cog):
                 ctx.bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
             )
 
-    async def cmd_skip(self, ctx, param:Optional[str]=''):
+    @command()
+    async def skip(self, ctx, param:Optional[str]=''):
         """
         Usage:
             {command_prefix}skip [force/f]

@@ -150,7 +150,7 @@ class RichGuild:
         if author:
             author_perms = self._bot.permissions.for_user(author)
 
-            if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
+            if author not in self._voice_channel.members and author_perms.skip_when_absent:
                 newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
                     self._voice_channel.name, entry.title, author.name)
                 await player.skip()
@@ -210,7 +210,7 @@ class RichGuild:
     async def on_player_pause(self, player, entry, **_):
         self._bot.log.debug('Running on_player_pause')
         await self._bot.update_now_playing_status(entry, True)
-        # await self.serialize_queue(player.voice_client.channel.guild)
+        # await self.serialize_queue(self)
 
     async def on_player_stop(self, player, **_):
         self._bot.log.debug('Running on_player_stop')
@@ -307,9 +307,9 @@ class RichGuild:
             await self.serialize_queue()
 
     async def on_player_error(self, player, entry, ex, **_):
-        if 'channel' in entry._metadata:
+        if 'channel_id' in entry._metadata:
             await safe_send_message(
-                self.guild.get_channel(entry._metadata['channel']),
+                self.guild.get_channel(entry._metadata['channel_id']),
                 "```\nError from FFmpeg:\n{}\n```".format(ex)
             )
         else:
@@ -443,6 +443,8 @@ def register_bot(bot):
         message = exception.message if isinstance(exception, exceptions.MusicbotException) else str(exception)
         expire_in = exception.expire_in if isinstance(exception, exceptions.MusicbotException) else None
         await safe_send_message(ctx, content_gen(ctx, message, color = ContentTypeColor.ERROR), expire_in = expire_in)
+        if not isinstance(exception, exceptions.MusicbotException):
+            raise exception
 
     bot.event(on_command_error)
 
