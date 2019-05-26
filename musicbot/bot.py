@@ -106,14 +106,25 @@ class ModuBot(Bot):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.autostream = load_file(self.config.auto_stream_file)
 
         self.log.info('Starting MusicBot {}'.format(BOTVERSION))
+
+        self.playlisttype = list()
 
         if not self.autoplaylist:
             self.log.warning("Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
         else:
             self.log.info("Loaded autoplaylist with {} entries".format(len(self.autoplaylist)))
+            self.playlisttype.append('playlist')
+
+        if not self.autostream:
+            self.log.warning("Autostream is empty, disabling.")
+            self.config.auto_stream = False
+        else:
+            self.log.info("Loaded autostream with {} entries".format(len(self.autostream)))
+            self.playlisttype.append('stream')
 
         if self.blacklist:
             self.log.debug("Loaded blacklist with {} entries".format(len(self.blacklist)))
@@ -552,7 +563,7 @@ class ModuBot(Bot):
 
                     self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
 
-                    if self.config.auto_playlist:
+                    if self.config.auto_playlist or self.config.auto_stream:
                         player = await guild.get_player()
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
