@@ -713,7 +713,7 @@ class ModuBot(Bot):
                 self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
             self.log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
             self.log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-            self.log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_random] + ")")
+            self.log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_stream_random] + ")")
             self.log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
             self.log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
             if self.config.delete_messages:
