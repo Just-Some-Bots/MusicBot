@@ -253,6 +253,9 @@ class PlayerState(Enum):
     DOWNLOADING = 2
     WAITING = 3
 
+class PlayerSelector(Enum):
+    TOGGLE = 0
+    MERGE = 1
 
 class SourcePlaybackCounter(AudioSource):
     def __init__(self, source, progress = 0):

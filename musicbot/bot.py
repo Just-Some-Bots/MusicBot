@@ -51,7 +51,7 @@ from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
 from .ytdldownloader import YtdlDownloader
-from .utils import isiterable, load_file, fixg
+from .utils import isiterable, load_file, write_file, fixg
 from .constants import VERSION as BOTVERSION
 from .constants import AUDIO_CACHE_PATH
 
@@ -466,6 +466,9 @@ class ModuBot(Bot):
         # playlists in autoplaylist
         await self._scheck_autoplaylist()
 
+        # streamss in autostream
+        await self._scheck_autostream()
+
         # config/permissions async validate?
         await self._scheck_configs()
 
@@ -494,12 +497,40 @@ class ModuBot(Bot):
         self.log.debug("Auditing autoplaylist")
         pass # TODO
 
+    async def _scheck_autostream(self):
+        self.log.debug("Auditing autostream")
+        pass # TODO
+
     async def _scheck_configs(self):
         self.log.debug("Validating config")
         await self.config.async_validate(self)
 
         self.log.debug("Validating permissions config")
         await self.permissions.async_validate(self)
+
+    async def remove_from_autostream(self, song_url:str, *, ex:Exception=None, delete_from_as=False):
+        if song_url not in self.autostream:
+            self.log.debug("URL \"{}\" not in autostream, ignoring".format(song_url))
+            return
+
+        async with self._aiolocks['remove_from_autostream']:
+            self.autostream.remove(song_url)
+            self.log.info("Removing unplayable song from session autostream: %s" % song_url)
+
+            with open(self.config.auto_stream_removed_file, 'a', encoding='utf8') as f:
+                f.write(
+                    '# Entry removed {ctime}\n'
+                    '# Reason: {ex}\n'
+                    '{url}\n\n{sep}\n\n'.format(
+                        ctime=time.ctime(),
+                        ex=str(ex).replace('\n', '\n#' + ' ' * 10), # 10 spaces to line up with # Reason:
+                        url=song_url,
+                        sep='#' * 32
+                ))
+
+            if delete_from_as:
+                self.log.info("Updating autostream")
+                write_file(self.config.auto_stream_file, self.autostream)
 
     @staticmethod
     def _check_if_empty(vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False):
