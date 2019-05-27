@@ -490,6 +490,30 @@ class ModuBot(Bot):
         self.log.debug("Validating permissions config")
         await self.permissions.async_validate(self)
 
+    async def remove_from_autoplaylist(self, song_url:str, *, ex:Exception=None, delete_from_ap=False):
+        if song_url not in self.autoplaylist:
+            self.log.debug("URL \"{}\" not in autoplaylist, ignoring".format(song_url))
+            return
+
+        async with self._aiolocks[_func_()]:
+            self.autoplaylist.remove(song_url)
+            self.log.info("Removing unplayable song from session autoplaylist: %s" % song_url)
+
+            with open(self.config.auto_playlist_removed_file, 'a', encoding='utf8') as f:
+                f.write(
+                    '# Entry removed {ctime}\n'
+                    '# Reason: {ex}\n'
+                    '{url}\n\n{sep}\n\n'.format(
+                        ctime=time.ctime(),
+                        ex=str(ex).replace('\n', '\n#' + ' ' * 10), # 10 spaces to line up with # Reason:
+                        url=song_url,
+                        sep='#' * 32
+                ))
+
+            if delete_from_ap:
+                self.log.info("Updating autoplaylist")
+                write_file(self.config.auto_playlist_file, self.autoplaylist)
+
     @staticmethod
     def _check_if_empty(vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False):
         def check(member):
