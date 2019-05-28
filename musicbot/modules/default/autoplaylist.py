@@ -85,9 +85,12 @@ class Autoplaylist(Cog):
                 bot.config.auto_mode_toggle = playlisttype[i]
                 # reset playlist
                 guild.autoplaylist = list()
-                # TODO: if autoing then switch
-                # on_player_finished_playing should fill in the music
-                # done!
+                # if autoing then switch
+                if bot.config.skip_if_auto:
+                    player = await guild.get_player()
+                    current = await player.get_current_entry()
+                    if current and not current.queuer_id:
+                        await player.skip()
                 safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-success', 'Switched autoplaylist to {0}').format(bot.config.auto_mode_toggle), expire_in=15)
                 return
         else:
