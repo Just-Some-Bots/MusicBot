@@ -150,8 +150,8 @@ class BotManagement(Cog):
         config file.
 
         Valid options:
-            autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
-            delete_messages, delete_invoking, write_current_song
+            autoplaylist, autostream save_videos, now_playing_mentions, auto_playlist_stream_random,
+            auto_pause, delete_messages, delete_invoking, write_current_song
 
         For information about these options, see the option's comment in the config file.
         """
@@ -160,7 +160,7 @@ class BotManagement(Cog):
         value = value.lower()
         bool_y = ['on', 'y', 'enabled']
         bool_n = ['off', 'n', 'disabled']
-        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_random',
+        generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_stream_random',
                     'auto_pause', 'delete_messages', 'delete_invoking',
                     'write_current_song']  # these need to match attribute names in the Config class
         if option in ['autoplaylist', 'auto_playlist']:
@@ -180,6 +180,23 @@ class BotManagement(Cog):
             else:
                 raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
             await messagemanager.safe_send_normal(ctx, ctx, "The autoplaylist is now " + ['disabled', 'enabled'][ctx.bot.config.auto_playlist] + '.')
+            return
+        elif option in ['autostream', 'auto_stream']:
+            if value in bool_y:
+                if ctx.bot.config.auto_stream:
+                    raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autostream-enabled', 'The autostream is already enabled!'))
+                else:
+                    if not ctx.bot.autostream:
+                        raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autostream-none', 'There are no entries in the autostream file.'))
+                    ctx.bot.config.auto_stream = True
+            elif value in bool_n:
+                if not ctx.bot.config.auto_stream:
+                    raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autostream-disabled', 'The autostream is already disabled!'))
+                else:
+                    ctx.bot.config.auto_stream = False
+            else:
+                raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
+            await messagemanager.safe_send_normal(ctx, ctx, "The autostream is now " + ['disabled', 'enabled'][ctx.bot.config.auto_stream] + '.')
             return
         else:
             is_generic = [o for o in generic if o == option]  # check if it is a generic bool option

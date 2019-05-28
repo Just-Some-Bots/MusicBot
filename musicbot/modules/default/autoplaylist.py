@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Optional
 
 from discord.ext.commands import Cog, command
@@ -117,5 +118,66 @@ class Autoplaylist(Cog):
                 raise exceptions.CommandError(bot.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
         else:
             raise exceptions.CommandError(bot.str.get('cmd-save-invalid', 'There is no valid song playing.'))
+
+    async def autostream(self, ctx, option, url:Optional[str]=None):
+        """
+        Usage:
+            {command_prefix}autostream (+|-|add|remove) url
+
+        Add or remove the specified stream or current stream if not specified to/from the autostream.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+        player = await guild.get_player()
+        current = await player.get_current_entry()
+        if current.stream:
+            if not url:
+                url = player.current_entry.url
+        else:
+            if not url:
+                raise exceptions.CommandError(bot.str.get('cmd-autostream-stream-invalid', 'There is no valid stream playing.'))
+
+        if not url:
+            raise exceptions.CommandError(bot.str.get('cmd-autostream-nourl', '\'Emptiness\' is not a valid URL. Maybe you forget options?'))
+
+
+        if option in ['+', 'add']:
+            if url not in bot.autostream:
+                bot.autostream.append(url)
+                write_file(bot.config.auto_stream_file, bot.autostream)
+                bot.log.debug("Appended {} to autostream".format(url))
+                await safe_send_normal(ctx, ctx, bot.str.get('cmd-addstream-success', 'Added <{0}> to the autostream.').format(url))
+                return
+            else:
+                raise exceptions.CommandError(bot.str.get('cmd-addstream-exists', 'This stream is already in the autostream.'))
+
+        elif option in ['-', 'remove']:
+            if url not in bot.autostream:
+                bot.log.debug("URL \"{}\" not in autostream, ignoring".format(url))
+                raise exceptions.CommandError(bot.str.get('cmd-removestream-notexists', 'This stream is already not in the autostream.'))
+
+            async with bot._aiolocks['remove_from_autostream']:
+                bot.autostream.remove(url)
+                bot.log.info("Removing song from session autostream: %s" % url)
+
+                with open(bot.config.auto_stream_removed_file, 'a', encoding='utf8') as f:
+                    f.write(
+                        '# Entry removed {ctime}\n'
+                        '# Reason: {re}\n'
+                        '{url}\n\n{sep}\n\n'.format(
+                            ctime=time.ctime(),
+                            re='\n#' + ' ' * 10 + 'removed by user', # 10 spaces to line up with # Reason:
+                            url=url,
+                            sep='#' * 32
+                    ))
+
+                bot.log.info("Updating autostream")
+                write_file(bot.config.auto_stream_file, bot.autostream)
+
+            await safe_send_normal(ctx, ctx, bot.str.get('cmd-removestream-success', 'Removed <{0}> from the autostream.').format(url))
+            return
+
+        else:
+            raise exceptions.CommandError(bot.str.get('cmd-autostream-nooption', 'Check your specified option argument. It needs to be +, -, add or remove.'))
 
 cogs = [Autoplaylist]
