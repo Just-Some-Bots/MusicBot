@@ -271,6 +271,9 @@ class SourcePlaybackCounter(AudioSource):
     def get_progress(self):
         return self.progress * 0.02
 
+    def cleanup(self):
+        self._source.cleanup()
+
 class Player(EventEmitter, Serializable):
     def __init__(self, guild, volume = 0.15):
         super().__init__()
