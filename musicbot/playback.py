@@ -419,7 +419,7 @@ class Player(EventEmitter, Serializable):
                                     break
                                 except PermissionError as e:
                                     if e.winerror == 32:  # File is in use
-                                        self._guild._bot.log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
+                                        self._guild._bot.log.error('Can\'t delete file, it is currently in use: {0}'.format(filename))
                                         break
                                 except FileNotFoundError:
                                     self._guild._bot.log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
