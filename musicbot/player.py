@@ -223,7 +223,7 @@ class MusicPlayer(EventEmitter, Serializable):
                             break
                         except PermissionError as e:
                             if e.winerror == 32:  # File is in use
-                                log.error('Can\'t delete file, it is currently in use: {0}').format(filename)
+                                log.error('Can\'t delete file, it is currently in use: {0}'.format(filename))
                         except FileNotFoundError:
                             log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
                             break
