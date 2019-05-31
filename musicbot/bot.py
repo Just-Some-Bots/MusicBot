@@ -1,9 +1,11 @@
 """
+MusicBot: The original Discord music bot written for Python 3.5+, using the discord.py library.
 ModuBot: A modular discord bot with dependency management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The MIT License (MIT)
 
-Copyright (c) 2015-2019 TheerapakG
+Copyright (c) 2019 TheerapakG
+Copyright (c) 2019 Just-Some-Bots (https://github.com/Just-Some-Bots)
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),

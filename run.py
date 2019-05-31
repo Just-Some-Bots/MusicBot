@@ -298,7 +298,7 @@ def req_ensure_env():
     log.info("Ensuring we're in the right environment")
 
     if os.environ.get('APP_ENV') != 'docker' and not os.path.isdir(b64decode('LmdpdA==').decode('utf-8')):
-        log.critical(b64decode('Qm90IHdhc24ndCBpbnN0YWxsZWQgdXNpbmcgR2l0LiBSZWluc3RhbGwgdXNpbmcgaHR0cDovL2JpdC5seS9tdXNpY2JvdGRvY3Mu').decode('utf-8'))
+        log.critical(b64decode('CgoKQm90IHdhc24ndCBpbnN0YWxsZWQgdXNpbmcgR2l0LgoKLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiogSWYgeW91IGRvd25sb2FkZWQgYSBaSVAgZmlsZSwgdGhlbiB5b3UgaGF2ZSBpbnN0YWxsZWQgdGhlIGJvdCBpbmNvcnJlY3RseS4gKgotLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KClJlaW5zdGFsbCBieSBmb2xsb3dpbmcgdGhlIGd1aWRlIGhlcmU6IGh0dHBzOi8vanVzdC1zb21lLWJvdHMuZ2l0aHViLmlvL011c2ljQm90Ly4KCldlIGhhdmUgbGlzdGVkIHNldmVyYWwgZ3VpZGVzIGZvciBpbnN0YWxsaW5nIHRoZSBNdXNpY0JvdCBvbiBkaWZmZXJlbnQgb3BlcmF0aW5nIHN5c3RlbXMgb24gdGhlIHNpZGViYXIgb2YgdGhlIHdlYnNpdGUgZ2l2ZW4uIEZvbGxvd3MgdGhlIG9uZSB0aGF0IGlzIGFwcGxpY2FibGUgZm9yIHlvdS4KCklmIHlvdSBoYXZlIGEgZm9sZGVyIG5hbWVkIE11c2ljQm90LW1hc3RlciBvciBoYWQgb25lLCBwbGVhc2UgZGVsZXRlIHRoYXQgZm9sZGVyIHRvIHByZXZlbnQgY29uZnVzaW9uIHdoZW4gcmVpbnN0YWxsaW5nLgo=').decode('utf-8'))
         bugger_off()
 
     try:
