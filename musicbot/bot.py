@@ -444,6 +444,7 @@ class ModuBot(Bot):
     def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
         try:
             shutil.rmtree(path)
+            os.makedirs(path, exist_ok=True)
             return True
         except:
             try:
