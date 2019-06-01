@@ -256,7 +256,7 @@ class RichGuild:
                         self.autoplaylist.extend([(e, 'stream') for e in self._bot.autostream])
 
             while self.autoplaylist:
-                if self._bot.config.auto_playlist_random:
+                if self._bot.config.auto_playlist_stream_random:
                     random.shuffle(self.autoplaylist)
                     song_url, song_type = random.choice(self.autoplaylist)
                 else:
