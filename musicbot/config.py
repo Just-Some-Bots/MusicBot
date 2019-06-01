@@ -68,7 +68,7 @@ class Config:
         self.auto_playlist_stream_random = config.getboolean('MusicBot', 'AutoPlaylistStreamRandom', fallback=ConfigDefaults.auto_playlist_stream_random)
         self.skip_if_auto = config.getboolean('MusicBot', 'InstaPlayIfAuto', fallback=ConfigDefaults.skip_if_auto)
         self.auto_mode = config.get('MusicBot', 'AutoMode', fallback=ConfigDefaults.auto_mode)
-        self.auto_mode = config.get('MusicBot', 'AutoModeToggle', fallback=ConfigDefaults.auto_mode_toggle)
+        self.auto_mode_toggle = config.get('MusicBot', 'AutoModeToggle', fallback=ConfigDefaults.auto_mode_toggle)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)

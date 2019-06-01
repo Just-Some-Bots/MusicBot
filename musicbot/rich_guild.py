@@ -22,7 +22,7 @@ class RichGuild:
         self._voice_client = None
         self._player = None
         self.skip_state = SkipState()
-        self.autoplaylist = bot.autoplaylist.copy()
+        self.autoplaylist = list()
 
     @property
     def id(self):
@@ -234,26 +234,28 @@ class RichGuild:
 
         if not player._playlist._list and not player._current and (self._bot.config.auto_playlist or self._bot.config.auto_stream):
             if not self.autoplaylist:
-                if not self._bot.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check
-                    self._bot.log.warning("No playable songs in the autoplaylist, disabling.")
-                    self._bot.config.auto_playlist = False
-                    if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist':
-                        self._bot.config.auto_mode_toggle == 'stream'
-                else:
-                    self._bot.log.debug("No content in current autoplaylist. Filling with new music...")
-                    if self._bot.config.auto_mode == 'merge' or (self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist'):
-                        self.autoplaylist.extend([(e, 'playlist') for e in self._bot.autoplaylist])
+                if self._bot.config.auto_playlist:
+                    if not self._bot.autoplaylist:
+                        # TODO: When I add playlist expansion, make sure that's not happening during this check
+                        self._bot.log.warning("No playable songs in the autoplaylist, disabling.")
+                        self._bot.config.auto_playlist = False
+                        if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist':
+                            self._bot.config.auto_mode_toggle == 'stream'
+                    else:
+                        self._bot.log.debug("No content in current autoplaylist. Filling with new music (autoplaylist)...")
+                        if self._bot.config.auto_mode == 'merge' or (self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist'):
+                            self.autoplaylist.extend([(e, 'playlist') for e in self._bot.autoplaylist])
 
-                if not self._bot.autostream:
-                    self._bot.log.warning("No playable songs in the autostream, disabling.")
-                    self._bot.config.auto_stream = False
-                    if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream':
-                        self._bot.config.auto_mode_toggle == 'playlist'
-                else:
-                    self._bot.log.debug("No content in current autoplaylist. Filling with new music...")
-                    if self._bot.config.auto_mode == 'merge' or (self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream'):
-                        self.autoplaylist.extend([(e, 'stream') for e in self._bot.autostream])
+                if self._bot.config.auto_stream:
+                    if not self._bot.autostream:
+                        self._bot.log.warning("No playable songs in the autostream, disabling.")
+                        self._bot.config.auto_stream = False
+                        if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream':
+                            self._bot.config.auto_mode_toggle == 'playlist'
+                    else:
+                        self._bot.log.debug("No content in current autoplaylist. Filling with new music (autostream)...")
+                        if self._bot.config.auto_mode == 'merge' or (self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream'):
+                            self.autoplaylist.extend([(e, 'stream') for e in self._bot.autostream])
 
             while self.autoplaylist:
                 if self._bot.config.auto_playlist_stream_random:
@@ -262,6 +264,7 @@ class RichGuild:
                 else:
                     song_url, song_type = self.autoplaylist[0]
                 self.autoplaylist.remove((song_url, song_type))
+                self._bot.log.debug("get url: {} ({})".format(song_url, song_type))
 
                 if song_type == 'playlist':
                     info = {}
@@ -319,18 +322,20 @@ class RichGuild:
 
                 break
 
-            if not self._bot.autoplaylist:
-                # TODO: When I add playlist expansion, make sure that's not happening during this check
-                self._bot.log.warning("No playable songs in the autoplaylist, disabling.")
-                self._bot.config.auto_playlist = False
-                if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist':
-                    self._bot.config.auto_mode_toggle == 'stream'
+            if self._bot.config.auto_playlist:
+                if not self._bot.autoplaylist:
+                    # TODO: When I add playlist expansion, make sure that's not happening during this check
+                    self._bot.log.warning("No playable songs in the autoplaylist, disabling.")
+                    self._bot.config.auto_playlist = False
+                    if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist':
+                        self._bot.config.auto_mode_toggle == 'stream'
 
-            if not self._bot.autostream:
-                self._bot.log.warning("No playable songs in the autostream, disabling.")
-                self._bot.config.auto_stream = False
-                if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream':
-                    self._bot.config.auto_mode_toggle == 'playlist'
+            if self._bot.config.auto_stream:
+                if not self._bot.autostream:
+                    self._bot.log.warning("No playable songs in the autostream, disabling.")
+                    self._bot.config.auto_stream = False
+                    if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream':
+                        self._bot.config.auto_mode_toggle == 'playlist'
 
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue()
