@@ -16,6 +16,8 @@ class Help(Cog):
                 blacklist = user_permissions.command_blacklist
                 if list_all_cmds:
                     commands[cmd.qualified_name] = cmd
+                    for a in cmd.aliases:
+                        commands[a] = cmd
 
                 elif blacklist and cmd.name in blacklist:
                     pass
@@ -25,6 +27,9 @@ class Help(Cog):
 
                 else:
                     commands[cmd.qualified_name] = cmd
+                    for a in cmd.aliases:
+                        commands[a] = cmd
+                        
         return commands
 
     async def _gen_cog_cmd_dict(self, bot, user, list_all_cmds=False):
@@ -62,11 +67,12 @@ class Help(Cog):
             {command_prefix}help [options...] [name]
 
         Options:
-            (none)    prints a help message for the command with that name.
-            cog       prints a help message for the command in the cog with that name.
-                      name argument is required.
-            all       list all commands available.
-                      name argument will be discarded if not used with cog option.
+            (none)    prints a help message for the command with that 
+                      name.
+            cog       prints a help message for the command in the
+                      cog with that name. name argument is required.
+            all       list all commands available. name argument will 
+                      be discarded if not used with cog option.
 
         Prints a help message. Supplying multiple names can leads to unexpected behavior.
         """
@@ -96,17 +102,19 @@ class Help(Cog):
             
         else:
             if name:
-                cmd = await self._gen_cmd_dict(ctx.bot, ctx.author, list_all_cmds=True)
+                cmds = await self._gen_cmd_dict(ctx.bot, ctx.author, list_all_cmds=True)
+                cmd = None
                 try:
-                    cmd = cmd[name]
+                    cmd = cmds[name]
                 except:
                     raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
                 if not hasattr(cmd.callback, 'dev_cmd'):
                     await messagemanager.safe_send_normal(
                         ctx,
                         ctx,
-                        "```\n{}```".format(
-                            dedent(cmd.help)
+                        "```\n{}\n\nAliases: {}```".format(
+                            dedent(cmd.help),
+                            ' '.join(cmd.aliases)
                         ).format(command_prefix=ctx.bot.config.command_prefix),
                         expire_in=60
                     )
