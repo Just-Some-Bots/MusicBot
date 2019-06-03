@@ -81,7 +81,7 @@ class Information(Cog):
 
         lines = []
         unlisted = 0
-        andmoretext = '* ... and %s more*' % ('x' * len(await playlist.get_length()))
+        andmoretext = '* ... and %s more*' % ('x' * await playlist.get_length())
 
         if (await player.status()) == PlayerState.PLAYING:
             # TODO: Fix timedelta garbage with util function

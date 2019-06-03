@@ -49,7 +49,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
-from asyncio import Lock, CancelledError, run_coroutine_threadsafe, sleep, Future, ensure_future
+from asyncio import Lock, CancelledError, run_coroutine_threadsafe, sleep, Future, ensure_future, Event
 from enum import Enum
 from collections import defaultdict, deque
 from typing import Union, Optional
@@ -297,6 +297,9 @@ class PlayerState(Enum):
     DOWNLOADING = 2
     WAITING = 3
 
+class PlayerSelector(Enum):
+    TOGGLE = 0
+    MERGE = 1
 
 class SourcePlaybackCounter(AudioSource):
     def __init__(self, source, progress = 0):
@@ -323,6 +326,7 @@ class Player(EventEmitter, Serializable):
         self._playlist = None
         self._guild = guild
         self._player = None
+        self._entry_finished_tasks = defaultdict(list)
         self._play_task = None
         self._play_safe_task = None
         self._source = None
@@ -476,6 +480,10 @@ class Player(EventEmitter, Serializable):
                                     os.path.relpath(filename)))
 
                 self.emit('finished-playing', player=self, entry=entry)
+                if entry in self._entry_finished_tasks:
+                    for task in self._entry_finished_tasks[entry]:
+                        await task
+                    del self._entry_finished_tasks[entry]
                 ensure_future(self._play())
 
             future = run_coroutine_threadsafe(_async_playback_finished(), self._guild._bot.loop)
@@ -603,6 +611,8 @@ class Player(EventEmitter, Serializable):
         
 
     async def skip(self):
+        wait_entry = False
+        entry = await self.get_current_entry()
         async with self._aiolocks['skip']:
             async with self._aiolocks['player']:
                 if self.state == PlayerState.PAUSE:
@@ -611,7 +621,7 @@ class Player(EventEmitter, Serializable):
 
                 elif self.state == PlayerState.PLAYING:
                     self._player.stop()
-                    return
+                    wait_entry = True
 
                 elif self.state == PlayerState.DOWNLOADING:
                     async with self._aiolocks['playtask']:
@@ -620,6 +630,14 @@ class Player(EventEmitter, Serializable):
 
                 elif self.state == PlayerState.WAITING:
                     raise Exception('nothing to skip!')
+
+        if wait_entry:
+            event = Event()
+            async def setev():
+                event.set()
+            self._entry_finished_tasks[entry].append(setev())
+            await event.wait()
+            return
     
     async def kill(self):
         async with self._aiolocks['kill']:

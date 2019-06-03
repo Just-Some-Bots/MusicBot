@@ -336,6 +336,11 @@ class QueueManagement(Cog):
                         reply_text = "Enqueued `%s` to be played. Position in queue: %s"
                         btext = entry.title
 
+                    if ctx.bot.config.skip_if_auto:
+                        current = await player.get_current_entry()
+                        if current and not current.queuer_id:
+                            await player.skip()
+
                     # Position msgs
                     time_until = await player.estimate_time_until_entry(entry)
                     if time_until == timedelta(seconds=0):
@@ -382,6 +387,11 @@ class QueueManagement(Cog):
 
         reply_text = "Enqueued `%s` to be streamed. Position in queue: %s"
         btext = entry.title
+
+        if ctx.bot.config.skip_if_auto:
+            current = await player.get_current_entry()
+            if current and not current.queuer_id:
+                await player.skip()
 
         # Position msgs
         time_until = await player.estimate_time_until_entry(entry)

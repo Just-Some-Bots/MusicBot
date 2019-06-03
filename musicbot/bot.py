@@ -109,14 +109,25 @@ class ModuBot(Bot):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.autostream = load_file(self.config.auto_stream_file)
 
         self.log.info('Starting MusicBot {}'.format(BOTVERSION))
+
+        self.playlisttype = list()
 
         if not self.autoplaylist:
             self.log.warning("Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
         else:
             self.log.info("Loaded autoplaylist with {} entries".format(len(self.autoplaylist)))
+            self.playlisttype.append('playlist')
+
+        if not self.autostream:
+            self.log.warning("Autostream is empty, disabling.")
+            self.config.auto_stream = False
+        else:
+            self.log.info("Loaded autostream with {} entries".format(len(self.autostream)))
+            self.playlisttype.append('stream')
 
         if self.blacklist:
             self.log.debug("Loaded blacklist with {} entries".format(len(self.blacklist)))
@@ -459,6 +470,9 @@ class ModuBot(Bot):
         # playlists in autoplaylist
         await self._scheck_autoplaylist()
 
+        # streamss in autostream
+        await self._scheck_autostream()
+
         # config/permissions async validate?
         await self._scheck_configs()
 
@@ -485,6 +499,10 @@ class ModuBot(Bot):
 
     async def _scheck_autoplaylist(self):
         self.log.debug("Auditing autoplaylist")
+        pass # TODO
+
+    async def _scheck_autostream(self):
+        self.log.debug("Auditing autostream")
         pass # TODO
 
     async def _scheck_configs(self):
@@ -517,6 +535,30 @@ class ModuBot(Bot):
             if delete_from_ap:
                 self.log.info("Updating autoplaylist")
                 write_file(self.config.auto_playlist_file, self.autoplaylist)
+
+    async def remove_from_autostream(self, song_url:str, *, ex:Exception=None, delete_from_as=False):
+        if song_url not in self.autostream:
+            self.log.debug("URL \"{}\" not in autostream, ignoring".format(song_url))
+            return
+
+        async with self._aiolocks['remove_from_autostream']:
+            self.autostream.remove(song_url)
+            self.log.info("Removing unplayable song from session autostream: %s" % song_url)
+
+            with open(self.config.auto_stream_removed_file, 'a', encoding='utf8') as f:
+                f.write(
+                    '# Entry removed {ctime}\n'
+                    '# Reason: {ex}\n'
+                    '{url}\n\n{sep}\n\n'.format(
+                        ctime=time.ctime(),
+                        ex=str(ex).replace('\n', '\n#' + ' ' * 10), # 10 spaces to line up with # Reason:
+                        url=song_url,
+                        sep='#' * 32
+                ))
+
+            if delete_from_as:
+                self.log.info("Updating autostream")
+                write_file(self.config.auto_stream_file, self.autostream)
 
     @staticmethod
     def _check_if_empty(vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False):
@@ -580,7 +622,7 @@ class ModuBot(Bot):
 
                     self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
 
-                    if self.config.auto_playlist:
+                    if self.config.auto_playlist or self.config.auto_stream:
                         player = await guild.get_player()
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))
@@ -730,7 +772,8 @@ class ModuBot(Bot):
                 self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
             self.log.info("  Now Playing @mentions: " + ['Disabled', 'Enabled'][self.config.now_playing_mentions])
             self.log.info("  Auto-Summon: " + ['Disabled', 'Enabled'][self.config.auto_summon])
-            self.log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_random] + ")")
+            self.log.info("  Auto-Playlist: " + ['Disabled', 'Enabled'][self.config.auto_playlist] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_stream_random] + ")")
+            self.log.info("  Auto-Stream: " + ['Disabled', 'Enabled'][self.config.auto_stream] + " (order: " + ['sequential', 'random'][self.config.auto_playlist_stream_random] + ")")
             self.log.info("  Auto-Pause: " + ['Disabled', 'Enabled'][self.config.auto_pause])
             self.log.info("  Delete Messages: " + ['Disabled', 'Enabled'][self.config.delete_messages])
             if self.config.delete_messages:
