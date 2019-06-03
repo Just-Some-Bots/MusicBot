@@ -42,6 +42,7 @@ from contextlib import suppress
 from functools import partial, wraps
 from importlib import import_module, reload
 from inspect import iscoroutinefunction, isfunction
+from platform import system
 
 import colorlog
 from discord.ext.commands import Bot
@@ -826,6 +827,16 @@ class ModuBot(Bot):
         self.thread = threading.currentThread()
         self.log.debug('running bot on thread {}'.format(threading.get_ident()))
         self.looplock.acquire()
+
+        def exchdlr(loop, excctx):
+            exception = excctx.get('exception')
+            if system() == 'Windows':
+                if isinstance(exception, PermissionError) and exception.winerror == 121:
+                    self.log.debug('suppressing "the semaphore timeout period has expired" exception', exc_info = exception)
+            else:
+                raise exception
+
+        self.loop.set_exception_handler(exchdlr)
         try:
             self.loop.create_task(self.start(self.config._login_token))
         except discord.errors.LoginFailure:

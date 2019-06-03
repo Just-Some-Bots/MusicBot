@@ -241,8 +241,12 @@ class RichGuild:
                         channel = potential_channel
                         break
 
+            meta = entry.get_metadata()
+
             if channel:
                 pass
+            elif 'channel_id' in meta:
+                channel = self.guild.get_channel(meta['channel_id'])
             elif not channel and last_np_msg:
                 channel = last_np_msg.channel
             else:
