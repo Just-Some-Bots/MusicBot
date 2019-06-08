@@ -51,7 +51,7 @@ class Reader:
 
 def gen_srt_block_list_from_file(f):
     '''
-    SRT grammar in TheerapakG's PyCompileInfrastructure format:
+    SRT grammar in TheerapakG's grammar format:
     SRTBlockList: SRTBlock*\n
     as            block*\n
     after_p       block_list = get_all(block)
