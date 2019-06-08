@@ -117,9 +117,9 @@ class RichGuild:
     async def _check_perm_connect(self, channel):
         perms = channel.permissions_for(self.guild.me)
         if not perms.connect:
-            raise Exception('Cannot join channel, no permission to connect.')
+            raise exceptions.VoiceConnectionError('Cannot join channel, no permission to connect.')
         elif not perms.speak:
-            raise Exception('Cannot join channel, no permission to speak.')
+            raise exceptions.VoiceConnectionError('Cannot join channel, no permission to speak.')
 
     async def _move_channel(self, new_channel):
         await self._check_perm_connect(new_channel)
@@ -357,7 +357,7 @@ class RichGuild:
             if voice_channel:
                 await self._connect_channel(voice_channel)
             else:
-                raise Exception("bot is not connected to any voice channel")
+                raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
 
     async def get_connected_voice_client(self):
         async with self._aiolocks['c_voice_channel']:
@@ -368,7 +368,7 @@ class RichGuild:
             if self._player:
                 return self._player
             else:
-                raise Exception("bot is not connected to any voice channel")
+                raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
     
     async def set_playlist(self, playlist):
         async with self._aiolocks['c_voice_channel']:

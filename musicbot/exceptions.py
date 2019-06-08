@@ -23,6 +23,12 @@ class MusicbotException(Exception):
 class CogError(MusicbotException):
     pass
 
+class AliasError(MusicbotException):
+    pass
+
+class VoiceConnectionError(MusicbotException):
+    pass
+
 # Wrapper applied to wrong function
 class WrapperUnmatchedError(MusicbotException):
     pass
@@ -33,6 +39,9 @@ class CommandError(MusicbotException):
 
 # Something went wrong during the processing of a song/ytdl stuff
 class ExtractionError(MusicbotException):
+    pass
+
+class PlaybackError(MusicbotException):
     pass
 
 # The no processing entry type failed and an entry was a playlist/vice versa

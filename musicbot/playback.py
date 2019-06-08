@@ -66,7 +66,7 @@ from random import shuffle
 
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
-from .exceptions import VersionError
+from .exceptions import VersionError, PlaybackError
 import logging
 
 log = logging.getLogger()
@@ -549,7 +549,7 @@ class Player(EventEmitter, Serializable):
         async with self._aiolocks['play']:
             async with self._aiolocks['player']:
                 if self.state != PlayerState.PAUSE:
-                    exc = Exception('player is not paused')
+                    exc = PlaybackError('player is not paused')
                     if play_fail_cb:
                         play_fail_cb(exc)
                     else:
@@ -619,7 +619,7 @@ class Player(EventEmitter, Serializable):
                     return
 
                 elif self.state == PlayerState.WAITING:
-                    raise Exception('nothing to skip!')
+                    raise PlaybackError('nothing to skip!')
     
     async def kill(self):
         async with self._aiolocks['kill']:
