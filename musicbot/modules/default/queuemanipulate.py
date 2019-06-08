@@ -96,10 +96,18 @@ class QueueManagement(Cog):
 
     async def _play(self, ctx, song_url, *, head=False):
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await player.get_playlist()
-
         permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        try:
+            player = await guild.get_player()
+        except Exception as e:
+            if permissions.summonplay:
+                await ctx.bot.cogs['BotManagement'].summon.callback(ctx.bot.cogs['BotManagement'], ctx)
+                player = await guild.get_player()
+            else:
+                raise e
+
+        playlist = await player.get_playlist()
 
         song_url = song_url.strip('<>')
 
@@ -365,10 +373,18 @@ class QueueManagement(Cog):
         streams, especially on poor connections.  You have been warned.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await player.get_playlist()
-
         permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        try:
+            player = await guild.get_player()
+        except Exception as e:
+            if permissions.summonplay:
+                await ctx.bot.cogs['BotManagement'].summon.callback(ctx.bot.cogs['BotManagement'], ctx)
+                player = await guild.get_player()
+            else:
+                raise e
+
+        playlist = await player.get_playlist()
 
         song_url = song_url.strip('<>')
 

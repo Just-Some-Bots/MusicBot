@@ -31,6 +31,8 @@ class PermissionsDefaults:
     BypassKaraokeMode = False
 
     ToggleAutoPlaylists = False
+    SummonNoVoice = False
+
     Extractors = "generic youtube youtube:playlist"
 
 class Permissive:
@@ -52,6 +54,8 @@ class Permissive:
     BypassKaraokeMode = True
 
     ToggleAutoPlaylists = True
+    SummonNoVoice = True
+
     Extractors = ""
 
 class Permissions:
@@ -154,6 +158,8 @@ class PermissionGroup:
         self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
         self.toggle_playlists = section_data.getboolean('ToggleAutoPlaylists', fallback=fallback.ToggleAutoPlaylists)
+        self.summonplay = section_data.getboolean('SummonNoVoice', fallback=fallback.SummonNoVoice)
+
         self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 
         self.validate()
