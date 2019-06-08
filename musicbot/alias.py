@@ -6,7 +6,7 @@ import configparser
 
 from collections import defaultdict
 
-from .exceptions import HelpfulError
+from .exceptions import HelpfulError, AliasError
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class Alias:
                 # load the config again and check to see if the user edited that one
                 c.read(self.alias_file, encoding='utf-8')
 
-            except Exception as e:
+            except AliasError as e:
                 print(flush=True)
                 log.critical("Unable to copy config/example_alias.ini to {}".format(self.alias_file), exc_info=e)
                 sys.exit(2)
@@ -86,14 +86,14 @@ class Alias:
     def add_alias(self, command, alias, force = False):
         origc = self.bot.get_command(alias)
         if origc and not force:
-            raise Exception('already have alias')
+            raise AliasError('already have alias')
         elif origc:
             try:
                 origc.aliases.remove(alias)
                 self.bot.remove_command(alias)
                 self.aliases[command].remove(alias)
             except ValueError:
-                raise Exception('alias is a command')
+                raise AliasError('alias is a command')
 
         c = self.bot.get_command(command)
         c.aliases.append(alias)
@@ -113,9 +113,9 @@ class Alias:
                     self.write_alias()
                 return
             except ValueError:
-                raise Exception('alias is a command')
+                raise AliasError('alias is a command')
         else:
-            raise Exception('no such alias')
+            raise AliasError('no such alias')
             
 class AliasDefaults:
     alias_file = 'config/alias.ini' 
