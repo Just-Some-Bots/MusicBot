@@ -53,7 +53,7 @@ import os
 import asyncio
 import functools
 import youtube_dl
-from .exceptions import VersionError
+from .exceptions import VersionError, ExtractionError
 from .playback import Entry
 from .utils import get_header, md5sum
 
@@ -183,7 +183,7 @@ class YtdlDownloader:
                     raise e
 
         if not info:
-            raise Exception("That video cannot be played. Try using the stream command.")
+            raise ExtractionError("That video cannot be played. Try using the stream command.")
 
         # abstract the search handling away from the user
         # our ytdl options allow us to use search strings as input urls
@@ -197,7 +197,7 @@ class YtdlDownloader:
             )
 
             if not info:
-                raise Exception(
+                raise ExtractionError(
                     "Error extracting info from search string, youtubedl returned no data. "
                     "You may need to restart the bot if this continues to happen."
                 )
@@ -348,7 +348,7 @@ class YtdlUrlEntry(Entry):
 
         if result is None:
             self._extractor._bot.log.critical("YTDL has failed, everyone panic")
-            raise Exception("ytdl broke and hell if I know why")
+            raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
         self._local_url = unhashed_fname = self._extractor.ytdl.prepare_filename(result)
@@ -454,10 +454,10 @@ async def get_entry(song_url, queuer_id, extractor, metadata):
     try:
         info = await extractor.extract_info(song_url, download=False)
     except Exception as e:
-        raise Exception('Could not extract information from {}\n\n{}'.format(song_url, e))
+        raise ExtractionError('Could not extract information from {}\n\n{}'.format(song_url, e))
 
     if not info:
-        raise Exception('Could not extract information from %s' % song_url)
+        raise ExtractionError('Could not extract information from %s' % song_url)
 
     # TODO: Sort out what happens next when this happens
     if info.get('_type', None) == 'playlist':
@@ -482,7 +482,7 @@ async def get_entry(song_url, queuer_id, extractor, metadata):
             if content_type.startswith(('application/', 'image/')):
                 if not any(x in content_type for x in ('/ogg', '/octet-stream')):
                     # How does a server say `application/ogg` what the actual fuck
-                    raise Exception("Invalid content type \"%s\" for url %s" % (content_type, song_url))
+                    raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
 
             elif content_type.startswith('text/html') and info['extractor'] == 'generic':
                 extractor._bot.log.warning("Got text/html for content-type, this might be a stream.")
@@ -516,20 +516,20 @@ async def get_stream_entry(song_url, queuer_id, extractor, metadata):
 
         elif e.exc_info[0] == URLError:
             if os.path.exists(os.path.abspath(song_url)):
-                raise Exception("This is not a stream, this is a file path.")
+                raise ExtractionError("This is not a stream, this is a file path.")
 
             else:  # it might be a file path that just doesn't exist
-                raise Exception("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
+                raise ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
 
         else:
             # traceback.print_exc()
-            raise Exception("Unknown error: {}".format(e))
+            raise ExtractionError("Unknown error: {}".format(e))
 
     except Exception as e:
         extractor._bot.log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url, e), exc_info=True)
 
     if info.get('is_live') is None and info.get('extractor', None) is not 'generic':  # wew hacky
-        raise Exception("This is not a stream.")
+        raise ExtractionError("This is not a stream.")
 
     dest_url = song_url
     if info.get('extractor'):
@@ -558,10 +558,10 @@ async def get_entry_list_from_playlist_url(playlist_url, queuer_id, extractor, m
     try:
         info = await extractor.safe_extract_info(playlist_url, download=False)
     except Exception as e:
-        raise Exception('Could not extract information from {}\n\n{}'.format(playlist_url, e))
+        raise ExtractionError('Could not extract information from {}\n\n{}'.format(playlist_url, e))
 
     if not info:
-        raise Exception('Could not extract information from %s' % playlist_url)
+        raise ExtractionError('Could not extract information from %s' % playlist_url)
 
     # Once again, the generic extractor fucks things up.
     if info.get('extractor', None) == 'generic':
