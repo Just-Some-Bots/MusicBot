@@ -1,0 +1,2 @@
+class SRTParseError(Exception):
+    pass

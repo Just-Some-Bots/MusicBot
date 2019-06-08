@@ -49,7 +49,6 @@ from discord.ext.commands import Bot
 import discord
 from websockets import ConnectionClosed
 
-from . import config
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState

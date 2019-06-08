@@ -127,5 +127,12 @@
     "webapi?cmd?revoketoken?fail@revtoken": "Token `{0}` not found",
     "webapi?cmd?revoketoken?info@action": "Sent a message with information regarding the action.",
     "help?cmd?help?fail@cog": "No such cog",
-    "playback?cmd?resume?reply@wait": "Resumed music in `{0.name}`, waiting for entries to be added"
+    "playback?cmd?resume?reply@wait": "Resumed music in `{0.name}`, waiting for entries to be added",
+    "cmd?caption?stream": "Current entry is a stream, cannot extract caption.",
+    "cmd?caption?nofile": "Cannot open caption file specified (caption does not exist). If the caption do exist on the platform then try clearing cache of this song and try again.",
+    "cmd?caption?captionof": "Caption of `{0}`:",
+    "cmd?caption?sent": "Finished sending caption of `{0}` as direct message.",
+    "cmd?caption?none": "There are no songs queued! Queue something with {0}play.",
+    "cmd?captlang?nocapt": "There is no cached caption in the bot. Try {0}reloadcapt to force the bot to download additional captions.",
+    "cmd?reloadcapt?success": "Successfully redownloaded captions."
 }

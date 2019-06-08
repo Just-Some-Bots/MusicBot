@@ -19,7 +19,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Cogs", "Permissions", "Chat", "MusicBot", "WebApi"}.difference(config.sections())
+        confsections = {"Credentials", "Cogs", "Permissions", "Chat", "MusicBot", "WebApi", "Caption"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -101,6 +101,8 @@ class Config:
         self.ssl_certfile = config.get('WebApi', 'SSLCertFile', fallback=ConfigDefaults.ssl_certfile)
         self.ssl_keyfile = config.get('WebApi', 'SSLKeyFile', fallback=ConfigDefaults.ssl_keyfile)
         self.webapi_persistent_tokens = config.get('WebApi', 'WebApiPersistentTokens', fallback=ConfigDefaults.webapi_persistent_tokens)
+        
+        self.caption_split_duration = config.getint('Caption', 'CaptionSplitDuration', fallback=ConfigDefaults.caption_split_duration)
 
         self.run_checks()
 
@@ -407,6 +409,8 @@ class ConfigDefaults:
     ssl_certfile = None
     ssl_keyfile = None
     webapi_persistent_tokens = True
+    
+    caption_split_duration = 4
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
