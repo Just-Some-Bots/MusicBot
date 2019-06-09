@@ -71,6 +71,8 @@ import logging
 
 log = logging.getLogger()
 
+# @TheerapakG: TODO: detect if there's an entry that would use the same file
+
 class Entry(Serializable):
     def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False):
         self.source_url = source_url
@@ -159,6 +161,7 @@ class Playlist(EventEmitter, Serializable):
     def __init__(self, name, bot, *, persistent = False):
         super().__init__()
         self.karaoke_mode = False
+        self.persistent = persistent
         self._bot = bot
         self._name = name
         self._aiolocks = defaultdict(Lock)
@@ -167,8 +170,9 @@ class Playlist(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 2,
+            'version': 3,
             'name': self._name,
+            'persistent': self.persistent,
             'karaoke': self.karaoke_mode,
             'entries': list(self._list)
         })
@@ -188,6 +192,13 @@ class Playlist(EventEmitter, Serializable):
             playlist._list.extend(data_e)
         data_k = data.get('karaoke')
         playlist.karaoke_mode = data_k
+
+        if 'version' not in data or data['version'] < 3:
+            bot.log.warning('upgrading `{}` to playlist version 3'.format(data_n))
+            data_p = False
+        else:
+            data_p = data.get('persistent')
+        playlist.persistent = data_p
 
         return playlist
 
@@ -230,9 +241,12 @@ class Playlist(EventEmitter, Serializable):
             if not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
 
+            if self.persistent:
+                self._list.appendleft(entry)
+
             if self._precache <= len(self._list):
                 consider = self._list[self._precache - 1]
-                if not consider:
+                if not consider and not consider._cache_task:
                     consider._cache_task = ensure_future(consider.prepare_cache())
 
         return (entry, entry._cache_task)
@@ -245,7 +259,7 @@ class Playlist(EventEmitter, Serializable):
             else:
                 self._list.append(entry)
                 position = len(self._list) - 1
-            if self._precache > position:
+            if self._precache > position and not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
             return position + 1
 
