@@ -269,69 +269,71 @@ class YtdlUrlEntry(Entry):
                 return
             self._preparing_cache = True
 
-        extractor = os.path.basename(self._expected_filename).split('-')[0]
+        try:
+            extractor = os.path.basename(self._expected_filename).split('-')[0]
 
-        # the generic extractor requires special handling
-        if extractor == 'generic':
-            flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self._download_folder)]
-            expected_fname_noex, fname_ex = os.path.basename(self._expected_filename).rsplit('.', 1)
+            # the generic extractor requires special handling
+            if extractor == 'generic':
+                flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self._download_folder)]
+                expected_fname_noex, fname_ex = os.path.basename(self._expected_filename).rsplit('.', 1)
 
-            if expected_fname_noex in flistdir:
-                try:
-                    rsize = int(await get_header(self._extractor._bot.aiosession, self.source_url, 'CONTENT-LENGTH'))
-                except:
-                    rsize = 0
+                if expected_fname_noex in flistdir:
+                    try:
+                        rsize = int(await get_header(self._extractor._bot.aiosession, self.source_url, 'CONTENT-LENGTH'))
+                    except:
+                        rsize = 0
 
-                lfile = os.path.join(
-                    self._download_folder,
-                    os.listdir(self._download_folder)[flistdir.index(expected_fname_noex)]
-                )
+                    lfile = os.path.join(
+                        self._download_folder,
+                        os.listdir(self._download_folder)[flistdir.index(expected_fname_noex)]
+                    )
 
-                # print("Resolved %s to %s" % (self.expected_filename, lfile))
-                lsize = os.path.getsize(lfile)
-                # print("Remote size: %s Local size: %s" % (rsize, lsize))
+                    # print("Resolved %s to %s" % (self.expected_filename, lfile))
+                    lsize = os.path.getsize(lfile)
+                    # print("Remote size: %s Local size: %s" % (rsize, lsize))
 
-                if lsize != rsize:
-                    await self._really_download(hashing=True)
+                    if lsize != rsize:
+                        await self._really_download(hashing=True)
+                    else:
+                        # print("[Download] Cached:", self.url)
+                        self._local_url = lfile
+
                 else:
-                    # print("[Download] Cached:", self.url)
-                    self._local_url = lfile
+                    # print("File not found in cache (%s)" % expected_fname_noex)
+                    await self._really_download(hashing=True)
 
             else:
-                # print("File not found in cache (%s)" % expected_fname_noex)
-                await self._really_download(hashing=True)
+                ldir = os.listdir(self._download_folder)
+                flistdir = [f.rsplit('.', 1)[0] for f in ldir]
+                expected_fname_base = os.path.basename(self._expected_filename)
+                expected_fname_noex = expected_fname_base.rsplit('.', 1)[0]
 
-        else:
-            ldir = os.listdir(self._download_folder)
-            flistdir = [f.rsplit('.', 1)[0] for f in ldir]
-            expected_fname_base = os.path.basename(self._expected_filename)
-            expected_fname_noex = expected_fname_base.rsplit('.', 1)[0]
+                # idk wtf this is but its probably legacy code
+                # or i have youtube to blame for changing shit again
 
-            # idk wtf this is but its probably legacy code
-            # or i have youtube to blame for changing shit again
+                self._extractor._bot.log.info("Expecting file: {} in {}".format(expected_fname_base, self._download_folder))
 
-            self._extractor._bot.log.info("Expecting file: {} in {}".format(expected_fname_base, self._download_folder))
+                if expected_fname_base in ldir:
+                    self._local_url = os.path.join(self._download_folder, expected_fname_base)
+                    self._extractor._bot.log.info("Download cached: {}".format(self.source_url))
 
-            if expected_fname_base in ldir:
-                self._local_url = os.path.join(self._download_folder, expected_fname_base)
-                self._extractor._bot.log.info("Download cached: {}".format(self.source_url))
+                elif expected_fname_noex in flistdir:
+                    self._extractor._bot.log.info("Download cached (different extension): {}".format(self.source_url))
+                    self._local_url = os.path.join(self._download_folder, ldir[flistdir.index(expected_fname_noex)])
+                    self._extractor._bot.log.debug("Expected {}, got {}".format(
+                        self._expected_filename.rsplit('.', 1)[-1],
+                        self._local_url.rsplit('.', 1)[-1]
+                    ))
+                else:
+                    await self._really_download()
 
-            elif expected_fname_noex in flistdir:
-                self._extractor._bot.log.info("Download cached (different extension): {}".format(self.source_url))
-                self._local_url = os.path.join(self._download_folder, ldir[flistdir.index(expected_fname_noex)])
-                self._extractor._bot.log.debug("Expected {}, got {}".format(
-                    self._expected_filename.rsplit('.', 1)[-1],
-                    self._local_url.rsplit('.', 1)[-1]
-                ))
-            else:
-                await self._really_download()
+            # TODO: equalization
 
-        # TODO: equalization
-
-        async with self._aiolocks['preparing_cache_set']:
-            async with self._aiolocks['cached_set']:
-                self._preparing_cache = False
-                self._cached = True
+        finally:
+            async with self._aiolocks['preparing_cache_set']:
+                async with self._aiolocks['cached_set']:
+                    self._preparing_cache = False
+                    self._cached = True
 
     async def _really_download(self, *, hashing=False):
         self._extractor._bot.log.info("Download started: {}".format(self.source_url))
@@ -421,12 +423,14 @@ class YtdlStreamEntry(Entry):
                 return
             self._preparing_cache = True
 
-        await self._really_download()
+        try:
+            await self._really_download()
 
-        async with self._aiolocks['preparing_cache_set']:
-            async with self._aiolocks['cached_set']:
-                self._preparing_cache = False
-                self._cached = True
+        finally:
+            async with self._aiolocks['preparing_cache_set']:
+                async with self._aiolocks['cached_set']:
+                    self._preparing_cache = False
+                    self._cached = True
 
     async def _really_download(self, *, fallback=False):
         url = self._destination if fallback else self.source_url

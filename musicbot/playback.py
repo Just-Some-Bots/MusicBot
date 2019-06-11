@@ -71,6 +71,8 @@ import logging
 
 log = logging.getLogger()
 
+url_map = defaultdict(list)
+
 class Entry(Serializable):
     def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False):
         self.source_url = source_url
@@ -154,11 +156,13 @@ class Entry(Serializable):
 
     async def set_local_url(self, local_url):
         self._local_url = local_url
+        url_map[local_url].append(self)
 
 class Playlist(EventEmitter, Serializable):
     def __init__(self, name, bot, *, persistent = False):
         super().__init__()
         self.karaoke_mode = False
+        self.persistent = persistent
         self._bot = bot
         self._name = name
         self._aiolocks = defaultdict(Lock)
@@ -167,8 +171,9 @@ class Playlist(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 2,
+            'version': 3,
             'name': self._name,
+            'persistent': self.persistent,
             'karaoke': self.karaoke_mode,
             'entries': list(self._list)
         })
@@ -188,6 +193,13 @@ class Playlist(EventEmitter, Serializable):
             playlist._list.extend(data_e)
         data_k = data.get('karaoke')
         playlist.karaoke_mode = data_k
+
+        if 'version' not in data or data['version'] < 3:
+            bot.log.warning('upgrading `{}` to playlist version 3'.format(data_n))
+            data_p = False
+        else:
+            data_p = data.get('persistent')
+        playlist.persistent = data_p
 
         return playlist
 
@@ -230,10 +242,21 @@ class Playlist(EventEmitter, Serializable):
             if not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
 
+            if self.persistent:
+                self._list.appendleft(entry)
+
             if self._precache <= len(self._list):
                 consider = self._list[self._precache - 1]
-                if not consider:
+                if not consider and not consider._cache_task:
                     consider._cache_task = ensure_future(consider.prepare_cache())
+
+            if not self.persistent:
+                # @TheerapakG: TODO: This could still be a race condition. To be safe we need to do this after 
+                # finish playing the song but we would have the problem that player don't know the playlist info
+                if entry._local_url:
+                    url_map[entry._local_url].remove(entry)
+                    if not url_map[entry._local_url]:
+                        del url_map[entry._local_url]
 
         return (entry, entry._cache_task)
 
@@ -245,7 +268,7 @@ class Playlist(EventEmitter, Serializable):
             else:
                 self._list.append(entry)
                 position = len(self._list) - 1
-            if self._precache > position:
+            if self._precache > position and not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
             return position + 1
 
@@ -265,6 +288,10 @@ class Playlist(EventEmitter, Serializable):
                     if not consider.cache_task:
                         consider.cache_task = ensure_future(consider.prepare_cache())
             val = self._list[position]
+            if val._local_url:
+                url_map[val._local_url].remove(val)
+                if not url_map[val._local_url]:
+                    del url_map[val._local_url]
             del self._list[position]
             return val
 
@@ -421,6 +448,7 @@ class Player(EventEmitter, Serializable):
             self.state = PlayerState.WAITING
             self._current = None
         entry = None
+        self._guild._bot.log.debug('trying to get entry...')
         while not entry:
             try:
                 async with self._aiolocks['playlist']:
@@ -454,7 +482,7 @@ class Player(EventEmitter, Serializable):
 
                 if not self._guild._bot.config.save_videos and entry:
                     if not entry.stream:
-                        if any([entry._local_url == e._local_url for e in self._playlist._list]):
+                        if url_map[entry._local_url]:
                             self._guild._bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
 
                         else:
@@ -497,9 +525,7 @@ class Player(EventEmitter, Serializable):
             except:
                 self._guild._bot.log.error('cannot cache...')
                 self._guild._bot.log.error(traceback.format_exc())
-                async with self._aiolocks['player']:
-                    if self.state != PlayerState.PAUSE:
-                        await self._play()                    
+                raise PlaybackError('cannot get the cache')
 
             boptions = "-nostdin"
             aoptions = "-vn"
@@ -535,10 +561,11 @@ class Player(EventEmitter, Serializable):
         try:
             self._guild._bot.log.debug('waiting for task to play...')
             await self._play_task
-        except CancelledError:
+        except (CancelledError, PlaybackError):
+            self._guild._bot.log.debug('aww... next one then.')
             async with self._aiolocks['player']:
                 if self.state != PlayerState.PAUSE:
-                    await self._play()
+                    ensure_future(self._play())
 
     async def _play_safe(self, *callback, play_wait_cb = None, play_success_cb = None):
         async with self._aiolocks['playsafe']:
