@@ -21,7 +21,7 @@ class BotManagement(Cog):
         
         Forces the bot leave the current voice channel.
         """
-        get_guild(ctx.bot, ctx.guild).set_connected_voice_channel(None)
+        await get_guild(ctx.bot, ctx.guild).set_connected_voice_channel(None)
         await messagemanager.safe_send_normal(ctx, ctx, "Disconnected from `{0.name}`".format(ctx.guild), expire_in=20)
         return
 
