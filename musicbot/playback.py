@@ -71,7 +71,7 @@ import logging
 
 log = logging.getLogger()
 
-# @TheerapakG: TODO: detect if there's an entry that would use the same file
+url_map = defaultdict(list)
 
 class Entry(Serializable):
     def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False):
@@ -156,6 +156,7 @@ class Entry(Serializable):
 
     async def set_local_url(self, local_url):
         self._local_url = local_url
+        url_map[local_url].append(self)
 
 class Playlist(EventEmitter, Serializable):
     def __init__(self, name, bot, *, persistent = False):
@@ -249,6 +250,14 @@ class Playlist(EventEmitter, Serializable):
                 if not consider and not consider._cache_task:
                     consider._cache_task = ensure_future(consider.prepare_cache())
 
+            if not self.persistent:
+                # @TheerapakG: TODO: This could still be a race condition. To be safe we need to do this after 
+                # finish playing the song but we would have the problem that player don't know the playlist info
+                if entry._local_url:
+                    url_map[entry._local_url].remove(entry)
+                    if not url_map[entry._local_url]:
+                        del url_map[entry._local_url]
+
         return (entry, entry._cache_task)
 
     async def add_entry(self, entry, *, head = False):
@@ -279,6 +288,10 @@ class Playlist(EventEmitter, Serializable):
                     if not consider.cache_task:
                         consider.cache_task = ensure_future(consider.prepare_cache())
             val = self._list[position]
+            if val._local_url:
+                url_map[val._local_url].remove(val)
+                if not url_map[val._local_url]:
+                    del url_map[val._local_url]
             del self._list[position]
             return val
 
@@ -468,7 +481,7 @@ class Player(EventEmitter, Serializable):
 
                 if not self._guild._bot.config.save_videos and entry:
                     if not entry.stream:
-                        if any([entry._local_url == e._local_url for e in self._playlist._list]):
+                        if url_map[entry._local_url]:
                             self._guild._bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
 
                         else:
