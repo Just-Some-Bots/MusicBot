@@ -421,6 +421,7 @@ class Player(EventEmitter, Serializable):
             self.state = PlayerState.WAITING
             self._current = None
         entry = None
+        self._guild._bot.log.debug('trying to get entry...')
         while not entry:
             try:
                 async with self._aiolocks['playlist']:
@@ -497,9 +498,7 @@ class Player(EventEmitter, Serializable):
             except:
                 self._guild._bot.log.error('cannot cache...')
                 self._guild._bot.log.error(traceback.format_exc())
-                async with self._aiolocks['player']:
-                    if self.state != PlayerState.PAUSE:
-                        await self._play()                    
+                raise PlaybackError('cannot get the cache')
 
             boptions = "-nostdin"
             aoptions = "-vn"
@@ -535,10 +534,11 @@ class Player(EventEmitter, Serializable):
         try:
             self._guild._bot.log.debug('waiting for task to play...')
             await self._play_task
-        except CancelledError:
+        except (CancelledError, PlaybackError):
+            self._guild._bot.log.debug('aww... next one then.')
             async with self._aiolocks['player']:
                 if self.state != PlayerState.PAUSE:
-                    await self._play()
+                    ensure_future(self._play())
 
     async def _play_safe(self, *callback, play_wait_cb = None, play_success_cb = None):
         async with self._aiolocks['playsafe']:
