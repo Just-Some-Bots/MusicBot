@@ -203,6 +203,18 @@ class Playlist(EventEmitter, Serializable):
 
         return playlist
 
+    @classmethod
+    def from_json(cls, raw_json, bot, extractor):
+        try:
+            obj = json.loads(raw_json, object_hook=Serializer.deserialize)
+            if isinstance(obj, dict):
+                bot.log.warning('Cannot parse incompatible player data. Instantiating new playlist instead.')
+                bot.log.debug(raw_json)
+                obj = cls('unknown', bot)
+            return obj
+        except Exception as e:
+            bot.log.exception("Failed to deserialize player", e)
+
     def __getitem__(self, item: Union[int, slice]):
         return self._list[item]
 
@@ -252,7 +264,8 @@ class Playlist(EventEmitter, Serializable):
 
             if not self.persistent:
                 # @TheerapakG: TODO: This could still be a race condition. To be safe we need to do this after 
-                # finish playing the song but we would have the problem that player don't know the playlist info
+                # finished playing the song but we would have the problem that player don't know the playlist info
+                # idea: append the list map with players and playlists that need to lock deletion instead of the entry.
                 if entry._local_url:
                     url_map[entry._local_url].remove(entry)
                     if not url_map[entry._local_url]:
