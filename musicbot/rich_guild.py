@@ -49,6 +49,9 @@ class RichGuild:
         self._voice_channel = None
         self._voice_client = None
         self._player = None
+        self._playlists = dict()
+        self._autos = list()
+        self._internal_auto = None
         self.skip_state = SkipState()
         self.autoplaylist = list()
 
@@ -59,6 +62,50 @@ class RichGuild:
     @property
     def guild(self):
         return self._bot.get_guild(self._id)
+
+    async def serialize_playlist(self, playlist, *, dir=None):
+        """
+        Serialize the playlist to json.
+        """
+        if dir is None:
+            dir = 'data/{}/playlists/{}.json'.format(self._id, playlist._name)
+
+        async with self._aiolocks['{}_serialization'.format(playlist._name)]:
+            self._bot.log.debug("Serializing `{}` for {}".format(playlist._name, self._id))
+
+            with open(dir, 'w', encoding='utf8') as f:
+                f.write(playlist.serialize(sort_keys=True))
+
+    async def remove_serialized_playlist(self, name, *, dir=None):
+        """
+        Remove the playlist serialized to json.
+        """
+        if dir is None:
+            dir = 'data/{}/playlists/{}.json'.format(self._id, name)
+
+        async with self._aiolocks['{}_serialization'.format(name)]:
+            self._bot.log.debug("Removing serialized `{}` for {}".format(name, self._id))
+
+            os.unlink(dir)
+
+    async def deserialize_playlists(self, *, dir=None):
+        """
+        Deserialize all playlists for a server.
+        """
+        if dir is None:
+            dir = 'data/%s/playlists' % self._id
+            fs = [f for f in os.listdir(dir) if os.path.isfile(os.path.join(dir, f))]
+
+        for fname in fs:
+            # @TheerapakG: TODO: prevent playlist deletion if this is iterating
+            # @TheerapakG: Something ((fname.split('.'))[0]) that is uncertain, as all things should be
+            async with self._aiolocks['{}_serialization'.format((fname.split('.'))[0])]:
+                self._bot.log.debug("Deserializing `{}` for {}".format((fname.split('.'))[0], self._id))
+
+                with open(fname, 'r', encoding='utf8') as f:
+                    data = f.read()
+
+        return Playlist.from_json(data, self._bot, self._bot.downloader)
 
     async def serialize_queue(self, *, dir=None):
         """
