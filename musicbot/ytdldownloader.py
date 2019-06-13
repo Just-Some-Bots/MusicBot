@@ -264,7 +264,7 @@ class YtdlUrlEntry(Entry):
             extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     async def prepare_cache(self):
-        async with self._aiolocks['preparing_cache_set']:
+        with self._threadlocks['preparing_cache_set']:
             if self._preparing_cache:
                 return
             self._preparing_cache = True
@@ -296,7 +296,7 @@ class YtdlUrlEntry(Entry):
                         await self._really_download(hashing=True)
                     else:
                         # print("[Download] Cached:", self.url)
-                        self._local_url = lfile
+                        await self.set_local_url(lfile)
 
                 else:
                     # print("File not found in cache (%s)" % expected_fname_noex)
@@ -314,12 +314,12 @@ class YtdlUrlEntry(Entry):
                 self._extractor._bot.log.info("Expecting file: {} in {}".format(expected_fname_base, self._download_folder))
 
                 if expected_fname_base in ldir:
-                    self._local_url = os.path.join(self._download_folder, expected_fname_base)
+                    await self.set_local_url(os.path.join(self._download_folder, expected_fname_base))
                     self._extractor._bot.log.info("Download cached: {}".format(self.source_url))
 
                 elif expected_fname_noex in flistdir:
                     self._extractor._bot.log.info("Download cached (different extension): {}".format(self.source_url))
-                    self._local_url = os.path.join(self._download_folder, ldir[flistdir.index(expected_fname_noex)])
+                    await self.set_local_url(os.path.join(self._download_folder, ldir[flistdir.index(expected_fname_noex)]))
                     self._extractor._bot.log.debug("Expected {}, got {}".format(
                         self._expected_filename.rsplit('.', 1)[-1],
                         self._local_url.rsplit('.', 1)[-1]
@@ -330,8 +330,8 @@ class YtdlUrlEntry(Entry):
             # TODO: equalization
 
         finally:
-            async with self._aiolocks['preparing_cache_set']:
-                async with self._aiolocks['cached_set']:
+            with self._threadlocks['preparing_cache_set']:
+                with self._threadlocks['cached_set']:
                     self._preparing_cache = False
                     self._cached = True
 
@@ -353,7 +353,7 @@ class YtdlUrlEntry(Entry):
             raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
-        self._local_url = unhashed_fname = self._extractor.ytdl.prepare_filename(result)
+        unhashed_fname = self._extractor.ytdl.prepare_filename(result)
 
 
         # TODO: check storage limit
@@ -361,7 +361,7 @@ class YtdlUrlEntry(Entry):
 
         if hashing:
             # insert the 8 last characters of the file hash to the file name to ensure uniqueness
-            self._local_url = md5sum(unhashed_fname, 8).join('-.').join(unhashed_fname.rsplit('.', 1))
+            await self.set_local_url(md5sum(unhashed_fname, 8).join('-.').join(unhashed_fname.rsplit('.', 1)))
 
             if os.path.isfile(self._local_url):
                 # Oh bother it was actually there.
@@ -369,6 +369,9 @@ class YtdlUrlEntry(Entry):
             else:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self._local_url)
+
+        else:
+            await self.set_local_url(unhashed_fname)
 
 class YtdlStreamEntry(Entry):
     def __init__(self, source_url, title, queuer_id, metadata, extractor, destination = None):
@@ -418,7 +421,7 @@ class YtdlStreamEntry(Entry):
             extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     async def prepare_cache(self):
-        async with self._aiolocks['preparing_cache_set']:
+        with self._threadlocks['preparing_cache_set']:
             if self._preparing_cache:
                 return
             self._preparing_cache = True
@@ -427,8 +430,8 @@ class YtdlStreamEntry(Entry):
             await self._really_download()
 
         finally:
-            async with self._aiolocks['preparing_cache_set']:
-                async with self._aiolocks['cached_set']:
+            with self._threadlocks['preparing_cache_set']:
+                with self._threadlocks['cached_set']:
                     self._preparing_cache = False
                     self._cached = True
 
@@ -443,7 +446,7 @@ class YtdlStreamEntry(Entry):
 
             raise e
         else:
-            self._local_url = result['url']
+            await self.set_local_url(result['url'])
             # I might need some sort of events or hooks or shit
             # for when ffmpeg inevitebly fucks up and i have to restart
             # although maybe that should be at a slightly lower level
