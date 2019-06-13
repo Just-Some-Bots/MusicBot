@@ -59,6 +59,7 @@ from .utils import callback_dummy_future
 from itertools import islice
 from datetime import timedelta
 import traceback
+import threading
 import subprocess
 import json
 import os
@@ -80,6 +81,7 @@ class Entry(Serializable):
         self.duration = duration
         self.queuer_id = queuer_id
         self._aiolocks = defaultdict(Lock)
+        self._threadlocks = defaultdict(threading.Lock)
         self._preparing_cache = False
         self._cached = False
         self._cache_task = None # playlists set this
@@ -130,21 +132,21 @@ class Entry(Serializable):
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     async def is_preparing_cache(self):
-        async with self._aiolocks['preparing_cache_set']:
+        with self._threadlocks['preparing_cache_set']:
             return self._preparing_cache
 
     async def is_cached(self):
-        async with self._aiolocks['cached_set']:
+        with self._threadlocks['cached_set']:
             return self._cached
 
     async def prepare_cache(self):
-        async with self._aiolocks['preparing_cache_set']:
+        with self._threadlocks['preparing_cache_set']:
             if self._preparing_cache:
                 return
             self._preparing_cache = True
 
-        async with self._aiolocks['preparing_cache_set']:
-            async with self._aiolocks['cached_set']:
+        with self._threadlocks['preparing_cache_set']:
+            with self._threadlocks['cached_set']:
                 self._preparing_cache = False
                 self._cached = True
 
@@ -166,6 +168,7 @@ class Playlist(EventEmitter, Serializable):
         self._bot = bot
         self._name = name
         self._aiolocks = defaultdict(Lock)
+        self._threadlocks = defaultdict(threading.Lock)
         self._list = deque()
         self._precache = 1
 
@@ -219,7 +222,7 @@ class Playlist(EventEmitter, Serializable):
         return self._list[item]
 
     async def stop(self):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             for entry in self._list:
                 if entry._cache_task:
                     entry._cache_task.cancel()
@@ -232,21 +235,21 @@ class Playlist(EventEmitter, Serializable):
                     entry._cached = False
 
     async def shuffle(self):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             shuffle(self._list)
             for entry in self._list[:self._precache]:
                 if not entry._cache_task:
                     entry._cache_task = ensure_future(entry.prepare_cache())
 
     async def clear(self):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             self._list.clear()
 
     def get_name(self):
         return self._name
 
     async def _get_entry(self):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             if not self._list:
                 return
 
@@ -274,7 +277,7 @@ class Playlist(EventEmitter, Serializable):
         return (entry, entry._cache_task)
 
     async def add_entry(self, entry, *, head = False):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             if head:
                 self._list.appendleft(entry)
                 position = 0
@@ -288,11 +291,11 @@ class Playlist(EventEmitter, Serializable):
         self.emit('entry-added', playlist=self, entry=entry)
 
     async def get_length(self):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             return len(self._list)
 
     async def remove_position(self, position):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             if position < self._precache:
                 self._list[position]._cache_task.cancel()
                 self._list[position]._cache_task = None
@@ -309,17 +312,17 @@ class Playlist(EventEmitter, Serializable):
             return val
 
     async def get_entry_position(self, entry):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             return self._list.index(entry)
 
     async def estimate_time_until(self, position):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             estimated_time = sum(e.duration for e in islice(self._list, position - 1))
         return timedelta(seconds=estimated_time)
 
     async def estimate_time_until_entry(self, entry):
         estimated_time = 0
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             for e in self._list:
                 if e is not entry:  
                     estimated_time += e.duration
@@ -328,7 +331,7 @@ class Playlist(EventEmitter, Serializable):
         return timedelta(seconds=estimated_time)            
 
     async def num_entry_of(self, user_id):
-        async with self._aiolocks['list']:
+        with self._threadlocks['list']:
             return sum(1 for e in self._list if e.queuer_id == user_id)
 
 class PlayerState(Enum):
@@ -477,7 +480,9 @@ class Player(EventEmitter, Serializable):
                     play_wait_cb()
                     play_wait_cb = None
                     play_success_cb = None
-                await sleep(1)                 
+                await sleep(1)
+            except Exception as e:
+                self._guild._bot.log.error(e)
 
         if play_success_cb:
             play_success_cb()
