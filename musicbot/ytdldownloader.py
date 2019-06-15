@@ -254,6 +254,66 @@ class YtdlUrlEntry(Entry):
         except Exception as e:
             extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
+    async def _prepare(self):
+        extractor = os.path.basename(self._expected_filename).split('-')[0]
+
+        # the generic extractor requires special handling
+        if extractor == 'generic':
+            flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self._download_folder)]
+            expected_fname_noex, fname_ex = os.path.basename(self._expected_filename).rsplit('.', 1)
+
+            if expected_fname_noex in flistdir:
+                try:
+                    rsize = int(await get_header(self._extractor._bot.aiosession, self.source_url, 'CONTENT-LENGTH'))
+                except:
+                    rsize = 0
+
+                lfile = os.path.join(
+                    self._download_folder,
+                    os.listdir(self._download_folder)[flistdir.index(expected_fname_noex)]
+                )
+
+                # print("Resolved %s to %s" % (self.expected_filename, lfile))
+                lsize = os.path.getsize(lfile)
+                # print("Remote size: %s Local size: %s" % (rsize, lsize))
+
+                if lsize != rsize:
+                    await self._really_download(hashing=True)
+                else:
+                    # print("[Download] Cached:", self.url)
+                    await self.set_local_url(lfile)
+
+            else:
+                # print("File not found in cache (%s)" % expected_fname_noex)
+                await self._really_download(hashing=True)
+
+        else:
+            ldir = os.listdir(self._download_folder)
+            flistdir = [f.rsplit('.', 1)[0] for f in ldir]
+            expected_fname_base = os.path.basename(self._expected_filename)
+            expected_fname_noex = expected_fname_base.rsplit('.', 1)[0]
+
+            # idk wtf this is but its probably legacy code
+            # or i have youtube to blame for changing shit again
+
+            self._extractor._bot.log.info("Expecting file: {} in {}".format(expected_fname_base, self._download_folder))
+
+            if expected_fname_base in ldir:
+                await self.set_local_url(os.path.join(self._download_folder, expected_fname_base))
+                self._extractor._bot.log.info("Download cached: {}".format(self.source_url))
+
+            elif expected_fname_noex in flistdir:
+                self._extractor._bot.log.info("Download cached (different extension): {}".format(self.source_url))
+                await self.set_local_url(os.path.join(self._download_folder, ldir[flistdir.index(expected_fname_noex)]))
+                self._extractor._bot.log.debug("Expected {}, got {}".format(
+                    self._expected_filename.rsplit('.', 1)[-1],
+                    self._local_url.rsplit('.', 1)[-1]
+                ))
+            else:
+                await self._really_download()
+
+        # TODO: equalization
+
     async def prepare_cache(self):
         with self._threadlocks['preparing_cache_set']:
             if self._preparing_cache:
@@ -261,65 +321,7 @@ class YtdlUrlEntry(Entry):
             self._preparing_cache = True
 
         try:
-            extractor = os.path.basename(self._expected_filename).split('-')[0]
-
-            # the generic extractor requires special handling
-            if extractor == 'generic':
-                flistdir = [f.rsplit('-', 1)[0] for f in os.listdir(self._download_folder)]
-                expected_fname_noex, fname_ex = os.path.basename(self._expected_filename).rsplit('.', 1)
-
-                if expected_fname_noex in flistdir:
-                    try:
-                        rsize = int(await get_header(self._extractor._bot.aiosession, self.source_url, 'CONTENT-LENGTH'))
-                    except:
-                        rsize = 0
-
-                    lfile = os.path.join(
-                        self._download_folder,
-                        os.listdir(self._download_folder)[flistdir.index(expected_fname_noex)]
-                    )
-
-                    # print("Resolved %s to %s" % (self.expected_filename, lfile))
-                    lsize = os.path.getsize(lfile)
-                    # print("Remote size: %s Local size: %s" % (rsize, lsize))
-
-                    if lsize != rsize:
-                        await self._really_download(hashing=True)
-                    else:
-                        # print("[Download] Cached:", self.url)
-                        await self.set_local_url(lfile)
-
-                else:
-                    # print("File not found in cache (%s)" % expected_fname_noex)
-                    await self._really_download(hashing=True)
-
-            else:
-                ldir = os.listdir(self._download_folder)
-                flistdir = [f.rsplit('.', 1)[0] for f in ldir]
-                expected_fname_base = os.path.basename(self._expected_filename)
-                expected_fname_noex = expected_fname_base.rsplit('.', 1)[0]
-
-                # idk wtf this is but its probably legacy code
-                # or i have youtube to blame for changing shit again
-
-                self._extractor._bot.log.info("Expecting file: {} in {}".format(expected_fname_base, self._download_folder))
-
-                if expected_fname_base in ldir:
-                    await self.set_local_url(os.path.join(self._download_folder, expected_fname_base))
-                    self._extractor._bot.log.info("Download cached: {}".format(self.source_url))
-
-                elif expected_fname_noex in flistdir:
-                    self._extractor._bot.log.info("Download cached (different extension): {}".format(self.source_url))
-                    await self.set_local_url(os.path.join(self._download_folder, ldir[flistdir.index(expected_fname_noex)]))
-                    self._extractor._bot.log.debug("Expected {}, got {}".format(
-                        self._expected_filename.rsplit('.', 1)[-1],
-                        self._local_url.rsplit('.', 1)[-1]
-                    ))
-                else:
-                    await self._really_download()
-
-            # TODO: equalization
-
+            await self._prepare()
         finally:
             with self._threadlocks['preparing_cache_set']:
                 with self._threadlocks['cached_set']:
@@ -363,6 +365,110 @@ class YtdlUrlEntry(Entry):
 
         else:
             await self.set_local_url(unhashed_fname)
+
+class YtdlUrlUnprocessedEntry(YtdlUrlEntry):
+    def __init__(self, url, queuer_id, metadata, extractor):
+        super().__init__(url, 'Information have not been fetched yet', 0, queuer_id, metadata, extractor, None)
+
+    def __json__(self):
+        return self._enclose_json({
+            'version': 1,
+            'source_url': self.source_url,
+            'title': self.title,
+            'duration': self.duration,
+            'queuer_id': self.queuer_id,
+            'expected_file': self._expected_filename,
+            '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
+            'meta': {
+                name: obj for name, obj in self._metadata.items() if obj
+            }
+        })
+
+    @classmethod
+    def _deserialize(cls, data, extractor=None):
+        assert extractor is not None, cls._bad('extractor')
+
+        if 'version' not in data or data['version'] < 1:
+            raise VersionError('data version needs to be higher than 2')
+
+        try:
+            # TODO: version check
+            source_url = data['source_url']
+            title = data['title']
+            duration = data['duration']
+            queuer_id = data['queuer_id']
+            meta = {}
+
+            # TODO: Better [name] fallbacks
+            if 'channel_id' in data['meta']:
+                meta['channel_id'] = int(data['meta']['channel_id'])
+                if not meta['channel_id']:
+                    extractor._bot.log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
+                    meta.pop('channel_id')
+            entry = cls(source_url, queuer_id, meta, extractor)
+            entry.title = title
+            entry.duration = duration
+
+            return entry
+        except Exception as e:
+            extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
+
+    async def prepare_cache(self):
+        with self._threadlocks['preparing_cache_set']:
+            if self._preparing_cache:
+                return
+            self._preparing_cache = True
+            
+        try:
+            try:
+                info = await self._extractor.extract_info(self.source_url, download=False)
+            except Exception as e:
+                raise ExtractionError('Could not extract information from {}\n\n{}'.format(self.source_url, e))
+
+            if not info:
+                raise ExtractionError('Could not extract information from %s' % self.source_url)
+
+            # TODO: Sort out what happens next when this happens
+            if info.get('_type', None) == 'playlist':
+                raise WrongEntryTypeError("This is a playlist.", True, info.get('webpage_url', None) or info.get('url', None))
+
+            if info.get('is_live', False):
+                # TODO: return stream entry
+                pass
+
+            # TODO: Extract this to its own function
+            if info['extractor'] in ['generic', 'Dropbox']:
+                self._extractor._bot.log.debug('Detected a generic extractor, or Dropbox')
+                try:
+                    headers = await get_header(self._extractor._bot.aiosession, info['url'])
+                    content_type = headers.get('CONTENT-TYPE')
+                    self._extractor._bot.log.debug("Got content type {}".format(content_type))
+                except Exception as e:
+                    self._extractor._bot.log.warning("Failed to get content type for url {} ({})".format(self.source_url, e))
+                    content_type = None
+
+                if content_type:
+                    if content_type.startswith(('application/', 'image/')):
+                        if not any(x in content_type for x in ('/ogg', '/octet-stream')):
+                            # How does a server say `application/ogg` what the actual fuck
+                            raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, self.source_url))
+
+                    elif content_type.startswith('text/html') and info['extractor'] == 'generic':
+                        self._extractor._bot.log.warning("Got text/html for content-type, this might be a stream.")
+                        # TODO: return stream entry
+                        pass
+
+                    elif not content_type.startswith(('audio/', 'video/')):
+                        self._extractor._bot.log.warning("Questionable content-type \"{}\" for url {}".format(content_type, self.source_url))
+            
+            self._expected_filename = self._extractor.ytdl.prepare_filename(info)
+            
+            await self._prepare()
+        finally:
+            with self._threadlocks['preparing_cache_set']:
+                with self._threadlocks['cached_set']:
+                    self._preparing_cache = False
+                    self._cached = True
 
 class YtdlStreamEntry(Entry):
     def __init__(self, source_url, title, queuer_id, metadata, extractor, destination = None):
@@ -498,6 +604,16 @@ async def get_entry(song_url, queuer_id, extractor, metadata):
         metadata,
         extractor,
         extractor.ytdl.prepare_filename(info)
+    )
+
+    return entry
+
+async def get_unprocessed_entry(song_url, queuer_id, extractor, metadata):
+    entry = YtdlUrlUnprocessedEntry(
+        song_url,
+        queuer_id,
+        metadata,
+        extractor
     )
 
     return entry
