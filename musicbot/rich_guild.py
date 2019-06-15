@@ -30,12 +30,13 @@ from discord import Guild
 import discord
 from asyncio import Lock, ensure_future
 from collections import defaultdict
+import json
 import os
 import random
 from .playback import Player, Playlist, PlayerState
-from .constructs import SkipState, Serializable
+from .constructs import SkipState, Serializable, Serializer
 from .messagemanager import safe_send_message, safe_send_normal, safe_delete_message, content_gen, ContentTypeColor
-from .ytdldownloader import get_entry, get_stream_entry
+from .ytdldownloader import get_entry, get_unprocessed_entry, get_stream_entry
 from youtube_dl.utils import DownloadError
 from . import exceptions
 
@@ -72,7 +73,7 @@ class RichGuild(Serializable):
         })
 
     @classmethod
-    def _deserialize(cls, data, bot):
+    def _deserialize(cls, data, bot=None):
         assert bot is not None, cls._bad('bot')
 
         if 'version' not in data or data['version'] < 0:
@@ -99,6 +100,21 @@ class RichGuild(Serializable):
 
         return guild
 
+    @classmethod
+    def from_json(cls, raw_json, bot, guildid):
+        try:
+            obj = json.loads(raw_json, object_hook=Serializer.deserialize)
+            if isinstance(obj, dict):
+                bot.log.warning('Cannot parse incompatible rich guild data. Instantiating new rich guild instead.')
+                bot.log.debug(raw_json)
+                obj = cls(bot, guildid)
+            if obj._id != guildid:
+                bot.log.warning("Guild id contradict with id in the serialized data. Using current guild id instead")
+                obj._id = guildid
+            return obj
+        except Exception as e:
+            bot.log.exception("Failed to deserialize rich guild", e)
+
     @property
     def id(self):
         return self._id
@@ -106,6 +122,32 @@ class RichGuild(Serializable):
     @property
     def guild(self):
         return self._bot.get_guild(self._id)
+
+    async def serialize_to_file(self, *, dir=None):
+        if dir is None:
+            dir = 'data/{}/richguildinfo.json'.format(self._id)
+
+        async with self._aiolocks['guild_serialization']:
+            self._bot.log.debug("Serializing {}".format(self._id))
+
+            with open(dir, 'w', encoding='utf8') as f:
+                f.write(self.serialize(sort_keys=True))
+
+    @classmethod
+    def deserialize_from_file(cls, bot, guildid, *, dir=None):
+        if dir is None:
+            dir = 'data/{}/richguildinfo.json'.format(guildid)
+
+        if not os.path.isfile(dir):
+            bot.log.debug('Instantiating new rich guild for {}.'.format(guildid))
+            return cls(bot, guildid)
+
+        bot.log.debug("Deserializing {}".format(guildid))
+
+        with open(dir, 'r', encoding='utf8') as f:
+            data = f.read()
+            guild = cls.from_json(data, bot, guildid)
+            return guild
 
     async def serialize_playlist(self, playlist):
         """
@@ -130,6 +172,9 @@ class RichGuild(Serializable):
         """
         dir = 'data/{}/playlists/{}.json'.format(self._id, name)
 
+        if not os.path.isfile(dir):
+            return
+
         async with self._aiolocks['{}_serialization'.format(name)]:
             self._bot.log.debug("Removing serialized `{}` for {}".format(name, self._id))
             try:
@@ -141,10 +186,13 @@ class RichGuild(Serializable):
 
     async def deserialize_playlist(self, name = None, *, dir=None):
         """
-        Deserialize all playlists for a server.
+        Deserialize specified playlist for the server.
         """
         if dir is None:
             dir = 'data/{}/playlists/{}.json'.format(self._id, name)
+
+        if not os.path.isfile(dir):
+            return None
 
         # @TheerapakG: Something ((dir.split('.'))[0]) that is uncertain, as all things should be
         async with self._aiolocks['{}_serialization'.format((dir.split('.'))[0])]:
@@ -546,17 +594,18 @@ def get_guild_list(bot) -> RichGuild:
     return list(guilds[bot.user.id].values())
 
 def register_bot(bot):
-    guilds[bot.user.id] = {guild.id:RichGuild(bot, guild.id) for guild in bot.guilds}
+    guilds[bot.user.id] = {guild.id:RichGuild.deserialize_from_file(bot, guild.id) for guild in bot.guilds}
 
     async def on_guild_join(guild):
         if bot.is_ready():
-            guilds[bot.user.id][guild.id] = RichGuild(bot, guild.id)
+            guilds[bot.user.id][guild.id] = RichGuild.deserialize_from_file(bot, guild.id)
             bot.log.info('joined guild {}'.format(guild.name))
 
     bot.event(on_guild_join)
 
     async def on_guild_remove(guild):
         if bot.is_ready():
+            await guilds[bot.user.id][guild.id].serialize_to_file()
             del guilds[bot.user.id][guild.id]
             bot.log.info('removed guild {}'.format(guild.name))
 
