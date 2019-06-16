@@ -419,7 +419,7 @@ class QueueManagement(Cog):
         """
         guild = get_guild(ctx.bot, ctx.guild)
         player = await guild.get_player()
-        playlist = await player.get_playlist()
+        playlist = await guild.get_playlist()
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
