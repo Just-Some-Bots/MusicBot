@@ -435,10 +435,18 @@ class QueueManagement(Cog):
         The command issuer can use reactions to indicate their response to each result.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await guild.get_playlist()
-
         permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        try:
+            player = await guild.get_player()
+        except Exception as e:
+            if permissions.summonplay:
+                await ctx.bot.cogs['BotManagement'].summon.callback(ctx.bot.cogs['BotManagement'], ctx)
+                player = await guild.get_player()
+            else:
+                raise e
+
+        playlist = await guild.get_playlist()
 
         if permissions.max_songs and (await playlist.num_entry_of(ctx.author)) > permissions.max_songs:
             raise exceptions.PermissionsError(
