@@ -107,7 +107,7 @@ class QueueManagement(Cog):
             else:
                 raise e
 
-        playlist = await player.get_playlist()
+        playlist = await guild.get_playlist()
 
         song_url = song_url.strip('<>')
 
@@ -344,10 +344,7 @@ class QueueManagement(Cog):
                         reply_text = "Enqueued `%s` to be played. Position in queue: %s"
                         btext = entry.title
 
-                    if ctx.bot.config.skip_if_auto:
-                        current = await player.get_current_entry()
-                        if current and not current.queuer_id:
-                            await player.skip()
+                    await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
 
                     # Position msgs
                     time_until = await player.estimate_time_until_entry(entry)
@@ -373,6 +370,7 @@ class QueueManagement(Cog):
         streams, especially on poor connections.  You have been warned.
         """
         guild = get_guild(ctx.bot, ctx.guild)
+
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         try:
@@ -384,7 +382,7 @@ class QueueManagement(Cog):
             else:
                 raise e
 
-        playlist = await player.get_playlist()
+        playlist = await guild.get_playlist()
 
         song_url = song_url.strip('<>')
 
@@ -404,10 +402,7 @@ class QueueManagement(Cog):
         reply_text = "Enqueued `%s` to be streamed. Position in queue: %s"
         btext = entry.title
 
-        if ctx.bot.config.skip_if_auto:
-            current = await player.get_current_entry()
-            if current and not current.queuer_id:
-                await player.skip()
+        await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
 
         # Position msgs
         time_until = await player.estimate_time_until_entry(entry)

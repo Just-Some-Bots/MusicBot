@@ -58,6 +58,7 @@ class RichGuild(Serializable):
         # @TheerapakG: we're holding object references in the _autos as that should take up less memory than holding strs
         self._autos = list()
         self._internal_auto = None
+        self._not_auto = None
         self.skip_state = SkipState()
         self.autoplaylist = list()
 
@@ -69,7 +70,8 @@ class RichGuild(Serializable):
             'id': self._id,
             'playlists': self._playlists_active_path,
             'autos': [p._name for p in self._autos],
-            'internal_auto': self._internal_auto._name if self._internal_auto else None
+            'internal_auto': self._internal_auto._name if self._internal_auto else None,
+            'not_auto': self._not_auto._name if self._not_auto else None
         })
 
     @classmethod
@@ -96,9 +98,22 @@ class RichGuild(Serializable):
             data_internal_auto = data.get('internal_auto')
             guild._internal_auto = guild._playlists[data_internal_auto] if data_internal_auto else None
 
+            data_not_auto = data.get('not_auto')
+            guild._not_auto = guild._playlists[data_not_auto] if data_not_auto else None
+
         ensure_future(unpack_playlists())
 
         return guild
+
+    async def is_currently_auto(self):
+        plpl = await self._player.get_playlist()
+        return plpl is self._internal_auto
+
+    async def return_from_auto(self, *, also_skip = False):
+        if not (await self.is_currently_auto()):
+            await self._player.set_playlist(self._not_auto)
+            if also_skip:
+                await self._player.skip()
 
     @classmethod
     def from_json(cls, raw_json, bot, guildid):
@@ -428,110 +443,12 @@ class RichGuild(Serializable):
                 ensure_future(player.pause())
                 self._bot.server_specific_data[self]['auto_paused'] = True
 
-        if not player._playlist._list and not player._current and (self._bot.config.auto_playlist or self._bot.config.auto_stream):
-            if not self.autoplaylist:
-                if self._bot.config.auto_playlist:
-                    if not self._bot.autoplaylist:
-                        # TODO: When I add playlist expansion, make sure that's not happening during this check
-                        self._bot.log.warning("No playable songs in the autoplaylist, disabling.")
-                        self._bot.config.auto_playlist = False
-                        if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist':
-                            self._bot.config.auto_mode_toggle == 'stream'
-                    else:
-                        self._bot.log.debug("No content in current autoplaylist. Filling with new music (autoplaylist)...")
-                        if self._bot.config.auto_mode == 'merge' or (self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist'):
-                            self.autoplaylist.extend([(e, 'playlist') for e in self._bot.autoplaylist])
+        if not player._playlist._list and not player._current and self._internal_auto:
+            self._not_auto = await player.get_playlist()
+            await player.set_playlist(self._internal_auto)
 
-                if self._bot.config.auto_stream:
-                    if not self._bot.autostream:
-                        self._bot.log.warning("No playable songs in the autostream, disabling.")
-                        self._bot.config.auto_stream = False
-                        if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream':
-                            self._bot.config.auto_mode_toggle == 'playlist'
-                    else:
-                        self._bot.log.debug("No content in current autoplaylist. Filling with new music (autostream)...")
-                        if self._bot.config.auto_mode == 'merge' or (self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream'):
-                            self.autoplaylist.extend([(e, 'stream') for e in self._bot.autostream])
-
-            while self.autoplaylist:
-                if self._bot.config.auto_playlist_stream_random:
-                    random.shuffle(self.autoplaylist)
-                    song_url, song_type = random.choice(self.autoplaylist)
-                else:
-                    song_url, song_type = self.autoplaylist[0]
-                self.autoplaylist.remove((song_url, song_type))
-                self._bot.log.debug("get url: {} ({})".format(song_url, song_type))
-
-                if song_type == 'playlist':
-                    info = {}
-
-                    try:
-                        info = await self._bot.downloader.extract_info(song_url, download=False, process=False)
-                    except DownloadError as e:
-                        if 'YouTube said:' in e.args[0]:
-                            # url is bork, remove from list and put in removed list
-                            self._bot.log.error("Error processing youtube url:\n{}".format(e.args[0]))
-
-                        else:
-                            # Probably an error from a different extractor, but I've only seen youtube's
-                            self._bot.log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-
-                        await self._bot.remove_from_autoplaylist(song_url, ex=e, delete_from_ap=self._bot.config.remove_ap)
-                        continue
-
-                    except Exception as e:
-                        self._bot.log.error("Error processing \"{url}\": {ex}".format(url=song_url, ex=e))
-                        self._bot.log.exception()
-
-                        self._bot.autoplaylist.remove(song_url)
-                        continue
-
-                    if info.get('entries', None):  # or .get('_type', '') == 'playlist'
-                        self._bot.log.debug("Playlist found but is unsupported at this time, skipping.")
-                        # TODO: Playlist expansion
-
-                    # Do I check the initial conditions again?
-                    # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-
-                    if self._bot.config.auto_pause:
-                        player.once('play', lambda player, **_: _autopause(player))
-
-                    try:
-                        entry = await get_entry(song_url, None, self._bot.downloader, dict())
-                        await player._playlist.add_entry(entry)
-                    except exceptions.ExtractionError as e:
-                        self._bot.log.error("Error adding song from autoplaylist: {}".format(e))
-                        self._bot.log.debug('', exc_info=True)
-                        continue
-                
-                elif song_type == 'stream':
-                    # TODO: streams check                    
-                    try:
-                        entry = await get_stream_entry(song_url, None, self._bot.downloader, dict())
-                        await player._playlist.add_entry(entry)
-                        if self._bot.config.auto_pause:
-                            player.once('play', lambda player, **_: _autopause(player))
-                    except exceptions.ExtractionError as e:
-                        self._bot.log.error("Error adding song from autostream: {}".format(e))
-                        self._bot.log.debug('', exc_info=True)
-                        continue
-
-                break
-
-            if self._bot.config.auto_playlist:
-                if not self._bot.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check
-                    self._bot.log.warning("No playable songs in the autoplaylist, disabling.")
-                    self._bot.config.auto_playlist = False
-                    if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'playlist':
-                        self._bot.config.auto_mode_toggle == 'stream'
-
-            if self._bot.config.auto_stream:
-                if not self._bot.autostream:
-                    self._bot.log.warning("No playable songs in the autostream, disabling.")
-                    self._bot.config.auto_stream = False
-                    if self._bot.config.auto_mode == 'toggle' and self._bot.config.auto_mode_toggle == 'stream':
-                        self._bot.config.auto_mode_toggle == 'playlist'
+            if self._bot.config.auto_pause:
+                player.once('play', lambda player, **_: _autopause(player))
 
         else: # Don't serialize for autoplaylist events
             await self.serialize_queue()
@@ -579,7 +496,10 @@ class RichGuild(Serializable):
 
     async def get_playlist(self):
         async with self._aiolocks['c_voice_channel']:
-            return await self._player.get_playlist()
+            if await self.is_currently_auto:
+                return self._not_auto
+            else:
+                return await self._player.get_playlist()
 
     def get_owner(self, *, voice=False):
             return discord.utils.find(
