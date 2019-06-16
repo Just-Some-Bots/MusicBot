@@ -53,6 +53,7 @@ class Autoplaylist(Cog):
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
+        player = await guild.get_player()
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         if bot.config.auto_mode == 'toggle':
@@ -62,37 +63,23 @@ class Autoplaylist(Cog):
                     expire_in=30
                 )
 
-            playlisttype = list()
-            if bot.config.auto_playlist:
-                playlisttype.append('playlist')
-            if bot.config.auto_stream:
-                playlisttype.append('stream')
-
-            if not len(playlisttype) == 0:
+            if not len(guild._autos) == 0:
                 safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), expire_in=15)
                 return
 
             try:
-                i = playlisttype.index(bot.config.auto_mode_toggle ) + 1
-                if i == len(playlisttype):
+                i = guild._autos.index(guild._internal_auto) + 1
+                if i == len(guild._autos):
                     i = 0
             except ValueError:
                 i = 0
-            if playlisttype[i] == bot.config.auto_mode_toggle:
-                safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), expire_in=15)
-                return
-            else:
-                bot.config.auto_mode_toggle = playlisttype[i]
-                # reset playlist
-                guild.autoplaylist = list()
-                # if autoing then switch
-                if bot.config.skip_if_auto:
-                    player = await guild.get_player()
-                    current = await player.get_current_entry()
-                    if current and not current.queuer_id:
-                        await player.skip()
-                safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-success', 'Switched autoplaylist to {0}').format(bot.config.auto_mode_toggle), expire_in=15)
-                return
+            
+            guild._internal_auto = guild._autos[i]
+            # if autoing then switch
+            if bot.config.skip_if_auto and (await guild.is_currently_auto()):
+                await player.skip()
+            safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-success', 'Switched autoplaylist to {0}').format(guild._internal_auto._name), expire_in=15)
+            return
         else:
             safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-wrongmode', 'Mode for dealing with autoplaylists is not set to \'toggle\', currently set to {0}').format(bot.config.auto_mode), expire_in=15)
 
