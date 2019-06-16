@@ -161,10 +161,12 @@ class Entry(Serializable):
         url_map[local_url].append(self)
 
 class Playlist(EventEmitter, Serializable):
-    def __init__(self, name, bot, *, persistent = False):
+    def __init__(self, name, bot, *, persistent = False, auto_random = False):
         super().__init__()
         self.karaoke_mode = False
         self.persistent = persistent
+        self.auto_random = auto_random
+        self._last_shuffle = 0
         self._bot = bot
         self._name = name
         self._aiolocks = defaultdict(Lock)
@@ -174,9 +176,10 @@ class Playlist(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 3,
+            'version': 4,
             'name': self._name,
             'persistent': self.persistent,
+            'auto_random': self.auto_random,
             'karaoke': self.karaoke_mode,
             'entries': list(self._list)
         })
@@ -203,6 +206,13 @@ class Playlist(EventEmitter, Serializable):
         else:
             data_p = data.get('persistent')
         playlist.persistent = data_p
+
+        if 'version' not in data or data['version'] < 4:
+            bot.log.warning('upgrading `{}` to playlist version 4'.format(data_n))
+            data_rand = False
+        else:
+            data_rand = data.get('auto_random')
+        playlist.auto_random = data_rand
 
         return playlist
 
@@ -234,12 +244,15 @@ class Playlist(EventEmitter, Serializable):
                     entry._preparing_cache = False
                     entry._cached = False
 
+    def _shuffle(self):
+        shuffle(self._list)
+        for entry in self._list[:self._precache]:
+            if not entry._cache_task:
+                entry._cache_task = ensure_future(entry.prepare_cache())
+
     async def shuffle(self):
         with self._threadlocks['list']:
-            shuffle(self._list)
-            for entry in self._list[:self._precache]:
-                if not entry._cache_task:
-                    entry._cache_task = ensure_future(entry.prepare_cache())
+            self._shuffle()
 
     async def clear(self):
         with self._threadlocks['list']:
@@ -259,6 +272,11 @@ class Playlist(EventEmitter, Serializable):
 
             if self.persistent:
                 self._list.appendleft(entry)
+
+            if self.auto_random:
+                self._last_shuffle += 1
+                if len(self._list) <= self._last_shuffle:
+                    self._shuffle()
 
             if self._precache <= len(self._list):
                 consider = self._list[self._precache - 1]
