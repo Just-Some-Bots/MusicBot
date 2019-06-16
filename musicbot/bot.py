@@ -854,6 +854,8 @@ class ModuBot(Bot):
                 await guild.set_connected_voice_channel(None)
             except:
                 pass
+                
+            await guild.serialize_to_file()
         await self.unload_all_module()
         await super().logout()
         await self.aiosession.close()
