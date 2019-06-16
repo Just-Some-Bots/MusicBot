@@ -1,4 +1,5 @@
 {
+    "general?cmd@deprecated": "This command is no longer available.",
     "cmd-resetplaylist-response": "The server's autoplaylist has been reset.",
     "cmd-help-invalid": "No such command",
     "cmd-help-no-perms": "You don't have permission to use any commands. Run `{}help all` list every command anyway",
