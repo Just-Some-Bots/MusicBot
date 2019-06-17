@@ -60,7 +60,6 @@ class RichGuild(Serializable):
         self._internal_auto = None
         self._not_auto = None
         self.skip_state = SkipState()
-        self.autoplaylist = list()
 
     def __json__(self):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
@@ -88,7 +87,8 @@ class RichGuild(Serializable):
         async def unpack_playlists():
             data_pl = data.get('playlists')
             if data_pl:
-                for plpath in data_pl:
+                for plpath in data_pl.values():
+                    bot.log.debug('Deserializing {} from guild save'.format(plpath))
                     await guild.deserialize_playlist(dir = plpath)
 
             data_autos = data.get('autos')
@@ -172,7 +172,7 @@ class RichGuild(Serializable):
 
         async with self._aiolocks['{}_serialization'.format(playlist._name)]:
             self._bot.log.debug("Serializing `{}` for {}".format(playlist._name, self._id))
-
+            os.makedirs(os.path.dirname(dir), exist_ok=True)
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(playlist.serialize(sort_keys=True))
                 self._playlists_active_path[playlist._name] = dir

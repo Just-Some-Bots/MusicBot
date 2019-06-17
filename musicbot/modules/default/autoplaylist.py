@@ -9,6 +9,7 @@ from ...utils import write_file
 
 from ...messagemanager import safe_send_normal
 from ...rich_guild import get_guild
+from ...ytdldownloader import get_unprocessed_entry
 
 class Autoplaylist(Cog):
     @command()
@@ -22,6 +23,16 @@ class Autoplaylist(Cog):
         bot = ctx.bot
         await safe_send_normal(ctx, ctx, bot.str.get('general?cmd@deprecated', 'This command is no longer available.'), expire_in=15)
         await safe_send_normal(ctx, ctx, bot.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), expire_in=15)
+
+    @command()
+    async def apmode(self, ctx, mode):
+        """
+        Usage:
+            {command_prefix}apmode mode
+
+        Change autoplaylist mode
+        """
+        raise NotImplementedError()
 
     @command()
     async def toggleplaylist(self, ctx):
@@ -69,7 +80,8 @@ class Autoplaylist(Cog):
         Usage:
             {command_prefix}save [url]
 
-        Saves the specified song or current song if not specified to the autoplaylist.
+        Saves the specified song or current song if not specified to the autoplaylist playing.
+        If used in merge mode, the entry added will be lost when changed the mode to toggle.
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
@@ -78,6 +90,8 @@ class Autoplaylist(Cog):
         if url or (current and not current.stream):
             if not url:
                 url = current.source_url
+            else:
+                current = get_unprocessed_entry(url, None, bot.downloader, dict())
 
             if url not in [e.source_url for e in guild._internal_auto]:
                 await guild._internal_auto.add_entry(current)
@@ -87,5 +101,24 @@ class Autoplaylist(Cog):
                 raise exceptions.CommandError(bot.str.get('cmd-save-exists', 'This song is already in the autoplaylist.'))
         else:
             raise exceptions.CommandError(bot.str.get('cmd-save-invalid', 'There is no valid song playing.'))
+
+    @command()
+    async def convtoap(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}convtoap name
+
+        Convert playlist with that name in the guild to an autoplaylist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        if name in guild._playlists:
+            guild._playlists[name].persistent = True
+            guild._autos.append(guild._playlists[name])
+            if not guild._internal_auto:
+                guild._internal_auto = guild._playlists[name]
+        else:
+            raise exceptions.CommandError('There is no playlist with that name.')
 
 cogs = [Autoplaylist]
