@@ -1111,9 +1111,30 @@ class MusicBot(discord.Client):
         """Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = 7506394
-        e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+        if not self.config.disableembedfooter:
+            e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
+
+    async def cmd_info(self, message, server, author):
+        """
+        Usage:
+            command_prefix}info
+
+        returns information about MusicBot
+        """
+        guide = 'Creating your own MusicBot is easy just follow one of our easy OS guides here!\nhttps://just-some-bots.github.io/MusicBot/'
+        faq = 'Frequently Asked Questions about MusicBot can be found here!\nhttps://just-some-bots.github.io/MusicBot/using/faq/'
+        e = discord.Embed(title="Commands", url="https://just-some-bots.github.io/MusicBot/using/commands/", description="Click the above text for a list of commands!")
+        e.colour = 7506394
+        if not self.config.disableembedfooter:
+            e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+
+        e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user_avatar_url)
+        e.add_field(name="Installing your own", value=guide, inline=True)
+        e.add_field(name='FAQ', value=faq, inline=True)
+        await self.safe_send_message(e, expire_in=45)
 
     async def cmd_resetplaylist(self, player, channel):
         """
