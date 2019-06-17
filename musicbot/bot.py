@@ -1126,7 +1126,7 @@ class MusicBot(discord.Client):
         """
         guide = 'Creating your own MusicBot is easy just follow one of our easy OS guides here!\nhttps://just-some-bots.github.io/MusicBot/'
         faq = 'Frequently Asked Questions about MusicBot can be found here!\nhttps://just-some-bots.github.io/MusicBot/using/faq/'
-        e = discord.Embed(title="Commands", url="https://just-some-bots.github.io/MusicBot/using/commands/", description="Click the above text for a list of commands!")
+        e = discord.Embed(title="Commands", url="https://just-some-bots.github.io/MusicBot/using/commands/", description="Click the above `Commands` text for a list of commands!")
         e.colour = 7506394
         if not self.config.disableembedfooter:
             e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
