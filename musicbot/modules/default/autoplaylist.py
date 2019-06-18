@@ -9,7 +9,7 @@ from ...utils import write_file
 
 from ...messagemanager import safe_send_normal
 from ...rich_guild import get_guild
-from ...ytdldownloader import get_unprocessed_entry
+from ...ytdldownloader import get_unprocessed_entry, get_stream_entry
 from ...playback import Playlist
 
 class Autoplaylist(Cog):
@@ -175,6 +175,7 @@ class Autoplaylist(Cog):
             {command_prefix}convtoap name
 
         Convert playlist with that name in the guild to an autoplaylist.
+        If used in merge mode, the entry added will be lost when changed the mode to toggle.
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
@@ -202,5 +203,54 @@ class Autoplaylist(Cog):
 
         else:
             raise exceptions.CommandError('There is no playlist with that name.')
+
+    @command()
+    async def fromfile(self, ctx, mode = 'playlist'):
+        """
+        Usage:
+            {command_prefix}fromfile mode
+
+        Load playlist from .txt file attached to the message.
+        Check _autoplaylist.txt in the config folder for example.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        if not guild._internal_auto:
+            raise exceptions.CommandError('There is no autoplaylist.')
+
+        if mode not in ['playlist', 'stream']:
+            raise exceptions.CommandError('Unknown mode specified.')
+
+        processed = 0
+
+        for f in ctx.message.attachments:
+            if (f.filename.split('.'))[-1] != 'txt':
+                continue
+
+            try:
+                load = await f.read()
+                slines = str(load, 'utf-8').splitlines()
+            except UnicodeError:
+                await safe_send_normal(ctx, ctx, 'Cannot process {}, ensure that your playlist file is encoded as utf-8'.format(f.filename))
+                continue
+
+            results = []
+            for line in slines:
+                line = line.strip()
+
+                if line and not line.startswith('#'):
+                    results.append(line)
+
+            for r in results:
+                if mode == 'playlist':
+                    current = get_unprocessed_entry(r, None, bot.downloader, dict())
+                elif mode == 'stream':
+                    current = get_stream_entry(r, None, bot.downloader, dict())
+                await guild._internal_auto.add_entry(current)
+
+            processed += 1
+
+        await safe_send_normal(ctx, ctx, 'successfully processed {} attachments'.format(processed))
 
 cogs = [Autoplaylist]
