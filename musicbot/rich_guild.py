@@ -112,10 +112,12 @@ class RichGuild(Serializable):
 
     async def is_currently_auto(self):
         plpl = await self._player.get_playlist()
-        return plpl is self._internal_auto
+        return plpl._name == self._internal_auto._name
 
     async def return_from_auto(self, *, also_skip = False):
         if not (await self.is_currently_auto()):
+            self._internal_auto = await self._player.get_playlist(self._not_auto)
+            await guild.serialize_playlist(self._internal_auto)
             await self._player.set_playlist(self._not_auto)
             if also_skip:
                 await self._player.skip()
