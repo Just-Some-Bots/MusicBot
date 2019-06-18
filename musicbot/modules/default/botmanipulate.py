@@ -163,54 +163,19 @@ class BotManagement(Cog):
         generic = ['save_videos', 'now_playing_mentions', 'auto_playlist_stream_random',
                     'auto_pause', 'delete_messages', 'delete_invoking',
                     'write_current_song']  # these need to match attribute names in the Config class
-        if option in ['autoplaylist', 'auto_playlist']:
-            if value in bool_y:
-                if ctx.bot.config.auto_playlist:
-                    raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autoplaylist-enabled', 'The autoplaylist is already enabled!'))
-                else:
-                    if not ctx.bot.autoplaylist:
-                        raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autoplaylist-none', 'There are no entries in the autoplaylist file.'))
-                    ctx.bot.config.auto_playlist = True
-                    # TODO: check if we need to do anything
-            elif value in bool_n:
-                if not ctx.bot.config.auto_playlist:
-                    raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autoplaylist-disabled', 'The autoplaylist is already disabled!'))
-                else:
-                    ctx.bot.config.auto_playlist = False
-            else:
-                raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
-            await messagemanager.safe_send_normal(ctx, ctx, "The autoplaylist is now " + ['disabled', 'enabled'][ctx.bot.config.auto_playlist] + '.')
-            return
-        elif option in ['autostream', 'auto_stream']:
-            if value in bool_y:
-                if ctx.bot.config.auto_stream:
-                    raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autostream-enabled', 'The autostream is already enabled!'))
-                else:
-                    if not ctx.bot.autostream:
-                        raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autostream-none', 'There are no entries in the autostream file.'))
-                    ctx.bot.config.auto_stream = True
-            elif value in bool_n:
-                if not ctx.bot.config.auto_stream:
-                    raise exceptions.CommandError(ctx.bot.str.get('cmd-option-autostream-disabled', 'The autostream is already disabled!'))
-                else:
-                    ctx.bot.config.auto_stream = False
-            else:
-                raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-value', 'The value provided was not valid.'))
-            await messagemanager.safe_send_normal(ctx, ctx, "The autostream is now " + ['disabled', 'enabled'][ctx.bot.config.auto_stream] + '.')
+
+        is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
+        if is_generic and (value in bool_y or value in bool_n):
+            name = is_generic[0]
+            ctx.bot.log.debug('Setting attribute {0}'.format(name))
+            setattr(ctx.bot.config, name, True if value in bool_y else False)  # this is scary but should work
+            attr = getattr(ctx.bot.config, name)
+            res = "The option {0} is now ".format(option) + ['disabled', 'enabled'][attr] + '.'
+            ctx.bot.log.warning('Option overriden for this session: {0}'.format(res))
+            await messagemanager.safe_send_normal(ctx, ctx, res)
             return
         else:
-            is_generic = [o for o in generic if o == option]  # check if it is a generic bool option
-            if is_generic and (value in bool_y or value in bool_n):
-                name = is_generic[0]
-                ctx.bot.log.debug('Setting attribute {0}'.format(name))
-                setattr(ctx.bot.config, name, True if value in bool_y else False)  # this is scary but should work
-                attr = getattr(ctx.bot.config, name)
-                res = "The option {0} is now ".format(option) + ['disabled', 'enabled'][attr] + '.'
-                ctx.bot.log.warning('Option overriden for this session: {0}'.format(res))
-                await messagemanager.safe_send_normal(ctx, ctx, res)
-                return
-            else:
-                raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-param' ,'The parameters provided were invalid.'))
+            raise exceptions.CommandError(ctx.bot.str.get('cmd-option-invalid-param' ,'The parameters provided were invalid.'))
 
     @command()
     async def summon(self, ctx):

@@ -33,6 +33,7 @@ from collections import defaultdict
 import json
 import os
 import random
+from .guild_config import GuildConfig
 from .playback import Player, Playlist, PlayerState
 from .constructs import SkipState, Serializable, Serializer
 from .messagemanager import safe_send_message, safe_send_normal, safe_delete_message, content_gen, ContentTypeColor
@@ -48,6 +49,7 @@ class RichGuild(Serializable):
         self._aiolocks = defaultdict(Lock)
         self._bot = bot
         self._id = guildid
+        self.config = GuildConfig(bot)
         self._voice_channel = None
         self._voice_client = None
         self._player = None
@@ -60,7 +62,6 @@ class RichGuild(Serializable):
         self._internal_auto = None
         self._not_auto = None
         self.skip_state = SkipState()
-        self.autoplaylist = list()
 
     def __json__(self):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
@@ -68,6 +69,7 @@ class RichGuild(Serializable):
         return self._enclose_json({
             'version': 1,
             'id': self._id,
+            'config': self.config,
             'playlists': self._playlists_active_path,
             'autos': [p._name for p in self._autos],
             'internal_auto': self._internal_auto._name if self._internal_auto else None,
@@ -85,10 +87,13 @@ class RichGuild(Serializable):
 
         guild = cls(bot, data_id)
 
+        guild.config = data.get('config')
+
         async def unpack_playlists():
             data_pl = data.get('playlists')
             if data_pl:
-                for plpath in data_pl:
+                for plpath in data_pl.values():
+                    bot.log.debug('Deserializing {} from guild save'.format(plpath))
                     await guild.deserialize_playlist(dir = plpath)
 
             data_autos = data.get('autos')
@@ -107,10 +112,12 @@ class RichGuild(Serializable):
 
     async def is_currently_auto(self):
         plpl = await self._player.get_playlist()
-        return plpl is self._internal_auto
+        return plpl._name == self._internal_auto._name
 
     async def return_from_auto(self, *, also_skip = False):
         if not (await self.is_currently_auto()):
+            self._internal_auto = await self._player.get_playlist(self._not_auto)
+            await self.serialize_playlist(self._internal_auto)
             await self._player.set_playlist(self._not_auto)
             if also_skip:
                 await self._player.skip()
@@ -172,7 +179,7 @@ class RichGuild(Serializable):
 
         async with self._aiolocks['{}_serialization'.format(playlist._name)]:
             self._bot.log.debug("Serializing `{}` for {}".format(playlist._name, self._id))
-
+            os.makedirs(os.path.dirname(dir), exist_ok=True)
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(playlist.serialize(sort_keys=True))
                 self._playlists_active_path[playlist._name] = dir

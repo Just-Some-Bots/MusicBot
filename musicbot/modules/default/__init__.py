@@ -15,6 +15,8 @@ from . import moderate
 cogs.extend(moderate.cogs)
 from . import playback
 cogs.extend(playback.cogs)
+from . import playlist
+cogs.extend(playlist.cogs)
 from . import queuemanipulate
 cogs.extend(queuemanipulate.cogs)
 from . import utility

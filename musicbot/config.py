@@ -63,12 +63,8 @@ class Config:
         self.save_videos = config.getboolean('MusicBot', 'SaveVideos', fallback=ConfigDefaults.save_videos)
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
-        self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
-        self.auto_stream = config.getboolean('MusicBot', 'UseAutoStream', fallback=ConfigDefaults.auto_stream)
-        self.auto_playlist_stream_random = config.getboolean('MusicBot', 'AutoPlaylistStreamRandom', fallback=ConfigDefaults.auto_playlist_stream_random)
         self.skip_if_auto = config.getboolean('MusicBot', 'InstaPlayIfAuto', fallback=ConfigDefaults.skip_if_auto)
         self.auto_mode = config.get('MusicBot', 'AutoMode', fallback=ConfigDefaults.auto_mode)
-        self.auto_mode_toggle = config.get('MusicBot', 'AutoModeToggle', fallback=ConfigDefaults.auto_mode_toggle)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
@@ -79,8 +75,6 @@ class Config:
         self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
         self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
         self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
-        self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
-        self.remove_as = config.getboolean('MusicBot', 'RemoveFromASOnError', fallback=ConfigDefaults.remove_as)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
@@ -91,8 +85,6 @@ class Config:
         self.debug_mode = False
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
-        self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
-        self.auto_stream_file = config.get('Files', 'AutoStreamFile', fallback=ConfigDefaults.auto_stream_file)
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
         self.auto_stream_removed_file = None
@@ -108,8 +100,6 @@ class Config:
 
         self.missing_keys = set()
         self.check_changes(config)
-
-        self.find_autoplaylist()
 
     def get_all_keys(self, conf):
         """Returns all config keys as a list"""
@@ -221,14 +211,6 @@ class Config:
 
         self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
 
-        ap_path, ap_name = os.path.split(self.auto_playlist_file)
-        apn_name, apn_ext = os.path.splitext(ap_name)
-        self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
-
-        as_path, as_name = os.path.split(self.auto_stream_file)
-        asn_name, asn_ext = os.path.splitext(as_name)
-        self.auto_stream_removed_file = os.path.join(as_path, asn_name + '_removed' + asn_ext)
-
         if hasattr(logging, self.debug_level.upper()):
             self.debug_level = getattr(logging, self.debug_level.upper())
         else:
@@ -325,22 +307,6 @@ class Config:
                 log.critical("Unable to copy config/example_options.ini to {}".format(self.config_file), exc_info=e)
                 sys.exit(2)
 
-    def find_autoplaylist(self):
-        if not os.path.exists(self.auto_playlist_file):
-            if os.path.exists('config/_autoplaylist.txt'):
-                shutil.copy('config/_autoplaylist.txt', self.auto_playlist_file)
-                log.debug("Copying _autoplaylist.txt to autoplaylist.txt")
-            else:
-                log.warning("No autoplaylist file found.")
-
-    def find_autostream(self):
-        if not os.path.exists(self.auto_stream_file):
-            if os.path.exists('config/_autostream.txt'):
-                shutil.copy('config/_autostream.txt', self.auto_stream_file)
-                log.debug("Copying _autostream.txt to autostream.txt")
-            else:
-                log.warning("No autostream file found.")
-
 
     def write_default_config(self, location):
         pass
@@ -375,12 +341,8 @@ class ConfigDefaults:
     save_videos = True
     now_playing_mentions = False
     auto_summon = True
-    auto_playlist = True
-    auto_stream = True
-    auto_playlist_stream_random = True
     skip_if_auto = True
     auto_mode = 'toggle'
-    auto_mode_toggle = 'playlist'
     auto_pause = True
     delete_messages = True
     delete_invoking = False
@@ -392,8 +354,6 @@ class ConfigDefaults:
     use_experimental_equalization = False
     embeds = True
     queue_length = 10
-    remove_ap = True
-    remove_as = True
     show_config_at_start = False
     legacy_skip = False
     leavenonowners = False
@@ -401,8 +361,6 @@ class ConfigDefaults:
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-    auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
-    auto_stream_file = 'config/autostream.txt'
     i18n_file = 'config/i18n/en.json'
 
     webapi_port = 65280
