@@ -10,6 +10,7 @@ from ...utils import write_file
 from ...messagemanager import safe_send_normal
 from ...rich_guild import get_guild
 from ...ytdldownloader import get_unprocessed_entry
+from ...playback import Playlist
 
 class Autoplaylist(Cog):
     @command()
@@ -41,14 +42,20 @@ class Autoplaylist(Cog):
         # If going to merge, create new playlist, append all in _list in autos and set it to internal
 
     @command()
-    async def aprandom(self, ctx, option: bool):
+    async def aprandom(self, ctx):
         """
         Usage:
-            {command_prefix}aprandom bool
+            {command_prefix}aprandom
 
         Change whether autoplaylist would randomize song
         """
-        raise NotImplementedError()
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+        if not guild._internal_auto:
+            raise exceptions.CommandError('There is no autoplaylist.')
+
+        guild._internal_auto.auto_random = not guild._internal_auto.auto_random
+        safe_send_normal(ctx, ctx, 'Autoplaylist randomization is now set to {}.'.format(guild._internal_auto.auto_random), expire_in=15)
 
     @command()
     async def toggleplaylist(self, ctx):
@@ -103,6 +110,8 @@ class Autoplaylist(Cog):
         guild = get_guild(bot, ctx.guild)
         player = await guild.get_player()
         current = await player.get_current_entry()
+        if not guild._internal_auto:
+            raise exceptions.CommandError('There is no autoplaylist.')
         if url or (current and not current.stream):
             if not url:
                 url = current.source_url
@@ -133,7 +142,19 @@ class Autoplaylist(Cog):
             guild._playlists[name].persistent = True
             guild._autos.append(guild._playlists[name])
             if not guild._internal_auto:
-                guild._internal_auto = guild._playlists[name]
+                if guild.config.auto_mode == 'toggle':
+                    guild._internal_auto = guild._playlists[name]
+                elif guild.config.auto_mode == 'merge':
+                    pl = Playlist('__internal_merge', bot, persistent = True)
+                    guild._playlists[pl._name] = pl
+                    guild._internal_auto = pl
+                    pl._list.extend(guild._playlists[name]._list)
+            else:
+                if guild.config.auto_mode == 'toggle':
+                    pass
+                elif guild.config.auto_mode == 'merge':
+                    guild._internal_auto._list.extend(guild._playlists[name]._list)
+
         else:
             raise exceptions.CommandError('There is no playlist with that name.')
 
