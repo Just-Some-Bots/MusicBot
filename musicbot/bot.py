@@ -1134,7 +1134,7 @@ class MusicBot(discord.Client):
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user_avatar_url)
         e.add_field(name="Installing your own", value=guide, inline=True)
         e.add_field(name='FAQ', value=faq, inline=True)
-        await self.safe_send_message(e, expire_in=45)
+        await self.safe_send_message(message.channel if not dm_info else message.author, e, expire_in=45)
 
     async def cmd_resetplaylist(self, player, channel):
         """
