@@ -33,6 +33,7 @@ from collections import defaultdict
 import json
 import os
 import random
+from .guild_config import GuildConfig
 from .playback import Player, Playlist, PlayerState
 from .constructs import SkipState, Serializable, Serializer
 from .messagemanager import safe_send_message, safe_send_normal, safe_delete_message, content_gen, ContentTypeColor
@@ -48,6 +49,7 @@ class RichGuild(Serializable):
         self._aiolocks = defaultdict(Lock)
         self._bot = bot
         self._id = guildid
+        self.config = GuildConfig(bot)
         self._voice_channel = None
         self._voice_client = None
         self._player = None
@@ -67,6 +69,7 @@ class RichGuild(Serializable):
         return self._enclose_json({
             'version': 1,
             'id': self._id,
+            'config': self.config,
             'playlists': self._playlists_active_path,
             'autos': [p._name for p in self._autos],
             'internal_auto': self._internal_auto._name if self._internal_auto else None,
@@ -83,6 +86,8 @@ class RichGuild(Serializable):
         data_id = data.get('id')
 
         guild = cls(bot, data_id)
+
+        guild.config = data.get('config')
 
         async def unpack_playlists():
             data_pl = data.get('playlists')

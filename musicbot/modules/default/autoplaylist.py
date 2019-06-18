@@ -22,7 +22,6 @@ class Autoplaylist(Cog):
         """
         bot = ctx.bot
         await safe_send_normal(ctx, ctx, bot.str.get('general?cmd@deprecated', 'This command is no longer available.'), expire_in=15)
-        await safe_send_normal(ctx, ctx, bot.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), expire_in=15)
 
     @command()
     async def apmode(self, ctx, mode):
@@ -31,6 +30,23 @@ class Autoplaylist(Cog):
             {command_prefix}apmode mode
 
         Change autoplaylist mode
+        """
+        raise NotImplementedError()
+        # check if mode is the same
+
+        # If currently toggle, set internal to None
+        # If currently merge, delete internal in playlists and set internal to None
+
+        # If going to toggle, set first in autos list to internal
+        # If going to merge, create new playlist, append all in _list in autos and set it to internal
+
+    @command()
+    async def aprandom(self, ctx, option: bool):
+        """
+        Usage:
+            {command_prefix}aprandom bool
+
+        Change whether autoplaylist would randomize song
         """
         raise NotImplementedError()
 

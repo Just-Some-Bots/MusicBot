@@ -38,9 +38,13 @@ class PlaylistManagement(Cog):
         if name in guild._playlists:
             pl = guild._playlists[name]
             if pl is guild._internal_auto:
-                raise NotImplementedError()
+                # @TheerapakG: TODO: figure out if toggling then maybe move to next playlist?
+                raise exceptions.CommandError('This playlist is in use.')
             elif pl in guild._autos:
-                raise NotImplementedError()
+                guild._autos.remove(pl)
+                await guild.remove_serialized_playlist(name)
+                del guild._playlists[name]
+                await guild.serialize_to_file()
             else:
                 await guild.remove_serialized_playlist(name)
                 del guild._playlists[name]
