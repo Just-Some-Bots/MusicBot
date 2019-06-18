@@ -1117,7 +1117,7 @@ class MusicBot(discord.Client):
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
 
-    async def cmd_info(self, message, server, author):
+    async def cmd_info(self, message, author):
         """
         Usage:
             {command_prefix}info
@@ -1131,10 +1131,10 @@ class MusicBot(discord.Client):
         if not self.config.disableembedfooter:
             e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
 
-        e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user_avatar_url)
+        e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         e.add_field(name="Installing your own", value=guide, inline=True)
         e.add_field(name='FAQ', value=faq, inline=True)
-        await self.safe_send_message(message.channel if not dm_info else message.author, e, expire_in=45)
+        await self.safe_send_message(message.channel if not self.config.dminfo else message.author, e, expire_in=45)
 
     async def cmd_resetplaylist(self, player, channel):
         """
