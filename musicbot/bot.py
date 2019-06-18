@@ -1120,7 +1120,7 @@ class MusicBot(discord.Client):
     async def cmd_info(self, message, server, author):
         """
         Usage:
-            command_prefix}info
+            {command_prefix}info
 
         returns information about MusicBot
         """
