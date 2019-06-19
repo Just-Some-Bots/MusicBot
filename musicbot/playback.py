@@ -231,6 +231,16 @@ class Playlist(EventEmitter, Serializable):
     def __getitem__(self, item: Union[int, slice]):
         return self._list[item]
 
+    def copy(self, name = None, *, copy_persistent = False, copy_auto_random = False):
+        pl = Playlist(
+            self._name if not name else name,
+            self._bot,
+            persistent = self.persistent if copy_persistent else False,
+            auto_random = self.auto_random if copy_auto_random else False
+        )
+        pl._list = self._list.copy()
+        return pl
+
     async def stop(self):
         with self._threadlocks['list']:
             for entry in self._list:
