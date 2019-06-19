@@ -81,7 +81,7 @@ class Information(Cog):
 
         lines = []
         unlisted = 0
-        andmoretext = '* ... and %s more*' % ('x' * await playlist.get_length())
+        andmoretext = '* ... and %s more*' % (await playlist.get_length())
 
         if (await player.status()) == PlayerState.PLAYING:
             # TODO: Fix timedelta garbage with util function
@@ -117,6 +117,46 @@ class Information(Cog):
         if not lines:
             lines.append(
                 ctx.bot.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(ctx.bot.config.command_prefix))
+
+        message = '\n'.join(lines)
+        await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
+
+    @command()
+    async def peek(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}peek playlist_name
+
+        Prints entries in the specified playlist.
+        """
+
+        guild = get_guild(ctx.bot, ctx.guild)
+        playlist = guild._playlists[name]
+
+        lines = []
+        unlisted = 0
+        andmoretext = '* ... and %s more*' % (await playlist.get_length())
+
+        for i, item in enumerate(playlist):
+            if item.queuer_id:
+                nextline = ctx.bot.str.get('cmd-queue-entry-author', '{0} -- `{1}` by `{2}`').format(i+1, item.title, guild.guild.get_member(item.queuer_id).name).strip()
+            else:
+                nextline = ctx.bot.str.get('cmd-queue-entry-noauthor', '{0} -- `{1}`').format(i+1, item.title).strip()
+
+            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
+
+            if (currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT) or (i > ctx.bot.config.queue_length):
+                if currentlinesum + len(andmoretext):
+                    unlisted += 1
+                    continue
+
+            lines.append(nextline)
+
+        if unlisted:
+            lines.append(ctx.bot.str.get('cmd-queue-more', '\n... and %s more') % unlisted)
+
+        if not lines:
+            lines.append('There are no songs in the playlist!')
 
         message = '\n'.join(lines)
         await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
