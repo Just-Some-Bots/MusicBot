@@ -112,11 +112,11 @@ class RichGuild(Serializable):
 
     async def is_currently_auto(self):
         plpl = await self._player.get_playlist()
-        return plpl._name == self._internal_auto._name
+        return plpl._name == self._internal_auto._name if self._internal_auto else False
 
     async def return_from_auto(self, *, also_skip = False):
-        if not (await self.is_currently_auto()):
-            self._internal_auto = await self._player.get_playlist(self._not_auto)
+        if (await self.is_currently_auto()):
+            self._internal_auto = await self._player.get_playlist()
             await self.serialize_playlist(self._internal_auto)
             await self._player.set_playlist(self._not_auto)
             if also_skip:
@@ -503,7 +503,7 @@ class RichGuild(Serializable):
 
     async def get_playlist(self):
         async with self._aiolocks['c_voice_channel']:
-            if await self.is_currently_auto:
+            if await self.is_currently_auto():
                 return self._not_auto
             else:
                 return await self._player.get_playlist()
