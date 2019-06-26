@@ -431,7 +431,14 @@ class Player(EventEmitter, Serializable):
             guild._bot.log.warning('upgrading player of `{}` to player version 3'.format(guild._id))
             data_pl = data.get('entries')
             if data_pl:
-                player._playlist = guild._playlists[data_pl._name]
+                try:
+                    player._playlist = guild._playlists[data_pl._name]
+                except KeyError:
+                    guild._bot.log.warning('not found playlist in the player in the guild save, proceeding by registering it to the guild')
+                    guild._playlists[data_pl._name] = data_pl
+                    # @THeerapakG: WARN: if current entry it get doubled because ensure_future run after this finished. Still, it just do that when convert playlist.
+                    ensure_future(guild.serialize_playlist(data_pl))
+                    player._playlist = data_pl
         else:
             data_pl = data.get('pl_name')
             if data_pl:
