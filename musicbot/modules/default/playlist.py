@@ -55,6 +55,29 @@ class PlaylistManagement(Cog):
             raise exceptions.CommandError('There is not any playlist with that name.')
 
     @command()
+    async def swappl(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}swappl name
+
+        Swap currently playing playlist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        if name in guild._playlists:
+            pl = guild._playlists[name]
+            if pl is guild._internal_auto:
+                raise exceptions.CommandError('This playlist is not swapable.')
+            elif pl in guild._autos:
+                raise exceptions.CommandError('This playlist is not swapable.')
+            else:
+                await guild.set_playlist(pl)
+                await guild.serialize_to_file()
+        else:
+            raise exceptions.CommandError('There is not any playlist with that name.')
+
+    @command()
     async def removeen(self, ctx, name, index:Optional[Union[int, User]]=None):
         """
         Usage:
