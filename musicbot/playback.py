@@ -409,12 +409,12 @@ class Player(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 2,
+            'version': 3,
             'current_entry': {
                 'entry': self._current,
                 'progress': self._source.progress if self._source else None
             },
-            'entries': self._playlist,
+            'pl_name': self._playlist._name if self._playlist else None,
             'effects': self.effects
         })
 
@@ -427,17 +427,27 @@ class Player(EventEmitter, Serializable):
 
         player = cls(guild)
 
-        data_pl = data.get('entries')
-        if data_pl:
-            player._playlist = data_pl
+        if 'version' not in data or data['version'] < 3:
+            guild._bot.log.warning('upgrading player of `{}` to player version 3'.format(guild._id))
+            data_pl = data.get('entries')
+            if data_pl:
+                player._playlist = guild._playlists[data_pl._name]
+        else:
+            data_pl = data.get('pl_name')
+            if data_pl:
+                player._playlist = guild._playlists[data_pl]
 
         current_entry_data = data['current_entry']
         if current_entry_data['entry']:
-            player._playlist._list.appendleft(current_entry_data['entry'])
-            # TODO: progress stuff
-            # how do I even do this
-            # this would have to be in the entry class right?
-            # some sort of progress indicator to skip ahead with ffmpeg (however that works, reading and ignoring frames?)
+            if player._playlist:
+                player._playlist._list.appendleft(current_entry_data['entry'])
+                # TODO: progress stuff
+                # how do I even do this
+                # this would have to be in the entry class right?
+                # some sort of progress indicator to skip ahead with ffmpeg (however that works, reading and ignoring frames?)
+            else:
+                # TODO: streamline this so that we don't have to rely on playlist in the first place
+                pass
         if player._playlist:
             player._playlist.on('entry-added', player.on_playlist_entry_added)
 

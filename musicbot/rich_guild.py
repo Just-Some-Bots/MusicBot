@@ -112,7 +112,7 @@ class RichGuild(Serializable):
 
     async def is_currently_auto(self):
         plpl = await self._player.get_playlist()
-        return plpl._name == self._internal_auto._name if self._internal_auto else False
+        return plpl is self._internal_auto
 
     async def return_from_auto(self, *, also_skip = False):
         if (await self.is_currently_auto()):
