@@ -337,7 +337,10 @@ class RichGuild(Serializable):
                 player = Player(self)
 
             if not player._playlist:
-                await player.set_playlist(Playlist('default-{}'.format(self._id), self._bot))
+                pl = Playlist('default-{}'.format(self._id), self._bot)
+                self._playlists[pl._name] = pl
+                await self.serialize_playlist(pl)
+                await player.set_playlist(pl)
                 
             self._player = player.on('play', self.on_player_play) \
                                  .on('resume', self.on_player_resume) \
