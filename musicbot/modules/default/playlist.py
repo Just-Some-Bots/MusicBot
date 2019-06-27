@@ -86,7 +86,7 @@ class PlaylistManagement(Cog):
         Removes entries in the specified playlist. If a number is specified, removes that song in the queue, otherwise removes the most recently queued song.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        playlist = await guild._playlists[name]
+        playlist = guild._playlists[name]
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         num = await playlist.get_length()
