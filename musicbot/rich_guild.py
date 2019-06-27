@@ -261,6 +261,9 @@ class RichGuild(Serializable):
 
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(self._player.serialize(sort_keys=True))
+            
+            pl = await self._player.get_playlist()
+            await self.serialize_playlist(pl)
 
     async def deserialize_queue(self, *, dir=None):
         """

@@ -76,7 +76,7 @@ class QueueManagement(Cog):
         await self._play(ctx, song_url = ' '.join(song_url))
 
     @command()
-    async def replay(self, ctx, option):
+    async def replay(self, ctx, option= None):
         """
         Usage:
             {command_prefix}replay [head/h]
