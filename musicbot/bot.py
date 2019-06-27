@@ -153,7 +153,7 @@ class ModuBot(Bot):
         self._init = False
 
         self._owner_id = None
-        if self.config.owner_id.isdigit():
+        if isinstance(self.config.owner_id, str):
             self._owner_id = int(self.config.owner_id)
         elif self.config.owner_id:
             self._owner_id = self.config.owner_id
