@@ -314,9 +314,9 @@ class Playlist(EventEmitter, Serializable):
                 position = len(self._list) - 1
             if self._precache > position and not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
+            self.emit('entry-added', playlist=self, entry=entry)
             return position + 1
-
-        self.emit('entry-added', playlist=self, entry=entry)
+        
 
     async def get_length(self):
         with self._threadlocks['list']:
