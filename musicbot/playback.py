@@ -325,12 +325,13 @@ class Playlist(EventEmitter, Serializable):
     async def remove_position(self, position):
         with self._threadlocks['list']:
             if position < self._precache:
-                self._list[position]._cache_task.cancel()
-                self._list[position]._cache_task = None
+                if self._list[position]._cache_task:
+                    self._list[position]._cache_task.cancel()
+                    self._list[position]._cache_task = None
                 if self._precache <= len(self._list):
                     consider = self._list[self._precache - 1]
-                    if not consider.cache_task:
-                        consider.cache_task = ensure_future(consider.prepare_cache())
+                    if not consider._cache_task:
+                        consider._cache_task = ensure_future(consider.prepare_cache())
             val = self._list[position]
             if val._local_url:
                 url_map[val._local_url].remove(val)
