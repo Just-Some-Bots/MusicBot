@@ -153,11 +153,7 @@ class ModuBot(Bot):
         self.looplock = threading.Lock()
         self._init = False
 
-        self._owner_id = None
-        if isinstance(self.config.owner_id, str):
-            self._owner_id = int(self.config.owner_id)
-        elif self.config.owner_id:
-            self._owner_id = self.config.owner_id
+        self._owner_id = self.config.owner_id
 
         self._presence = (None, None)
 
