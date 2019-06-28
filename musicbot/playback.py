@@ -282,6 +282,8 @@ class Playlist(EventEmitter, Serializable):
 
             if self.persistent:
                 self._list.appendleft(entry)
+                if entry._local_url:
+                    url_map[entry._local_url].append(entry)
 
             if self.auto_random:
                 self._last_shuffle += 1
@@ -291,16 +293,7 @@ class Playlist(EventEmitter, Serializable):
             if self._precache <= len(self._list):
                 consider = self._list[self._precache - 1]
                 if not consider and not consider._cache_task:
-                    consider._cache_task = ensure_future(consider.prepare_cache())
-
-            if not self.persistent:
-                # @TheerapakG: TODO: This could still be a race condition. To be safe we need to do this after 
-                # finished playing the song but we would have the problem that player don't know the playlist info
-                # idea: append the list map with players and playlists that need to lock deletion instead of the entry.
-                if entry._local_url:
-                    url_map[entry._local_url].remove(entry)
-                    if not url_map[entry._local_url]:
-                        del url_map[entry._local_url]
+                    consider._cache_task = ensure_future(consider.prepare_cache())                
 
         return (entry, entry._cache_task)
 
@@ -533,19 +526,12 @@ class Player(EventEmitter, Serializable):
         if play_success_cb:
             play_success_cb()
 
-        def _playback_finished(error = None):
-            async def _async_playback_finished():
-                entry = self._current
-                async with self._aiolocks['player']:
-                    self._current = None
-                    self._player = None
-                    self._source = None
+        def _entry_cleanup(entry):
+            if not self._guild._bot.config.save_videos and entry:
+                if not entry.stream:
+                    if entry._local_url:
+                        url_map[entry._local_url].remove(entry)
 
-                if error:
-                    self.emit('error', player=self, entry=entry, ex=error)
-
-                if not self._guild._bot.config.save_videos and entry:
-                    if not entry.stream:
                         if url_map[entry._local_url]:
                             self._guild._bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
 
@@ -570,6 +556,19 @@ class Player(EventEmitter, Serializable):
                             else:
                                 print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
                                     os.path.relpath(filename)))
+
+        def _playback_finished(error = None):
+            async def _async_playback_finished():
+                entry = self._current
+                async with self._aiolocks['player']:
+                    self._current = None
+                    self._player = None
+                    self._source = None
+
+                if error:
+                    self.emit('error', player=self, entry=entry, ex=error)
+
+                _entry_cleanup(entry)
 
                 self.emit('finished-playing', player=self, entry=entry)
                 if entry in self._entry_finished_tasks:
@@ -626,6 +625,7 @@ class Player(EventEmitter, Serializable):
             self._guild._bot.log.debug('waiting for task to play...')
             await self._play_task
         except (CancelledError, PlaybackError):
+            _entry_cleanup(entry)
             self._guild._bot.log.debug('aww... next one then.')
             async with self._aiolocks['player']:
                 if self.state != PlayerState.PAUSE:
