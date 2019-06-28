@@ -27,6 +27,8 @@ class PlaylistManagement(Cog):
             guild._playlists[name] = Playlist(name, bot)
             await guild.serialize_playlist(guild._playlists[name])
 
+        await messagemanager.safe_send_normal(ctx, ctx, 'added playlist: {}'.format(name))
+
     @command()
     async def removepl(self, ctx, name):
         """
@@ -54,6 +56,8 @@ class PlaylistManagement(Cog):
         else:
             raise exceptions.CommandError('There is not any playlist with that name.')
 
+        await messagemanager.safe_send_normal(ctx, ctx, 'removed playlist: {}'.format(name))
+
     @command()
     async def swappl(self, ctx, name):
         """
@@ -64,6 +68,7 @@ class PlaylistManagement(Cog):
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
+        prev = await guild.get_playlist()
 
         if name in guild._playlists:
             pl = guild._playlists[name]
@@ -76,6 +81,42 @@ class PlaylistManagement(Cog):
                 await guild.serialize_to_file()
         else:
             raise exceptions.CommandError('There is not any playlist with that name.')
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'swapped playlist from {} to {}'.format(prev._name, name))
+
+    @command()
+    async def listpl(self, ctx):
+        """
+        Usage:
+            {command_prefix}listpl
+
+        List all playlists in the guild.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        pls = []
+        apls = []
+
+        for name, pl in guild._playlists.items():
+            if pl not in guild._autos:
+                pls.append(name)
+
+        for pl in guild._autos:
+            apls.append(pl._name)
+
+        plmsgtitle = 'playlist{}'.format('s' if len(pls)>1 else '')
+        plmsgdesc = '\n'.join(pls) if pls else None
+        
+        aplmsgtitle = 'autoplaylist{}'.format('s' if len(apls)>1 else '')
+        aplmsgdesc = '\n'.join(apls) if apls else None
+
+        await messagemanager.safe_send_normal(ctx, ctx,
+            [
+                {'name': plmsgtitle, 'value': plmsgdesc, 'inline': False},
+                {'name': aplmsgtitle, 'value': aplmsgdesc, 'inline': False}
+            ]
+        )
 
     @command()
     async def removeen(self, ctx, name, index:Optional[Union[int, User]]=None):
