@@ -106,15 +106,8 @@ class Autoplaylist(Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
         player = await guild.get_player()
-        permissions = ctx.bot.permissions.for_user(ctx.author)
 
         if guild.config.auto_mode == 'toggle':
-            if not permissions.toggle_playlists:
-                raise exceptions.PermissionsError(
-                    bot.str.get('cmd-toggleplaylist-noperm', 'You have no permission to toggle autoplaylist'),
-                    expire_in=30
-                )
-
             if not len(guild._autos) == 0:
                 safe_send_normal(ctx, ctx, bot.str.get('cmd-toggleplaylist-nolist', 'There is not any autoplaylist to toggle to'), expire_in=15)
                 return

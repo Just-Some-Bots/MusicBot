@@ -74,6 +74,37 @@ log = logging.getLogger()
 
 url_map = defaultdict(list)
 
+def _entry_cleanup(entry, bot):
+    if entry and entry._local_url:
+        url_map[entry._local_url].remove(entry)
+    bot.log.debug(url_map[entry._local_url])
+    if not bot.config.save_videos and entry:
+        if not entry.stream:
+            if url_map[entry._local_url]:
+                bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
+
+            else:
+                bot.log.debug("Deleting file: {}".format(os.path.relpath(entry._local_url)))
+                filename = entry._local_url
+                for x in range(30):
+                    try:
+                        os.unlink(filename)
+                        bot.log.debug('File deleted: {0}'.format(filename))
+                        break
+                    except PermissionError as e:
+                        if e.winerror == 32:  # File is in use
+                            bot.log.error('Can\'t delete file, it is currently in use: {0}'.format(filename))
+                            break
+                    except FileNotFoundError:
+                        bot.log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
+                        break
+                    except Exception:
+                        bot.log.error("Error trying to delete {}".format(filename), exc_info=True)
+                        break
+                else:
+                    print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                        os.path.relpath(filename)))
+
 class Entry(Serializable):
     def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False):
         self.source_url = source_url
@@ -282,6 +313,8 @@ class Playlist(EventEmitter, Serializable):
 
             if self.persistent:
                 self._list.appendleft(entry)
+                if entry._local_url:
+                    url_map[entry._local_url].append(entry)
 
             if self.auto_random:
                 self._last_shuffle += 1
@@ -291,16 +324,7 @@ class Playlist(EventEmitter, Serializable):
             if self._precache <= len(self._list):
                 consider = self._list[self._precache - 1]
                 if not consider and not consider._cache_task:
-                    consider._cache_task = ensure_future(consider.prepare_cache())
-
-            if not self.persistent:
-                # @TheerapakG: TODO: This could still be a race condition. To be safe we need to do this after 
-                # finished playing the song but we would have the problem that player don't know the playlist info
-                # idea: append the list map with players and playlists that need to lock deletion instead of the entry.
-                if entry._local_url:
-                    url_map[entry._local_url].remove(entry)
-                    if not url_map[entry._local_url]:
-                        del url_map[entry._local_url]
+                    consider._cache_task = ensure_future(consider.prepare_cache())                
 
         return (entry, entry._cache_task)
 
@@ -333,10 +357,7 @@ class Playlist(EventEmitter, Serializable):
                     if not consider._cache_task:
                         consider._cache_task = ensure_future(consider.prepare_cache())
             val = self._list[position]
-            if val._local_url:
-                url_map[val._local_url].remove(val)
-                if not url_map[val._local_url]:
-                    del url_map[val._local_url]
+            _entry_cleanup(val, self._bot)
             del self._list[position]
             return val
 
@@ -544,32 +565,7 @@ class Player(EventEmitter, Serializable):
                 if error:
                     self.emit('error', player=self, entry=entry, ex=error)
 
-                if not self._guild._bot.config.save_videos and entry:
-                    if not entry.stream:
-                        if url_map[entry._local_url]:
-                            self._guild._bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
-
-                        else:
-                            self._guild._bot.log.debug("Deleting file: {}".format(os.path.relpath(entry._local_url)))
-                            filename = entry._local_url
-                            for x in range(30):
-                                try:
-                                    os.unlink(filename)
-                                    self._guild._bot.log.debug('File deleted: {0}'.format(filename))
-                                    break
-                                except PermissionError as e:
-                                    if e.winerror == 32:  # File is in use
-                                        self._guild._bot.log.error('Can\'t delete file, it is currently in use: {0}'.format(filename))
-                                        break
-                                except FileNotFoundError:
-                                    self._guild._bot.log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
-                                    break
-                                except Exception:
-                                    self._guild._bot.log.error("Error trying to delete {}".format(filename), exc_info=True)
-                                    break
-                            else:
-                                print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                                    os.path.relpath(filename)))
+                _entry_cleanup(entry, self._guild._bot)
 
                 self.emit('finished-playing', player=self, entry=entry)
                 if entry in self._entry_finished_tasks:
@@ -626,6 +622,7 @@ class Player(EventEmitter, Serializable):
             self._guild._bot.log.debug('waiting for task to play...')
             await self._play_task
         except (CancelledError, PlaybackError):
+            _entry_cleanup(entry, self._guild._bot)
             self._guild._bot.log.debug('aww... next one then.')
             async with self._aiolocks['player']:
                 if self.state != PlayerState.PAUSE:
@@ -708,6 +705,7 @@ class Player(EventEmitter, Serializable):
             async with self._aiolocks['player']:
                 if self.state == PlayerState.PAUSE:
                     await self._play_safe(partial(ensure_future, self._pause()))
+                    _entry_cleanup(entry, self._guild._bot)
                     return
 
                 elif self.state == PlayerState.PLAYING:
