@@ -30,7 +30,6 @@ class PermissionsDefaults:
     SkipWhenAbsent = True
     BypassKaraokeMode = False
 
-    ToggleAutoPlaylists = False
     Extractors = "generic youtube youtube:playlist"
 
 class Permissive:
@@ -51,7 +50,6 @@ class Permissive:
     SkipWhenAbsent = False
     BypassKaraokeMode = True
 
-    ToggleAutoPlaylists = True
     Extractors = ""
 
 class Permissions:
@@ -153,7 +151,6 @@ class PermissionGroup:
         self.skip_when_absent = section_data.getboolean('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
         self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
-        self.toggle_playlists = section_data.getboolean('ToggleAutoPlaylists', fallback=fallback.ToggleAutoPlaylists)
         self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 
         self.validate()
