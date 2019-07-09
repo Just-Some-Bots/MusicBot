@@ -76,7 +76,7 @@ class Config:
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
         self.disableembedfooter = config.getboolean('MusicBot', 'DisableEmbedFooter', fallback=ConfigDefaults.disableembedfooter)
-        self.dminfo = config.getboolean('MusicBot', 'DMInfo', fallback=ConfigDefaults.dminfo)
+        self.footer_text = config.get('MusicBot', 'EmbedFooterText', fallback=ConfigDefaults.footer_text)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -358,7 +358,7 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     disableembedfooter = True
-    dminfo = True
+    footer_text = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
