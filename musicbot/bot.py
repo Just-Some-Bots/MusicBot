@@ -1109,10 +1109,14 @@ class MusicBot(discord.Client):
 
     def _gen_embed(self):
         """Provides a basic template for embeds"""
+        if not self.config.footer_text:
+            text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
+        else:
+            text = '{}'.format(self.config.footer_text)
         e = discord.Embed()
         e.colour = 7506394
         if not self.config.disableembedfooter:
-            e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION) if not self.config.footer_text else '{}'.format(self.config.footer_text), icon_url='https://i.imgur.com/gFHBoZA.png')
+            e.set_footer(text=text, icon_url='https://i.imgur.com/gFHBoZA.png')
 
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
