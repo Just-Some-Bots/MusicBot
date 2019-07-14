@@ -2653,6 +2653,7 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
+
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
 
@@ -2668,6 +2669,8 @@ class MusicBot(discord.Client):
                         return
             else:
                 return  # if I want to log this I just move it under the prefix check
+
+
 
         if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):
             return
@@ -2688,6 +2691,22 @@ class MusicBot(discord.Client):
                     return
             else:
                 return
+
+
+
+        if isinstance(message.channel, discord.abc.PrivateChannel):
+            if not (message.author.id == self.config.owner_id and command == 'joinserver'):
+                await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
+                return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
+            if self.config.unbound_servers:
+                for channel in message.guild.channels:
+                    if channel.id in self.config.bound_channels:
+                        return
+            else:
+                return  # if I want to log this I just move it under the prefix check
+
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
             log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(message.author, command))
