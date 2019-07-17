@@ -170,6 +170,13 @@ class Config:
                 preface=self._confpreface
             )
 
+        if self.bot_exception_ids:
+            try:
+                self.bot_exception_ids = set(x for x in self.bot_exception_ids.replace(',', ' ').split())
+            except:
+                log.warning("BotExceptionIDs data is invalid, will ignore all bots")
+                self.bot_exception_ids = set()
+
         if self.bound_channels:
             try:
                 self.bound_channels = set(x for x in self.bound_channels.replace(',', ' ').split() if x)
