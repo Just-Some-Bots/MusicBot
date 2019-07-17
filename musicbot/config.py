@@ -172,7 +172,7 @@ class Config:
 
         if self.bot_exception_ids:
             try:
-                self.bot_exception_ids = set(x for x in self.bot_exception_ids.replace(',', ' ').split())
+                self.bot_exception_ids = set(int(x) for x in self.bot_exception_ids.replace(',', ' ').split())
             except:
                 log.warning("BotExceptionIDs data is invalid, will ignore all bots")
                 self.bot_exception_ids = set()
