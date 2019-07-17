@@ -1115,6 +1115,9 @@ class MusicBot(discord.Client):
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
 
+    async def cmd_test(self, message, server):
+        return Response("** **", reply=False, delete_after=15)
+
     async def cmd_resetplaylist(self, player, channel):
         """
         Usage:
@@ -2634,6 +2637,10 @@ class MusicBot(discord.Client):
 
         if message.author == self.user:
             log.warning("Ignoring command from myself ({})".format(message.content))
+            return
+
+        if message.author == message.author.bot and message.author.id is not self.config.bot_exception_ids:
+            log.warning("Ignoring command from other bot ({})".format(message.content))
             return
 
         if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):

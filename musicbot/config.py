@@ -42,6 +42,7 @@ class Config:
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
+        self.bot_exception_ids = config.get("Permissions", "BotExceptionIDs", fallback=ConfigDefaults.bot_exception_ids)
 
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
@@ -318,6 +319,7 @@ class ConfigDefaults:
 
     token = None
     dev_ids = set()
+    bot_exception_ids = set()
 
     spotify_clientid = None
     spotify_clientsecret = None
