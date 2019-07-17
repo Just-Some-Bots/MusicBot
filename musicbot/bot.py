@@ -1115,9 +1115,6 @@ class MusicBot(discord.Client):
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
 
-    async def cmd_test(self, message, server):
-        return Response("** **", reply=False, delete_after=15)
-
     async def cmd_resetplaylist(self, player, channel):
         """
         Usage:
