@@ -42,6 +42,8 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+from .custom_commands_bot_helper import load_custom_command
+
 load_opus_lib()
 
 log = logging.getLogger(__name__)
@@ -146,7 +148,7 @@ async def cmd_reload_custom(self):
         {command_prefix}reload_custom
     To reload the custom command in bot
     """
-    self.load_custom_command(reload=True)
+    load_custom_command(self, reload=True)
     return Response("Ok. Reloaded", reply=True)
 
 async def cmd_boker(self):

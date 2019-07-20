@@ -41,6 +41,8 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+from .custom_commands_bot_helper import load_custom_command
+
 load_opus_lib()
 
 log = logging.getLogger(__name__)
@@ -115,7 +117,7 @@ class MusicBot(discord.Client):
                 log.warning('There was a problem initialising the connection to Spotify. Is your client ID and secret correct? Details: {0}. Continuing anyway in 5 seconds...'.format(e))
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
-        self.load_custom_command()
+        load_custom_command(self)
 
     def __del__(self):
         # These functions return futures but it doesn't matter
@@ -2884,22 +2886,3 @@ class MusicBot(discord.Client):
             if vc.guild == guild:
                 return vc
         return None
-    # Functio wrapper to load all custom command in custom_commands_bot.py
-    def load_custom_command(self, reload=True):
-        import types
-        from . import custom_commands_bot
-        from functools import partial
-
-        if reload:
-            import importlib
-            importlib.reload(custom_commands_bot)
-
-        # Listing all custom commands in custom_commands_bot
-        for _custom_command in dir(custom_commands_bot):
-            custom_command = getattr(custom_commands_bot, _custom_command, None)
-            if isinstance(custom_command, types.FunctionType):
-                function_name = custom_command.__name__
-                if function_name.startswith('cmd_'):
-                    log.debug("[Custom Method] Binding custom method {}".format(function_name))
-                    # Add those method to this object
-                    setattr(self, function_name, types.MethodType(custom_command, self))
