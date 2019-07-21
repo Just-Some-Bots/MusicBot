@@ -30,6 +30,26 @@ class PlaylistManagement(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, 'added playlist: {}'.format(name))
 
     @command()
+    async def importpl(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}importpl name
+
+        Import entries from a playlist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+        g_pl = await guild.get_playlist()
+
+        if name not in guild._playlists:
+            raise exceptions.CommandError('There is already a playlist with that name.')
+        else:
+            for e in guild._playlists[name]:
+                g_pl.add_entry(e)
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
+
+    @command()
     async def removepl(self, ctx, name):
         """
         Usage:
