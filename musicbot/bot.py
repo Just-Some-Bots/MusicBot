@@ -343,8 +343,9 @@ class ModuBot(Bot):
             try:
                 module = import_module('.modules.{}'.format(modulename), 'musicbot')
             except Exception as e:
-                self.log.error('error fetching module:')
+                self.log.error('error fetching module: {}'.format(modulename))
                 self.log.error('{}'.format(e))
+                self.log.debug(traceback.format_exc())
                 return
 
         return module
