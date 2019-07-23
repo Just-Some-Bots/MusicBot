@@ -1,4 +1,4 @@
-from discord.ext.commands import Cog, command
+from discord.ext.commands import Cog, command, group
 from discord import User
 
 from typing import Optional, Union
@@ -10,105 +10,18 @@ from ...playback import Playlist
 from ... import messagemanager
 
 class PlaylistManagement(Cog):
-    @command()
-    async def addpl(self, ctx, name):
+    @group(invoke_without_command=False)
+    async def playlist(self, ctx):
+        """
+        A command group for managing playlist
+        """
+        pass
+
+    @playlist.command(name = 'list')
+    async def _list(self, ctx):
         """
         Usage:
-            {command_prefix}addpl name
-
-        Add a playlist.
-        """
-        bot = ctx.bot
-        guild = get_guild(bot, ctx.guild)
-
-        if name in guild._playlists:
-            raise exceptions.CommandError('There is already a playlist with that name.')
-        else:
-            guild._playlists[name] = Playlist(name, bot)
-            await guild.serialize_playlist(guild._playlists[name])
-
-        await messagemanager.safe_send_normal(ctx, ctx, 'added playlist: {}'.format(name))
-
-    @command()
-    async def importpl(self, ctx, name):
-        """
-        Usage:
-            {command_prefix}importpl name
-
-        Import entries from a playlist.
-        """
-        bot = ctx.bot
-        guild = get_guild(bot, ctx.guild)
-        g_pl = await guild.get_playlist()
-
-        if name not in guild._playlists:
-            raise exceptions.CommandError('There is already a playlist with that name.')
-        else:
-            for e in guild._playlists[name]:
-                g_pl.add_entry(e)
-
-        await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
-
-    @command()
-    async def removepl(self, ctx, name):
-        """
-        Usage:
-            {command_prefix}removepl name
-
-        Remove a playlist.
-        """
-        bot = ctx.bot
-        guild = get_guild(bot, ctx.guild)
-
-        if name in guild._playlists:
-            pl = guild._playlists[name]
-            if pl is guild._internal_auto:
-                # @TheerapakG: TODO: figure out if toggling then maybe move to next playlist?
-                raise exceptions.CommandError('This playlist is in use.')
-            elif pl in guild._autos:
-                guild._autos.remove(pl)
-                await guild.remove_serialized_playlist(name)
-                del guild._playlists[name]
-                await guild.serialize_to_file()
-            else:
-                await guild.remove_serialized_playlist(name)
-                del guild._playlists[name]
-        else:
-            raise exceptions.CommandError('There is not any playlist with that name.')
-
-        await messagemanager.safe_send_normal(ctx, ctx, 'removed playlist: {}'.format(name))
-
-    @command()
-    async def swappl(self, ctx, name):
-        """
-        Usage:
-            {command_prefix}swappl name
-
-        Swap currently playing playlist.
-        """
-        bot = ctx.bot
-        guild = get_guild(bot, ctx.guild)
-        prev = await guild.get_playlist()
-
-        if name in guild._playlists:
-            pl = guild._playlists[name]
-            if pl is guild._internal_auto:
-                raise exceptions.CommandError('This playlist is not swapable.')
-            elif pl in guild._autos:
-                raise exceptions.CommandError('This playlist is not swapable.')
-            else:
-                await guild.set_playlist(pl)
-                await guild.serialize_to_file()
-        else:
-            raise exceptions.CommandError('There is not any playlist with that name.')
-
-        await messagemanager.safe_send_normal(ctx, ctx, 'swapped playlist from {} to {}'.format(prev._name, name))
-
-    @command()
-    async def listpl(self, ctx):
-        """
-        Usage:
-            {command_prefix}listpl
+            {command_prefix}playlist list
 
         List all playlists in the guild.
         """
@@ -137,6 +50,100 @@ class PlaylistManagement(Cog):
                 {'name': aplmsgtitle, 'value': aplmsgdesc, 'inline': False}
             ]
         )
+
+    @playlist.command()
+    async def add(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}playlist add name
+
+        Add a playlist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        if name in guild._playlists:
+            raise exceptions.CommandError('There is already a playlist with that name.')
+        else:
+            guild._playlists[name] = Playlist(name, bot)
+            await guild.serialize_playlist(guild._playlists[name])
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'added playlist: {}'.format(name))
+
+    @playlist.command()
+    async def append(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}playlist append name
+
+        Append entries from a playlist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+        g_pl = await guild.get_playlist()
+
+        if name not in guild._playlists:
+            raise exceptions.CommandError('There is already a playlist with that name.')
+        else:
+            for e in guild._playlists[name]:
+                g_pl.add_entry(e)
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
+
+    @playlist.command()
+    async def remove(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}playlist remove name
+
+        Remove a playlist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        if name in guild._playlists:
+            pl = guild._playlists[name]
+            if pl is guild._internal_auto:
+                # @TheerapakG: TODO: figure out if toggling then maybe move to next playlist?
+                raise exceptions.CommandError('This playlist is in use.')
+            elif pl in guild._autos:
+                guild._autos.remove(pl)
+                await guild.remove_serialized_playlist(name)
+                del guild._playlists[name]
+                await guild.serialize_to_file()
+            else:
+                await guild.remove_serialized_playlist(name)
+                del guild._playlists[name]
+        else:
+            raise exceptions.CommandError('There is not any playlist with that name.')
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'removed playlist: {}'.format(name))
+
+    @playlist.command()
+    async def swap(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}playlist swap name
+
+        Swap currently playing playlist.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+        prev = await guild.get_playlist()
+
+        if name in guild._playlists:
+            pl = guild._playlists[name]
+            if pl is guild._internal_auto:
+                raise exceptions.CommandError('This playlist is not swapable.')
+            elif pl in guild._autos:
+                raise exceptions.CommandError('This playlist is not swapable.')
+            else:
+                await guild.set_playlist(pl)
+                await guild.serialize_to_file()
+        else:
+            raise exceptions.CommandError('There is not any playlist with that name.')
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'swapped playlist from {} to {}'.format(prev._name, name))
 
     @command()
     async def removeen(self, ctx, name, index:Optional[Union[int, User]]=None):

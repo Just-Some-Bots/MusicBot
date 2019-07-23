@@ -1,5 +1,6 @@
 from textwrap import dedent
 from discord.ext.commands import Cog, command
+from discord.utils import get
 from ... import exceptions
 
 from ... import messagemanager
@@ -78,15 +79,14 @@ class Help(Cog):
         """
         prefix = ctx.bot.config.command_prefix
 
-        options = set(options)
+        options = list(options)
 
         list_all = True if 'all' in options else False
         options.remove('all') if list_all else None
         list_cog = True if 'cog' in options else False
         options.remove('cog') if list_cog else None
 
-        p_name = (options - {'all', 'cog'})
-        name = '' if not p_name else p_name.pop()
+        name = '' if not options else options
 
         cogs = await self._gen_cog_cmd_dict(ctx.bot, ctx.author, list_all_cmds=list_all)
 
@@ -94,26 +94,31 @@ class Help(Cog):
         if list_cog:
             cogdesc = ''
             try:
-                cogs = {name: cogs[name]}
-                cogdesc = ctx.bot.cogs[name].description
+                cogs = {name[0]: cogs[name[0]]}
+                cogdesc = ctx.bot.cogs[name[0]].description
             except KeyError:
                 raise exceptions.CommandError(ctx.bot.str.get('help?cmd?help?fail@cog', "No such cog"), expire_in=10)
-            desc = '\N{WHITE SMALL SQUARE} {}:\n{}\n\n'.format(name, cogdesc) if cogdesc else '\N{WHITE SMALL SQUARE} {}:\n'.format(name)
+            desc = '\N{WHITE SMALL SQUARE} {}:\n{}\n\n'.format(name[0], cogdesc) if cogdesc else '\N{WHITE SMALL SQUARE} {}:\n'.format(name[0])
             
         else:
             if name:
                 cmds = await self._gen_cmd_dict(ctx.bot, ctx.author, list_all_cmds=True)
                 cmd = None
                 try:
-                    cmd = cmds[name]
+                    cmd = cmds[name[0]]
+                    for i in name[1:]:
+                        cmd = get(cmd.commands, name = i)
+                        if cmd is None:
+                            raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
                 except:
                     raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
                 if not hasattr(cmd.callback, 'dev_cmd'):
                     await messagemanager.safe_send_normal(
                         ctx,
                         ctx,
-                        "```\n{}\n\nAliases: {}```".format(
+                        "```\n{}\n\n{}Aliases: {}```".format(
                             dedent(cmd.help),
+                            '' if not hasattr(cmd, 'commands') else 'This is a command group with following subcommands:\n{}\n\n'.format(', '.join(c.name for c in cmd.commands) if cmd.commands else None),
                             ' '.join(cmd.aliases)
                         ).format(command_prefix=ctx.bot.config.command_prefix),
                         expire_in=60
