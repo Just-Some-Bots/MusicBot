@@ -485,6 +485,11 @@ def register_bot(bot):
             ctx.bot.log.info("Ignoring command from myself ({})".format(ctx.message.content))
             return False
 
+        if ctx.author.id in ctx.bot.blacklist and ctx.author.id != ctx.bot.config.owner_id:
+            ctx.bot.log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(ctx.author, ctx.command.name))
+            ctx.bot.log.info('Ignoring command from blacklisted users')
+            return False
+
         if (not isinstance(ctx.message.channel, discord.abc.GuildChannel)) and (not isinstance(ctx.message.channel, discord.abc.PrivateChannel)):
             ctx.bot.log.info("WTF is the message channel then")
             return False
@@ -505,14 +510,20 @@ def register_bot(bot):
                ctx.bot.log.info('Ignoring command that is not sent in bounded channels.')
                return False
 
-        if ctx.author.id in ctx.bot.blacklist and ctx.author.id != ctx.bot.config.owner_id:
-            ctx.bot.log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(ctx.author, ctx.command.name))
-            ctx.bot.log.info('Ignoring command from blacklisted users')
-            return False
+        permissions = ctx.bot.permissions.for_user(ctx.author)
+        if permissions.ignore_non_voice and ctx.command.name in permissions.ignore_non_voice:
+            if ctx.me and ctx.me.voice:
+                vc = ctx.me.voice.channel
+            else:
+                vc = None
 
-        else:
-            ctx.bot.log.info("{0.id}/{0!s}: {1}".format(ctx.author, ctx.message.content.replace('\n', '\n... ')))
-            return True
+            # If we've connected to a voice chat and we're in the same voice channel
+            if vc and not (ctx.author.voice and vc == ctx.author.voice.channel):
+                raise exceptions.PermissionsError(
+                    "you cannot use this command when not in the voice channel (%s)" % vc.name, expire_in=30)
+
+        ctx.bot.log.info("{0.id}/{0!s}: {1}".format(ctx.author, ctx.message.content.replace('\n', '\n... ')))
+        return True
 
     bot.check_once(context_check)
 
