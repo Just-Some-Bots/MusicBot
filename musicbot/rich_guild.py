@@ -490,6 +490,10 @@ def register_bot(bot):
             ctx.bot.log.info('Ignoring command from blacklisted users')
             return False
 
+        if ctx.author.bot and ctx.author.id not in ctx.bot.config.bot_exception_ids:
+            ctx.bot.log.warning("Ignoring command from other bot ({})".format(ctx.message.content))
+            return False
+
         if (not isinstance(ctx.message.channel, discord.abc.GuildChannel)) and (not isinstance(ctx.message.channel, discord.abc.PrivateChannel)):
             ctx.bot.log.info("WTF is the message channel then")
             return False
