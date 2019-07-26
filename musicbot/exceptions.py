@@ -1,13 +1,15 @@
 import shutil
 import textwrap
 
+from discord.ext.commands import errors 
+
 class VersionError(Exception):
     pass
 
 # Base class for exceptions
-class MusicbotException(Exception):
+class MusicbotException(errors.CommandError):
     def __init__(self, message, *, expire_in=0):
-        super().__init__(message) # ???
+        super().__init__(message)
         self._message = message
         self.expire_in = expire_in
 
