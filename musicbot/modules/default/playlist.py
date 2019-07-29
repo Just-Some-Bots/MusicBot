@@ -51,14 +51,7 @@ class PlaylistManagement(Cog):
             ]
         )
 
-    @playlist.command()
-    async def add(self, ctx, name):
-        """
-        Usage:
-            {command_prefix}playlist add name
-
-        Add a playlist.
-        """
+    async def add_pl(self, ctx, name):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
@@ -67,8 +60,19 @@ class PlaylistManagement(Cog):
         else:
             guild._playlists[name] = Playlist(name, bot)
             await guild.serialize_playlist(guild._playlists[name])
+            return guild._playlists[name]
 
+    @playlist.command()
+    async def add(self, ctx, name):
+        """
+        Usage:
+            {command_prefix}playlist add name
+
+        Add a playlist.
+        """
+        await self.add_pl(ctx, name)
         await messagemanager.safe_send_normal(ctx, ctx, 'added playlist: {}'.format(name))
+        
 
     @playlist.command()
     async def append(self, ctx, name):
@@ -85,8 +89,10 @@ class PlaylistManagement(Cog):
         if name not in guild._playlists:
             raise exceptions.CommandError('There is already a playlist with that name.')
         else:
-            for e in guild._playlists[name]:
-                g_pl.add_entry(e)
+            for e in guild._playlists[name]._list:
+                bot.log.debug('{} ({})'.format(e, e.source_url))
+                await g_pl.add_entry(e)
+            await guild.serialize_playlist(g_pl)
 
         await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
 
@@ -144,6 +150,23 @@ class PlaylistManagement(Cog):
             raise exceptions.CommandError('There is not any playlist with that name.')
 
         await messagemanager.safe_send_normal(ctx, ctx, 'swapped playlist from {} to {}'.format(prev._name, name))
+
+    @playlist.command()
+    async def from_url(self, ctx, url, name):
+        """
+        Usage:
+            {command_prefix}playlist from_url url name
+
+        Retrieve entries of playlist from url and save it as a playlist named name.
+        """
+        bot = ctx.bot
+        guild = get_guild(bot, ctx.guild)
+
+        pl = await self.add_pl(ctx, name)
+        await bot.crossmodule.async_call_object('_play', ctx, pl, url, send_reply = False)
+        await guild.serialize_playlist(pl)
+
+        await messagemanager.safe_send_normal(ctx, ctx, 'imported playlist from {} to {}'.format(url, name))
 
     @command()
     async def removeen(self, ctx, name, index:Optional[Union[int, User]]=None):
