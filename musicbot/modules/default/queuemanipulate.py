@@ -50,10 +50,10 @@ class QueueManagement(Cog):
             )
 
         # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
-        if permissions.max_songs and player.playlist.count_for_user(ctx.author) + num_songs > permissions.max_songs:
+        if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) + num_songs > permissions.max_songs:
             raise exceptions.PermissionsError(
                 ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
-                    num_songs, player.playlist.count_for_user(ctx.author), permissions.max_songs),
+                    num_songs, player.playlist.num_entry_of(ctx.author.id), permissions.max_songs),
                 expire_in=30
             )
         return True
@@ -166,7 +166,7 @@ class QueueManagement(Cog):
 
         # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
         async with self._aiolocks[_func_() + ':' + str(ctx.author.id)]:
-            if permissions.max_songs and player.playlist.count_for_user(ctx.author) >= permissions.max_songs:
+            if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) >= permissions.max_songs:
                 raise exceptions.PermissionsError(
                     ctx.bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
                 )
@@ -257,7 +257,7 @@ class QueueManagement(Cog):
 
                         num_songs = sum(1 for _ in entries)
 
-                        num_songs_playlist = await playlist.num_entry_of(ctx.author)
+                        num_songs_playlist = await playlist.num_entry_of(ctx.author.id)
                         total_songs = num_songs + num_songs_playlist
 
                         t0 = time.time()
@@ -423,7 +423,7 @@ class QueueManagement(Cog):
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
-        if permissions.max_songs and (await playlist.num_entry_of(ctx.author)) > permissions.max_songs:
+        if permissions.max_songs and (await playlist.num_entry_of(ctx.author.id)) > permissions.max_songs:
             raise exceptions.PermissionsError(
                 ctx.bot.str.get('cmd-search-limit', "You have reached your playlist item limit ({0})").format(permissions.max_songs),
                 expire_in=30
