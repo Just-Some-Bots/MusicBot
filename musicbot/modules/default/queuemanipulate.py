@@ -30,6 +30,14 @@ cog_name = 'queue_management'
 class QueueManagement(Cog):
     def __init__(self):
         self._aiolocks = defaultdict(asyncio.Lock)
+        self.bot = None
+
+    def pre_init(self, bot):
+        self.bot = bot
+        self.bot.crossmodule.register_object('_play', self._play)
+
+    def uninit(self):
+        self.bot.crossmodule.unregister_object('_play')
 
     async def _do_playlist_checks(self, ctx, testobj):
         guild = get_guild(ctx.bot, ctx.guild)
@@ -73,7 +81,9 @@ class QueueManagement(Cog):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._play(ctx, song_url = ' '.join(song_url))
+        guild = get_guild(ctx.bot, ctx.guild)
+        playlist = await guild.get_playlist()
+        await self._play(ctx, playlist, song_url = ' '.join(song_url))
 
     @command()
     async def replay(self, ctx, option= None):
@@ -86,18 +96,17 @@ class QueueManagement(Cog):
         """
         guild = get_guild(ctx.bot, ctx.guild)
         player = await guild.get_player()
+        playlist = await guild.get_playlist()
         current_entry = await player.get_current_entry()
 
         head = False
         if option in ['head', 'h']:
             head = True
 
-        await self._play(ctx, current_entry.source_url, head = head)
+        await self._play(ctx, playlist, current_entry.source_url, head = head)
 
-    async def _play(self, ctx, song_url, *, head=False):
+    async def _play(self, ctx, playlist, song_url, *, head=False, send_reply=True):
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await guild.get_playlist()
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
@@ -134,7 +143,7 @@ class QueueManagement(Cog):
                         for i in res['tracks']['items']:
                             song_url = i['name'] + ' ' + i['artists'][0]['name']
                             ctx.bot.log.debug('Processing {0}'.format(song_url))
-                            await self._play(ctx, song_url = song_url, head = head)
+                            await self._play(ctx, playlist, song_url = song_url, head = head, send_reply = send_reply)
                         await messagemanager.safe_delete_message(procmesg)
                         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                         return
@@ -154,7 +163,7 @@ class QueueManagement(Cog):
                         for i in res:
                             song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                             ctx.bot.log.debug('Processing {0}'.format(song_url))
-                            await self._play(ctx, song_url = song_url, head=head)
+                            await self._play(ctx, playlist, song_url = song_url, head=head, send_reply=send_reply)
                         await messagemanager.safe_delete_message(procmesg)
                         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                         return
@@ -166,7 +175,7 @@ class QueueManagement(Cog):
 
         # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
         async with self._aiolocks[_func_() + ':' + str(ctx.author.id)]:
-            if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) >= permissions.max_songs:
+            if permissions.max_songs and playlist.num_entry_of(ctx.author.id) >= permissions.max_songs:
                 raise exceptions.PermissionsError(
                     ctx.bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
                 )
@@ -336,19 +345,26 @@ class QueueManagement(Cog):
                         reply_text = "Enqueued `%s` to be played. Position in queue: %s"
                         btext = entry.title
 
-                    await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
+                    if playlist is (await guild.get_playlist()):
+                        await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
 
-                    # Position msgs
-                    time_until = await player.estimate_time_until_entry(entry)
-                    if time_until == timedelta(seconds=0):
-                        position = 'Up next!'
+                        player = await guild.get_player()
+
+                        # Position msgs
+                        time_until = await player.estimate_time_until_entry(entry)
+                        if time_until == timedelta(seconds=0):
+                            position = 'Up next!'
+                            reply_text %= (btext, position)
+
+                        else:                    
+                            reply_text += ' - estimated time until playing: %s'
+                            reply_text %= (btext, position, ftimedelta(time_until))
+
+                    else:
                         reply_text %= (btext, position)
 
-                    else:                    
-                        reply_text += ' - estimated time until playing: %s'
-                        reply_text %= (btext, position, ftimedelta(time_until))
-
-            await ctx.send(reply_text)
+            if send_reply:
+                await messagemanager.safe_send_normal(ctx, ctx, reply_text)
 
     @command()
     async def stream(self, ctx, song_url:str):
@@ -418,7 +434,6 @@ class QueueManagement(Cog):
         The command issuer can use reactions to indicate their response to each result.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
         playlist = await guild.get_playlist()
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
@@ -521,7 +536,7 @@ class QueueManagement(Cog):
 
             if str(reaction.emoji) == '\u2705':  # check
                 await messagemanager.safe_delete_message(result_message)
-                await self._play(ctx, song_url = e['webpage_url'])
+                await self._play(ctx, playlist, song_url = e['webpage_url'])
                 await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
                 return
             elif str(reaction.emoji) == '\U0001F6AB':  # cross
