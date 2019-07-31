@@ -275,9 +275,23 @@ class ModuBot(Bot):
                 if isiterable(commands):
                     for command in commands:
                         cmd = command()
-                        if cmd.name in self.alias.aliases:
-                            self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
-                            cmd.aliases = self.alias.aliases[cmd.name]
+                        c = defaultdict(list)
+                        c[None].append(cmd)
+                        if hasattr(cmd, 'walk_commands'):
+                            for _c in cmd.walk_commands():
+                                c[_c.parent].append(_c)
+                        for _c in c.values():
+                            for __c in _c:
+                                if __c.qualified_name in self.alias.aliases:
+                                    self.log.debug('setting aliases for {} as {}'.format(__c.qualified_name, self.alias.aliases[__c.qualified_name]))
+                                    __c.update(aliases = self.alias.aliases[__c.qualified_name])
+                                else:
+                                    # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                                    __c.update()
+                        for _p, _c in c.items():
+                            if _p:
+                                for __c in _c:
+                                    _p.add_command(__c)
                         self.add_command(cmd)
                         self.crossmodule._commands[moduleinfo.name].append(cmd)
                         self.log.debug('loaded {}'.format(cmd.name))
@@ -295,9 +309,23 @@ class ModuBot(Bot):
         self.log.debug('loading cogs')
         for modulename, cog in load_cogs:
             for cmd in cog.get_commands():
-                if cmd.name in self.alias.aliases:
-                    self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
-                    cmd.aliases = self.alias.aliases[cmd.name]
+                c = defaultdict(list)
+                c[None].append(cmd)
+                if hasattr(cmd, 'walk_commands'):
+                    for _c in cmd.walk_commands():
+                        c[_c.parent].append(_c)
+                for _c in c.values():
+                    for __c in _c:
+                        if __c.qualified_name in self.alias.aliases:
+                            self.log.debug('setting aliases for {} as {}'.format(__c.qualified_name, self.alias.aliases[__c.qualified_name]))
+                            __c.update(aliases = self.alias.aliases[__c.qualified_name])
+                        else:
+                            # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                            __c.update()
+                for _p, _c in c.items():
+                    if _p:
+                        for __c in _c:
+                            _p.add_command(__c)
             self.add_cog(cog)
             self.crossmodule._cogs[modulename].append(cog)
             self.log.debug('loaded {}'.format(cog.qualified_name))
