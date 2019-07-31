@@ -83,6 +83,8 @@ class Alias:
         with open(location, 'w') as f:
             config.write(f)
 
+    # @TheerapakG: TODO: rework to work with subcommands
+
     def add_alias(self, command, alias, force = False):
         origc = self.bot.get_command(alias)
         if origc and not force:

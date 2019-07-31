@@ -513,7 +513,7 @@ class RichGuild(Serializable):
     async def get_playlist(self):
         async with self._aiolocks['c_voice_channel']:
             if not self._player:
-                return None
+                raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
             elif await self.is_currently_auto():
                 return self._not_auto
             else:
