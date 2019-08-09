@@ -2653,6 +2653,12 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
+        if message.author == message.author.bot and message.author.id not in self.config.bot_exception_ids:
+            log.warning("Ignoring command from other bot ({})".format(message.content))
+            return
+
+        if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):
+            return
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
