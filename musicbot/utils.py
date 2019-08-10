@@ -60,12 +60,12 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
 
 
 async def get_header(session, url, headerfield=None, *, timeout=5):
-    with aiohttp.Timeout(timeout):
-        async with session.head(url) as response:
-            if headerfield:
-                return response.headers.get(headerfield)
-            else:
-                return response.headers
+    req_timeout = aiohttp.ClientTimeout(total = timeout)
+    async with session.head(url, timeout = req_timeout) as response:
+        if headerfield:
+            return response.headers.get(headerfield)
+        else:
+            return response.headers
 
 
 def md5sum(filename, limit=0):
@@ -74,7 +74,6 @@ def md5sum(filename, limit=0):
         for chunk in iter(lambda: f.read(8192), b""):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
-
 
 def fixg(x, dp=2):
     return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
@@ -152,3 +151,17 @@ def color_supported():
 def _func_():
     # emulate __func__ from C++
     return inspect.currentframe().f_back.f_code.co_name
+
+def _get_variable(name):
+    stack = inspect.stack()
+    try:
+        for frames in stack:
+            try:
+                frame = frames[0]
+                current_locals = frame.f_locals
+                if name in current_locals:
+                    return current_locals[name]
+            finally:
+                del frame
+    finally:
+        del stack
