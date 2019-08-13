@@ -2147,12 +2147,12 @@ class MusicBot(discord.Client):
                     return Response(self.str.get('cmd-skip-dl', "The next song (`%s`) is downloading, please wait.") % player.playlist.peek().title)
 
                 elif player.playlist.peek().is_downloaded:
-                    print("The next song will be played shortly.  Please wait.")
+                    log.info("The next song will be played shortly.  Please wait.")
                 else:
-                    print("Something odd is happening.  "
+                    log.warning("Something odd is happening.  "
                           "You might want to restart the bot if it doesn't start working.")
             else:
-                print("Something strange is happening.  "
+                log.warning("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
         
         player.skipto(index - 1) 
