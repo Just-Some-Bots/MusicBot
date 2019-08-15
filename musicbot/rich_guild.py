@@ -533,7 +533,7 @@ def register_bot(bot):
 
 def prunenoowner(client) -> int:
     unavailable_servers = 0
-    for server in guilds[client.user.id]:
+    for server in guilds[client.user.id].values():
         if server.guild.unavailable:
             unavailable_servers += 1
         elif server.get_owner() == None:
