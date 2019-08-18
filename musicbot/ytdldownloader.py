@@ -439,6 +439,60 @@ class YtdlStreamEntry(Entry):
             # for when ffmpeg inevitebly fucks up and i have to restart
             # although maybe that should be at a slightly lower level
 
+class LocalEntry(Entry):
+    def __init__(self, source_url, queuer_id, metadata):
+        super().__init__(source_url, source_url, 0, queuer_id, metadata, stream = True)
+
+    def __json__(self):
+        return self._enclose_json({
+            'version': 1,
+            'source_url': self.source_url,
+            'queuer_id': self.queuer_id,
+            '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
+            'meta': {
+                name: obj for name, obj in self._metadata.items() if obj
+            }
+        })
+
+    @classmethod
+    def _deserialize(cls, data, extractor=None):
+        assert extractor is not None, cls._bad('extractor')
+
+        if 'version' not in data or data['version'] < 2:
+            raise VersionError('data version needs to be higher than 2')
+
+        try:
+            # TODO: version check
+            source_url = data['source_url']
+            queuer_id = data['queuer_id']
+            _local_url = data['_full_local_url']
+            meta = {}
+
+            # TODO: Better [name] fallbacks
+            if 'channel_id' in data['meta']:
+                meta['channel_id'] = int(data['meta']['channel_id'])
+                if not meta['channel_id']:
+                    extractor._bot.log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
+                    meta.pop('channel_id')
+            entry = cls(source_url, queuer_id, meta)
+
+            return entry
+        except Exception as e:
+            extractor._bot.log.error("Could not load {}".format(cls.__name__), exc_info=e)
+
+    async def prepare_cache(self):
+        async with self._aiolocks['preparing_cache_set']:
+            if self._preparing_cache:
+                return
+            self._preparing_cache = True
+
+        self._local_url = self.source_url
+
+        async with self._aiolocks['preparing_cache_set']:
+            async with self._aiolocks['cached_set']:
+                self._preparing_cache = False
+                self._cached = True
+
 class WrongEntryTypeError(Exception):
     def __init__(self, message, is_playlist, use_url):
         super().__init__(message)
@@ -589,3 +643,13 @@ async def get_entry_list_from_playlist_url(playlist_url, queuer_id, extractor, m
         extractor._bot.log.info("Skipped {} bad entries".format(baditems))
 
     return entry_list
+
+async def get_local_entry(song_url, queuer_id, metadata):
+
+    entry = LocalEntry(
+        song_url,
+        queuer_id,
+        metadata
+    )
+
+    return entry
