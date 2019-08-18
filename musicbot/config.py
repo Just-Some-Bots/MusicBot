@@ -42,7 +42,6 @@ class Config:
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
-        self.bot_exception_ids = config.get("Permissions", "BotExceptionIDs", fallback=ConfigDefaults.bot_exception_ids)
 
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
@@ -169,13 +168,6 @@ class Config:
                 "Please set the OwnerID option in {}".format(self.config_file),
                 preface=self._confpreface
             )
-
-        if self.bot_exception_ids:
-            try:
-                self.bot_exception_ids = set(int(x) for x in self.bot_exception_ids.replace(',', ' ').split())
-            except:
-                log.warning("BotExceptionIDs data is invalid, will ignore all bots")
-                self.bot_exception_ids = set()
 
         if self.bound_channels:
             try:
@@ -326,7 +318,6 @@ class ConfigDefaults:
 
     token = None
     dev_ids = set()
-    bot_exception_ids = set()
 
     spotify_clientid = None
     spotify_clientsecret = None
