@@ -19,7 +19,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Cogs", "Permissions", "Chat", "MusicBot", "WebApi"}.difference(config.sections())
+        confsections = {"Credentials", "Cogs", "Permissions", "Chat", "MusicBot", "Locals", "WebApi"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -90,6 +90,11 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
+
+        self.local = config.getboolean('Locals', 'AllowQueueingLocal', fallback=ConfigDefaults.local)
+        self.local_dir_only = config.getboolean('Locals', 'LocalOnlySpecifiedDir', fallback=ConfigDefaults.local_dir_only)
+        # @TheerapakG: TODO: local_dirs
+        self.local_dir = config.get('Locals', 'LocalDir', fallback=ConfigDefaults.local_dir)
 
         self.webapi_port = config.getint('WebApi', 'WebApiPort', fallback=ConfigDefaults.webapi_port)
         self.ssl_certfile = config.get('WebApi', 'SSLCertFile', fallback=ConfigDefaults.ssl_certfile)
@@ -386,6 +391,10 @@ class ConfigDefaults:
     blacklist_file = 'config/blacklist.txt'
     auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
     i18n_file = 'config/i18n/en.json'
+
+    local = True
+    local_dir_only = False
+    local_dir = 'Library/'
 
     webapi_port = 65280
     ssl_certfile = None

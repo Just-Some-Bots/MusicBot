@@ -114,5 +114,6 @@
     "webapi?cmd?revoketoken?fail@revtoken": "Token `{0}` not found",
     "webapi?cmd?revoketoken?info@action": "Sent a message with information regarding the action.",
     "help?cmd?help?fail@cog": "No such cog",
-    "playback?cmd?resume?reply@wait": "Resumed music in `{0.name}`, waiting for entries to be added"
+    "playback?cmd?resume?reply@wait": "Resumed music in `{0.name}`, waiting for entries to be added",
+    "queuemanip?cmd?play?local@disallow": "You are not allowed to queue local files!"
 }

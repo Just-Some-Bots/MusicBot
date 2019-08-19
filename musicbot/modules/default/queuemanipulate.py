@@ -7,6 +7,7 @@ import logging
 import shlex
 import random
 import math
+from urllib.parse import urljoin
 from typing import Optional, Union
 from datetime import timedelta
 from collections import defaultdict
@@ -178,8 +179,20 @@ class QueueManagement(Cog):
                     expire_in=30
                 )
 
-            if ctx.bot.config._local and os.path.exists(song_url):
-                entry = await get_local_entry(song_url, ctx.author.id, {'channel_id':ctx.channel.id})
+            if ctx.bot.config.local:
+                # @TheerapakG: TODO: _path_candidate per config local_dirs
+                if not ctx.bot.config.local_dir_only:
+                    _path = song_url
+                else:
+                    _path = urljoin(ctx.bot.config.local_dir, song_url)
+
+            if ctx.bot.config.local and (os.path.exists(_path)):
+                if not permissions.allow_locals:
+                    raise exceptions.PermissionsError(
+                        ctx.bot.str.get('queuemanip?cmd?play?local@disallow', "You are not allowed to queue local files!"),
+                        expire_in=30
+                    )
+                entry = await get_local_entry(_path, ctx.author.id, {'channel_id':ctx.channel.id})
             else:
                 entry = None
                 # Try to determine entry type, if _type is playlist then there should be entries

@@ -11,7 +11,6 @@ from ... import exceptions
 log = logging.getLogger(__name__)
 
 class Utility(Cog):
-
     @command()
     async def clean(self, ctx, search_range:Optional[int]=50):
         """
@@ -45,5 +44,15 @@ class Utility(Cog):
                 deleted = await ctx.channel.purge(check=check, limit=search_range, before=ctx.message)
                 await messagemanager.safe_delete_message(ctx.message, quiet=True)
                 await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), expire_in=15)
+
+    @command()
+    async def lib(self, ctx):
+        """
+        Usage:
+            {command_prefix}lib
+
+        PLACEHOLDER List all files in local folder which potentially could be played.
+        """
+        raise NotImplementedError('PLACEHOLDER')
 
 cogs = [Utility]
