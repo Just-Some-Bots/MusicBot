@@ -221,8 +221,6 @@ class Config:
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
 
-
-
     def create_empty_file_ifnoexist(self, path):
         if not os.path.isfile(path):
             open(path, 'a').close()
