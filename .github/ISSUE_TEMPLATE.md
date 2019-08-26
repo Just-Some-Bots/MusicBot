@@ -6,7 +6,7 @@ Please tick all applicable boxes.
 
 Which version are you using?
 
-- [ ] The latest `master` version (1.9.8_4)
+- [ ] The latest `master` version (release-260419)
 - [ ] The latest `review` version
 
 What type of issue are you creating?

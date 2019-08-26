@@ -42,11 +42,14 @@ class Config:
 
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
+        self.bot_exception_ids = config.get("Permissions", "BotExceptionIDs", fallback=ConfigDefaults.bot_exception_ids)
 
         self.command_prefix = config.get('Chat', 'CommandPrefix', fallback=ConfigDefaults.command_prefix)
         self.bound_channels = config.get('Chat', 'BindToChannels', fallback=ConfigDefaults.bound_channels)
         self.unbound_servers = config.getboolean('Chat', 'AllowUnboundServers', fallback=ConfigDefaults.unbound_servers)
         self.autojoin_channels =  config.get('Chat', 'AutojoinChannels', fallback=ConfigDefaults.autojoin_channels)
+        self.dm_nowplaying = config.getboolean('Chat', 'DMNowPlaying', fallback=ConfigDefaults.dm_nowplaying)
+        self.no_nowplaying_auto = config.getboolean('Chat', 'DisableNowPlayingAutomatic', fallback=ConfigDefaults.no_nowplaying_auto)
         self.nowplaying_channels =  config.get('Chat', 'NowPlayingChannels', fallback=ConfigDefaults.nowplaying_channels)
         self.delete_nowplaying = config.getboolean('Chat', 'DeleteNowPlaying', fallback=ConfigDefaults.delete_nowplaying)
 
@@ -166,6 +169,13 @@ class Config:
                 "Please set the OwnerID option in {}".format(self.config_file),
                 preface=self._confpreface
             )
+
+        if self.bot_exception_ids:
+            try:
+                self.bot_exception_ids = set(int(x) for x in self.bot_exception_ids.replace(',', ' ').split())
+            except:
+                log.warning("BotExceptionIDs data is invalid, will ignore all bots")
+                self.bot_exception_ids = set()
 
         if self.bound_channels:
             try:
@@ -316,6 +326,7 @@ class ConfigDefaults:
 
     token = None
     dev_ids = set()
+    bot_exception_ids = set()
 
     spotify_clientid = None
     spotify_clientsecret = None
@@ -324,6 +335,8 @@ class ConfigDefaults:
     bound_channels = set()
     unbound_servers = False
     autojoin_channels = set()
+    dm_nowplaying = False
+    no_nowplaying_auto = False
     nowplaying_channels = set()
     delete_nowplaying = True
 
