@@ -2645,7 +2645,7 @@ class MusicBot(discord.Client):
         if message.author.bot and message.author.id not in self.config.bot_exception_ids:
             log.warning("Ignoring command from other bot ({})".format(message.content))
             return
-            
+
         if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):
             return
 
