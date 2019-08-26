@@ -6,6 +6,7 @@ import logging
 import configparser
 
 from .exceptions import HelpfulError
+from .constants import VERSION as BOTVERSION
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class Config:
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
+        self.footer_text = config.get('MusicBot', 'CustomEmbedFooter', fallback=ConfigDefaults.footer_text)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -224,6 +226,9 @@ class Config:
         self.create_empty_file_ifnoexist('config/blacklist.txt')
         self.create_empty_file_ifnoexist('config/whitelist.txt')
 
+        if not self.footer_text:
+            self.footer_text = ConfigDefaults.footer_text
+
     def create_empty_file_ifnoexist(self, path):
         if not os.path.isfile(path):
             open(path, 'a').close()
@@ -364,6 +369,7 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
