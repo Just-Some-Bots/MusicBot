@@ -2642,7 +2642,7 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if message.author == message.author.bot and message.author.id not in self.config.bot_exception_ids:
+        if message.author.bot and message.author.id not in self.config.bot_exception_ids:
             log.warning("Ignoring command from other bot ({})".format(message.content))
             return
 
