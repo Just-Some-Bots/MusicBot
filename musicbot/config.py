@@ -76,7 +76,6 @@ class Config:
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
-        self.disableembedfooter = config.getboolean('MusicBot', 'DisableEmbedFooter', fallback=ConfigDefaults.disableembedfooter)
         self.footer_text = config.get('MusicBot', 'CustomEmbedFooter', fallback=ConfigDefaults.footer_text)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
@@ -219,6 +218,11 @@ class Config:
         self.create_empty_file_ifnoexist('config/blacklist.txt')
         self.create_empty_file_ifnoexist('config/whitelist.txt')
 
+        if not self.footer_text:
+            self.footer_text = ConfigDefaults.footer_text
+
+
+
     def create_empty_file_ifnoexist(self, path):
         if not os.path.isfile(path):
             open(path, 'a').close()
@@ -358,7 +362,6 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
-    disableembedfooter = False
     footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
 
     options_file = 'config/options.ini'
