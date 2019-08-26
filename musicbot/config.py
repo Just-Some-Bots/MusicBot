@@ -6,6 +6,7 @@ import logging
 import configparser
 
 from .exceptions import HelpfulError
+from .constants import VERSION as BOTVERSION
 
 log = logging.getLogger(__name__)
 
@@ -357,8 +358,8 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
-    disableembedfooter = True
-    footer_text = None
+    disableembedfooter = False
+    footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
