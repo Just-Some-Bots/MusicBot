@@ -230,15 +230,17 @@ class Information(Cog):
 
         Sends the user a list of their permissions, or the permissions of the user specified.
         """
-
-        lines = ['Command permissions in %s\n' % ctx.guild.name, '```', '```']
-
         member = ctx.guild.get_member(user.id)
         if member:
             user = member
 
         if user:
             permissions = ctx.bot.permissions.for_user(user)
+
+        if user == ctx.author:
+            lines = ['Command permissions in %s\n' % ctx.guild.name, '```', '```']
+        else:
+            lines = ['Command permissions for {} in {}\n'.format(user.name, ctx.guild.name), '```', '```']
 
         for perm in permissions.__dict__:
             if perm in ['user_list'] or permissions.__dict__[perm] == set():
