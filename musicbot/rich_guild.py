@@ -577,7 +577,16 @@ def register_bot(bot):
             except:
                 return
 
-            if not member == rguild._bot.user:  # if the user is not the bot
+            def is_active(member):
+                if not member.voice:
+                    return False
+
+                if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
+                    return False
+
+                return True
+
+            if not member == rguild._bot.user and is_active(member):  # if the user is not inactive
                 if rguild._voice_channel != before.channel and rguild._voice_channel == after.channel:  # if the person joined
                     if auto_paused and player.state == PlayerState.PAUSE:
                         rguild._bot.log.info(autopause_msg.format(
@@ -588,8 +597,9 @@ def register_bot(bot):
 
                         rguild._bot.server_specific_data[rguild]['auto_paused'] = False
                         await player.play()
+
                 elif rguild._voice_channel == before.channel and rguild._voice_channel != after.channel:
-                    if len(rguild._voice_channel.members) == 1:
+                    if not any(is_active(m) for m in rguild._voice_channel.members):  # channel is empty
                         if not auto_paused and player.state != PlayerState.PAUSE:
                             rguild._bot.log.info(autopause_msg.format(
                                 state = "Pausing",
@@ -599,8 +609,19 @@ def register_bot(bot):
 
                             rguild._bot.server_specific_data[rguild]['auto_paused'] = True
                             await player.pause()
+
+                elif rguild._voice_channel == before.channel and rguild._voice_channel == after.channel:  # if the person undeafen
+                    if auto_paused and player.state == PlayerState.PAUSE:
+                        rguild._bot.log.info(autopause_msg.format(
+                            state = "Unpausing",
+                            channel = rguild._voice_channel,
+                            reason = "(member undeafen)"
+                        ).strip())
+
+                        rguild._bot.server_specific_data[rguild]['auto_paused'] = False
+                        await player.play()
             else:
-                if len(rguild._voice_channel.members) > 0:  # channel is not empty
+                if any(is_active(m) for m in rguild._voice_channel.members):  # channel is not empty
                     if auto_paused and player.state == PlayerState.PAUSE:
                         rguild._bot.log.info(autopause_msg.format(
                             state = "Unpausing",
@@ -610,6 +631,17 @@ def register_bot(bot):
     
                         rguild._bot.server_specific_data[rguild]['auto_paused'] = False
                         await player.play()
+
+                else:
+                    if not auto_paused and player.state != PlayerState.PAUSE:
+                        rguild._bot.log.info(autopause_msg.format(
+                            state = "Pausing",
+                            channel = rguild._voice_channel,
+                            reason = "(empty channel or member deafened)"
+                        ).strip())
+
+                        rguild._bot.server_specific_data[rguild]['auto_paused'] = True
+                        await player.pause()
 
     bot.event(on_voice_state_update)
 

@@ -528,6 +528,9 @@ class ModuBot(Bot):
             if excluding_deaf and any([member.deaf, member.self_deaf]):
                 return False
 
+            if member.bot:
+                return False
+
             return True
 
         return not sum(1 for m in vchannel.members if check(m))
