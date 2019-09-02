@@ -2088,7 +2088,7 @@ class MusicBot(discord.Client):
                 player.skip()  # TODO: check autopause stuff here
                 await self._manual_delete_check(message)
                 return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
-            else:
+            elif:
                 raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
