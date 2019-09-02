@@ -2081,7 +2081,7 @@ class MusicBot(discord.Client):
         
         current_entry = player.current_entry
 
-        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
+        if (param.lower() in ['force', 'f']) and not self.config.legacy_skip:
             if permissions.instaskip \
                 or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
 
