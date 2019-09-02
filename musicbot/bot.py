@@ -2080,16 +2080,17 @@ class MusicBot(discord.Client):
                       "You might want to restart the bot if it doesn't start working.")
         
         current_entry = player.current_entry
-
-        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
-            if permissions.instaskip \
-                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
-
-                player.skip()  # TODO: check autopause stuff here
-                await self._manual_delete_check(message)
-                return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
-            else:
-                raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
+        
+        permission_force_skip = permissions.instaskip or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None))
+        force_skip = param.lower() in ['force', 'f']
+        
+        if permission_force_skip and (force_skip or self.config.legacy_skip):
+            player.skip()  # TODO: check autopause stuff here
+            await self._manual_delete_check(message)
+            return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
+            
+        if not permission_force_skip and force_skip:
+            raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
