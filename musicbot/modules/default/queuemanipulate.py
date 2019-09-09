@@ -651,15 +651,21 @@ class QueueManagement(Cog):
 
         current_entry = await player.get_current_entry()
 
-        if (param.lower() in ['force', 'f']) or ctx.bot.config.legacy_skip:
-            if permissions.instaskip \
-                or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id):
+        permission_force_skip = permissions.instaskip or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id)
+        force_skip = param.lower() in ['force', 'f']
 
-                await player.skip()
-                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, expire_in=30)
-                return
-            else:
-                raise exceptions.PermissionsError(ctx.bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
+        if permission_force_skip and (force_skip or ctx.bot.config.legacy_skip):
+            await player.skip()  # TODO: check autopause stuff here
+            await messagemanager.safe_send_normal(
+                ctx,
+                ctx,
+                ctx.bot.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title),
+                reply=True, 
+                expire_in=30
+            )
+
+        if not permission_force_skip and force_skip:
+            raise exceptions.PermissionsError(ctx.bot.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
