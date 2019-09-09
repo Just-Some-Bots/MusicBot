@@ -31,6 +31,8 @@ class PermissionsDefaults:
     BypassKaraokeMode = False
 
     SummonNoVoice = False
+    
+    AllowLocals = False
 
     Extractors = "generic youtube youtube:playlist"
 
@@ -53,6 +55,8 @@ class Permissive:
     BypassKaraokeMode = True
 
     SummonNoVoice = True
+    
+    AllowLocals = True
 
     Extractors = ""
 
@@ -156,6 +160,8 @@ class PermissionGroup:
         self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
         self.summonplay = section_data.getboolean('SummonNoVoice', fallback=fallback.SummonNoVoice)
+        
+        self.allow_locals = section_data.getboolean('AllowLocals', fallback=fallback.AllowLocals)
 
         self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 

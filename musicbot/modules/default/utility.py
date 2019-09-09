@@ -1,6 +1,7 @@
 import logging
 import re
 import copy
+import os
 from typing import Optional
 
 from discord.ext.commands import Cog, command
@@ -11,7 +12,6 @@ from ... import exceptions
 log = logging.getLogger(__name__)
 
 class Utility(Cog):
-
     @command()
     async def clean(self, ctx, search_range:Optional[int]=50):
         """
@@ -45,5 +45,23 @@ class Utility(Cog):
                 deleted = await ctx.channel.purge(check=check, limit=search_range, before=ctx.message)
                 await messagemanager.safe_delete_message(ctx.message, quiet=True)
                 await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clean-reply', 'Cleaned up {0} message{1}.').format(len(deleted), 's' * bool(deleted)), expire_in=15)
+
+    @command()
+    async def lib(self, ctx):
+        """
+        Usage:
+            {command_prefix}lib
+
+        List all files in local folder which potentially could be played.
+        """
+        if not ctx.bot.config.local_dir_only:
+            raise exceptions.CommandError(ctx.bot.str.get('utility?cmd?lib?local@no', "You did not specified local library folder!"), expire_in=8)
+        else:
+            # @TheerapakG TODO: paging
+            files = []
+            for tup in os.walk(ctx.bot.config.local_dir):
+                files.extend(tup[2])
+            await messagemanager.safe_send_normal(ctx, ctx, '```{}```'.format('\n'.join(files)), expire_in=15)
+            
 
 cogs = [Utility]

@@ -135,5 +135,6 @@
     "cmd?caption?sent": "Finished sending caption of `{0}` as direct message.",
     "cmd?caption?none": "There are no songs queued! Queue something with {0}play.",
     "cmd?captlang?nocapt": "There is no cached caption in the bot. Try {0}reloadcapt to force the bot to download additional captions.",
-    "cmd?reloadcapt?success": "Successfully redownloaded captions."
+    "cmd?reloadcapt?success": "Successfully redownloaded captions.",
+    "queuemanip?cmd?play?local@disallow": "You are not allowed to queue local files!"
 }
