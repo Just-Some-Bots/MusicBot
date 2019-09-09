@@ -1,6 +1,7 @@
 import logging
 import re
 import copy
+import os
 from typing import Optional
 
 from discord.ext.commands import Cog, command
@@ -51,8 +52,16 @@ class Utility(Cog):
         Usage:
             {command_prefix}lib
 
-        PLACEHOLDER List all files in local folder which potentially could be played.
+        List all files in local folder which potentially could be played.
         """
-        raise NotImplementedError('PLACEHOLDER')
+        if not ctx.bot.config.local_dir_only:
+            raise exceptions.CommandError(ctx.bot.str.get('utility?cmd?lib?local@no', "You did not specified local library folder!"), expire_in=8)
+        else:
+            # @TheerapakG TODO: paging
+            files = []
+            for tup in os.walk(ctx.bot.config.local_dir):
+                files.extend(tup[2])
+            await messagemanager.safe_send_normal(ctx, ctx, '```{}```'.format('\n'.join(files)), expire_in=15)
+            
 
 cogs = [Utility]
