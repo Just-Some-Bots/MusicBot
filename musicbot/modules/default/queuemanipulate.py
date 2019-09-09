@@ -651,7 +651,7 @@ class QueueManagement(Cog):
 
         current_entry = await player.get_current_entry()
 
-        permission_force_skip = permissions.instaskip or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None))
+        permission_force_skip = permissions.instaskip or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id)
         force_skip = param.lower() in ['force', 'f']
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
