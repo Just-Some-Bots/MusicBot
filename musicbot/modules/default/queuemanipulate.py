@@ -654,8 +654,8 @@ class QueueManagement(Cog):
         permission_force_skip = permissions.instaskip or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id)
         force_skip = param.lower() in ['force', 'f']
 
-        if permission_force_skip and (force_skip or self.config.legacy_skip):
-            player.skip()  # TODO: check autopause stuff here
+        if permission_force_skip and (force_skip or ctx.bot.config.legacy_skip):
+            await player.skip()  # TODO: check autopause stuff here
             await messagemanager.safe_send_normal(
                 ctx,
                 ctx,
