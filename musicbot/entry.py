@@ -88,10 +88,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.url = url
         self.title = title
         self.duration = duration
-        log.info('Cannot extract duration of the entry. This does not affect the ability of the bot.'
-                 'However, estimated time for this entry will not be unavailable and estimated time'
-                 'of the queue will also not be available until this entry got downloaded.'
-                 'entry name: {}'.format(self.title))
+        if duration == None: # duration could be 0
+            log.info('Cannot extract duration of the entry. This does not affect the ability of the bot.'
+                     'However, estimated time for this entry will not be unavailable and estimated time'
+                     'of the queue will also not be available until this entry got downloaded.'
+                     'entry name: {}'.format(self.title))
         self.expected_filename = expected_filename
         self.meta = meta
         self.aoptions = '-vn'
