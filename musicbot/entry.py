@@ -81,13 +81,17 @@ class BasePlaylistEntry(Serializable):
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, duration=0, expected_filename=None, **meta):
+    def __init__(self, playlist, url, title, duration=None, expected_filename=None, **meta):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
+        log.info('Cannot extract duration of the entry. This does not affect the ability of the bot.'
+                 'However, estimated time for this entry will not be unavailable and estimated time'
+                 'of the queue will also not be available until this entry got downloaded.'
+                 'entry name: {}'.format(self.title))
         self.expected_filename = expected_filename
         self.meta = meta
         self.aoptions = '-vn'
@@ -319,6 +323,29 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
 
+        # Get duration from the file after downloaded
+        args = [
+            'ffprobe', 
+            '-i', self.filename, 
+            '-show_entries', 'format=duration', 
+            '-v', 'quiet', 
+            '-of', 'csv="p=0"'
+        ]
+
+        output = await self.run_command(args)
+        output = output.decode("utf-8")
+
+        try:
+            self.duration = float(output)
+        except ValueError:
+            # @TheerapakG: If somehow it is not string of float
+            if not self.duration:
+                log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe.'
+                          'This does not affect the ability of the bot. However, estimated time for this entry'
+                          'will not be unavailable and estimated time of the queue will also not be available'
+                          'until this entry got removed.'
+                          'entry file: {}'.format(self.filename))
+
 
 class StreamPlaylistEntry(BasePlaylistEntry):
     def __init__(self, playlist, url, title, *, destination=None, **meta):
@@ -328,7 +355,10 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.url = url
         self.title = title
         self.destination = destination
-        self.duration = 0
+        self.duration = None
+        log.info('Cannot estimate duration for stream, estimated time of the queue will not be available'
+                 'until this stream got removed from the queue.'
+                 'stream name: {}'.format(self.title))
         self.meta = meta
 
         if self.destination:
