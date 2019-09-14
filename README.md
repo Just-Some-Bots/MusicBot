@@ -5,7 +5,7 @@
 [![Python version](https://img.shields.io/badge/python-3.5%2C%203.6%2C%203.7-blue.svg)](https://python.org)
 [![Discord](https://discordapp.com/api/guilds/129489631539494912/widget.png?style=shield)](https://discord.gg/bots)
 
-## Techno Gear PhantomDEV's fork of <a href="https://github.com/Just-Some-Bots/MusicBot">Just-Some-Bots/MusicBot</a>
+## Techno Gear is PhantomDEV's fork of <a href="https://github.com/Just-Some-Bots/MusicBot">Just-Some-Bots/MusicBot</a>
 
 MusicBot is the original Discord music bot written for [Python](https://www.python.org "Python homepage") 3.5+, using the [discord.py](https://github.com/Rapptz/discord.py) library. It plays requested songs from YouTube and other services into a Discord server (or multiple servers). Besides, if the queue becomes empty MusicBot will play through a list of existing songs with configuration. The bot features a permission system allowing owners to restrict commands to certain people. As well as playing songs, MusicBot is capable of streaming live media into a voice channel (experimental).
 
