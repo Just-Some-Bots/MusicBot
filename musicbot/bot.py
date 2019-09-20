@@ -174,6 +174,25 @@ class ModuBot(Bot):
                 self.log.debug(traceback.format_exc())
                 return False
 
+    def _update_command_alias(self, cmd):
+        cdict = defaultdict(list)
+        cdict[None].append(cmd)
+        if hasattr(cmd, 'walk_commands'):
+            for child in cmd.walk_commands():
+                cdict[child.parent].append(child)
+        for commandlist in cdict.values():
+            for command in commandlist:
+                if command.qualified_name in self.alias.aliases:
+                    self.log.debug('setting aliases for {} as {}'.format(command.qualified_name, self.alias.aliases[command.qualified_name]))
+                    command.update(aliases = self.alias.aliases[command.qualified_name])
+                else:
+                    # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                    command.update()
+        for parent, commandlist in cdict.items():
+            if parent:
+                for command in commandlist:
+                    parent.add_command(command)
+
     async def _load_modules(self, modulelist):
         # TODO: change into cog pre_init, cog init and cog post_init/ deps listing inside cogs
         # 1: walk module
@@ -267,23 +286,7 @@ class ModuBot(Bot):
                 if isiterable(commands):
                     for command in commands:
                         cmd = command()
-                        c = defaultdict(list)
-                        c[None].append(cmd)
-                        if hasattr(cmd, 'walk_commands'):
-                            for _c in cmd.walk_commands():
-                                c[_c.parent].append(_c)
-                        for _c in c.values():
-                            for __c in _c:
-                                if __c.qualified_name in self.alias.aliases:
-                                    self.log.debug('setting aliases for {} as {}'.format(__c.qualified_name, self.alias.aliases[__c.qualified_name]))
-                                    __c.update(aliases = self.alias.aliases[__c.qualified_name])
-                                else:
-                                    # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
-                                    __c.update()
-                        for _p, _c in c.items():
-                            if _p:
-                                for __c in _c:
-                                    _p.add_command(__c)
+                        self._update_command_alias(cmd)
                         self.add_command(cmd)
                         self.crossmodule._commands[moduleinfo.name].append(cmd)
                         self.log.debug('loaded {}'.format(cmd.name))
@@ -301,23 +304,7 @@ class ModuBot(Bot):
         self.log.debug('loading cogs')
         for modulename, cog in load_cogs:
             for cmd in cog.get_commands():
-                c = defaultdict(list)
-                c[None].append(cmd)
-                if hasattr(cmd, 'walk_commands'):
-                    for _c in cmd.walk_commands():
-                        c[_c.parent].append(_c)
-                for _c in c.values():
-                    for __c in _c:
-                        if __c.qualified_name in self.alias.aliases:
-                            self.log.debug('setting aliases for {} as {}'.format(__c.qualified_name, self.alias.aliases[__c.qualified_name]))
-                            __c.update(aliases = self.alias.aliases[__c.qualified_name])
-                        else:
-                            # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
-                            __c.update()
-                for _p, _c in c.items():
-                    if _p:
-                        for __c in _c:
-                            _p.add_command(__c)
+                self._update_command_alias(cmd)
             self.add_cog(cog)
             self.crossmodule._cogs[modulename].append(cog)
             self.log.debug('loaded {}'.format(cog.qualified_name))
