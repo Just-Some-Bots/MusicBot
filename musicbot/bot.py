@@ -279,7 +279,7 @@ class ModuBot(Bot):
                             self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
                             cmd.aliases = self.alias.aliases[cmd.name]
                         self.add_command(cmd)
-                        self.crossmodule._commands[moduleinfo.name].append(cmd.name)
+                        self.crossmodule._commands[moduleinfo.name].append(cmd)
                         self.log.debug('loaded {}'.format(cmd.name))
                 else:
                     self.log.debug('commands is not an iterable')
@@ -304,7 +304,7 @@ class ModuBot(Bot):
 
         for modulename, cog in load_cogs:
             if not await self._exec_cogs(cog, 'after_init', modulename):
-                self.remove_cog(cog)
+                self.remove_cog(cog.qualified_name)
                 self.crossmodule._cogs[modulename].remove(cog)
 
     async def _prepare_load_module(self, modulename):
@@ -361,20 +361,10 @@ class ModuBot(Bot):
 
         for module in unloadlist:
             for cog in self.crossmodule._cogs[module]:
-                if 'uninit' in dir(cog):
-                    self.log.debug('executing uninit in {}'.format(cog.qualified_name))
-                    potential = getattr(cog, 'uninit')
-                    self.log.debug(str(potential))
-                    self.log.debug(str(potential.__func__))
-                    if iscoroutinefunction(potential.__func__):
-                        await potential()
-                    elif isfunction(potential.__func__):
-                        potential()
-                    else:
-                        self.log.debug('uninit is neither funtion nor coroutine function')
-                self.remove_cog(cog)
-            for command in self.crossmodule._cogs[module]:
-                self.remove_command(command)
+                await self._exec_cogs(cog, 'uninit')
+                self.remove_cog(cog.qualified_name)
+            for command in self.crossmodule._commands[module]:
+                self.remove_command(command.name)
             
             self.crossmodule._remove_module(module)
             self.log.debug('unloaded {}'.format(module))
