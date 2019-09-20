@@ -157,6 +157,31 @@ class ModuBot(Bot):
 
         self._presence = (None, None)
 
+    async def _exec_cogs(self, cog, method, moduleinfo = None):
+        if method in dir(cog):
+            self.log.debug('executing {} in {}'.format(method, cog.qualified_name))
+            potential = getattr(cog, method)
+            self.log.debug(str(potential))
+            self.log.debug(str(potential.__func__))
+            try:
+                if iscoroutinefunction(potential.__func__):
+                    await potential(self)
+                elif isfunction(potential.__func__):
+                    potential(self)
+                else:
+                    self.log.debug('{} is neither funtion nor coroutine function'.format(method))
+                return True
+            except Exception:
+                self.log.warning(
+                    'failed invoking {} of cog {} {}'.format(
+                        method, 
+                        cog.qualified_name, 
+                        'in module {}'.format(moduleinfo.name) if moduleinfo else ''
+                    )
+                )
+                self.log.debug(traceback.format_exc())
+                return False
+
     async def _load_modules(self, modulelist):
         # TODO: change into cog pre_init, cog init and cog post_init/ deps listing inside cogs
         # 1: walk module
@@ -238,22 +263,8 @@ class ModuBot(Bot):
                     for cog in cogs:
                         cg = cog()
                         self.log.debug('found cog {}'.format(cg.qualified_name))
-                        if 'pre_init' in dir(cg):
-                            self.log.debug('executing pre_init in {}'.format(cg.qualified_name))
-                            potential = getattr(cg, 'pre_init')
-                            self.log.debug(str(potential))
-                            self.log.debug(str(potential.__func__))
-                            try:
-                                if iscoroutinefunction(potential.__func__):
-                                    await potential(self)
-                                elif isfunction(potential.__func__):
-                                    potential(self)
-                                else:
-                                    self.log.debug('pre_init is neither funtion nor coroutine function')
-                            except Exception:
-                                self.log.warning('failed pre-initializing cog {} in module {}'.format(cg.qualified_name, moduleinfo.name))
-                                self.log.debug(traceback.format_exc())
-                        load_cogs.append((moduleinfo.name, cg))
+                        if await self._exec_cogs(cg, 'pre_init', moduleinfo.name):
+                            load_cogs.append((moduleinfo.name, cg))
                 else:
                     self.log.debug('cogs is not an iterable')
 
@@ -264,79 +275,65 @@ class ModuBot(Bot):
                 if isiterable(commands):
                     for command in commands:
                         cmd = command()
-                        if cmd.name in self.alias.aliases:
-                            self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
-                            cmd.aliases = self.alias.aliases[cmd.name]
+                        c = defaultdict(list)
+                        c[None].append(cmd)
+                        if hasattr(cmd, 'walk_commands'):
+                            for _c in cmd.walk_commands():
+                                c[_c.parent].append(_c)
+                        for _c in c.values():
+                            for __c in _c:
+                                if __c.qualified_name in self.alias.aliases:
+                                    self.log.debug('setting aliases for {} as {}'.format(__c.qualified_name, self.alias.aliases[__c.qualified_name]))
+                                    __c.update(aliases = self.alias.aliases[__c.qualified_name])
+                                else:
+                                    # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                                    __c.update()
+                        for _p, _c in c.items():
+                            if _p:
+                                for __c in _c:
+                                    _p.add_command(__c)
                         self.add_command(cmd)
-                        self.crossmodule._commands[moduleinfo.name].append(cmd.name)
+                        self.crossmodule._commands[moduleinfo.name].append(cmd)
                         self.log.debug('loaded {}'.format(cmd.name))
                 else:
                     self.log.debug('commands is not an iterable')
 
         for modulename, cog in load_cogs.copy():
-            if 'init' in dir(cog):
-                self.log.debug('executing init in {}'.format(cog.qualified_name))
-                potential = getattr(cog, 'init')
-                self.log.debug(str(potential))
-                self.log.debug(str(potential.__func__))
-                try:
-                    if iscoroutinefunction(potential.__func__):
-                        await potential()
-                    elif isfunction(potential.__func__):
-                        potential()
-                    else:
-                        self.log.debug('init is neither funtion nor coroutine function')
-                except Exception:
-                    self.log.warning('failed initializing cog {} in module {}'.format(cog.qualified_name, modulename))
-                    self.log.debug(traceback.format_exc())
-                    load_cogs.remove((modulename, cog))
+            if not await self._exec_cogs(cog, 'init', modulename):
+                load_cogs.remove((modulename, cog))
 
         for modulename, cog in load_cogs:
-            if 'post_init' in dir(cog):
-                self.log.debug('executing post_init in {}'.format(cog.qualified_name))
-                potential = getattr(cog, 'post_init')
-                self.log.debug(str(potential))
-                self.log.debug(str(potential.__func__))
-                try:
-                    if iscoroutinefunction(potential.__func__):
-                        await potential()
-                    elif isfunction(potential.__func__):
-                        potential()
-                    else:
-                        self.log.debug('post_init is neither funtion nor coroutine function')
-                except Exception:
-                    self.log.warning('failed post-initializing cog {} in module {}'.format(cog.qualified_name, modulename))
-                    self.log.debug(traceback.format_exc())
-                    load_cogs.remove((modulename, cog))
+            if not await self._exec_cogs(cog, 'post_init', modulename):
+                load_cogs.remove((modulename, cog))
 
         self.log.debug('loading cogs')
         for modulename, cog in load_cogs:
             for cmd in cog.get_commands():
-                if cmd.name in self.alias.aliases:
-                    self.log.debug('setting aliases for {} as {}'.format(cmd.name, self.alias.aliases[cmd.name]))
-                    cmd.aliases = self.alias.aliases[cmd.name]
+                c = defaultdict(list)
+                c[None].append(cmd)
+                if hasattr(cmd, 'walk_commands'):
+                    for _c in cmd.walk_commands():
+                        c[_c.parent].append(_c)
+                for _c in c.values():
+                    for __c in _c:
+                        if __c.qualified_name in self.alias.aliases:
+                            self.log.debug('setting aliases for {} as {}'.format(__c.qualified_name, self.alias.aliases[__c.qualified_name]))
+                            __c.update(aliases = self.alias.aliases[__c.qualified_name])
+                        else:
+                            # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                            __c.update()
+                for _p, _c in c.items():
+                    if _p:
+                        for __c in _c:
+                            _p.add_command(__c)
             self.add_cog(cog)
             self.crossmodule._cogs[modulename].append(cog)
             self.log.debug('loaded {}'.format(cog.qualified_name))
 
         for modulename, cog in load_cogs:
-            if 'after_init' in dir(cog):
-                self.log.debug('executing after_init in {}'.format(cog.qualified_name))
-                potential = getattr(cog, 'after_init')
-                self.log.debug(str(potential))
-                self.log.debug(str(potential.__func__))
-                try:
-                    if iscoroutinefunction(potential.__func__):
-                        await potential()
-                    elif isfunction(potential.__func__):
-                        potential()
-                    else:
-                        self.log.debug('after_init is neither funtion nor coroutine function')
-                except Exception:
-                    self.log.error('cog {} in module {} raised exception after initialization'.format(cog.qualified_name, modulename))
-                    self.log.debug(traceback.format_exc())
-                    self.remove_cog(cog)
-                    self.crossmodule._cogs[modulename].remove(cog)
+            if not await self._exec_cogs(cog, 'after_init', modulename):
+                self.remove_cog(cog.qualified_name)
+                self.crossmodule._cogs[modulename].remove(cog)
 
     async def _prepare_load_module(self, modulename):
         if modulename in self.crossmodule.modules_loaded():
@@ -392,20 +389,10 @@ class ModuBot(Bot):
 
         for module in unloadlist:
             for cog in self.crossmodule._cogs[module]:
-                if 'uninit' in dir(cog):
-                    self.log.debug('executing uninit in {}'.format(cog.qualified_name))
-                    potential = getattr(cog, 'uninit')
-                    self.log.debug(str(potential))
-                    self.log.debug(str(potential.__func__))
-                    if iscoroutinefunction(potential.__func__):
-                        await potential()
-                    elif isfunction(potential.__func__):
-                        potential()
-                    else:
-                        self.log.debug('uninit is neither funtion nor coroutine function')
-                self.remove_cog(cog)
-            for command in self.crossmodule._cogs[module]:
-                self.remove_command(command)
+                await self._exec_cogs(cog, 'uninit')
+                self.remove_cog(cog.qualified_name)
+            for command in self.crossmodule._commands[module]:
+                self.remove_command(command.name)
             
             self.crossmodule._remove_module(module)
             self.log.debug('unloaded {}'.format(module))
