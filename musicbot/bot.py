@@ -180,6 +180,7 @@ class ModuBot(Bot):
                 )
                 self.log.debug(traceback.format_exc())
                 return False
+        return True
 
     def _update_command_alias(self, cmd):
         cdict = defaultdict(list)
