@@ -21,7 +21,7 @@ RUN apk update \
   python3-dev \
 \
 # pip依存関係をインストールする
-&& pip3 install --upgrade pip
+&& pip3 install --upgrade pip \
 && pip3 install --no-cache-dir -r requirements.txt \
 \
 # ビルドの依存関係をクリーンアップする
