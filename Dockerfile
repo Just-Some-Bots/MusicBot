@@ -20,15 +20,15 @@ RUN apk update \
   musl-dev \
   python3-dev \
 \
-# pip依存関係をインストールする
-&& pip3 install --upgrade pip \
-&& pip3 install --no-cache-dir -r requirements.txt \
-\
 # ビルドの依存関係をクリーンアップする
 && apk del .build-deps
 
 RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot \
-  &&git checkout modified
+&&git checkout modified
+# pip依存関係をインストールする
+RUN pip3 install --upgrade pip \
+&& pip3 install --no-cache-dir -r requirements.txt
+
 WORKDIR /usr/src/musicbot
 ADD config /usr/src/musicbot/config
 
