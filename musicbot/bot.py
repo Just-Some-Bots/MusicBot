@@ -1153,7 +1153,7 @@ class MusicBot(discord.Client):
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
     async def cmd_about(self):
-        return Response("MusicBot_py Status ({0})\nMusicBot Version:{0}\nDiscord.pyバージョン:{1}".format(BOTVERSION, discord.__version__))
+        return Response("###### MusicBot_py About ######\nMusicBot Version:{0}\nDiscord.py Version:{1}".format(BOTVERSION, discord.__version__))
 
     async def cmd_help(self, message, channel, command=None):
         """
