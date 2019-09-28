@@ -23,13 +23,13 @@ RUN apk update \
 # ビルドの依存関係をクリーンアップする
 && apk del .build-deps
 
+WORKDIR /usr/src/musicbot
 RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot \
 &&git checkout modified
 # pip依存関係をインストールする
 RUN pip3 install --upgrade pip \
 && pip3 install --no-cache-dir -r requirements.txt
 
-WORKDIR /usr/src/musicbot
 ADD config /usr/src/musicbot/config
 
 # 構成をマッピングするためのボリュームを作成します
