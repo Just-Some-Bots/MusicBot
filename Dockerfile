@@ -23,7 +23,7 @@ RUN apk update \
 #Scripts
 WORKDIR /usr/src/musicbot
 RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot \
-&&git checkout modified
+&&git checkout modified&&git pull --tags
 # pip依存関係をインストールする
 RUN pip3 install --upgrade pip \
 && pip3 install --no-cache-dir -r requirements.txt
