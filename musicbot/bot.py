@@ -1152,6 +1152,9 @@ class MusicBot(discord.Client):
         player.autoplaylist = list(set(self.autoplaylist))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
+    async def cmd_about(self):
+        return Response("MusicBot_py Status ({0})\nMusicBot Version:{0}\nDiscord.pyバージョン:{1}".format(BOTVERSION, discord.__version__))
+
     async def cmd_help(self, message, channel, command=None):
         """
         Usage:
