@@ -1,18 +1,40 @@
-FROM archlinux/base
+FROM alpine:latest
 LABEL maintainer="Winding"
 
-#pkg
-RUN pacman -Sy --noconfirm git python ffmpeg opus libsodium git \
+# pkg
+RUN apk update \
+&& apk add --no-cache \
+  ca-certificates \
+  ffmpeg \
+  opus \
+  python3 \
+  libsodium-dev \
+  bash \
+  git \
 \
-#pip_dep
-&& pip install --upgrade pip \
-&& pip install --no-cache-dir -r requirements.txt \
+# build_pkg
+&& apk add --no-cache --virtual .build-deps \
+  gcc \
+  libffi-dev \
+  make \
+  musl-dev \
+  python3-dev \
 \
-&& git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot
+# pip依存関係をインストールする
+&& pip3 install --upgrade pip
+&& pip3 install --no-cache-dir -r requirements.txt \
+\
+# ビルドの依存関係をクリーンアップする
+&& apk del .build-deps
 
+RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot \
+  &&git checkout modified
 WORKDIR /usr/src/musicbot
-VOLUME /usr/src/musicbot/config
 ADD config /usr/src/musicbot/config
 
+# 構成をマッピングするためのボリュームを作成します
+VOLUME /usr/src/musicbot/config
+
 ENV APP_ENV=docker
-ENTRYPOINT ["python", "dockerentry.py"]
+
+ENTRYPOINT ["python3", "dockerentry.py"]
