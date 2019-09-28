@@ -2,8 +2,7 @@ FROM archlinux/base
 LABEL maintainer="Winding"
 
 #pkg
-RUN pacman -Sy \
-    git python ffmpeg opus ibsodium ca-certificates git \
+RUN pacman -Sy --noconfirm git python ffmpeg opus libsodium git \
 \
 #pip_dep
 && pip install --upgrade pip \
