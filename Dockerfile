@@ -1,39 +1,19 @@
-FROM alpine:edge
+FROM archlinux/base
+LABEL maintainer="Winding"
 
-# Add project source
+#pkg
+RUN pacman -Sy \
+    git python ffmpeg opus ibsodium ca-certificates git \
+\
+#pip_dep
+&& pip install --upgrade pip \
+&& pip install --no-cache-dir -r requirements.txt \
+\
+&& git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot
+
 WORKDIR /usr/src/musicbot
-COPY . ./
-COPY .git/ ./.git/
-
-# Install dependencies
-RUN apk update \
-&& apk add --no-cache \
-  ca-certificates \
-  ffmpeg \
-  opus \
-  python3 \
-  libsodium-dev \
-  bash \
-\
-# Install build dependencies
-&& apk add --no-cache --virtual .build-deps \
-  gcc \
-  git \
-  libffi-dev \
-  make \
-  musl-dev \
-  python3-dev \
-\
-# Install pip dependencies
-&& pip3 install --no-cache-dir -r requirements.txt \
-&& pip3 install --upgrade --force-reinstall --version websockets==4.0.1 \
-\
-# Clean up build dependencies
-&& apk del .build-deps
-
-# Create volume for mapping the config
 VOLUME /usr/src/musicbot/config
+ADD config /usr/src/musicbot/config
 
 ENV APP_ENV=docker
-
-ENTRYPOINT ["python3", "dockerentry.py"]
+ENTRYPOINT ["python", "dockerentry.py"]
