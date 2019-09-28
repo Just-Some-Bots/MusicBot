@@ -18,10 +18,7 @@ RUN apk update \
   libffi-dev \
   make \
   musl-dev \
-  python3-dev \
-\
-# ビルドの依存関係をクリーンアップする
-&& apk del .build-deps
+  python3-dev
 
 WORKDIR /usr/src/musicbot
 RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musicbot \
@@ -29,6 +26,8 @@ RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musi
 # pip依存関係をインストールする
 RUN pip3 install --upgrade pip \
 && pip3 install --no-cache-dir -r requirements.txt
+# ビルドの依存関係をクリーンアップする
+RUN apk del .build-deps
 
 ADD config /usr/src/musicbot/config
 
