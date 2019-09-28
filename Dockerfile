@@ -3,6 +3,7 @@ FROM alpine:edge
 # Add project source
 WORKDIR /usr/src/musicbot
 COPY . ./
+COPY .git/ ./.git/
 
 # Install dependencies
 RUN apk update \
@@ -12,6 +13,7 @@ RUN apk update \
   opus \
   python3 \
   libsodium-dev \
+  bash \
 \
 # Install build dependencies
 && apk add --no-cache --virtual .build-deps \

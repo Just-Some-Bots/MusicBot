@@ -1,0 +1,7 @@
+version: '3'
+services: 
+  apps:
+    container_name:  DiscordMusicBot
+    build:  ./
+    volumes:
+      - ./config:/usr/src/musicbot/config
