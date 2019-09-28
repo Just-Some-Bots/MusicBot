@@ -204,9 +204,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
                 if expected_fname_base in ldir:
                     self.filename = os.path.join(self.download_folder, expected_fname_base)
+                    log.info("キャッシュをダウンロード")
                     log.info("Download cached: {}".format(self.url))
 
                 elif expected_fname_noex in flistdir:
+                    log.info("キャッシュをダウンロード(異なる拡張子)")
                     log.info("Download cached (different extension): {}".format(self.url))
                     self.filename = os.path.join(self.download_folder, ldir[flistdir.index(expected_fname_noex)])
                     log.debug("Expected {}, got {}".format(
@@ -289,6 +291,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
+        log.info("ダウンロード開始")
         log.info("Download started: {}".format(self.url))
 
         retry = True
@@ -299,6 +302,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             except Exception as e:
                 raise ExtractionError(e)
 
+        log.info("ダウンロード完了")
         log.info("Download complete: {}".format(self.url))
 
         if result is None:
@@ -376,6 +380,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
             return entry
         except Exception as e:
+            log.error("読み込めエラー")
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
     # noinspection PyMethodOverriding

@@ -1091,6 +1091,31 @@ class MusicBot(discord.Client):
             log.info("  Legacy skip: " + ['Disabled', 'Enabled'][self.config.legacy_skip])
             log.info("  Leave non owners: " + ['Disabled', 'Enabled'][self.config.leavenonowners])
 
+            log.info("")
+            log.info("lang:japanese / 設定:")
+
+            log.info("  コマンドプレフィックス: " + self.config.command_prefix)
+            log.info("  デフォルトボリューム: {}%".format(int(self.config.default_volume * 100)))
+            log.info("  スキップのしきい値: {}票または{}%".format(
+                self.config.skips_required, fixg(self.config.skip_ratio_required * 100)))
+            log.info("  再生中の @mentions: " + ['無効', '有効'][self.config.now_playing_mentions])
+            log.info("  自動参加: " + ['無効', '有効'][self.config.auto_summon])
+            log.info("  オートプレイリスト: " + ['無効', '有効'][self.config.auto_playlist] + " (順序: " + ['連続', 'ランダム'][self.config.auto_playlist_random] + ")")
+            log.info("  オートポーズ: " + ['無効', '有効'][self.config.auto_pause])
+            log.info("  メッセージ削除: " + ['無効', '有効'][self.config.delete_messages])
+            if self.config.delete_messages:
+                log.info("    呼び出しを削除： " + ['無効', '有効'][self.config.delete_invoking])
+            log.info("  デバックモード: " + ['無効', '有効'][self.config.debug_mode])
+            log.info("  ダウンロードした曲は " + ['削除します。', '保存します。'][self.config.save_videos])
+            if self.config.status_message:
+                log.info("  ステータスメッセージ: " + self.config.status_message)
+            log.info("  現在の曲をファイルに書き込む: " + ['無効', '有効'][self.config.write_current_song])
+            log.info("  リクエスト者のSTAスキップ: " + ['無効', '有効'][self.config.allow_author_skip])
+            log.info("  埋め込み: " + ['無効', '有効'][self.config.embeds])
+            log.info("  Spotifyと連動: " + ['無効', '有効'][self.config._spotify])
+            log.info("  レガシースキップ: " + ['無効', '有効'][self.config.legacy_skip])
+            log.info("  非所有者を残す: " + ['無効', '有効'][self.config.leavenonowners])
+
         print(flush=True)
 
         await self.update_now_playing_status()
@@ -1113,8 +1138,8 @@ class MusicBot(discord.Client):
         """Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = 7506394
-        e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
-        e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
+        e.set_footer(text='Winding/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+        e.set_author(name=self.user.name, url='https://github.com/Winding6636/DiscoMusicBot', icon_url=self.user.avatar_url)
         return e
 
     async def cmd_resetplaylist(self, player, channel):
@@ -1316,6 +1341,7 @@ class MusicBot(discord.Client):
         """
 
         song_url = song_url.strip('<>')
+        log.debug (song_url)
 
         await self.send_typing(channel)
 
@@ -1328,6 +1354,9 @@ class MusicBot(discord.Client):
         pattern = re.compile(linksRegex)
         matchUrl = pattern.match(song_url)
         song_url = song_url.replace('/', '%2F') if matchUrl is None else song_url
+        log.debug(pattern)
+        log.debug(pattern.match(song_url))
+        log.debug(song_url)
 
         # Rewrite YouTube playlist URLs if the wrong URL type is given
         playlistRegex = r'watch\?v=.+&(list=[^&]+)'
@@ -1496,7 +1525,7 @@ class MusicBot(discord.Client):
                     channel,
                     self.str.get('cmd-play-playlist-gathering-1', 'Gathering playlist information for {0} songs{1}').format(
                         num_songs,
-                        self.str.get('cmd-play-playlist-gathering-2', ', ETA: {0} seconds').format(fixg(
+                        self.str.get('cmd-play-playlist-gathering-2', ',  ETA: {0} seconds').format(fixg(
                             num_songs * wait_per_song)) if num_songs >= 10 else '.'))
 
                 # We don't have a pretty way of doing this yet.  We need either a loop
@@ -1650,7 +1679,7 @@ class MusicBot(discord.Client):
         songs_added = len(entries_added)
         tnow = time.time()
         ttime = tnow - t0
-        wait_per_song = 1.2
+        wait_per_song = 1.5
         # TODO: actually calculate wait per song in the process function and return that too
 
         # This is technically inaccurate since bad songs are ignored but still take up time
@@ -2338,7 +2367,8 @@ class MusicBot(discord.Client):
         linegens = defaultdict(lambda: None, **{
             "youtube":    lambda d: 'https://www.youtube.com/watch?v=%s' % d['id'],
             "soundcloud": lambda d: d['url'],
-            "bandcamp":   lambda d: d['url']
+            "bandcamp":   lambda d: d['url'],
+            "nicovideo":    lambda d: 'https://www.nicovideo.jp/watch/%s' % d['id']
         })
 
         exfunc = linegens[info['extractor'].split(':')[0]]
@@ -2542,8 +2572,7 @@ class MusicBot(discord.Client):
         Will not properly load new dependencies or file updates unless fully shutdown
         and restarted.
         """
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
-            "or its dependencies, you need to restart the bot properly, rather than using this command.")
+        await self.safe_send_message(channel, "\N{WAVING HAND SIGN} 再起動します。「またね \N{WAVING HAND SIGN} 」\n 本体及び依存系統の変更の場合プログラム自体を立ち上げなおす必要があります。")
 
         player = self.get_player_in(channel.guild)
         if player and player.is_paused:

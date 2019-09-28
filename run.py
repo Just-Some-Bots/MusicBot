@@ -413,7 +413,7 @@ def main():
                     loops = 0
                     pass
             else:
-                log.exception("Error starting bot")
+                log.exception("Bot Bootstrap Error...")
 
         finally:
             if not m or not m.init_ok:
@@ -431,7 +431,7 @@ def main():
             time.sleep(sleeptime)
 
     print()
-    log.info("All done.")
+    log.info("All Done. 🎉")
 
 
 if __name__ == '__main__':

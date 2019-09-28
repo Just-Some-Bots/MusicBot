@@ -23,6 +23,10 @@ ytdl_format_options = {
     'usenetrc': True
 }
 
+nicotools_format_options = {
+    
+}
+
 # Fuck your useless bugreports message that gets two link embeds and confuses users
 youtube_dl.utils.bug_reports_message = lambda: ''
 
@@ -36,7 +40,7 @@ youtube_dl.utils.bug_reports_message = lambda: ''
 
 class Downloader:
     def __init__(self, download_folder=None):
-        self.thread_pool = ThreadPoolExecutor(max_workers=2)
+        self.thread_pool = ThreadPoolExecutor(max_workers=4)
         self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl.params['ignoreerrors'] = True
