@@ -76,6 +76,7 @@ class Config:
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
+        self.bgmmode = config.getboolean('MusicBot','BgmWakuMode',fallback=ConfigDefaults.bgmmode)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -364,6 +365,7 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    bgmmode = False
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

@@ -1117,6 +1117,8 @@ class MusicBot(discord.Client):
             log.info("  レガシースキップ: " + ['無効', '有効'][self.config.legacy_skip])
             log.info("  非所有者を残す: " + ['無効', '有効'][self.config.leavenonowners])
 
+            log.info("  BGM枠 Mode: " + ['無効', '有効'][self.config.bgmmode])
+
         print(flush=True)
 
         await self.update_now_playing_status()
@@ -1152,6 +1154,24 @@ class MusicBot(discord.Client):
         """
         player.autoplaylist = list(set(self.autoplaylist))
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
+
+    async def cmd_bgmmode(self, player, value):
+        """
+        Usage:  {command_prefix}bgmmode
+        BGM 枠 モード を管理するオプション
+        """
+        value = value.lower()
+        bool_y = ['on', 'y', 'enabled']
+        bool_n = ['off', 'n', 'disabled']
+        if value in bool_y:
+            self.config.bgmmode = True
+            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.')
+        elif value in bool_n:
+            self.config.bgmmode = False
+            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.')
+        else:
+            return Response("BGM枠モード: {0}".format(['無効', '有効'][self.config.bgmmode]))
+
 
     async def cmd_about(self):
         return Response("###### MusicBot_py About ######\n\nMusicBot Version: {0}\n\nModuleVersions\nDiscord.py Version: {1}\nYoutube-dl Version: {2}".format(BOTVERSION, discord.__version__, ytdl_ver))
@@ -1358,9 +1378,9 @@ class MusicBot(discord.Client):
         pattern = re.compile(linksRegex)
         matchUrl = pattern.match(song_url)
         song_url = song_url.replace('/', '%2F') if matchUrl is None else song_url
-        log.debug(pattern)
-        log.debug(pattern.match(song_url))
-        log.debug(song_url)
+        #log.debug(pattern)
+        #log.debug(pattern.match(song_url))
+        #log.debug(song_url)
 
         # Rewrite YouTube playlist URLs if the wrong URL type is given
         playlistRegex = r'watch\?v=.+&(list=[^&]+)'
