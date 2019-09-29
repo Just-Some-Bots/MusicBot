@@ -40,6 +40,7 @@ from .spotify import Spotify
 from .json import Json
 
 from .constants import VERSION as BOTVERSION
+from .constants import ytdl_ver as ytdl_ver
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
 load_opus_lib()
@@ -1153,7 +1154,7 @@ class MusicBot(discord.Client):
         return Response(self.str.get('cmd-resetplaylist-response', '\N{OK HAND SIGN}'), delete_after=15)
 
     async def cmd_about(self):
-        return Response("###### MusicBot_py About ######\nMusicBot Version:{0}\nDiscord.py Version:{1}".format(BOTVERSION, discord.__version__))
+        return Response("###### MusicBot_py About ######\n\nMusicBot Version: {0}\n\nModuleVersions\nDiscord.py Version: {1}\nYoutube-dl Version: {2}".format(BOTVERSION, discord.__version__, ytdl_ver))
 
     async def cmd_help(self, message, channel, command=None):
         """
