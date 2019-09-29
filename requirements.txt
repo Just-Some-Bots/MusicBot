@@ -1,7 +1,5 @@
 pynacl==1.2.1
 discord.py[voice]
-pip
-youtube_dl
 colorlog
 cffi --only-binary all; sys_platform == 'win32'
-
+-e git+https://github.com/Winding6636/youtube-dl#egg=youtube_dl
