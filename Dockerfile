@@ -26,7 +26,7 @@ RUN  git clone https://github.com/Winding6636/DiscoMusicBot_py.git /usr/src/musi
 &&git checkout modified&&git pull --tags
 # pip依存関係をインストールする
 RUN pip3 install --upgrade pip \
-&& pip3 install --no-cache-dir -r requirements.txt --user
+&& pip3 install --no-cache-dir -r requirements.txt
 ADD config /usr/src/musicbot/config
 ADD .netrc /root/.netrc
 RUN chmod og-rw /root/.netrc
@@ -37,4 +37,5 @@ RUN apk del .build-deps
 # 構成をマッピングするためのボリュームを作成します
 VOLUME /usr/src/musicbot/config
 ENV APP_ENV=docker
+#ENV PATH $PATH:/root/.local/bin
 ENTRYPOINT ["python3", "dockerentry.py"]
