@@ -20,9 +20,7 @@ ytdl_format_options = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    'usenetrc': True,
-    'retries': '10',
-    'fragment-retries': '10'
+    'usenetrc': True
 }
 
 nicotools_format_options = {
