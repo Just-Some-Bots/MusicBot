@@ -5,3 +5,4 @@ services:
     build:  ./
     volumes:
       - ./config:/usr/src/musicbot/config
+      - ./data:/usr/src/musicbot/data
