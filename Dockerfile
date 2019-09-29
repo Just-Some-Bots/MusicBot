@@ -37,5 +37,4 @@ RUN apk del .build-deps
 # 構成をマッピングするためのボリュームを作成します
 VOLUME /usr/src/musicbot/config
 ENV APP_ENV=docker
-#ENV PATH $PATH:/root/.local/bin
 ENTRYPOINT ["python3", "dockerentry.py"]

@@ -1165,10 +1165,10 @@ class MusicBot(discord.Client):
         bool_n = ['off', 'n', 'disabled']
         if value in bool_y:
             self.config.bgmmode = True
-            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.')
+            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.', delete_after=15)
         elif value in bool_n:
             self.config.bgmmode = False
-            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.')
+            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.', delete_after=15)
         else:
             return Response("BGM枠モード: {0}".format(['無効', '有効'][self.config.bgmmode]))
 

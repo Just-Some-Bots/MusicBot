@@ -1,8 +1,9 @@
 version: '3'
 services: 
   musicbot:
-    container_name:  InstanceMusicBot
+    container_name: InstanceMusicBot
     build:  ./
     volumes:
       - ./config:/usr/src/musicbot/config
       - ./data:/usr/src/musicbot/data
+      - ./audio_cache:/usr/src/musicbot/audio_cache
