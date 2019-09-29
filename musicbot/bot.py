@@ -479,7 +479,7 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
                 player.skip()
             elif self.config.now_playing_mentions:
-                newmsg = '%s-あなたの歌 `%s`は`%s`で再生中です！' % (
+                newmsg = '%s-が入れた曲 `%s`が`%s`で再生中です！' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
                 newmsg = '`%s`で音楽再生中！：`%s` を `%s` が追加したよ。' % (

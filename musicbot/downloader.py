@@ -21,6 +21,9 @@ ytdl_format_options = {
     'default_search': 'auto',
     'source_address': '0.0.0.0',
     'usenetrc': True
+    'usenetrc': True,
+    'retries': '10',
+    'fragment-retries': '10'
 }
 
 nicotools_format_options = {
