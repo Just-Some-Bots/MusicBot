@@ -299,9 +299,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
         return mean_volume, max_volume
 
     async def bgmmode(self, input_file):
-        log.debug('先頭から１分で動画をカットします。 {0}'.format(input_file))
+        cutime = '' + str(self.playlist.bot.config.bgmlength) + ' -af "afade=t=out:st=' + str(self.playlist.bot.config.bgmlength - 10) + ':d=5"'
+        log.debug(cutime)
         output_file = 'audio_cache/cuting_' + input_file[12:] + ''
-        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -t 60 -c copy "' + output_file + '"'
+        log.debug('先頭から{0}秒で動画をカットします。 {1}'.format(self.playlist.bot.config.bgmlength, input_file))
+        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -t ' + cutime + ' "' + output_file + '"'
         output = await self.run_command(cmd)
         output = output.decode("utf-8")
         log.debug('#### FFMPEG LOG ####')
@@ -318,7 +320,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         except Exception as e:
             log.error('ファイルが存在しません。前処理でエラーが発生しているかスルーされています。')
 
-        log.debug('1分カット処理しました。')
+        log.info('{0}秒カット処理しました。'.format(self.playlist.bot.config.bgmlength))
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):

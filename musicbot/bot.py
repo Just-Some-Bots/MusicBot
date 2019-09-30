@@ -479,11 +479,19 @@ class MusicBot(discord.Client):
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
                 player.skip()
             elif self.config.now_playing_mentions:
-                newmsg = '%s-が入れた曲 `%s`が`%s`で再生中です！' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
+                if self.config.bgmmode:
+                    newmsg = '%s-が入れた曲 `%s`が`%s`で再生中です！\nURL: %s' % (
+                        entry.meta['author'].mention, entry.title, player.voice_client.channel.name, player.current_entry.url)
+                else:
+                    newmsg = '%s-が入れた曲 `%s`が`%s`で再生中です！' % (
+                        entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = '`%s`で音楽再生中！：`%s` を `%s` が追加したよ。' % (
-                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+                if self.config.bgmmode:
+                    newmsg = '`%s`で音楽再生中！：`%s` を `%s` が追加したよ。\nURL: %s' % (
+                        player.voice_client.channel.name, entry.title, entry.meta['author'].name, player.current_entry.url)
+                else:
+                    newmsg = '`%s`で音楽再生中！：`%s` を `%s` が追加したよ。' % (
+                        player.voice_client.channel.name, entry.title, entry.meta['author'].name)
         else:
             # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
             newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
@@ -1365,7 +1373,6 @@ class MusicBot(discord.Client):
         """
 
         song_url = song_url.strip('<>')
-        log.debug (song_url)
 
         await self.send_typing(channel)
 
