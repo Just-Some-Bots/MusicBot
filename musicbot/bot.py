@@ -1126,6 +1126,7 @@ class MusicBot(discord.Client):
             log.info("  非所有者を残す: " + ['無効', '有効'][self.config.leavenonowners])
 
             log.info("  BGM枠 Mode: " + ['無効', '有効'][self.config.bgmmode])
+            log.info("  BGM枠 制限時間: {}秒".format(self.config.bgmlength))
 
         print(flush=True)
 
@@ -1169,16 +1170,19 @@ class MusicBot(discord.Client):
         BGM 枠 モード を管理するオプション
         """
         value = value.lower()
-        bool_y = ['on', 'y', 'enabled']
-        bool_n = ['off', 'n', 'disabled']
+        bool_y = ['on', 'y', 'enable']
+        bool_n = ['off', 'n', 'disable']
         if value in bool_y:
             self.config.bgmmode = True
-            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.', delete_after=15)
+            return Response('BGM mode : ' + ['disabled', 'enabled'][self.config.bgmmode] + '.\n この`２`曲後からの処理もしくは追加された曲からBGM枠モードで `{0}` 秒カットされます。\n:warning: フルURLで貼ることをおすすめします。:warning: '.format(self.config.bgmlength))
         elif value in bool_n:
             self.config.bgmmode = False
-            return Response("BGM mode : " + ['disabled', 'enabled'][self.config.bgmmode] + '.', delete_after=15)
+            return Response('BGM mode : ' + ['disabled', 'enabled'][self.config.bgmmode] + '.\n この後追加した曲もしくは`２`曲後の曲から通常再生されます。')
+        elif value.isdigit():
+            self.config.bgmlength = int(value)
+            return Response('BGM mode Time : `{0}(s)`\nBGM枠モードカットタイムが`{0}`秒に設定されました。BOT再起動まで保持されます。'.format(self.config.bgmlength))
         else:
-            return Response("BGM枠モード: {0}".format(['無効', '有効'][self.config.bgmmode]))
+            return Response('BGM枠モード : `' + ['無効', '有効'][self.config.bgmmode] + '`\nBGM枠上限タイム : `{0}`'.format(self.config.bgmlength), delete_after=15)
 
 
     async def cmd_about(self):

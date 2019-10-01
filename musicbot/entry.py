@@ -300,7 +300,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     async def bgmmode(self, input_file):
         cutime = '' + str(self.playlist.bot.config.bgmlength) + ' -af "afade=t=out:st=' + str(self.playlist.bot.config.bgmlength - 10) + ':d=5"'
-        log.debug(cutime)
         output_file = 'audio_cache/cuting_' + input_file[12:] + ''
         log.debug('先頭から{0}秒で動画をカットします。 {1}'.format(self.playlist.bot.config.bgmlength, input_file))
         cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -t ' + cutime + ' "' + output_file + '"'
@@ -308,8 +307,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
         output = output.decode("utf-8")
         log.debug('#### FFMPEG LOG ####')
         log.debug(output)
-        log.debug(input_file)
-        log.debug(output_file)
 
         try:
             os.path.isfile(output_file)
