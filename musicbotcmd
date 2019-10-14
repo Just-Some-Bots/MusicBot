@@ -29,7 +29,7 @@ sub_restart(){
 }
 
 sub_logs(){
-    journalctl -u musicbot
+    journalctl -u musicbot -e -f
 }
 
 sub_startup(){
