@@ -323,29 +323,30 @@ class URLPlaylistEntry(BasePlaylistEntry):
             else:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
+        
+        if self.duration == None:
+            # Get duration from the file after downloaded
+            args = [
+                'ffprobe', 
+                '-i', self.filename, 
+                '-show_entries', 'format=duration', 
+                '-v', 'quiet', 
+                '-of', 'csv="p=0"'
+            ]
 
-        # Get duration from the file after downloaded
-        args = [
-            'ffprobe', 
-            '-i', self.filename, 
-            '-show_entries', 'format=duration', 
-            '-v', 'quiet', 
-            '-of', 'csv="p=0"'
-        ]
+            output = await self.run_command(args)
+            output = output.decode("utf-8")
 
-        output = await self.run_command(args)
-        output = output.decode("utf-8")
-
-        try:
-            self.duration = float(output)
-        except ValueError:
-            # @TheerapakG: If somehow it is not string of float
-            if not self.duration:
-                log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe.'
-                          'This does not affect the ability of the bot. However, estimated time for this entry'
-                          'will not be unavailable and estimated time of the queue will also not be available'
-                          'until this entry got removed.'
-                          'entry file: {}'.format(self.filename))
+            try:
+                self.duration = float(output)
+            except ValueError:
+                # @TheerapakG: If somehow it is not string of float
+                if not self.duration:
+                    log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe.'
+                            'This does not affect the ability of the bot. However, estimated time for this entry'
+                            'will not be unavailable and estimated time of the queue will also not be available'
+                            'until this entry got removed.'
+                            'entry file: {}'.format(self.filename))
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):
