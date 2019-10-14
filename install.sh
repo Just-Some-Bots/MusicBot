@@ -70,11 +70,8 @@ function ask_setup_aliases() {
                 sudo chmod +x /usr/bin/musicbot
                 echo ""
                 echo "Command created!"
-                echo "The bot can now be managed with the following:"
-                echo "musicbot stop"
-                echo "musicbot restart"
-                echo "musicbot start"
-                echo "musicbot logs"
+                echo "Information regarding how the bot can now be managed found by running:"
+                echo "musicbot --help"
                 ;;
     esac
 }
