@@ -358,9 +358,6 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.title = title
         self.destination = destination
         self.duration = None
-        log.info('Cannot estimate duration for stream, estimated time of the queue will not be available'
-                 'until this stream got removed from the queue.'
-                 'stream name: {}'.format(self.title))
         self.meta = meta
 
         if self.destination:
