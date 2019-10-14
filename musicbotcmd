@@ -1,0 +1,78 @@
+#!/bin/bash
+
+ProgName=$(basename $0)
+
+sub_help(){
+    echo "Usage: $ProgName <subcommand> [options]"
+    echo "Subcommands:"
+    echo "    start     Start the MusicBot service"
+    echo "    stop      Stop the MusicBot service"
+    echo "    restart   Restart the MusicBot service"
+    echo "    logs      View logs for MusicBot"
+    echo "    startup   Toggle whether MusicBot will launch on startup"
+    echo ""
+    echo "For help with each subcommand run:"
+    echo "$ProgName <subcommand> -h|--help"
+    echo ""
+}
+
+sub_start(){
+    sudo systemctl start musicbot
+}
+
+sub_stop(){
+    sudo systemctl stop musicbot
+}
+
+sub_restart(){
+    sudo systemctl restart musicbot
+}
+
+sub_logs(){
+    journalctl -u musicbot
+}
+
+sub_startup(){
+    option=$1
+    case $option in
+        "--enable" | "-e")
+            echo "Enabling MusicBot launching on startup"
+            sudo systemctl enable musicbot;;
+        "--disable" | "-d")
+            echo "Disabling MusicBot launching on startup"
+            sudo systemctl disable musicbot;;
+        "-h" | "--help")
+            echo "Usage: $ProgName startup [options]"
+            echo "Toggles whether MusicBot will be started on system startup"
+            echo ""
+            echo "Options:"
+            echo "    -e, --enable    Enable starting MusicBot on startup"
+            echo "    -d, --disable   Disable starting MusicBot on startup"
+            echo "";;
+        *)
+            if test -f /etc/systemd/system/default.target.wants/musicbot.service; then
+                echo "Disabling MusicBot launching on startup"
+                sudo systemctl disable musicbot
+            else
+                echo "Enabling MusicBot launching on startup"
+                sudo systemctl enable musicbot
+            fi;;
+    esac
+
+}
+
+subcommand=$1
+case $subcommand in
+    "" | "-h" | "--help")
+        sub_help
+        ;;
+    *)
+        shift
+        sub_${subcommand} $@
+        if [ $? = 127 ]; then
+            echo "Error: '$subcommand' is not a known subcommand." >&2
+            echo "       Run '$ProgName --help' for a list of known subcommands." >&2
+            exit 1
+        fi
+        ;;
+esac
