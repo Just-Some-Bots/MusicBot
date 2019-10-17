@@ -344,7 +344,7 @@ class Playlist(EventEmitter, Serializable):
         """
             (very) Roughly estimates the time till the queue will 'position'
         """
-        if any(e.duration for e in islice(self.entries, position - 1) == None):
+        if any(e.duration == None for e in islice(self.entries, position - 1)):
             raise InvalidDataError('no duration data')
         else:
             estimated_time = sum(e.duration for e in islice(self.entries, position - 1))
