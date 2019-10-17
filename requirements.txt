@@ -1,5 +1,5 @@
 pynacl==1.2.1
-discord.py[voice]
+git+https://github.com/Rapptz/discord.py@master#egg=discord.py[voice]
 pip
 youtube_dl
 colorlog
