@@ -10,6 +10,4 @@ def load_opus_lib():
     except OSError:
          pass
 
-
     raise RuntimeError('Could not load an opus lib.')
-
