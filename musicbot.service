@@ -1,0 +1,10 @@
+[Unit]
+Description=MusicBot
+
+[Service]
+WorkingDirectory=mbdirectory
+ExecStart=/usr/bin/pythonversionnum mbdirectory/run.py
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
