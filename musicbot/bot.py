@@ -50,6 +50,7 @@ import discord
 from websockets import ConnectionClosed
 
 from . import config
+from .opus_loader import load_opus_lib
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
@@ -72,6 +73,8 @@ MODUBOT_VERSIONTYPE = 'a'
 MODUBOT_SUBVERSION = '3'
 MODUBOT_VERSION = '{}.{}.{}-{}{}'.format(MODUBOT_MAJOR, MODUBOT_MINOR, MODUBOT_REVISION, MODUBOT_VERSIONTYPE, MODUBOT_SUBVERSION)
 MODUBOT_STR = 'ModuBot {}'.format(MODUBOT_VERSION)
+
+load_opus_lib()
 
 class ModuBot(Bot):
 
