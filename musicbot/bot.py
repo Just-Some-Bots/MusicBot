@@ -49,6 +49,7 @@ from discord.ext.commands import Bot
 import discord
 from websockets import ConnectionClosed
 
+from .opus_loader import load_opus_lib
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
@@ -71,6 +72,8 @@ MODUBOT_VERSIONTYPE = 'a'
 MODUBOT_SUBVERSION = '3'
 MODUBOT_VERSION = '{}.{}.{}-{}{}'.format(MODUBOT_MAJOR, MODUBOT_MINOR, MODUBOT_REVISION, MODUBOT_VERSIONTYPE, MODUBOT_SUBVERSION)
 MODUBOT_STR = 'ModuBot {}'.format(MODUBOT_VERSION)
+
+load_opus_lib()
 
 class ModuBot(Bot):
 
@@ -156,17 +159,21 @@ class ModuBot(Bot):
 
         self._presence = (None, None)
 
-    async def _exec_cogs(self, cog, method, moduleinfo = None):
+    async def _exec_cogs(self, cog, method, modulename = None, with_self = False):
         if method in dir(cog):
             self.log.debug('executing {} in {}'.format(method, cog.qualified_name))
             potential = getattr(cog, method)
             self.log.debug(str(potential))
             self.log.debug(str(potential.__func__))
+            if with_self:
+                arg = (self,)
+            else:
+                arg = tuple()
             try:
                 if iscoroutinefunction(potential.__func__):
-                    await potential(self)
+                    await potential(*arg)
                 elif isfunction(potential.__func__):
-                    potential(self)
+                    potential(*arg)
                 else:
                     self.log.debug('{} is neither funtion nor coroutine function'.format(method))
                 return True
@@ -175,7 +182,7 @@ class ModuBot(Bot):
                     'failed invoking {} of cog {} {}'.format(
                         method, 
                         cog.qualified_name, 
-                        'in module {}'.format(moduleinfo.name) if moduleinfo else ''
+                        'in module {}'.format(modulename) if modulename else ''
                     )
                 )
                 self.log.debug(traceback.format_exc())
@@ -282,7 +289,7 @@ class ModuBot(Bot):
                     for cog in cogs:
                         cg = cog()
                         self.log.debug('found cog {}'.format(cg.qualified_name))
-                        if await self._exec_cogs(cg, 'pre_init', moduleinfo.name):
+                        if await self._exec_cogs(cg, 'pre_init', moduleinfo.name, with_self=True):
                             load_cogs.append((moduleinfo.name, cg))
                 else:
                     self.log.debug('cogs is not an iterable')
