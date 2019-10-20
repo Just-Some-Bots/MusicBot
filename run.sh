@@ -9,6 +9,7 @@ declare -A python3=( ["0"]=`python3 -c 'import sys; version=sys.version_info[:3]
 PYTHON35_VERSION=`python3.5 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py35"; }`
 PYTHON36_VERSION=`python3.6 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py36"; }`
 PYTHON37_VERSION=`python3.7 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py37"; }`
+PYTHON38_VERSION=`python3.8 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py38"; }`
 
 
 if [ "${python[0]}" -eq "3" ]; then # Python = 3
@@ -47,6 +48,11 @@ fi
 
 if [ "$PYTHON37_VERSION" -eq "7" ]; then # Python3.7 = 3.7
     python3.7 run.py
+    exit
+fi
+
+if [ "$PYTHON38_VERSION" -eq "8" ]; then # Python3.8 = 3.8
+    python3.8 run.py
     exit
 fi
 
