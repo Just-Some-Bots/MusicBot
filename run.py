@@ -225,7 +225,10 @@ def finalize_logging():
     dlog = logging.getLogger('discord')
     dlh = logging.StreamHandler(stream=sys.stdout)
     dlh.terminator = ''
-    dlh.setFormatter(logging.Formatter('.'))
+    try:
+        dlh.setFormatter(logging.Formatter('.'))
+    except ValueError:
+        dlh.setFormatter(logging.Formatter('.', validate = False)) # pylint: disable=unexpected-keyword-arg
     dlog.addHandler(dlh)
 
     return fh
@@ -391,17 +394,7 @@ def pyexec(pycom, *args, pycom2=None):
 def streamhandler():
     import colorlog
     sh = logging.StreamHandler(stream=sys.stdout)
-    sh.setFormatter(colorlog.LevelFormatter(
-        fmt = {
-            'DEBUG': '{log_color}[{levelname}:{module}:{name}] {message}',
-            'INFO': '{log_color}[{levelname}:{module}:{name}] {message}',
-            'WARNING': '{log_color}[{levelname}:{module}:{name}] {message}',
-            'ERROR': '{log_color}[{levelname}:{module}:{name}] {message}',
-            'CRITICAL': '{log_color}[{levelname}:{module}:{name}] {message}',
-
-            'EVERYTHING': '{log_color}[{levelname}:{module}:{name}] {message}',
-            'NOISY': '{log_color}[{levelname}:{module}:{name}] {message}'
-        },
+    sformatter = colorlog.LevelFormatter(
         log_colors = {
             'DEBUG':    'cyan',
             'INFO':     'white',
@@ -413,7 +406,18 @@ def streamhandler():
             'NOISY':      'white'
         },
             style = '{'
-    ))
+    )
+    sformatter.fmt = {
+        'DEBUG': '{log_color}[{levelname}:{module}:{name}] {message}',
+        'INFO': '{log_color}[{levelname}:{module}:{name}] {message}',
+        'WARNING': '{log_color}[{levelname}:{module}:{name}] {message}',
+        'ERROR': '{log_color}[{levelname}:{module}:{name}] {message}',
+        'CRITICAL': '{log_color}[{levelname}:{module}:{name}] {message}',
+
+        'EVERYTHING': '{log_color}[{levelname}:{module}:{name}] {message}',
+        'NOISY': '{log_color}[{levelname}:{module}:{name}] {message}'
+    }
+    sh.setFormatter(sformatter)
     log.addHandler(sh)
     return sh
 
