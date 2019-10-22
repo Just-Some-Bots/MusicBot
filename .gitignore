@@ -16,3 +16,8 @@ config/autoplaylist_removed.txt
 config/whitelist.txt
 config/blacklist.txt
 config/alias.ini
+
+modules/*
+!modules/default
+!modules/__init__.py
+!modules/webapi.py
