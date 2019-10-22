@@ -180,12 +180,28 @@ class QueueManagement(Cog):
                 )
 
             if ctx.bot.config.local:
-                if not ctx.bot.config.local_dir_only:
-                    _path = [song_url]
-                else:
-                    _path = [urljoin(d, song_url) for d in ctx.bot.config.local_dir]
+                if os.path.abspath(song_url) == os.path.normpath(song_url):
+                    if ctx.bot.config.local_dir:
+                        # check if entered path is in specified local dirs
+                        if not all([os.path.commonpath([d]) != os.path.commonpath([d, song_url]) for d in ctx.bot.config.local_dir]):
+                            _path = [song_url]
+                        else:
+                            # will probably error down the line anyway, so who cares
+                            _path = []
+                    else:
+                        _path = [song_url]
 
-                _good_path = [path for path in _path if path]
+                elif ctx.bot.config.local_dir_only:
+                    # not absolute path so skip this
+                    _path = []
+
+                elif ctx.bot.config.local_dir:
+                    _path = [os.path.join(d, song_url) for d in ctx.bot.config.local_dir]
+
+                else:
+                    _path = []
+
+                _good_path = [path for path in _path if os.path.exists(path)]
 
                 if _good_path:
                     if not permissions.allow_locals:
@@ -193,7 +209,7 @@ class QueueManagement(Cog):
                             ctx.bot.str.get('queuemanip?cmd?play?local@disallow', "You are not allowed to queue local files!"),
                             expire_in=30
                         )
-                    # @TheerapakG: show ambiguity
+                    # @TheerapakG: TODO: show ambiguity
                     entry = await get_local_entry(_good_path[0], ctx.author.id, {'channel_id':ctx.channel.id})
             else:
                 entry = None

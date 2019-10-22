@@ -222,7 +222,7 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        self.local_dir = set(ldir for ldir in self.local_dir.replace(',', ' ').split() if ldir)
+        self.local_dir = set(os.path.abspath(ldir) for ldir in self.local_dir.replace(',', ' ').split() if ldir)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
