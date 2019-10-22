@@ -94,7 +94,6 @@ class Config:
 
         self.local = config.getboolean('Locals', 'AllowQueueingLocal', fallback=ConfigDefaults.local)
         self.local_dir_only = config.getboolean('Locals', 'LocalOnlySpecifiedDir', fallback=ConfigDefaults.local_dir_only)
-        # @TheerapakG: TODO: local_dirs
         self.local_dir = config.get('Locals', 'LocalDir', fallback=ConfigDefaults.local_dir)
 
         self.webapi_port = config.getint('WebApi', 'WebApiPort', fallback=ConfigDefaults.webapi_port)
@@ -197,14 +196,14 @@ class Config:
 
         if self.bound_channels:
             try:
-                self.bound_channels = set(x for x in self.bound_channels.replace(',', ' ').split() if x)
+                self.bound_channels = set(int(x) for x in self.bound_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
-                self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
+                self.autojoin_channels = set(int(x) for x in self.autojoin_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
@@ -214,7 +213,7 @@ class Config:
                 self.nowplaying_channels = set(int(x) for x in self.nowplaying_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
-                self.autojoin_channels = set()
+                self.nowplaying_channels = set()
 
         self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:
@@ -222,9 +221,7 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        self.bound_channels = set(int(item) for item in self.bound_channels)
-
-        self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
+        self.local_dir = set(ldir for ldir in self.local_dir.replace(',', ' ').split() if ldir)
 
         if hasattr(logging, self.debug_level.upper()):
             self.debug_level = getattr(logging, self.debug_level.upper())
@@ -385,7 +382,7 @@ class ConfigDefaults:
 
     local = True
     local_dir_only = False
-    local_dir = 'Library/'
+    local_dir = set()
 
     webapi_port = 65280
     ssl_certfile = None
