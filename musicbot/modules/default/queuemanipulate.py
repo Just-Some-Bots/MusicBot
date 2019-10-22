@@ -60,6 +60,34 @@ class QueueManagement(Cog):
             )
         return True
 
+    async def _ambiguity_response(self, ctx, candidates):
+        for candidate in candidates:
+            message = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
+                candidates.index(candidate) + 1, len(candidates), candidate))
+
+            def check(reaction, user):
+                return user == ctx.message.author and reaction.message.id == message.id  # why can't these objs be compared directly?
+
+            reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
+            for r in reactions:
+                await message.add_reaction(r)
+
+            try:
+                reaction, user = await ctx.bot.wait_for('reaction_add', timeout=30.0, check=check) # pylint: disable=unused-variable
+            except asyncio.TimeoutError:
+                await messagemanager.safe_delete_message(message)
+                return
+
+            if str(reaction.emoji) == '\u2705':  # check
+                await messagemanager.safe_delete_message(message)
+                return candidate
+            elif str(reaction.emoji) == '\U0001F6AB':  # cross
+                await messagemanager.safe_delete_message(message)
+                continue
+            else:
+                await messagemanager.safe_delete_message(message)
+                return
+
     @command()
     async def play(self, ctx, *song_url):
         """
@@ -179,6 +207,8 @@ class QueueManagement(Cog):
                     expire_in=30
                 )
 
+            entry = None
+
             if ctx.bot.config.local:
                 if os.path.abspath(song_url) == os.path.normpath(song_url):
                     if ctx.bot.config.local_dir:
@@ -209,10 +239,14 @@ class QueueManagement(Cog):
                             ctx.bot.str.get('queuemanip?cmd?play?local@disallow', "You are not allowed to queue local files!"),
                             expire_in=30
                         )
-                    # @TheerapakG: TODO: show ambiguity
-                    entry = await get_local_entry(_good_path[0], ctx.author.id, {'channel_id':ctx.channel.id})
-            else:
-                entry = None
+                    res = await self._ambiguity_response(ctx, _good_path)
+                    if res:
+                        entry = await get_local_entry(res, ctx.author.id, {'channel_id':ctx.channel.id})
+                    else:
+                        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
+                        return
+                        
+            if not entry:
                 # Try to determine entry type, if _type is playlist then there should be entries
                 while True:
                     try:
@@ -540,36 +574,13 @@ class QueueManagement(Cog):
         if not info:
             raise exceptions.ExtractionError(ctx.bot.str.get('cmd-search-none', "No videos found."), expire_in=30)
 
-        for e in info['entries']:
-            result_message = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
-                info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
+        res = await self._ambiguity_response(ctx, [e['webpage_url'] for e in info['entries']])
 
-            def check(reaction, user):
-                return user == ctx.message.author and reaction.message.id == result_message.id  # why can't these objs be compared directly?
-
-            reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
-            for r in reactions:
-                await result_message.add_reaction(r)
-
-            try:
-                reaction, user = await ctx.bot.wait_for('reaction_add', timeout=30.0, check=check) # pylint: disable=unused-variable
-            except asyncio.TimeoutError:
-                await messagemanager.safe_delete_message(result_message)
-                return
-
-            if str(reaction.emoji) == '\u2705':  # check
-                await messagemanager.safe_delete_message(result_message)
-                await self._play(ctx, song_url = e['webpage_url'])
-                await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
-                return
-            elif str(reaction.emoji) == '\U0001F6AB':  # cross
-                await messagemanager.safe_delete_message(result_message)
-                continue
-            else:
-                await messagemanager.safe_delete_message(result_message)
-                break
-
-        messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
+        if res:
+            await self._play(ctx, song_url = res)
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-accept', "Alright, coming right up!"), expire_in=30)
+        else:
+            await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-search-decline', "Oh well :("), expire_in=30)
 
     @command()
     async def shuffle(self, ctx):
