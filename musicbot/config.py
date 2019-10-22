@@ -95,7 +95,6 @@ class Config:
 
         self.local = config.getboolean('Locals', 'AllowQueueingLocal', fallback=ConfigDefaults.local)
         self.local_dir_only = config.getboolean('Locals', 'LocalOnlySpecifiedDir', fallback=ConfigDefaults.local_dir_only)
-        # @TheerapakG: TODO: local_dirs
         self.local_dir = config.get('Locals', 'LocalDir', fallback=ConfigDefaults.local_dir)
 
         self.webapi_port = config.getint('WebApi', 'WebApiPort', fallback=ConfigDefaults.webapi_port)
@@ -226,6 +225,8 @@ class Config:
         self.bound_channels = set(int(item) for item in self.bound_channels)
 
         self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
+
+        self.local_dir = set(ldir for ldir in self.local_dir.replace(',', ' ').split() if ldir)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
@@ -400,7 +401,7 @@ class ConfigDefaults:
 
     local = True
     local_dir_only = False
-    local_dir = 'Library/'
+    local_dir = set()
 
     webapi_port = 65280
     ssl_certfile = None

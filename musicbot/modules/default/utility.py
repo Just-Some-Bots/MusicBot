@@ -59,8 +59,9 @@ class Utility(Cog):
         else:
             # @TheerapakG TODO: paging
             files = []
-            for tup in os.walk(ctx.bot.config.local_dir):
-                files.extend(tup[2])
+            for path in ctx.bot.config.local_dir:
+                for tup in os.walk(path):
+                    files.extend(tup[2])
             await messagemanager.safe_send_normal(ctx, ctx, '```{}```'.format('\n'.join(files)), expire_in=15)
             
 

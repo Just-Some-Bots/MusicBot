@@ -180,19 +180,21 @@ class QueueManagement(Cog):
                 )
 
             if ctx.bot.config.local:
-                # @TheerapakG: TODO: _path_candidate per config local_dirs
                 if not ctx.bot.config.local_dir_only:
-                    _path = song_url
+                    _path = [song_url]
                 else:
-                    _path = urljoin(ctx.bot.config.local_dir, song_url)
+                    _path = [urljoin(d, song_url) for d in ctx.bot.config.local_dir]
 
-            if ctx.bot.config.local and (os.path.exists(_path)):
-                if not permissions.allow_locals:
-                    raise exceptions.PermissionsError(
-                        ctx.bot.str.get('queuemanip?cmd?play?local@disallow', "You are not allowed to queue local files!"),
-                        expire_in=30
-                    )
-                entry = await get_local_entry(_path, ctx.author.id, {'channel_id':ctx.channel.id})
+                _good_path = [path for path in _path if path]
+
+                if _good_path:
+                    if not permissions.allow_locals:
+                        raise exceptions.PermissionsError(
+                            ctx.bot.str.get('queuemanip?cmd?play?local@disallow', "You are not allowed to queue local files!"),
+                            expire_in=30
+                        )
+                    # @TheerapakG: show ambiguity
+                    entry = await get_local_entry(_good_path[0], ctx.author.id, {'channel_id':ctx.channel.id})
             else:
                 entry = None
                 # Try to determine entry type, if _type is playlist then there should be entries
