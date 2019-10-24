@@ -82,6 +82,7 @@ class Config:
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
         self.footer_text = config.get('MusicBot', 'CustomEmbedFooter', fallback=ConfigDefaults.footer_text)
+        self.lazy_playlist = config.getboolean('MusicBot', 'LazyPlaylist', fallback = ConfigDefaults.lazy_playlist)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -367,6 +368,7 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
+    lazy_playlist = True
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
