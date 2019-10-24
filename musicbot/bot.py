@@ -245,6 +245,9 @@ class MusicBot(discord.Client):
             if excluding_deaf and any([member.deaf, member.self_deaf]):
                 return False
 
+            if member.bot:
+                return False
+
             return True
 
         return not sum(1 for m in vchannel.members if check(m))
@@ -473,15 +476,6 @@ class MusicBot(discord.Client):
         author = entry.meta.get('author', None)
 
         if channel and author:
-            last_np_msg = self.server_specific_data[channel.guild]['last_np_msg']
-            if last_np_msg and last_np_msg.channel == channel:
-
-                async for lmsg in channel.history(limit=1):
-                    if lmsg != last_np_msg and last_np_msg:
-                        await self.safe_delete_message(last_np_msg)
-                        self.server_specific_data[channel.guild]['last_np_msg'] = None
-                    break  # This is probably redundant
-
             author_perms = self.permissions.for_user(author)
 
             if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
@@ -494,11 +488,39 @@ class MusicBot(discord.Client):
             else:
                 newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+        else:
+            # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
+            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
+                entry.title, player.voice_client.channel.name)
 
-            if self.server_specific_data[channel.guild]['last_np_msg']:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_edit_message(last_np_msg, newmsg, send_if_fail=True)
+        if newmsg:
+            if self.config.dm_nowplaying and author:
+                await self.safe_send_message(author, newmsg)
+                return
+
+            if self.config.no_nowplaying_auto and not author:
+                return
+
+            guild = player.voice_client.guild
+            last_np_msg = self.server_specific_data[guild]['last_np_msg']
+
+            if self.config.nowplaying_channels:
+                for potential_channel_id in self.config.nowplaying_channels:
+                    potential_channel = self.get_channel(potential_channel_id)
+                    if potential_channel and potential_channel.guild == guild:
+                        channel = potential_channel
+                        break
+
+            if channel:
+                pass
+            elif not channel and last_np_msg:
+                channel = last_np_msg.channel
             else:
-                self.server_specific_data[channel.guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
+                log.debug('no channel to put now playing message into')
+                return
+
+            # send it in specified channel
+            self.server_specific_data[guild]['last_np_msg'] = await self.safe_send_message(channel, newmsg)
 
         # TODO: Check channel voice state?
 
@@ -517,6 +539,14 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         log.debug('Running on_player_finished_playing')
+
+        # delete last_np_msg somewhere if we have cached it
+        if self.config.delete_nowplaying:
+            guild = player.voice_client.guild
+            last_np_msg = self.server_specific_data[guild]['last_np_msg']
+            if last_np_msg:
+                await self.safe_delete_message(last_np_msg)
+
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
                 log.info("Player finished playing, autopaused in empty channel")
@@ -1088,7 +1118,7 @@ class MusicBot(discord.Client):
         """Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = 7506394
-        e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+        e.set_footer(text=self.config.footer_text, icon_url='https://i.imgur.com/gFHBoZA.png')
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
 
@@ -1313,6 +1343,8 @@ class MusicBot(discord.Client):
         if self.config._spotify:
             if 'open.spotify.com' in song_url:
                 song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':')
+                # remove session id (and other query stuff)
+                song_url = re.sub('\?.*', '', song_url)
             if song_url.startswith('spotify:'):
                 parts = song_url.split(":")
                 try:
@@ -1371,8 +1403,15 @@ class MusicBot(discord.Client):
             while True:
                 try:
                     info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                    info_process = await self.downloader.extract_info(player.playlist.loop, song_url, download=False)
+                    # If there is an exception arise when processing we go on and let extract_info down the line report it
+                    # because info might be a playlist and thing that's broke it might be individual entry
+                    try:
+                        info_process = await self.downloader.extract_info(player.playlist.loop, song_url, download=False)
+                    except:
+                        info_process = None
+
                     log.debug(info)
+
                     if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
                         use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
                         if use_url == song_url:
@@ -2046,16 +2085,17 @@ class MusicBot(discord.Client):
                       "You might want to restart the bot if it doesn't start working.")
         
         current_entry = player.current_entry
-
-        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
-            if permissions.instaskip \
-                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
-
-                player.skip()  # TODO: check autopause stuff here
-                await self._manual_delete_check(message)
-                return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
-            else:
-                raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
+        
+        permission_force_skip = permissions.instaskip or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None))
+        force_skip = param.lower() in ['force', 'f']
+        
+        if permission_force_skip and (force_skip or self.config.legacy_skip):
+            player.skip()  # TODO: check autopause stuff here
+            await self._manual_delete_check(message)
+            return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
+            
+        if not permission_force_skip and force_skip:
+            raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote
@@ -2379,24 +2419,37 @@ class MusicBot(discord.Client):
         return Response("Sent a message with a list of IDs.", delete_after=20)
 
 
-    async def cmd_perms(self, author, user_mentions, channel, guild, permissions):
+    async def cmd_perms(self, author, user_mentions, channel, guild, message, permissions, target=None):
         """
         Usage:
             {command_prefix}perms [@user]
-
         Sends the user a list of their permissions, or the permissions of the user specified.
         """
 
-        lines = ['Command permissions in %s\n' % guild.name, '```', '```']
-
         if user_mentions:
             user = user_mentions[0]
-            permissions = self.permissions.for_user(user)
+            
+        if not user_mentions and not target:
+            user = author
+            
+        if not user_mentions and target:
+            user = guild.get_member_named(target)
+            if user == None:
+                try:
+                    user = await self.fetch_user(target)
+                except discord.NotFound:
+                    return Response("Invalid user ID or server nickname, please double check all typing and try again.", reply=False, delete_after=30)
+
+        permissions = self.permissions.for_user(user)    
+                    
+        if user == author:
+            lines = ['Command permissions in %s\n' % guild.name, '```', '```']
+        else:
+            lines = ['Command permissions for {} in {}\n'.format(user.name, guild.name), '```', '```']
 
         for perm in permissions.__dict__:
             if perm in ['user_list'] or permissions.__dict__[perm] == set():
                 continue
-
             lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
 
         await self.safe_send_message(author, '\n'.join(lines))
@@ -2707,11 +2760,14 @@ class MusicBot(discord.Client):
 
         code = data.strip('` \n')
 
+        scope = globals().copy()
+        scope.update({'self': self})
+
         try:
-            result = eval(code)
+            result = eval(code, scope)
         except:
             try:
-                exec(code)
+                exec(code, scope)
             except Exception as e:
                 traceback.print_exc(chain=False)
                 return Response("{}: {}".format(type(e).__name__, e))
@@ -2732,13 +2788,9 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
-            if self.config.unbound_servers:
-                for channel in message.guild.channels:
-                    if channel.id in self.config.bound_channels:
-                        return
-            else:
-                return  # if I want to log this I just move it under the prefix check
+        if message.author.bot and message.author.id not in self.config.bot_exception_ids:
+            log.warning("Ignoring command from other bot ({})".format(message.content))
+            return
 
         if (not isinstance(message.channel, discord.abc.GuildChannel)) and (not isinstance(message.channel, discord.abc.PrivateChannel)):
             return
@@ -2767,6 +2819,14 @@ class MusicBot(discord.Client):
             if not (message.author.id == self.config.owner_id and command == 'joinserver'):
                 await self.safe_send_message(message.channel, 'You cannot use this bot in private messages.')
                 return
+
+        if self.config.bound_channels and message.channel.id not in self.config.bound_channels:
+            if self.config.unbound_servers:
+                for channel in message.guild.channels:
+                    if channel.id in self.config.bound_channels:
+                        return
+            else:
+                return  # if I want to log this I just move it under the prefix check
 
         if message.author.id in self.blacklist and message.author.id != self.config.owner_id:
             log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(message.author, command))
@@ -2971,12 +3031,22 @@ class MusicBot(discord.Client):
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
 
         auto_paused = self.server_specific_data[channel.guild]['auto_paused']
-        player = await self.get_player(channel)
 
-        if not player:
+        try:
+            player = await self.get_player(channel)
+        except exceptions.CommandError:
             return
 
-        if not member == self.user:  # if the user is not the bot
+        def is_active(member):
+            if not member.voice:
+                return False
+                
+            if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
+                return False
+
+            return True
+
+        if not member == self.user and is_active(member):  # if the user is not inactive
             if player.voice_client.channel != before.channel and player.voice_client.channel == after.channel:  # if the person joined
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
@@ -2988,7 +3058,7 @@ class MusicBot(discord.Client):
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
             elif player.voice_client.channel == before.channel and player.voice_client.channel != after.channel:
-                if len(player.voice_client.channel.members) == 1:
+                if not any(is_active(m) for m in player.voice_client.channel.members):  # channel is empty
                     if not auto_paused and player.is_playing:
                         log.info(autopause_msg.format(
                             state = "Pausing",
@@ -2998,8 +3068,18 @@ class MusicBot(discord.Client):
 
                         self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
                         player.pause()
+            elif player.voice_client.channel == before.channel and player.voice_client.channel == after.channel:  # if the person undeafen
+                if auto_paused and player.is_paused:
+                    log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = player.voice_client.channel,
+                        reason = "(member undeafen)"
+                    ).strip())
+
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
+                    player.resume()
         else:
-            if len(player.voice_client.channel.members) > 0:  # channel is not empty
+            if any(is_active(m) for m in player.voice_client.channel.members):  # channel is not empty
                 if auto_paused and player.is_paused:
                     log.info(autopause_msg.format(
                         state = "Unpausing",
@@ -3009,6 +3089,17 @@ class MusicBot(discord.Client):
  
                     self.server_specific_data[player.voice_client.guild]['auto_paused'] = False
                     player.resume()
+
+            else:
+                if not auto_paused and player.is_playing:
+                    log.info(autopause_msg.format(
+                        state = "Pausing",
+                        channel = player.voice_client.channel,
+                        reason = "(empty channel or member deafened)"
+                    ).strip())
+
+                    self.server_specific_data[player.voice_client.guild]['auto_paused'] = True
+                    player.pause()
 
     async def on_guild_update(self, before:discord.Guild, after:discord.Guild):
         if before.region != after.region:
