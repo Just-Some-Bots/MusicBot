@@ -215,10 +215,6 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        ap_path, ap_name = os.path.split(self.auto_playlist_file)
-        apn_name, apn_ext = os.path.splitext(ap_name)
-        self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
-
         if hasattr(logging, self.debug_level.upper()):
             self.debug_level = getattr(logging, self.debug_level.upper())
         else:
