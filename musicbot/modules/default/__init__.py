@@ -1,23 +1,13 @@
+import os
+from importlib import import_module
+
 cogs = list()
-from . import autoplaylist
-cogs.extend(autoplaylist.cogs)
-from . import botmanipulate
-cogs.extend(botmanipulate.cogs)
-from . import cogsmanipulate
-cogs.extend(cogsmanipulate.cogs)
-from . import dev
-cogs.extend(dev.cogs)
-from . import helpmsg
-cogs.extend(helpmsg.cogs)
-from . import info
-cogs.extend(info.cogs)
-from . import moderate
-cogs.extend(moderate.cogs)
-from . import playback
-cogs.extend(playback.cogs)
-from . import playlist
-cogs.extend(playlist.cogs)
-from . import queuemanipulate
-cogs.extend(queuemanipulate.cogs)
-from . import utility
-cogs.extend(utility.cogs)
+
+for module in os.listdir(os.path.dirname(__file__)):
+    if module == '__init__.py' or module[-3:] != '.py':
+        continue
+    _module = import_module('.{}'.format(module[:-3]), __name__)
+    cogs.extend(_module.cogs)
+
+del module
+del _module
