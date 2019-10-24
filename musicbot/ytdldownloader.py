@@ -470,6 +470,8 @@ class YtdlUrlUnprocessedEntry(YtdlUrlEntry):
                     elif not content_type.startswith(('audio/', 'video/')):
                         self._extractor._bot.log.warning("Questionable content-type \"{}\" for url {}".format(content_type, self.source_url))
             
+            self.title = info.get('title', 'Untitled')
+            self.duration = info.get('duration', 0) or 0
             self._expected_filename = self._extractor.ytdl.prepare_filename(info)
             
             await self._prepare()

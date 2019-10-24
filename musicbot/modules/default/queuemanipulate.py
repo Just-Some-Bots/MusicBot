@@ -23,7 +23,7 @@ from ... import exceptions
 from ... import messagemanager
 from ...rich_guild import get_guild
 from ...playback import PlayerState
-from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry
+from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
 
 log = logging.getLogger(__name__)
 
@@ -326,6 +326,11 @@ class QueueManagement(Cog):
                                     ) if num_songs >= 10 else '.'
                                 )
                             )
+                            
+                            if ctx.bot.config.lazy_playlist:
+                                entry_initializer = get_unprocessed_entry
+                            else:
+                                entry_initializer = get_entry
 
                             # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
                             #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
@@ -338,7 +343,7 @@ class QueueManagement(Cog):
                                     continue
                                 url = entry_proc.get('webpage_url', None) or entry_proc.get('url', None)
                                 try:
-                                    entry_proc_o = await get_entry(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
+                                    entry_proc_o = await entry_initializer(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
                                 except Exception as e:
                                     ctx.bot.log.info(e)
                                     drop_count += 1
