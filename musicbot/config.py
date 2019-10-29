@@ -20,6 +20,10 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
+        token_env = os.environ.get('TOKEN')
+        if token_env != None:
+          config.set('Credentials', 'Token', token_env)
+
         confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
