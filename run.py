@@ -392,8 +392,11 @@ def pyexec(pycom, *args, pycom2=None):
     os.execlp(pycom, pycom2, *args)
 
 def streamhandler():
+    global sh
+    log.removeHandler(sh)
+    del sh
     import colorlog
-    sh = logging.StreamHandler(stream=sys.stdout)
+    nsh = logging.StreamHandler(stream=sys.stdout)
     sformatter = colorlog.LevelFormatter(
         log_colors = {
             'DEBUG':    'cyan',
@@ -417,9 +420,9 @@ def streamhandler():
         'EVERYTHING': '{log_color}[{levelname}:{module}:{name}] {message}',
         'NOISY': '{log_color}[{levelname}:{module}:{name}] {message}'
     }
-    sh.setFormatter(sformatter)
-    log.addHandler(sh)
-    return sh
+    nsh.setFormatter(sformatter)
+    log.addHandler(nsh)
+    return nsh
 
 def main():
     # TODO: *actual* argparsing
@@ -455,7 +458,26 @@ def main():
 
             shutdown = False
             safe_shutdown = threading.Lock()
-            spawned_thread_safe_exit = threading.Lock()
+
+            def cleanup(phase_name):
+                nonlocal shutdown
+                cleaned = False
+                def _cleanup():
+                    log.debug('Acquiring ... ({})'.format(phase_name))
+                    safe_shutdown.acquire()
+                    nonlocal shutdown
+                    if not shutdown:            
+                        shutdown = True
+                        log.info('Shutting down ... ({})'.format(phase_name))
+                        m.logout()
+                    log.debug('Releasing ... ({})'.format(phase_name))
+                    nonlocal cleaned
+                    cleaned = True
+                    safe_shutdown.release()
+
+                t = threading.Thread(target=_cleanup) # prevent KeyboardInterrupt in there
+                t.start()
+                t.join()
 
             thread = False
 
@@ -463,28 +485,12 @@ def main():
                 if system() == 'Windows':
                     nonlocal thread
                     thread = True
-                log.debug('\nAcquiring ... (logouthandler/{})'.format(system()))
-                safe_shutdown.acquire()
-                nonlocal shutdown
-                if not shutdown:            
-                    shutdown = True
-                    log.info('\nShutting down ... (logouthandler/{})'.format(system()))
-                    log.info(sig)
-                    m.logout()
-                log.debug('\nReleasing ... (logouthandler/{})'.format(system()))
-                safe_shutdown.release()
-                log.debug('\nAcquiring safe ... (logouthandler/{})'.format(system()))
-                spawned_thread_safe_exit.acquire() # This help main thread to not get KeyboardInterrupt while doing work
-                log.debug('\nReleasing safe ... (logouthandler/{})'.format(system()))
-                spawned_thread_safe_exit.release() # At least for pywin32
-
-            abortKeyboardInterrupt = False
+                cleanup('logouthandler/{}'.format(system()))
             
             if system() == 'Windows':
                 try:
                     from win32.win32api import SetConsoleCtrlHandler
                     SetConsoleCtrlHandler(logouthandler, True)
-                    abortKeyboardInterrupt = True
                 except ImportError:
                     version = '.'.join(map(str, sys.version_info))
                     log.warning('pywin32 not installed for Python {}. Please stop the bot using KeyboardInterrupt instead of the close button.'.format(version))
@@ -495,53 +501,18 @@ def main():
             
             try:
                 m.run()
-                log.debug('\nAcquiring safe ...')
-                spawned_thread_safe_exit.acquire()
-                log.debug('\nAcquiring ... (RunExit)')
-                safe_shutdown.acquire()
-                if not shutdown:            
-                    shutdown = True
-                    log.info('\nShutting down ... (RunExit)')
-                    m.logout()
-                log.debug('\nReleasing ... (RunExit)')
-                safe_shutdown.release()
+                if thread: # pywin32 thread that is cleaning up and will raise KeyboardInterrupt
+                    log.debug('\nWaiting ...')
+                    while True:
+                        pass
+                cleanup('RunExit')
             except KeyboardInterrupt:
-                if not abortKeyboardInterrupt:
-                    log.debug('\nAcquiring ... (KeyboardInterrupt)')
-                    safe_shutdown.acquire()
-                    if not shutdown:
-                        shutdown = True
-                        log.info('\nShutting down ... (KeyboardInterrupt)')
-                        m.logout()
-                    log.debug('\nReleasing ... (KeyboardInterrupt)')
-                    safe_shutdown.release()
+                cleanup('KeyboardInterrupt')
             except RuntimeError:
-                log.debug('\nAcquiring ... (RuntimeError)')
-                safe_shutdown.acquire()
-                if not shutdown:
-                    shutdown = True
-                    log.info('\nShutting down ... (RuntimeError)')
-                    m.logout()
-                log.debug('\nReleasing ... (RuntimeError)')
-                safe_shutdown.release()
+                cleanup('RuntimeError')
 
-            log.debug('\nAcquiring ... (Final)')
-            safe_shutdown.acquire()
-            log.debug('\nReleasing ... (Final)')
-            safe_shutdown.release()
-
-            interrupt = False
-
-            try:
-                spawned_thread_safe_exit.release()
-                log.debug('\nWaiting ...')
-                while thread and not interrupt:
-                    pass
-            except KeyboardInterrupt:
-                interrupt = True
-            finally:
-                log.info('\nThis console can now be closed')
-                return
+            log.info('\nThis console can now be closed')
+            tryagain = False
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -600,13 +571,16 @@ def main():
                 asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
-        sleeptime = min(loops * 2, max_wait_time)
-        if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops*2))
-            time.sleep(sleeptime)
+            if tryagain:
+                sleeptime = min(loops * 2, max_wait_time)
+                if sleeptime:
+                    log.info("Restarting in {} seconds...".format(loops*2))
+                    time.sleep(sleeptime)
 
     print()
     log.info("All done.")
+
+    # @TheerapakG: idk why ProactorEventloop del method is acting weird here saying that it is closed
 
 
 if __name__ == '__main__':
