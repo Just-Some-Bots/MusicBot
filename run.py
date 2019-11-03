@@ -593,7 +593,11 @@ def main():
                     traceback.print_exc()
                 break
 
-            asyncio.set_event_loop(asyncio.new_event_loop())
+            if sys.platform == 'win32':
+                loop = asyncio.ProactorEventLoop()  # needed for subprocesses
+                asyncio.set_event_loop(loop)
+            else:
+                asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
         sleeptime = min(loops * 2, max_wait_time)

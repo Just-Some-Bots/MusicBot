@@ -97,6 +97,7 @@ class ModuBot(Bot):
         self.thread = None
         self.crossmodule = CrossModule()
         self.log = logging.getLogger(logname)
+        self.log.propagate = False
         for handler in loghandlerlist:
             self.log.addHandler(handler)
 
@@ -787,8 +788,6 @@ class ModuBot(Bot):
                 await gathered
         self.loop.run_until_complete(await_gathered())
         self.downloader.shutdown()
-        self.log.info('closing loop...')
-        self.loop.close()
         self.log.info('finished!')
 
     def logout_looprunning(self):
@@ -812,8 +811,6 @@ class ModuBot(Bot):
                 await gathered
         self.loop.run_until_complete(await_gathered())
         self.downloader.shutdown()
-        self.log.info('closing loop...')
-        self.loop.close()
         self.log.info('finished!')
 
     def logout(self):
