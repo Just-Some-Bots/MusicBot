@@ -205,7 +205,7 @@ class QueueManagement(Cog):
                 else:
                     _path = [urljoin(d, song_url) for d in ctx.bot.config.local_dir]
 
-                _good_path = [path for path in _path if path]
+                _good_path = [path for path in _path if os.path.exists(path)]
 
                 if _good_path:
                     if not permissions.allow_locals:
@@ -215,78 +215,78 @@ class QueueManagement(Cog):
                         )
                     # @TheerapakG: show ambiguity
                     entry = await get_local_entry(_good_path[0], ctx.author.id, {'channel_id':ctx.channel.id})
-            else:
-                entry = None
-                # Try to determine entry type, if _type is playlist then there should be entries
-                while True:
+
+            entry = None
+            # Try to determine entry type, if _type is playlist then there should be entries
+            while True:
+                try:
+                    info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
                     try:
+                        info_process = await ctx.bot.downloader.safe_extract_info(song_url, download=False)
+                    except:
+                        info_process = None
+                    if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
+                        use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
+                        if use_url == song_url:
+                            ctx.bot.log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
+                            break # If we break here it will break things down the line and give "This is a playlist" exception as a result
+
+                        ctx.bot.log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
+                        ctx.bot.log.debug("Using \"%s\" instead" % use_url)
+                        song_url = use_url
+                    else:
+                        break
+
+                except Exception as e:
+                    if 'unknown url type' in str(e):
+                        song_url = song_url.replace(':', '')  # it's probably not actually an extractor
                         info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
-                        try:
-                            info_process = await ctx.bot.downloader.safe_extract_info(song_url, download=False)
-                        except:
-                            info_process = None
-                        if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
-                            use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
-                            if use_url == song_url:
-                                ctx.bot.log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
-                                break # If we break here it will break things down the line and give "This is a playlist" exception as a result
+                    else:
+                        raise exceptions.ExtractionError(str(e), expire_in=30)
 
-                            ctx.bot.log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
-                            ctx.bot.log.debug("Using \"%s\" instead" % use_url)
-                            song_url = use_url
-                        else:
-                            break
+            if not info:
+                raise exceptions.ExtractionError(
+                    ctx.bot.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(ctx.bot.config.command_prefix),
+                    expire_in=30
+                )
 
-                    except Exception as e:
-                        if 'unknown url type' in str(e):
-                            song_url = song_url.replace(':', '')  # it's probably not actually an extractor
-                            info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
-                        else:
-                            raise exceptions.ExtractionError(str(e), expire_in=30)
+            if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
+                raise exceptions.PermissionsError(
+                    ctx.bot.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
+                )
+
+            # abstract the search handling away from the user
+            # our ytdl options allow us to use search strings as input urls
+            if info.get('url', '').startswith('ytsearch'):
+                # print("[Command:play] Searching for \"%s\"" % song_url)
+                info = await ctx.bot.downloader.extract_info(
+                    song_url,
+                    download=False,
+                    process=True,    # ASYNC LAMBDAS WHEN
+                    on_error=lambda e: asyncio.ensure_future(
+                        messagemanager.safe_send_normal(ctx, ctx, "```\n%s\n```" % e, expire_in=120),
+                        loop=ctx.bot.loop
+                    ),
+                    retry_on_error=True
+                )
 
                 if not info:
-                    raise exceptions.ExtractionError(
-                        ctx.bot.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(ctx.bot.config.command_prefix),
-                        expire_in=30
+                    raise exceptions.CommandError(
+                        ctx.bot.str.get('cmd-play-nodata', "Error extracting info from search string, youtubedl returned no data. "
+                                                        "You may need to restart the bot if this continues to happen."), expire_in=30
                     )
 
-                if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
-                    raise exceptions.PermissionsError(
-                        ctx.bot.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
-                    )
+                if not all(info.get('entries', [])):
+                    # empty list, no data
+                    ctx.bot.log.debug("Got empty list, no data")
+                    return
 
-                # abstract the search handling away from the user
-                # our ytdl options allow us to use search strings as input urls
-                if info.get('url', '').startswith('ytsearch'):
-                    # print("[Command:play] Searching for \"%s\"" % song_url)
-                    info = await ctx.bot.downloader.extract_info(
-                        song_url,
-                        download=False,
-                        process=True,    # ASYNC LAMBDAS WHEN
-                        on_error=lambda e: asyncio.ensure_future(
-                            messagemanager.safe_send_normal(ctx, ctx, "```\n%s\n```" % e, expire_in=120),
-                            loop=ctx.bot.loop
-                        ),
-                        retry_on_error=True
-                    )
-
-                    if not info:
-                        raise exceptions.CommandError(
-                            ctx.bot.str.get('cmd-play-nodata', "Error extracting info from search string, youtubedl returned no data. "
-                                                            "You may need to restart the bot if this continues to happen."), expire_in=30
-                        )
-
-                    if not all(info.get('entries', [])):
-                        # empty list, no data
-                        ctx.bot.log.debug("Got empty list, no data")
-                        return
-
-                    # TODO: handle 'webpage_url' being 'ytsearch:...' or extractor type
-                    song_url = info['entries'][0]['webpage_url']
-                    info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
-                    info_process = await ctx.bot.downloader.extract_info(song_url, download=False)
-                    # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
-                    # But this is probably fine
+                # TODO: handle 'webpage_url' being 'ytsearch:...' or extractor type
+                song_url = info['entries'][0]['webpage_url']
+                info = await ctx.bot.downloader.extract_info(song_url, download=False, process=False)
+                info_process = await ctx.bot.downloader.extract_info(song_url, download=False)
+                # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
+                # But this is probably fine
 
             async with self._aiolocks['play_{}'.format(ctx.author.id)]:
                 async with ctx.typing():
