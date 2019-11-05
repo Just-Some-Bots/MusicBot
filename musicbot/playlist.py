@@ -140,7 +140,7 @@ class Playlist(EventEmitter, Serializable):
             except Exception as e:
                 log.error('Could not extract information from {} ({}), falling back to direct'.format(song_url, e), exc_info=True)
 
-        if info.get('is_live') is None and info.get('extractor', None) is not 'generic':  # wew hacky
+        if info.get('is_live') is None and info.get('extractor', None) != 'generic':  # wew hacky
             raise ExtractionError("This is not a stream.")
 
         dest_url = song_url
