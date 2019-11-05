@@ -784,7 +784,7 @@ class ModuBot(Bot):
         gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
         gathered.cancel()
         async def await_gathered():
-            with suppress(Exception):
+            with suppress(Exception, asyncio.CancelledError):
                 await gathered
         self.loop.run_until_complete(await_gathered())
         self.downloader.shutdown()
@@ -807,7 +807,7 @@ class ModuBot(Bot):
         gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
         gathered.cancel()
         async def await_gathered():
-            with suppress(Exception):
+            with suppress(Exception, asyncio.CancelledError):
                 await gathered
         self.loop.run_until_complete(await_gathered())
         self.downloader.shutdown()

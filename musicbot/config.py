@@ -81,6 +81,7 @@ class Config:
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
+        self.help_display_sig = config.getboolean('MusicBot', 'HelpDisplaySig', fallback=ConfigDefaults.help_display_sig)
         self.footer_text = config.get('MusicBot', 'CustomEmbedFooter', fallback=ConfigDefaults.footer_text)
         self.lazy_playlist = config.getboolean('MusicBot', 'LazyPlaylist', fallback = ConfigDefaults.lazy_playlist)
 
@@ -375,6 +376,7 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    help_display_sig = False
     footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
     lazy_playlist = True
 

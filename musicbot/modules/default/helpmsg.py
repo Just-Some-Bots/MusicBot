@@ -113,11 +113,14 @@ class Help(Cog):
                 except:
                     raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
                 if not hasattr(cmd.callback, 'dev_cmd'):
+                    usage = dedent(cmd.help)
+                    if ctx.bot.config.help_display_sig and hasattr(cmd, 'commands'):
+                        usage = '{}\n\nSignature: {} {}'.format(usage, cmd.qualified_name, cmd.signature)
                     await messagemanager.safe_send_normal(
                         ctx,
                         ctx,
                         "```\n{}\n\n{}Aliases: {}```".format(
-                            dedent(cmd.help),
+                            usage,
                             '' if not hasattr(cmd, 'commands') else 'This is a command group with following subcommands:\n{}\n\n'.format(', '.join(c.name for c in cmd.commands) if cmd.commands else None),
                             ' '.join(cmd.aliases)
                         ).format(command_prefix=ctx.bot.config.command_prefix),
