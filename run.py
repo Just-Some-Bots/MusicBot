@@ -61,6 +61,7 @@ import threading
 from platform import system
 from shutil import disk_usage, rmtree
 from base64 import b64decode
+from importlib import import_module, reload
 
 try:
     import pathlib
@@ -452,7 +453,10 @@ def main():
 
         m = None
         try:
-            from musicbot import ModuBot
+            try:
+                ModuBot = reload(sys.modules['musicbot']).ModuBot
+            except KeyError:
+                from musicbot import ModuBot
             m = ModuBot(loghandlerlist = [sh, fh])
             m.loop.run_until_complete(m.load_modules(m.config.cogs))
 
@@ -546,9 +550,11 @@ def main():
             if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
                 if e.__class__.__name__ == 'HelpfulError':
                     log.info(e.message)
+                    tryagain = False
                     break
 
                 elif e.__class__.__name__ == "TerminateSignal":
+                    tryagain = False
                     break
 
                 elif e.__class__.__name__ == "RestartSignal":

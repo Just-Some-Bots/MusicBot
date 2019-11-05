@@ -325,9 +325,10 @@ class ModuBot(Bot):
 
     async def _prepare_load_module(self, modulename):
         if modulename in self.crossmodule.modules_loaded():
+            _tmp_module = self.crossmodule.imported[modulename]
             await self.unload_modules([modulename])
             try:
-                reload(self.crossmodule.imported[modulename])
+                self.crossmodule.imported[modulename] = reload(_tmp_module)
             except:
                 pass
             module = self.crossmodule.imported[modulename]
