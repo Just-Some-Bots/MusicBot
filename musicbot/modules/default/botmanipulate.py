@@ -1,7 +1,9 @@
 import logging
 import discord
 import aiohttp
+from asyncio import ensure_future, TimeoutError
 from threading import Thread
+from functools import partial
 from discord.ext.commands import Cog, command
 from typing import Optional
 
@@ -25,6 +27,12 @@ class BotManagement(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "Disconnected from `{0.name}`".format(ctx.guild), expire_in=20)
         return
 
+    async def _restart(self, ctx):
+        await messagemanager.safe_send_normal(ctx, ctx, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
+            "or its dependencies, you need to restart the bot properly, rather than using this command.")
+        ctx.bot._restart = True
+        ctx.bot.loop.stop()
+
     @command()
     async def restart(self, ctx):
         """
@@ -32,13 +40,8 @@ class BotManagement(Cog):
             {command_prefix}restart
         
         Restarts the bot.
-        Will not properly load new dependencies or file updates unless fully shutdown
-        and restarted.
         """
-        await messagemanager.safe_send_normal(ctx, ctx, "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
-            "or its dependencies, you need to restart the bot properly, rather than using this command.")
-        ctx.bot._restart = True
-        ctx.bot.loop.stop()
+        await self._restart(ctx)
 
     @command()
     async def shutdown(self, ctx):
@@ -51,6 +54,42 @@ class BotManagement(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "\N{WAVING HAND SIGN}")
         
         ctx.bot.loop.stop()
+
+    @command()
+    async def update(self, ctx):
+        """
+        Usage:
+            {command_prefix}update
+        
+        Update the bot.
+        """
+        from ....update import main # pylint: disable=relative-beyond-top-level
+
+        def discordinput(prompt = None):
+            def run_coro(coro):
+                ensure = ensure_future(coro, loop = ctx.bot.loop)
+                return ctx.bot.loop.run_until_complete(ensure)
+
+            def check(msg):
+                return msg.author == ctx.message.author
+
+            if prompt is not None:
+                pmsg = run_coro(messagemanager.safe_send_normal(ctx, ctx, str(prompt).rstrip()))
+
+            try:
+                msg = run_coro(ctx.bot.wait_for('message', timeout=10.0, check=check))
+            except TimeoutError:
+                run_coro(messagemanager.safe_delete_message(pmsg))
+
+            return msg.content
+
+        def discordoutput(*values, sep = ' ', end = '\n'):
+            ctx.bot.loop.run_until_complete(
+                ensure_future(messagemanager.safe_send_normal(ctx, ctx, sep.join([str(v) for v in values]) + end), loop = ctx.bot.loop)
+            )
+            
+        main(read = discordinput, write = discordoutput)
+        await self._restart(ctx)
 
     @command()
     async def leaveserver(self, ctx, guild: discord.Guild):
