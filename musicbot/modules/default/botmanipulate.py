@@ -1,8 +1,9 @@
 import logging
 import discord
 import aiohttp
-from asyncio import ensure_future, TimeoutError
-from threading import Thread
+import queue
+import asyncio
+from threading import Thread, Lock
 from functools import partial
 from discord.ext.commands import Cog, command
 from typing import Optional
@@ -63,32 +64,26 @@ class BotManagement(Cog):
         
         Update the bot.
         """
-        from ....update import main # pylint: disable=relative-beyond-top-level
+        from update import _main
 
-        def discordinput(prompt = None):
-            def run_coro(coro):
-                ensure = ensure_future(coro, loop = ctx.bot.loop)
-                return ctx.bot.loop.run_until_complete(ensure)
-
+        async def discordinput(prompt = None):
             def check(msg):
                 return msg.author == ctx.message.author
 
             if prompt is not None:
-                pmsg = run_coro(messagemanager.safe_send_normal(ctx, ctx, str(prompt).rstrip()))
+                pmsg = await messagemanager.safe_send_normal(ctx, ctx, str(prompt).rstrip())
 
             try:
-                msg = run_coro(ctx.bot.wait_for('message', timeout=10.0, check=check))
-            except TimeoutError:
-                run_coro(messagemanager.safe_delete_message(pmsg))
+                msg = await ctx.bot.wait_for('message', timeout=10.0, check=check)
+            except asyncio.TimeoutError:
+                await messagemanager.safe_delete_message(pmsg)
 
             return msg.content
 
-        def discordoutput(*values, sep = ' ', end = '\n'):
-            ctx.bot.loop.run_until_complete(
-                ensure_future(messagemanager.safe_send_normal(ctx, ctx, sep.join([str(v) for v in values]) + end), loop = ctx.bot.loop)
-            )
-            
-        main(read = discordinput, write = discordoutput)
+        async def discordoutput(*values, sep = ' ', end = '\n'):
+            await messagemanager.safe_send_normal(ctx, ctx, sep.join([str(v) for v in values]) + end)
+
+        await _main(read = discordinput, write = discordoutput)
         await self._restart(ctx)
 
     @command()

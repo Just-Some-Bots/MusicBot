@@ -72,12 +72,13 @@ class Yikes:
 sys.meta_path.insert(0, Yikes())
 
 from . import bot
+from . import exceptions
 from .constructs import BetterLogRecord
 
 from importlib import reload
 bot = reload(bot)
 ModuBot = bot.ModuBot
-__all__ = ['ModuBot']
+__all__ = ['ModuBot', 'exceptions']
 
 logging.setLogRecordFactory(BetterLogRecord)
 

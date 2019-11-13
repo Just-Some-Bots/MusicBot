@@ -88,6 +88,20 @@ class QueueManagement(Cog):
         await self._play(ctx, playlist, song_url = ' '.join(song_url))
 
     @command()
+    async def play(self, ctx, *song_url):
+        """
+        Usage:
+            {command_prefix}playnext song_link
+            {command_prefix}playnext text to search for
+            {command_prefix}playnext spotify_uri
+
+        Like {command_prefix}play, but prepend the entry instead.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        playlist = await guild.get_playlist()
+        await self._play(ctx, playlist, song_url = ' '.join(song_url), head = True)
+
+    @command()
     async def replay(self, ctx, option= None):
         """
         Usage:
