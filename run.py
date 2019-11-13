@@ -69,7 +69,6 @@ try:
 except ImportError:
     pass
 
-
 class GIT(object):
     @classmethod
     def works(cls):
@@ -455,8 +454,9 @@ def main():
         try:
             try:
                 ModuBot = reload(sys.modules['musicbot']).ModuBot
+                exceptions = reload(sys.modules['musicbot.exceptions'])
             except KeyError:
-                from musicbot import ModuBot
+                from musicbot import ModuBot, exceptions
             m = ModuBot(loghandlerlist = [sh, fh])
             m.loop.run_until_complete(m.load_modules(m.config.cogs))
 
@@ -473,7 +473,12 @@ def main():
                     if not shutdown:            
                         shutdown = True
                         log.info('Shutting down ... ({})'.format(phase_name))
-                        m.logout()
+                        try:
+                            m.logout()
+                        except exceptions.RestartSignal:
+                            loops = 0
+                        else:
+                            tryagain = False
                     log.debug('Releasing ... ({})'.format(phase_name))
                     nonlocal cleaned
                     cleaned = True
@@ -515,8 +520,9 @@ def main():
             except RuntimeError:
                 cleanup('RuntimeError')
 
-            log.info('\nThis console can now be closed')
-            tryagain = False
+            if not tryagain:
+                log.info('\nThis console can now be closed')
+
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -557,9 +563,6 @@ def main():
                     tryagain = False
                     break
 
-                elif e.__class__.__name__ == "RestartSignal":
-                    loops = 0
-                    pass
             else:
                 log.exception("Error starting bot")
 
