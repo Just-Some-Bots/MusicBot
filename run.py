@@ -57,6 +57,7 @@ import tempfile
 import traceback
 import subprocess
 import threading
+import asyncio
 
 from platform import system
 from shutil import disk_usage, rmtree
@@ -180,14 +181,12 @@ sh.setFormatter(logging.Formatter(
 ))
 
 sh.setLevel(logging.INFO)
-log.addHandler(sh)
 
 tfh = logging.StreamHandler(stream=tmpfile)
 tfh.setFormatter(logging.Formatter(
     fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"
 ))
 tfh.setLevel(logging.DEBUG)
-log.addHandler(tfh)
 
 
 def finalize_logging():
@@ -219,8 +218,6 @@ def finalize_logging():
     ))
     fh.setLevel(logging.DEBUG)
     log.addHandler(fh)
-
-    sh.setLevel(logging.INFO)
 
     dlog = logging.getLogger('discord')
     dlh = logging.StreamHandler(stream=sys.stdout)
@@ -424,7 +421,157 @@ def streamhandler():
     log.addHandler(nsh)
     return nsh
 
+def runbot(*botloghdlr, tried_updated = False):
+    """
+    This porion of the code will get reloaded each time the bot run
+    
+    Return value:
+    1st value signify whether to run again
+    2nd value signify whether to reset loop duration
+    3rd value signify whether tried updated requirements
+    """
+    tryagain = True
+    resetloop = False
+    # Maybe I need to try to import stuff first, then actually import stuff
+    # It'd save me a lot of pain with all that awful exception type checking
+    m = None
+    try:
+        try:
+            ModuBot = reload(sys.modules['musicbot']).ModuBot
+            exceptions = reload(sys.modules['musicbot.exceptions'])
+        except KeyError:
+            from musicbot import ModuBot, exceptions
+        m = ModuBot(loghandlerlist = list(botloghdlr))
+        m.loop.run_until_complete(m.load_modules(m.config.cogs))
+
+        shutdown = False
+        safe_shutdown = threading.Lock()
+
+        def cleanup(phase_name):
+            nonlocal shutdown
+            cleaned = False
+            def _cleanup():
+                log.debug('Acquiring ... ({})'.format(phase_name))
+                safe_shutdown.acquire()
+                nonlocal shutdown
+                if not shutdown:            
+                    shutdown = True
+                    log.info('Shutting down ... ({})'.format(phase_name))
+                    try:
+                        m.logout()
+                    except exceptions.RestartSignal:
+                        nonlocal resetloop
+                        resetloop = True
+                    else:
+                        nonlocal tryagain
+                        tryagain = False
+                log.debug('Releasing ... ({})'.format(phase_name))
+                nonlocal cleaned
+                cleaned = True
+                safe_shutdown.release()
+
+            t = threading.Thread(target=_cleanup) # prevent KeyboardInterrupt in there
+            t.start()
+            t.join()
+
+        thread = False
+
+        def logouthandler(sig, stackframe=None):
+            if system() == 'Windows':
+                nonlocal thread
+                thread = True
+            cleanup('logouthandler/{}'.format(system()))
+        
+        if system() == 'Windows':
+            try:
+                from win32.win32api import SetConsoleCtrlHandler
+                SetConsoleCtrlHandler(logouthandler, True)
+            except ImportError:
+                version = '.'.join(map(str, sys.version_info))
+                log.warning('pywin32 not installed for Python {}. Please stop the bot using KeyboardInterrupt instead of the close button.'.format(version))
+        
+        else:
+            import atexit
+            atexit.register(logouthandler, 0)
+        
+        try:
+            m.run()
+            if thread: # pywin32 thread that is cleaning up and will raise KeyboardInterrupt
+                log.debug('\nWaiting ...')
+                while True:
+                    pass
+            cleanup('RunExit')
+        except KeyboardInterrupt:
+            cleanup('KeyboardInterrupt')
+        except RuntimeError:
+            cleanup('RuntimeError')
+
+        if not tryagain:
+            log.info('\nThis console can now be closed')
+            return (False, False, tried_updated)
+
+
+    except SyntaxError:
+        log.exception("Syntax error (this is a bug, not your fault)")
+        return (False, False, tried_updated)
+
+    except ImportError:
+        # TODO: if error module is in pip or dpy requirements...
+
+        if not tried_updated:
+            tried_updated = True
+
+            log.exception("Error starting bot")
+            log.info("Attempting to install dependencies...")
+
+            err = PIP.run_install('--upgrade -r requirements.txt')
+
+            if err: # TODO: add the specific error check back as not to always tell users to sudo it
+                print()
+                log.critical("You may need to %s to install dependencies." %
+                                ['use sudo', 'run as admin'][sys.platform.startswith('win')])
+                return (False, False, tried_updated)
+            else:
+                print()
+                log.info("Ok lets hope it worked")
+                print()
+        else:
+            log.exception("Unknown ImportError, exiting.")
+            return (False, False, tried_updated)
+
+    except Exception as e:
+        if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
+            if e.__class__.__name__ == 'HelpfulError':
+                log.info(e.message)
+                return (False, False, tried_updated)
+
+            elif e.__class__.__name__ == "TerminateSignal":
+                tryagain = False
+                return (False, False, tried_updated)
+
+        else:
+            log.exception("Error starting bot")
+
+    finally:
+        if not m:
+            if any(sys.exc_info()):
+                # How to log this without redundant messages...
+                traceback.print_exc()
+            return (False, False, tried_updated)
+
+        if sys.platform == 'win32':
+            loop = asyncio.ProactorEventLoop()  # needed for subprocesses
+            asyncio.set_event_loop(loop)
+        else:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+        return (tryagain, resetloop, tried_updated)
+
+
 def main():
+    # Setup initial loggers
+    log.addHandler(sh)
+    log.addHandler(tfh)
+
     # TODO: *actual* argparsing
 
     if '--no-checks' not in sys.argv:
@@ -432,159 +579,34 @@ def main():
 
     fh = finalize_logging()
 
-    import asyncio
-
     if sys.platform == 'win32':
         loop = asyncio.ProactorEventLoop()  # needed for subprocesses
         asyncio.set_event_loop(loop)
 
-    tried_requirementstxt = False
-    tryagain = True
+    tried_updated = False
 
     loops = 0
     max_wait_time = 60
 
-    sh = streamhandler()
+    tsh = streamhandler()
 
-    while tryagain:
-        # Maybe I need to try to import stuff first, then actually import stuff
-        # It'd save me a lot of pain with all that awful exception type checking
+    module = import_module('run')
 
-        m = None
-        try:
-            try:
-                ModuBot = reload(sys.modules['musicbot']).ModuBot
-                exceptions = reload(sys.modules['musicbot.exceptions'])
-            except KeyError:
-                from musicbot import ModuBot, exceptions
-            m = ModuBot(loghandlerlist = [sh, fh])
-            m.loop.run_until_complete(m.load_modules(m.config.cogs))
-
-            shutdown = False
-            safe_shutdown = threading.Lock()
-
-            def cleanup(phase_name):
-                nonlocal shutdown
-                cleaned = False
-                def _cleanup():
-                    log.debug('Acquiring ... ({})'.format(phase_name))
-                    safe_shutdown.acquire()
-                    nonlocal shutdown
-                    if not shutdown:            
-                        shutdown = True
-                        log.info('Shutting down ... ({})'.format(phase_name))
-                        try:
-                            m.logout()
-                        except exceptions.RestartSignal:
-                            loops = 0
-                        else:
-                            tryagain = False
-                    log.debug('Releasing ... ({})'.format(phase_name))
-                    nonlocal cleaned
-                    cleaned = True
-                    safe_shutdown.release()
-
-                t = threading.Thread(target=_cleanup) # prevent KeyboardInterrupt in there
-                t.start()
-                t.join()
-
-            thread = False
-
-            def logouthandler(sig, stackframe=None):
-                if system() == 'Windows':
-                    nonlocal thread
-                    thread = True
-                cleanup('logouthandler/{}'.format(system()))
-            
-            if system() == 'Windows':
-                try:
-                    from win32.win32api import SetConsoleCtrlHandler
-                    SetConsoleCtrlHandler(logouthandler, True)
-                except ImportError:
-                    version = '.'.join(map(str, sys.version_info))
-                    log.warning('pywin32 not installed for Python {}. Please stop the bot using KeyboardInterrupt instead of the close button.'.format(version))
-            
-            else:
-                import atexit
-                atexit.register(logouthandler, 0)
-            
-            try:
-                m.run()
-                if thread: # pywin32 thread that is cleaning up and will raise KeyboardInterrupt
-                    log.debug('\nWaiting ...')
-                    while True:
-                        pass
-                cleanup('RunExit')
-            except KeyboardInterrupt:
-                cleanup('KeyboardInterrupt')
-            except RuntimeError:
-                cleanup('RuntimeError')
-
-            if not tryagain:
-                log.info('\nThis console can now be closed')
-
-
-        except SyntaxError:
-            log.exception("Syntax error (this is a bug, not your fault)")
+    while True:        
+        runbot = reload(module).runbot
+        tryagain, resetloop, tried_updated = runbot(fh, tsh, tried_updated = tried_updated)
+        if not tryagain:
             break
-
-        except ImportError:
-            # TODO: if error module is in pip or dpy requirements...
-
-            if not tried_requirementstxt:
-                tried_requirementstxt = True
-
-                log.exception("Error starting bot")
-                log.info("Attempting to install dependencies...")
-
-                err = PIP.run_install('--upgrade -r requirements.txt')
-
-                if err: # TODO: add the specific error check back as not to always tell users to sudo it
-                    print()
-                    log.critical("You may need to %s to install dependencies." %
-                                 ['use sudo', 'run as admin'][sys.platform.startswith('win')])
-                    break
-                else:
-                    print()
-                    log.info("Ok lets hope it worked")
-                    print()
-            else:
-                log.exception("Unknown ImportError, exiting.")
-                break
-
-        except Exception as e:
-            if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
-                if e.__class__.__name__ == 'HelpfulError':
-                    log.info(e.message)
-                    tryagain = False
-                    break
-
-                elif e.__class__.__name__ == "TerminateSignal":
-                    tryagain = False
-                    break
-
-            else:
-                log.exception("Error starting bot")
-
-        finally:
-            if not m:
-                if any(sys.exc_info()):
-                    # How to log this without redundant messages...
-                    traceback.print_exc()
-                break
-
-            if sys.platform == 'win32':
-                loop = asyncio.ProactorEventLoop()  # needed for subprocesses
-                asyncio.set_event_loop(loop)
-            else:
-                asyncio.set_event_loop(asyncio.new_event_loop())
+        if resetloop:
+            loops = 0
+        else:
             loops += 1
+        
+        sleeptime = min(loops * 2, max_wait_time)
+        if sleeptime:
+            log.info("Restarting in {} seconds...".format(loops*2))
+            time.sleep(sleeptime)
 
-            if tryagain:
-                sleeptime = min(loops * 2, max_wait_time)
-                if sleeptime:
-                    log.info("Restarting in {} seconds...".format(loops*2))
-                    time.sleep(sleeptime)
 
     print()
     log.info("All done.")
