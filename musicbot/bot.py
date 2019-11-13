@@ -615,7 +615,7 @@ class MusicBot(discord.Client):
                     player.once('play', lambda player, **_: _autopause(player))
 
                 try:
-                    await player.playlist.add_entry(song_url, channel=None, author=None)
+                    await player.playlist.add_entry(song_url, channel=None, author=None, head=False)
                 except exceptions.ExtractionError as e:
                     log.error("Error adding song from autoplaylist: {}".format(e))
                     log.debug('', exc_info=True)
@@ -1329,6 +1329,26 @@ class MusicBot(discord.Client):
         equivalent of the song. Streaming from Spotify is not possible.
         """
 
+        return await self._cmd_play(message, player, channel, author, permissions, leftover_args, song_url, head=False)
+
+    async def cmd_playnext(self, message, player, channel, author, permissions, leftover_args, song_url):
+        """
+        Usage:
+            {command_prefix}playnext song_link
+            {command_prefix}playnext text to search for
+            {command_prefix}playnext spotify_uri
+
+        Adds the song to the playlist next.  If a link is not provided, the first
+        result from a youtube search is added to the queue.
+
+        If enabled in the config, the bot will also support Spotify URIs, however
+        it will use the metadata (e.g song name and artist) to find a YouTube
+        equivalent of the song. Streaming from Spotify is not possible.
+        """
+
+        return await self._cmd_play(message, player, channel, author, permissions, leftover_args, song_url, head=True)
+
+    async def _cmd_play(self, message, player, channel, author, permissions, leftover_args, song_url, head):
         song_url = song_url.strip('<>')
 
         await self.send_typing(channel)
@@ -1368,7 +1388,7 @@ class MusicBot(discord.Client):
                         for i in res['tracks']['items']:
                             song_url = i['name'] + ' ' + i['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
-                            await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
+                            await self._cmd_play(message, player, channel, author, permissions, leftover_args, song_url, head)
                         await self.safe_delete_message(procmesg)
                         return Response(self.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
                     
@@ -1387,7 +1407,7 @@ class MusicBot(discord.Client):
                         for i in res:
                             song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
                             log.debug('Processing {0}'.format(song_url))
-                            await self.cmd_play(message, player, channel, author, permissions, leftover_args, song_url)
+                            await self._cmd_play(message, player, channel, author, permissions, leftover_args, song_url, head)
                         await self.safe_delete_message(procmesg)
                         return Response(self.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
                     
@@ -1485,7 +1505,7 @@ class MusicBot(discord.Client):
 
                 if info['extractor'].lower() in ['youtube:playlist', 'soundcloud:set', 'bandcamp:album']:
                     try:
-                        return await self._cmd_play_playlist_async(player, channel, author, permissions, song_url, info['extractor'])
+                        return await self._cmd_play_playlist_async(player, channel, author, permissions, song_url, info['extractor'], head)
                     except exceptions.CommandError:
                         raise
                     except Exception as e:
@@ -1567,7 +1587,7 @@ class MusicBot(discord.Client):
                         expire_in=30
                     )
 
-                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author)
+                entry, position = await player.playlist.add_entry(song_url, channel=channel, author=author, head=head)
 
                 reply_text = self.str.get('cmd-play-song-reply', "Enqueued `%s` to be played. Position in queue: %s")
                 btext = entry.title
@@ -1588,7 +1608,7 @@ class MusicBot(discord.Client):
 
         return Response(reply_text, delete_after=30)
 
-    async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
+    async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type, head):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
@@ -1610,7 +1630,7 @@ class MusicBot(discord.Client):
         if extractor_type == 'youtube:playlist':
             try:
                 entries_added = await player.playlist.async_process_youtube_playlist(
-                    playlist_url, channel=channel, author=author)
+                    playlist_url, channel=channel, author=author, head=head)
                 # TODO: Add hook to be called after each song
                 # TODO: Add permissions
 
@@ -1621,7 +1641,7 @@ class MusicBot(discord.Client):
         elif extractor_type.lower() in ['soundcloud:set', 'bandcamp:album']:
             try:
                 entries_added = await player.playlist.async_process_sc_bc_playlist(
-                    playlist_url, channel=channel, author=author)
+                    playlist_url, channel=channel, author=author, head=head)
                 # TODO: Add hook to be called after each song
                 # TODO: Add permissions
 
