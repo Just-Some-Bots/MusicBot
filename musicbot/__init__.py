@@ -73,12 +73,13 @@ sys.meta_path.insert(0, Yikes())
 
 from . import bot
 from . import exceptions
+from . import utils
 from .constructs import BetterLogRecord
 
 from importlib import reload
 bot = reload(bot)
 ModuBot = bot.ModuBot
-__all__ = ['ModuBot', 'exceptions']
+__all__ = ['ModuBot', 'exceptions', 'utils']
 
 logging.setLogRecordFactory(BetterLogRecord)
 

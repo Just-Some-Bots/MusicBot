@@ -1,10 +1,28 @@
 import shutil
+import signal
 import textwrap
 
 from discord.ext.commands import errors 
 
 class VersionError(Exception):
     pass
+
+class AsyncCalledProcessError(Exception):
+    def __init__(self, returncode, cmd):
+        self.returncode = returncode
+        self.cmd = cmd
+
+    def __str__(self):
+        if self.returncode and self.returncode < 0:
+            try:
+                return "Command '%s' died with %r." % (
+                        self.cmd, signal.Signals(-self.returncode))
+            except ValueError:
+                return "Command '%s' died with unknown signal %d." % (
+                        self.cmd, -self.returncode)
+        else:
+            return "Command '%s' returned non-zero exit status %d." % (
+                    self.cmd, self.returncode)
 
 # Base class for exceptions
 class MusicbotException(errors.CommandError):

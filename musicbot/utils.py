@@ -1,11 +1,14 @@
 import sys
 import logging
 import aiohttp
+import asyncio
 import inspect
+import io
 from hashlib import md5
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar, AnyStr
 
 from .constants import DISCORD_MSG_CHAR_LIMIT
+from .exceptions import AsyncCalledProcessError
 
 log = logging.getLogger(__name__)
 
@@ -180,3 +183,46 @@ def _get_variable(name):
                 del frame
     finally:
         del stack
+
+async def _run_process(*popenargs, **kwargs):
+    ILLEGAL_KEY = {'bufsize', 'encoding', 'errors', 'text', 'universal_newlines'}
+    if any([fkey in kwargs.keys() for fkey in ILLEGAL_KEY]):
+        raise ValueError('illegal keyword in utils.check_call call'
+                         'keyword should not be {}'.format(', '.join(ILLEGAL_KEY)))
+
+    shell = kwargs.pop('shell', False)
+    if shell:
+        if len(popenargs) != 1:
+            popenargs = ((' ' if isinstance(popenargs[0], str) else b' ').join(popenargs), )
+        runner = asyncio.create_subprocess_shell
+    else:
+        if len(popenargs) == 1:
+            popenargs = tuple(popenargs[0].split(' ' if isinstance(popenargs[0], str) else b' '))        
+        runner = asyncio.create_subprocess_exec
+
+    popenargs = (' '.join(popenargs),) if shell and not any([isinstance(arg, bytes) for arg in popenargs]) else popenargs
+    process = await runner(*popenargs, **kwargs)
+    await process.wait()
+    return process
+
+async def check_call(*popenargs, **kwargs):
+    process = await _run_process(*popenargs, **kwargs)
+    retcode = process.returncode
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        raise AsyncCalledProcessError(retcode, cmd)
+
+async def check_output(*popenargs, **kwargs):
+    encoding = kwargs.pop('encoding', None)
+    errors = kwargs.pop('errors', None)
+    text = kwargs.pop('text', False)
+    universal_newlines = kwargs.pop('universal_newlines', False)
+    text_mode = encoding or errors or text or universal_newlines
+
+    kwargs.setdefault('stdout', asyncio.subprocess.PIPE)
+
+    process = await _run_process(*popenargs, **kwargs)
+    _out, _err = await process.communicate()
+    return io.BytesIO(_out) if not text_mode else io.TextIOWrapper(io.BytesIO(_out), encoding=encoding, errors=errors)
