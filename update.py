@@ -52,7 +52,7 @@ async def _main(read = _input, write = _print):
 
     # Check that the current working directory is clean
     sp = await check_output('git status --porcelain', shell=True, universal_newlines=True)
-    if sp:
+    if sp.read(1):
         oshit = await y_n('You have modified files that are tracked by Git (e.g the bot\'s source files).\n'
                           'Should we try resetting the repo? You will lose local modifications.',
                           read = read)
