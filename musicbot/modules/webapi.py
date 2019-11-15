@@ -26,6 +26,7 @@ import json
 import traceback
 import os
 from discord.ext.commands import Cog, command
+from functools import partial
 from collections import defaultdict
 from secrets import token_urlsafe
 from urllib.parse import urlparse, parse_qs
@@ -39,8 +40,6 @@ from ..wrappers import owner_only
 
 from .. import messagemanager
 from ..rich_guild import get_guild
-
-log = logging.getLogger(__name__)
 
 aiolocks = defaultdict(asyncio.Lock)
  
@@ -56,7 +55,7 @@ authtoken = list()
 async def serialize_tokens():
     directory = 'data/tokens.json'
     async with aiolocks['token_serialization']:
-        log.debug("Serializing tokens")
+        botinst.log.debug("Serializing tokens")
 
         with open(directory, 'w', encoding='utf8') as f:
             f.write(json.dumps(authtoken))
@@ -68,7 +67,7 @@ async def deserialize_tokens() -> list:
         if not os.path.isfile(directory):
             return list()
 
-        log.debug("Deserializing tokens")
+        botinst.log.debug("Deserializing tokens")
 
         with open(directory, 'r', encoding='utf8') as f:
             data = f.read()
@@ -77,78 +76,80 @@ async def deserialize_tokens() -> list:
 
 webserver = None
 
-class RequestHdlr(BaseHTTPRequestHandler):
-    def gen_content_POST(self):
-        path = self.path[4:]
-        param = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        if 'token' in param and param['token'] in authtoken:
-            if path == '/exec':
-                if 'code' in param:
-                    try:
-                        threadsafe_exec_bot(param['code'])
-                        return {'action':True, 'error':False, 'result':''}
-                    except:
-                        return {'action':True, 'error':True, 'result':traceback.format_exc()}
-                return {'action':False}
-            elif path == '/eval':
-                if 'code' in param:
-                    try:
-                        ret = threadsafe_eval_bot(param['code'])
-                        return {'action':True, 'error':False, 'result':str(ret)}
-                    except:
-                        return {'action':True, 'error':True, 'result':traceback.format_exc()}
-                return {'action':False}
-        return None
+def getrequesthdlr(bot):
+    class RequestHdlr(BaseHTTPRequestHandler):
+        def gen_content_POST(self):
+            path = self.path[4:]
+            param = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+            if 'token' in param and param['token'] in authtoken:
+                if path == '/exec':
+                    if 'code' in param:
+                        try:
+                            threadsafe_exec_bot(param['code'])
+                            return {'action':True, 'error':False, 'result':''}
+                        except:
+                            return {'action':True, 'error':True, 'result':traceback.format_exc()}
+                    return {'action':False}
+                elif path == '/eval':
+                    if 'code' in param:
+                        try:
+                            ret = threadsafe_eval_bot(param['code'])
+                            return {'action':True, 'error':False, 'result':str(ret)}
+                        except:
+                            return {'action':True, 'error':True, 'result':traceback.format_exc()}
+                    return {'action':False}
+            return None
 
-    def gen_content_GET(self):
-        path = self.path[4:]
-        parse = urlparse(path)
-        param = {param_k:param_arglist[-1] for param_k, param_arglist in parse_qs(parse.query).items()}
-        if 'token' in param and param['token'] in authtoken and 'get' in param:
-            if param['get'] == 'guild':
-                return get_guild_list()
-            elif param['get'] == 'member' and 'guild' in param:
-                return get_member_list(int(param['guild']))
-            elif param['get'] == 'player' and 'guild' in param:
-                return get_player(int(param['guild']))
-        return None
+        def gen_content_GET(self):
+            path = self.path[4:]
+            parse = urlparse(path)
+            param = {param_k:param_arglist[-1] for param_k, param_arglist in parse_qs(parse.query).items()}
+            if 'token' in param and param['token'] in authtoken and 'get' in param:
+                if param['get'] == 'guild':
+                    return get_guild_list()
+                elif param['get'] == 'member' and 'guild' in param:
+                    return get_member_list(int(param['guild']))
+                elif param['get'] == 'player' and 'guild' in param:
+                    return get_player(int(param['guild']))
+            return None
 
-    def do_POST(self):
-        if self.path.startswith('/api'):
-            f = self.gen_content_POST()
-            if f != None:
-                self.send_response(200)
-                self.send_header("Connection", "close")
-                f = json.dumps(f)
-                f = f.encode('UTF-8', 'replace')
-                self.send_header("Content-Type", "application/json;charset=utf-8")
-                log.debug('sending {} bytes'.format(len(f)))
-                self.send_header("Content-Length", str(len(f)))
-                self.end_headers()
-                self.wfile.write(f)
-                return
-        self.send_error(404)
-        self.end_headers()
+        def do_POST(self):
+            if self.path.startswith('/api'):
+                f = self.gen_content_POST()
+                if f != None:
+                    self.send_response(200)
+                    self.send_header("Connection", "close")
+                    f = json.dumps(f)
+                    f = f.encode('UTF-8', 'replace')
+                    self.send_header("Content-Type", "application/json;charset=utf-8")
+                    bot.log.debug('sending {} bytes'.format(len(f)))
+                    self.send_header("Content-Length", str(len(f)))
+                    self.end_headers()
+                    self.wfile.write(f)
+                    return
+            self.send_error(404)
+            self.end_headers()
 
-    def do_GET(self):
-        if self.path.startswith('/api'):
-            f = self.gen_content_GET()
-            if f != None:
-                self.send_response(200)
-                self.send_header("Connection", "close")
-                f = json.dumps(f)
-                f = f.encode('UTF-8', 'replace')
-                self.send_header("Content-Type", "application/json;charset=utf-8")
-                log.debug('sending {} bytes'.format(len(f)))
-                self.send_header("Content-Length", str(len(f)))
-                self.end_headers()
-                self.wfile.write(f)
-                return
-        self.send_error(404)
-        self.end_headers()
+        def do_GET(self):
+            if self.path.startswith('/api'):
+                f = self.gen_content_GET()
+                if f != None:
+                    self.send_response(200)
+                    self.send_header("Connection", "close")
+                    f = json.dumps(f)
+                    f = f.encode('UTF-8', 'replace')
+                    self.send_header("Content-Type", "application/json;charset=utf-8")
+                    bot.log.debug('sending {} bytes'.format(len(f)))
+                    self.send_header("Content-Length", str(len(f)))
+                    self.end_headers()
+                    self.wfile.write(f)
+                    return
+            self.send_error(404)
+            self.end_headers()
 
-    def log_message(self, format, *args):
-        log.debug("{addr} - - [{dt}] {args}\n".format(addr = self.address_string(), dt = self.log_date_time_string(), args = format%args))
+        def log_message(self, format, *args):
+            bot.log.debug("{addr} - - [{dt}] {args}\n".format(addr = self.address_string(), dt = self.log_date_time_string(), args = format%args))
+    return RequestHdlr
 
 class Webapi(Cog):
     def __init__(self):
@@ -160,26 +161,26 @@ class Webapi(Cog):
         botinst = bot
 
     async def init(self):
-        log.debug('binding to port {0}'.format(self.bot.config.webapi_port))
+        self.bot.log.debug('binding to port {0}'.format(self.bot.config.webapi_port))
 
         if self.bot.config.webapi_persistent_tokens:
             global authtoken
             authtoken = await deserialize_tokens()
 
-        serv = ThreadingHTTPServer((host, self.bot.config.webapi_port), RequestHdlr)
+        serv = ThreadingHTTPServer((host, self.bot.config.webapi_port), getrequesthdlr(self.bot))
         if self.bot.config.ssl_certfile and self.bot.config.ssl_keyfile:
             try:
                 cont = SSLContext()
                 cont.load_cert_chain(self.bot.config.ssl_certfile, keyfile = self.bot.config.ssl_keyfile)
             except SSLError:
-                log.error('Error loading certificate, falling back to http. Traceback below.')
-                log.error(traceback.format_exc())
-                log.info('using http for webapi')
+                self.bot.log.error('Error loading certificate, falling back to http. Traceback below.')
+                self.bot.log.error(traceback.format_exc())
+                self.bot.log.info('using http for webapi')
             else:
                 serv.socket = cont.wrap_socket(sock = serv.socket, server_side = True)
-                log.info('using https for webapi')
+                self.bot.log.info('using https for webapi')
         else:
-            log.info('using http for webapi')
+            self.bot.log.info('using http for webapi')
         global webserver
         webserver = serv
         server_thread = threading.Thread(target=serv.serve_forever)
@@ -188,7 +189,7 @@ class Webapi(Cog):
         server_thread.start()
 
     async def uninit(self):
-        log.debug('stopping http server...')
+        self.bot.log.debug('stopping http server...')
         # @TheerapakG WARN: may cause significant block time
         global webserver
         webserver.shutdown()
