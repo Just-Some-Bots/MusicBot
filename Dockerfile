@@ -23,6 +23,7 @@ RUN python3 -m pip install -U -r requirements.txt
 
 # Create volume for mapping the config
 VOLUME /var/docker/musicbot/config
+VOLUME /var/docker/musicbot/audio_cache
 
 ENV APP_ENV=docker
 
