@@ -2,7 +2,7 @@ FROM alpine:edge
 
 # Add project source
 WORKDIR /usr/src/musicbot
-COPY . ./
+COPY requirements.txt ./
 
 # Install dependencies
 RUN apk update \
@@ -28,7 +28,7 @@ RUN apk update \
 \
 # Clean up build dependencies
 && apk del .build-deps
-
+COPY . ./
 # Create volume for mapping the config
 VOLUME /usr/src/musicbot/config
 
