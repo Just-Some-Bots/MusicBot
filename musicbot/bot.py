@@ -474,18 +474,18 @@ class MusicBot(discord.Client):
             author_perms = self.permissions.for_user(author)
 
             if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
-                newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
+                newmsg = 'Preskačem sledeću pesmu za `%s`: `%s` dodato od `%s` kao dodavač koji nije u vojsu' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
                 player.skip()
             elif self.config.now_playing_mentions:
-                newmsg = '%s - your song `%s` is now playing in `%s`!' % (
+                newmsg = '%s - vaša pesma `%s` trenutno ide `%s`!' % (
                     entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
             else:
-                newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
+                newmsg = 'Trenutno ide `%s`: `%s` dodato od `%s`' % (
                     player.voice_client.channel.name, entry.title, entry.meta['author'].name)
         else:
             # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
-            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
+            newmsg = 'Trenutno idu automatski dodate pesme `%s` u `%s`' % (
                 entry.title, player.voice_client.channel.name)
 
         if newmsg:
