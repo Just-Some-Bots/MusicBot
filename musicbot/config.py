@@ -98,7 +98,8 @@ class Config:
         self.local_dir_only = config.getboolean('Locals', 'LocalOnlySpecifiedDir', fallback=ConfigDefaults.local_dir_only)
         self.local_dir = config.get('Locals', 'LocalDir', fallback=ConfigDefaults.local_dir)
 
-        self.webapi_port = config.getint('WebApi', 'WebApiPort', fallback=ConfigDefaults.webapi_port)
+        self.webapi_http_port = config.getint('WebApi', 'WebApiHTTPPort', fallback=ConfigDefaults.webapi_http_port)
+        self.webapi_https_port = config.getint('WebApi', 'WebApiHTTPSPort', fallback=ConfigDefaults.webapi_https_port)
         self.ssl_certfile = config.get('WebApi', 'SSLCertFile', fallback=ConfigDefaults.ssl_certfile)
         self.ssl_keyfile = config.get('WebApi', 'SSLKeyFile', fallback=ConfigDefaults.ssl_keyfile)
         self.webapi_persistent_tokens = config.get('WebApi', 'WebApiPersistentTokens', fallback=ConfigDefaults.webapi_persistent_tokens)
@@ -388,7 +389,8 @@ class ConfigDefaults:
     local_dir_only = False
     local_dir = set()
 
-    webapi_port = 65280
+    webapi_http_port = 80
+    webapi_https_port = 443
     ssl_certfile = None
     ssl_keyfile = None
     webapi_persistent_tokens = True
