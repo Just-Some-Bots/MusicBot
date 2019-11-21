@@ -742,7 +742,7 @@ class ModuBot(Bot):
         self.thread = threading.currentThread()
         self.log.debug('running bot on thread {}'.format(threading.get_ident()))
         self.looplock.acquire()
-
+        
         def exchdlr(loop, excctx):
             exception = excctx.get('exception')
             if system() == 'Windows':
@@ -761,6 +761,7 @@ class ModuBot(Bot):
                 "Fix your token in the options file.  "
                 "Remember that each field should be on their own line."
             )  #     ^^^^ In theory self.config.auth should never have no items
+        
         self.loop.run_forever()
 
     async def _logout(self):
