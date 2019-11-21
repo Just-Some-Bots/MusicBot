@@ -68,6 +68,7 @@ class Webapi(Cog):
     def __init__(self):
         self.bot = None
         self.webservers = []
+        self.can_handle_https = False
 
     async def pre_init(self, bot):
         self.bot = bot
@@ -84,8 +85,7 @@ class Webapi(Cog):
         ])
         self.runner = web.AppRunner(app)
         await self.runner.setup()
-        httpsite = web.TCPSite(self.runner, port = self.bot.config.webapi_http_port)
-        await httpsite.start()
+        await web.TCPSite(self.runner, port = self.bot.config.webapi_http_port).start()
         self.bot.log.info('enabled http for webapi, binded to {}'.format(self.bot.config.webapi_http_port))
         
         if self.bot.config.ssl_certfile and self.bot.config.ssl_keyfile:
@@ -96,23 +96,33 @@ class Webapi(Cog):
                 self.bot.log.error('Error loading certificate. Will only enabling http. Traceback below.')
                 self.bot.log.error(traceback.format_exc())
             else:
-                httpssite = web.TCPSite(self.runner, port = self.bot.config.webapi_https_port, ssl_context = cont)
-                await httpssite.start()
+                await web.TCPSite(self.runner, port = self.bot.config.webapi_https_port, ssl_context = cont).start()
                 self.bot.log.info('enabled https for webapi, binded to {}'.format(self.bot.config.webapi_https_port))
+                self.can_handle_https = True
 
     async def uninit(self):
         self.bot.log.debug('stopping webservers...')
         await self.runner.cleanup()
             
     async def do_GET(self, request):
-        self.bot.log.debug('GET: {}'.format(request.path_qs))
+        self.bot.log.debug('GET ({}): {}'.format(request.scheme, request.path_qs))
+        
+        if request.headers.get('Upgrade-Insecure-Requests', False):
+            if not request.secure and self.can_handle_https and request.url:
+                self.bot.log.debug('upgrading request to https')
+                raise web.HTTPFound(request.url.with_scheme('https'))
+        else:
+            if request.secure and request.url:
+                self.bot.log.debug('downgrading request to http')
+                raise web.HTTPFound(request.url.with_scheme('http'))
+
         f = await self.gen_content_GET(request)
         if f != None:
             return web.json_response(f)
         return web.Response(text = 'ERROR 404', status = 404)
 
     async def do_POST(self, request):
-        self.bot.log.debug('POST: {}'.format(request.path_qs))
+        self.bot.log.debug('POST ({}): {}'.format(request.scheme, request.path_qs))
         f = await self.gen_content_POST(request)
         if f != None:
             return web.json_response(f)
