@@ -88,7 +88,7 @@ class QueueManagement(Cog):
         await self._play(ctx, playlist, song_url = ' '.join(song_url))
 
     @command()
-    async def play(self, ctx, *song_url):
+    async def playnext(self, ctx, *song_url):
         """
         Usage:
             {command_prefix}playnext song_link
