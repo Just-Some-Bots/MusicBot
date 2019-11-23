@@ -237,7 +237,7 @@ class DependencyResolver:
     def add_item(self, name, dependencies: Optional[Set] = set()):
         for dep in dependencies:
             self.dependents[dep].add(name)
-        self.dependencies[name] = dependencies
+        self.dependencies[name] = dependencies.copy()
 
     def remove_item(self, name):
         for dep in self.dependencies[name]:
@@ -245,10 +245,13 @@ class DependencyResolver:
         del self.dependencies[name]
 
     def get_state(self) -> Tuple[List, Set]:
+        """
+        return list of item with dependencies satisfied and set of item that does not.
+        """
         available_items = set(self.dependencies.keys())
         # known_good is a list of items that is known to have all dependency available
         # which is sorted in the order that dependents will come after dependencies
-        known_good = [item for item, deps in self.dependencies if not deps]
+        known_good = [item for item, deps in self.dependencies.items() if not deps]
         unconsidered_known_good = set(known_good)
 
         unmet_dependencies = deepcopy(self.dependencies)
@@ -263,4 +266,36 @@ class DependencyResolver:
         faulty = available_items - set(known_good)
 
         return (known_good, faulty)
+
+    def get_dependents(self, name) -> List:
+        """
+        return dependents of specified name.
+        NOTE: dependency of every dependents returned will appear after the dependents.
+        """
+        dependents = list(self.dependents[name])
+        unconsidered_dependents = self.dependents[name].copy()
+
+        while unconsidered_dependents:
+            dep = unconsidered_dependents.pop()
+            for item in self.dependents[dep]:
+                if item not in dependents:
+                    dependents.append(item)
+                    unconsidered_dependents.add(item)
+
+        dependents.reverse()
+
+        return dependents
+
+    def get_dependents_multiple(self, names: Set, include_given = True) -> List:
+        dependents = list()
+        unordered_dependents = set()
+        for name in names:
+            new_items = self.get_dependents(name)
+            if include_given:
+                new_items.append(name)
+            for item in new_items:
+                if item not in unordered_dependents:
+                    dependents.append(item)
+                    unordered_dependents.add(item)
+        return dependents
 

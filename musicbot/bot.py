@@ -203,66 +203,26 @@ class ModuBot(Bot):
                     parent.add_command(command)
 
     async def _load_modules(self, modulelist):
-        # TODO: change into cog pre_init, cog init and cog post_init/ deps listing inside cogs
-        # 1: walk module
-        #     1: module pre_init
-        #         this stage should be use to read up config and prepare things such as opening
-        #         port to communicate with server, opening file for logging, register stuff to
-        #         crossmodule object (except features), etc. pre_init must throw if not successful
-        # 2: walk module again
-        #     1: load command, cogs, ...
-        #         even if some command, cogs in a module is not loaded, it will not get skip 
-        #     2: module init
-        #         this stage should be use to check commands in the module that got loaded and
-        #         register features available after loaded. init must throw if not successful
-        # 3: walk module again
-        #     1: module post_init
-        #         this stage should be use to check if dependency loaded correctly with features
-        #         needed and register dependencies needed. post_init must throw if not successful
-        #     2: add to loaded
-        # 4: walk module again
-        #     1: module after_init
-        #         this means that stuff in crossmodule is safe to be retrieve. shall not fail
-
-        load_cogs = []
-
-        available_module = set(self.crossmodule.imported.keys())
-
         for moduleinfo in modulelist:
-            available_module.add(moduleinfo.name)
-
-        requirements = defaultdict(list)
-
-        for moduleinfo in modulelist:
-
             if 'deps' in dir(moduleinfo.module):
                 self.log.debug('resolving deps in {}'.format(moduleinfo.name))
                 deps = getattr(moduleinfo.module, 'deps')
                 if isiterable(deps):
-                    for dep in deps:
-                        requirements[dep].append(moduleinfo.name)
+                    self.crossmodule.register_module(moduleinfo.name, moduleinfo.module, set(deps))
                 else:
-                    self.log.debug('deps is not an iterable')
+                    self.log.debug('deps is not an iterable, assume no deps')
+                    self.crossmodule.register_module(moduleinfo.name, moduleinfo.module)
+            else:
+                self.crossmodule.register_module(moduleinfo.name, moduleinfo.module)
 
-        req_set = set(requirements.keys())
+        satisfied, unsatisfied = self.crossmodule.dependency_graph.get_state() # pylint: disable=unused-variable
 
-        noreq_already = req_set - available_module
-        noreq = list(noreq_already)
+        if unsatisfied:
+            self.log.warning('These following modules does not have dependencies required and will not be loaded: {}'.format(', '.join(unsatisfied)))
+            for module_name in unsatisfied:
+                self.crossmodule.unregister_module(module_name)
 
-        req_not_met = set()
-
-        while noreq:
-            current = noreq.pop()
-            req_not_met.update(requirements[current])
-            for module in requirements[current]:
-                if module not in noreq_already:
-                    noreq.append(module)
-                    noreq_already.add(module)
-
-        if req_not_met:
-            self.log.warning('These following modules does not have dependencies required and will not be loaded: {}'.format(str(req_not_met)))
-
-        modulelist = [moduleinfo for moduleinfo in modulelist if moduleinfo.name not in req_not_met]
+        modulelist = [moduleinfo for moduleinfo in modulelist if moduleinfo.name not in unsatisfied]
 
         for moduleinfo in modulelist:
             self.crossmodule._add_module(moduleinfo.name, moduleinfo.module)
@@ -275,6 +235,8 @@ class ModuBot(Bot):
                     self.crossmodule._register_dependency(moduleinfo.name, deps)
                 else:
                     self.log.debug('deps is not an iterable')
+
+        load_cogs = []
 
         for moduleinfo in modulelist:
             if 'cogs' in dir(moduleinfo.module):
@@ -361,21 +323,7 @@ class ModuBot(Bot):
         # 2: unload command, cogs, ...
         # 4: remove from loaded
         # 5: module uninit
-        def gendependentlist():
-            deplist = list()
-            considerdeque = deque(modulenames)
-            considerset = set(modulenames)
-            while considerdeque:
-                node = considerdeque.pop()
-                deplist.append(node)
-                for module in self.crossmodule._module_graph[node]:
-                    if module not in considerset:
-                        considerdeque.append(module)
-                        considerset.add(module)
-            return deplist
-
-        unloadlist = gendependentlist()
-        unloadlist.reverse()
+        unloadlist = self.crossmodule.dependency_graph.get_dependents_multiple(modulenames)
 
         for module in unloadlist:
             for cog in self.crossmodule._cogs[module]:
@@ -385,6 +333,7 @@ class ModuBot(Bot):
                 self.remove_command(command.name)
             
             self.crossmodule._remove_module(module)
+            self.crossmodule.unregister_module(module)
             self.log.debug('unloaded {}'.format(module))
 
             if unimport:

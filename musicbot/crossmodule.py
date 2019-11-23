@@ -30,6 +30,10 @@ from functools import wraps
 from discord.ext.commands import check as discord_check
 from discord.ext.commands import Context
 
+from .utils import DependencyResolver
+
+# @TheerapakG: TODO: cleanup those except self.dependency_graph and self.module
+
 class CrossModule:
     def __init__(self):
         self._module_graph = dict()
@@ -40,6 +44,9 @@ class CrossModule:
         self._cogs = dict()
         self._commands = dict()
         self.imported = dict()
+
+        self.dependency_graph = DependencyResolver()
+        self.module = dict()
 
     def register_decorator(self, decorator):
         self._decorators[decorator.__name__] = decorator
@@ -128,3 +135,11 @@ class CrossModule:
         All behaving adults should not modify value returned by this method
         '''
         return self._features[module_name][feature]
+
+    def register_module(self, module_name, module, dependencies = set()):
+        self.dependency_graph.add_item(module_name, dependencies)
+        self.module[module_name] = module
+
+    def unregister_module(self, module_name):
+        self.dependency_graph.remove_item(module_name)
+        del self.module[module_name]
