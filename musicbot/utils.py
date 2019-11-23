@@ -4,8 +4,10 @@ import aiohttp
 import asyncio
 import inspect
 import io
+from collections import defaultdict
 from hashlib import md5
-from typing import Any, Callable, Optional, TypeVar, AnyStr
+from typing import Any, Callable, Optional, TypeVar, AnyStr, List, Set, Tuple
+from copy import deepcopy
 
 from .constants import DISCORD_MSG_CHAR_LIMIT
 from .exceptions import AsyncCalledProcessError
@@ -226,3 +228,39 @@ async def check_output(*popenargs, **kwargs):
     process = await _run_process(*popenargs, **kwargs)
     _out, _err = await process.communicate()
     return io.BytesIO(_out) if not text_mode else io.TextIOWrapper(io.BytesIO(_out), encoding=encoding, errors=errors)
+
+class DependencyResolver:
+    def __init__(self):
+        self.dependents = defaultdict(set)
+        self.dependencies = dict()
+
+    def add_item(self, name, dependencies: Optional[Set] = set()):
+        for dep in dependencies:
+            self.dependents[dep].add(name)
+        self.dependencies[name] = dependencies
+
+    def remove_item(self, name):
+        for dep in self.dependencies[name]:
+            self.dependents[dep].remove(name)
+        del self.dependencies[name]
+
+    def get_state(self) -> Tuple[List, Set]:
+        available_items = set(self.dependencies.keys())
+        # known_good is a list of items that is known to have all dependency available
+        # which is sorted in the order that dependents will come after dependencies
+        known_good = [item for item, deps in self.dependencies if not deps]
+        unconsidered_known_good = set(known_good)
+
+        unmet_dependencies = deepcopy(self.dependencies)
+        while unconsidered_known_good:
+            good = unconsidered_known_good.pop()
+            for item in self.dependents[good]:
+                unmet_dependencies[item].remove(good)
+                if not unmet_dependencies[item]:
+                    known_good.append(item)
+                    unconsidered_known_good.add(item)
+
+        faulty = available_items - set(known_good)
+
+        return (known_good, faulty)
+
