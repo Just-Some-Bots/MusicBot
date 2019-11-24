@@ -56,6 +56,7 @@ from typing import Union, Optional
 from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource
 from functools import partial
 from .utils import callback_dummy_future
+from .ffmpegoptions import get_equalize_option
 from itertools import islice
 from datetime import timedelta
 import traceback
@@ -106,7 +107,7 @@ def _entry_cleanup(entry, bot):
                         os.path.relpath(filename)))
 
 class Entry(Serializable):
-    def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False):
+    def __init__(self, source_url, title, duration, queuer_id, metadata, *, stream = False, local = False):
         self.source_url = source_url
         self.title = title
         self.duration = duration
@@ -119,16 +120,18 @@ class Entry(Serializable):
         self._metadata = metadata
         self._local_url = None
         self.stream = stream
+        self.local = local
 
     def __json__(self):
         return self._enclose_json({
-            'version': 2,
+            'version': 3,
             'source_url': self.source_url,
             'title': self.title,
             'duration': self.duration,
             'queuer_id': self.queuer_id,
             '_full_local_url': os.path.abspath(self._local_url) if self._local_url else self._local_url,
             'stream': self.stream,
+            'local': self.local,
             'meta': {
                 name: obj for name, obj in self._metadata.items() if obj
             }
@@ -138,7 +141,7 @@ class Entry(Serializable):
     def _deserialize(cls, data):
 
         if 'version' not in data or data['version'] < 2:
-            raise VersionError('data version needs to be higher than 2')
+            raise VersionError('data version needs to be higher than 1')
 
         try:
             # TODO: version check
@@ -148,6 +151,10 @@ class Entry(Serializable):
             queuer_id = data['queuer_id']
             _local_url = data['_full_local_url']
             stream = data['stream']
+            if 'version' < 3:
+                local = False
+            else:
+                local = data['local']
             meta = {}
 
             # TODO: Better [name] fallbacks
@@ -156,7 +163,7 @@ class Entry(Serializable):
                 if not meta['channel_id']:
                     log.warning('Cannot find channel in an entry loaded from persistent queue. Chennel id: {}'.format(data['meta']['channel_id']))
                     meta.pop('channel_id')
-            entry = cls(source_url, title, duration, queuer_id, meta, stream = stream)
+            entry = cls(source_url, title, duration, queuer_id, meta, stream = stream, local = local)
 
             return entry
         except Exception as e:
@@ -589,6 +596,15 @@ class Player(EventEmitter, Serializable):
 
             boptions = "-nostdin"
             aoptions = "-vn"
+
+            if self._guild._bot.config.use_experimental_equalization and not entry.stream:
+                try:
+                    aoptions += await get_equalize_option(entry._local_url, self._guild._bot.log)
+                except Exception:
+                    self._guild._bot.log.error(
+                        'There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. '
+                        'This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.'
+                    )
 
             if self.effects:
                 aoptions += " -af \"{}\"".format(', '.join(["{}{}".format(key, arg) for key, arg in self.effects]))

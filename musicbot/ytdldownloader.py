@@ -321,8 +321,6 @@ class YtdlUrlEntry(Entry):
             else:
                 await self._really_download()
 
-        # TODO: equalization
-
     async def prepare_cache(self):
         with self._threadlocks['preparing_cache_set']:
             if self._preparing_cache:
@@ -561,7 +559,7 @@ class YtdlStreamEntry(Entry):
 
 class LocalEntry(Entry):
     def __init__(self, source_url, queuer_id, metadata):
-        super().__init__(source_url, source_url, 0, queuer_id, metadata, stream = True)
+        super().__init__(source_url, source_url, 0, queuer_id, metadata, local = True)
 
     def __json__(self):
         return self._enclose_json({

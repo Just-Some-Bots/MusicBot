@@ -4,6 +4,7 @@ import aiohttp
 import asyncio
 import inspect
 import io
+import os
 from collections import defaultdict
 from hashlib import md5
 from typing import Any, Callable, Optional, TypeVar, AnyStr, List, Set, Tuple, Iterable
@@ -300,3 +301,29 @@ class DependencyResolver:
                         unordered_dependents.add(item)
         return dependents
 
+async def run_command(cmd, log):
+    p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+    stdout, stderr = await p.communicate()
+    return stdout + stderr
+
+def get_command(program):
+    def is_exe(fpath):
+        found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+        if not found and sys.platform == 'win32':
+            fpath = fpath + ".exe"
+            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+        return found
+
+    fpath, __ = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
