@@ -6,7 +6,7 @@ import inspect
 import io
 from collections import defaultdict
 from hashlib import md5
-from typing import Any, Callable, Optional, TypeVar, AnyStr, List, Set, Tuple
+from typing import Any, Callable, Optional, TypeVar, AnyStr, List, Set, Tuple, Iterable
 from copy import deepcopy
 
 from .constants import DISCORD_MSG_CHAR_LIMIT
@@ -286,7 +286,7 @@ class DependencyResolver:
 
         return dependents
 
-    def get_dependents_multiple(self, names: Set, include_given = True) -> List:
+    def get_dependents_multiple(self, names: Iterable, include_given = True) -> List:
         dependents = list()
         unordered_dependents = set()
         for name in names:

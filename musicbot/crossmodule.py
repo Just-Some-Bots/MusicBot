@@ -27,23 +27,19 @@ DEALINGS IN THE SOFTWARE.
 """
 
 from functools import wraps
+from collections import namedtuple
 from discord.ext.commands import check as discord_check
 from discord.ext.commands import Context
 
 from .utils import DependencyResolver
 
-# @TheerapakG: TODO: cleanup those except self.dependency_graph and self.module
+ModuleInfo = namedtuple('ModuleInfo', ['name', 'imported_module_obj', 'cogs', 'commands'])
 
 class CrossModule:
     def __init__(self):
-        self._module_graph = dict()
         self._decorators = dict()
         self._preds = dict()
         self._objs = dict()
-        self._features = dict()
-        self._cogs = dict()
-        self._commands = dict()
-        self.imported = dict()
 
         self.dependency_graph = DependencyResolver()
         self.module = dict()
@@ -103,43 +99,13 @@ class CrossModule:
         '''
         self._objs[name][index] = value
 
-    def _add_module(self, module_name, module):
-        self._features[module_name] = dict()
-        self.imported[module_name] = module
-        self._module_graph[module_name] = list()
-        self._cogs[module_name] = list()
-        self._commands[module_name] = list()
-
-    def _remove_module(self, module_name):
-        del self._features[module_name]
-        del self.imported[module_name]
-        del self._module_graph[module_name]
-        del self._cogs[module_name]
-        del self._commands[module_name]
-
-    def _register_dependency(self, modulename, deps_module_list = []):
-        for dep in deps_module_list:
-            self._module_graph[dep].append(modulename)
-
-    def modules_loaded(self):
-        return list(self._features.keys())
-
-    def _register_feature(self, module_name, feature, val):
-        self._features[module_name][feature] = val
-
-    def _unregister_feature(self, module_name, feature):
-        del self._features[module_name][feature]
-
-    def feature(self, module_name, feature):
-        '''
-        All behaving adults should not modify value returned by this method
-        '''
-        return self._features[module_name][feature]
-
     def register_module(self, module_name, module, dependencies = set()):
         self.dependency_graph.add_item(module_name, dependencies)
-        self.module[module_name] = module
+        self.module[module_name] = ModuleInfo(module_name, module, set(), set())
 
     def unregister_module(self, module_name):
         self.dependency_graph.remove_item(module_name)
         del self.module[module_name]
+
+    def loaded_modules_name(self):
+        return set(self.module.keys())

@@ -43,6 +43,7 @@ from functools import partial, wraps
 from importlib import import_module, reload
 from inspect import iscoroutinefunction, isfunction
 from platform import system
+from typing import Iterable
 
 import colorlog
 from discord.ext.commands import Bot
@@ -224,18 +225,6 @@ class ModuBot(Bot):
 
         modulelist = [moduleinfo for moduleinfo in modulelist if moduleinfo.name not in unsatisfied]
 
-        for moduleinfo in modulelist:
-            self.crossmodule._add_module(moduleinfo.name, moduleinfo.module)
-
-        for moduleinfo in modulelist:
-            if 'deps' in dir(moduleinfo.module):
-                self.log.debug('adding deps in {}'.format(moduleinfo.name))
-                deps = getattr(moduleinfo.module, 'deps')
-                if isiterable(deps):
-                    self.crossmodule._register_dependency(moduleinfo.name, deps)
-                else:
-                    self.log.debug('deps is not an iterable')
-
         load_cogs = []
 
         for moduleinfo in modulelist:
@@ -259,7 +248,7 @@ class ModuBot(Bot):
                         cmd = command()
                         self._update_command_alias(cmd)
                         self.add_command(cmd)
-                        self.crossmodule._commands[moduleinfo.name].append(cmd)
+                        self.crossmodule.module[moduleinfo.name].commands.add(cmd)
                         self.log.debug('loaded {}'.format(cmd.name))
                 else:
                     self.log.debug('commands is not an iterable')
@@ -277,23 +266,24 @@ class ModuBot(Bot):
             for cmd in cog.get_commands():
                 self._update_command_alias(cmd)
             self.add_cog(cog)
-            self.crossmodule._cogs[modulename].append(cog)
+            self.crossmodule.module[modulename].cogs.add(cog)
             self.log.debug('loaded {}'.format(cog.qualified_name))
 
         for modulename, cog in load_cogs:
             if not await self._exec_cogs(cog, 'after_init', modulename):
                 self.remove_cog(cog.qualified_name)
-                self.crossmodule._cogs[modulename].remove(cog)
+                self.crossmodule.module[modulename].cogs.remove(cog)
 
     async def _prepare_load_module(self, modulename):
-        if modulename in self.crossmodule.modules_loaded():
-            _tmp_module = self.crossmodule.imported[modulename]
+        if modulename in self.crossmodule.loaded_modules_name():
+            _tmp_module = self.crossmodule.module[modulename].imported_module_obj
+            # @TheerapakG: TODO: also unload dependents and reload them
             await self.unload_modules([modulename])
             try:
-                self.crossmodule.imported[modulename] = reload(_tmp_module)
+                self.crossmodule.module[modulename].imported_module_obj = reload(_tmp_module)
             except:
                 pass
-            module = self.crossmodule.imported[modulename]
+            module = self.crossmodule.module[modulename].imported_module_obj
         else:
             try:
                 module = import_module('.modules.{}'.format(modulename), 'musicbot')
@@ -318,40 +308,39 @@ class ModuBot(Bot):
         modulelist = await self._gen_modulelist(modulesname)
         await self._load_modules(modulelist)
 
-    async def unload_modules(self, modulenames, *, unimport = False):
+    async def unload_modules(self, modulenames: Iterable, *, unimport = False):
         # 1: unload dependents
         # 2: unload command, cogs, ...
         # 4: remove from loaded
         # 5: module uninit
         unloadlist = self.crossmodule.dependency_graph.get_dependents_multiple(modulenames)
 
-        for module in unloadlist:
-            for cog in self.crossmodule._cogs[module]:
+        for modulename in unloadlist:
+            for cog in self.crossmodule.module[modulename].cogs:
                 await self._exec_cogs(cog, 'uninit')
                 self.remove_cog(cog.qualified_name)
-            for command in self.crossmodule._commands[module]:
+            for command in self.crossmodule.module[modulename].commands:
                 self.remove_command(command.name)
             
-            self.crossmodule._remove_module(module)
-            self.crossmodule.unregister_module(module)
-            self.log.debug('unloaded {}'.format(module))
+            self.crossmodule.unregister_module(modulename)
+            self.log.debug('unloaded {}'.format(modulename))
 
             if unimport:
                 def _is_submodule(parent, child):
                     return parent == child or child.startswith(parent + ".")
 
                 for p_submodule in list(sys.modules.keys()):
-                    if _is_submodule(module, p_submodule):
+                    if _is_submodule(modulename, p_submodule):
                         del sys.modules[p_submodule]
 
-                self.log.debug('unimported {}'.format(module))
+                self.log.debug('unimported {}'.format(modulename))
 
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
         app_info = await self.application_info()
         return discord.utils.oauth_url(app_info.id, permissions=permissions, guild=guild)
 
     async def unload_all_module(self):
-        await self.unload_modules(self.crossmodule.modules_loaded())
+        await self.unload_modules(self.crossmodule.loaded_modules_name())
 
     def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
         try:
