@@ -76,9 +76,9 @@ MODUBOT_STR = 'ModuBot {}'.format(MODUBOT_VERSION)
 
 load_opus_lib()
 
-class ModuBot(Bot):
+ModuleTuple = namedtuple('ModuleTuple', ['name', 'module'])
 
-    ModuleTuple = namedtuple('ModuleTuple', ['name', 'module'])
+class ModuBot(Bot):
 
     def __init__(self, *args, logname = "MusicBot", loghandlerlist = [], **kwargs):
         self._aiolocks = defaultdict(asyncio.Lock)
@@ -203,8 +203,8 @@ class ModuBot(Bot):
                 for command in commandlist:
                     parent.add_command(command)
 
-    async def _load_modules(self, modulelist):
-        for moduleinfo in modulelist:
+    async def _load_modules(self, modules):
+        for moduleinfo in modules:
             if 'deps' in dir(moduleinfo.module):
                 self.log.debug('resolving deps in {}'.format(moduleinfo.name))
                 deps = getattr(moduleinfo.module, 'deps')
@@ -223,7 +223,7 @@ class ModuBot(Bot):
             for module_name in unsatisfied:
                 self.crossmodule.unregister_module(module_name)
 
-        modulelist = [moduleinfo for moduleinfo in modulelist if moduleinfo.name not in unsatisfied]
+        modulelist = [moduleinfo for moduleinfo in modules if moduleinfo.name not in unsatisfied]
 
         load_cogs = []
 
@@ -276,31 +276,34 @@ class ModuBot(Bot):
 
     async def _prepare_load_module(self, modulename):
         if modulename in self.crossmodule.loaded_modules_name():
-            _tmp_module = self.crossmodule.module[modulename].imported_module_obj
-            # @TheerapakG: TODO: also unload dependents and reload them
-            await self.unload_modules([modulename])
-            try:
-                self.crossmodule.module[modulename].imported_module_obj = reload(_tmp_module)
-            except:
-                pass
-            module = self.crossmodule.module[modulename].imported_module_obj
+            to_reload = self.crossmodule.dependency_graph.get_dependents(modulename)
+            to_reload.append(modulename)
+            temporary_moduledict = {item : self.crossmodule.module[item].imported_module_obj for item in to_reload}
+            await self.unload_modules(to_reload)
+            modules = set()
+            for item in to_reload:
+                try:
+                    temporary_moduledict[item] = reload(temporary_moduledict[item])
+                except:
+                    pass
+                modules.add(ModuleTuple(item, temporary_moduledict[item]))
         else:
             try:
-                module = import_module('.modules.{}'.format(modulename), 'musicbot')
+                modules = set([ModuleTuple(modulename, import_module('.modules.{}'.format(modulename), 'musicbot'))])
             except Exception as e:
                 self.log.error('error fetching module: {}'.format(modulename))
                 self.log.error('{}'.format(e))
                 self.log.debug(traceback.format_exc())
                 return
 
-        return module
+        return modules
 
     async def _gen_modulelist(self, modulesname):
-        modules = list()
+        modules = set()
         for modulename in modulesname:
-            module = await self._prepare_load_module(modulename)
-            if module:
-                modules.append(self.ModuleTuple(modulename, module))
+            toload_module = await self._prepare_load_module(modulename)
+            if toload_module:
+                modules.update(toload_module)
 
         return modules
 

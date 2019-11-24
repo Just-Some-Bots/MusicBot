@@ -290,12 +290,13 @@ class DependencyResolver:
         dependents = list()
         unordered_dependents = set()
         for name in names:
-            new_items = self.get_dependents(name)
-            if include_given:
-                new_items.append(name)
-            for item in new_items:
-                if item not in unordered_dependents:
-                    dependents.append(item)
-                    unordered_dependents.add(item)
+            if name not in unordered_dependents:
+                new_items = self.get_dependents(name)
+                if include_given:
+                    new_items.append(name)
+                for item in new_items:
+                    if item not in unordered_dependents:
+                        dependents.append(item)
+                        unordered_dependents.add(item)
         return dependents
 
