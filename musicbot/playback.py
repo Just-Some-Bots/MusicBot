@@ -80,7 +80,7 @@ def _entry_cleanup(entry, bot):
         url_map[entry._local_url].remove(entry)
     bot.log.debug(url_map[entry._local_url])
     if not bot.config.save_videos and entry:
-        if not entry.stream:
+        if not entry.stream and not entry.local:
             if url_map[entry._local_url]:
                 bot.log.debug("Skipping deletion of \"{}\", found song in queue".format(entry._local_url))
 
