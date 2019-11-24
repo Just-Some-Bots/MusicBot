@@ -151,7 +151,7 @@ class Entry(Serializable):
             queuer_id = data['queuer_id']
             _local_url = data['_full_local_url']
             stream = data['stream']
-            if 'version' < 3:
+            if data['version'] < 3:
                 local = False
             else:
                 local = data['local']
