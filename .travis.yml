@@ -1,15 +1,15 @@
-sudo: required
 language: python
-python: "3.5-dev"
 
 matrix:
   include:
-  - env: TYPE=docker
-    sudo: required
-  - env: TYPE=build
-    os: linux
-    dist: trusty
-    sudo: required
+  - python: "3.5"
+    env: TYPE=docker
+  - python: "3.5"
+    env: TYPE=build
+  - python: "3.8"
+    env: TYPE=docker
+  - python: "3.8"
+    env: TYPE=build
 
 services:
 - docker
