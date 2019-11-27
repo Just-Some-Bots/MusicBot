@@ -28,15 +28,10 @@ if [ "${python3[0]}" -eq "5" ]; then # Python3 = 3.5
             python3 run.py
             exit
     fi
-    elif [ "${python3[1]}" -ge "6" ]; then # Python >= 3.6
-        python run.py
+    elif [ "${python3[0]}" -ge "6" ]; then # Python >= 3.6
+        python3 run.py
         exit
     fi
-fi
-
-if [ "${python3[0]}" -ge "6" ]; then # Python3 >= 3.6
-    python3 run.py
-    exit
 fi
 
 if [ "$PYTHON35_VERSION" -ge "3" ]; then # Python3.5 > 3.5.3
