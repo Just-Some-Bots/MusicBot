@@ -2,6 +2,7 @@ FROM ubuntu:18.04
 
 # Add project source
 WORKDIR /var/docker/musicbot
+COPY requirements.txt ./
 
 
 # Install build tools
@@ -20,6 +21,8 @@ RUN cd /var/docker/musicbot
 # Install Python dependencies
 RUN python3 -m pip install -U pip
 RUN python3 -m pip install -U -r requirements.txt
+
+COPY . ./
 
 # Create volume for mapping the config
 VOLUME /var/docker/musicbot/config
