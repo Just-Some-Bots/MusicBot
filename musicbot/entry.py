@@ -264,8 +264,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    mean, maximum = await self.get_mean_volume(self.filename)
-                    aoptions = '-af "volume={}dB"'.format((maximum * -1))
+                    aoptions = await self.get_mean_volume(self.filename)
                 except Exception as e:
                     log.error('There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. '
                               'This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.')
@@ -314,24 +313,53 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
     async def get_mean_volume(self, input_file):
         log.debug('Calculating mean volume of {0}'.format(input_file))
-        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af "volumedetect" -f null /dev/null'
+        cmd = '"' + self.get('ffmpeg') + '" -i "' + input_file + '" -af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json -f null /dev/null'
         output = await self.run_command(cmd)
         output = output.decode("utf-8")
+        log.debug(output)
         # print('----', output)
-        mean_volume_matches = re.findall(r"mean_volume: ([\-\d\.]+) dB", output)
-        if (mean_volume_matches):
-            mean_volume = float(mean_volume_matches[0])
-        else:
-            mean_volume = float(0)
 
-        max_volume_matches = re.findall(r"max_volume: ([\-\d\.]+) dB", output)
-        if (max_volume_matches):
-            max_volume = float(max_volume_matches[0])
+        I_matches = re.findall(r'"input_i" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (I_matches):
+            log.debug('I_matches={}'.format(I_matches[0][0]))
+            I = float(I_matches[0][0])
         else:
-            max_volume = float(0)
+            log.debug('Could not parse I in normalise json.')
+            I = float(0)
 
-        log.debug('Calculated mean volume as {0}'.format(mean_volume))
-        return mean_volume, max_volume
+        LRA_matches = re.findall(r'"input_lra" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (LRA_matches):
+            log.debug('LRA_matches={}'.format(LRA_matches[0][0]))
+            LRA = float(LRA_matches[0][0])
+        else:
+            log.debug('Could not parse LRA in normalise json.')
+            LRA = float(0)
+
+        TP_matches = re.findall(r'"input_tp" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (TP_matches):
+            log.debug('TP_matches={}'.format(TP_matches[0][0]))
+            TP = float(TP_matches[0][0])
+        else:
+            log.debug('Could not parse TP in normalise json.')
+            TP = float(0)
+
+        thresh_matches = re.findall(r'"input_thresh" : "([-]?([0-9]*\.[0-9]+))",', output)
+        if (thresh_matches):
+            log.debug('thresh_matches={}'.format(thresh_matches[0][0]))
+            thresh = float(thresh_matches[0][0])
+        else:
+            log.debug('Could not parse thresh in normalise json.')
+            thresh = float(0)
+
+        offset_matches = re.findall(r'"target_offset" : "([-]?([0-9]*\.[0-9]+))', output)
+        if (offset_matches):
+            log.debug('offset_matches={}'.format(offset_matches[0][0]))
+            offset = float(offset_matches[0][0])
+        else:
+            log.debug('Could not parse offset in normalise json.')
+            offset = float(0)
+
+        return '-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:measured_I={}:measured_LRA={}:measured_TP={}:measured_thresh={}:offset={}'.format(I, LRA, TP, thresh, offset)
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
