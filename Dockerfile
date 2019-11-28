@@ -14,10 +14,6 @@ RUN apt-get install software-properties-common -y
 RUN apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3-pip -y
 RUN apt-get upgrade -y
 
-# Clone the MusicBot to your home directory
-RUN git clone https://github.com/Just-Some-Bots/MusicBot.git /var/docker/musicbot -b master
-RUN cd /var/docker/musicbot
-
 # Install Python dependencies
 RUN python3 -m pip install -U pip
 RUN python3 -m pip install -U -r requirements.txt
