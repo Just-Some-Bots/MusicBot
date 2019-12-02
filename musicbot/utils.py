@@ -279,7 +279,7 @@ class DependencyResolver:
         while unconsidered_dependents:
             dep = unconsidered_dependents.pop()
             for item in self.dependents[dep]:
-                if item not in dependents:
+                if item not in dependents and item != name:
                     dependents.append(item)
                     unconsidered_dependents.add(item)
 

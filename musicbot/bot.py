@@ -274,27 +274,50 @@ class ModuBot(Bot):
                 self.remove_cog(cog.qualified_name)
                 self.crossmodule.module[modulename].cogs.remove(cog)
 
-    async def _prepare_load_module(self, modulename):
+    async def _prepare_load_module(self, modulename, *, parent_as = None):
+        modules = set()
+
+        async def _try_load_submodules(modulename, moduleobj):
+            nonlocal modules
+            if hasattr(moduleobj, 'modules'):
+                for mname in moduleobj.modules:
+                    modules.update(await self._prepare_load_module(mname, parent_as = modulename))
+                moduleobj.deps = set(moduleobj.modules).union(getattr(moduleobj, 'deps', set()))
+
         if modulename in self.crossmodule.loaded_modules_name():
             to_reload = self.crossmodule.dependency_graph.get_dependents(modulename)
             to_reload.append(modulename)
             temporary_moduledict = {item : self.crossmodule.module[item].imported_module_obj for item in to_reload}
             await self.unload_modules(to_reload)
-            modules = set()
+
             for item in to_reload:
                 try:
                     temporary_moduledict[item] = reload(temporary_moduledict[item])
-                except:
-                    pass
+                except Exception as e:
+                    self.log.error('error fetching module: {}'.format(item))
+                    self.log.error('{}'.format(e))
+                    self.log.debug(traceback.format_exc())
+                    raise e
+                    
+                await _try_load_submodules(item, temporary_moduledict[item])
+
+                if parent_as is not None and item == modulename:
+                    temporary_moduledict[item].deps = set([parent_as]).union(getattr(temporary_moduledict[item], 'deps', set()))
                 modules.add(ModuleTuple(item, temporary_moduledict[item]))
         else:
             try:
-                modules = set([ModuleTuple(modulename, import_module('.modules.{}'.format(modulename), 'musicbot'))])
+                mobj = import_module('.modules.{}'.format(modulename), 'musicbot')
+
+                await _try_load_submodules(modulename, mobj)
+
+                if parent_as is not None:
+                    mobj.deps = set([parent_as]).union(getattr(mobj, 'deps', set()))
+                modules.add(ModuleTuple(modulename, mobj))
             except Exception as e:
                 self.log.error('error fetching module: {}'.format(modulename))
                 self.log.error('{}'.format(e))
                 self.log.debug(traceback.format_exc())
-                return
+                raise e
 
         return modules
 
