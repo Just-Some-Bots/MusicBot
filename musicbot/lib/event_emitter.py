@@ -51,6 +51,28 @@ class EventEmitter:
 
         return self.on(event, callback)
 
+class AsyncEventEmitter(EventEmitter):
+    def __init__(self):
+        super().__init__()
+    
+    async def emit(self, event, *args, **kwargs):
+        if event not in self._events:
+            return
+
+        for cb in list(self._events[event]):
+            # noinspection PyBroadException
+            try:
+                if asyncio.iscoroutinefunction(cb):
+                    await cb(*args, **kwargs)
+                else:
+                    cb(*args, **kwargs)
+
+            except:
+                if not self.log:
+                    traceback.print_exc()
+                else:
+                    self.log.error(traceback.format_exc())
+
 class _MarkOn:
     def __init__(self, event, func):
         self.event = event

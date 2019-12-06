@@ -51,7 +51,7 @@ import discord
 from websockets import ConnectionClosed
 
 from .opus_loader import load_opus_lib
-from .lib.event_emitter import EventEmitter
+from .lib.event_emitter import AsyncEventEmitter
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
@@ -161,9 +161,9 @@ class ModuBot(Bot):
         else:
             arg = tuple()
 
-        if isinstance(cog, EventEmitter):
+        if isinstance(cog, AsyncEventEmitter):
             self.log.debug('emitting {} in {}'.format(method, cog.qualified_name))
-            cog.emit(method, *arg)
+            await cog.emit(method, *arg)
 
         if method in dir(cog):
             self.log.debug('executing {} in {}'.format(method, cog.qualified_name))

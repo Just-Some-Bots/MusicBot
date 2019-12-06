@@ -1,5 +1,5 @@
 from discord.ext.commands import Group
-from .lib.event_emitter import EventEmitter, on
+from .lib.event_emitter import AsyncEventEmitter, on
 from .utils import update_command_alias
 
 class _MarkInject:
@@ -7,7 +7,7 @@ class _MarkInject:
         self.inject = injectfunction
         self.eject = ejectfunction
 
-class InjectibleMixin(EventEmitter):
+class InjectibleMixin(AsyncEventEmitter):
     @on('pre_init')
     async def pre_init(self, bot):
         self.bot = bot
