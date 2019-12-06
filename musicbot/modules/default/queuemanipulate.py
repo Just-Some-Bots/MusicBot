@@ -666,10 +666,10 @@ class QueueManagement(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(guild.guild), expire_in=20)
 
     @command()
-    async def remove(self, ctx, index:Optional[Union[int, User]]=None):
+    async def removes(self, ctx, index:Optional[Union[int, User]]=None):
         """
         Usage:
-            {command_prefix}remove [# in queue]
+            {command_prefix}removes [# in queue]
 
         Removes queued songs. If a number is specified, removes that song in the queue, otherwise removes the most recently queued song.
         """

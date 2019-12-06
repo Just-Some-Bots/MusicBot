@@ -1,12 +1,18 @@
 import asyncio
 import traceback
 import collections
-
+from functools import partial
 
 class EventEmitter:
     def __init__(self):
         self._events = collections.defaultdict(list)
         self.loop = asyncio.get_event_loop()
+        self.log = None
+        
+        for item in dir(self):
+            iteminst = getattr(self, item)
+            if isinstance(iteminst, _MarkOn):
+                self.on(iteminst.event, partial(iteminst.func, self))
 
     def emit(self, event, *args, **kwargs):
         if event not in self._events:
@@ -21,7 +27,10 @@ class EventEmitter:
                     cb(*args, **kwargs)
 
             except:
-                traceback.print_exc()
+                if not self.log:
+                    traceback.print_exc()
+                else:
+                    self.log.error(traceback.format_exc())
 
     def on(self, event, cb):
         self._events[event].append(cb)
@@ -41,6 +50,18 @@ class EventEmitter:
             return cb(*args, **kwargs)
 
         return self.on(event, callback)
+
+class _MarkOn:
+    def __init__(self, event, func):
+        self.event = event
+        self.func = func
+
+def on(event):
+    def on_ev(func):
+        return _MarkOn(event, func)
+    return on_ev
+
+on_event = on
 
 class EmitterToggler:
 

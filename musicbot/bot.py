@@ -51,11 +51,12 @@ import discord
 from websockets import ConnectionClosed
 
 from .opus_loader import load_opus_lib
+from .lib.event_emitter import EventEmitter
 from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
 from .ytdldownloader import YtdlDownloader
-from .utils import isiterable, load_file, write_file, fixg
+from .utils import isiterable, load_file, write_file, fixg, update_command_alias
 from .constants import VERSION as BOTVERSION
 from .constants import AUDIO_CACHE_PATH
 
@@ -155,23 +156,30 @@ class ModuBot(Bot):
         self._presence = (None, None)
 
     async def _exec_cogs(self, cog, method, modulename = None, with_self = False):
+        if with_self:
+            arg = (self,)
+        else:
+            arg = tuple()
+
+        if isinstance(cog, EventEmitter):
+            self.log.debug('emitting {} in {}'.format(method, cog.qualified_name))
+            cog.emit(method, *arg)
+
         if method in dir(cog):
             self.log.debug('executing {} in {}'.format(method, cog.qualified_name))
             potential = getattr(cog, method)
-            self.log.debug(str(potential))
-            self.log.debug(str(potential.__func__))
-            if with_self:
-                arg = (self,)
-            else:
-                arg = tuple()
             try:
-                if iscoroutinefunction(potential.__func__):
-                    await potential(*arg)
-                elif isfunction(potential.__func__):
-                    potential(*arg)
+                self.log.debug(str(potential))
+                if hasattr(potential, '__func__'):
+                    self.log.debug(str(potential.__func__))
+                    if iscoroutinefunction(potential.__func__):
+                        await potential(*arg)
+                    elif isfunction(potential.__func__):
+                        potential(*arg)
+                    else:
+                        self.log.debug('{} is neither funtion nor coroutine function'.format(method))
                 else:
-                    self.log.debug('{} is neither funtion nor coroutine function'.format(method))
-                return True
+                    self.log.debug('{} has no __func__'.format(method))
             except Exception:
                 self.log.warning(
                     'failed invoking {} of cog {} {}'.format(
@@ -183,25 +191,6 @@ class ModuBot(Bot):
                 self.log.debug(traceback.format_exc())
                 return False
         return True
-
-    def _update_command_alias(self, cmd):
-        cdict = defaultdict(list)
-        cdict[None].append(cmd)
-        if hasattr(cmd, 'walk_commands'):
-            for child in cmd.walk_commands():
-                cdict[child.parent].append(child)
-        for commandlist in cdict.values():
-            for command in commandlist:
-                if command.qualified_name in self.alias.aliases:
-                    self.log.debug('setting aliases for {} as {}'.format(command.qualified_name, self.alias.aliases[command.qualified_name]))
-                    command.update(aliases = self.alias.aliases[command.qualified_name])
-                else:
-                    # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
-                    command.update()
-        for parent, commandlist in cdict.items():
-            if parent:
-                for command in commandlist:
-                    parent.add_command(command)
 
     async def _load_modules(self, modules):
         for moduleinfo in modules:
@@ -218,63 +207,62 @@ class ModuBot(Bot):
 
         satisfied, unsatisfied = self.crossmodule.dependency_graph.get_state() # pylint: disable=unused-variable
 
+        self.log.debug(satisfied)
+
         if unsatisfied:
             self.log.warning('These following modules does not have dependencies required and will not be loaded: {}'.format(', '.join(unsatisfied)))
             for module_name in unsatisfied:
                 self.crossmodule.unregister_module(module_name)
 
-        modulelist = [moduleinfo for moduleinfo in modules if moduleinfo.name not in unsatisfied]
+        loaded_cogs = dict()
 
-        load_cogs = []
-
-        for moduleinfo in modulelist:
-            if 'cogs' in dir(moduleinfo.module):
-                cogs = getattr(moduleinfo.module, 'cogs')
+        for modulename in satisfied:
+            moduleobj = self.crossmodule.module[modulename].imported_module_obj
+            load_cogs = []
+            if 'cogs' in dir(moduleobj):
+                cogs = getattr(moduleobj, 'cogs')
                 if isiterable(cogs):
                     for cog in cogs:
                         cg = cog()
                         self.log.debug('found cog {}'.format(cg.qualified_name))
-                        if await self._exec_cogs(cg, 'pre_init', moduleinfo.name, with_self=True):
-                            load_cogs.append((moduleinfo.name, cg))
+                        if await self._exec_cogs(cg, 'pre_init', modulename, with_self=True):
+                            load_cogs.append(cg)
                 else:
                     self.log.debug('cogs is not an iterable')
 
-        for moduleinfo in modulelist:
-            if 'commands' in dir(moduleinfo.module):
-                self.log.debug('loading commands in {}'.format(moduleinfo.name))
-                commands = getattr(moduleinfo.module, 'commands')
+            if 'commands' in dir(moduleobj):
+                self.log.debug('loading commands in {}'.format(modulename))
+                commands = getattr(moduleobj, 'commands')
                 if isiterable(commands):
                     for command in commands:
                         cmd = command()
-                        self._update_command_alias(cmd)
+                        update_command_alias(self, cmd)
                         self.add_command(cmd)
-                        self.crossmodule.module[moduleinfo.name].commands.add(cmd)
+                        self.crossmodule.module[modulename].commands.add(cmd)
                         self.log.debug('loaded {}'.format(cmd.name))
                 else:
                     self.log.debug('commands is not an iterable')
 
-        for modulename, cog in load_cogs.copy():
-            if not await self._exec_cogs(cog, 'init', modulename):
-                load_cogs.remove((modulename, cog))
+            for cog in load_cogs.copy():
+                if not await self._exec_cogs(cog, 'init', modulename):
+                    load_cogs.remove(cog)
 
-        for modulename, cog in load_cogs:
-            if not await self._exec_cogs(cog, 'post_init', modulename):
-                load_cogs.remove((modulename, cog))
+            for cog in load_cogs:
+                for cmd in cog.get_commands():
+                    update_command_alias(self, cmd)
+                self.add_cog(cog)
+                self.crossmodule.module[modulename].cogs.add(cog)
+                loaded_cogs[cog] = modulename
+                self.log.debug('loaded {}'.format(cog.qualified_name))
 
-        self.log.debug('loading cogs')
-        for modulename, cog in load_cogs:
-            for cmd in cog.get_commands():
-                self._update_command_alias(cmd)
-            self.add_cog(cog)
-            self.crossmodule.module[modulename].cogs.add(cog)
-            self.log.debug('loaded {}'.format(cog.qualified_name))
-
-        for modulename, cog in load_cogs:
+        for cog, modulename in loaded_cogs.items():
             if not await self._exec_cogs(cog, 'after_init', modulename):
+                await self._exec_cogs(cog, 'uninit', modulename)
                 self.remove_cog(cog.qualified_name)
                 self.crossmodule.module[modulename].cogs.remove(cog)
 
     async def _prepare_load_module(self, modulename, *, parent_as = None):
+        # @TheerapakG: TODO: nicer way to set parent
         modules = set()
 
         async def _try_load_submodules(modulename, moduleobj):
@@ -294,30 +282,31 @@ class ModuBot(Bot):
                 try:
                     temporary_moduledict[item] = reload(temporary_moduledict[item])
                 except Exception as e:
-                    self.log.error('error fetching module: {}'.format(item))
-                    self.log.error('{}'.format(e))
-                    self.log.debug(traceback.format_exc())
+                    if not parent_as:
+                        self.log.error('error fetching module: {}'.format(item))
+                        self.log.error('{}'.format(e))
+                        self.log.debug(traceback.format_exc())
                     raise e
                     
                 await _try_load_submodules(item, temporary_moduledict[item])
 
                 if parent_as is not None and item == modulename:
-                    temporary_moduledict[item].deps = set([parent_as]).union(getattr(temporary_moduledict[item], 'deps', set()))
+                    temporary_moduledict[item].parent = parent_as
                 modules.add(ModuleTuple(item, temporary_moduledict[item]))
         else:
             try:
                 mobj = import_module('.modules.{}'.format(modulename), 'musicbot')
-
-                await _try_load_submodules(modulename, mobj)
-
-                if parent_as is not None:
-                    mobj.deps = set([parent_as]).union(getattr(mobj, 'deps', set()))
-                modules.add(ModuleTuple(modulename, mobj))
             except Exception as e:
                 self.log.error('error fetching module: {}'.format(modulename))
                 self.log.error('{}'.format(e))
                 self.log.debug(traceback.format_exc())
-                raise e
+                return modules
+
+            await _try_load_submodules(modulename, mobj)
+
+            if parent_as is not None:
+                mobj.parent = parent_as
+            modules.add(ModuleTuple(modulename, mobj))
 
         return modules
 
@@ -340,8 +329,11 @@ class ModuBot(Bot):
         # 4: remove from loaded
         # 5: module uninit
         unloadlist = self.crossmodule.dependency_graph.get_dependents_multiple(modulenames)
+        parents = set()
 
         for modulename in unloadlist:
+            if hasattr(self.crossmodule.module[modulename], 'parent'):
+                parents.add(self.crossmodule.module[modulename].parent)
             for cog in self.crossmodule.module[modulename].cogs:
                 await self._exec_cogs(cog, 'uninit')
                 self.remove_cog(cog.qualified_name)
@@ -360,6 +352,9 @@ class ModuBot(Bot):
                         del sys.modules[p_submodule]
 
                 self.log.debug('unimported {}'.format(modulename))
+
+        if parents:
+            await self.unload_modules(parents, unimport = unimport)
 
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
         app_info = await self.application_info()

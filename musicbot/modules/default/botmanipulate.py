@@ -9,13 +9,14 @@ from discord.ext.commands import Cog, command
 from typing import Optional
 
 from ...utils import _get_variable
+from ...command_injector import InjectibleMixin, inject_as_subcommand
 from ... import exceptions
 from ...rich_guild import get_guild
 from ...wrappers import owner_only
 
 from ... import messagemanager
 
-class BotManagement(Cog):
+class BotManagement(InjectibleMixin, Cog):
     @command()
     async def disconnect(self, ctx):
         """
@@ -98,11 +99,12 @@ class BotManagement(Cog):
         await guild.leave()
         await messagemanager.safe_send_normal(ctx, ctx, 'Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(guild))
 
-    @command()
+    @inject_as_subcommand('set')
+    @command(name = 'nick')
     async def setnick(self, ctx, *, nick:str):
         """
         Usage:
-            {command_prefix}setnick nick
+            {command_prefix}set nick nick
 
         Changes the bot's nickname.
         """
@@ -250,3 +252,4 @@ class BotManagement(Cog):
         )
 
 cogs = [BotManagement]
+deps = ['default.base']
