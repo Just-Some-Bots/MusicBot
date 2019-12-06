@@ -10,6 +10,8 @@ class EventEmitter:
         self.log = None
         
         for item in dir(self):
+            if hasattr(type(self), item) and isinstance(getattr(type(self), item), property):
+                continue
             iteminst = getattr(self, item)
             if isinstance(iteminst, _MarkOn):
                 self.on(iteminst.event, partial(iteminst.func, self))
@@ -65,7 +67,9 @@ class AsyncEventEmitter(EventEmitter):
                 if asyncio.iscoroutinefunction(cb):
                     await cb(*args, **kwargs)
                 else:
-                    cb(*args, **kwargs)
+                    v = cb(*args, **kwargs)
+                    if asyncio.iscoroutine(v):
+                        await v
 
             except:
                 if not self.log:

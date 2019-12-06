@@ -15,6 +15,8 @@ class InjectableMixin(AsyncEventEmitter):
     @on('init')
     async def init(self):
         for item in dir(self):
+            if hasattr(type(self), item) and isinstance(getattr(type(self), item), property):
+                continue
             iteminst = getattr(self, item)
             if isinstance(iteminst, _MarkInject):
                 self.bot.log.debug('injecting with {}'.format(iteminst.inject))
@@ -23,6 +25,8 @@ class InjectableMixin(AsyncEventEmitter):
     @on('uninit')
     async def uninit(self):
         for item in dir(self):
+            if hasattr(type(self), item) and isinstance(getattr(type(self), item), property):
+                continue
             iteminst = getattr(self, item)
             if isinstance(iteminst, _MarkInject):
                 self.bot.log.debug('ejecting with {}'.format(iteminst.eject))

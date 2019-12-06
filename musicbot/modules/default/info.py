@@ -11,14 +11,13 @@ from discord.ext.commands import Cog, command
 from ... import exceptions
 from ...rich_guild import get_guild
 from ...utils import ftimedelta
-from ...constants import DISCORD_MSG_CHAR_LIMIT
-from ...playback import PlayerState
+from ...command_injector import InjectableMixin, inject_as_subcommand
 
 from ... import messagemanager
 
 log = logging.getLogger(__name__)
 
-class Information(Cog):
+class Information(InjectableMixin, Cog):
     @command()
     async def pldump(self, ctx, *, song_url:str):
         """
@@ -65,107 +64,13 @@ class Information(Cog):
 
         return messagemanager.safe_send_normal(ctx, ctx, "Sent a message with a playlist file.", expire_in=20)
 
-    @command()
-    async def queue(self, ctx):
-        """
-        Usage:
-            {command_prefix}queue
 
-        Prints the current song queue.
-        """
-
-        guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        entry = await player.get_current_entry()
-        playlist = await guild.get_playlist()
-
-        lines = []
-        unlisted = 0
-        andmoretext = '* ... and %s more*' % (await playlist.get_length())
-
-        if (await player.status()) == PlayerState.PLAYING:
-            # TODO: Fix timedelta garbage with util function
-            song_progress = ftimedelta(timedelta(seconds=await player.progress()))
-            song_total = ftimedelta(timedelta(seconds=entry.duration))
-            prog_str = '`[%s/%s]`' % (song_progress, song_total)
-
-            if entry.queuer_id:
-                lines.append(ctx.bot.str.get('cmd-queue-playing-author', "Currently playing: `{0}` added by `{1}` {2}\n").format(
-                    entry.title, guild.guild.get_member(entry.queuer_id).name, prog_str))
-            else:
-                lines.append(ctx.bot.str.get('cmd-queue-playing-noauthor', "Currently playing: `{0}` {1}\n").format(entry.title, prog_str))
-
-
-        for i, item in enumerate(playlist):
-            if item.queuer_id:
-                nextline = ctx.bot.str.get('cmd-queue-entry-author', '{0} -- `{1}` by `{2}`').format(i+1, item.title, guild.guild.get_member(item.queuer_id).name).strip()
-            else:
-                nextline = ctx.bot.str.get('cmd-queue-entry-noauthor', '{0} -- `{1}`').format(i+1, item.title).strip()
-
-            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
-
-            if (currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT) or (i > ctx.bot.config.queue_length):
-                if currentlinesum + len(andmoretext):
-                    unlisted += 1
-                    continue
-
-            lines.append(nextline)
-
-        if unlisted:
-            lines.append(ctx.bot.str.get('cmd-queue-more', '\n... and %s more') % unlisted)
-
-        if not lines:
-            lines.append(
-                ctx.bot.str.get('cmd-queue-none', 'There are no songs queued! Queue something with {}play.').format(ctx.bot.config.command_prefix))
-
-        message = '\n'.join(lines)
-        await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
-
-    @command()
-    async def peek(self, ctx, name):
-        """
-        Usage:
-            {command_prefix}peek playlist_name
-
-        Prints entries in the specified playlist.
-        """
-
-        guild = get_guild(ctx.bot, ctx.guild)
-        playlist = guild._playlists[name]
-
-        lines = []
-        unlisted = 0
-        andmoretext = '* ... and %s more*' % (await playlist.get_length())
-
-        for i, item in enumerate(playlist):
-            if item.queuer_id:
-                nextline = ctx.bot.str.get('cmd-queue-entry-author', '{0} -- `{1}` by `{2}`').format(i+1, item.title, guild.guild.get_member(item.queuer_id).name).strip()
-            else:
-                nextline = ctx.bot.str.get('cmd-queue-entry-noauthor', '{0} -- `{1}`').format(i+1, item.title).strip()
-
-            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
-
-            if (currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT) or (i > ctx.bot.config.queue_length):
-                if currentlinesum + len(andmoretext):
-                    unlisted += 1
-                    continue
-
-            lines.append(nextline)
-
-        if unlisted:
-            lines.append(ctx.bot.str.get('cmd-queue-more', '\n... and %s more') % unlisted)
-
-        if not lines:
-            lines.append('There are no songs in the playlist!')
-
-        message = '\n'.join(lines)
-        await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
-
-    @command()
+    @inject_as_subcommand('list')
+    @command(name = 'ids')
     async def listids(self, ctx, *, cat:Optional[str]='all'):
         """
         Usage:
-            {command_prefix}listids [categories]
+            {command_prefix}list ids [categories]
 
         Lists the ids for various things.  Categories are:
             all, users, roles, channels
@@ -334,3 +239,4 @@ class Information(Cog):
             await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-id-other', '**{0}**s ID is `{1}`').format(user.name, user.id), reply=True, expire_in=35)
 
 cogs = [Information]
+deps = ['default.base']
