@@ -1,13 +1,13 @@
 from discord.ext.commands import Group
 from .lib.event_emitter import AsyncEventEmitter, on
-from .utils import update_command_alias
+from .alias import update_command_alias
 
 class _MarkInject:
     def __init__(self, injectfunction, ejectfunction):
         self.inject = injectfunction
         self.eject = ejectfunction
 
-class InjectibleMixin(AsyncEventEmitter):
+class InjectableMixin(AsyncEventEmitter):
     @on('pre_init')
     async def pre_init(self, bot):
         self.bot = bot

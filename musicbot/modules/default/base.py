@@ -32,5 +32,12 @@ class Base(Cog):
         """
         pass
 
+    @group(invoke_without_command=False)
+    async def list(self, ctx):
+        """
+        A command group for listing things
+        """
+        pass
+
 
 cogs = [Base]

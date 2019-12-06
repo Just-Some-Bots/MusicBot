@@ -9,14 +9,14 @@ from discord.ext.commands import Cog, command
 from typing import Optional
 
 from ...utils import _get_variable
-from ...command_injector import InjectibleMixin, inject_as_subcommand
+from ...command_injector import InjectableMixin, inject_as_subcommand
 from ... import exceptions
 from ...rich_guild import get_guild
 from ...wrappers import owner_only
 
 from ... import messagemanager
 
-class BotManagement(InjectibleMixin, Cog):
+class BotManagement(InjectableMixin, Cog):
     @command()
     async def disconnect(self, ctx):
         """
@@ -120,7 +120,8 @@ class BotManagement(InjectibleMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "Set the bot's nickname to `{0}`".format(nick), expire_in=20)
         return
 
-    @command()
+    @inject_as_subcommand('set')
+    @command(name = 'avatar')
     @owner_only
     async def setavatar(self, ctx, url: Optional[str]):
         """
@@ -149,7 +150,8 @@ class BotManagement(InjectibleMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "Changed the bot's avatar.", expire_in=20)
         return
 
-    @command()
+    @inject_as_subcommand('set')
+    @command(name = 'name')
     @owner_only
     async def setname(self, ctx, *, name: str):
         """

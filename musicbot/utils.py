@@ -327,29 +327,3 @@ def get_command(program):
                 return exe_file
 
     return None
-
-def update_command_alias(bot, cmd, specific_prompt = None):
-    cdict = defaultdict(list)
-    cdict[None].append(cmd)
-    if hasattr(cmd, 'walk_commands'):
-        for child in cmd.walk_commands():
-            cdict[child.parent].append(child)
-            
-    for commandlist in cdict.values():
-        for command in commandlist:
-            cog = command.cog
-            if command.qualified_name in bot.alias.aliases:
-                bot.log.debug('setting aliases for {}{} as {}'.format(
-                    command.qualified_name,
-                    '' if specific_prompt is None else ' ({})'.format(specific_prompt),
-                    bot.alias.aliases[command.qualified_name])
-                )
-                command.update(aliases = bot.alias.aliases[command.qualified_name])
-            else:
-                # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
-                command.update()
-            command.cog = cog
-    for parent, commandlist in cdict.items():
-        if parent:
-            for command in commandlist:
-                parent.add_command(command)

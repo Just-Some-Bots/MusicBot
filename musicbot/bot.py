@@ -56,13 +56,13 @@ from .crossmodule import CrossModule
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
 from .ytdldownloader import YtdlDownloader
-from .utils import isiterable, load_file, write_file, fixg, update_command_alias
+from .utils import isiterable, load_file, write_file, fixg
 from .constants import VERSION as BOTVERSION
 from .constants import AUDIO_CACHE_PATH
 
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
-from .alias import Alias, AliasDefaults
+from .alias import Alias, AliasDefaults, update_command_alias
 from .json import Json
 from .spotify import Spotify
 from . import exceptions

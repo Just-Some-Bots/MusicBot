@@ -10,6 +10,39 @@ from .exceptions import HelpfulError, AliasError
 
 log = logging.getLogger(__name__)
 
+def update_command_alias(bot, cmd, specific_prompt = None):
+    cdict = defaultdict(list)
+    cdict[None].append(cmd)
+    if hasattr(cmd, 'walk_commands'):
+        for child in cmd.walk_commands():
+            cdict[child.parent].append(child)
+            
+    for commandlist in cdict.values():
+        for command in commandlist:
+            cog = command.cog
+            if command.qualified_name in bot.alias.aliases:
+                bot.log.debug('setting aliases for {}{} as {}'.format(
+                    command.qualified_name,
+                    '' if specific_prompt is None else ' ({})'.format(specific_prompt),
+                    bot.alias.aliases[command.qualified_name])
+                )
+                command.update(aliases = bot.alias.aliases[command.qualified_name])
+            else:
+                # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                command.update()
+            command.cog = cog
+    for parent, commandlist in cdict.items():
+        if parent:
+            for command in commandlist:
+                parent.add_command(command)
+
+def update_loaded_command_alias(bot, cmd, specific_prompt = None):
+    if cmd.parent:
+        update_command_alias(bot, cmd.parent, '{} w/ parent'.format(specific_prompt) if specific_prompt else None)
+    else:
+        update_command_alias(bot, cmd, '{} w/o parent'.format(specific_prompt) if specific_prompt else None)
+        bot.remove_command(cmd.name)
+        bot.add_command(cmd)
 
 class Alias:
     # noinspection PyUnresolvedReferences
@@ -83,39 +116,39 @@ class Alias:
         with open(location, 'w') as f:
             config.write(f)
 
-    # @TheerapakG: TODO: rework to work with subcommands
+    def add_alias(self, command, alias):
+        origc = self.bot.get_command(command)
+        if origc:
+            if alias in self.aliases[origc.name]:
+                raise AliasError('command given already have that alias')
 
-    def add_alias(self, command, alias, force = False):
-        origc = self.bot.get_command(alias)
-        if origc and not force:
-            raise AliasError('already have alias')
-        elif origc:
-            try:
-                origc.aliases.remove(alias)
-                self.bot.remove_command(alias)
-                self.aliases[command].remove(alias)
-            except ValueError:
-                raise AliasError('alias is a command')
+            if origc.parent:
+                parent = origc.parent
+            else:
+                parent = self.bot
 
-        c = self.bot.get_command(command)
-        c.aliases.append(alias)
-        self.bot.all_commands[alias] = c
-        self.aliases[command].append(alias)
-        if self.bot.config.persistent_alias:
-            self.write_alias()
+            ouch = parent.get_command(alias)
+            if ouch:
+                raise AliasError('already have that alias registered with the command `{}`'.format(ouch.name))
+
+            self.aliases[origc.name].append(alias)
+            update_loaded_command_alias(self.bot, origc, 'added alias')
+            if self.bot.config.persistent_alias:
+                self.write_alias()
+        else:
+            raise AliasError('no such command')
 
     def remove_alias(self, alias):
         origc = self.bot.get_command(alias)
         if origc:
             try:
-                origc.aliases.remove(alias)
-                self.bot.remove_command(alias)
-                self.aliases[origc.name].remove(alias)
-                if self.bot.config.persistent_alias:
-                    self.write_alias()
-                return
+                self.aliases[origc.name].remove(alias.split()[-1])
             except ValueError:
                 raise AliasError('alias is a command')
+            else:
+                update_loaded_command_alias(self.bot, origc, 'removed alias')
+                if self.bot.config.persistent_alias:
+                    self.write_alias()
         else:
             raise AliasError('no such alias')
             
