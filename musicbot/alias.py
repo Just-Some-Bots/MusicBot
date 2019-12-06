@@ -10,40 +10,6 @@ from .exceptions import HelpfulError, AliasError
 
 log = logging.getLogger(__name__)
 
-def update_command_alias(bot, cmd, specific_prompt = None):
-    cdict = defaultdict(list)
-    cdict[None].append(cmd)
-    if hasattr(cmd, 'walk_commands'):
-        for child in cmd.walk_commands():
-            cdict[child.parent].append(child)
-            
-    for commandlist in cdict.values():
-        for command in commandlist:
-            cog = command.cog
-            if command.qualified_name in bot.alias.aliases:
-                bot.log.debug('setting aliases for {}{} as {}'.format(
-                    command.qualified_name,
-                    '' if specific_prompt is None else ' ({})'.format(specific_prompt),
-                    bot.alias.aliases[command.qualified_name])
-                )
-                command.update(aliases = bot.alias.aliases[command.qualified_name])
-            else:
-                # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
-                command.update()
-            command.cog = cog
-    for parent, commandlist in cdict.items():
-        if parent:
-            for command in commandlist:
-                parent.add_command(command)
-
-def update_loaded_command_alias(bot, cmd, specific_prompt = None):
-    if cmd.parent:
-        update_command_alias(bot, cmd.parent, '{} w/ parent'.format(specific_prompt) if specific_prompt else None)
-    else:
-        update_command_alias(bot, cmd, '{} w/o parent'.format(specific_prompt) if specific_prompt else None)
-        bot.remove_command(cmd.name)
-        bot.add_command(cmd)
-
 class Alias:
     # noinspection PyUnresolvedReferences
     def __init__(self, bot, alias_file):
@@ -101,8 +67,7 @@ class Alias:
                 log.critical("Unable to copy config/example_alias.ini to {}".format(self.alias_file), exc_info=e)
                 sys.exit(2)
 
-    def write_alias(self, location = None):
-        
+    def write_alias(self, location = None):        
         if not location:
             location = self.alias_file
 
@@ -115,6 +80,42 @@ class Alias:
             config.set('Aliases', key, ' '.join(value))
         with open(location, 'w') as f:
             config.write(f)
+
+    def fix_alias(self, cmd, specific_prompt = None):
+        cdict = defaultdict(list)
+        cdict[None].append(cmd)
+        if hasattr(cmd, 'walk_commands'):
+            for child in cmd.walk_commands():
+                cdict[child.parent].append(child)
+                
+        for commandlist in cdict.values():
+            for command in commandlist:
+                cog = command.cog
+                if command.qualified_name in self.aliases:
+                    self.bot.log.debug('setting aliases for {}{} as {}'.format(
+                        command.qualified_name,
+                        '' if specific_prompt is None else ' ({})'.format(specific_prompt),
+                        self.aliases[command.qualified_name])
+                    )
+                    command.update(aliases = self.aliases[command.qualified_name])
+                else:
+                    # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
+                    command.update()
+                command.cog = cog
+        for parent, commandlist in cdict.items():
+            if parent:
+                for command in commandlist:
+                    parent.add_command(command)
+
+    def fix_chained_command_alias(self, cmd, specific_prompt = None):
+        if cmd.parent:
+            parent = cmd.parent
+            self.fix_alias(cmd, '{} w/ parent'.format(specific_prompt) if specific_prompt else None)
+        else:
+            parent = self.bot
+            self.fix_alias(cmd, '{} w/o parent'.format(specific_prompt) if specific_prompt else None)
+        parent.remove_command(cmd.name)
+        parent.add_command(cmd)
 
     def add_alias(self, command, alias):
         origc = self.bot.get_command(command)
@@ -132,7 +133,7 @@ class Alias:
                 raise AliasError('already have that alias registered with the command `{}`'.format(ouch.name))
 
             self.aliases[origc.name].append(alias)
-            update_loaded_command_alias(self.bot, origc, 'added alias')
+            self.fix_chained_command_alias(origc, 'added alias')
             if self.bot.config.persistent_alias:
                 self.write_alias()
         else:
@@ -146,7 +147,7 @@ class Alias:
             except ValueError:
                 raise AliasError('alias is a command')
             else:
-                update_loaded_command_alias(self.bot, origc, 'removed alias')
+                self.fix_chained_command_alias(origc, 'removed alias')
                 if self.bot.config.persistent_alias:
                     self.write_alias()
         else:

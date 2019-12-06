@@ -1,6 +1,5 @@
 from discord.ext.commands import Group
 from .lib.event_emitter import AsyncEventEmitter, on
-from .alias import update_command_alias
 
 class _MarkInject:
     def __init__(self, injectfunction, ejectfunction):
@@ -37,7 +36,7 @@ def inject_as_subcommand(groupcommand):
             subcmd.cog = cog
             cmd = bot.get_command(groupcommand)
             cmd.add_command(subcmd)
-            update_command_alias(bot, cmd, 'injected')
+            bot.alias.fix_chained_command_alias(subcmd, 'injected')
 
         def eject(bot):
             bot.log.debug('Invoking inject_as_subcommand ejecting {} from {}'.format(subcmd, groupcommand))

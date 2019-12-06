@@ -62,7 +62,7 @@ from .constants import AUDIO_CACHE_PATH
 
 from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
-from .alias import Alias, AliasDefaults, update_command_alias
+from .alias import Alias, AliasDefaults
 from .json import Json
 from .spotify import Spotify
 from . import exceptions
@@ -128,7 +128,7 @@ class ModuBot(Bot):
         # guild are of type RichGuild
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
-        super().__init__(command_prefix = self.config.command_prefix, *args, **kwargs)
+        super().__init__(command_prefix = self.config.command_prefix, help_command = None, *args, **kwargs)
 
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
@@ -147,13 +147,16 @@ class ModuBot(Bot):
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
 
-        self.help_command = None
         self.looplock = threading.Lock()
         self._init = False
 
         self._owner_id = self.config.owner_id
 
         self._presence = (None, None)
+
+    def add_command(self, command):
+        self.alias.fix_alias(command, 'add_command')
+        super().add_command(command)
 
     async def _exec_cogs(self, cog, method, modulename = None, with_self = False):
         if with_self:
@@ -235,11 +238,9 @@ class ModuBot(Bot):
                 commands = getattr(moduleobj, 'commands')
                 if isiterable(commands):
                     for command in commands:
-                        cmd = command()
-                        update_command_alias(self, cmd)
-                        self.add_command(cmd)
-                        self.crossmodule.module[modulename].commands.add(cmd)
-                        self.log.debug('loaded {}'.format(cmd.name))
+                        self.add_command(command)
+                        self.crossmodule.module[modulename].commands.add(command)
+                        self.log.debug('loaded {}'.format(command.name))
                 else:
                     self.log.debug('commands is not an iterable')
 
@@ -248,8 +249,6 @@ class ModuBot(Bot):
                     load_cogs.remove(cog)
 
             for cog in load_cogs:
-                for cmd in cog.get_commands():
-                    update_command_alias(self, cmd)
                 self.add_cog(cog)
                 self.crossmodule.module[modulename].cogs.add(cog)
                 loaded_cogs[cog] = modulename
