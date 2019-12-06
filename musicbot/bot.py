@@ -269,7 +269,7 @@ class ModuBot(Bot):
             if hasattr(moduleobj, 'modules'):
                 for mname in moduleobj.modules:
                     modules.update(await self._prepare_load_module(mname, parent_as = modulename))
-                moduleobj.deps = set(moduleobj.modules).union(getattr(moduleobj, 'deps', set()))
+                moduleobj.child = set(moduleobj.modules)
 
         if modulename in self.crossmodule.loaded_modules_name():
             to_reload = self.crossmodule.dependency_graph.get_dependents(modulename)
@@ -281,11 +281,10 @@ class ModuBot(Bot):
                 try:
                     temporary_moduledict[item] = reload(temporary_moduledict[item])
                 except Exception as e:
-                    if not parent_as:
-                        self.log.error('error fetching module: {}'.format(item))
-                        self.log.error('{}'.format(e))
-                        self.log.debug(traceback.format_exc())
-                    raise e
+                    self.log.error('error fetching module: {}'.format(item))
+                    self.log.error('{}'.format(e))
+                    self.log.debug(traceback.format_exc())
+                    return modules
                     
                 await _try_load_submodules(item, temporary_moduledict[item])
 
@@ -328,11 +327,13 @@ class ModuBot(Bot):
         # 4: remove from loaded
         # 5: module uninit
         unloadlist = self.crossmodule.dependency_graph.get_dependents_multiple(modulenames)
-        parents = set()
+        relatives = set()
 
         for modulename in unloadlist:
             if hasattr(self.crossmodule.module[modulename], 'parent'):
-                parents.add(self.crossmodule.module[modulename].parent)
+                relatives.add(self.crossmodule.module[modulename].parent)
+            if hasattr(self.crossmodule.module[modulename], 'child'):
+                relatives.update(self.crossmodule.module[modulename].child)
             for cog in self.crossmodule.module[modulename].cogs:
                 await self._exec_cogs(cog, 'uninit')
                 self.remove_cog(cog.qualified_name)
@@ -352,8 +353,8 @@ class ModuBot(Bot):
 
                 self.log.debug('unimported {}'.format(modulename))
 
-        if parents:
-            await self.unload_modules(parents, unimport = unimport)
+        if relatives:
+            await self.unload_modules(relatives, unimport = unimport)
 
     async def generate_invite_link(self, *, permissions=discord.Permissions(70380544), guild=None):
         app_info = await self.application_info()
