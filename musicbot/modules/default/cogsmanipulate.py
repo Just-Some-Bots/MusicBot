@@ -42,8 +42,7 @@ class CogManagement(InjectableMixin, Cog):
         module = 'not implemented'
         await messagemanager.safe_send_normal(ctx, ctx, '```{}```'.format(module), expire_in=15)
 
-    @inject_as_subcommand('add')
-    @command(name = 'alias')
+    @inject_as_subcommand('add', name = 'alias')
     @owner_only
     async def addalias(self, ctx, command:str, alias:str):
         """
@@ -55,8 +54,7 @@ class CogManagement(InjectableMixin, Cog):
         ctx.bot.alias.add_alias(command, alias)
         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cogs?cmd?addalias?success', "Successfully add alias `{0}` to command `{1}`").format(alias, command), expire_in=15)
 
-    @inject_as_subcommand('remove')
-    @command(name = 'alias')
+    @inject_as_subcommand('remove', name = 'alias')
     @owner_only
     async def removealias(self, ctx, alias:str):
         """

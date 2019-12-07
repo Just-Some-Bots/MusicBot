@@ -9,7 +9,7 @@ from discord.ext.commands import Cog, command
 from typing import Optional
 
 from ...utils import _get_variable
-from ...command_injector import InjectableMixin, inject_as_subcommand
+from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command
 from ... import exceptions
 from ...rich_guild import get_guild
 from ...wrappers import owner_only
@@ -99,8 +99,8 @@ class BotManagement(InjectableMixin, Cog):
         await guild.leave()
         await messagemanager.safe_send_normal(ctx, ctx, 'Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)'.format(guild))
 
-    @inject_as_subcommand('set')
-    @command(name = 'nick')
+    @inject_as_subcommand('set', name = 'nick')
+    @inject_as_main_command('setnick')
     async def setnick(self, ctx, *, nick:str):
         """
         Usage:
@@ -120,8 +120,8 @@ class BotManagement(InjectableMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "Set the bot's nickname to `{0}`".format(nick), expire_in=20)
         return
 
-    @inject_as_subcommand('set')
-    @command(name = 'avatar')
+    @inject_as_subcommand('set', name = 'avatar')
+    @inject_as_main_command('setavatar')
     @owner_only
     async def setavatar(self, ctx, url: Optional[str]):
         """
@@ -150,8 +150,8 @@ class BotManagement(InjectableMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "Changed the bot's avatar.", expire_in=20)
         return
 
-    @inject_as_subcommand('set')
-    @command(name = 'name')
+    @inject_as_subcommand('set', name = 'name')
+    @inject_as_main_command('setname')
     @owner_only
     async def setname(self, ctx, *, name: str):
         """

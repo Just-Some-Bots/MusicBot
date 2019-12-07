@@ -15,8 +15,7 @@ from ... import messagemanager
 
 
 class PlaylistManagement(InjectableMixin, Cog):
-    @inject_as_subcommand('list')
-    @command(name = 'playlist')
+    @inject_as_subcommand('list', name = 'playlist')
     async def listplaylist(self, ctx):
         """
         Usage:
@@ -61,8 +60,7 @@ class PlaylistManagement(InjectableMixin, Cog):
             await guild.serialize_playlist(guild._playlists[name])
             return guild._playlists[name]
 
-    @inject_as_subcommand('add')
-    @command(name = 'playlist')
+    @inject_as_subcommand('add', name = 'playlist')
     async def addplaylist(self, ctx, name):
         """
         Usage:
@@ -81,8 +79,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         A command group for adding entries to the playlist
         """
 
-    @inject_as_subcommand('add entries')
-    @command(name = 'playlist')
+    @inject_as_subcommand('add entries', name = 'playlist')
     async def addentriesplaylist(self, ctx, name, target = None):
         """
         Usage:
@@ -107,8 +104,7 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
 
-    @inject_as_subcommand('list')
-    @command(name = 'entries')
+    @inject_as_subcommand('list', name = 'entries')
     async def listentries(self, ctx, name = None):
         """
         Usage:
@@ -168,8 +164,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         message = '\n'.join(lines)
         await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
 
-    @inject_as_subcommand('remove')
-    @command(name = 'playlist')
+    @inject_as_subcommand('remove', name = 'playlist')
     async def removeplaylist(self, ctx, name):
         """
         Usage:
@@ -224,8 +219,7 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         await messagemanager.safe_send_normal(ctx, ctx, 'swapped playlist from {} to {}'.format(prev._name, name))
 
-    @inject_as_subcommand('add entries')
-    @command(name = 'url')
+    @inject_as_subcommand('add entries', name = 'url')
     async def addentriesurl(self, ctx, url, name = None):
         """
         Usage:
@@ -242,8 +236,7 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         await messagemanager.safe_send_normal(ctx, ctx, 'imported playlist from {} to {}'.format(url, name))
 
-    @inject_as_subcommand('remove')
-    @command(name = 'entry')
+    @inject_as_subcommand('remove', name = 'entry')
     async def removeentry(self, ctx, index:Optional[Union[int, User]]=None, name:Optional[str]=None):
         """
         Usage:

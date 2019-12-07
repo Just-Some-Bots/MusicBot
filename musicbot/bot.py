@@ -723,7 +723,7 @@ class ModuBot(Bot):
         
         self.loop.run_forever()
 
-    async def _logout(self):
+    async def close(self):
         guilds = get_guild_list(self)
         for guild in guilds:
             try:
@@ -733,25 +733,16 @@ class ModuBot(Bot):
                 
             await guild.serialize_to_file()
         await self.unload_all_module()
-        await super().logout()
+        await super().close()
         await self.aiosession.close()
         self.log.debug('finished cleaning up')
 
-    def logout_loopstopped(self):
+    def stop_loopstopped(self):
         self.log.debug('on thread {}'.format(threading.get_ident()))
         self.log.info('logging out (loopstopped)..')
-        self.loop.run_until_complete(self._logout())
-        self.log.info('canceling incomplete tasks...')
-        gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
-        gathered.cancel()
-        async def await_gathered():
-            with suppress(Exception, asyncio.CancelledError):
-                await gathered
-        self.loop.run_until_complete(await_gathered())
-        self.downloader.shutdown()
-        self.log.info('finished!')
+        self.loop.run_until_complete(self.logout())
 
-    def logout_looprunning(self):
+    def stop_looprunning(self):
         async def _stop():
             self.loop.stop()
             self.looplock.release()
@@ -759,11 +750,19 @@ class ModuBot(Bot):
         self.log.debug('on thread {}'.format(threading.get_ident()))
         self.log.debug('bot\'s thread status: {}'.format(self.thread.is_alive()))
         self.log.info('logging out (looprunning)..')
-        future = asyncio.run_coroutine_threadsafe(self._logout(), self.loop)
+        future = asyncio.run_coroutine_threadsafe(self.logout(), self.loop)
         future.result()
         self.log.debug('stopping loop...')
         future = asyncio.run_coroutine_threadsafe(_stop(), self.loop)
         self.looplock.acquire()
+
+    def stop(self):
+        self.log.info('stopping bot...')
+        if self.loop.is_running():
+            self.stop_looprunning()
+        else:
+            self.stop_loopstopped()
+        
         self.log.info('canceling incomplete tasks...')
         gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
         gathered.cancel()
@@ -773,13 +772,7 @@ class ModuBot(Bot):
         self.loop.run_until_complete(await_gathered())
         self.downloader.shutdown()
         self.log.info('finished!')
-
-    def logout(self):
-        self.log.info('logging out...')
-        if self.loop.is_running():
-            self.logout_looprunning()
-        else:
-            self.logout_loopstopped()
+        
         self._init = False
         if getattr(self, '_restart', None):
             raise exceptions.RestartSignal('restarting...')

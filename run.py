@@ -458,7 +458,7 @@ def runbot(*botloghdlr, tried_updated = False):
                     shutdown = True
                     log.info('Shutting down ... ({})'.format(phase_name))
                     try:
-                        m.logout()
+                        m.stop()
                     except exceptions.RestartSignal:
                         nonlocal resetloop
                         resetloop = True

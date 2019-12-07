@@ -65,8 +65,7 @@ class Information(InjectableMixin, Cog):
         return messagemanager.safe_send_normal(ctx, ctx, "Sent a message with a playlist file.", expire_in=20)
 
 
-    @inject_as_subcommand('list')
-    @command(name = 'ids')
+    @inject_as_subcommand('list', name = 'ids')
     async def listids(self, ctx, *, cat:Optional[str]='all'):
         """
         Usage:
