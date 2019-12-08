@@ -11,7 +11,7 @@ from discord.ext.commands import Cog, command
 from ... import exceptions
 from ...rich_guild import get_guild
 from ...utils import ftimedelta
-from ...command_injector import InjectableMixin, inject_as_subcommand
+from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command
 
 from ... import messagemanager
 
@@ -66,6 +66,7 @@ class Information(InjectableMixin, Cog):
 
 
     @inject_as_subcommand('list', name = 'ids')
+    @inject_as_main_command('listids')
     async def listids(self, ctx, *, cat:Optional[str]='all'):
         """
         Usage:

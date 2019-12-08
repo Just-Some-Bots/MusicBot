@@ -1,14 +1,14 @@
 from discord.ext.commands import Cog, command, group
 from discord import User
 
-from typing import Optional, Union
+from typing import Optional, Union, AnyStr
 from datetime import timedelta
 
 from ... import exceptions
 
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 from ...utils import ftimedelta
-from ...command_injector import InjectableMixin, inject_as_subcommand
+from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command
 from ...rich_guild import get_guild
 from ...playback import Playlist, PlayerState
 from ... import messagemanager
@@ -105,6 +105,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
 
     @inject_as_subcommand('list', name = 'entries')
+    @inject_as_main_command('queue')
     async def listentries(self, ctx, name = None):
         """
         Usage:
@@ -230,13 +231,14 @@ class PlaylistManagement(InjectableMixin, Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
-        pl = await self.add_pl(ctx, name if name else (await guild.get_playlist())._name)
+        pl = guild._playlists[name] if name else (await guild.get_playlist())
         await bot.crossmodule.async_call_object('_play', ctx, pl, url, send_reply = False)
         await guild.serialize_playlist(pl)
 
         await messagemanager.safe_send_normal(ctx, ctx, 'imported playlist from {} to {}'.format(url, name))
 
     @inject_as_subcommand('remove', name = 'entry')
+    @inject_as_main_command('re')
     async def removeentry(self, ctx, index:Optional[Union[int, User]]=None, name:Optional[str]=None):
         """
         Usage:
@@ -302,6 +304,24 @@ class PlaylistManagement(InjectableMixin, Cog):
             raise exceptions.PermissionsError(
                 ctx.bot.str.get('cmd-remove-noperms', "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions"), expire_in=20
             )
+
+    @inject_as_subcommand('remove', name = 'entries')
+    @inject_as_main_command(['clear', 'res'])
+    async def clear(self, ctx, name: Optional[AnyStr] = None):
+        """
+        Usage:
+            {command_prefix}clear
+
+        Clears the playlist.
+        """
+        guild = get_guild(ctx.bot, ctx.guild)
+        if name:
+            playlist = guild._playlists[name]
+        else:
+            playlist = await guild.get_playlist()
+
+        await playlist.clear()
+        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`").format(playlist._name), expire_in=20)
             
 
 cogs = [PlaylistManagement]

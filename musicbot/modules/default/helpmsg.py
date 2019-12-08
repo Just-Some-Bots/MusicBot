@@ -1,4 +1,5 @@
 from textwrap import dedent
+from collections import defaultdict
 from discord.ext.commands import Cog, command
 from discord.utils import get
 from ... import exceptions
@@ -34,31 +35,29 @@ class Help(Cog):
         return commands
 
     async def _gen_cog_cmd_dict(self, bot, user, list_all_cmds=False):
-        ret = dict()
+        user_permissions = bot.permissions.for_user(user)
+        whitelist = user_permissions.command_whitelist
+        blacklist = user_permissions.command_blacklist
 
-        cogs = bot.cogs.copy()
-        for name, cog in cogs.items():
-            cmds = cog.get_commands()
-            commands = dict()
-            for cmd in cmds:
-                # This will always return at least cmd_help, since they needed perms to run this command
-                if not hasattr(cmd.callback, 'dev_cmd'):
-                    user_permissions = bot.permissions.for_user(user)
-                    whitelist = user_permissions.command_whitelist
-                    blacklist = user_permissions.command_blacklist
-                    if list_all_cmds:
-                        commands[cmd.qualified_name] = cmd
+        ret = defaultdict(dict)
+        cmds = bot.commands
 
-                    elif blacklist and cmd.name in blacklist:
-                        pass
+        for cmd in cmds:
+            # This will always return at least cmd_help, since they needed perms to run this command
+            if not hasattr(cmd.callback, 'dev_cmd'):
+                cog_name = cmd.cog.qualified_name if cmd.cog else 'unknown'
+                if list_all_cmds:
+                    ret[cog_name][cmd.qualified_name] = cmd
 
-                    elif whitelist and cmd.name not in whitelist:
-                        pass
+                elif blacklist and cmd.name in blacklist:
+                    pass
 
-                    else:
-                        commands[cmd.qualified_name] = cmd
+                elif whitelist and cmd.name not in whitelist:
+                    pass
 
-            ret[name] = commands
+                else:
+                    ret[cog_name][cmd.qualified_name] = cmd
+
         return ret
 
     @command()
