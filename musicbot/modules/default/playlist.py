@@ -8,7 +8,7 @@ from ... import exceptions
 
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 from ...utils import ftimedelta
-from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command
+from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command, inject_as_group
 from ...rich_guild import get_guild
 from ...playback import Playlist, PlayerState
 from ... import messagemanager
@@ -72,8 +72,8 @@ class PlaylistManagement(InjectableMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, 'added playlist: {}'.format(name))
         
 
-    @inject_as_subcommand('add')
-    @group(name = 'entries', invoke_without_command=False)
+    @inject_as_subcommand('add', name = 'entries', invoke_without_command=False)
+    @inject_as_group
     async def addentries(self, ctx):
         """
         A command group for adding entries to the playlist
