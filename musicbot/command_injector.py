@@ -78,6 +78,23 @@ def inject_as_subcommand(groupcommand, **kwargs):
         return try_append_payload(subcommand, inject, eject)
     return do_inject
 
+def inject_as_cog_subcommand(groupcommand, **kwargs):
+    def do_inject(subcommand):
+        subcmd = get_new_command_instance(subcommand, **kwargs)
+        def inject(bot, cog):
+            bot.log.debug('Invoking inject_as_cog_subcommand injecting {} to {}'.format(subcmd, groupcommand))
+            subcmd.cog = cog
+            cmd = cog.get_command(groupcommand)
+            bot.alias.fix_chained_command_alias(subcmd, 'injected')
+
+        def eject(bot):
+            bot.log.debug('Invoking inject_as_cog_subcommand ejecting {} from {}'.format(subcmd, groupcommand))
+            cmd = bot.get_command(groupcommand)
+            cmd.remove_command(subcmd)
+
+        return try_append_payload(subcommand, inject, eject)
+    return do_inject
+
 def inject_as_main_command(names:Union[AnyStr,Iterable[AnyStr]]):
     if isinstance(names, str):
         names = (names, )
