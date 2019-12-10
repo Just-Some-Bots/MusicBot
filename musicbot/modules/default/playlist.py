@@ -15,7 +15,16 @@ from ... import messagemanager
 
 
 class PlaylistManagement(InjectableMixin, Cog):
+    @inject_as_main_command('playlist', invoke_without_command=False)
+    @inject_as_group
+    async def playlist(self, ctx):
+        """
+        A command group for managing playlist
+        """
+        pass
+
     @inject_as_subcommand('list', name = 'playlist')
+    @inject_as_subcommand('playlist', name = 'list', after = 'inject_playlist')
     async def listplaylist(self, ctx):
         """
         Usage:
@@ -61,6 +70,7 @@ class PlaylistManagement(InjectableMixin, Cog):
             return guild._playlists[name]
 
     @inject_as_subcommand('add', name = 'playlist')
+    @inject_as_subcommand('playlist', name = 'add', after = 'inject_playlist')
     async def addplaylist(self, ctx, name):
         """
         Usage:
@@ -166,6 +176,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)
 
     @inject_as_subcommand('remove', name = 'playlist')
+    @inject_as_subcommand('playlist', name = 'remove', after = 'inject_playlist')
     async def removeplaylist(self, ctx, name):
         """
         Usage:

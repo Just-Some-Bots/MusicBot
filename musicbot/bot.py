@@ -208,7 +208,7 @@ class ModuBot(Bot):
             else:
                 self.crossmodule.register_module(moduleinfo.name, moduleinfo.module)
 
-        satisfied, unsatisfied = self.crossmodule.dependency_graph.get_state() # pylint: disable=unused-variable
+        satisfied, unsatisfied = self.crossmodule.dependency_graph.get_state()
 
         self.log.debug(satisfied)
 
