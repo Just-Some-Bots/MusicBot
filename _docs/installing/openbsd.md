@@ -4,36 +4,28 @@ category: Installing the bot
 order: 8
 ---
 
-MusicBot can run on OpenBSD systems as well by installing missing dependencies via `pip` in a virtual environment. Note that the X11 sets must be installed, and `csh`  must be used to activate the virtualenv and execute the bot. `bash` works too, but `csh` already comes with every OpenBSD installation.
+MusicBot can run on OpenBSD systems as well. Note that the X11 sets must be installed, due to the `ffmpeg` dependency.
 
 ## OpenBSD 6.6
 
 ~~~ bash
-# Install Python and native libraries
+# Install Python and libraries available as packages
 doas pkg_add python # select version 3.7.4
-doas pkg_add ffmpeg
-doas pkg_add libsodium
-doas pkg_add git
+doas pkg_add py3-aiohttp youtube-dl ffmpeg libsodium git
 
 # Ensure pip is set up
 python3 -m ensurepip
-
-# Create virtual environment
-python3 -m venv musicbot_virtualenv
-cd musicbot_virtualenv
-
-# Activate the virtual environment
-csh # if you aren't already running csh
-source bin/activate.csh
 
 # Clone the MusicBot
 git clone https://github.com/Just-Some-Bots/MusicBot.git -b master
 cd MusicBot
 
-# Install Python dependencies
-pip3 install -U pip
-pip3 install -U -r requirements.txt
+# Install remaining dependencies
+doas pip3 install -U pip
+doas pip3 install -U -r requirements.txt
 ~~~
+
+WARNING: If you have the py3-PyNaCl package installed, the final command will overwrite your system pynacl, which is likely newer, with pynacl 1.2.1, potentially breaking other packages. This can be worked around either by using a virtualenv (safe), or editing requirements.txt to remove the pinned version (at your own risk).
 
 After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `./run.py`.
 
