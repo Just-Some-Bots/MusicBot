@@ -1,62 +1,29 @@
-from textwrap import dedent
 from collections import defaultdict
 from discord.ext.commands import Cog, command
 from discord.utils import get
+from ...utils import check_restricted
 from ... import exceptions
 
 from ... import messagemanager
 
 class Help(Cog):
-    async def _gen_cmd_dict(self, bot, user, list_all_cmds=False):
-        cmds = bot.commands.copy()
-        commands = dict()
-        for cmd in cmds:
-            # This will always return at least cmd_help, since they needed perms to run this command
-            if not hasattr(cmd.callback, 'dev_cmd'):
-                user_permissions = bot.permissions.for_user(user)
-                whitelist = user_permissions.command_whitelist
-                blacklist = user_permissions.command_blacklist
-                if list_all_cmds:
-                    commands[cmd.qualified_name] = cmd
-                    for a in cmd.aliases:
-                        commands[a] = cmd
-
-                elif blacklist and cmd.name in blacklist:
-                    pass
-
-                elif whitelist and cmd.name not in whitelist:
-                    pass
-
-                else:
-                    commands[cmd.qualified_name] = cmd
-                    for a in cmd.aliases:
-                        commands[a] = cmd
-                        
-        return commands
+    async def get_cmd(self, name, bot, user, list_all_cmds=False):
+        cmd = bot.get_command(name)
+        user_permissions = bot.permissions.for_user(user)
+        if not check_restricted(cmd, user_permissions) or list_all_cmds:
+            return cmd
 
     async def _gen_cog_cmd_dict(self, bot, user, list_all_cmds=False):
         user_permissions = bot.permissions.for_user(user)
-        whitelist = user_permissions.command_whitelist
-        blacklist = user_permissions.command_blacklist
 
         ret = defaultdict(dict)
-        cmds = bot.commands
+        cmds = bot.commands if list_all_cmds else check_restricted(bot.commands, user_permissions)
 
         for cmd in cmds:
             # This will always return at least cmd_help, since they needed perms to run this command
             if not hasattr(cmd.callback, 'dev_cmd'):
                 cog_name = cmd.cog.qualified_name if cmd.cog else 'unknown'
-                if list_all_cmds:
-                    ret[cog_name][cmd.qualified_name] = cmd
-
-                elif blacklist and cmd.name in blacklist:
-                    pass
-
-                elif whitelist and cmd.name not in whitelist:
-                    pass
-
-                else:
-                    ret[cog_name][cmd.qualified_name] = cmd
+                ret[cog_name][cmd.qualified_name] = cmd
 
         return ret
 
@@ -85,7 +52,7 @@ class Help(Cog):
         list_cog = True if 'cog' in options else False
         options.remove('cog') if list_cog else None
 
-        name = '' if not options else options
+        name = '' if not options else ' '.join(options)
 
         cogs = await self._gen_cog_cmd_dict(ctx.bot, ctx.author, list_all_cmds=list_all)
 
@@ -101,24 +68,17 @@ class Help(Cog):
             
         else:
             if name:
-                cmds = await self._gen_cmd_dict(ctx.bot, ctx.author, list_all_cmds=True)
-                cmd = None
-                try:
-                    cmd = cmds[name[0]]
-                    for i in name[1:]:
-                        cmd = get(cmd.commands, name = i)
-                        if cmd is None:
-                            raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
-                except:
+                cmd = await self.get_cmd(name, ctx.bot, ctx.author, list_all_cmds=True)
+                if not cmd:
                     raise exceptions.CommandError(ctx.bot.str.get('cmd-help-invalid', "No such command"), expire_in=10)
                 if not hasattr(cmd.callback, 'dev_cmd'):
-                    usage = dedent(cmd.help)
+                    usage = cmd.help
                     if ctx.bot.config.help_display_sig and hasattr(cmd, 'commands'):
                         usage = '{}\n\nSignature: {} {}'.format(usage, cmd.qualified_name, cmd.signature)
                     await messagemanager.safe_send_normal(
                         ctx,
                         ctx,
-                        "```\n{}\n\n{}Aliases: {}```".format(
+                        "```\n{}\n\n{}Aliases (for this name): {}```".format(
                             usage,
                             '' if not hasattr(cmd, 'commands') else 'This is a command group with following subcommands:\n{}\n\n'.format(', '.join(c.name for c in cmd.commands) if cmd.commands else None),
                             ' '.join(cmd.aliases)

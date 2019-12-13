@@ -37,6 +37,7 @@ import traceback
 import time
 import os
 import pathlib
+import weakref
 from collections import defaultdict, deque, namedtuple
 from contextlib import suppress
 from functools import partial, wraps
@@ -157,6 +158,15 @@ class ModuBot(Bot):
     def add_command(self, command):
         self.alias.fix_alias(command, 'add_command')
         super().add_command(command)
+        for permissions in self.permissions.groups:
+            _whitelist = permissions._command_whitelist
+            whitelist = permissions.command_whitelist
+            _blacklist = permissions._command_blacklist
+            blacklist = permissions.command_blacklist
+            if command.qualified_name in _whitelist:
+                whitelist.add(weakref.ref(command.callback))
+            if command.qualified_name in _blacklist:
+                blacklist.add(weakref.ref(command.callback))
 
     async def _exec_cogs(self, cog, method, modulename = None, with_self = False):
         if with_self:

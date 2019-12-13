@@ -33,6 +33,7 @@ from collections import defaultdict
 import json
 import os
 import random
+from .utils import check_restricted
 from .guild_config import GuildConfig
 from .playback import Player, Playlist, PlayerState
 from .constructs import SkipState, Serializable, Serializer
@@ -689,6 +690,10 @@ def register_bot(bot):
                return False
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
+
+        if not check_restricted(ctx.command, permissions):
+            return False
+        
         if permissions.ignore_non_voice and ctx.command.name in permissions.ignore_non_voice:
             if ctx.me and ctx.me.voice:
                 vc = ctx.me.voice.channel

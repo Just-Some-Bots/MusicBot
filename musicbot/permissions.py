@@ -2,6 +2,7 @@ import shutil
 import logging
 import traceback
 import configparser
+import shlex
 
 import discord
 
@@ -142,8 +143,8 @@ class PermissionGroup:
     def __init__(self, name, section_data, fallback=PermissionsDefaults):
         self.name = name
         
-        self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
-        self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
+        self._command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
+        self._command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
         self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=fallback.GrantToRoles)
         self.user_list = section_data.get('UserList', fallback=fallback.UserList)
@@ -168,11 +169,13 @@ class PermissionGroup:
         self.validate()
 
     def validate(self):
-        if self.command_whitelist:
-            self.command_whitelist = set(self.command_whitelist.lower().split())
+        if self._command_whitelist:
+            self._command_whitelist = set(shlex.split(self._command_whitelist.lower()))
+        self.command_whitelist = set()
 
-        if self.command_blacklist:
-            self.command_blacklist = set(self.command_blacklist.lower().split())
+        if self._command_blacklist:
+            self._command_blacklist = set(shlex.split(self._command_blacklist.lower()))
+        self.command_blacklist = set()
 
         if self.ignore_non_voice:
             self.ignore_non_voice = set(self.ignore_non_voice.lower().split())

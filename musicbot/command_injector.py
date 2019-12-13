@@ -25,6 +25,28 @@ class CommandGenerator:
 
         self.childs = set()
 
+        class PatchHelp:
+            def __init__(p_self, *args, **kwargs):
+                p_self.generator = self
+                super().__init__(*args, **kwargs)
+
+            @property
+            def help(p_self):
+                return '{}\n\nAll names: {}'.format(p_self._help, ', '.join([c.qualified_name for c in self.childs]))
+
+            @help.setter
+            def help(self, real_help):
+                self._help = real_help
+
+        if self.group:
+            class DynHelpGroup(Group, PatchHelp):
+                pass
+            self.cmd_cls = DynHelpGroup
+        else:
+            class DynHelpCommand(Command, PatchHelp):
+                pass
+            self.cmd_cls = DynHelpCommand
+
     def __repr__(self):
         return 'CommandGenerator(func = {}, group = {})'.format(self.cmd_func, self.group)
 
@@ -35,10 +57,7 @@ class CommandGenerator:
     def make_command(self, **kwargs):
         cmd_kwargs = self.cmd_kwargs
         cmd_kwargs.update(kwargs)
-        if self.group:
-            new = group(**cmd_kwargs)(self.cmd_func)
-        else:
-            new = command(**cmd_kwargs)(self.cmd_func)
+        new = command(cls = self.cmd_cls, **cmd_kwargs)(self.cmd_func)
         self.childs.add(new)
         return new    
 

@@ -327,3 +327,31 @@ def get_command(program):
                 return exe_file
 
     return None
+
+def check_restricted(command, perms):
+    _whitelist = perms._command_whitelist
+    whitelist = perms.command_whitelist
+    whitelist = {c() for c in whitelist}
+    _blacklist = perms._command_blacklist
+    blacklist = perms.command_blacklist
+    blacklist = {c() for c in blacklist}
+
+    if not isiterable(command):
+        command = set([command])
+
+    unrestricted = set()
+
+    for this_cmd in command:
+        cmd = this_cmd
+        while cmd:
+            if _blacklist and cmd.callback in blacklist:
+                break
+
+            elif _whitelist and not cmd.callback in whitelist:
+                break
+
+            cmd = cmd.parent
+        if not cmd:
+            unrestricted.add(this_cmd)
+
+    return unrestricted
