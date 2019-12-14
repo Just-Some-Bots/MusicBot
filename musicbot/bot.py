@@ -155,9 +155,13 @@ class ModuBot(Bot):
 
         self._presence = (None, None)
 
-    def add_command(self, command):
-        self.alias.fix_alias(command, 'add_command')
-        super().add_command(command)
+    def add_command(self, command, *, base = None):
+        if not base:
+            base = super()
+        else:
+            base = self.get_command(base)
+        base.add_command(command)
+        self.alias.fix_chained_command_alias(command, 'add_command ({})'.format(base))
         for permissions in self.permissions.groups:
             _whitelist = permissions._command_whitelist
             whitelist = permissions.command_whitelist
@@ -167,6 +171,13 @@ class ModuBot(Bot):
                 whitelist.add(weakref.ref(command.callback))
             if command.qualified_name in _blacklist:
                 blacklist.add(weakref.ref(command.callback))
+
+    def remove_command(self, command):
+        cmd = self.get_command(command)
+        base = cmd.parent
+        if not base:
+            base = super()
+        base.remove_command(cmd.name)
 
     async def _exec_cogs(self, cog, method, modulename = None, with_self = False):
         if with_self:

@@ -112,7 +112,7 @@ class Alias:
             parent = cmd.parent
             self.fix_alias(cmd, '{} w/ parent'.format(specific_prompt) if specific_prompt else None)
         else:
-            parent = self.bot
+            parent = super(type(self.bot), self.bot)
             self.fix_alias(cmd, '{} w/o parent'.format(specific_prompt) if specific_prompt else None)
         parent.remove_command(cmd.name)
         parent.add_command(cmd)

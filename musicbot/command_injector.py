@@ -115,7 +115,8 @@ class InjectableMixin(AsyncEventEmitter):
 
     @on('uninit')
     async def uninit(self):
-        unloadlist = self.injectdeps.get_dependents_multiple(self.injects.keys())
+        unloadlist = self.injectdeps.get_state()[0]
+        unloadlist.reverse()
         
         for name in unloadlist:
             item = self.injects[name]
@@ -170,14 +171,11 @@ def inject_as_subcommand(groupcommand, *, inject_name = None, after:Optional[Uni
         def inject(bot, cog):
             bot.log.debug('Invoking inject_as_subcommand injecting {} to {}'.format(subcommand.cmd, groupcommand))
             subcmd.cog = cog
-            cmd = bot.get_command(groupcommand)
-            cmd.add_command(subcmd)
-            bot.alias.fix_chained_command_alias(subcmd, 'injected')
+            bot.add_command(subcmd, base=groupcommand)
 
         def eject(bot):
             bot.log.debug('Invoking inject_as_subcommand ejecting {} from {}'.format(subcommand.cmd, groupcommand))
-            cmd = bot.get_command(groupcommand)
-            cmd.remove_command(subcmd)
+            bot.remove_command(subcmd.qualified_name)
 
         return try_append_payload(
             inject_name if inject_name else 'inject_{}_{}'.format(subcmd.name, groupcommand),
@@ -190,31 +188,6 @@ def inject_as_subcommand(groupcommand, *, inject_name = None, after:Optional[Uni
 
 def inject_as_group(command):
     return ensure_inject(command, group = True)
-
-def inject_as_cog_subcommand(groupcommand, *, inject_name = None, after:Optional[Union[AnyStr,Iterable[AnyStr]]] = None, **kwargs):
-    def do_inject(subcommand):
-        subcommand = ensure_inject(subcommand)
-        subcmd = subcommand.cmd.make_command(**kwargs)
-        def inject(bot, cog):
-            bot.log.debug('Invoking inject_as_cog_subcommand injecting {} to {}'.format(subcommand.cmd, groupcommand))
-            subcmd.cog = cog
-            cmd = cog.get_command(groupcommand)
-            cmd.add_command(subcmd)
-            bot.alias.fix_chained_command_alias(subcmd, 'injected')
-
-        def eject(bot):
-            bot.log.debug('Invoking inject_as_cog_subcommand ejecting {} from {}'.format(subcommand.cmd, groupcommand))
-            cmd = bot.get_command(groupcommand)
-            cmd.remove_command(subcmd)
-
-        return try_append_payload(
-            inject_name if inject_name else 'inject_{}_{}'.format(subcmd.name, groupcommand),
-            subcommand, 
-            inject, 
-            eject,
-            after
-        )
-    return do_inject
 
 def inject_as_main_command(names:Union[AnyStr,Iterable[AnyStr]], *, inject_name = None, after:Optional[Union[AnyStr,Iterable[AnyStr]]] = None, **kwargs):
     if isinstance(names, str):
