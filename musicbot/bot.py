@@ -54,6 +54,7 @@ from websockets import ConnectionClosed
 from .opus_loader import load_opus_lib
 from .lib.event_emitter import AsyncEventEmitter
 from .crossmodule import CrossModule
+from .command_tree import CommandTree
 from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
 from .ytdldownloader import YtdlDownloader
@@ -99,6 +100,7 @@ class ModuBot(Bot):
 
         self.thread = None
         self.crossmodule = CrossModule()
+        self.command_tree = CommandTree()
         self.log = logging.getLogger(logname)
         self.log.propagate = False
         for handler in loghandlerlist:
@@ -162,6 +164,7 @@ class ModuBot(Bot):
             base = self.get_command(base)
         base.add_command(command)
         self.alias.fix_chained_command_alias(command, 'add_command ({})'.format(base))
+        self.command_tree.add_command(command)
         for permissions in self.permissions.groups:
             _whitelist = permissions._command_whitelist
             whitelist = permissions.command_whitelist
@@ -174,6 +177,7 @@ class ModuBot(Bot):
 
     def remove_command(self, command):
         cmd = self.get_command(command)
+        self.command_tree.remove_command(cmd)
         base = cmd.parent
         if not base:
             base = super()
