@@ -37,7 +37,6 @@ import traceback
 import time
 import os
 import pathlib
-import weakref
 from collections import defaultdict, deque, namedtuple
 from contextlib import suppress
 from functools import partial, wraps
@@ -99,8 +98,6 @@ class ModuBot(Bot):
         perms_file = PermissionsDefaults.perms_file
 
         self.thread = None
-        self.crossmodule = CrossModule()
-        self.command_tree = CommandTree()
         self.log = logging.getLogger(logname)
         self.log.propagate = False
         for handler in loghandlerlist:
@@ -132,6 +129,8 @@ class ModuBot(Bot):
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
         super().__init__(command_prefix = self.config.command_prefix, help_command = None, *args, **kwargs)
+        self.crossmodule = CrossModule()
+        self.command_tree = CommandTree(self)
 
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
@@ -165,15 +164,6 @@ class ModuBot(Bot):
         base.add_command(command)
         self.alias.fix_chained_command_alias(command, 'add_command ({})'.format(base))
         self.command_tree.add_command(command)
-        for permissions in self.permissions.groups:
-            _whitelist = permissions._command_whitelist
-            whitelist = permissions.command_whitelist
-            _blacklist = permissions._command_blacklist
-            blacklist = permissions.command_blacklist
-            if command.qualified_name in _whitelist:
-                whitelist.add(weakref.ref(command.callback))
-            if command.qualified_name in _blacklist:
-                blacklist.add(weakref.ref(command.callback))
 
     def remove_command(self, command):
         cmd = self.get_command(command)

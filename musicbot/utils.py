@@ -331,10 +331,8 @@ def get_command(program):
 def check_restricted(command, perms):
     _whitelist = perms._command_whitelist
     whitelist = perms.command_whitelist
-    whitelist = {c() for c in whitelist}
     _blacklist = perms._command_blacklist
     blacklist = perms.command_blacklist
-    blacklist = {c() for c in blacklist}
 
     if not isiterable(command):
         command = set([command])
