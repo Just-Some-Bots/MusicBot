@@ -38,8 +38,15 @@ class CogManagement(InjectableMixin, Cog):
 
         Get module name of specified cog.
         """
-        # TODO:
-        module = 'not implemented'
+        module = None
+        try:
+            cog = ctx.bot.cogs[name]
+            for moduleinfo in ctx.bot.crossmodule.module.values():
+                if cog in moduleinfo.cogs:
+                    module = moduleinfo.name
+                    break
+        except KeyError:
+            pass
         await messagemanager.safe_send_normal(ctx, ctx, '```{}```'.format(module), expire_in=15)
 
     @inject_as_subcommand('add', name = 'alias')
