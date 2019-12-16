@@ -211,6 +211,8 @@ class ModuBot(Bot):
         return True
 
     async def _load_modules(self, modules):
+        before = self.crossmodule.loaded_modules_name()
+
         for moduleinfo in modules:
             if 'deps' in dir(moduleinfo.module):
                 self.log.debug('resolving deps in {}'.format(moduleinfo.name))
@@ -235,6 +237,8 @@ class ModuBot(Bot):
         loaded_cogs = dict()
 
         for modulename in satisfied:
+            if modulename in before:
+                continue
             moduleobj = self.crossmodule.module[modulename].imported_module_obj
             load_cogs = []
             if 'cogs' in dir(moduleobj):
