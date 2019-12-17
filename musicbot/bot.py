@@ -97,6 +97,7 @@ class ModuBot(Bot):
 
         perms_file = PermissionsDefaults.perms_file
 
+        self._super = super()
         self.thread = None
         self.log = logging.getLogger(logname)
         self.log.propagate = False

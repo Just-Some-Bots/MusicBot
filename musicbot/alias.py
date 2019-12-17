@@ -16,6 +16,7 @@ class Alias:
         self.alias_file = alias_file
         self.find_alias_file()
         self.bot = bot
+
         self.aliases = defaultdict(list)
 
         config = configparser.ConfigParser(interpolation=None)
@@ -97,7 +98,7 @@ class Alias:
                         '' if specific_prompt is None else ' ({})'.format(specific_prompt),
                         self.aliases[command.qualified_name])
                     )
-                    command.update(aliases = self.aliases[command.qualified_name])
+                    command.update(aliases = self.aliases[command.qualified_name].copy())
                 else:
                     # @TheerapakG: for simplicity sake just update it so that I don't have to solve the add_command headache
                     command.update()
@@ -110,11 +111,12 @@ class Alias:
     def fix_chained_command_alias(self, cmd, specific_prompt = None):
         if cmd.parent:
             parent = cmd.parent
-            self.fix_alias(cmd, '{} w/ parent'.format(specific_prompt) if specific_prompt else None)
+            case = 'w/ parent'
         else:
-            parent = super(type(self.bot), self.bot)
-            self.fix_alias(cmd, '{} w/o parent'.format(specific_prompt) if specific_prompt else None)
+            parent = self.bot._super
+            case = 'w/o parent'
         parent.remove_command(cmd.name)
+        self.fix_alias(cmd, '{} {}'.format(specific_prompt, case) if specific_prompt else None)
         parent.add_command(cmd)
 
     def add_alias(self, command, alias):
