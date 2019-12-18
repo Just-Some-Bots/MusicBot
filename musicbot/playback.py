@@ -64,7 +64,7 @@ import threading
 import subprocess
 import json
 import os
-from random import shuffle
+from random import shuffle, random
 
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
@@ -198,13 +198,151 @@ class Entry(Serializable):
         self._local_url = local_url
         url_map[local_url].append(self)
 
-class Playlist(EventEmitter, Serializable):
-    def __init__(self, name, bot, *, persistent = False, auto_random = False):
+class EntriesHolder(EventEmitter, Serializable):
+    def __init__(self):
+        super().__init__()
+        self.owner = None
+
+    def set_owner(self, owner):
+        """
+        set owner as consumer of this object, if set_owner raised an exception then
+        there is another object interacting with this
+        """
+        if self.owner:
+            raise PlaybackError('EntriesHolder {} already owned by {}'.format(self, self.owner))
+        self.owner = owner
+
+    def remove_owner(self):
+        """
+        remove owner from being a consumer of this object
+        """
+        if not self.owner:
+            raise PlaybackError('EntriesHolder is already not being owned')
+        self.owner = None
+
+    async def __getitem__(self, item: Union[int, slice]):
+        raise NotImplementedError()
+
+    async def shuffle(self):
+        raise NotImplementedError()
+
+    async def clear(self):
+        raise NotImplementedError()
+
+    async def _get_entry(self, random = False, keep_entry = False):
+        raise NotImplementedError()
+
+    async def add_entry(self, entry, *, head = False):
+        raise NotImplementedError()
+
+    async def get_length(self):
+        raise NotImplementedError()
+
+    async def get_entry_position(self, entry):
+        raise NotImplementedError()
+
+    async def estimate_time_until(self, position):
+        raise NotImplementedError()
+
+    async def estimate_time_until_entry(self, entry):
+        raise NotImplementedError()          
+
+    async def num_entry_of(self, user_id):
+        raise NotImplementedError()
+
+class PlaylistFetcher(EntriesHolder):
+    def __init__(self, bot):
+        super().__init__()
+        self.source = list()
+
+    def __json__(self):
+        return self._enclose_json({
+            'version': 1
+        })
+
+    def add_entries_holder(self, other: EntriesHolder):
+        other.set_owner(self)
+        self.source.append(other)
+
+    def remove_entries_holder(self, other: EntriesHolder):
+        self.source.remove(other)
+        other.remove_owner(self)
+
+    async def __getitem__(self, item: Union[int, slice]):
+        l = list()
+        for s in self.source:
+            l.extend(await s[:])
+        return l
+
+    async def shuffle(self):
+        shuffle(self.source)
+        for s in self.source:
+            await s.shuffle()
+
+    async def clear(self):
+        for s in self.source:
+            await s.clear()
+
+    async def _get_entry(self, random = False, keep_entry = False):
+        if not random:
+            ret = None
+            for s in self.source:
+                ret = await s._get_entry(False, keep_entry)
+                if ret:
+                    break
+            return ret
+        else:
+            weights = {s: await s.get_length() for s in self.source}
+            total = sum(weights.values())
+            accumulated = 0
+            luck = random()
+            for s, w in weights:
+                accumulated += w
+                if accumulated >= total * luck:
+                    ret = await s._get_entry(True, keep_entry)
+                    return ret
+
+    async def add_entry(self, entry, *, head = False):
+        raise NotImplementedError()
+
+    async def get_length(self):
+        return sum([await s.get_length() for s in self.source])
+
+    async def get_entry_position(self, entry):
+        accumulated = 0
+        for s in self.source:
+            try:
+                return (await s.get_entry_position(entry)) + accumulated
+            except ValueError:
+                accumulated += await s.get_length()
+        raise ValueError('No entry {} in sources'.format(entry))
+
+    async def estimate_time_until(self, position):
+        accumulated = timedelta(seconds = 0)
+        for s in self.source:
+            length = await s.get_length()
+            if position > length:
+                position -= length
+                accumulated += await s.estimate_time_until(length)
+                continue
+            else:
+                return (await s.estimate_time_until(position)) + accumulated
+
+    async def estimate_time_until_entry(self, entry):
+        accumulated = timedelta(seconds = 0)
+        for s in self.source:
+            try:
+                return (await s.estimate_time_until_entry(entry)) + accumulated
+            except ValueError:
+                accumulated += await s.estimate_time_until(await s.get_length())        
+
+    async def num_entry_of(self, user_id):
+        return sum([await s.num_entry_of(user_id) for s in self.source])
+
+class Playlist(EntriesHolder):
+    def __init__(self, name, bot):
         super().__init__()
         self.karaoke_mode = False
-        self.persistent = persistent
-        self.auto_random = auto_random
-        self._last_shuffle = 0
         self._bot = bot
         self._name = name
         self._aiolocks = defaultdict(Lock)
@@ -214,10 +352,8 @@ class Playlist(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 4,
+            'version': 5,
             'name': self._name,
-            'persistent': self.persistent,
-            'auto_random': self.auto_random,
             'karaoke': self.karaoke_mode,
             'entries': list(self._list)
         })
@@ -238,20 +374,6 @@ class Playlist(EventEmitter, Serializable):
         data_k = data.get('karaoke')
         playlist.karaoke_mode = data_k
 
-        if 'version' not in data or data['version'] < 3:
-            bot.log.warning('upgrading `{}` to playlist version 3'.format(data_n))
-            data_p = False
-        else:
-            data_p = data.get('persistent')
-        playlist.persistent = data_p
-
-        if 'version' not in data or data['version'] < 4:
-            bot.log.warning('upgrading `{}` to playlist version 4'.format(data_n))
-            data_rand = False
-        else:
-            data_rand = data.get('auto_random')
-        playlist.auto_random = data_rand
-
         return playlist
 
     @classmethod
@@ -266,15 +388,14 @@ class Playlist(EventEmitter, Serializable):
         except Exception as e:
             bot.log.exception("Failed to deserialize player", e)
 
-    def __getitem__(self, item: Union[int, slice]):
-        return self._list[item]
+    async def __getitem__(self, item: Union[int, slice]):
+        with self._threadlocks['list']:
+            return self._list[item]
 
-    def copy(self, name = None, *, copy_persistent = False, copy_auto_random = False):
+    def copy(self, name = None):
         pl = Playlist(
             self._name if not name else name,
-            self._bot,
-            persistent = self.persistent if copy_persistent else False,
-            auto_random = self.auto_random if copy_auto_random else False
+            self._bot
         )
         pl._list = self._list.copy()
         return pl
@@ -309,24 +430,22 @@ class Playlist(EventEmitter, Serializable):
     def get_name(self):
         return self._name
 
-    async def _get_entry(self):
+    async def _get_entry(self, random = False, keep_entry = False):
         with self._threadlocks['list']:
             if not self._list:
                 return
+
+            if random:
+                self._shuffle()
 
             entry = self._list.popleft()
             if not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
 
-            if self.persistent:
+            if keep_entry:
                 self._list.appendleft(entry)
                 if entry._local_url:
                     url_map[entry._local_url].append(entry)
-
-            if self.auto_random:
-                self._last_shuffle += 1
-                if len(self._list) <= self._last_shuffle:
-                    self._shuffle()
 
             if self._precache <= len(self._list):
                 consider = self._list[self._precache - 1]
@@ -346,8 +465,7 @@ class Playlist(EventEmitter, Serializable):
             if self._precache > position and not entry._cache_task:
                 entry._cache_task = ensure_future(entry.prepare_cache())
             self.emit('entry-added', playlist=self, entry=entry)
-            return position + 1
-        
+            return position + 1        
 
     async def get_length(self):
         with self._threadlocks['list']:
