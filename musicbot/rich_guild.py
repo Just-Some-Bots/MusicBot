@@ -123,6 +123,8 @@ class RichGuild(Serializable):
             self._internal_auto = await self._player.get_playlist()
             await self.serialize_playlist(self._internal_auto)
             await self._player.set_playlist(self._not_auto)
+            self._player.random = False
+            self._player.pull_persist = False
             if also_skip:
                 await self._player.skip()
 
@@ -463,6 +465,8 @@ class RichGuild(Serializable):
         if not player._playlist._list and not player._current and self._internal_auto:
             self._not_auto = await player.get_playlist()
             await player.set_playlist(self._internal_auto)
+            self._player.random = self.config.auto_random
+            self._player.pull_persist = True
 
             if self._bot.config.auto_pause:
                 player.once('play', lambda player, **_: _autopause(player))

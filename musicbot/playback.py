@@ -232,6 +232,9 @@ class EntriesHolder(EventEmitter, Serializable):
     async def _get_entry(self, random = False, keep_entry = False):
         raise NotImplementedError()
 
+    def _add_entry(self, entry, *, head = False):
+        raise NotImplementedError()
+
     async def add_entry(self, entry, *, head = False):
         raise NotImplementedError()
 
@@ -245,99 +248,7 @@ class EntriesHolder(EventEmitter, Serializable):
         raise NotImplementedError()
 
     async def estimate_time_until_entry(self, entry):
-        raise NotImplementedError()          
-
-    async def num_entry_of(self, user_id):
         raise NotImplementedError()
-
-class PlaylistFetcher(EntriesHolder):
-    def __init__(self, bot):
-        super().__init__()
-        self.source = list()
-
-    def __json__(self):
-        return self._enclose_json({
-            'version': 1
-        })
-
-    def add_entries_holder(self, other: EntriesHolder):
-        other.set_owner(self)
-        self.source.append(other)
-
-    def remove_entries_holder(self, other: EntriesHolder):
-        self.source.remove(other)
-        other.remove_owner(self)
-
-    async def __getitem__(self, item: Union[int, slice]):
-        l = list()
-        for s in self.source:
-            l.extend(await s[:])
-        return l
-
-    async def shuffle(self):
-        shuffle(self.source)
-        for s in self.source:
-            await s.shuffle()
-
-    async def clear(self):
-        for s in self.source:
-            await s.clear()
-
-    async def _get_entry(self, random = False, keep_entry = False):
-        if not random:
-            ret = None
-            for s in self.source:
-                ret = await s._get_entry(False, keep_entry)
-                if ret:
-                    break
-            return ret
-        else:
-            weights = {s: await s.get_length() for s in self.source}
-            total = sum(weights.values())
-            accumulated = 0
-            luck = random()
-            for s, w in weights:
-                accumulated += w
-                if accumulated >= total * luck:
-                    ret = await s._get_entry(True, keep_entry)
-                    return ret
-
-    async def add_entry(self, entry, *, head = False):
-        raise NotImplementedError()
-
-    async def get_length(self):
-        return sum([await s.get_length() for s in self.source])
-
-    async def get_entry_position(self, entry):
-        accumulated = 0
-        for s in self.source:
-            try:
-                return (await s.get_entry_position(entry)) + accumulated
-            except ValueError:
-                accumulated += await s.get_length()
-        raise ValueError('No entry {} in sources'.format(entry))
-
-    async def estimate_time_until(self, position):
-        accumulated = timedelta(seconds = 0)
-        for s in self.source:
-            length = await s.get_length()
-            if position > length:
-                position -= length
-                accumulated += await s.estimate_time_until(length)
-                continue
-            else:
-                return (await s.estimate_time_until(position)) + accumulated
-
-    async def estimate_time_until_entry(self, entry):
-        accumulated = timedelta(seconds = 0)
-        for s in self.source:
-            try:
-                return (await s.estimate_time_until_entry(entry)) + accumulated
-            except ValueError:
-                accumulated += await s.estimate_time_until(await s.get_length())        
-
-    async def num_entry_of(self, user_id):
-        return sum([await s.num_entry_of(user_id) for s in self.source])
 
 class Playlist(EntriesHolder):
     def __init__(self, name, bot):
@@ -389,8 +300,7 @@ class Playlist(EntriesHolder):
             bot.log.exception("Failed to deserialize player", e)
 
     async def __getitem__(self, item: Union[int, slice]):
-        with self._threadlocks['list']:
-            return self._list[item]
+        return self._list[item]
 
     def copy(self, name = None):
         pl = Playlist(
@@ -401,17 +311,16 @@ class Playlist(EntriesHolder):
         return pl
 
     async def stop(self):
-        with self._threadlocks['list']:
-            for entry in self._list:
-                if entry._cache_task:
-                    entry._cache_task.cancel()
-                    try:
-                        await entry._cache_task
-                    except:
-                        pass
-                    entry._cache_task = None
-                    entry._preparing_cache = False
-                    entry._cached = False
+        for entry in self._list:
+            if entry._cache_task:
+                entry._cache_task.cancel()
+                try:
+                    await entry._cache_task
+                except:
+                    pass
+                entry._cache_task = None
+                entry._preparing_cache = False
+                entry._cached = False
 
     def _shuffle(self):
         shuffle(self._list)
@@ -420,94 +329,84 @@ class Playlist(EntriesHolder):
                 entry._cache_task = ensure_future(entry.prepare_cache())
 
     async def shuffle(self):
-        with self._threadlocks['list']:
-            self._shuffle()
+        self._shuffle()
 
     async def clear(self):
-        with self._threadlocks['list']:
-            self._list.clear()
+        self._list.clear()
 
     def get_name(self):
         return self._name
 
     async def _get_entry(self, random = False, keep_entry = False):
-        with self._threadlocks['list']:
-            if not self._list:
-                return
+        if not self._list:
+            return
 
-            if random:
-                self._shuffle()
+        if random:
+            self._shuffle()
 
-            entry = self._list.popleft()
-            if not entry._cache_task:
-                entry._cache_task = ensure_future(entry.prepare_cache())
+        entry = self._list.popleft()
+        if not entry._cache_task:
+            entry._cache_task = ensure_future(entry.prepare_cache())
 
-            if keep_entry:
-                self._list.appendleft(entry)
-                if entry._local_url:
-                    url_map[entry._local_url].append(entry)
+        if keep_entry:
+            self._list.appendleft(entry)
+            if entry._local_url:
+                url_map[entry._local_url].append(entry)
 
-            if self._precache <= len(self._list):
-                consider = self._list[self._precache - 1]
-                if not consider and not consider._cache_task:
-                    consider._cache_task = ensure_future(consider.prepare_cache())                
+        if self._precache <= len(self._list):
+            consider = self._list[self._precache - 1]
+            if not consider and not consider._cache_task:
+                consider._cache_task = ensure_future(consider.prepare_cache())                
 
         return (entry, entry._cache_task)
 
     async def add_entry(self, entry, *, head = False):
-        with self._threadlocks['list']:
-            if head:
-                self._list.appendleft(entry)
-                position = 0
-            else:
-                self._list.append(entry)
-                position = len(self._list) - 1
-            if self._precache > position and not entry._cache_task:
-                entry._cache_task = ensure_future(entry.prepare_cache())
-            self.emit('entry-added', playlist=self, entry=entry)
-            return position + 1        
+        if head:
+            self._list.appendleft(entry)
+            position = 0
+        else:
+            self._list.append(entry)
+            position = len(self._list) - 1
+        if self._precache > position and not entry._cache_task:
+            entry._cache_task = ensure_future(entry.prepare_cache())
+        self.emit('entry-added', playlist=self, entry=entry)
+        return position + 1        
 
     async def get_length(self):
-        with self._threadlocks['list']:
-            return len(self._list)
+        return len(self._list)
 
     async def remove_position(self, position):
-        with self._threadlocks['list']:
-            if position < self._precache:
-                if self._list[position]._cache_task:
-                    self._list[position]._cache_task.cancel()
-                    self._list[position]._cache_task = None
-                if self._precache <= len(self._list):
-                    consider = self._list[self._precache - 1]
-                    if not consider._cache_task:
-                        consider._cache_task = ensure_future(consider.prepare_cache())
-            val = self._list[position]
-            _entry_cleanup(val, self._bot)
-            del self._list[position]
-            return val
+        if position < self._precache:
+            if self._list[position]._cache_task:
+                self._list[position]._cache_task.cancel()
+                self._list[position]._cache_task = None
+            if self._precache <= len(self._list):
+                consider = self._list[self._precache - 1]
+                if not consider._cache_task:
+                    consider._cache_task = ensure_future(consider.prepare_cache())
+        val = self._list[position]
+        _entry_cleanup(val, self._bot)
+        del self._list[position]
+        return val
 
     async def get_entry_position(self, entry):
-        with self._threadlocks['list']:
-            return self._list.index(entry)
+        return self._list.index(entry)
 
     async def estimate_time_until(self, position):
-        with self._threadlocks['list']:
-            estimated_time = sum(e.duration for e in islice(self._list, position - 1))
+        estimated_time = sum(e.duration for e in islice(self._list, position - 1))
         return timedelta(seconds=estimated_time)
 
     async def estimate_time_until_entry(self, entry):
         estimated_time = 0
-        with self._threadlocks['list']:
-            for e in self._list:
-                if e is not entry:  
-                    estimated_time += e.duration
-                else:
-                    break
+        for e in self._list:
+            if e is not entry:  
+                estimated_time += e.duration
+            else:
+                break
         return timedelta(seconds=estimated_time)            
 
     async def num_entry_of(self, user_id):
-        with self._threadlocks['list']:
-            return sum(1 for e in self._list if e.queuer_id == user_id)
+        return sum(1 for e in self._list if e.queuer_id == user_id)
 
 class PlayerState(Enum):
     PLAYING = 0
@@ -541,9 +440,9 @@ class Player(EventEmitter, Serializable):
         super().__init__()
         self._aiolocks = defaultdict(Lock)
         self._current = None
-        self._playlist = None
         self._guild = guild
         self._player = None
+        self._playlist = None
         self._entry_finished_tasks = defaultdict(list)
         self._play_task = None
         self._play_safe_task = None
@@ -551,12 +450,14 @@ class Player(EventEmitter, Serializable):
         self._volume = volume
         self.state = PlayerState.PAUSE
         self.effects = list()
+        self.random = False
+        self.pull_persist = False
 
         ensure_future(self.play())
 
     def __json__(self):
         return self._enclose_json({
-            'version': 3,
+            'version': 4,
             'current_entry': {
                 'entry': self._current,
                 'progress': self._source.progress if self._source else None
@@ -575,26 +476,28 @@ class Player(EventEmitter, Serializable):
         player = cls(guild)
 
         if 'version' not in data or data['version'] < 3:
-            guild._bot.log.warning('upgrading player of `{}` to player version 3'.format(guild._id))
-            data_pl = data.get('entries')
+            guild._bot.log.warning('upgrading player of `{}` to player version 4'.format(guild._id))
+            data_pl = data.get('pl_name')
             if data_pl:
                 try:
-                    player._playlist = guild._playlists[data_pl._name]
+                    pl = guild._playlists[data_pl._name]
                 except KeyError:
                     guild._bot.log.warning('not found playlist in the player in the guild save, proceeding by registering it to the guild')
                     guild._playlists[data_pl._name] = data_pl
-                    # @THeerapakG: WARN: if current entry it get doubled because ensure_future run after this finished. Still, it just do that when convert playlist.
+                    # @TheerapakG: WARN: if current entry it get doubled because ensure_future run after this finished. Still, it just do that when convert playlist.
                     ensure_future(guild.serialize_playlist(data_pl))
-                    player._playlist = data_pl
+                    pl = data_pl
         else:
             data_pl = data.get('pl_name')
             if data_pl:
-                player._playlist = guild._playlists[data_pl]
+                pl = guild._playlists[data_pl]
+
+        player._set_playlist(pl)
 
         current_entry_data = data['current_entry']
         if current_entry_data['entry']:
             if player._playlist:
-                player._playlist._list.appendleft(current_entry_data['entry'])
+                player._playlist._add_entry(current_entry_data['entry'], head=True)
                 # TODO: progress stuff
                 # how do I even do this
                 # this would have to be in the entry class right?
@@ -621,8 +524,8 @@ class Player(EventEmitter, Serializable):
         except Exception as e:
             guild._bot.log.exception("Failed to deserialize player", e)
 
-    async def on_playlist_entry_added(self, playlist, entry):
-        self.emit('entry-added', player = self, playlist = playlist, entry = entry)
+    async def on_playlist_entry_added(self, pl, entry):
+        self.emit('entry-added', player = self, pl = pl, entry = entry)
 
     @property
     def volume(self):
@@ -641,11 +544,16 @@ class Player(EventEmitter, Serializable):
         async with self._aiolocks['player']:
             return self.state
 
-    async def set_playlist(self, playlist: Optional[Playlist]):
+    def _set_playlist(self, pl: Optional[Playlist]):
+        if self._playlist:
+            self._playlist.off('entry-added', self.on_playlist_entry_added)
+            self._playlist.remove_owner(self)
+        pl.set_owner(self)
+        self._playlist = pl.on('entry-added', self.on_playlist_entry_added)
+
+    async def set_playlist(self, pl: Optional[Playlist]):
         async with self._aiolocks['playlist']:
-            if self._playlist:
-                self._playlist.off('entry-added', self.on_playlist_entry_added)
-            self._playlist = playlist.on('entry-added', self.on_playlist_entry_added)
+            _set_playlist(pl)
 
     async def get_playlist(self):
         async with self._aiolocks['playlist']:
@@ -660,7 +568,7 @@ class Player(EventEmitter, Serializable):
         while not entry:
             try:
                 async with self._aiolocks['playlist']:
-                    entry, cache = await self._playlist._get_entry()
+                    entry, cache = await self._playlist._get_entry(self.random, self.pull_persist)
                     async with self._aiolocks['player']:
                         self.state = PlayerState.DOWNLOADING
                         self._guild._bot.log.debug('got entry...')

@@ -46,11 +46,8 @@ class Autoplaylist(Cog):
             if guild.config.auto_mode == mode:
                 raise exceptions.CommandError('Mode is already set to {}.'.format(guild.config.auto_mode))
 
-            auto_random = guild._internal_auto.auto_random
-
             # If currently toggle, set internal to None
             if guild.config.auto_mode == 'toggle':
-                guild._internal_auto.auto_random = False
                 await guild.serialize_playlist(guild._internal_auto)
                 guild._internal_auto = None
             # If currently merge, delete internal in playlists and set internal to None
@@ -70,7 +67,6 @@ class Autoplaylist(Cog):
                 for p in guild._autos:
                     pl._list.extend(p._list)
 
-            guild._internal_auto.auto_random = auto_random
             await guild.serialize_playlist(guild._internal_auto)
 
             p_mode = guild.config.auto_mode
@@ -89,11 +85,9 @@ class Autoplaylist(Cog):
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
-        if not guild._internal_auto:
-            raise exceptions.CommandError('There is no autoplaylist.')
 
-        guild._internal_auto.auto_random = not guild._internal_auto.auto_random
-        safe_send_normal(ctx, ctx, 'Autoplaylist randomization is now set to {}.'.format(guild._internal_auto.auto_random), expire_in=15)
+        guild.config.auto_random = not guild.config.auto_random
+        safe_send_normal(ctx, ctx, 'Autoplaylist randomization is now set to {}.'.format(guild.config.auto_random), expire_in=15)
 
     @command()
     async def toggleplaylist(self, ctx):
