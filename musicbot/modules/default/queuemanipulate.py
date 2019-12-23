@@ -135,8 +135,6 @@ class QueueManagement(Cog):
             else:
                 raise e
 
-        playlist = await guild.get_playlist()
-
         song_url = song_url.strip('<>')
 
         # Make sure forward slashes work properly in search queries

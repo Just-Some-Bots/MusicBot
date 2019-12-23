@@ -39,9 +39,6 @@ class Autoplaylist(Cog):
             if mode not in ['toggle', 'merge']:
                 raise exceptions.CommandError('Unknown mode specified.')
 
-            if not guild._internal_auto:
-                raise exceptions.CommandError('There is no autoplaylist.')
-
             # check if mode is the same
             if guild.config.auto_mode == mode:
                 raise exceptions.CommandError('Mode is already set to {}.'.format(guild.config.auto_mode))

@@ -120,6 +120,7 @@ class RichGuild(Serializable):
 
     async def return_from_auto(self, *, also_skip = False):
         if (await self.is_currently_auto()):
+            self._bot.log.info("Leaving auto in {}".format(self._id))
             self._internal_auto = await self._player.get_playlist()
             await self.serialize_playlist(self._internal_auto)
             await self._player.set_playlist(self._not_auto)
@@ -462,8 +463,10 @@ class RichGuild(Serializable):
                 ensure_future(player.pause())
                 self._bot.server_specific_data[self]['auto_paused'] = True
 
-        if not player._playlist._list and not player._current and self._internal_auto:
-            self._not_auto = await player.get_playlist()
+        current = await player.get_playlist()
+        if await current.get_length() == 0 and self._internal_auto:
+            self._bot.log.info("Entering auto in {}".format(self._id))
+            self._not_auto = current
             await player.set_playlist(self._internal_auto)
             self._player.random = self.config.auto_random
             self._player.pull_persist = True
@@ -515,11 +518,11 @@ class RichGuild(Serializable):
         async with self._aiolocks['c_voice_channel']:
             await self._player.set_playlist(playlist)
 
-    async def get_playlist(self):
+    async def get_playlist(self, incl_auto = False):
         async with self._aiolocks['c_voice_channel']:
             if not self._player:
                 raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
-            elif await self.is_currently_auto():
+            elif await self.is_currently_auto() and not incl_auto:
                 return self._not_auto
             else:
                 return await self._player.get_playlist()

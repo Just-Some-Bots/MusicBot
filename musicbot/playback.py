@@ -66,7 +66,7 @@ import json
 import os
 from random import shuffle, random
 
-from .lib.event_emitter import EventEmitter
+from .lib.event_emitter import EventEmitter, AsyncEventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import VersionError, PlaybackError
 import logging
@@ -203,6 +203,13 @@ class EntriesHolder(EventEmitter, Serializable):
         super().__init__()
         self.owner = None
 
+    def __json__(self):
+        raise NotImplementedError()
+
+    @classmethod
+    def _deserialize(cls, data, bot=None):
+        raise NotImplementedError()
+
     def set_owner(self, owner):
         """
         set owner as consumer of this object, if set_owner raised an exception then
@@ -297,10 +304,10 @@ class Playlist(EntriesHolder):
                 obj = cls('unknown', bot)
             return obj
         except Exception as e:
-            bot.log.exception("Failed to deserialize player", e)
+            bot.log.exception("Failed to deserialize player {}".format(e))
 
     async def __getitem__(self, item: Union[int, slice]):
-        return self._list[item]
+        return list(self._list)[item]
 
     def copy(self, name = None):
         pl = Playlist(
@@ -360,7 +367,7 @@ class Playlist(EntriesHolder):
 
         return (entry, entry._cache_task)
 
-    async def add_entry(self, entry, *, head = False):
+    def _add_entry(self, entry, *, head = False):
         if head:
             self._list.appendleft(entry)
             position = 0
@@ -370,7 +377,10 @@ class Playlist(EntriesHolder):
         if self._precache > position and not entry._cache_task:
             entry._cache_task = ensure_future(entry.prepare_cache())
         self.emit('entry-added', playlist=self, entry=entry)
-        return position + 1        
+        return position + 1   
+
+    async def add_entry(self, entry, *, head = False):
+        self._add_entry(entry, head = head)      
 
     async def get_length(self):
         return len(self._list)
@@ -435,7 +445,7 @@ class SourcePlaybackCounter(AudioSource):
     def cleanup(self):
         self._source.cleanup()
 
-class Player(EventEmitter, Serializable):
+class Player(AsyncEventEmitter, Serializable):
     def __init__(self, guild, volume = 0.15):
         super().__init__()
         self._aiolocks = defaultdict(Lock)
@@ -457,13 +467,15 @@ class Player(EventEmitter, Serializable):
 
     def __json__(self):
         return self._enclose_json({
-            'version': 4,
+            'version': 5,
             'current_entry': {
                 'entry': self._current,
                 'progress': self._source.progress if self._source else None
             },
             'pl_name': self._playlist._name if self._playlist else None,
-            'effects': self.effects
+            'effects': self.effects,
+            'random': self.random,
+            'pull_persist': self.pull_persist
         })
 
     @classmethod
@@ -494,9 +506,16 @@ class Player(EventEmitter, Serializable):
 
         player._set_playlist(pl)
 
+        if 'version' not in data or data['version'] < 5:
+            player.random = False
+            player.pull_persist = False
+        else:
+            player.random = data['random']
+            player.pull_persist = data['pull_persist']
+
         current_entry_data = data['current_entry']
         if current_entry_data['entry']:
-            if player._playlist:
+            if player._playlist and not player.pull_persist:
                 player._playlist._add_entry(current_entry_data['entry'], head=True)
                 # TODO: progress stuff
                 # how do I even do this
@@ -522,10 +541,10 @@ class Player(EventEmitter, Serializable):
                 obj = cls(guild)
             return obj
         except Exception as e:
-            guild._bot.log.exception("Failed to deserialize player", e)
+            guild._bot.log.exception("Failed to deserialize player {}".format(e))
 
-    async def on_playlist_entry_added(self, pl, entry):
-        self.emit('entry-added', player = self, pl = pl, entry = entry)
+    async def on_playlist_entry_added(self, playlist, entry):
+        await self.emit('entry-added', player = self, playlist = playlist, entry = entry)
 
     @property
     def volume(self):
@@ -547,13 +566,13 @@ class Player(EventEmitter, Serializable):
     def _set_playlist(self, pl: Optional[Playlist]):
         if self._playlist:
             self._playlist.off('entry-added', self.on_playlist_entry_added)
-            self._playlist.remove_owner(self)
+            self._playlist.remove_owner()
         pl.set_owner(self)
         self._playlist = pl.on('entry-added', self.on_playlist_entry_added)
 
     async def set_playlist(self, pl: Optional[Playlist]):
         async with self._aiolocks['playlist']:
-            _set_playlist(pl)
+            self._set_playlist(pl)
 
     async def get_playlist(self):
         async with self._aiolocks['playlist']:
@@ -596,11 +615,11 @@ class Player(EventEmitter, Serializable):
                     self._source = None
 
                 if error:
-                    self.emit('error', player=self, entry=entry, ex=error)
+                    await self.emit('error', player=self, entry=entry, ex=error)
 
                 _entry_cleanup(entry, self._guild._bot)
 
-                self.emit('finished-playing', player=self, entry=entry)
+                await self.emit('finished-playing', player=self, entry=entry)
                 if entry in self._entry_finished_tasks:
                     for task in self._entry_finished_tasks[entry]:
                         await task
@@ -655,7 +674,7 @@ class Player(EventEmitter, Serializable):
                 self._source = source
                 self.state = PlayerState.PLAYING
 
-            self.emit('play', player=self, entry=self._current)
+            await self.emit('play', player=self, entry=self._current)
         
         async with self._aiolocks['playtask']:
             self._play_task = ensure_future(_download_and_play())            
@@ -699,7 +718,7 @@ class Player(EventEmitter, Serializable):
                     self._player.resume()
                     if play_success_cb:
                         play_success_cb()
-                    self.emit('resume', player=self, entry=self._current)
+                    await self.emit('resume', player=self, entry=self._current)
                     return
 
                 await self._play_safe(play_wait_cb = play_wait_cb, play_success_cb = play_success_cb)
@@ -710,7 +729,7 @@ class Player(EventEmitter, Serializable):
                 if self._player:
                     self._player.pause()
                     self.state = PlayerState.PAUSE
-                    self.emit('pause', player=self, entry=self._current)
+                    await self.emit('pause', player=self, entry=self._current)
 
     async def pause(self):
         async with self._aiolocks['pause']:
@@ -721,7 +740,7 @@ class Player(EventEmitter, Serializable):
                 elif self.state == PlayerState.PLAYING:
                     self._player.pause()
                     self.state = PlayerState.PAUSE
-                    self.emit('pause', player=self, entry=self._current)
+                    await self.emit('pause', player=self, entry=self._current)
                     return
 
                 elif self.state == PlayerState.DOWNLOADING:
@@ -736,7 +755,7 @@ class Player(EventEmitter, Serializable):
                 elif self.state == PlayerState.WAITING:
                     self._play_safe_task.cancel()
                     self.state = PlayerState.PAUSE
-                    self.emit('pause', player=self, entry=self._current)
+                    await self.emit('pause', player=self, entry=self._current)
                     return
         
 
@@ -774,7 +793,7 @@ class Player(EventEmitter, Serializable):
         async with self._aiolocks['kill']:
             # TODO: destruct
             pass
-        self.emit('stop', player=self)
+        await self.emit('stop', player=self)
 
     async def progress(self):
         async with self._aiolocks['player']:

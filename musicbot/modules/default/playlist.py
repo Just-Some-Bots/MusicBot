@@ -150,7 +150,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         unlisted = 0
         andmoretext = '* ... and %s more*' % (await playlist.get_length())
 
-        for i, item in enumerate(playlist):
+        for i, item in enumerate(await playlist[:]):
             if item.queuer_id:
                 nextline = ctx.bot.str.get('cmd-queue-entry-author', '{0} -- `{1}` by `{2}`').format(i+1, item.title, guild.guild.get_member(item.queuer_id).name).strip()
             else:
@@ -246,7 +246,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         await bot.crossmodule.async_call_object('_play', ctx, pl, url, send_reply = False)
         await guild.serialize_playlist(pl)
 
-        await messagemanager.safe_send_normal(ctx, ctx, 'imported playlist from {} to {}'.format(url, name))
+        await messagemanager.safe_send_normal(ctx, ctx, 'imported playlist from {} to {}'.format(url, pl._name))
 
     @inject_as_subcommand('remove', name = 'entry')
     @inject_as_main_command('re')
