@@ -165,23 +165,29 @@ class Config:
         if self.owner_id:
             self.owner_id = self.owner_id.lower()
 
-            if self.owner_id.isdigit():
-                if int(self.owner_id) < 10000:
+            if self.owner_id == 'auto':
+                pass # defer to async check
+            else:
+                real_own = list()
+                wrongs = list()
+                for own in self.owner_id.split():
+                    if own.isdigit() and int(own) > 10000:
+                        real_own.append(int(own))
+                    else:
+                        wrongs.append(own)
+
+                if wrongs:
                     raise HelpfulError(
-                        "An invalid OwnerID was set: {}".format(self.owner_id),
+                        "An invalid OwnerID was set: {}".format(' '.join(wrongs)),
 
                         "Correct your OwnerID. The ID should be just a number, approximately "
                         "18 characters long, or 'auto'. If you don't know what your ID is, read the "
                         "instructions in the options or ask in the help server.",
                         preface=self._confpreface
                     )
-                self.owner_id = int(self.owner_id)
 
-            elif self.owner_id == 'auto':
-                pass # defer to async check
+                self.owner_id = real_own
 
-            else:
-                self.owner_id = None
 
         if not self.owner_id:
             raise HelpfulError(
@@ -250,7 +256,7 @@ class Config:
     #       Maybe add warnings about fields missing from the config file
 
     async def async_validate(self, bot):
-        log.debug("Validating options...")
+        bot.log.debug("Validating options...")
 
         if self.owner_id == 'auto':
             if not bot.user.bot:
@@ -264,7 +270,7 @@ class Config:
                 )
 
             self.owner_id = bot._owner_id
-            log.debug("Acquired owner id via API")
+            bot.log.debug("Acquired owner id via API")
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(

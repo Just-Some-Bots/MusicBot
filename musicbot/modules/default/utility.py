@@ -33,7 +33,7 @@ class Utility(Cog):
             return valid_call and not entry.content[1:2].isspace()
 
         delete_invokes = True
-        delete_all = ctx.channel.permissions_for(ctx.author).manage_messages or ctx.bot.config.owner_id == ctx.author.id
+        delete_all = ctx.channel.permissions_for(ctx.author).manage_messages or ctx.author.id in ctx.bot.config.owner_id
 
         def check(message):
             if is_possible_command_invoke(message) and delete_invokes:

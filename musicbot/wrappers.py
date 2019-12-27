@@ -10,7 +10,7 @@ def owner_only(func):
         # Only allow the owner to use these commands
         author = ctx.author
 
-        if author.id == ctx.bot.config.owner_id:
+        if author.id in ctx.bot.config.owner_id:
             # noinspection PyCallingNonCallable
             return await func(fself, ctx, *args, **kwargs)
         else:

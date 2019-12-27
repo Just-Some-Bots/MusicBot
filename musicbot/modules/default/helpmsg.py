@@ -87,7 +87,7 @@ class Help(Cog):
                     )
                     return
 
-            elif ctx.author.id == ctx.bot.config.owner_id:
+            elif ctx.author.id in ctx.bot.config.owner_id:
                 cogs = await self._gen_cog_cmd_dict(ctx.bot, ctx.author, list_all_cmds=True)
 
         cmdlisto = ''

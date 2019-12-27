@@ -44,7 +44,7 @@ class Moderation(Cog):
             )
 
         for user in users.copy():
-            if user.id == ctx.bot.config.owner_id:
+            if user.id in ctx.bot.config.owner_id:
                 print("[Commands:Blacklist] The owner cannot be blacklisted.")
                 users.remove(user)
 

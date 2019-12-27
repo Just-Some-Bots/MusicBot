@@ -110,7 +110,7 @@ class ModuBot(Bot):
 
         self.log.setLevel(self.config.debug_level)
 
-        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
+        self.permissions = Permissions(perms_file, grant_all=self.config.owner_id)
         self.str = Json(self.config.i18n_file)
 
         self.blacklist = set(load_file(self.config.blacklist_file))
@@ -547,12 +547,15 @@ class ModuBot(Bot):
         app_info = await self.application_info()  
         if self._owner_id == 'auto' or not self._owner_id:
             self.log.info('Using application\'s owner')
-            self._owner_id = app_info.owner.id
+            self._owner_id = [app_info.owner.id]
 
         else:
-            if not self.get_user(self._owner_id):
+            for own in self._owner_id.copy():
+                if not self.get_user(own):
+                    self._owner_id.remove(own)
+            if not self._owner_id:
                 self.log.warning('Cannot find specified owner, falling back to application\'s owner')
-                self._owner_id = app_info.owner.id  
+                self._owner_id = [app_info.owner.id]
 
         await self._on_ready_sanity_checks()
 
@@ -565,11 +568,13 @@ class ModuBot(Bot):
             discriminator = self.user.discriminator
             ))        
 
-        self.log.info("Owner:\n    ID: {id}\n    name: {name}#{discriminator}\n".format(
-            id = self._owner_id,
-            name = self.get_user(self._owner_id).name,
-            discriminator = self.get_user(self._owner_id).discriminator
-            ))
+        for i, own in enumerate(self._owner_id):
+            self.log.info("Owner {n}:\n    ID: {id}\n    name: {name}#{discriminator}\n".format(
+                n = i+1,
+                id = own,
+                name = self.get_user(own).name,
+                discriminator = self.get_user(own).discriminator
+                ))
 
         if self._owner_id and self.guilds:
 
@@ -586,7 +591,7 @@ class ModuBot(Bot):
                 self.log.info('Not proceeding with checks in {} servers due to unavailability'.format(str(unavailable_servers))) 
 
         elif self.guilds:
-            self.log.warning("Owner could not be found on any guild (id: %s)\n" % self.config.owner_id)
+            self.log.warning("Owner could not be found on any guild (id: %s)\n" % ' '.join(self._owner_id))
 
             self.log.info('Guild List:')
             for s in self.guilds:

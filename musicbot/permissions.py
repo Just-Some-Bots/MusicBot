@@ -94,8 +94,7 @@ class Permissions:
             # noinspection PyTypeChecker
             owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, "Owner (auto)"), fallback=Permissive)
             
-        if hasattr(grant_all, '__iter__'):
-            owner_group.user_list = set(grant_all)
+        owner_group.user_list = grant_all
 
         self.groups.add(owner_group)
 
@@ -105,7 +104,7 @@ class Permissions:
         og = discord.utils.get(self.groups, name="Owner (auto)")
         if 'auto' in og.user_list:
             log.debug("Fixing automatic owner group")
-            og.user_list = {bot.config.owner_id}
+            og.user_list = set(bot.config.owner_id)
 
     def save(self):
         with open(self.config_file, 'w') as f:

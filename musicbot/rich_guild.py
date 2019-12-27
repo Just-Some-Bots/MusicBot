@@ -528,10 +528,12 @@ class RichGuild(Serializable):
                 return await self._player.get_playlist()
 
     def get_owner(self, *, voice=False):
-            return discord.utils.find(
-                lambda m: m.id == self._bot.config.owner_id and (m.voice if voice else True),
+        return set(
+            filter(
+                lambda m: m.id in self._bot.config.owner_id and (m.voice if voice else True),
                 self.guild.members
             )
+        )
 
 def get_guild(bot, guild) -> RichGuild:
     return guilds[bot.user.id][guild.id]
@@ -667,7 +669,7 @@ def register_bot(bot):
             ctx.bot.log.info("Ignoring command from myself ({})".format(ctx.message.content))
             return False
 
-        if ctx.author.id in ctx.bot.blacklist and ctx.author.id != ctx.bot.config.owner_id:
+        if ctx.author.id in ctx.bot.blacklist and ctx.author.id not in ctx.bot.config.owner_id:
             ctx.bot.log.warning("User blacklisted: {0.id}/{0!s} ({1})".format(ctx.author, ctx.command.name))
             ctx.bot.log.info('Ignoring command from blacklisted users')
             return False
@@ -681,7 +683,7 @@ def register_bot(bot):
             return False
 
         if isinstance(ctx.message.channel, discord.abc.PrivateChannel):
-            if not (ctx.author.id == ctx.bot.config.owner_id and ctx.command.name == 'joinserver'):
+            if not (ctx.author.id in ctx.bot.config.owner_id and ctx.command.name == 'joinserver'):
                 await safe_send_normal(ctx, ctx, 'You cannot use this bot in private messages.')
                 ctx.bot.log.info('Ignoring command via private messages.')
                 return False
@@ -722,7 +724,7 @@ def prunenoowner(client) -> int:
     for server in guilds[client.user.id].values():
         if server.guild.unavailable:
             unavailable_servers += 1
-        elif server.get_owner() == None:
+        elif not server.get_owner():
             server.guild.leave()
             client.log.info('Left {} due to bot owner not found'.format(server._guild.name))
     return unavailable_servers
