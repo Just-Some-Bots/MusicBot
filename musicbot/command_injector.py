@@ -23,42 +23,36 @@ class CommandGenerator:
             self.cmd_func = cmd
             self.cmd_kwargs = dict()
 
-        self.childs = set()
-
-        class PatchHelp:
-            def __init__(p_self, *args, **kwargs):
+        class PatchHelpMixin:
+            def __init__(p_self, *args, bot = None, **kwargs):
                 p_self.generator = self
+                p_self.bot = bot
                 super().__init__(*args, **kwargs)
 
             @property
             def help(p_self):
-                return '{}\n\nAll names: {}'.format(p_self._help, ', '.join([c.qualified_name for c in self.childs]))
+                return '{}\n\nAll names: {}'.format(p_self._help, ', '.join(p_self.bot.command_tree.registered_as[p_self.callback]))
 
             @help.setter
             def help(self, real_help):
                 self._help = real_help
 
         if self.group:
-            class DynHelpGroup(Group, PatchHelp):
+            class DynHelpGroup(PatchHelpMixin, Group):
                 pass
             self.cmd_cls = DynHelpGroup
         else:
-            class DynHelpCommand(Command, PatchHelp):
+            class DynHelpCommand(PatchHelpMixin, Command):
                 pass
             self.cmd_cls = DynHelpCommand
 
     def __repr__(self):
         return 'CommandGenerator(func = {}, group = {})'.format(self.cmd_func, self.group)
 
-    def add_child(self, cmd_obj: Command):
-        self.childs.add(cmd_obj)
-        return self
-
     def make_command(self, **kwargs):
         cmd_kwargs = self.cmd_kwargs
         cmd_kwargs.update(kwargs)
         new = command(cls = self.cmd_cls, **cmd_kwargs)(self.cmd_func)
-        self.childs.add(new)
         return new    
 
 class _MarkInject:
@@ -134,7 +128,7 @@ def ensure_inject(potentially_injected, *, group = False) -> _MarkInject:
                 None,
                 lambda *args, **kwargs: None,
                 lambda *args, **kwargs: None,
-                CommandGenerator(potentially_injected, group = group).add_child(potentially_injected)
+                CommandGenerator(potentially_injected, group = group)
             )
         elif inspect.iscoroutinefunction(potentially_injected):
             return _MarkInject(
@@ -167,18 +161,23 @@ def try_append_payload(name, injected: _MarkInject, inject, eject, after:Optiona
 def inject_as_subcommand(groupcommand, *, inject_name = None, after:Optional[Union[AnyStr,Iterable[AnyStr]]] = None, **kwargs):
     def do_inject(subcommand):
         subcommand = ensure_inject(subcommand)
-        subcmd = subcommand.cmd.make_command(**kwargs)
+        subcmd = None
         def inject(bot, cog):
             bot.log.debug('Invoking inject_as_subcommand injecting {} to {}'.format(subcommand.cmd, groupcommand))
+            nonlocal subcmd
+            subcmd = subcommand.cmd.make_command(bot = bot, **kwargs)
             subcmd.cog = cog
             bot.add_command(subcmd, base=groupcommand)
 
         def eject(bot):
             bot.log.debug('Invoking inject_as_subcommand ejecting {} from {}'.format(subcommand.cmd, groupcommand))
+            nonlocal subcmd
             bot.remove_command(subcmd.qualified_name)
 
+        name = kwargs.get('name', subcommand.cmd.cmd_func.__name__)
+
         return try_append_payload(
-            inject_name if inject_name else 'inject_{}_{}'.format(subcmd.name, groupcommand),
+            inject_name if inject_name else 'inject_{}_{}'.format('_'.join(groupcommand.split()), name),
             subcommand, 
             inject, 
             eject,
@@ -198,7 +197,7 @@ def inject_as_main_command(names:Union[AnyStr,Iterable[AnyStr]], *, inject_name 
         def inject(bot, cog):
             bot.log.debug('Invoking inject_as_main_command injecting {} as {}'.format(command.cmd, names))
             for name in names:
-                cmd = command.cmd.make_command(name = name, **kwargs)
+                cmd = command.cmd.make_command(name = name, bot = bot, **kwargs)
                 cmd.cog = cog
                 bot.add_command(cmd)
 

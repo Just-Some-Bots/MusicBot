@@ -2,34 +2,34 @@ from collections import Counter, defaultdict, namedtuple
 from functools import partial
 from discord.ext.commands import Group
 
-CommandInfo = namedtuple('CommandInfo', ['childs', 'parents'])
+CommandCallbackInfo = namedtuple('CommandCallbackInfo', ['childs', 'parents'])
 
-def _make_commandinfo():
-    return CommandInfo(Counter(), Counter())
+def _make_commandcallbackinfo():
+    return CommandCallbackInfo(Counter(), Counter())
 
 class CommandTree:
     def __init__(self, bot):
         self.bot = bot
-        self.registered_count = Counter()
-        self.tree = defaultdict(_make_commandinfo)
-        self.flattened_tree = defaultdict(_make_commandinfo)
+        self.registered_as = defaultdict(set)
+        self.callback_tree = defaultdict(_make_commandcallbackinfo)
+        self.flattened_callback_tree = defaultdict(_make_commandcallbackinfo)
         self.whitelist_counted = defaultdict(Counter)
         self.blacklist_counted = defaultdict(Counter)
 
     def add_command(self, command):
-        self.registered_count[command.callback] += 1
-        self.tree[command.callback]
-        self.flattened_tree[command.callback]
+        self.registered_as[command.callback].add(command.qualified_name)
+        self.callback_tree[command.callback]
+        self.flattened_callback_tree[command.callback]
         if command.parent:
-            self.tree[command.parent.callback].childs[command.callback] += 1
-            + self.tree[command.parent.callback].childs
-            self.tree[command.callback].parents[command.parent.callback] += 1
-            + self.tree[command.parent.callback].parents
+            self.callback_tree[command.parent.callback].childs[command.callback] += 1
+            + self.callback_tree[command.parent.callback].childs
+            self.callback_tree[command.callback].parents[command.parent.callback] += 1
+            + self.callback_tree[command.parent.callback].parents
             parents = self._updated_get_parents(command.parent.callback)
             parents[command.parent.callback] += 1
             for p in parents.elements():
-                self.flattened_tree[p].childs[command.callback] += 1
-            self.flattened_tree[command.callback].parents.update(parents)
+                self.flattened_callback_tree[p].childs[command.callback] += 1
+            self.flattened_callback_tree[command.callback].parents.update(parents)
 
         # @TheerapakG: I choose to eagerly evaluate whitelist & blacklist to make executing command overhead as low as possible
         cmd = command
@@ -70,36 +70,35 @@ class CommandTree:
             permissions.command_blacklist = set(self.blacklist_counted[permissions].keys())
 
         if command.parent:
-            self.tree[command.parent.callback].childs[command.callback] -= 1
-            + self.tree[command.parent.callback].childs
-            self.tree[command.callback].parents[command.parent.callback] -= 1
-            + self.tree[command.parent.callback].parents
+            self.callback_tree[command.parent.callback].childs[command.callback] -= 1
+            + self.callback_tree[command.parent.callback].childs
+            self.callback_tree[command.callback].parents[command.parent.callback] -= 1
+            + self.callback_tree[command.parent.callback].parents
             parents = self._updated_get_parents(command.callback)
             childs = self._updated_get_childs(command.callback)
             for p in parents.elements():
-                self.flattened_tree[p].childs.subtract(childs)
-                self.flattened_tree[p].childs[command.callback] -= 1
-                + self.flattened_tree[p].childs
+                self.flattened_callback_tree[p].childs.subtract(childs)
+                self.flattened_callback_tree[p].childs[command.callback] -= 1
+                + self.flattened_callback_tree[p].childs
             for c in childs.elements():
-                self.flattened_tree[c].parents.subtract(parents)
-                self.flattened_tree[c].parents[command.callback] -= 1
-                + self.flattened_tree[p].parents
+                self.flattened_callback_tree[c].parents.subtract(parents)
+                self.flattened_callback_tree[c].parents[command.callback] -= 1
+                + self.flattened_callback_tree[p].parents
 
-        self.registered_count[command.callback] -= 1
-        if self.registered_count[command.callback] == 0:
-            del self.tree[command.callback]
-            del self.flattened_tree[command.callback]
-            del self.registered_count[command.callback]
-
+        self.registered_as[command.callback].remove(command.qualified_name)
+        if not self.registered_as[command.callback]:
+            del self.callback_tree[command.callback]
+            del self.flattened_callback_tree[command.callback]
+            del self.registered_as[command.callback]
 
     def _updated_get_parents(self, callback):
-        return self.flattened_tree[callback].parents.copy()
+        return self.flattened_callback_tree[callback].parents.copy()
 
     def _updated_get_childs(self, callback):
-        return self.flattened_tree[callback].childs.copy()
+        return self.flattened_callback_tree[callback].childs.copy()
 
     def get_parents(self, callback):
-        return set(self.flattened_tree[callback].parents.keys())
+        return set(self.flattened_callback_tree[callback].parents.keys())
 
     def get_childs(self, callback):
-        return set(self.flattened_tree[callback].childs.keys())
+        return set(self.flattened_callback_tree[callback].childs.keys())

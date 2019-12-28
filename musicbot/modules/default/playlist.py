@@ -89,7 +89,7 @@ class PlaylistManagement(InjectableMixin, Cog):
         A command group for adding entries to the playlist
         """
 
-    @inject_as_subcommand('add entries', name = 'playlist')
+    @inject_as_subcommand('add entries', name = 'playlist', after = 'inject_add_entries')
     async def addentriesplaylist(self, ctx, name, target = None):
         """
         Usage:
@@ -231,7 +231,7 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         await messagemanager.safe_send_normal(ctx, ctx, 'swapped playlist from {} to {}'.format(prev._name, name))
 
-    @inject_as_subcommand('add entries', name = 'url')
+    @inject_as_subcommand('add entries', name = 'url', after = 'inject_add_entries')
     async def addentriesurl(self, ctx, url, name = None):
         """
         Usage:
