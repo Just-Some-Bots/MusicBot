@@ -792,8 +792,12 @@ class ModuBot(Bot):
         gathered = asyncio.gather(*asyncio.Task.all_tasks(self.loop), loop=self.loop)
         gathered.cancel()
         async def await_gathered():
-            with suppress(Exception, asyncio.CancelledError):
+            self.log.debug('----------[ BEGIN CANCELLED ]----------')
+            try:
                 await gathered
+            except Exception:
+                self.log.debug(traceback.format_exc())
+            self.log.debug('----------[  END CANCELLED  ]----------')
         self.loop.run_until_complete(await_gathered())
         self.downloader.shutdown()
         self.log.info('finished!')
