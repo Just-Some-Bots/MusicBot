@@ -70,7 +70,7 @@ class Spotify:
                 raise SpotifyError('Failed to get a guest token from Spotify, please try specifying client id and client secret')
             self.token = {
                 "access_token": token["accessToken"],
-                "expires_at": token["accessTokenExpirationTimestampMs"]
+                "expires_at": int(token["accessTokenExpirationTimestampMs"]) / 1000
             }
         else:
             token = await self.request_token()
