@@ -56,9 +56,9 @@ class Autoplaylist(Cog):
             if not url:
                 url = current.source_url
             else:
-                current = get_unprocessed_entry(url, None, bot.downloader, dict())
+                current = await get_unprocessed_entry(url, None, bot.downloader, dict())
 
-            if url not in [e.source_url for e in guild._auto]:
+            if url not in [e.source_url for e in guild._auto.list_snapshot()]:
                 await guild._auto.add_entry(current)
                 await guild.serialize_playlist(guild._auto)
                 ctx.bot.log.debug("Appended {} to autoplaylist".format(url))
@@ -80,20 +80,10 @@ class Autoplaylist(Cog):
         guild = get_guild(bot, ctx.guild)
 
         if not name:
-            if guild._auto:
-                guild._auto.persistent = False
-                await guild.serialize_playlist(guild._auto)
-                guild._auto = None
-                await guild.serialize_to_file()
+            await guild.set_auto(None)
 
         elif name in guild._playlists:
-            if guild._auto:
-                guild._auto.persistent = False
-                await guild.serialize_playlist(guild._auto)
-            guild._auto = guild._playlists[name]
-            guild._auto.persistent = True
-            await guild.serialize_playlist(guild._auto)
-            await guild.serialize_to_file()
+            await guild.set_auto(guild._playlists[name])
 
         else:
             raise exceptions.CommandError('There is no playlist with that name.')

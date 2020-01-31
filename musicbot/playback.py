@@ -309,6 +309,9 @@ class Playlist(EntriesHolder):
     async def __getitem__(self, item: Union[int, slice]):
         return list(self._list)[item]
 
+    def list_snapshot(self):
+        return list(self._list)
+
     def copy(self, name = None):
         pl = Playlist(
             self._name if not name else name,
@@ -356,7 +359,7 @@ class Playlist(EntriesHolder):
             entry._cache_task = ensure_future(entry.prepare_cache())
 
         if keep_entry:
-            self._list.appendleft(entry)
+            self._list.append(entry)
             if entry._local_url:
                 url_map[entry._local_url].append(entry)
 
@@ -567,8 +570,11 @@ class Player(AsyncEventEmitter, Serializable):
         if self._playlist:
             self._playlist.off('entry-added', self.on_playlist_entry_added)
             self._playlist.remove_owner()
-        pl.set_owner(self)
-        self._playlist = pl.on('entry-added', self.on_playlist_entry_added)
+        if pl:
+            pl.set_owner(self)
+            self._playlist = pl.on('entry-added', self.on_playlist_entry_added)
+        else:
+            self._playlist = None
 
     async def set_playlist(self, pl: Optional[Playlist]):
         async with self._aiolocks['playlist']:

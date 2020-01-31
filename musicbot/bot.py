@@ -490,9 +490,9 @@ class ModuBot(Bot):
 
             if autosummon:
                 owner = guild.get_owner(voice=True)
-                if owner:
-                    self.log.info("Found owner in \"{}\"".format(owner.voice.channel.name))
-                    channel_map[guild] = owner.voice.channel
+                for own in owner:
+                    self.log.info("Found owner in \"{}\"".format(own.voice.channel.name))
+                    channel_map[guild] = own.voice.channel
 
         for guild, channel in channel_map.items():
             if guild in joined_servers:

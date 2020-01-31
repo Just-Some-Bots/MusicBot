@@ -43,7 +43,7 @@ class PlaylistManagement(InjectableMixin, Cog):
                 pls.append(name)
 
         if guild._auto:
-            apls = guild._auto._name
+            apl = guild._auto._name
 
         plmsgtitle = 'playlist{}'.format('s' if len(pls)>1 else '')
         plmsgdesc = '\n'.join(pls) if pls else None

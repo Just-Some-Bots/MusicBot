@@ -30,6 +30,7 @@ from discord import Guild
 import discord
 from asyncio import Lock, ensure_future
 from collections import defaultdict
+from typing import Optional
 import json
 import os
 import random
@@ -69,7 +70,7 @@ class RichGuild(Serializable):
             'id': self._id,
             'config': self.config,
             'playlists': self._playlists_active_path,
-            'auto': self._auto._name,
+            'auto': self._auto._name if self._auto else None,
             'not_auto': self._not_auto._name if self._not_auto else None
         })
 
@@ -93,15 +94,16 @@ class RichGuild(Serializable):
                     bot.log.debug('Deserializing {} from guild save'.format(plpath))
                     await guild.deserialize_playlist(dir = plpath)
 
-        if 'version' not in data or data['version'] < 2:
-            data_autos = data.get('autos')
-            if data_autos:
-                guild._auto = guild._playlists[data_autos[0]]
-        else:
-            guild._auto = data.get('auto')
+            if 'version' not in data or data['version'] < 2:
+                data_autos = data.get('autos')
+                if data_autos:
+                    guild._auto = guild._playlists[data_autos[0]] 
+            else:
+                data_auto = data.get('auto')
+                guild._auto = guild._playlists[data_auto] if data_auto else None
 
-        data_not_auto = data.get('not_auto')
-        guild._not_auto = guild._playlists[data_not_auto] if data_not_auto else None
+            data_not_auto = data.get('not_auto')
+            guild._not_auto = guild._playlists[data_not_auto] if data_not_auto else None
 
         ensure_future(unpack_playlists())
 
@@ -123,6 +125,22 @@ class RichGuild(Serializable):
             self._player.pull_persist = False
             if also_skip:
                 await self._player.skip()
+
+    async def set_auto(self, pl: Optional[Playlist] = None):
+        # @TheerapakG: TODO: guard auto
+        if (await self.is_currently_auto()):
+            if not pl:
+                self._auto = None
+                await self.return_from_auto()
+            else:
+                await self.serialize_playlist(self._auto)
+                self._auto = pl
+                await self._player.set_playlist(pl)
+        else:
+            self._auto = pl
+
+    async def get_auto(self):
+        return self._auto
 
     @classmethod
     def from_json(cls, raw_json, bot, guildid):

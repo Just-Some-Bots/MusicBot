@@ -375,7 +375,7 @@ class YtdlUrlEntry(Entry):
 
 class YtdlUrlUnprocessedEntry(YtdlUrlEntry):
     def __init__(self, url, queuer_id, metadata, extractor):
-        super().__init__(url, 'Information have not been fetched yet', 0, queuer_id, metadata, extractor, None)
+        super().__init__(url, 'Information have not been fetched yet ({})'.format(url), 0, queuer_id, metadata, extractor, None)
 
     def __json__(self):
         return self._enclose_json({
