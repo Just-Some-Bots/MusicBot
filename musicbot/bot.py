@@ -795,7 +795,7 @@ class ModuBot(Bot):
             self.log.debug('----------[ BEGIN CANCELLED ]----------')
             try:
                 await gathered
-            except Exception:
+            except (Exception, asyncio.exceptions.CancelledError):
                 self.log.debug(traceback.format_exc())
             self.log.debug('----------[  END CANCELLED  ]----------')
         self.loop.run_until_complete(await_gathered())
