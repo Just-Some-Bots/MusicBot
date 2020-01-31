@@ -36,20 +36,20 @@ class PlaylistManagement(InjectableMixin, Cog):
         guild = get_guild(bot, ctx.guild)
 
         pls = []
-        apls = []
+        apl = None
 
         for name, pl in guild._playlists.items():
-            if pl not in guild._autos:
+            if pl is not guild._auto:
                 pls.append(name)
 
-        for pl in guild._autos:
-            apls.append(pl._name)
+        if guild._auto:
+            apls = guild._auto._name
 
         plmsgtitle = 'playlist{}'.format('s' if len(pls)>1 else '')
         plmsgdesc = '\n'.join(pls) if pls else None
         
-        aplmsgtitle = 'autoplaylist{}'.format('s' if len(apls)>1 else '')
-        aplmsgdesc = '\n'.join(apls) if apls else None
+        aplmsgtitle = 'autoplaylist'
+        aplmsgdesc = apl
 
         await messagemanager.safe_send_normal(ctx, ctx,
             [
@@ -189,14 +189,15 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         if name in guild._playlists:
             pl = guild._playlists[name]
-            if pl is guild._internal_auto:
-                # @TheerapakG: TODO: figure out if toggling then maybe move to next playlist?
-                raise exceptions.CommandError('This playlist is in use.')
-            elif pl in guild._autos:
-                guild._autos.remove(pl)
+            if pl is guild._auto:
+                guild._auto = None
+                if (await guild.is_currently_auto()):
+                    await guild.return_from_auto()
                 await guild.remove_serialized_playlist(name)
                 del guild._playlists[name]
                 await guild.serialize_to_file()
+            elif pl is (await guild.get_playlist()):
+                raise exceptions.CommandError('Playlist is currently in use.')
             else:
                 await guild.remove_serialized_playlist(name)
                 del guild._playlists[name]
@@ -219,10 +220,8 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         if name in guild._playlists:
             pl = guild._playlists[name]
-            if pl is guild._internal_auto:
-                raise exceptions.CommandError('This playlist is not swapable.')
-            elif pl in guild._autos:
-                raise exceptions.CommandError('This playlist is not swapable.')
+            if pl is guild._auto:
+                raise exceptions.CommandError('This playlist is not swapable (is autoplaylist).')
             else:
                 await guild.set_playlist(pl)
                 await guild.serialize_to_file()

@@ -518,7 +518,7 @@ class ModuBot(Bot):
 
                     self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
 
-                    if guild._autos:
+                    if guild._auto:
                         player = await guild.get_player()
                         if self.config.auto_pause:
                             player.once('play', lambda player, **_: _autopause(player))

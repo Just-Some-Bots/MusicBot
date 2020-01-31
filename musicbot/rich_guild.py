@@ -56,11 +56,8 @@ class RichGuild(Serializable):
         self._player = None
         self._playlists = dict()
         self._playlists_active_path = dict()
-        # @TheerapakG: _internal_auto hold entries that we're really autoing, _auto is just a playlist that 
-        # hold entry in each category accordingly just to not get mixed up
-        # @TheerapakG: we're holding object references in the _autos as that should take up less memory than holding strs
-        self._autos = list()
-        self._internal_auto = None
+        # @TheerapakG: we're holding object references in the _auto as that should take up less memory than holding strs
+        self._auto = None
         self._not_auto = None
         self.skip_state = SkipState()
 
@@ -68,12 +65,11 @@ class RichGuild(Serializable):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
         # we're shutting down
         return self._enclose_json({
-            'version': 1,
+            'version': 2,
             'id': self._id,
             'config': self.config,
             'playlists': self._playlists_active_path,
-            'autos': [p._name for p in self._autos],
-            'internal_auto': self._internal_auto._name if self._internal_auto else None,
+            'auto': self._auto._name,
             'not_auto': self._not_auto._name if self._not_auto else None
         })
 
@@ -97,15 +93,15 @@ class RichGuild(Serializable):
                     bot.log.debug('Deserializing {} from guild save'.format(plpath))
                     await guild.deserialize_playlist(dir = plpath)
 
+        if 'version' not in data or data['version'] < 2:
             data_autos = data.get('autos')
             if data_autos:
-                guild._autos = [guild._playlists[plname] for plname in data_autos]
+                guild._auto = guild._playlists[data_autos[0]]
+        else:
+            guild._auto = data.get('auto')
 
-            data_internal_auto = data.get('internal_auto')
-            guild._internal_auto = guild._playlists[data_internal_auto] if data_internal_auto else None
-
-            data_not_auto = data.get('not_auto')
-            guild._not_auto = guild._playlists[data_not_auto] if data_not_auto else None
+        data_not_auto = data.get('not_auto')
+        guild._not_auto = guild._playlists[data_not_auto] if data_not_auto else None
 
         ensure_future(unpack_playlists())
 
@@ -116,13 +112,12 @@ class RichGuild(Serializable):
             return False
 
         plpl = await self._player.get_playlist()
-        return plpl is self._internal_auto
+        return plpl is self._auto
 
     async def return_from_auto(self, *, also_skip = False):
         if (await self.is_currently_auto()):
             self._bot.log.info("Leaving auto in {}".format(self._id))
-            self._internal_auto = await self._player.get_playlist()
-            await self.serialize_playlist(self._internal_auto)
+            await self.serialize_playlist(self._auto)
             await self._player.set_playlist(self._not_auto)
             self._player.random = False
             self._player.pull_persist = False
@@ -464,10 +459,10 @@ class RichGuild(Serializable):
                 self._bot.server_specific_data[self]['auto_paused'] = True
 
         current = await player.get_playlist()
-        if await current.get_length() == 0 and self._internal_auto:
+        if await current.get_length() == 0 and self._auto:
             self._bot.log.info("Entering auto in {}".format(self._id))
             self._not_auto = current
-            await player.set_playlist(self._internal_auto)
+            await player.set_playlist(self._auto)
             self._player.random = self.config.auto_random
             self._player.pull_persist = True
 
