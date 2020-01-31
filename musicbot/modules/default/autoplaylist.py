@@ -80,14 +80,18 @@ class Autoplaylist(Cog):
         guild = get_guild(bot, ctx.guild)
 
         if not name:
-            guild._auto.persistent = False
-            guild._auto = None
-            await guild.serialize_to_file()
+            if guild._auto:
+                guild._auto.persistent = False
+                await guild.serialize_playlist(guild._auto)
+                guild._auto = None
+                await guild.serialize_to_file()
 
-        if name in guild._playlists:
-            guild._playlists[name].persistent = True
-            guild._auto.persistent = False
+        elif name in guild._playlists:
+            if guild._auto:
+                guild._auto.persistent = False
+                await guild.serialize_playlist(guild._auto)
             guild._auto = guild._playlists[name]
+            guild._auto.persistent = True
             await guild.serialize_playlist(guild._auto)
             await guild.serialize_to_file()
 
