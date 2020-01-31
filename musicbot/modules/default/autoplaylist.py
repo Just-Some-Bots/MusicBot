@@ -69,19 +69,24 @@ class Autoplaylist(Cog):
             raise exceptions.CommandError(bot.str.get('cmd-save-invalid', 'There is no valid song playing.'))
 
     @command()
-    async def convtoap(self, ctx, name):
+    async def swapap(self, ctx, *, name:Optional[str] = None):
         """
         Usage:
-            {command_prefix}convtoap name
+            {command_prefix}swapap [name]
 
-        Convert playlist with that name in the guild to an autoplaylist.
-        If used in merge mode, the entry added will be lost when changed the mode to toggle.
+        Swap autoplaylist to the specified playlist
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
+        if not name:
+            guild._auto.persistent = False
+            guild._auto = None
+            await guild.serialize_to_file()
+
         if name in guild._playlists:
             guild._playlists[name].persistent = True
+            guild._auto.persistent = False
             guild._auto = guild._playlists[name]
             await guild.serialize_playlist(guild._auto)
             await guild.serialize_to_file()
