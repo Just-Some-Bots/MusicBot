@@ -109,38 +109,46 @@ class RichGuild(Serializable):
 
         return guild
 
-    async def is_currently_auto(self):
-        if not self._player:
+    def _is_playlist_auto(self, pl: Playlist):
+        return pl is self._auto
+
+    async def is_playlist_auto(self, pl: Playlist):
+        async with self._aiolocks['c_auto']:
+            return self._is_playlist_auto(pl)
+
+    async def is_currently_auto(self, _lock_auto = False):
+        try:
+            plpl = await self.get_playlist(incl_auto = True)
+        except exceptions.VoiceConnectionError:
             return False
 
-        plpl = await self._player.get_playlist()
-        return plpl is self._auto
+        if not _lock_auto:
+            return await self.is_playlist_auto(plpl)
+        else:
+            return self._is_playlist_auto(plpl)
 
     async def return_from_auto(self, *, also_skip = False):
         if (await self.is_currently_auto()):
             self._bot.log.info("Leaving auto in {}".format(self._id))
-            await self.serialize_playlist(self._auto)
-            await self._player.set_playlist(self._not_auto)
+            async with self._aiolocks['c_auto']:
+                await self.serialize_playlist(self._auto)
+                await self._player.set_playlist(self._not_auto)
             self._player.random = False
             self._player.pull_persist = False
             if also_skip:
                 await self._player.skip()
 
     async def set_auto(self, pl: Optional[Playlist] = None):
-        # @TheerapakG: TODO: guard auto
-        if (await self.is_currently_auto()):
-            if not pl:
-                self._auto = None
-                await self.return_from_auto()
-            else:
-                await self.serialize_playlist(self._auto)
-                self._auto = pl
+        self._bot.log.info("Setting auto in {}".format(self._id))
+        async with self._aiolocks['c_auto']:
+            await self.serialize_playlist(self._auto)
+            if (await self.is_currently_auto(_lock_auto = True)):
                 await self._player.set_playlist(pl)
-        else:
             self._auto = pl
 
     async def get_auto(self):
-        return self._auto
+        async with self._aiolocks['c_auto']:
+            return self._auto
 
     @classmethod
     def from_json(cls, raw_json, bot, guildid):
@@ -477,18 +485,18 @@ class RichGuild(Serializable):
                 self._bot.server_specific_data[self]['auto_paused'] = True
 
         current = await player.get_playlist()
-        if await current.get_length() == 0 and self._auto:
-            self._bot.log.info("Entering auto in {}".format(self._id))
-            self._not_auto = current
-            await player.set_playlist(self._auto)
-            self._player.random = self.config.auto_random
-            self._player.pull_persist = True
+        async with self._aiolocks['c_auto']:
+            if await current.get_length() == 0 and self._auto:
+                self._bot.log.info("Entering auto in {}".format(self._id))
+                self._not_auto = current
+                await player.set_playlist(self._auto)
+                player.random = self.config.auto_random
+                player.pull_persist = True
 
-            if self._bot.config.auto_pause:
-                player.once('play', lambda player, **_: _autopause(player))
+                if self._bot.config.auto_pause:
+                    player.once('play', lambda player, **_: _autopause(player))
 
-        else: # Don't serialize for autoplaylist events
-            await self.serialize_queue()
+        await self.serialize_queue()
 
     async def on_player_entry_added(self, player, playlist, entry, **_):
         self._bot.log.debug('Running on_player_entry_added')
@@ -528,17 +536,28 @@ class RichGuild(Serializable):
                 raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
     
     async def set_playlist(self, playlist):
-        async with self._aiolocks['c_voice_channel']:
-            await self._player.set_playlist(playlist)
+        if await self.is_currently_auto():
+            async with self._aiolocks['c_auto']:
+                self._not_auto = playlist
+        else:
+            async with self._aiolocks['c_voice_channel']:
+                await self._player.set_playlist(playlist)
 
     async def get_playlist(self, incl_auto = False):
         async with self._aiolocks['c_voice_channel']:
             if not self._player:
                 raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
-            elif await self.is_currently_auto() and not incl_auto:
-                return self._not_auto
+
+            pl = await self._player.get_playlist()
+
+            if incl_auto:
+                return pl
             else:
-                return await self._player.get_playlist()
+                async with self._aiolocks['c_auto']:
+                    if self._is_playlist_auto(pl):
+                        return self._not_auto
+                    else:
+                        return pl
 
     def get_owner(self, *, voice=False):
         return set(

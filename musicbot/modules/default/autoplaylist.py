@@ -55,11 +55,11 @@ class Autoplaylist(Cog):
         if url or (current and not current.stream):
             if not url:
                 url = current.source_url
-            else:
-                current = await get_unprocessed_entry(url, None, bot.downloader, dict())
+            # @TheerapakG: TODO: make unprocessed from processed
+            new = await get_unprocessed_entry(url, None, bot.downloader, dict())
 
             if url not in [e.source_url for e in guild._auto.list_snapshot()]:
-                await guild._auto.add_entry(current)
+                await guild._auto.add_entry(new)
                 await guild.serialize_playlist(guild._auto)
                 ctx.bot.log.debug("Appended {} to autoplaylist".format(url))
                 await safe_send_normal(ctx, ctx, bot.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))

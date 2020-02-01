@@ -11,6 +11,7 @@ from ...utils import ftimedelta
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command, inject_as_group
 from ...rich_guild import get_guild
 from ...playback import Playlist, PlayerState
+from ...ytdldownloader import get_unprocessed_entry
 from ... import messagemanager
 
 
@@ -105,11 +106,12 @@ class PlaylistManagement(InjectableMixin, Cog):
             g_pl = await guild.get_playlist()
 
         if name not in guild._playlists:
-            raise exceptions.CommandError('There is already a playlist with that name.')
+            raise exceptions.CommandError('There is not any playlist with that name.')
         else:
             for e in guild._playlists[name]._list:
                 bot.log.debug('{} ({})'.format(e, e.source_url))
-                await g_pl.add_entry(e)
+                # @TheerapakG: TODO: make unprocessed from processed
+                await g_pl.add_entry(await get_unprocessed_entry(e.source_url, ctx.author.id, bot.downloader, dict()))
             await guild.serialize_playlist(g_pl)
 
         await messagemanager.safe_send_normal(ctx, ctx, 'imported entries from playlist: {}'.format(name))
@@ -277,6 +279,7 @@ class PlaylistManagement(InjectableMixin, Cog):
                     for entry in entry_indexes:
                         pos = await playlist.get_entry_position(entry)
                         await playlist.remove_position(pos)
+                    await guild.serialize_playlist(playlist)
                     entry_text = '%s ' % len(entry_indexes) + 'item'
                     if len(entry_indexes) > 1:
                         entry_text += 's'
@@ -304,6 +307,7 @@ class PlaylistManagement(InjectableMixin, Cog):
 
         if permissions.remove or ctx.author.id == playlist[index - 1].queuer_id:
             entry = await playlist.remove_position((index - 1))
+            await guild.serialize_playlist(playlist)
             if entry.queuer_id:
                 await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-remove-reply-author', "Removed entry `{0}` added by `{1}`").format(entry.title, guild.guild.get_member(entry.queuer_id)).strip())
                 return
@@ -331,6 +335,7 @@ class PlaylistManagement(InjectableMixin, Cog):
             playlist = await guild.get_playlist()
 
         await playlist.clear()
+        await guild.serialize_playlist(playlist)
         await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-clear-reply', "Cleared `{0}`").format(playlist._name), expire_in=20)
             
 
