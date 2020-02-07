@@ -1,37 +1,20 @@
-FROM alpine:edge
+FROM ubuntu:disco
 
-# Add project source
 WORKDIR /usr/src/musicbot
 COPY . ./
 
 # Install dependencies
-RUN apk update \
-&& apk add --no-cache \
-  ca-certificates \
-  ffmpeg \
-  opus \
-  python3 \
-  libsodium-dev \
-\
-# Install build dependencies
-&& apk add --no-cache --virtual .build-deps \
-  gcc \
-  git \
-  libffi-dev \
-  make \
-  musl-dev \
-  python3-dev \
-\
-# Install pip dependencies
-&& pip3 install --no-cache-dir -r requirements.txt \
-&& pip3 install --upgrade --force-reinstall --version websockets==4.0.1 \
-\
-# Clean up build dependencies
-&& apk del .build-deps
+RUN apt-get -y update \
+&& apt-get -y upgrade \
+&& apt-get -y install build-essential unzip \
+&& apt-get -y install software-properties-common \
+&& apt-get -y update \
+&& apt-get -y install git ffmpeg libopus-dev libffi-dev libsodium-dev python3-pip \
+&& python3 -m pip install -U -r requirements.txt
 
 # Create volume for mapping the config
 VOLUME /usr/src/musicbot/config
 
 ENV APP_ENV=docker
 
-ENTRYPOINT ["python3", "dockerentry.py"]
+ENTRYPOINT ["python3", "run.py"]
