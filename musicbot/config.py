@@ -6,6 +6,7 @@ import logging
 import configparser
 
 from .exceptions import HelpfulError
+from .constants import VERSION as BOTVERSION
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class Config:
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
+        self.footer_text = config.get('MusicBot', 'CustomEmbedFooter', fallback=ConfigDefaults.footer_text)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -179,14 +181,14 @@ class Config:
 
         if self.bound_channels:
             try:
-                self.bound_channels = set(x for x in self.bound_channels.replace(',', ' ').split() if x)
+                self.bound_channels = set(int(x) for x in self.bound_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
-                self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
+                self.autojoin_channels = set(int(x) for x in self.autojoin_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
@@ -196,17 +198,13 @@ class Config:
                 self.nowplaying_channels = set(int(x) for x in self.nowplaying_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
-                self.autojoin_channels = set()
+                self.nowplaying_channels = set()
 
         self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:
             self._spotify = True
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
-
-        self.bound_channels = set(int(item) for item in self.bound_channels)
-
-        self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
 
         ap_path, ap_name = os.path.split(self.auto_playlist_file)
         apn_name, apn_ext = os.path.splitext(ap_name)
@@ -223,6 +221,9 @@ class Config:
 
         self.create_empty_file_ifnoexist('config/blacklist.txt')
         self.create_empty_file_ifnoexist('config/whitelist.txt')
+
+        if not self.footer_text:
+            self.footer_text = ConfigDefaults.footer_text
 
     def create_empty_file_ifnoexist(self, path):
         if not os.path.isfile(path):
@@ -364,6 +365,7 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'

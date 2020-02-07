@@ -191,19 +191,7 @@ class MusicBot(discord.Client):
             return
 
         shandler = logging.StreamHandler(stream=sys.stdout)
-        shandler.setFormatter(colorlog.LevelFormatter(
-            fmt = {
-                'DEBUG': '{log_color}[{levelname}:{module}] {message}',
-                'INFO': '{log_color}{message}',
-                'WARNING': '{log_color}{levelname}: {message}',
-                'ERROR': '{log_color}[{levelname}:{module}] {message}',
-                'CRITICAL': '{log_color}[{levelname}:{module}] {message}',
-
-                'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
-                'NOISY': '{log_color}[{levelname}:{module}] {message}',
-                'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}',
-                'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}'
-            },
+        sformatter = colorlog.LevelFormatter(
             log_colors = {
                 'DEBUG':    'cyan',
                 'INFO':     'white',
@@ -215,10 +203,23 @@ class MusicBot(discord.Client):
                 'NOISY':      'white',
                 'FFMPEG':     'bold_purple',
                 'VOICEDEBUG': 'purple',
-        },
+            },
             style = '{',
             datefmt = ''
-        ))
+        )
+        sformatter.fmt = {
+            'DEBUG': '{log_color}[{levelname}:{module}] {message}',
+            'INFO': '{log_color}{message}',
+            'WARNING': '{log_color}{levelname}: {message}',
+            'ERROR': '{log_color}[{levelname}:{module}] {message}',
+            'CRITICAL': '{log_color}[{levelname}:{module}] {message}',
+
+            'EVERYTHING': '{log_color}[{levelname}:{module}] {message}',
+            'NOISY': '{log_color}[{levelname}:{module}] {message}',
+            'VOICEDEBUG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}',
+            'FFMPEG': '{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}'
+        }
+        shandler.setFormatter(sformatter)
         shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
 
@@ -1113,7 +1114,7 @@ class MusicBot(discord.Client):
         """Provides a basic template for embeds"""
         e = discord.Embed()
         e.colour = 7506394
-        e.set_footer(text='Just-Some-Bots/MusicBot ({})'.format(BOTVERSION), icon_url='https://i.imgur.com/gFHBoZA.png')
+        e.set_footer(text=self.config.footer_text, icon_url='https://i.imgur.com/gFHBoZA.png')
         e.set_author(name=self.user.name, url='https://github.com/Just-Some-Bots/MusicBot', icon_url=self.user.avatar_url)
         return e
 
@@ -2080,16 +2081,17 @@ class MusicBot(discord.Client):
                       "You might want to restart the bot if it doesn't start working.")
         
         current_entry = player.current_entry
-
-        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
-            if permissions.instaskip \
-                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
-
-                player.skip()  # TODO: check autopause stuff here
-                await self._manual_delete_check(message)
-                return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
-            else:
-                raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
+        
+        permission_force_skip = permissions.instaskip or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None))
+        force_skip = param.lower() in ['force', 'f']
+        
+        if permission_force_skip and (force_skip or self.config.legacy_skip):
+            player.skip()  # TODO: check autopause stuff here
+            await self._manual_delete_check(message)
+            return Response(self.str.get('cmd-skip-force', 'Force skipped `{}`.').format(current_entry.title), reply=True, delete_after=30)
+            
+        if not permission_force_skip and force_skip:
+            raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to force skip.'), expire_in=30)
 
         # TODO: ignore person if they're deaf or take them out of the list or something?
         # Currently is recounted if they vote, deafen, then vote

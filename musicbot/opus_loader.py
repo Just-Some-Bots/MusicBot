@@ -8,6 +8,6 @@ def load_opus_lib():
         opus._load_default()
         return
     except OSError:
-         pass
+        pass
 
     raise RuntimeError('Could not load an opus lib.')

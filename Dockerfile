@@ -1,5 +1,6 @@
 FROM ubuntu:disco
 
+# Add project source
 WORKDIR /usr/src/musicbot
 COPY . ./
 
