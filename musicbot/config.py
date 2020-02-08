@@ -67,6 +67,8 @@ class Config:
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
         self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
+        self.set_topic = config.getboolean('MusicBot', 'SetTopic', fallback=ConfigDefaults.set_topic)
+        self.default_topic = config.get('MusicBot', 'DefaultTopic', fallback=ConfigDefaults.default_topic)
         self.write_current_song = config.getboolean('MusicBot', 'WriteCurrentSong', fallback=ConfigDefaults.write_current_song)
         self.allow_author_skip = config.getboolean('MusicBot', 'AllowAuthorSkip', fallback=ConfigDefaults.allow_author_skip)
         self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
@@ -355,6 +357,8 @@ class ConfigDefaults:
     persistent_queue = True
     debug_level = 'INFO'
     status_message = None
+    set_topic = False
+    default_topic = None
     write_current_song = False
     allow_author_skip = True
     use_experimental_equalization = False

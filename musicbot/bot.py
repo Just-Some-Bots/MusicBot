@@ -460,6 +460,10 @@ class MusicBot(discord.Client):
     async def on_player_play(self, player, entry):
         log.debug('Running on_player_play')
         await self.update_now_playing_status(entry)
+
+        if self.config.set_topic:
+            await self.update_now_playing_topic(player, entry)
+
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
@@ -524,14 +528,24 @@ class MusicBot(discord.Client):
         log.debug('Running on_player_resume')
         await self.update_now_playing_status(entry)
 
+        if self.config.set_topic:
+            await self.update_now_playing_topic(player, entry)
+ 
+
     async def on_player_pause(self, player, entry, **_):
         log.debug('Running on_player_pause')
         await self.update_now_playing_status(entry, True)
         # await self.serialize_queue(player.voice_client.channel.guild)
 
+        if self.config.set_topic:
+            await self.update_now_playing_topic(player, entry, True)
+
     async def on_player_stop(self, player, **_):
         log.debug('Running on_player_stop')
         await self.update_now_playing_status()
+
+        if self.config.set_topic:
+            await self.update_now_playing_topic(player)
 
     async def on_player_finished_playing(self, player, **_):
         log.debug('Running on_player_finished_playing')
@@ -542,6 +556,9 @@ class MusicBot(discord.Client):
             last_np_msg = self.server_specific_data[guild]['last_np_msg']
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
+
+        if self.config.set_topic:
+            await self.update_now_playing_topic(player)
 
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
@@ -661,6 +678,19 @@ class MusicBot(discord.Client):
             if game != self.last_status:
                 await self.change_presence(activity=game)
                 self.last_status = game
+
+    async def update_now_playing_topic(self, player, entry=None, is_paused=False):
+        guild = player.voice_client.guild
+        last_np_msg = self.server_specific_data[guild]['last_np_msg']
+        channel = last_np_msg.channel if last_np_msg else None
+
+        if channel:
+            if entry and is_paused:
+                await channel.edit(topic=':pause_button: **' + entry.title + '**')
+            elif entry and not is_paused:
+                await channel.edit(topic=':arrow_forward: **' + entry.title + '**')
+            elif entry is None:
+                await channel.edit(topic=self.config.default_topic)
 
     async def update_now_playing_message(self, guild, message, *, channel=None):
         lnp = self.server_specific_data[guild]['last_np_msg']
