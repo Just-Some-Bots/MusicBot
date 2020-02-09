@@ -53,6 +53,8 @@ class Config:
         self.no_nowplaying_auto = config.getboolean('Chat', 'DisableNowPlayingAutomatic', fallback=ConfigDefaults.no_nowplaying_auto)
         self.nowplaying_channels =  config.get('Chat', 'NowPlayingChannels', fallback=ConfigDefaults.nowplaying_channels)
         self.delete_nowplaying = config.getboolean('Chat', 'DeleteNowPlaying', fallback=ConfigDefaults.delete_nowplaying)
+        self.nowplaying_topic_channels = config.get('Chat', 'NowPlayingTopicChannels', fallback=ConfigDefaults.nowplaying_topic_channels)
+        self.default_topic = config.get('Chat', 'DefaultTopic', fallback=ConfigDefaults.default_topic)
 
         self.default_volume = config.getfloat('MusicBot', 'DefaultVolume', fallback=ConfigDefaults.default_volume)
         self.skips_required = config.getint('MusicBot', 'SkipsRequired', fallback=ConfigDefaults.skips_required)
@@ -67,8 +69,6 @@ class Config:
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
         self.persistent_queue = config.getboolean('MusicBot', 'PersistentQueue', fallback=ConfigDefaults.persistent_queue)
         self.status_message = config.get('MusicBot', 'StatusMessage', fallback=ConfigDefaults.status_message)
-        self.set_topic = config.getboolean('MusicBot', 'SetTopic', fallback=ConfigDefaults.set_topic)
-        self.default_topic = config.get('MusicBot', 'DefaultTopic', fallback=ConfigDefaults.default_topic)
         self.write_current_song = config.getboolean('MusicBot', 'WriteCurrentSong', fallback=ConfigDefaults.write_current_song)
         self.allow_author_skip = config.getboolean('MusicBot', 'AllowAuthorSkip', fallback=ConfigDefaults.allow_author_skip)
         self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
@@ -202,6 +202,13 @@ class Config:
                 log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
                 self.nowplaying_channels = set()
 
+        if self.nowplaying_topic_channels:
+            try:
+                self.nowplaying_topic_channels = set(int(x) for x in self.nowplaying_topic_channels.replace(',', ' ').split() if x)
+            except:
+                log.warning("NowPlayingTopicChannels data is invalid, will not attempt to set now playing channel topic")
+                self.nowplaying_topic_channels = set()
+                
         self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:
             self._spotify = True
@@ -342,6 +349,8 @@ class ConfigDefaults:
     no_nowplaying_auto = False
     nowplaying_channels = set()
     delete_nowplaying = True
+    nowplaying_topic_channels = set()
+    default_topic = None
 
     default_volume = 0.15
     skips_required = 4
@@ -357,8 +366,6 @@ class ConfigDefaults:
     persistent_queue = True
     debug_level = 'INFO'
     status_message = None
-    set_topic = False
-    default_topic = None
     write_current_song = False
     allow_author_skip = True
     use_experimental_equalization = False

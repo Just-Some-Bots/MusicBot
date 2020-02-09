@@ -461,8 +461,8 @@ class MusicBot(discord.Client):
         log.debug('Running on_player_play')
         await self.update_now_playing_status(entry)
 
-        if self.config.set_topic:
-            await self.update_now_playing_topic(player, entry)
+        if self.config.nowplaying_topic_channels:
+            await self.update_now_playing_topic(entry)
 
         player.skip_state.reset()
 
@@ -528,8 +528,8 @@ class MusicBot(discord.Client):
         log.debug('Running on_player_resume')
         await self.update_now_playing_status(entry)
 
-        if self.config.set_topic:
-            await self.update_now_playing_topic(player, entry)
+        if self.config.nowplaying_topic_channels:
+            await self.update_now_playing_topic(entry)
  
 
     async def on_player_pause(self, player, entry, **_):
@@ -537,15 +537,15 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status(entry, True)
         # await self.serialize_queue(player.voice_client.channel.guild)
 
-        if self.config.set_topic:
-            await self.update_now_playing_topic(player, entry, True)
+        if self.config.nowplaying_topic_channels:
+            await self.update_now_playing_topic(entry, True)
 
     async def on_player_stop(self, player, **_):
         log.debug('Running on_player_stop')
         await self.update_now_playing_status()
 
-        if self.config.set_topic:
-            await self.update_now_playing_topic(player)
+        if self.config.nowplaying_topic_channels:
+            await self.update_now_playing_topic()
 
     async def on_player_finished_playing(self, player, **_):
         log.debug('Running on_player_finished_playing')
@@ -557,8 +557,8 @@ class MusicBot(discord.Client):
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
 
-        if self.config.set_topic:
-            await self.update_now_playing_topic(player)
+        if self.config.nowplaying_topic_channels:
+            await self.update_now_playing_topic()
 
         def _autopause(player):
             if self._check_if_empty(player.voice_client.channel):
@@ -679,12 +679,9 @@ class MusicBot(discord.Client):
                 await self.change_presence(activity=game)
                 self.last_status = game
 
-    async def update_now_playing_topic(self, player, entry=None, is_paused=False):
-        guild = player.voice_client.guild
-        last_np_msg = self.server_specific_data[guild]['last_np_msg']
-        channel = last_np_msg.channel if last_np_msg else None
-
-        if channel:
+    async def update_now_playing_topic(self, entry=None, is_paused=False):
+        for id in self.config.nowplaying_topic_channels:
+            channel = self.get_channel(id)
             if entry and is_paused:
                 await channel.edit(topic=':pause_button: **' + entry.title + '**')
             elif entry and not is_paused:
