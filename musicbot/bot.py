@@ -123,6 +123,18 @@ class MusicBot(discord.Client):
                 log.warning('There was a problem initialising the connection to Spotify. Is your client ID and secret correct? Details: {0}. Continuing anyway in 5 seconds...'.format(e))
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
+        else:
+            try:
+                log.warning('The config did not have Spotify app credentials, attempting to use guest mode.')
+                self.spotify = Spotify(None, None, aiosession=self.aiosession, loop=self.loop)
+                if not self.spotify.token:
+                    log.warning('Spotify did not provide us with a token. Disabling.')
+                    self.config._spotify = False
+                else:
+                    log.info('Authenticated with Spotify successfully using guest mode.')
+            except exceptions.SpotifyError as e:
+                log.warning('There was a problem initialising the connection to Spotify using guest mode. Details: {0}.'.format(e))
+                self.config._spotify = False
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):

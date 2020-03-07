@@ -15,16 +15,14 @@ class Spotify:
     def __init__(self, client_id, client_secret, aiosession=None, loop=None):
         self.client_id = client_id
         self.client_secret = client_secret
+        self.guest_mode = (client_id is None or client_secret is None)
+
         self.aiosession = aiosession if aiosession else aiohttp.ClientSession()
         self.loop = loop if loop else asyncio.get_event_loop()
 
         self.token = None
 
         self.loop.run_until_complete(self.get_token())  # validate token
-
-    def _make_token_auth(self, client_id, client_secret):
-        auth_header = base64.b64encode((client_id + ':' + client_secret).encode('ascii'))
-        return {'Authorization': 'Basic %s' % auth_header.decode('ascii')}
 
     async def get_track(self, uri):
         """Get a track's info from its URI"""
@@ -66,18 +64,27 @@ class Spotify:
         if self.token and not await self.check_token(self.token):
             return self.token['access_token']
 
-        token = await self.request_token()
-        if token is None:
-            raise SpotifyError('Requested a token from Spotify, did not end up getting one')
-        token['expires_at'] = int(time.time()) + token['expires_in']
-        self.token = token
-        log.debug('Created a new access token: {0}'.format(token))
+        if self.guest_mode:
+            token = await self.request_guest_token()
+            if token is None:
+                raise SpotifyError('Failed to get a guest token from Spotify, please try specifying client id and client secret')
+            self.token = {
+                "access_token": token["accessToken"],
+                "expires_at": int(token["accessTokenExpirationTimestampMs"]) / 1000
+            }
+        else:
+            token = await self.request_token()
+            if token is None:
+                raise SpotifyError('Requested a token from Spotify, did not end up getting one')
+            token['expires_at'] = int(time.time()) + token['expires_in']
+            self.token = token
+        log.debug('Created a new {0}access token: {1}'.format("guest " if self.guest_mode else "", self.token))
         return self.token['access_token']
 
     async def check_token(self, token):
         """Checks a token is valid"""
         now = int(time.time())
-        return token['expires_at'] - now < 60
+        return token["expires_at"] - now < 60
 
     async def request_token(self):
         """Obtains a token from Spotify and returns it"""
@@ -85,3 +92,14 @@ class Spotify:
         headers = self._make_token_auth(self.client_id, self.client_secret)
         r = await self.make_post(self.OAUTH_TOKEN_URL, payload=payload, headers=headers)
         return r
+
+    async def request_guest_token(self):
+        """Obtains a web player token from Spotify and returns it"""
+        async with self.aiosession.get("https://open.spotify.com/access_token?reason=transport&productType=web_player") as r:
+            if r.status != 200:
+                raise SpotifyError('Issue generating guest token: [{0.status}] {1}'.format(r, await r.json()))
+            return await r.json()
+
+    def _make_token_auth(self, client_id, client_secret):
+        auth_header = base64.b64encode((client_id + ':' + client_secret).encode('ascii'))
+        return {'Authorization': 'Basic %s' % auth_header.decode('ascii')}
