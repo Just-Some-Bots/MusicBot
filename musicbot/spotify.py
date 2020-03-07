@@ -95,9 +95,12 @@ class Spotify:
 
     async def request_guest_token(self):
         """Obtains a web player token from Spotify and returns it"""
-        async with self.aiosession.get("https://open.spotify.com/access_token?reason=transport&productType=web_player") as r:
+        async with self.aiosession.get("https://open.spotify.com/get_access_token?reason=transport&productType=web_player") as r:
             if r.status != 200:
-                raise SpotifyError('Issue generating guest token: [{0.status}] {1}'.format(r, await r.json()))
+                try:
+                    raise SpotifyError('Issue generating guest token: [{0.status}] {1}'.format(r, await r.json()))
+                except aiohttp.client_exceptions.ContentTypeError as e:
+                    raise SpotifyError('Issue generating guest token: [{0.status}] {1}'.format(r, e))
             return await r.json()
 
     def _make_token_auth(self, client_id, client_secret):
