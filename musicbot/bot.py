@@ -1383,7 +1383,7 @@ class MusicBot(discord.Client):
                 except exceptions.SpotifyError:
                     raise exceptions.CommandError(self.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
 
-        def get_info(song_url):
+        async def get_info(song_url):
             info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
             # If there is an exception arise when processing we go on and let extract_info down the line report it
             # because info might be a playlist and thing that's broke it might be individual entry
@@ -1411,7 +1411,7 @@ class MusicBot(discord.Client):
             # Try to determine entry type, if _type is playlist then there should be entries
             while True:
                 try:
-                    info, info_process, info_process_err = get_info(song_url)
+                    info, info_process, info_process_err = await get_info(song_url)
                     log.debug(info)
 
                     if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
@@ -1429,7 +1429,7 @@ class MusicBot(discord.Client):
                 except Exception as e:
                     if 'unknown url type' in str(e):
                         song_url = song_url.replace(':', '')  # it's probably not actually an extractor
-                        info, info_process, info_process_err = get_info(song_url)
+                        info, info_process, info_process_err = await get_info(song_url)
                     else:
                         raise exceptions.CommandError(e, expire_in=30)
 
