@@ -1398,13 +1398,16 @@ class MusicBot(discord.Client):
             # Try to determine entry type, if _type is playlist then there should be entries
             while True:
                 try:
+                    # @TheerapakG: TODO: FUNCTION THIS
                     info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
                     # If there is an exception arise when processing we go on and let extract_info down the line report it
                     # because info might be a playlist and thing that's broke it might be individual entry
                     try:
                         info_process = await self.downloader.extract_info(player.playlist.loop, song_url, download=False)
-                    except:
+                        info_process_err = None
+                    except Exception as e:
                         info_process = None
+                        info_process_err = e
 
                     log.debug(info)
 
@@ -1423,7 +1426,14 @@ class MusicBot(discord.Client):
                 except Exception as e:
                     if 'unknown url type' in str(e):
                         song_url = song_url.replace(':', '')  # it's probably not actually an extractor
+                        # @TheerapakG: TODO: FUNCTION THIS
                         info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+                        try:
+                            info_process = await self.downloader.extract_info(player.playlist.loop, song_url, download=False)
+                            info_process_err = None
+                        except Exception as e:
+                            info_process = None
+                            info_process_err = e
                     else:
                         raise exceptions.CommandError(e, expire_in=30)
 
@@ -1442,21 +1452,14 @@ class MusicBot(discord.Client):
             # our ytdl options allow us to use search strings as input urls
             if info.get('url', '').startswith('ytsearch'):
                 # print("[Command:play] Searching for \"%s\"" % song_url)
-                info = await self.downloader.extract_info(
-                    player.playlist.loop,
-                    song_url,
-                    download=False,
-                    process=True,    # ASYNC LAMBDAS WHEN
-                    on_error=lambda e: asyncio.ensure_future(
-                        self.safe_send_message(channel, "```\n%s\n```" % e, expire_in=120), loop=self.loop),
-                    retry_on_error=True
-                )
-
-                if not info:
+                if info_process:
+                    info = info_process
+                else:
+                    await self.safe_send_message(channel, "```\n%s\n```" % info_process_err, expire_in=120), loop=self.loop)
                     raise exceptions.CommandError(
                         self.str.get('cmd-play-nodata', "Error extracting info from search string, youtubedl returned no data. "
                                                         "You may need to restart the bot if this continues to happen."), expire_in=30
-                    )
+                    )                    
 
                 if not all(info.get('entries', [])):
                     # empty list, no data
