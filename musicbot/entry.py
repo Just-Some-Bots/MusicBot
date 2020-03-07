@@ -10,6 +10,12 @@ from .constructs import Serializable
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
 
+# optionally using pymediainfo instead of ffprobe if presents
+try:
+    import pymediainfo
+except:
+    pymediainfo = None
+
 log = logging.getLogger(__name__)
 
 
@@ -81,13 +87,18 @@ class BasePlaylistEntry(Serializable):
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, duration=0, expected_filename=None, **meta):
+    def __init__(self, playlist, url, title, duration=None, expected_filename=None, **meta):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
+        if duration == None: # duration could be 0
+            log.info('Cannot extract duration of the entry. This does not affect the ability of the bot. '
+                     'However, estimated time for this entry will not be unavailable and estimated time '
+                     'of the queue will also not be available until this entry got downloaded.\n'
+                     'entry name: {}'.format(self.title))
         self.expected_filename = expected_filename
         self.meta = meta
         self.aoptions = '-vn'
@@ -215,6 +226,41 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     ))
                 else:
                     await self._really_download()
+
+            if self.duration == None:
+                if pymediainfo:
+                    try:
+                        mediainfo = pymediainfo.MediaInfo.parse(self.filename)
+                        self.duration = (mediainfo.tracks[0].duration)/1000
+                    except:
+                        self.duration = None
+
+                else:
+                    args = [
+                        'ffprobe', 
+                        '-i', self.filename, 
+                        '-show_entries', 'format=duration', 
+                        '-v', 'quiet', 
+                        '-of', 'csv="p=0"'
+                    ]
+
+                    output = await self.run_command(' '.join(args))
+                    output = output.decode("utf-8")
+
+                    try:
+                        self.duration = float(output)
+                    except ValueError:
+                        # @TheerapakG: If somehow it is not string of float
+                        self.duration = None
+
+                if not self.duration:
+                    log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe or pymediainfo. '
+                              'This does not affect the ability of the bot. However, estimated time for this entry '
+                              'will not be unavailable and estimated time of the queue will also not be available '
+                              'until this entry got removed.\n'
+                              'entry file: {}'.format(self.filename))
+                else:
+                    log.debug('Get duration of {} as {} seconds by inspecting it directly'.format(self.filename, self.duration))
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
@@ -356,7 +402,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.url = url
         self.title = title
         self.destination = destination
-        self.duration = 0
+        self.duration = None
         self.meta = meta
 
         if self.destination:
