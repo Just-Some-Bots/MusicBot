@@ -132,6 +132,7 @@ class MusicBot(discord.Client):
                     self.config._spotify = False
                 else:
                     log.info('Authenticated with Spotify successfully using guest mode.')
+                    self.config._spotify = True
             except exceptions.SpotifyError as e:
                 log.warning('There was a problem initialising the connection to Spotify using guest mode. Details: {0}.'.format(e))
                 self.config._spotify = False
