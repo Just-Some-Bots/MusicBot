@@ -68,8 +68,14 @@ from random import shuffle, random
 
 from .lib.event_emitter import EventEmitter, AsyncEventEmitter
 from .constructs import Serializable, Serializer
-from .exceptions import VersionError, PlaybackError
+from .exceptions import VersionError, PlaybackError, InvalidDataError
 import logging
+
+# optionally using pymediainfo instead of ffprobe if presents
+try:
+    import pymediainfo
+except:
+    pymediainfo = None
 
 log = logging.getLogger()
 
@@ -406,6 +412,8 @@ class Playlist(EntriesHolder):
         return self._list.index(entry)
 
     async def estimate_time_until(self, position):
+        if any(e.duration == None for e in islice(self._list, position - 1)):
+            raise InvalidDataError('no duration data')
         estimated_time = sum(e.duration for e in islice(self._list, position - 1))
         return timedelta(seconds=estimated_time)
 
@@ -822,10 +830,13 @@ class Player(AsyncEventEmitter, Serializable):
                             partial(ensure_future, call_after_downloaded())
                         )
                     )
-                if self._current:
-                    estimated_time = self._current.duration
-                if self._source:
-                    estimated_time -= self._source.get_progress()
+                else:
+                    if self._current:
+                        if self._current.duration == None:
+                            raise InvalidDataError('no duration data in current entry')
+                        estimated_time = self._current.duration
+                    if self._source:
+                        estimated_time -= self._source.get_progress()
 
             if future:
                 estimated_time = await future

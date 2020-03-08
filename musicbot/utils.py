@@ -301,9 +301,10 @@ class DependencyResolver:
                         unordered_dependents.add(item)
         return dependents
 
-async def run_command(cmd, log):
+async def run_command(cmd, log=None):
     p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+    if log:
+        log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
     stdout, stderr = await p.communicate()
     return stdout + stderr
 

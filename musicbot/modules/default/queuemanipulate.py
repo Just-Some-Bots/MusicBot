@@ -397,25 +397,26 @@ class QueueManagement(Cog):
                             position = await playlist.add_entry(entry)
 
                             reply_text = "Enqueued `%s` to be played. Position in queue: %s"
-                            btext = entry.title
+                            btext = entry.title                    
 
                     if playlist is (await guild.get_playlist()):
                         await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
 
                         player = await guild.get_player()
 
-                        # Position msgs
-                        time_until = await player.estimate_time_until_entry(entry)
-                        if time_until == timedelta(seconds=0):
-                            position = 'Up next!'
-                            reply_text %= (btext, position)
+                        try:
+                            time_until = await player.estimate_time_until_entry(entry)
 
-                        else:                    
-                            reply_text += ' - estimated time until playing: %s'
-                            reply_text %= (btext, position, ftimedelta(time_until))
+                            if time_until == timedelta(seconds=0):
+                                position = 'Up next!'
+                                reply_text %= (btext, position)
 
-                    else:
-                        reply_text %= (btext, position)
+                            else:
+                                reply_text %= (btext, position)
+                                reply_text += (self.str.get('cmd-play-eta', ' - estimated time until playing: %s') % ftimedelta(time_until))
+
+                        except exceptions.InvalidDataError:
+                            reply_text += self.str.get('cmd-play-eta-error', ' - cannot estimate time until playing')                       
 
             if send_reply:
                 await messagemanager.safe_send_normal(ctx, ctx, reply_text)

@@ -55,7 +55,7 @@ import functools
 import youtube_dl
 from .exceptions import VersionError, ExtractionError
 from .playback import Entry
-from .utils import get_header, md5sum
+from .utils import get_header, md5sum, run_command
 
 from urllib.error import URLError
 from youtube_dl.utils import DownloadError, UnsupportedError
@@ -321,6 +321,41 @@ class YtdlUrlEntry(Entry):
             else:
                 await self._really_download()
 
+        if self.duration == None:
+            if pymediainfo:
+                try:
+                    mediainfo = pymediainfo.MediaInfo.parse(self.filename)
+                    self.duration = (mediainfo.tracks[0].duration)/1000
+                except:
+                    self.duration = None
+
+            else:
+                args = [
+                    'ffprobe', 
+                    '-i', self.filename, 
+                    '-show_entries', 'format=duration', 
+                    '-v', 'quiet', 
+                    '-of', 'csv="p=0"'
+                ]
+
+                output = await run_command(' '.join(args))
+                output = output.decode("utf-8")
+
+                try:
+                    self.duration = float(output)
+                except ValueError:
+                    # @TheerapakG: If somehow it is not string of float
+                    self.duration = None
+
+            if not self.duration:
+                log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe or pymediainfo. '
+                            'This does not affect the ability of the bot. However, estimated time for this entry '
+                            'will not be unavailable and estimated time of the queue will also not be available '
+                            'until this entry got removed.\n'
+                            'entry file: {}'.format(self.filename))
+            else:
+                log.debug('Get duration of {} as {} seconds by inspecting it directly'.format(self.filename, self.duration))
+
     async def prepare_cache(self):
         with self._threadlocks['preparing_cache_set']:
             if self._preparing_cache:
@@ -375,7 +410,7 @@ class YtdlUrlEntry(Entry):
 
 class YtdlUrlUnprocessedEntry(YtdlUrlEntry):
     def __init__(self, url, queuer_id, metadata, extractor):
-        super().__init__(url, 'Information have not been fetched yet ({})'.format(url), 0, queuer_id, metadata, extractor, None)
+        super().__init__(url, 'Information have not been fetched yet ({})'.format(url), None, queuer_id, metadata, extractor, None)
 
     def __json__(self):
         return self._enclose_json({
@@ -469,7 +504,7 @@ class YtdlUrlUnprocessedEntry(YtdlUrlEntry):
                         self._extractor._bot.log.warning("Questionable content-type \"{}\" for url {}".format(content_type, self.source_url))
             
             self.title = info.get('title', 'Untitled')
-            self.duration = info.get('duration', 0) or 0
+            self.duration = info.get('duration', None) or None
             self._expected_filename = self._extractor.ytdl.prepare_filename(info)
             
             await self._prepare()
@@ -482,7 +517,7 @@ class YtdlUrlUnprocessedEntry(YtdlUrlEntry):
 class YtdlStreamEntry(Entry):
     def __init__(self, source_url, title, queuer_id, metadata, extractor, destination = None):
         self._extractor = extractor
-        super().__init__(source_url, title, 0, queuer_id, metadata, stream = True)
+        super().__init__(source_url, title, None, queuer_id, metadata, stream = True)
         self._destination = destination
 
     def __json__(self):
@@ -559,7 +594,7 @@ class YtdlStreamEntry(Entry):
 
 class LocalEntry(Entry):
     def __init__(self, source_url, queuer_id, metadata):
-        super().__init__(source_url, source_url, 0, queuer_id, metadata, local = True)
+        super().__init__(source_url, source_url, None, queuer_id, metadata, local = True)
 
     def __json__(self):
         return self._enclose_json({
@@ -662,7 +697,7 @@ async def get_entry(song_url, queuer_id, extractor, metadata):
     entry = YtdlUrlEntry(
         song_url,
         info.get('title', 'Untitled'),
-        info.get('duration', 0) or 0,
+        info.get('duration', None) or None,
         queuer_id,
         metadata,
         extractor,
@@ -753,7 +788,7 @@ async def get_entry_list_from_playlist_url(playlist_url, queuer_id, extractor, m
                 entry = YtdlUrlEntry(
                     item[url_field],
                     item.get('title', 'Untitled'),
-                    item.get('duration', 0) or 0,
+                    item.get('duration', None) or None,
                     queuer_id,
                     metadata,
                     extractor,

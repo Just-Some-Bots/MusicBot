@@ -175,7 +175,7 @@ class Information(InjectableMixin, Cog):
 
             # TODO: Fix timedelta garbage with util function
             song_progress = ftimedelta(timedelta(seconds=await player.progress()))
-            song_total = ftimedelta(timedelta(seconds=entry.duration))
+            song_total = ftimedelta(timedelta(seconds=entry.duration)) if entry.duration != None else '(no duration data)'
 
             streaming = entry.stream
             prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
@@ -185,7 +185,7 @@ class Information(InjectableMixin, Cog):
 
             # percentage shows how much of the current song has already been played
             percentage = 0.0
-            if entry.duration > 0:
+            if entry.duration and entry.duration > 0:
                 percentage = (await player.progress()) / entry.duration
 
             # create the actual bar
