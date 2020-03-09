@@ -1470,16 +1470,12 @@ class MusicBot(discord.Client):
                                                         "You may need to restart the bot if this continues to happen."), expire_in=30
                     )                    
 
-                if not all(info.get('entries', [])):
-                    # empty list, no data
-                    log.debug("Got empty list, no data")
-                    return
+                song_url = info_process.get('webpage_url', None) or info_process.get('url', None)
 
-                # TODO: handle 'webpage_url' being 'ytsearch:...' or extractor type
-                song_url = info['entries'][0]['webpage_url']
-                info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                # Now I could just do: return await self.cmd_play(player, channel, author, song_url)
-                # But this is probably fine
+                if 'entries' in info:
+                    # if entry is playlist then only get the first one
+                    song_url = info['entries'][0]['webpage_url']
+                    info = info['entries'][0]
 
             # If it's playlist
             if 'entries' in info:
