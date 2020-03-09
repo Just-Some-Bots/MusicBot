@@ -123,6 +123,19 @@ class MusicBot(discord.Client):
                 log.warning('There was a problem initialising the connection to Spotify. Is your client ID and secret correct? Details: {0}. Continuing anyway in 5 seconds...'.format(e))
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
+        else:
+            try:
+                log.warning('The config did not have Spotify app credentials, attempting to use guest mode.')
+                self.spotify = Spotify(None, None, aiosession=self.aiosession, loop=self.loop)
+                if not self.spotify.token:
+                    log.warning('Spotify did not provide us with a token. Disabling.')
+                    self.config._spotify = False
+                else:
+                    log.info('Authenticated with Spotify successfully using guest mode.')
+                    self.config._spotify = True
+            except exceptions.SpotifyError as e:
+                log.warning('There was a problem initialising the connection to Spotify using guest mode. Details: {0}.'.format(e))
+                self.config._spotify = False
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
@@ -1568,14 +1581,14 @@ class MusicBot(discord.Client):
                 reply_text %= (btext, position)
 
             else:
+                reply_text %= (btext, position)
                 try:
                     time_until = await player.playlist.estimate_time_until(position, player)
-                    reply_text += self.str.get('cmd-play-eta', ' - estimated time until playing: %s')
+                    reply_text += (self.str.get('cmd-play-eta', ' - estimated time until playing: %s') % ftimedelta(time_until))
+                except exceptions.InvalidDataError:
+                    reply_text += self.str.get('cmd-play-eta-error', ' - cannot estimate time until playing')
                 except:
                     traceback.print_exc()
-                    time_until = ''
-
-                reply_text %= (btext, position, ftimedelta(time_until))
 
         return Response(reply_text, delete_after=30)
 
@@ -1841,7 +1854,7 @@ class MusicBot(discord.Client):
 
             # TODO: Fix timedelta garbage with util function
             song_progress = ftimedelta(timedelta(seconds=player.progress))
-            song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
+            song_total = ftimedelta(timedelta(seconds=player.current_entry.duration)) if player.current_entry.duration != None else '(no duration data)'
 
             streaming = isinstance(player.current_entry, StreamPlaylistEntry)
             prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
@@ -1851,7 +1864,7 @@ class MusicBot(discord.Client):
 
             # percentage shows how much of the current song has already been played
             percentage = 0.0
-            if player.current_entry.duration > 0:
+            if player.current_entry.duration and player.current_entry.duration > 0:
                 percentage = player.progress / player.current_entry.duration
 
             # create the actual bar
@@ -2242,7 +2255,7 @@ class MusicBot(discord.Client):
         if player.is_playing:
             # TODO: Fix timedelta garbage with util function
             song_progress = ftimedelta(timedelta(seconds=player.progress))
-            song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
+            song_total = ftimedelta(timedelta(seconds=player.current_entry.duration)) if player.current_entry.duration != None else '(no duration data)'
             prog_str = '`[%s/%s]`' % (song_progress, song_total)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
