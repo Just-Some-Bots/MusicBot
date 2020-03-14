@@ -2905,6 +2905,11 @@ class MusicBot(discord.Client):
         else:
             return
 
+        # check if bot was disconnected from channel
+        if not after.channel:
+            await self.disconnect_voice_client(before.channel.guild)
+            return
+
         if not self.config.auto_pause:
             return
 
