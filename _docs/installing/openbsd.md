@@ -8,6 +8,8 @@ MusicBot can run on OpenBSD systems as well. Note that the X11 sets must be inst
 
 ## OpenBSD 6.6
 
+WARNING: If you have the py3-PyNaCl package installed, the final `pip install` command will overwrite your system pynacl, which is likely newer, with pynacl 1.2.1, potentially breaking other packages. This can be worked around either by using a virtualenv (safe), or editing requirements.txt to remove the pinned version (at your own risk).
+
 ~~~ bash
 # Install Python and libraries available as packages
 doas pkg_add python # select version 3.7.4
@@ -24,8 +26,6 @@ cd MusicBot
 doas pip3 install -U pip
 doas pip3 install -U -r requirements.txt
 ~~~
-
-WARNING: If you have the py3-PyNaCl package installed, the final command will overwrite your system pynacl, which is likely newer, with pynacl 1.2.1, potentially breaking other packages. This can be worked around either by using a virtualenv (safe), or editing requirements.txt to remove the pinned version (at your own risk).
 
 After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `./run.py`.
 
