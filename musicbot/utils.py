@@ -1,13 +1,34 @@
 import sys
 import logging
 import aiohttp
+import asyncio
 import inspect
-
+import io
+import os
+from collections import defaultdict
 from hashlib import md5
+from typing import Any, Callable, Optional, TypeVar, AnyStr, List, Set, Tuple, Iterable
+from copy import deepcopy
+
 from .constants import DISCORD_MSG_CHAR_LIMIT
+from .exceptions import AsyncCalledProcessError
 
 log = logging.getLogger(__name__)
 
+T = TypeVar('T')
+
+def callback_dummy_future(cb: Callable[[], T]) -> T:
+    def _dummy(future):
+        cb()
+    return _dummy
+
+def isiterable(x):
+    try:
+        iter(x)
+    except TypeError:
+        return False
+    else:
+        return True
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:
@@ -165,3 +186,171 @@ def _get_variable(name):
                 del frame
     finally:
         del stack
+
+async def _run_process(*popenargs, **kwargs):
+    ILLEGAL_KEY = {'bufsize', 'encoding', 'errors', 'text', 'universal_newlines'}
+    if any([fkey in kwargs.keys() for fkey in ILLEGAL_KEY]):
+        raise ValueError('illegal keyword in utils.check_call call'
+                         'keyword should not be {}'.format(', '.join(ILLEGAL_KEY)))
+
+    shell = kwargs.pop('shell', False)
+    if shell:
+        if len(popenargs) != 1:
+            popenargs = ((' ' if isinstance(popenargs[0], str) else b' ').join(popenargs), )
+        runner = asyncio.create_subprocess_shell
+    else:
+        if len(popenargs) == 1:
+            popenargs = tuple(popenargs[0].split(' ' if isinstance(popenargs[0], str) else b' '))        
+        runner = asyncio.create_subprocess_exec
+
+    popenargs = (' '.join(popenargs),) if shell and not any([isinstance(arg, bytes) for arg in popenargs]) else popenargs
+    process = await runner(*popenargs, **kwargs)
+    await process.wait()
+    return process
+
+async def check_call(*popenargs, **kwargs):
+    process = await _run_process(*popenargs, **kwargs)
+    retcode = process.returncode
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        raise AsyncCalledProcessError(retcode, cmd)
+
+async def check_output(*popenargs, **kwargs):
+    encoding = kwargs.pop('encoding', None)
+    errors = kwargs.pop('errors', None)
+    text = kwargs.pop('text', False)
+    universal_newlines = kwargs.pop('universal_newlines', False)
+    text_mode = encoding or errors or text or universal_newlines
+
+    kwargs.setdefault('stdout', asyncio.subprocess.PIPE)
+
+    process = await _run_process(*popenargs, **kwargs)
+    _out, _err = await process.communicate()
+    return io.BytesIO(_out) if not text_mode else io.TextIOWrapper(io.BytesIO(_out), encoding=encoding, errors=errors)
+
+class DependencyResolver:
+    def __init__(self):
+        self.dependents = defaultdict(set)
+        self.dependencies = dict()
+
+    def add_item(self, name, dependencies: Optional[Set] = set()):
+        for dep in dependencies:
+            self.dependents[dep].add(name)
+        self.dependencies[name] = dependencies.copy()
+
+    def remove_item(self, name):
+        for dep in self.dependencies[name]:
+            self.dependents[dep].remove(name)
+        del self.dependencies[name]
+
+    def get_state(self) -> Tuple[List, Set]:
+        """
+        return list of item with dependencies satisfied and set of item that does not.
+        """
+        available_items = set(self.dependencies.keys())
+        # known_good is a list of items that is known to have all dependency available
+        # which is sorted in the order that dependents will come after dependencies
+        known_good = [item for item, deps in self.dependencies.items() if not deps]
+        unconsidered_known_good = set(known_good)
+
+        unmet_dependencies = deepcopy(self.dependencies)
+        while unconsidered_known_good:
+            good = unconsidered_known_good.pop()
+            for item in self.dependents[good]:
+                unmet_dependencies[item].remove(good)
+                if not unmet_dependencies[item]:
+                    known_good.append(item)
+                    unconsidered_known_good.add(item)
+
+        faulty = available_items - set(known_good)
+
+        return (known_good, faulty)
+
+    def get_dependents(self, name) -> List:
+        """
+        return dependents of specified name.
+        NOTE: dependency of every dependents returned will appear after the dependents.
+        """
+        dependents = list(self.dependents[name])
+        unconsidered_dependents = self.dependents[name].copy()
+
+        while unconsidered_dependents:
+            dep = unconsidered_dependents.pop()
+            for item in self.dependents[dep]:
+                if item not in dependents and item != name:
+                    dependents.append(item)
+                    unconsidered_dependents.add(item)
+
+        dependents.reverse()
+
+        return dependents
+
+    def get_dependents_multiple(self, names: Iterable, include_given = True) -> List:
+        dependents = list()
+        unordered_dependents = set()
+        for name in names:
+            if name not in unordered_dependents:
+                new_items = self.get_dependents(name)
+                if include_given:
+                    new_items.append(name)
+                for item in new_items:
+                    if item not in unordered_dependents:
+                        dependents.append(item)
+                        unordered_dependents.add(item)
+        return dependents
+
+async def run_command(cmd, log=None):
+    p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    if log:
+        log.debug('Starting asyncio subprocess ({0}) with command: {1}'.format(p, cmd))
+    stdout, stderr = await p.communicate()
+    return stdout + stderr
+
+def get_command(program):
+    def is_exe(fpath):
+        found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+        if not found and sys.platform == 'win32':
+            fpath = fpath + ".exe"
+            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+        return found
+
+    fpath, __ = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+def check_restricted(command, perms):
+    _whitelist = perms._command_whitelist
+    whitelist = perms.command_whitelist
+    _blacklist = perms._command_blacklist
+    blacklist = perms.command_blacklist
+
+    if not isiterable(command):
+        command = set([command])
+
+    unrestricted = set()
+
+    for this_cmd in command:
+        cmd = this_cmd
+        while cmd:
+            if _blacklist and cmd.callback in blacklist:
+                break
+
+            elif _whitelist and not cmd.callback in whitelist:
+                break
+
+            cmd = cmd.parent
+        if not cmd:
+            unrestricted.add(this_cmd)
+
+    return unrestricted

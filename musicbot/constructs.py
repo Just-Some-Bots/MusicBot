@@ -37,30 +37,6 @@ class SkipState:
         return self.skip_count
 
 
-class Response:
-    __slots__ = ['_content', 'reply', 'delete_after', 'codeblock', '_codeblock']
-
-    def __init__(self, content, reply=False, delete_after=0, codeblock=None):
-        self._content = content
-        self.reply = reply
-        self.delete_after = delete_after
-        self.codeblock = codeblock
-        self._codeblock = "```{!s}\n{{}}\n```".format('' if codeblock is True else codeblock)
-
-    @property
-    def content(self):
-        if self.codeblock:
-            return self._codeblock.format(self._content)
-        else:
-            return self._content
-
-# Alright this is going to take some actual thinking through
-class AnimatedResponse(Response):
-    def __init__(self, content, *sequence, delete_after=0):
-        super().__init__(content, delete_after=delete_after)
-        self.sequence = sequence
-
-
 class Serializer(json.JSONEncoder):
     def default(self, o):
         if hasattr(o, '__json__'):

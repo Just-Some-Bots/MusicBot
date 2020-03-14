@@ -1,6 +1,8 @@
-pynacl==1.2.1
-discord.py[voice]==1.2.4
+pynacl==1.3.0
+aiohttp >= 3.6, < 3.7; python_version >= '3.8'
+discord.py[voice]==1.2.5
 pip
 youtube_dl
 colorlog
 cffi --only-binary all; sys_platform == 'win32'
+pywin32; sys_platform == 'win32'

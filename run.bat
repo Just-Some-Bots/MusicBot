@@ -19,6 +19,11 @@ IF x%ValueValue:0x0=%==x%ValueValue% (
 )
 ENDLOCAL
 
+IF NOT "%*"=="" (
+    CMD /k %SYSTEMROOT%\py.exe %* run.py
+    EXIT
+)
+
 
 IF EXIST %SYSTEMROOT%\py.exe (
     CMD /k %SYSTEMROOT%\py.exe -3 run.py

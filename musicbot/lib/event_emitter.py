@@ -1,12 +1,20 @@
 import asyncio
 import traceback
 import collections
-
+from functools import partial
 
 class EventEmitter:
     def __init__(self):
         self._events = collections.defaultdict(list)
         self.loop = asyncio.get_event_loop()
+        self.log = None
+        
+        for item in dir(self):
+            if hasattr(type(self), item) and isinstance(getattr(type(self), item), property):
+                continue
+            iteminst = getattr(self, item)
+            if isinstance(iteminst, _MarkOn):
+                self.on(iteminst.event, partial(iteminst.func, self))
 
     def emit(self, event, *args, **kwargs):
         if event not in self._events:
@@ -21,7 +29,10 @@ class EventEmitter:
                     cb(*args, **kwargs)
 
             except:
-                traceback.print_exc()
+                if not self.log:
+                    traceback.print_exc()
+                else:
+                    self.log.error(traceback.format_exc())
 
     def on(self, event, cb):
         self._events[event].append(cb)
@@ -41,3 +52,58 @@ class EventEmitter:
             return cb(*args, **kwargs)
 
         return self.on(event, callback)
+
+class AsyncEventEmitter(EventEmitter):
+    def __init__(self):
+        super().__init__()
+    
+    async def emit(self, event, *args, **kwargs):
+        if event not in self._events:
+            return
+
+        for cb in list(self._events[event]):
+            # noinspection PyBroadException
+            try:
+                if asyncio.iscoroutinefunction(cb):
+                    await cb(*args, **kwargs)
+                else:
+                    v = cb(*args, **kwargs)
+                    if asyncio.iscoroutine(v):
+                        await v
+
+            except:
+                if not self.log:
+                    traceback.print_exc()
+                else:
+                    self.log.error(traceback.format_exc())
+
+class _MarkOn:
+    def __init__(self, event, func):
+        self.event = event
+        self.func = func
+
+def on(event):
+    def on_ev(func):
+        return _MarkOn(event, func)
+    return on_ev
+
+on_event = on
+
+class EmitterToggler:
+
+    current_value = None
+    _emit = None
+    _eventmap = dict()
+
+    def _call(self, event, value):
+        self.current_value = value
+
+    def __init__(self, emitter):
+        self._emit = emitter
+        self._emit.on('toggler', lambda key: self._call(key, self._eventmap[key]))
+
+    def add(self, eventmap):
+        self._eventmap.update(eventmap)
+
+    def once(self, when, event):
+        self._emit.once(when, lambda **_: self._emit.emit('toggler', key=event))

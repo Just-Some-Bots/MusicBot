@@ -11,8 +11,15 @@ logs/
 data/
 config/options.ini
 config/permissions.ini
-config/aliases.json
 config/autoplaylist.txt
 config/autoplaylist_removed.txt
+config/autostream.txt
+config/autostream_removed.txt
 config/whitelist.txt
 config/blacklist.txt
+config/alias.ini
+
+modules/*
+!modules/default
+!modules/__init__.py
+!modules/webapi.py

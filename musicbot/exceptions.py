@@ -1,10 +1,33 @@
 import shutil
+import signal
 import textwrap
 
+from discord.ext.commands import errors 
+
+class VersionError(Exception):
+    pass
+
+class AsyncCalledProcessError(Exception):
+    def __init__(self, returncode, cmd):
+        self.returncode = returncode
+        self.cmd = cmd
+
+    def __str__(self):
+        if self.returncode and self.returncode < 0:
+            try:
+                return "Command '%s' died with %r." % (
+                        self.cmd, signal.Signals(-self.returncode))
+            except ValueError:
+                return "Command '%s' died with unknown signal %d." % (
+                        self.cmd, -self.returncode)
+        else:
+            return "Command '%s' returned non-zero exit status %d." % (
+                    self.cmd, self.returncode)
+
 # Base class for exceptions
-class MusicbotException(Exception):
+class MusicbotException(errors.CommandError):
     def __init__(self, message, *, expire_in=0):
-        super().__init__(message) # ???
+        super().__init__(message)
         self._message = message
         self.expire_in = expire_in
 
@@ -16,12 +39,33 @@ class MusicbotException(Exception):
     def message_no_format(self):
         return self._message
 
+# Something went wrong in the cog system
+class CogError(MusicbotException):
+    pass
+
+class AliasError(MusicbotException):
+    pass
+
+class VoiceConnectionError(MusicbotException):
+    pass
+
+# Wrapper applied to wrong function
+class WrapperUnmatchedError(MusicbotException):
+    pass
+
 # Something went wrong during the processing of a command
 class CommandError(MusicbotException):
     pass
 
 # Something went wrong during the processing of a song/ytdl stuff
 class ExtractionError(MusicbotException):
+    pass
+
+class PlaybackError(MusicbotException):
+    pass
+
+# Something is wrong about data
+class InvalidDataError(MusicbotException):
     pass
 
 # The no processing entry type failed and an entry was a playlist/vice versa

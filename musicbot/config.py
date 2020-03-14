@@ -6,6 +6,7 @@ import logging
 import configparser
 
 from .exceptions import HelpfulError
+from .constants import VERSION as BOTVERSION
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class Config:
         config = configparser.ConfigParser(interpolation=None)
         config.read(config_file, encoding='utf-8')
 
-        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(config.sections())
+        confsections = {"Credentials", "Cogs", "Permissions", "Chat", "MusicBot", "Locals", "WebApi", "Caption"}.difference(config.sections())
         if confsections:
             raise HelpfulError(
                 "One or more required config sections are missing.",
@@ -40,6 +41,11 @@ class Config:
         self.spotify_clientid = config.get('Credentials', 'Spotify_ClientID', fallback=ConfigDefaults.spotify_clientid)
         self.spotify_clientsecret = config.get('Credentials', 'Spotify_ClientSecret', fallback=ConfigDefaults.spotify_clientsecret)
 
+        self.cogs = config.get('Cogs', 'Cogs_Load', fallback=ConfigDefaults.cogs)
+        self.warn_no_commands = config.getboolean('Cogs', 'WarnNoCommands', fallback=ConfigDefaults.warn_no_commands)
+        self.persistent_alias = config.getboolean('Cogs', 'PersistentAlias', fallback=ConfigDefaults.persistent_alias)
+        self.strict_unload_cog = config.getboolean('Cogs', 'UseStrictCogUnloadRule', fallback=ConfigDefaults.strict_unload_cog)
+
         self.owner_id = config.get('Permissions', 'OwnerID', fallback=ConfigDefaults.owner_id)
         self.dev_ids = config.get('Permissions', 'DevIDs', fallback=ConfigDefaults.dev_ids)
         self.bot_exception_ids = config.get("Permissions", "BotExceptionIDs", fallback=ConfigDefaults.bot_exception_ids)
@@ -59,8 +65,7 @@ class Config:
         self.save_videos = config.getboolean('MusicBot', 'SaveVideos', fallback=ConfigDefaults.save_videos)
         self.now_playing_mentions = config.getboolean('MusicBot', 'NowPlayingMentions', fallback=ConfigDefaults.now_playing_mentions)
         self.auto_summon = config.getboolean('MusicBot', 'AutoSummon', fallback=ConfigDefaults.auto_summon)
-        self.auto_playlist = config.getboolean('MusicBot', 'UseAutoPlaylist', fallback=ConfigDefaults.auto_playlist)
-        self.auto_playlist_random = config.getboolean('MusicBot', 'AutoPlaylistRandom', fallback=ConfigDefaults.auto_playlist_random)
+        self.skip_if_auto = config.getboolean('MusicBot', 'InstaPlayIfAuto', fallback=ConfigDefaults.skip_if_auto)
         self.auto_pause = config.getboolean('MusicBot', 'AutoPause', fallback=ConfigDefaults.auto_pause)
         self.delete_messages = config.getboolean('MusicBot', 'DeleteMessages', fallback=ConfigDefaults.delete_messages)
         self.delete_invoking = config.getboolean('MusicBot', 'DeleteInvoking', fallback=ConfigDefaults.delete_invoking)
@@ -71,27 +76,39 @@ class Config:
         self.use_experimental_equalization = config.getboolean('MusicBot', 'UseExperimentalEqualization', fallback=ConfigDefaults.use_experimental_equalization)
         self.embeds = config.getboolean('MusicBot', 'UseEmbeds', fallback=ConfigDefaults.embeds)
         self.queue_length = config.getint('MusicBot', 'QueueLength', fallback=ConfigDefaults.queue_length)
-        self.remove_ap = config.getboolean('MusicBot', 'RemoveFromAPOnError', fallback=ConfigDefaults.remove_ap)
         self.show_config_at_start = config.getboolean('MusicBot', 'ShowConfigOnLaunch', fallback=ConfigDefaults.show_config_at_start)
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
+        self.help_display_sig = config.getboolean('MusicBot', 'HelpDisplaySig', fallback=ConfigDefaults.help_display_sig)
+        self.footer_text = config.get('MusicBot', 'CustomEmbedFooter', fallback=ConfigDefaults.footer_text)
+        self.lazy_playlist = config.getboolean('MusicBot', 'LazyPlaylist', fallback = ConfigDefaults.lazy_playlist)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
         self.debug_mode = False
 
         self.blacklist_file = config.get('Files', 'BlacklistFile', fallback=ConfigDefaults.blacklist_file)
-        self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.i18n_file = config.get('Files', 'i18nFile', fallback=ConfigDefaults.i18n_file)
         self.auto_playlist_removed_file = None
+        self.auto_stream_removed_file = None
+
+        self.local = config.getboolean('Locals', 'AllowQueueingLocal', fallback=ConfigDefaults.local)
+        self.local_dir_only = config.getboolean('Locals', 'LocalOnlySpecifiedDir', fallback=ConfigDefaults.local_dir_only)
+        self.local_dir = config.get('Locals', 'LocalDir', fallback=ConfigDefaults.local_dir)
+
+        self.webapi_http_port = config.getint('WebApi', 'WebApiHTTPPort', fallback=ConfigDefaults.webapi_http_port)
+        self.webapi_https_port = config.getint('WebApi', 'WebApiHTTPSPort', fallback=ConfigDefaults.webapi_https_port)
+        self.ssl_certfile = config.get('WebApi', 'SSLCertFile', fallback=ConfigDefaults.ssl_certfile)
+        self.ssl_keyfile = config.get('WebApi', 'SSLKeyFile', fallback=ConfigDefaults.ssl_keyfile)
+        self.webapi_persistent_tokens = config.get('WebApi', 'WebApiPersistentTokens', fallback=ConfigDefaults.webapi_persistent_tokens)
+        
+        self.caption_split_duration = config.getint('Caption', 'CaptionSplitDuration', fallback=ConfigDefaults.caption_split_duration)
 
         self.run_checks()
 
         self.missing_keys = set()
         self.check_changes(config)
-
-        self.find_autoplaylist()
 
     def get_all_keys(self, conf):
         """Returns all config keys as a list"""
@@ -142,26 +159,34 @@ class Config:
         else:
             self.auth = (self._login_token,)
 
+        self.cogs = self.cogs.split()
+
         if self.owner_id:
             self.owner_id = self.owner_id.lower()
 
-            if self.owner_id.isdigit():
-                if int(self.owner_id) < 10000:
+            if self.owner_id == 'auto':
+                pass # defer to async check
+            else:
+                real_own = list()
+                wrongs = list()
+                for own in self.owner_id.split():
+                    if own.isdigit() and int(own) > 10000:
+                        real_own.append(int(own))
+                    else:
+                        wrongs.append(own)
+
+                if wrongs:
                     raise HelpfulError(
-                        "An invalid OwnerID was set: {}".format(self.owner_id),
+                        "An invalid OwnerID was set: {}".format(' '.join(wrongs)),
 
                         "Correct your OwnerID. The ID should be just a number, approximately "
                         "18 characters long, or 'auto'. If you don't know what your ID is, read the "
                         "instructions in the options or ask in the help server.",
                         preface=self._confpreface
                     )
-                self.owner_id = int(self.owner_id)
 
-            elif self.owner_id == 'auto':
-                pass # defer to async check
+                self.owner_id = real_own
 
-            else:
-                self.owner_id = None
 
         if not self.owner_id:
             raise HelpfulError(
@@ -179,14 +204,14 @@ class Config:
 
         if self.bound_channels:
             try:
-                self.bound_channels = set(x for x in self.bound_channels.replace(',', ' ').split() if x)
+                self.bound_channels = set(int(x) for x in self.bound_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("BindToChannels data is invalid, will not bind to any channels")
                 self.bound_channels = set()
 
         if self.autojoin_channels:
             try:
-                self.autojoin_channels = set(x for x in self.autojoin_channels.replace(',', ' ').split() if x)
+                self.autojoin_channels = set(int(x) for x in self.autojoin_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
                 self.autojoin_channels = set()
@@ -196,7 +221,7 @@ class Config:
                 self.nowplaying_channels = set(int(x) for x in self.nowplaying_channels.replace(',', ' ').split() if x)
             except:
                 log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
-                self.autojoin_channels = set()
+                self.nowplaying_channels = set()
 
         self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:
@@ -204,13 +229,7 @@ class Config:
 
         self.delete_invoking = self.delete_invoking and self.delete_messages
 
-        self.bound_channels = set(int(item) for item in self.bound_channels)
-
-        self.autojoin_channels = set(int(item) for item in self.autojoin_channels)
-
-        ap_path, ap_name = os.path.split(self.auto_playlist_file)
-        apn_name, apn_ext = os.path.splitext(ap_name)
-        self.auto_playlist_removed_file = os.path.join(ap_path, apn_name + '_removed' + apn_ext)
+        self.local_dir = set(ldir for ldir in self.local_dir.replace(',', ' ').split() if ldir)
 
         if hasattr(logging, self.debug_level.upper()):
             self.debug_level = getattr(logging, self.debug_level.upper())
@@ -224,6 +243,9 @@ class Config:
         self.create_empty_file_ifnoexist('config/blacklist.txt')
         self.create_empty_file_ifnoexist('config/whitelist.txt')
 
+        if not self.footer_text:
+            self.footer_text = ConfigDefaults.footer_text
+
     def create_empty_file_ifnoexist(self, path):
         if not os.path.isfile(path):
             open(path, 'a').close()
@@ -233,7 +255,7 @@ class Config:
     #       Maybe add warnings about fields missing from the config file
 
     async def async_validate(self, bot):
-        log.debug("Validating options...")
+        bot.log.debug("Validating options...")
 
         if self.owner_id == 'auto':
             if not bot.user.bot:
@@ -246,8 +268,8 @@ class Config:
                     preface=self._confpreface2
                 )
 
-            self.owner_id = bot.cached_app_info.owner.id
-            log.debug("Acquired owner id via API")
+            self.owner_id = bot._owner_id
+            bot.log.debug("Acquired owner id via API")
 
         if self.owner_id == bot.user.id:
             raise HelpfulError(
@@ -308,14 +330,6 @@ class Config:
                 log.critical("Unable to copy config/example_options.ini to {}".format(self.config_file), exc_info=e)
                 sys.exit(2)
 
-    def find_autoplaylist(self):
-        if not os.path.exists(self.auto_playlist_file):
-            if os.path.exists('config/_autoplaylist.txt'):
-                shutil.copy('config/_autoplaylist.txt', self.auto_playlist_file)
-                log.debug("Copying _autoplaylist.txt to autoplaylist.txt")
-            else:
-                log.warning("No autoplaylist file found.")
-
 
     def write_default_config(self, location):
         pass
@@ -327,6 +341,11 @@ class ConfigDefaults:
     token = None
     dev_ids = set()
     bot_exception_ids = set()
+
+    cogs = 'default'
+    warn_no_commands = False
+    persistent_alias = True
+    strict_unload_cog = False
 
     spotify_clientid = None
     spotify_clientsecret = None
@@ -346,8 +365,7 @@ class ConfigDefaults:
     save_videos = True
     now_playing_mentions = False
     auto_summon = True
-    auto_playlist = True
-    auto_playlist_random = True
+    skip_if_auto = True
     auto_pause = True
     delete_messages = True
     delete_invoking = False
@@ -359,16 +377,29 @@ class ConfigDefaults:
     use_experimental_equalization = False
     embeds = True
     queue_length = 10
-    remove_ap = True
     show_config_at_start = False
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    help_display_sig = False
+    footer_text = 'Just-Some-Bots/MusicBot ({})'.format(BOTVERSION)
+    lazy_playlist = True
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
-    auto_playlist_file = 'config/autoplaylist.txt'  # this will change when I add playlists
     i18n_file = 'config/i18n/en.json'
+
+    local = True
+    local_dir_only = False
+    local_dir = set()
+
+    webapi_http_port = 80
+    webapi_https_port = 443
+    ssl_certfile = None
+    ssl_keyfile = None
+    webapi_persistent_tokens = True
+    
+    caption_split_duration = 4
 
 setattr(ConfigDefaults, codecs.decode(b'ZW1haWw=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)
 setattr(ConfigDefaults, codecs.decode(b'cGFzc3dvcmQ=', '\x62\x61\x73\x65\x36\x34').decode('ascii'), None)

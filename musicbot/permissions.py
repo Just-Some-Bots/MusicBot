@@ -2,6 +2,7 @@ import shutil
 import logging
 import traceback
 import configparser
+import shlex
 
 import discord
 
@@ -30,6 +31,10 @@ class PermissionsDefaults:
     SkipWhenAbsent = True
     BypassKaraokeMode = False
 
+    SummonNoVoice = False
+    
+    AllowLocals = False
+
     Extractors = "generic youtube youtube:playlist"
 
 class Permissive:
@@ -49,6 +54,10 @@ class Permissive:
     Remove = True
     SkipWhenAbsent = False
     BypassKaraokeMode = True
+
+    SummonNoVoice = True
+    
+    AllowLocals = True
 
     Extractors = ""
 
@@ -85,8 +94,7 @@ class Permissions:
             # noinspection PyTypeChecker
             owner_group = PermissionGroup("Owner (auto)", configparser.SectionProxy(self.config, "Owner (auto)"), fallback=Permissive)
             
-        if hasattr(grant_all, '__iter__'):
-            owner_group.user_list = set(grant_all)
+        owner_group.user_list = grant_all
 
         self.groups.add(owner_group)
 
@@ -96,7 +104,7 @@ class Permissions:
         og = discord.utils.get(self.groups, name="Owner (auto)")
         if 'auto' in og.user_list:
             log.debug("Fixing automatic owner group")
-            og.user_list = {bot.config.owner_id}
+            og.user_list = set(bot.config.owner_id)
 
     def save(self):
         with open(self.config_file, 'w') as f:
@@ -134,8 +142,8 @@ class PermissionGroup:
     def __init__(self, name, section_data, fallback=PermissionsDefaults):
         self.name = name
         
-        self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
-        self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
+        self._command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
+        self._command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
         self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
         self.granted_to_roles = section_data.get('GrantToRoles', fallback=fallback.GrantToRoles)
         self.user_list = section_data.get('UserList', fallback=fallback.UserList)
@@ -151,16 +159,22 @@ class PermissionGroup:
         self.skip_when_absent = section_data.getboolean('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
         self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
 
+        self.summonplay = section_data.getboolean('SummonNoVoice', fallback=fallback.SummonNoVoice)
+        
+        self.allow_locals = section_data.getboolean('AllowLocals', fallback=fallback.AllowLocals)
+
         self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
 
         self.validate()
 
     def validate(self):
-        if self.command_whitelist:
-            self.command_whitelist = set(self.command_whitelist.lower().split())
+        if self._command_whitelist:
+            self._command_whitelist = set(shlex.split(self._command_whitelist.lower()))
+        self.command_whitelist = set()
 
-        if self.command_blacklist:
-            self.command_blacklist = set(self.command_blacklist.lower().split())
+        if self._command_blacklist:
+            self._command_blacklist = set(shlex.split(self._command_blacklist.lower()))
+        self.command_blacklist = set()
 
         if self.ignore_non_voice:
             self.ignore_non_voice = set(self.ignore_non_voice.lower().split())
