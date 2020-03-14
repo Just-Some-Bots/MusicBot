@@ -2741,6 +2741,11 @@ class MusicBot(discord.Client):
                 handler_kwargs['guild'] = message.guild
 
             if params.pop('player', None):
+                #check if the bot is already in the channel when the command 'play' is executed
+                #otherwise, attempt auto summon
+                if message.guild.id not in self.players and command == "play":
+                    if message.author.id == self.config.owner_id or (user_permissions.command_whitelist and command in user_permissions.command_whitelist and user_permissions.command_blacklist and command not in user_permissions.command_blacklist):
+                        await self.cmd_summon(message.channel, message.guild, message.author, message.author.voice.channel)
                 handler_kwargs['player'] = await self.get_player(message.channel)
 
             if params.pop('_player', None):
