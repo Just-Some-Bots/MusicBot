@@ -154,12 +154,13 @@ class ModuBot(Bot):
                 log.warning('The config did not have Spotify app credentials, attempting to use guest mode.')
                 self.spotify = Spotify(None, None, aiosession=self.aiosession, loop=self.loop)
                 if not self.spotify.token:
-                    log.warning('Spotify did not provide us with a token. Disabling.')
+                    self.log.warning('Spotify did not provide us with a token. Disabling.')
                     self.config._spotify = False
                 else:
-                    log.info('Authenticated with Spotify successfully using guest mode.')
+                    self.log.info('Authenticated with Spotify successfully using guest mode.')
+                    self.config._spotify = True
             except exceptions.SpotifyError as e:
-                log.warning('There was a problem initialising the connection to Spotify using guest mode. Details: {0}.'.format(e))
+                self.log.warning('There was a problem initialising the connection to Spotify using guest mode. Details: {0}.'.format(e))
                 self.config._spotify = False
 
         self.looplock = threading.Lock()
