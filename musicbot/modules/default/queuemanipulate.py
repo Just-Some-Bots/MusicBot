@@ -25,6 +25,8 @@ from ...rich_guild import get_guild
 from ...playback import PlayerState
 from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
 
+from .entrybuilders import entrybuilders
+
 log = logging.getLogger(__name__)
 
 cog_name = 'queue_management'
@@ -40,33 +42,6 @@ class QueueManagement(Cog):
 
     def uninit(self):
         self.bot.crossmodule.unregister_object('_play')
-
-    async def _do_playlist_checks(self, ctx, testobj):
-        guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-
-        num_songs = sum(1 for _ in testobj)
-
-        permissions = ctx.bot.permissions.for_user(ctx.author)
-
-        # I have to do exe extra checks anyways because you can request an arbitrary number of search results
-        if not permissions.allow_playlists and num_songs > 1:
-            raise exceptions.PermissionsError(ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
-
-        if permissions.max_playlist_length and num_songs > permissions.max_playlist_length:
-            raise exceptions.PermissionsError(
-                ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(num_songs, permissions.max_playlist_length),
-                expire_in=30
-            )
-
-        # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
-        if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) + num_songs > permissions.max_songs:
-            raise exceptions.PermissionsError(
-                ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
-                    num_songs, player.playlist.num_entry_of(ctx.author.id), permissions.max_songs),
-                expire_in=30
-            )
-        return True
 
     @command()
     async def play(self, ctx, *song_url):
@@ -137,265 +112,119 @@ class QueueManagement(Cog):
 
         song_url = song_url.strip('<>')
 
-        # Make sure forward slashes work properly in search queries
-        linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
-        pattern = re.compile(linksRegex)
-        matchUrl = pattern.match(song_url)
-        song_url = song_url.replace('/', '%2F') if matchUrl is None else song_url
+        for EB in entrybuilders:
+            if not EB.suitable(ctx, song_url):
+                continue
 
-        # Rewrite YouTube playlist URLs if the wrong URL type is given
-        playlistRegex = r'watch\?v=.+&(list=[^&]+)'
-        matches = re.search(playlistRegex, song_url)
-        groups = matches.groups() if matches is not None else []
-        song_url = "https://www.youtube.com/playlist?" + groups[0] if len(groups) > 0 else song_url
+            eb_result = await EB.get_entry(ctx, song_url)
 
-        if ctx.bot.config._spotify:
-            if 'open.spotify.com' in song_url:
-                # remove session id (and other query stuff)
-                song_url = re.sub('\?.*', '', song_url)
-                song_url = 'spotify:' + re.sub('(http[s]?:\/\/)?(open.spotify.com)\/', '', song_url).replace('/', ':') # pylint: disable=anomalous-backslash-in-string
-            if song_url.startswith('spotify:'):
-                parts = song_url.split(":")
-                try:
-                    if 'track' in parts:
-                        res = await ctx.bot.spotify.get_track(parts[-1])
-                        song_url = res['artists'][0]['name'] + ' ' + res['name'] 
+            if not eb_result:
+                continue
 
-                    elif 'album' in parts:
-                        res = await ctx.bot.spotify.get_album(parts[-1])
-                        await self._do_playlist_checks(ctx, res['tracks']['items'])
-                        procmesg = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
-                        for i in res['tracks']['items']:
-                            song_url = i['name'] + ' ' + i['artists'][0]['name']
-                            ctx.bot.log.debug('Processing {0}'.format(song_url))
-                            await self._play(ctx, playlist, song_url = song_url, head = head, send_reply = send_reply)
-                        await messagemanager.safe_delete_message(procmesg)
-                        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-album-queued', "Enqueued `{0}` with **{1}** songs.").format(res['name'], len(res['tracks']['items'])))
-                        return
+            count, entry_iter = eb_result
 
-                    elif 'playlist' in parts:
-                        res = []
-                        r = await ctx.bot.spotify.get_playlist_tracks(parts[-1])
-                        while True:
-                            res.extend(r['items'])
-                            if r['next'] is not None:
-                                r = await ctx.bot.spotify.make_spotify_req(r['next'])
-                                continue
-                            else:
-                                break
-                        await self._do_playlist_checks(ctx, res)
-                        procmesg = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-playlist-process', 'Processing playlist `{0}` (`{1}`)').format(parts[-1], song_url))
-                        for i in res:
-                            song_url = i['track']['name'] + ' ' + i['track']['artists'][0]['name']
-                            ctx.bot.log.debug('Processing {0}'.format(song_url))
-                            await self._play(ctx, playlist, song_url = song_url, head=head, send_reply=send_reply)
-                        await messagemanager.safe_delete_message(procmesg)
-                        await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-playlist-queued', "Enqueued `{0}` with **{1}** songs.").format(parts[-1], len(res)))
-                        return
-
-                    else:
-                        raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
-                except exceptions.SpotifyError:
-                    raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
-
-        # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
-        async with self._aiolocks[_func_() + ':' + str(ctx.author.id)]:
-            if permissions.max_songs and playlist.num_entry_of(ctx.author.id) >= permissions.max_songs:
-                raise exceptions.PermissionsError(
-                    ctx.bot.str.get('cmd-play-limit', "You have reached your enqueued song limit ({0})").format(permissions.max_songs), expire_in=30
-                )
-
-            if playlist.karaoke_mode and not permissions.bypass_karaoke_mode:
-                raise exceptions.PermissionsError(
-                    ctx.bot.str.get('karaoke-enabled', "Karaoke mode is enabled, please try again when its disabled!"),
-                    expire_in=30
-                )
-
-            entry = None
-
-            if ctx.bot.config.local:
-                if not ctx.bot.config.local_dir_only:
-                    _path = [song_url]
-                else:
-                    _path = [urljoin(d, song_url) for d in ctx.bot.config.local_dir]
-
-                _good_path = [path for path in _path if os.path.exists(path)]
-
-                if _good_path:
-                    if not permissions.allow_locals:
-                        raise exceptions.PermissionsError(
-                            ctx.bot.str.get('queuemanip?cmd?play?local@disallow', "You are not allowed to queue local files!"),
-                            expire_in=30
-                        )
-                    # @TheerapakG: show ambiguity
-                    entry = await get_local_entry(_good_path[0], ctx.author.id, {'channel_id':ctx.channel.id})
-
-            if not entry:
-                async def get_info(song_url):
-                    info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
-                    # If there is an exception arise when processing we go on and let extract_info down the line report it
-                    # because info might be a playlist and thing that's broke it might be individual entry
-                    try:
-                        info_process = await self.downloader.extract_info(player.playlist.loop, song_url, download=False)
-                        info_process_err = None
-                    except Exception as e:
-                        info_process = None
-                        info_process_err = e
-
-                    return (info, info_process, info_process_err)
-
-                # Try to determine entry type, if _type is playlist then there should be entries
-                while True:
-                    try:
-                        info, info_process, info_process_err = await get_info(song_url)
-                        if info_process and info and info_process.get('_type', None) == 'playlist' and 'entries' not in info and not info.get('url', '').startswith('ytsearch'):
-                            use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
-                            if use_url == song_url:
-                                ctx.bot.log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
-                                break # If we break here it will break things down the line and give "This is a playlist" exception as a result
-
-                            ctx.bot.log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
-                            ctx.bot.log.debug("Using \"%s\" instead" % use_url)
-                            song_url = use_url
-                        else:
-                            break
-
-                    except Exception as e:
-                        if 'unknown url type' in str(e):
-                            song_url = song_url.replace(':', '')  # it's probably not actually an extractor
-                            info, info_process, info_process_err = await get_info(song_url)
-                        else:
-                            raise exceptions.ExtractionError(str(e), expire_in=30)
-
-                if not info:
-                    raise exceptions.ExtractionError(
-                        ctx.bot.str.get('cmd-play-noinfo', "That video cannot be played. Try using the {0}stream command.").format(ctx.bot.config.command_prefix),
-                        expire_in=30
-                    )
-
-                if info.get('extractor', '') not in permissions.extractors and permissions.extractors:
-                    raise exceptions.PermissionsError(
-                        ctx.bot.str.get('cmd-play-badextractor', "You do not have permission to play media from this service."), expire_in=30
-                    )
-
-                # abstract the search handling away from the user
-                # our ytdl options allow us to use search strings as input urls
-                if info.get('url', '').startswith('ytsearch'):
-                    # print("[Command:play] Searching for \"%s\"" % song_url)
-                    if info_process:
-                        info = info_process
-                    else:
-                        await messagemanager.safe_send_normal(ctx, ctx, "```\n%s\n```" % info_process_err, expire_in=120)
-                        raise exceptions.CommandError(
-                            ctx.bot.str.get('cmd-play-nodata', "Error extracting info from search string, youtubedl returned no data. "
-                                                            "You may need to restart the bot if this continues to happen."), expire_in=30
-                        )
-
-                    song_url = info_process.get('webpage_url', None) or info_process.get('url', None)
-
-                    if 'entries' in info:
-                        # if entry is playlist then only get the first one
-                        song_url = info['entries'][0]['webpage_url']
-                        info = info['entries'][0]
+            if count < 1:
+                raise exceptions.ExtractionError("Could not get any entry while extracting result for: {}".format(song_url))
 
             async with self._aiolocks['play_{}'.format(ctx.author.id)]:
                 async with ctx.typing():
-                    if entry:
-                        position = await playlist.add_entry(entry)
-                        reply_text = "Enqueued `%s` to be played. Position in queue: %s"
-                        btext = entry.title
+                    entry = None
+                    position = None
+                    reply_text = None
+
+                    if count == 1:
+                        async for c_entry in entry_iter:
+                            duration = c_entry.get_duration()
+                            if permissions.max_song_length and duration and duration > permissions.max_song_length:
+                                raise exceptions.PermissionsError(
+                                    ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(duration, permissions.max_song_length),
+                                    expire_in=30
+                                )
+                            entry = c_entry
+                            position = await playlist.add_entry(c_entry)
+                            reply_text = "Enqueued `%s` to be played. Position in queue: %s"
+                            btext = c_entry.title
+                            break
 
                     else:
                         # If it's playlist
-                        if 'entries' in info:
-                            entries = list(info_process['entries'])
-                            await self._do_playlist_checks(ctx, entries)
 
-                            num_songs = sum(1 for _ in entries)
+                        # I have to do exe extra checks anyways because you can request an arbitrary number of search results
+                        if not permissions.allow_playlists and count > 1:
+                            raise exceptions.PermissionsError(ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
 
-                            num_songs_playlist = await playlist.num_entry_of(ctx.author.id)
-                            total_songs = num_songs + num_songs_playlist
-
-                            t0 = time.time()
-
-                            # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
-                            # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
-                            # I don't think we can hook into it anyways, so this will have to do.
-                            # It would probably be a thread to check a few playlists and get the speed from that
-                            # Different playlists might download at different speeds though
-                            wait_per_song = 1.2
-                            drop_count = 0
-
-                            procmesg = await messagemanager.safe_send_normal(
-                                ctx,
-                                ctx,
-                                'Gathering playlist information for {0} songs{1}'.format(
-                                    num_songs,
-                                    ', ETA: {0} seconds'.format(
-                                        fixg(num_songs * wait_per_song)
-                                    ) if num_songs >= 10 else '.'
-                                )
+                        if permissions.max_playlist_length and count > permissions.max_playlist_length:
+                            raise exceptions.PermissionsError(
+                                ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(count, permissions.max_playlist_length),
+                                expire_in=30
                             )
-                            
-                            if ctx.bot.config.lazy_playlist:
-                                entry_initializer = get_unprocessed_entry
-                            else:
-                                entry_initializer = get_entry
 
-                            # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
-                            #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
+                        # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
+                        if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) + count > permissions.max_songs:
+                            raise exceptions.PermissionsError(
+                                ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
+                                    count, player.playlist.num_entry_of(ctx.author.id), permissions.max_songs),
+                                expire_in=30
+                            )
 
-                            entry = None
-                            position = None
-                            for entry_proc in entries:
-                                if not entry_proc:
-                                    drop_count += 1
-                                    continue
-                                url = entry_proc.get('webpage_url', None) or entry_proc.get('url', None)
-                                try:
-                                    entry_proc_o = await entry_initializer(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
-                                except Exception as e:
-                                    ctx.bot.log.info(e)
-                                    drop_count += 1
-                                    continue
-                                duration = entry_proc_o.get_duration()
-                                if permissions.max_song_length and duration > timedelta(seconds=permissions.max_song_length):
-                                    drop_count += 1
-                                    continue
-                                position_potent = await playlist.add_entry(entry_proc_o)
-                                if not position:
-                                    entry = entry_proc_o
-                                    position = position_potent
+                        t0 = time.time()
 
-                            tnow = time.time()
-                            ttime = tnow - t0
-                            listlen = len(entries)
+                        # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+                        # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+                        # I don't think we can hook into it anyways, so this will have to do.
+                        # It would probably be a thread to check a few playlists and get the speed from that
+                        # Different playlists might download at different speeds though
+                        wait_per_song = 1.2
+                        drop_count = 0
+                        actual_count = 0
 
-                            ctx.bot.log.info("Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-                                listlen,
+                        procmesg = await messagemanager.safe_send_normal(
+                            ctx,
+                            ctx,
+                            'Gathering playlist information for {0} songs{1}'.format(
+                                count,
+                                ', ETA: {0} seconds'.format(
+                                    fixg(count * wait_per_song)
+                                ) if count >= 10 else '.'
+                            )
+                        )
+                        
+                        # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
+                        #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
+
+                        # @TheerapakG: IDK if ^ is still applicable
+
+                        async for c_entry in entry_iter:
+                            actual_count += 1
+
+                            if c_entry is None:
+                                drop_count += 1
+                                continue
+
+                            duration = c_entry.get_duration()
+                            if permissions.max_song_length and duration > timedelta(seconds=permissions.max_song_length):
+                                drop_count += 1
+                                continue
+                                
+                            position_potent = await playlist.add_entry(c_entry)
+                            if not entry:
+                                entry = c_entry
+                                position = position_potent
+
+                        tnow = time.time()
+                        ttime = tnow - t0
+
+                        ctx.bot.log.info(
+                            "Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
+                                actual_count,
                                 fixg(ttime),
-                                ttime / listlen if listlen else 0,
-                                ttime / listlen - wait_per_song if listlen - wait_per_song else 0,
-                                fixg(wait_per_song * num_songs))
+                                ttime / actual_count if actual_count else 0,
+                                ttime / actual_count - wait_per_song if actual_count - wait_per_song else 0
                             )
+                        )
 
-                            await messagemanager.safe_delete_message(procmesg)
-
-                            reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
-                            btext = str(listlen - drop_count)
-
-                        # If it's an entry
-                        else:
-                            if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
-                                raise exceptions.PermissionsError(
-                                    ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(info['duration'], permissions.max_song_length),
-                                    expire_in=30
-                                )
-                            entry = await get_entry(song_url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
-                            position = await playlist.add_entry(entry)
-
-                            reply_text = "Enqueued `%s` to be played. Position in queue: %s"
-                            btext = entry.title                    
+                        reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
+                        btext = str(actual_count - drop_count)                  
 
                     if playlist is (await guild.get_playlist()):
                         await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)

@@ -198,7 +198,7 @@ class Entry(Serializable):
         return self._metadata
 
     def get_duration(self):
-        return timedelta(seconds=self.duration)
+        return timedelta(seconds=self.duration) if self.duration else None
 
     async def set_local_url(self, local_url):
         self._local_url = local_url
