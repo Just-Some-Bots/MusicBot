@@ -11,8 +11,7 @@ class SpotifyEB(BaseEB):
     async def _get_entry_iterator(cls, ctx, url_iterable):
         for url in url_iterable:
             ctx.bot.log.debug('Processing {0}'.format(url))
-            async for entry in YtdlEB.get_entry(ctx, url)[1]:
-                yield entry
+            return (await YtdlEB.get_entry(ctx, url))[1]
 
     @classmethod
     async def suitable(cls, ctx, url):

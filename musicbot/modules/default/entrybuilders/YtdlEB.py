@@ -106,25 +106,44 @@ class YtdlEB(BaseEB):
 
         if 'entries' in info_process:
             entries = list(info_process['entries'])
-            yield len(entries)
 
             if ctx.bot.config.lazy_playlist:
                 entry_initializer = get_unprocessed_entry
             else:
                 entry_initializer = get_entry
 
-            for entry_proc in entries:
-                if not entry_proc:
-                    yield None
-                    continue
-                url = entry_proc.get('webpage_url', None) or entry_proc.get('url', None)
-                try:
-                    entry_proc_o = await entry_initializer(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
-                except Exception as e:
-                    ctx.bot.log.info(e)
-                    yield None
-                    continue
-                yield entry_proc_o
+            async def _get_entry_iterator():
+                # IF PY35 DEPRECATED
+                # for entry_proc in entries:
+                #     if not entry_proc:
+                #         yield None
+                #         continue
+                #     url = entry_proc.get('webpage_url', None) or entry_proc.get('url', None)
+                #     try:
+                #         entry_proc_o = await entry_initializer(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
+                #     except Exception as e:
+                #         ctx.bot.log.info(e)
+                #         yield None
+                #         continue
+                #     yield entry_proc_o
+                # return await get_entry(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
+                # END IF DEPRECATED
+                entry_list = list()
+                for entry_proc in entries:
+                    if not entry_proc:
+                        entry_list.append(None)
+                        continue
+                    url = entry_proc.get('webpage_url', None) or entry_proc.get('url', None)
+                    entry_list.append(entry_initializer(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id}))
+                return entry_list         
+
+            return (len(entries), _get_entry_iterator())
 
         else:
-            yield get_entry(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
+            async def _get_entry_iterator():
+                # IF PY35 DEPRECATED
+                # yield await get_entry(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})
+                return [get_entry(url, ctx.author.id, ctx.bot.downloader, {'channel_id':ctx.channel.id})]
+                # END IF DEPRECATED
+
+            return (1, _get_entry_iterator())

@@ -7,6 +7,13 @@ from ....ytdldownloader import get_local_entry
 
 class LocalEB(BaseEB):
     @classmethod
+    async def _get_entry_iterator(cls, ctx, path):
+        # IF PY35 DEPRECATED
+        # yield await get_local_entry(path, ctx.author.id, {'channel_id':ctx.channel.id})
+        return [get_local_entry(path, ctx.author.id, {'channel_id':ctx.channel.id})]
+        # END IF DEPRECATED
+
+    @classmethod
     async def suitable(cls, ctx, url):
         if not (ctx.bot.config.local and ctx.bot.permissions.for_user(ctx.author).allow_locals):
             return False
@@ -42,9 +49,6 @@ class LocalEB(BaseEB):
 
         if _good_path:
             # @TheerapakG: TODO: show ambiguity
-            return (
-                1, 
-                (i async for i in (get_local_entry(_good_path[0], ctx.author.id, {'channel_id':ctx.channel.id}),))
-            )
+            return (1, LocalEB._get_entry_iterator(ctx, _good_path[0]))
 
         return None

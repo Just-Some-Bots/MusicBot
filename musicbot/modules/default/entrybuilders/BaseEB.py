@@ -12,6 +12,11 @@ class BaseEB:
         get entry (or entries) for given url
         return tuple of length 2 or None
         first value represents expected number of entries
-        second value is an async iterable that yield entries
+        # IF PY35 DEPRECATED
+        # second value is an async iterable that yield entries/Nones
+        second value is an awaitable returning list containing 
+        1. awaitables each returning an entry or 
+        2. None
+        # END IF DEPRECATED
         '''
         raise NotImplementedError()

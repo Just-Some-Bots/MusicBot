@@ -122,6 +122,9 @@ class QueueManagement(Cog):
                 continue
 
             count, entry_iter = eb_result
+            # IF PY35 DEPRECATED
+            entry_iter = await entry_iter
+            # END IF DEPRECATED
 
             if count < 1:
                 raise exceptions.ExtractionError("Could not get any entry while extracting result for: {}".format(song_url))
@@ -133,7 +136,14 @@ class QueueManagement(Cog):
                     reply_text = None
 
                     if count == 1:
-                        async for c_entry in entry_iter:
+                        # IF PY35 DEPRECATED
+                        # async for c_entry in entry_iter:
+                        for a_c_entry in entry_iter:
+                            if a_c_entry:
+                                c_entry = await a_c_entry
+                            else:
+                                c_entry = a_c_entry
+                        # END IF DEPRECATED
                             duration = c_entry.get_duration()
                             if permissions.max_song_length and duration and duration > permissions.max_song_length:
                                 raise exceptions.PermissionsError(
@@ -194,7 +204,14 @@ class QueueManagement(Cog):
 
                         # @TheerapakG: IDK if ^ is still applicable
 
-                        async for c_entry in entry_iter:
+                        # IF PY35 DEPRECATED
+                        # async for c_entry in entry_iter:
+                        for a_c_entry in entry_iter:
+                            if a_c_entry:
+                                c_entry = await a_c_entry
+                            else:
+                                c_entry = a_c_entry
+                        # END IF DEPRECATED
                             actual_count += 1
 
                             if c_entry is None:
