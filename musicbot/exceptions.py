@@ -24,6 +24,10 @@ class CommandError(MusicbotException):
 class ExtractionError(MusicbotException):
     pass
 
+# Something is wrong about data
+class InvalidDataError(MusicbotException):
+    pass
+
 # The no processing entry type failed and an entry was a playlist/vice versa
 # TODO: Add typing options instead of is_playlist
 class WrongEntryTypeError(ExtractionError):
