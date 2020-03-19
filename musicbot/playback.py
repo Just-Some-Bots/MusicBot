@@ -389,7 +389,7 @@ class Playlist(EntriesHolder):
         return position + 1   
 
     async def add_entry(self, entry, *, head = False):
-        self._add_entry(entry, head = head)      
+        return self._add_entry(entry, head = head)      
 
     async def get_length(self):
         return len(self._list)
@@ -420,8 +420,11 @@ class Playlist(EntriesHolder):
     async def estimate_time_until_entry(self, entry):
         estimated_time = 0
         for e in self._list:
-            if e is not entry:  
-                estimated_time += e.duration
+            if e is not entry:
+                if e.duration is not None:
+                    estimated_time += e.duration
+                else:
+                    raise InvalidDataError('no duration data')
             else:
                 break
         return timedelta(seconds=estimated_time)            
@@ -832,7 +835,7 @@ class Player(AsyncEventEmitter, Serializable):
                     )
                 else:
                     if self._current:
-                        if self._current.duration == None:
+                        if self._current.duration is None:
                             raise InvalidDataError('no duration data in current entry')
                         estimated_time = self._current.duration
                     if self._source:

@@ -113,7 +113,7 @@ class QueueManagement(Cog):
         song_url = song_url.strip('<>')
 
         for EB in entrybuilders:
-            if not EB.suitable(ctx, song_url):
+            if not await EB.suitable(ctx, song_url):
                 continue
 
             eb_result = await EB.get_entry(ctx, song_url)
@@ -257,13 +257,16 @@ class QueueManagement(Cog):
 
                             else:
                                 reply_text %= (btext, position)
-                                reply_text += (self.str.get('cmd-play-eta', ' - estimated time until playing: %s') % ftimedelta(time_until))
+                                reply_text += (ctx.bot.str.get('cmd-play-eta', ' - estimated time until playing: %s') % ftimedelta(time_until))
 
                         except exceptions.InvalidDataError:
-                            reply_text += self.str.get('cmd-play-eta-error', ' - cannot estimate time until playing')                       
+                            reply_text %= (btext, position)
+                            reply_text += ctx.bot.str.get('cmd-play-eta-error', ' - cannot estimate time until playing')                       
 
             if send_reply:
                 await messagemanager.safe_send_normal(ctx, ctx, reply_text)
+
+            break
 
     @command()
     async def stream(self, ctx, song_url:str):

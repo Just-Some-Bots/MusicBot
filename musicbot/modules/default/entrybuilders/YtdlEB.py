@@ -48,7 +48,7 @@ class YtdlEB(BaseEB):
         linksRegex = '((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)'
         pattern = re.compile(linksRegex)
         matchUrl = pattern.match(url)
-        url = url.replace('/', '%2F') if matchUrl is None else song_url
+        url = url.replace('/', '%2F') if matchUrl is None else url
 
         # Rewrite YouTube playlist URLs if the wrong URL type is given
         playlistRegex = r'watch\?v=.+&(list=[^&]+)'
@@ -58,32 +58,32 @@ class YtdlEB(BaseEB):
 
         # Try to determine entry type, if _type is playlist then there should be entries
         while True:
-            info, info_process, info_process_err = await _get_url_info(ctx, song_url)
+            info, info_process, info_process_err = await _get_url_info(ctx, url)
             if info_process and info:
                 if info_process.get('_type', None) == 'playlist' and not ('entries' in info or info.get('url', '').startswith('ytsearch')):
                     use_url = info_process.get('webpage_url', None) or info_process.get('url', None)
-                    if use_url == song_url:
+                    if use_url == url:
                         ctx.bot.log.warning("Determined incorrect entry type, but suggested url is the same.  Help.")
                         break # If we break here it will break things down the line and give "This is a playlist" exception as a result
 
-                    ctx.bot.log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % song_url)
+                    ctx.bot.log.debug("Assumed url \"%s\" was a single entry, was actually a playlist" % url)
                     ctx.bot.log.debug("Using \"%s\" instead" % use_url)
-                    song_url = use_url
+                    url = use_url
                     continue
             
             break
 
             if info_process_err:
                 if 'unknown url type' in str(info_process_err):
-                    song_url = song_url.replace(':', '')  # it's probably not actually an extractor
-                    info, info_process, info_process_err = await _get_url_info(ctx, song_url)
+                    url = url.replace(':', '')  # it's probably not actually an extractor
+                    info, info_process, info_process_err = await _get_url_info(ctx, url)
                 else:
                     raise exceptions.ExtractionError(str(info_process_err), expire_in=30)
 
         # abstract the search handling away from the user
         # our ytdl options allow us to use search strings as input urls
         if info.get('url', '').startswith('ytsearch'):
-            # print("[Command:play] Searching for \"%s\"" % song_url)
+            # print("[Command:play] Searching for \"%s\"" % url)
             if info_process:
                 info = info_process
             else:
@@ -104,7 +104,7 @@ class YtdlEB(BaseEB):
                 url = info['entries'][0]['webpage_url']
                 info = info['entries'][0]
 
-        if 'entries' in info_process:
+        if 'entries' in info:
             entries = list(info_process['entries'])
 
             if ctx.bot.config.lazy_playlist:

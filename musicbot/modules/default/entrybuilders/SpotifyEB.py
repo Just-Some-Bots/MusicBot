@@ -2,6 +2,7 @@ from .BaseEB import BaseEB
 from .YtdlEB import YtdlEB
 
 import itertools
+import re
 
 from .... import messagemanager
 from .... import exceptions
@@ -11,7 +12,10 @@ class SpotifyEB(BaseEB):
     async def _get_entry_iterator(cls, ctx, url_iterable):
         for url in url_iterable:
             ctx.bot.log.debug('Processing {0}'.format(url))
-            return (await YtdlEB.get_entry(ctx, url))[1]
+            # IF PY35 DEPRECATED
+            # return (await YtdlEB.get_entry(ctx, url))[1]
+            return await (await YtdlEB.get_entry(ctx, url))[1]
+            # END IF DEPRECATED
 
     @classmethod
     async def suitable(cls, ctx, url):
@@ -35,7 +39,14 @@ class SpotifyEB(BaseEB):
             try:
                 if 'track' in parts:
                     res = await ctx.bot.spotify.get_track(parts[-1])
-                    song_url = res['artists'][0]['name'] + ' ' + res['name'] 
+
+                    return (
+                        1,
+                        SpotifyEB._get_entry_iterator(
+                            ctx,
+                            (res['artists'][0]['name'] + ' ' + res['name'], )
+                        )
+                    )
 
                 elif 'album' in parts:
                     res = await ctx.bot.spotify.get_album(parts[-1])
@@ -43,7 +54,7 @@ class SpotifyEB(BaseEB):
                                   
                     return (
                         len(res['tracks']['items']),
-                        SpotifyEB._entries_iterator(
+                        SpotifyEB._get_entry_iterator(
                             ctx,
                             (i['name'] + ' ' + i['artists'][0]['name'] for i in res['tracks']['items'])
                         )
@@ -66,7 +77,7 @@ class SpotifyEB(BaseEB):
                     
                     return (
                         len(res),
-                        SpotifyEB._entries_iterator(
+                        SpotifyEB._get_entry_iterator(
                             ctx,
                             (i['track']['name'] + ' ' + i['track']['artists'][0]['name'] for i in res)
                         )
