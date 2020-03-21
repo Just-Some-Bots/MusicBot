@@ -341,7 +341,8 @@ class RichGuild(Serializable):
     async def _move_channel(self, new_channel):
         await self._check_perm_connect(new_channel)
         async with self._aiolocks['c_voice_channel']:
-            await self._voice_client.move_to(new_channel)
+            if self._voice_client.channel != new_channel:
+                await self._voice_client.move_to(new_channel)
             self._voice_channel = new_channel
 
     async def _disconnect_channel(self):
@@ -601,11 +602,9 @@ def register_bot(bot):
             if member == bot.user:
                 async with guilds[bot.user.id][guild.id]._aiolocks['c_voice_channel']:                    
                     if not after.channel:
-                        rguild._voice_client = None
-                        if rguild._player:
-                            await rguild._player.kill()
-                            rguild._player = None
-                    rguild._voice_channel = after.channel
+                        await rguild.set_connected_voice_channel(None)
+                        return
+                    rguild.set_connected_voice_channel(after.channel)
 
             if not rguild._bot.config.auto_pause:
                 return
