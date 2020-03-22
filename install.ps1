@@ -96,12 +96,13 @@ Invoke-Expression "cd MusicBot"
 
 if (Get-Command "python" -errorAction SilentlyContinue)
 {
-    $pythonver += ,@(Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[0]))'")
-    $pythonver += ,@(Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[1]))'")
-    $pythonver += ,@(Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'")
-    if([int]$pythonver[0] -gt 2 -and [int]$pythonver[1] -gt 4)
+    $pythonver = @()
+    $pythonver += Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[0]))'"
+    $pythonver += Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[1]))'"
+    $pythonver += Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'"
+    if([int]($pythonver[0]) -gt 2 -and [int]($pythonver[1]) -gt 4)
     {
-        if([int]$pythonver[1] -eq 5 -and [int]$pythonver[2] -gt 3)
+        if([int]($pythonver[1]) -eq 5 -and [int]($pythonver[2]) -gt 3)
         {
             $PYTHON = "python"
         }
