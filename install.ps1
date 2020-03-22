@@ -65,7 +65,7 @@ Invoke-Expression "refreshenv"
 
 "Do you want to install experimental branch?"
 $experimental = Read-Host "Installing experimental branch means limited support, but you get access to newer fixes and features. (N/y): "
-if($experimental=="Y" -or $experimental=="y")
+if($experimental -eq "Y" -or $experimental -eq "y")
 {
     "There currently are two experimental branch of the bot: review and cogs-rewrite"
     ""
@@ -74,7 +74,7 @@ if($experimental=="Y" -or $experimental=="y")
     "compared to the master and the review branch, but can be very unstable"
     ""
     $review = Read-Host "Do you want to install the review branch or the cogs-rewrite branch? ([r]eview/[c]ogs-rewrite): "
-    if($review=="C" -or $review=="C" -or $review=="cogs-rewrite" -or $review=="Cogs-rewrite")
+    if($review -eq "C" -or $review -eq "C" -or $review -eq "cogs-rewrite" -or $review -eq "Cogs-rewrite")
     {
         "installing cogs-rewrite branch..."
         $branch = "cogs-rewrite"
@@ -99,9 +99,9 @@ if (Get-Command "python" -errorAction SilentlyContinue)
     $pythonver += ,@(Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[0]))'")
     $pythonver += ,@(Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[1]))'")
     $pythonver += ,@(Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'")
-    if([int]$pythonver[0] > 2 -and [int]$pythonver[1] > 4)
+    if([int]$pythonver[0] -gt 2 -and [int]$pythonver[1] -gt 4)
     {
-        if([int]$pythonver[1] == 5 -and [int]$pythonver[2] > 3)
+        if([int]$pythonver[1] -eq 5 -and [int]$pythonver[2] -gt 3)
         {
             $PYTHON = "python"
         }
@@ -109,7 +109,7 @@ if (Get-Command "python" -errorAction SilentlyContinue)
 }
 
 Invoke-Expression "py -3.5 -c 'exit()'"
-if($LastExitCode == 0)
+if($LastExitCode -eq 0)
 {
     if([int](Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'") > 2 -and [int]$pythonver[1] > 4)
     {
@@ -117,17 +117,17 @@ if($LastExitCode == 0)
     }
 }
 Invoke-Expression "py -3.6 -c 'exit()'"
-if($LastExitCode == 0)
+if($LastExitCode -eq 0)
 {
     $PYTHON = "py -3.6"
 }
 Invoke-Expression "py -3.7 -c 'exit()'"
-if($LastExitCode == 0)
+if($LastExitCode -eq 0)
 {
     $PYTHON = "py -3.7"
 }
 Invoke-Expression "py -3.8 -c 'exit()'"
-if($LastExitCode == 0)
+if($LastExitCode -eq 0)
 {
     $PYTHON = "py -3.8"
 }
