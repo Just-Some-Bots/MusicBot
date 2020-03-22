@@ -111,7 +111,7 @@ if (Get-Command "python" -errorAction SilentlyContinue)
 Invoke-Expression "py -3.5 -c 'exit()'"
 if($LastExitCode -eq 0)
 {
-    if([int](Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'") > 2 -and [int]$pythonver[1] > 4)
+    if([int](Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'") -gt 2 -and [int]$pythonver[1] -gt 4)
     {
         $PYTHON = "py -3.5"
     }
