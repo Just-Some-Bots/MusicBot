@@ -8,24 +8,22 @@ from .... import messagemanager
 from .... import exceptions
 
 class SpotifyEB(BaseEB):
-    @classmethod
-    async def _get_entry_iterator(cls, ctx, url_iterable):
+    def __init__(self, ytdl_eb):
+        super().__init__(ytdl_eb.bot)
+        self.ytdl_eb = ytdl_eb
+    
+    async def _get_entry_iterator(self, ctx, url_iterable):
         for url in url_iterable:
-            ctx.bot.log.debug('Processing {0}'.format(url))
+            self.bot.log.debug('Processing {0}'.format(url))
             # IF PY35 DEPRECATED
-            # return (await YtdlEB.get_entry(ctx, url))[1]
-            return await (await YtdlEB.get_entry(ctx, url))[1]
+            # return (await self.ytdl_eb.get_entry(ctx, url))[1]
+            return await (await self.ytdl_eb.get_entry(ctx, url))[1]
             # END IF DEPRECATED
 
-    @classmethod
-    async def suitable(cls, ctx, url):
-        if ctx.bot.config._spotify and ('open.spotify.com' in url or url.startswith('spotify:')):
-            return True
+    async def suitable(self, ctx, url):
+        return self.bot.config._spotify and ('open.spotify.com' in url or url.startswith('spotify:'))
 
-        return False
-
-    @classmethod
-    async def get_entry(cls, ctx, url):
+    async def get_entry(self, ctx, url):
         '''
         get entry (or entries) for given url
         '''
@@ -38,23 +36,23 @@ class SpotifyEB(BaseEB):
             parts = url.split(":")
             try:
                 if 'track' in parts:
-                    res = await ctx.bot.spotify.get_track(parts[-1])
+                    res = await self.bot.spotify.get_track(parts[-1])
 
                     return (
                         1,
-                        SpotifyEB._get_entry_iterator(
+                        self._get_entry_iterator(
                             ctx,
                             (res['artists'][0]['name'] + ' ' + res['name'], )
                         )
                     )
 
                 elif 'album' in parts:
-                    res = await ctx.bot.spotify.get_album(parts[-1])
+                    res = await self.bot.spotify.get_album(parts[-1])
                     # procmesg = await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-play-spotify-album-process', 'Processing album `{0}` (`{1}`)').format(res['name'], song_url))
                                   
                     return (
                         len(res['tracks']['items']),
-                        SpotifyEB._get_entry_iterator(
+                        self._get_entry_iterator(
                             ctx,
                             (i['name'] + ' ' + i['artists'][0]['name'] for i in res['tracks']['items'])
                         )
@@ -65,11 +63,11 @@ class SpotifyEB(BaseEB):
 
                 elif 'playlist' in parts:
                     res = []
-                    r = await ctx.bot.spotify.get_playlist_tracks(parts[-1])
+                    r = await self.bot.spotify.get_playlist_tracks(parts[-1])
                     while True:
                         res.extend(r['items'])
                         if r['next'] is not None:
-                            r = await ctx.bot.spotify.make_spotify_req(r['next'])
+                            r = await self.bot.spotify.make_spotify_req(r['next'])
                             continue
                         else:
                             break
@@ -77,7 +75,7 @@ class SpotifyEB(BaseEB):
                     
                     return (
                         len(res),
-                        SpotifyEB._get_entry_iterator(
+                        self._get_entry_iterator(
                             ctx,
                             (i['track']['name'] + ' ' + i['track']['artists'][0]['name'] for i in res)
                         )
@@ -88,7 +86,7 @@ class SpotifyEB(BaseEB):
                     return
 
                 else:
-                    raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
+                    raise exceptions.ExtractionError(self.bot.str.get('cmd-play-spotify-unsupported', 'That is not a supported Spotify URI.'), expire_in=30)
 
             except exceptions.SpotifyError:
-                raise exceptions.ExtractionError(ctx.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))
+                raise exceptions.ExtractionError(self.bot.str.get('cmd-play-spotify-invalid', 'You either provided an invalid URI, or there was a problem.'))

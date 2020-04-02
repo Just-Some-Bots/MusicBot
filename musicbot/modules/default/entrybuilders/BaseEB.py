@@ -1,13 +1,14 @@
 class BaseEB:
-    @classmethod
-    async def suitable(cls, ctx, url):
+    def __init__(self, bot):
+        self.bot = bot
+
+    async def suitable(self, ctx, url):
         '''
         figure out if EB is suitable for the given context and url
         '''
         raise NotImplementedError()
 
-    @classmethod
-    async def get_entry(cls, ctx, url):
+    async def get_entry(self, ctx, url):
         '''
         get entry (or entries) for given url
         return tuple of length 2 or None

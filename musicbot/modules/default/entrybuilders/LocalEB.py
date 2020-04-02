@@ -6,16 +6,17 @@ import os
 from ....ytdldownloader import get_local_entry
 
 class LocalEB(BaseEB):
-    @classmethod
-    async def _get_entry_iterator(cls, ctx, path):
+    def __init__(self, bot):
+        super().__init__(bot)
+
+    async def _get_entry_iterator(self, ctx, path):
         # IF PY35 DEPRECATED
         # yield await get_local_entry(path, ctx.author.id, {'channel_id':ctx.channel.id})
-        return [get_local_entry(path, ctx.author.id, {'channel_id':ctx.channel.id})]
+        return [get_local_entry(path, ctx.author.id if ctx else None, {'channel_id':ctx.channel.id} if ctx else None)]
         # END IF DEPRECATED
 
-    @classmethod
-    async def suitable(cls, ctx, url):
-        if not (ctx.bot.config.local and ctx.bot.permissions.for_user(ctx.author).allow_locals):
+    async def suitable(self, ctx, url):
+        if not (self.bot.config.local and self.bot.permissions.for_user(ctx.author).allow_locals):
             return False
 
         # remove windows drive letter
@@ -35,20 +36,20 @@ class LocalEB(BaseEB):
 
         return True
 
-    @classmethod
-    async def get_entry(cls, ctx, url):
+    async def get_entry(self, ctx, url):
         '''
         get entry (or entries) for given url
         '''
-        if not ctx.bot.config.local_dir_only:
-            _path = [url]
+        if self.bot.config.local_dir_only:
+            _path = [urljoin(d, url) for d in self.bot.config.local_dir]
         else:
-            _path = [urljoin(d, url) for d in ctx.bot.config.local_dir]
+            _path = [url]
+            _path.append(urljoin(d, url) for d in self.bot.config.local_dir)            
 
         _good_path = [path for path in _path if os.path.exists(path)]
 
         if _good_path:
             # @TheerapakG: TODO: show ambiguity
-            return (1, LocalEB._get_entry_iterator(ctx, _good_path[0]))
+            return (1, self._get_entry_iterator(ctx, _good_path[0]))
 
         return None

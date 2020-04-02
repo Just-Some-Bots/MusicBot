@@ -25,7 +25,7 @@ from ...rich_guild import get_guild
 from ...playback import PlayerState
 from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
 
-from .entrybuilders import entrybuilders
+from .entrybuilders import EntryBuilders
 
 log = logging.getLogger(__name__)
 
@@ -35,9 +35,11 @@ class QueueManagement(Cog):
     def __init__(self):
         self._aiolocks = defaultdict(asyncio.Lock)
         self.bot = None
+        self.entrybuilders = None
 
     def pre_init(self, bot):
         self.bot = bot
+        self.entrybuilders = EntryBuilders(bot)
         self.bot.crossmodule.register_object('_play', self._play)
 
     def uninit(self):
@@ -112,161 +114,144 @@ class QueueManagement(Cog):
 
         song_url = song_url.strip('<>')
 
-        for EB in entrybuilders:
-            if not await EB.suitable(ctx, song_url):
-                continue
+        count, entry_iter = self.entrybuilders.get_entry_from_query(song_url)
 
-            eb_result = await EB.get_entry(ctx, song_url)
+        async with self._aiolocks['play_{}'.format(ctx.author.id)]:
+            async with ctx.typing():
+                entry = None
+                position = None
+                reply_text = None
 
-            if not eb_result:
-                continue
+                if count == 1:
+                    # IF PY35 DEPRECATED
+                    # async for c_entry in entry_iter:
+                    for a_c_entry in entry_iter:
+                        if a_c_entry:
+                            c_entry = await a_c_entry
+                        else:
+                            c_entry = a_c_entry
+                    # END IF DEPRECATED
+                        duration = c_entry.get_duration()
+                        if permissions.max_song_length and duration and duration > permissions.max_song_length:
+                            raise exceptions.PermissionsError(
+                                ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(duration, permissions.max_song_length),
+                                expire_in=30
+                            )
+                        entry = c_entry
+                        position = await playlist.add_entry(c_entry)
+                        reply_text = "Enqueued `%s` to be played. Position in queue: %s"
+                        btext = c_entry.title
+                        break
 
-            count, entry_iter = eb_result
-            # IF PY35 DEPRECATED
-            entry_iter = await entry_iter
-            # END IF DEPRECATED
+                else:
+                    # If it's playlist
 
-            if count < 1:
-                raise exceptions.ExtractionError("Could not get any entry while extracting result for: {}".format(song_url))
+                    # I have to do exe extra checks anyways because you can request an arbitrary number of search results
+                    if not permissions.allow_playlists and count > 1:
+                        raise exceptions.PermissionsError(ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
 
-            async with self._aiolocks['play_{}'.format(ctx.author.id)]:
-                async with ctx.typing():
-                    entry = None
-                    position = None
-                    reply_text = None
+                    if permissions.max_playlist_length and count > permissions.max_playlist_length:
+                        raise exceptions.PermissionsError(
+                            ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(count, permissions.max_playlist_length),
+                            expire_in=30
+                        )
 
-                    if count == 1:
-                        # IF PY35 DEPRECATED
-                        # async for c_entry in entry_iter:
-                        for a_c_entry in entry_iter:
-                            if a_c_entry:
-                                c_entry = await a_c_entry
-                            else:
-                                c_entry = a_c_entry
-                        # END IF DEPRECATED
-                            duration = c_entry.get_duration()
-                            if permissions.max_song_length and duration and duration > permissions.max_song_length:
-                                raise exceptions.PermissionsError(
-                                    ctx.bot.str.get('cmd-play-song-limit', "Song duration exceeds limit ({0} > {1})").format(duration, permissions.max_song_length),
-                                    expire_in=30
-                                )
+                    # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
+                    if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) + count > permissions.max_songs:
+                        raise exceptions.PermissionsError(
+                            ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
+                                count, player.playlist.num_entry_of(ctx.author.id), permissions.max_songs),
+                            expire_in=30
+                        )
+
+                    t0 = time.time()
+
+                    # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
+                    # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
+                    # I don't think we can hook into it anyways, so this will have to do.
+                    # It would probably be a thread to check a few playlists and get the speed from that
+                    # Different playlists might download at different speeds though
+                    wait_per_song = 1.2
+                    drop_count = 0
+                    actual_count = 0
+
+                    procmesg = await messagemanager.safe_send_normal(
+                        ctx,
+                        ctx,
+                        'Gathering playlist information for {0} songs{1}'.format(
+                            count,
+                            ', ETA: {0} seconds'.format(
+                                fixg(count * wait_per_song)
+                            ) if count >= 10 else '.'
+                        )
+                    )
+                    
+                    # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
+                    #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
+
+                    # @TheerapakG: IDK if ^ is still applicable
+
+                    # IF PY35 DEPRECATED
+                    # async for c_entry in entry_iter:
+                    for a_c_entry in entry_iter:
+                        if a_c_entry:
+                            c_entry = await a_c_entry
+                        else:
+                            c_entry = a_c_entry
+                    # END IF DEPRECATED
+                        actual_count += 1
+
+                        if c_entry is None:
+                            drop_count += 1
+                            continue
+
+                        duration = c_entry.get_duration()
+                        if permissions.max_song_length and duration > timedelta(seconds=permissions.max_song_length):
+                            drop_count += 1
+                            continue
+                            
+                        position_potent = await playlist.add_entry(c_entry)
+                        if not entry:
                             entry = c_entry
-                            position = await playlist.add_entry(c_entry)
-                            reply_text = "Enqueued `%s` to be played. Position in queue: %s"
-                            btext = c_entry.title
-                            break
+                            position = position_potent
 
-                    else:
-                        # If it's playlist
+                    tnow = time.time()
+                    ttime = tnow - t0
 
-                        # I have to do exe extra checks anyways because you can request an arbitrary number of search results
-                        if not permissions.allow_playlists and count > 1:
-                            raise exceptions.PermissionsError(ctx.bot.str.get('playlists-noperms', "You are not allowed to request playlists"), expire_in=30)
-
-                        if permissions.max_playlist_length and count > permissions.max_playlist_length:
-                            raise exceptions.PermissionsError(
-                                ctx.bot.str.get('playlists-big', "Playlist has too many entries ({0} > {1})").format(count, permissions.max_playlist_length),
-                                expire_in=30
-                            )
-
-                        # This is a little bit weird when it says (x + 0 > y), I might add the other check back in
-                        if permissions.max_songs and player.playlist.num_entry_of(ctx.author.id) + count > permissions.max_songs:
-                            raise exceptions.PermissionsError(
-                                ctx.bot.str.get('playlists-limit', "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})").format(
-                                    count, player.playlist.num_entry_of(ctx.author.id), permissions.max_songs),
-                                expire_in=30
-                            )
-
-                        t0 = time.time()
-
-                        # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
-                        # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
-                        # I don't think we can hook into it anyways, so this will have to do.
-                        # It would probably be a thread to check a few playlists and get the speed from that
-                        # Different playlists might download at different speeds though
-                        wait_per_song = 1.2
-                        drop_count = 0
-                        actual_count = 0
-
-                        procmesg = await messagemanager.safe_send_normal(
-                            ctx,
-                            ctx,
-                            'Gathering playlist information for {0} songs{1}'.format(
-                                count,
-                                ', ETA: {0} seconds'.format(
-                                    fixg(count * wait_per_song)
-                                ) if count >= 10 else '.'
-                            )
+                    ctx.bot.log.info(
+                        "Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
+                            actual_count,
+                            fixg(ttime),
+                            ttime / actual_count if actual_count else 0,
+                            ttime / actual_count - wait_per_song if actual_count - wait_per_song else 0
                         )
-                        
-                        # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
-                        #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
+                    )
 
-                        # @TheerapakG: IDK if ^ is still applicable
+                    reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
+                    btext = str(actual_count - drop_count)                  
 
-                        # IF PY35 DEPRECATED
-                        # async for c_entry in entry_iter:
-                        for a_c_entry in entry_iter:
-                            if a_c_entry:
-                                c_entry = await a_c_entry
-                            else:
-                                c_entry = a_c_entry
-                        # END IF DEPRECATED
-                            actual_count += 1
+                if playlist is (await guild.get_playlist()):
+                    await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
 
-                            if c_entry is None:
-                                drop_count += 1
-                                continue
+                    player = await guild.get_player()
 
-                            duration = c_entry.get_duration()
-                            if permissions.max_song_length and duration > timedelta(seconds=permissions.max_song_length):
-                                drop_count += 1
-                                continue
-                                
-                            position_potent = await playlist.add_entry(c_entry)
-                            if not entry:
-                                entry = c_entry
-                                position = position_potent
+                    try:
+                        time_until = await player.estimate_time_until_entry(entry)
 
-                        tnow = time.time()
-                        ttime = tnow - t0
-
-                        ctx.bot.log.info(
-                            "Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected".format(
-                                actual_count,
-                                fixg(ttime),
-                                ttime / actual_count if actual_count else 0,
-                                ttime / actual_count - wait_per_song if actual_count - wait_per_song else 0
-                            )
-                        )
-
-                        reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
-                        btext = str(actual_count - drop_count)                  
-
-                    if playlist is (await guild.get_playlist()):
-                        await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
-
-                        player = await guild.get_player()
-
-                        try:
-                            time_until = await player.estimate_time_until_entry(entry)
-
-                            if time_until == timedelta(seconds=0):
-                                position = 'Up next!'
-                                reply_text %= (btext, position)
-
-                            else:
-                                reply_text %= (btext, position)
-                                reply_text += (ctx.bot.str.get('cmd-play-eta', ' - estimated time until playing: %s') % ftimedelta(time_until))
-
-                        except exceptions.InvalidDataError:
+                        if time_until == timedelta(seconds=0):
+                            position = 'Up next!'
                             reply_text %= (btext, position)
-                            reply_text += ctx.bot.str.get('cmd-play-eta-error', ' - cannot estimate time until playing')                       
+
+                        else:
+                            reply_text %= (btext, position)
+                            reply_text += (ctx.bot.str.get('cmd-play-eta', ' - estimated time until playing: %s') % ftimedelta(time_until))
+
+                    except exceptions.InvalidDataError:
+                        reply_text %= (btext, position)
+                        reply_text += ctx.bot.str.get('cmd-play-eta-error', ' - cannot estimate time until playing')
 
             if send_reply:
                 await messagemanager.safe_send_normal(ctx, ctx, reply_text)
-
-            break
 
     @command()
     async def stream(self, ctx, song_url:str):

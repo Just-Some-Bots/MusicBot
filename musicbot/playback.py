@@ -123,7 +123,7 @@ class Entry(Serializable):
         self._preparing_cache = False
         self._cached = False
         self._cache_task = None # playlists set this
-        self._metadata = metadata
+        self._metadata = metadata if metadata else set()
         self._local_url = None
         self.stream = stream
         self.local = local
