@@ -13,12 +13,12 @@ class EntryBuilders:
         self.entrybuilders.append(SpotifyEB(ytdl_eb))
         self.entrybuilders.append(ytdl_eb)
 
-    async def get_entry_from_query(self, ctx, query):
+    async def get_entry_from_query(self, ctx, query, process = True):
         for EB in self.entrybuilders:
             if not await EB.suitable(ctx, query):
                 continue
 
-            eb_result = await EB.get_entry(ctx, query)
+            eb_result = await EB.get_entry(ctx, query, process = process)
 
             if not eb_result:
                 continue

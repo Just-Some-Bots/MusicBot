@@ -25,8 +25,6 @@ from ...rich_guild import get_guild
 from ...playback import PlayerState
 from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
 
-from .entrybuilders import EntryBuilders
-
 log = logging.getLogger(__name__)
 
 cog_name = 'queue_management'
@@ -39,7 +37,7 @@ class QueueManagement(Cog):
 
     def pre_init(self, bot):
         self.bot = bot
-        self.entrybuilders = EntryBuilders(bot)
+        self.entrybuilders = self.bot.crossmodule.get_object('entrybuilders')
         self.bot.crossmodule.register_object('_play', self._play)
 
     def uninit(self):
@@ -555,3 +553,4 @@ class QueueManagement(Cog):
             )
 
 cogs = [QueueManagement]
+deps = ['default.queryconverter']

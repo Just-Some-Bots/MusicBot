@@ -41,7 +41,7 @@ class YtdlEB(BaseEB):
         
         return True
 
-    async def get_entry(self, ctx, url):
+    async def get_entry(self, ctx, url, process = True):
         '''
         get entry (or entries) for given url
         '''
@@ -56,6 +56,15 @@ class YtdlEB(BaseEB):
         matches = re.search(playlistRegex, url)
         groups = matches.groups() if matches is not None else []
         url = "https://www.youtube.com/playlist?" + groups[0] if len(groups) > 0 else url
+
+        # If not process then just return unprocessed entry
+        if not process:
+            async def _get_entry_iterator():
+                # IF PY35 DEPRECATED
+                # yield await get_unprocessed_entry(url, ctx.author.id if ctx else None, self.bot.downloader, {'channel_id':ctx.channel.id} if ctx else None)
+                return [get_unprocessed_entry(url, ctx.author.id if ctx else None, self.bot.downloader, {'channel_id':ctx.channel.id} if ctx else None)]
+                # END IF DEPRECATED
+            return (1, _get_entry_iterator())
 
         # Try to determine entry type, if _type is playlist then there should be entries
         while True:

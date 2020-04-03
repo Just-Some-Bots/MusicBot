@@ -12,18 +12,18 @@ class SpotifyEB(BaseEB):
         super().__init__(ytdl_eb.bot)
         self.ytdl_eb = ytdl_eb
     
-    async def _get_entry_iterator(self, ctx, url_iterable):
+    async def _get_entry_iterator(self, ctx, url_iterable, process = True):
         for url in url_iterable:
             self.bot.log.debug('Processing {0}'.format(url))
             # IF PY35 DEPRECATED
             # return (await self.ytdl_eb.get_entry(ctx, url))[1]
-            return await (await self.ytdl_eb.get_entry(ctx, url))[1]
+            return await (await self.ytdl_eb.get_entry(ctx, url, process = process))[1]
             # END IF DEPRECATED
 
     async def suitable(self, ctx, url):
         return self.bot.config._spotify and ('open.spotify.com' in url or url.startswith('spotify:'))
 
-    async def get_entry(self, ctx, url):
+    async def get_entry(self, ctx, url, process = True):
         '''
         get entry (or entries) for given url
         '''
@@ -42,7 +42,8 @@ class SpotifyEB(BaseEB):
                         1,
                         self._get_entry_iterator(
                             ctx,
-                            (res['artists'][0]['name'] + ' ' + res['name'], )
+                            (res['artists'][0]['name'] + ' ' + res['name'], ), 
+                            process = process
                         )
                     )
 
@@ -54,7 +55,8 @@ class SpotifyEB(BaseEB):
                         len(res['tracks']['items']),
                         self._get_entry_iterator(
                             ctx,
-                            (i['name'] + ' ' + i['artists'][0]['name'] for i in res['tracks']['items'])
+                            (i['name'] + ' ' + i['artists'][0]['name'] for i in res['tracks']['items']), 
+                            process = process
                         )
                     )                    
 
@@ -77,7 +79,8 @@ class SpotifyEB(BaseEB):
                         len(res),
                         self._get_entry_iterator(
                             ctx,
-                            (i['track']['name'] + ' ' + i['track']['artists'][0]['name'] for i in res)
+                            (i['track']['name'] + ' ' + i['track']['artists'][0]['name'] for i in res), 
+                            process = process
                         )
                     )
                     

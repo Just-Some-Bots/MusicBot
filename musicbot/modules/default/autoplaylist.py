@@ -13,6 +13,12 @@ from ...ytdldownloader import get_unprocessed_entry, get_stream_entry
 from ...playback import Playlist
 
 class Autoplaylist(Cog):
+    def __init__(self):
+        self.entrybuilders = None
+
+    def pre_init(self, bot):
+        self.entrybuilders = bot.crossmodule.get_object('entrybuilders')
+
     @command()
     async def resetplaylist(self, ctx):
         """
@@ -128,13 +134,24 @@ class Autoplaylist(Cog):
 
             for r in results:
                 if mode == 'playlist':
-                    current = get_unprocessed_entry(r, None, bot.downloader, dict())
+                    count, entry_iter = self.entrybuilders.get_entry_from_query(None, r, process = False)
+                    # IF PY35 DEPRECATED
+                    # async for c_entry in entry_iter:
+                    for a_c_entry in entry_iter:
+                        if a_c_entry:
+                            c_entry = await a_c_entry
+                        else:
+                            c_entry = a_c_entry
+                    # END IF DEPRECATED
+                    if c_entry:
+                        await guild._auto.add_entry(c_entry)
                 elif mode == 'stream':
                     current = get_stream_entry(r, None, bot.downloader, dict())
-                await guild._auto.add_entry(current)
+                    await guild._auto.add_entry(current)
 
             processed += 1
 
         await safe_send_normal(ctx, ctx, 'successfully processed {} attachments'.format(processed))
 
 cogs = [Autoplaylist]
+deps = ['default.queryconverter']

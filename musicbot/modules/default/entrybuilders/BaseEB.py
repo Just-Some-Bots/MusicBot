@@ -8,7 +8,7 @@ class BaseEB:
         '''
         raise NotImplementedError()
 
-    async def get_entry(self, ctx, url):
+    async def get_entry(self, ctx, url, process = True):
         '''
         get entry (or entries) for given url
         return tuple of length 2 or None
