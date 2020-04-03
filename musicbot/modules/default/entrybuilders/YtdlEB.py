@@ -3,7 +3,7 @@ from urllib.parse import urlparse, urljoin
 import re
 import os
 
-from ....ytdldownloader import get_entry, get_unprocessed_entry
+from ....ytdldownloader import get_entry, get_unprocessed_entry, get_stream_entry
 from .... import messagemanager
 from .... import exceptions
 
@@ -85,8 +85,15 @@ class YtdlEB(BaseEB):
 
             if info_process_err:
                 if 'unknown url type' in str(info_process_err):
-                    url = url.replace(':', '')  # it's probably not actually an extractor
-                    info, info_process, info_process_err = await self._get_url_info(url)
+                    if matchUrl:
+                        self.bot.log.debug("Assuming content is a direct stream")
+                        async def _get_entry_iterator():
+                            # IF PY35 DEPRECATED
+                            # yield await get_entry(url, ctx.author.id if ctx else None, self.bot.downloader, {'channel_id':ctx.channel.id} if ctx else None)
+                            return [get_stream_entry(url, ctx.author.id if ctx else None, self.bot.downloader, {'channel_id':ctx.channel.id} if ctx else None)]
+                            # END IF DEPRECATED
+
+                        return (1, _get_entry_iterator())
                 else:
                     raise exceptions.ExtractionError(str(info_process_err), expire_in=30)
 

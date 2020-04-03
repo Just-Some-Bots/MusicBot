@@ -95,10 +95,10 @@ class Autoplaylist(Cog):
             raise exceptions.CommandError('There is no playlist with that name.')
 
     @command()
-    async def fromfile(self, ctx, mode = 'playlist'):
+    async def fromfile(self, ctx):
         """
         Usage:
-            {command_prefix}fromfile mode
+            {command_prefix}fromfile
 
         Load playlist from .txt file attached to the message.
         Check _autoplaylist.txt in the config folder for example.
@@ -108,9 +108,6 @@ class Autoplaylist(Cog):
 
         if not guild._auto:
             raise exceptions.CommandError('There is no autoplaylist.')
-
-        if mode not in ['playlist', 'stream']:
-            raise exceptions.CommandError('Unknown mode specified.')
 
         processed = 0
 
@@ -133,21 +130,17 @@ class Autoplaylist(Cog):
                     results.append(line)
 
             for r in results:
-                if mode == 'playlist':
-                    count, entry_iter = self.entrybuilders.get_entry_from_query(None, r, process = False)
-                    # IF PY35 DEPRECATED
-                    # async for c_entry in entry_iter:
-                    for a_c_entry in entry_iter:
-                        if a_c_entry:
-                            c_entry = await a_c_entry
-                        else:
-                            c_entry = a_c_entry
-                    # END IF DEPRECATED
-                    if c_entry:
-                        await guild._auto.add_entry(c_entry)
-                elif mode == 'stream':
-                    current = get_stream_entry(r, None, bot.downloader, dict())
-                    await guild._auto.add_entry(current)
+                count, entry_iter = self.entrybuilders.get_entry_from_query(None, r, process = False)
+                # IF PY35 DEPRECATED
+                # async for c_entry in entry_iter:
+                for a_c_entry in entry_iter:
+                    if a_c_entry:
+                        c_entry = await a_c_entry
+                    else:
+                        c_entry = a_c_entry
+                # END IF DEPRECATED
+                if c_entry:
+                    await guild._auto.add_entry(c_entry)
 
             processed += 1
 

@@ -348,13 +348,13 @@ class YtdlUrlEntry(Entry):
                     self.duration = None
 
             if not self.duration:
-                log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe or pymediainfo. '
-                            'This does not affect the ability of the bot. However, estimated time for this entry '
-                            'will not be unavailable and estimated time of the queue will also not be available '
-                            'until this entry got removed.\n'
-                            'entry file: {}'.format(self.filename))
+                self._extractor._bot.log.error('Cannot extract duration of downloaded entry, invalid output from ffprobe or pymediainfo. '
+                                                'This does not affect the ability of the bot. However, estimated time for this entry '
+                                                'will not be unavailable and estimated time of the queue will also not be available '
+                                                'until this entry got removed.\n'
+                                                'entry file: {}'.format(self.filename))
             else:
-                log.debug('Get duration of {} as {} seconds by inspecting it directly'.format(self.filename, self.duration))
+                self._extractor._bot.log.debug('Get duration of {} as {} seconds by inspecting it directly'.format(self.filename, self.duration))
 
     async def prepare_cache(self):
         with self._threadlocks['preparing_cache_set']:
@@ -652,69 +652,6 @@ class WrongEntryTypeError(Exception):
         self.is_playlist = is_playlist
         self.use_url = use_url
 
-async def get_entry(song_url, queuer_id, extractor, metadata):
-    try:
-        info = await extractor.extract_info(song_url, download=False)
-    except Exception as e:
-        raise ExtractionError('Could not extract information from {}\n\n{}'.format(song_url, e))
-
-    if not info:
-        raise ExtractionError('Could not extract information from %s' % song_url)
-
-    # TODO: Sort out what happens next when this happens
-    if info.get('_type', None) == 'playlist':
-        raise WrongEntryTypeError("This is a playlist.", True, info.get('webpage_url', None) or info.get('url', None))
-
-    if info.get('is_live', False):
-        # TODO: return stream entry
-        pass
-
-    # TODO: Extract this to its own function
-    if info['extractor'] in ['generic', 'Dropbox']:
-        extractor._bot.log.debug('Detected a generic extractor, or Dropbox')
-        try:
-            headers = await get_header(extractor._bot.aiosession, info['url'])
-            content_type = headers.get('CONTENT-TYPE')
-            extractor._bot.log.debug("Got content type {}".format(content_type))
-        except Exception as e:
-            extractor._bot.log.warning("Failed to get content type for url {} ({})".format(song_url, e))
-            content_type = None
-
-        if content_type:
-            if content_type.startswith(('application/', 'image/')):
-                if not any(x in content_type for x in ('/ogg', '/octet-stream')):
-                    # How does a server say `application/ogg` what the actual fuck
-                    raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
-
-            elif content_type.startswith('text/html') and info['extractor'] == 'generic':
-                extractor._bot.log.warning("Got text/html for content-type, this might be a stream.")
-                # TODO: return stream entry
-                pass
-
-            elif not content_type.startswith(('audio/', 'video/')):
-                extractor._bot.log.warning("Questionable content-type \"{}\" for url {}".format(content_type, song_url))
-
-    entry = YtdlUrlEntry(
-        song_url,
-        info.get('title', 'Untitled'),
-        info.get('duration', None) or None,
-        queuer_id,
-        metadata,
-        extractor,
-        extractor.ytdl.prepare_filename(info)
-    )
-
-    return entry
-
-async def get_unprocessed_entry(song_url, queuer_id, extractor, metadata):
-    entry = YtdlUrlUnprocessedEntry(
-        song_url,
-        queuer_id,
-        metadata,
-        extractor
-    )
-
-    return entry
 
 async def get_stream_entry(song_url, queuer_id, extractor, metadata):
     info = {'title': song_url, 'extractor': None}
@@ -760,6 +697,69 @@ async def get_stream_entry(song_url, queuer_id, extractor, metadata):
         metadata,
         extractor,
         destination = dest_url
+    )
+
+    return entry
+
+async def get_entry(song_url, queuer_id, extractor, metadata):
+    try:
+        info = await extractor.extract_info(song_url, download=False)
+    except Exception as e:
+        raise ExtractionError('Could not extract information from {}\n\n{}'.format(song_url, e))
+
+    if not info:
+        raise ExtractionError('Could not extract information from %s' % song_url)
+
+    # TODO: Sort out what happens next when this happens
+    if info.get('_type', None) == 'playlist':
+        raise WrongEntryTypeError("This is a playlist.", True, info.get('webpage_url', None) or info.get('url', None))
+
+    if info.get('is_live', False):
+        return await get_stream_entry(song_url, queuer_id, extractor, metadata)
+
+    # TODO: Extract this to its own function
+    if info['extractor'] in ['generic', 'Dropbox']:
+        extractor._bot.log.debug('Detected a generic extractor, or Dropbox')
+        try:
+            headers = await get_header(extractor._bot.aiosession, info['url'])
+            content_type = headers.get('CONTENT-TYPE')
+            extractor._bot.log.debug("Got content type {}".format(content_type))
+        except Exception as e:
+            extractor._bot.log.warning("Failed to get content type for url {} ({})".format(song_url, e))
+            content_type = None
+
+        if content_type:
+            if content_type.startswith(('application/', 'image/')):
+                if not any(x in content_type for x in ('/ogg', '/octet-stream')):
+                    # How does a server say `application/ogg` what the actual fuck
+                    raise ExtractionError("Invalid content type \"%s\" for url %s" % (content_type, song_url))
+
+            elif content_type.startswith('text/html') and info['extractor'] == 'generic':
+                extractor._bot.log.warning("Got text/html for content-type, this might be a stream.")
+                # TODO: return stream entry
+                pass
+
+            elif not content_type.startswith(('audio/', 'video/')):
+                extractor._bot.log.warning("Questionable content-type \"{}\" for url {}".format(content_type, song_url))
+
+    entry = YtdlUrlEntry(
+        song_url,
+        info.get('title', 'Untitled'),
+        info.get('duration', None) or None,
+        queuer_id,
+        metadata,
+        extractor,
+        extractor.ytdl.prepare_filename(info)
+    )
+
+    return entry
+
+async def get_unprocessed_entry(song_url, queuer_id, extractor, metadata):
+    entry = YtdlUrlUnprocessedEntry(
+        song_url,
+        queuer_id,
+        metadata,
+        extractor
     )
 
     return entry
