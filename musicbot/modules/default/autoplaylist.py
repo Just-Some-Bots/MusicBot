@@ -58,14 +58,12 @@ class Autoplaylist(Cog):
         current = await player.get_current_entry()
         if not guild._auto:
             raise exceptions.CommandError('There is no autoplaylist.')
-        if url or (current and not current.stream):
+        if url or current:
             if not url:
                 url = current.source_url
-            # @TheerapakG: TODO: make unprocessed from processed
-            new = await get_unprocessed_entry(url, None, bot.downloader, dict())
-
-            if url not in [e.source_url for e in guild._auto.list_snapshot()]:
-                await guild._auto.add_entry(new)
+                current = await get_unprocessed_entry(url, None, bot.downloader, dict())
+            if current.source_url not in [e.source_url for e in guild._auto.list_snapshot()]:
+                await guild._auto.add_entry(current)
                 await guild.serialize_playlist(guild._auto)
                 ctx.bot.log.debug("Appended {} to autoplaylist".format(url))
                 await safe_send_normal(ctx, ctx, bot.str.get('cmd-save-success', 'Added <{0}> to the autoplaylist.').format(url))
@@ -130,7 +128,7 @@ class Autoplaylist(Cog):
                     results.append(line)
 
             for r in results:
-                count, entry_iter = self.entrybuilders.get_entry_from_query(None, r, process = False)
+                count, entry_iter = await self.entrybuilders.get_entry_from_query(None, r, process = False)
                 # IF PY35 DEPRECATED
                 # async for c_entry in entry_iter:
                 for a_c_entry in entry_iter:

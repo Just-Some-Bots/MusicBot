@@ -16,7 +16,7 @@ class LocalEB(BaseEB):
         # END IF DEPRECATED
 
     async def suitable(self, ctx, url):
-        if not (self.bot.config.local and self.bot.permissions.for_user(ctx.author).allow_locals):
+        if not (self.bot.config.local and (not ctx or self.bot.permissions.for_user(ctx.author).allow_locals)):
             return False
 
         # remove windows drive letter

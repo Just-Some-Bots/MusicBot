@@ -183,6 +183,8 @@ class RichGuild(Serializable):
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(self.serialize(sort_keys=True))
 
+        self._bot.log.debug("Serialized {}".format(self._id))
+
     @classmethod
     def deserialize_from_file(cls, bot, guildid, *, dir=None):
         if dir is None:
@@ -340,47 +342,44 @@ class RichGuild(Serializable):
 
     async def _move_channel(self, new_channel):
         await self._check_perm_connect(new_channel)
-        async with self._aiolocks['c_voice_channel']:
-            if self._voice_client.channel != new_channel:
-                await self._voice_client.move_to(new_channel)
-            self._voice_channel = new_channel
+        if self._voice_client.channel != new_channel:
+            await self._voice_client.move_to(new_channel)
+        self._voice_channel = new_channel
 
     async def _disconnect_channel(self):
-        async with self._aiolocks['c_voice_channel']:
-            await self._voice_client.disconnect()
-            self.voice_channel = None
-            self._voice_client = None
-            await self._player.kill()
-            self._player = None
+        await self._voice_client.disconnect()
+        self._voice_channel = None
+        self._voice_client = None
+        await self._player.kill()
+        self._player = None
 
     async def _connect_channel(self, new_channel):
         await self._check_perm_connect(new_channel)
-        async with self._aiolocks['c_voice_channel']:
-            self._voice_client = await new_channel.connect()
-            self.voice_channel = new_channel
-            player = None
+        self._voice_client = await new_channel.connect()
+        self._voice_channel = new_channel
+        player = None
 
-            if self._bot.config.persistent_queue:
-                player = await self.deserialize_queue()
-                if player:
-                    self._bot.log.debug("Created player via deserialization for guild %s with %s entries", self._id, len(player._playlist._list) if player._playlist else 0)
+        if self._bot.config.persistent_queue:
+            player = await self.deserialize_queue()
+            if player:
+                self._bot.log.debug("Created player via deserialization for guild %s with %s entries", self._id, len(player._playlist._list) if player._playlist else 0)
+        
+        if not player:
+            player = Player(self)
+
+        if not player._playlist:
+            pl = Playlist('default-{}'.format(self._id), self._bot)
+            self._playlists[pl._name] = pl
+            await self.serialize_playlist(pl)
+            await player.set_playlist(pl)
             
-            if not player:
-                player = Player(self)
-
-            if not player._playlist:
-                pl = Playlist('default-{}'.format(self._id), self._bot)
-                self._playlists[pl._name] = pl
-                await self.serialize_playlist(pl)
-                await player.set_playlist(pl)
-                
-            self._player = player.on('play', self.on_player_play) \
-                                 .on('resume', self.on_player_resume) \
-                                 .on('pause', self.on_player_pause) \
-                                 .on('stop', self.on_player_stop) \
-                                 .on('finished-playing', self.on_player_finished_playing) \
-                                 .on('entry-added', self.on_player_entry_added) \
-                                 .on('error', self.on_player_error)
+        self._player = player.on('play', self.on_player_play) \
+                                .on('resume', self.on_player_resume) \
+                                .on('pause', self.on_player_pause) \
+                                .on('stop', self.on_player_stop) \
+                                .on('finished-playing', self.on_player_finished_playing) \
+                                .on('entry-added', self.on_player_entry_added) \
+                                .on('error', self.on_player_error)
 
     async def on_player_play(self, player, entry):
         self._bot.log.debug('Running on_player_play')
@@ -393,32 +392,35 @@ class RichGuild(Serializable):
         if self._bot.config.write_current_song:
             await self.write_current_song(entry)
 
-        channel = entry._metadata.get('channel', None)
-        author = self.guild.get_member(entry.queuer_id)
+        if self._auto is not await player.get_playlist():
+            channel = entry._metadata.get('channel', None)
+            author = self.guild.get_member(entry.queuer_id)
 
-        if author:
-            author_perms = self._bot.permissions.for_user(author)
+            if author:
+                author_perms = self._bot.permissions.for_user(author)
 
-            if author not in self._voice_channel.members and author_perms.skip_when_absent:
-                newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
-                    self._voice_channel.name, entry.title, author.name)
-                await player.skip()
-            elif self._bot.config.now_playing_mentions:
-                newmsg = '%s - your song `%s` is now playing in `%s`!' % (
-                    author.mention, entry.title, self._voice_channel.name)
-            else:
-                newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
-                    self._voice_channel.name, entry.title, author.name)
-        elif entry.queuer_id:
-            if author_perms.skip_when_absent:
-                newmsg = 'Skipping next song in `%s`: `%s` added by user id `%s` as queuer already left the guild' % (
-                    self._voice_channel.name, entry.title, entry.queuer_id)
-                await player.skip()
-            else:
-                newmsg = 'Now playing in `%s`: `%s` added by user id `%s`' % (
-                    self._voice_channel.name, entry.title, entry.queuer_id)
+                if author not in self._voice_channel.members and author_perms.skip_when_absent:
+                    newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
+                        self._voice_channel.name, entry.title, author.name)
+                    await player.skip()
+                elif self._bot.config.now_playing_mentions:
+                    newmsg = '%s - your song `%s` is now playing in `%s`!' % (
+                        author.mention, entry.title, self._voice_channel.name)
+                else:
+                    newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
+                        self._voice_channel.name, entry.title, author.name)
+            elif entry.queuer_id:
+                if author_perms.skip_when_absent:
+                    newmsg = 'Skipping next song in `%s`: `%s` added by user id `%s` as queuer already left the guild' % (
+                        self._voice_channel.name, entry.title, entry.queuer_id)
+                    await player.skip()
+                else:
+                    newmsg = 'Now playing in `%s`: `%s` added by user id `%s`' % (
+                        self._voice_channel.name, entry.title, entry.queuer_id)
         else:
-            # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
+            # it's an autoplaylist
+            channel = None
+            author = None            
             newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
                 entry.title, self._voice_channel.name)
 
@@ -514,16 +516,19 @@ class RichGuild(Serializable):
             self._bot.log.exception("Player error", exc_info=ex)
 
     async def set_connected_voice_channel(self, voice_channel):
-        if self._voice_client:
-            if voice_channel:
-                await self._move_channel(voice_channel)
+        async with self._aiolocks['c_voice_channel']:
+            if self._voice_channel:
+                if voice_channel and self._voice_channel is voice_channel:
+                    raise exceptions.VoiceConnectionError("bot already connected to the voice channel")
+                elif voice_channel:
+                    await self._move_channel(voice_channel)
+                else:
+                    await self._disconnect_channel()
             else:
-                await self._disconnect_channel()
-        else:
-            if voice_channel:
-                await self._connect_channel(voice_channel)
-            else:
-                raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
+                if voice_channel:
+                    await self._connect_channel(voice_channel)
+                else:
+                    raise exceptions.VoiceConnectionError("bot is not connected to any voice channel")
 
     async def get_connected_voice_client(self):
         async with self._aiolocks['c_voice_channel']:
@@ -599,12 +604,15 @@ def register_bot(bot):
             guild = c.guild
             rguild = get_guild(bot, guild)
 
-            if member == bot.user:
-                async with guilds[bot.user.id][guild.id]._aiolocks['c_voice_channel']:                    
-                    if not after.channel:
-                        await rguild.set_connected_voice_channel(None)
-                        return
-                    rguild.set_connected_voice_channel(after.channel)
+            if member == bot.user:                   
+                if not after.channel:
+                    await rguild.set_connected_voice_channel(None)
+                    return
+                try:
+                    await rguild.set_connected_voice_channel(after.channel)
+                except exceptions.VoiceConnectionError:
+                    # same voice channel, probably because we connect to it ourself
+                    pass
 
             if not rguild._bot.config.auto_pause:
                 return
