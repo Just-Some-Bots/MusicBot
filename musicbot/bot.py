@@ -1747,7 +1747,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(self.str.get('cmd-search-noquote', "Please quote your search query properly."), expire_in=30)
 
         service = 'youtube'
-        items_requested = 3
+        items_requested = self.config.defaultsearchresults
         max_items = permissions.max_search_items
         services = {
             'youtube': 'ytsearch',
@@ -1796,35 +1796,105 @@ class MusicBot(discord.Client):
         if not info:
             return Response(self.str.get('cmd-search-none', "No videos found."), delete_after=30)
 
-        for e in info['entries']:
-            result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
-                info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
+        if self.config.searchlist:
+            results = {}
+            result_message_array = []
 
-            def check(reaction, user):
-                return user == message.author and reaction.message.id == result_message.id  # why can't these objs be compared directly?
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = self.str.get('cmd-search-title',"{0} search results:").format(service.capitalize())
+                content.description = "To select a song, type the corresponding number"
+            else:
+                result_header = self.str.get('cmd-search-title', "{0} search results:").format(
+                    service.capitalize())
+                result_header += "\n\n"
 
-            reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
-            for r in reactions:
-                await result_message.add_reaction(r)
+            for e in info['entries']:
+                # First lets make sure song duration is displayed correctly
+                duration_to_readable = ftimedelta(timedelta(seconds=e['duration']))
+                duration_array = duration_to_readable.split(':')
+                song_duration = duration_to_readable \
+                    if int(duration_array[0]) > 0 \
+                    else "{0}:{1}".format(duration_array[1], duration_array[2])
+
+                # This code rekeys the info['entries'} to correspond to the users reply message
+                # Then we format the string we present in the result reply
+                results[str(info['entries'].index(e) + 1)] = e
+                if self.config.embeds:
+                    result_message_array.append(
+                        self.str.get('cmd-search-list-entry-embed', '**{0}**. [{1}]({2}) | {3}').format(
+                        info['entries'].index(e) + 1,e['title'],e['webpage_url'],song_duration))
+                else:
+                    result_message_array.append(
+                        self.str.get('cmd-search-list-entry-noembed', '**{0}**. {1} | {2}').format(
+                            info['entries'].index(e) + 1, e['title'], song_duration))
+
+            result_string = "\n".join('{0}'.format(result) for result in result_message_array)
+            result_string += "\n**0.** Cancel"
+
+            if self.config.embeds:
+                content.add_field(name=self.str.get('cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
+                result_message = await self.safe_send_message(channel, content)
+            else:
+                result_string = result_header + result_string
+                result_string += "\n\nSelect song by typing the corresponding number or type cancel to cancel search"
+                result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
+
+            def check(reply):
+                return -1 <= int(reply.content) - 1 <= len(info['entries']) and reply.author == message.author
 
             try:
-                reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+                choice = await self.wait_for('message', timeout=30.0, check=check)
             except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
                 return
 
-            if str(reaction.emoji) == '\u2705':  # check
+            if choice.content == '0':
+                if self.config.delete_invoking:
+                    await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
-                await self.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
-                return Response(self.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
-            elif str(reaction.emoji) == '\U0001F6AB':  # cross
-                await self.safe_delete_message(result_message)
-                continue
             else:
+                if self.config.delete_invoking:
+                    await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
-                break
+                await self.cmd_play(message, player, channel, author, permissions, [],
+                                    results[choice.content]['webpage_url'])
+                if self.config.embeds:
+                    return Response(self.str.get('cmd-search-accept-list-embed', "[{0}]({1}) added to que").format(
+                        results[choice.content]['title'],results[choice.content]['webpage_url']), delete_after=30)
+                else:
+                    return Response(self.str.get('cmd-search-accept-list-noembed', "{0} added to que").format(
+                        results[choice.content]['title']), delete_after=30)
+        else:
+            for e in info['entries']:
+                result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
+                    info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
 
+                def check(reaction, user):
+                    return user == message.author and reaction.message.id == result_message.id  # why can't these objs be compared directly?
+
+                reactions = ['\u2705', '\U0001F6AB', '\U0001F3C1']
+                for r in reactions:
+                    await result_message.add_reaction(r)
+
+                try:
+                    reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+                except asyncio.TimeoutError:
+                    await self.safe_delete_message(result_message)
+                    return
+
+                if str(reaction.emoji) == '\u2705':  # check
+                    await self.safe_delete_message(result_message)
+                    await self.cmd_play(message, player, channel, author, permissions, [], e['webpage_url'])
+                    return Response(self.str.get('cmd-search-accept', "Alright, coming right up!"), delete_after=30)
+                elif str(reaction.emoji) == '\U0001F6AB':  # cross
+                    await self.safe_delete_message(result_message)
+                    continue
+                else:
+                    await self.safe_delete_message(result_message)
+                    break
         return Response(self.str.get('cmd-search-decline', "Oh well :("), delete_after=30)
+
 
     async def cmd_np(self, player, channel, guild, message):
         """

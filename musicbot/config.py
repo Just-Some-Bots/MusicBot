@@ -76,6 +76,8 @@ class Config:
         self.legacy_skip = config.getboolean('MusicBot', 'LegacySkip', fallback=ConfigDefaults.legacy_skip)
         self.leavenonowners = config.getboolean('MusicBot', 'LeaveServersWithoutOwner', fallback=ConfigDefaults.leavenonowners)
         self.usealias = config.getboolean('MusicBot', 'UseAlias', fallback=ConfigDefaults.usealias)
+        self.searchlist = config.getboolean('MusicBot','SearchList', fallback=ConfigDefaults.searchlist)
+        self.defaultsearchresults = config.getint('MusicBot', 'DefaultSearchResults', fallback=ConfigDefaults.defaultsearchresults)
 
         self.debug_level = config.get('MusicBot', 'DebugLevel', fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -364,6 +366,8 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    searchlist = False
+    defaultsearchresults = 3
 
     options_file = 'config/options.ini'
     blacklist_file = 'config/blacklist.txt'
