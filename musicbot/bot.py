@@ -1796,8 +1796,8 @@ class MusicBot(discord.Client):
         if not info:
             return Response(self.str.get('cmd-search-none', "No videos found."), delete_after=30)
 
+        # Decide if the list approach or the reaction approach should be used
         if self.config.searchlist:
-            results = {}
             result_message_array = []
 
             if self.config.embeds:
@@ -1811,15 +1811,15 @@ class MusicBot(discord.Client):
 
             for e in info['entries']:
                 # First lets make sure song duration is displayed correctly
+                # This section might be unnecessary but could not find if its done anywhere else
+                # We don't want to show hours if not necessary
                 duration_to_readable = ftimedelta(timedelta(seconds=e['duration']))
                 duration_array = duration_to_readable.split(':')
                 song_duration = duration_to_readable \
                     if int(duration_array[0]) > 0 \
                     else "{0}:{1}".format(duration_array[1], duration_array[2])
 
-                # This code rekeys the info['entries'} to correspond to the users reply message
                 # Then we format the string we present in the result reply
-                results[str(info['entries'].index(e) + 1)] = e
                 if self.config.embeds:
                     result_message_array.append(
                         self.str.get('cmd-search-list-entry-embed', '**{0}**. [{1}]({2}) | {3}').format(
@@ -1832,6 +1832,7 @@ class MusicBot(discord.Client):
             result_string = "\n".join('{0}'.format(result) for result in result_message_array)
             result_string += "\n**0.** Cancel"
 
+            # Add the result entries to the message and send it to the channel
             if self.config.embeds:
                 content.add_field(name=self.str.get('cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
                 result_message = await self.safe_send_message(channel, content)
@@ -1858,13 +1859,14 @@ class MusicBot(discord.Client):
                     await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
                 await self.cmd_play(message, player, channel, author, permissions, [],
-                                    results[choice.content]['webpage_url'])
+                                    info['entries'][int(choice.content) - 1]['webpage_url'])
                 if self.config.embeds:
                     return Response(self.str.get('cmd-search-accept-list-embed', "[{0}]({1}) added to que").format(
-                        results[choice.content]['title'],results[choice.content]['webpage_url']), delete_after=30)
+                        info['entries'][int(choice.content) - 1]['title'],
+                        info['entries'][int(choice.content) - 1]['webpage_url']), delete_after=30)
                 else:
                     return Response(self.str.get('cmd-search-accept-list-noembed', "{0} added to que").format(
-                        results[choice.content]['title']), delete_after=30)
+                        info['entries'][int(choice.content) - 1]['title']), delete_after=30)
         else:
             for e in info['entries']:
                 result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
