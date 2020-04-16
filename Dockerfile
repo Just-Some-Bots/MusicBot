@@ -1,8 +1,4 @@
-FROM alpine:edge
-
-# Add project source
-WORKDIR /usr/src/musicbot
-COPY . ./
+FROM alpine:3.11
 
 # Install dependencies
 RUN apk update \
@@ -20,18 +16,27 @@ RUN apk update \
   libffi-dev \
   make \
   musl-dev \
-  python3-dev \
-\
+  python3-dev 
+
+# Set working directory
+WORKDIR /usr/src/musicbot
+
+# Add project requirements
+COPY ./requirements.txt ./requirements.txt
+
 # Install pip dependencies
-&& pip3 install --no-cache-dir -r requirements.txt \
-&& pip3 install --upgrade --force-reinstall --version websockets==4.0.1 \
+RUN pip3 install --upgrade pip \
+ && pip3 install --no-cache-dir -r requirements.txt \
 \
 # Clean up build dependencies
-&& apk del .build-deps
+ && apk del .build-deps
+
+# Add project sources
+COPY . ./
 
 # Create volume for mapping the config
 VOLUME /usr/src/musicbot/config
 
 ENV APP_ENV=docker
 
-ENTRYPOINT ["python3", "dockerentry.py"]
+CMD ["python3", "dockerentry.py"]
