@@ -57,6 +57,40 @@ from .utils import write_pickle, load_pickle
 # This list of method will be bound to bot object, thats why they need self param
   
 shows = None
+async def cmd_mending(self, user_mentions, leftover_args):
+    """
+    Usage:
+        {command_prefix}mending [your_query]
+
+    Let kak seto choose for you, because your opinion sucks, you know nothing
+    Make sure your query in this format "Mie ayam, bakso, pizza, omelet"
+    This command will give you max 3 choice from Kak Seto
+    """
+    standardize_user = [user.name for user in user_mentions]
+
+    # validate query
+    raw_query = ' '.join(leftover_args)
+    query = raw_query.split(',')
+    result = ''
+    
+    if len(query) > 1
+        if raw_query[-1] == ','
+            result = 'DASAR ANAK GOBLOK, UDAH DIKASIH TAHU CARANYA MASIH GA BISA!'
+        else
+            randomize = random.seed(hash(' '.join(leftover_args + standardize_user)))
+            n = len(query)
+            if n > 3
+                max_n = 3
+            else
+                max_n = 1
+            choices = random.choices(query, k=max_n)
+            str_choices = ''.join(list(map(lambda x: ' Yang ini %s\n' % x, choices)))
+            result = "Sejauh yang saya pantau yg paling bagus adalah\n" + str_choices
+    else
+        result = "KALO CUMA SATU NGAPAIN NANYA GUA GOBLOK!!"
+    return Response(result, reply=True, tts=True)
+
+
 async def cmd_apakah(self, user_mentions, leftover_args):
     """
     Usage:
