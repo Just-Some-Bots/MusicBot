@@ -1819,46 +1819,51 @@ class MusicBot(discord.Client):
                 result_header += "\n\n"
 
             for e in info['entries']:
-                # This formats the string
+                # This formats the results and adds it to an array
                 # format_song_duration removes the hour section
                 # if the song is shorter than an hour
                 result_message_array.append(
                     self.str.get('cmd-search-list-entry', '**{0}**. **{1}** | {2}').format(
                     info['entries'].index(e) + 1,e['title'],format_song_duration(
                             ftimedelta(timedelta(seconds=e['duration'])))))
-
+            # This combines the formatted result strings into one list.
             result_string = "\n".join('{0}'.format(result) for result in result_message_array)
             result_string += "\n**0.** Cancel"
 
-            # Add the result entries to the message and send it to the channel
             if self.config.embeds:
+                # Add the result entries to the embedded message and send it to the channel
                 content.add_field(name=self.str.get(
                     'cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
                 result_message = await self.safe_send_message(channel, content)
             else:
+                # Construct the complete message and send it to the channel.
                 result_string = result_header + result_string
                 result_string += "\n\nSelect song by typing the corresponding number or type cancel to cancel search"
                 result_message = await self.safe_send_message(
                     channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
 
+            # Check to verify that recived message is valid.
             def check(reply):
                 return reply.channel.id == channel.id \
                        and reply.author == message.author \
                        and reply.content.isdigit() \
                        and -1 <= int(reply.content) - 1 <= len(info['entries'])
 
+            # Wait for a response from the author.
             try:
                 choice = await self.wait_for('message', timeout=30.0, check=check)
             except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
                 return
 
-            # Choice 0 will cancel the search
+
             if choice.content == '0':
+                # Choice 0 will cancel the search
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
             else:
+                # Here we have a valid choice lets queue it.
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
