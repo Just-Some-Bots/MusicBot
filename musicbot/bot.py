@@ -1843,15 +1843,31 @@ class MusicBot(discord.Client):
 
             # Add the result entries to the message and send it to the channel
             if self.config.embeds:
-                content.add_field(name=self.str.get('cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
+                content.add_field(name=self.str.get(
+                    'cmd-search-field-name',"Pick a song"),value=result_string, inline=False)
                 result_message = await self.safe_send_message(channel, content)
             else:
                 result_string = result_header + result_string
                 result_string += "\n\nSelect song by typing the corresponding number or type cancel to cancel search"
-                result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
+                result_message = await self.safe_send_message(
+                    channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
 
             def check(reply):
-                return -1 <= int(reply.content) - 1 <= len(info['entries']) and reply.author == message.author
+                # We do not want 2 searches to be initiated at once.
+                # This has not been tested in a server with alot of ppl wiriting in the same channel as the bot listens.
+                # Might have to be made more spam secure.
+                if reply.author != message.author and reply.content.startswith("!search"):
+                    asyncio.run_coroutine_threadsafe(self.safe_send_message(
+                        channel,"A search is already initiated by "+message.author,expire_in=15),self.loop)
+                    return False
+                elif reply.author == message.author and not reply.content.isdigit():
+                    asyncio.run_coroutine_threadsafe(self.safe_send_message(
+                        channel, "Please respond with a number or end search by sending 0",expire_in=15),self.loop)
+                    return False
+                return reply.channel.id == channel.id \
+                       and reply.author == message.author \
+                       and reply.content.isdigit() \
+                       and -1 <= int(reply.content) - 1 <= len(info['entries'])
 
             try:
                 choice = await self.wait_for('message', timeout=30.0, check=check)
