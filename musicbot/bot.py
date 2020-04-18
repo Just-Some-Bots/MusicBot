@@ -1859,6 +1859,7 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(result_message)
                 return
 
+            # Choice 0 will cancel the search
             if choice.content == '0':
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
@@ -1877,6 +1878,7 @@ class MusicBot(discord.Client):
                     return Response(self.str.get('cmd-search-accept-list-noembed', "{0} added to que").format(
                         info['entries'][int(choice.content) - 1]['title']), delete_after=30)
         else:
+            # Original code
             for e in info['entries']:
                 result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
                     info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
