@@ -1829,14 +1829,9 @@ class MusicBot(discord.Client):
                     else "{0}:{1}".format(duration_array[1], duration_array[2])
 
                 # Then we format the string we present in the result reply
-                if self.config.embeds:
-                    result_message_array.append(
-                        self.str.get('cmd-search-list-entry-embed', '**{0}**. [{1}]({2}) | {3}').format(
-                        info['entries'].index(e) + 1,e['title'],e['webpage_url'],song_duration))
-                else:
-                    result_message_array.append(
-                        self.str.get('cmd-search-list-entry-noembed', '**{0}**. {1} | {2}').format(
-                            info['entries'].index(e) + 1, e['title'], song_duration))
+                result_message_array.append(
+                    self.str.get('cmd-search-list-entry', '**{0}**. **{1}** | {2}').format(
+                    info['entries'].index(e) + 1,e['title'],song_duration))
 
             result_string = "\n".join('{0}'.format(result) for result in result_message_array)
             result_string += "\n**0.** Cancel"
@@ -1853,17 +1848,19 @@ class MusicBot(discord.Client):
                     channel, self.str.get('cmd-search-result-list-noembed',"{0}").format(result_string))
 
             def check(reply):
-                # We do not want 2 searches to be initiated at once.
-                # This has not been tested in a server with alot of ppl wiriting in the same channel as the bot listens.
+                # The bot can handle multiple searches at once.
+                # But it might be a good idea to restrict that or put it as an option
+                # If so the commented code should be put at the begingin of search command
+                # This has not been tested in a server with alot of ppl wiriting in the same channel as the bot listens to.
                 # Might have to be made more spam secure.
-                if reply.author != message.author and reply.content.startswith("!search"):
-                    asyncio.run_coroutine_threadsafe(self.safe_send_message(
-                        channel,"A search is already initiated by "+message.author,expire_in=15),self.loop)
-                    return False
-                elif reply.author == message.author and not reply.content.isdigit():
-                    asyncio.run_coroutine_threadsafe(self.safe_send_message(
-                        channel, "Please respond with a number or end search by sending 0",expire_in=15),self.loop)
-                    return False
+                # if reply.author != message.author and reply.content.startswith("!search"):
+                #     asyncio.run_coroutine_threadsafe(self.safe_send_message(
+                #         channel,"A search is already initiated by "+message.author,expire_in=10),self.loop)
+                #     return False
+                # elif reply.author == message.author and not reply.content.isdigit():
+                #     asyncio.run_coroutine_threadsafe(self.safe_send_message(
+                #         channel, "Please respond with a number or end search by sending 0",expire_in=10),self.loop)
+                #     return False
                 return reply.channel.id == channel.id \
                        and reply.author == message.author \
                        and reply.content.isdigit() \
