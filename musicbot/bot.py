@@ -35,7 +35,7 @@ from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
-from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
+from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable, format_song_duration
 from .spotify import Spotify
 from .json import Json
 
@@ -1819,19 +1819,13 @@ class MusicBot(discord.Client):
                 result_header += "\n\n"
 
             for e in info['entries']:
-                # First lets make sure song duration is displayed correctly
-                # This section might be unnecessary but could not find if its done anywhere else
-                # We don't want to show hours if not necessary
-                duration_to_readable = ftimedelta(timedelta(seconds=e['duration']))
-                duration_array = duration_to_readable.split(':')
-                song_duration = duration_to_readable \
-                    if int(duration_array[0]) > 0 \
-                    else "{0}:{1}".format(duration_array[1], duration_array[2])
-
-                # Then we format the string we present in the result reply
+                # This formats the string
+                # format_song_duration removes the hour section
+                # if the song is shorter than an hour
                 result_message_array.append(
                     self.str.get('cmd-search-list-entry', '**{0}**. **{1}** | {2}').format(
-                    info['entries'].index(e) + 1,e['title'],song_duration))
+                    info['entries'].index(e) + 1,e['title'],format_song_duration(
+                            ftimedelta(timedelta(seconds=e['duration'])))))
 
             result_string = "\n".join('{0}'.format(result) for result in result_message_array)
             result_string += "\n**0.** Cancel"
