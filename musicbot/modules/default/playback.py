@@ -6,7 +6,7 @@ from discord.ext.commands import Cog, command
 
 from ... import exceptions
 
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ... import messagemanager
 from ...playback import PlayerState
 

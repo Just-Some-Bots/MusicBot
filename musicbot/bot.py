@@ -54,7 +54,7 @@ from .opus_loader import load_opus_lib
 from .lib.event_emitter import AsyncEventEmitter
 from .crossmodule import CrossModule
 from .command_tree import CommandTree
-from .rich_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
+from .smart_guild import guilds, register_bot, prunenoowner, get_guild, get_guild_list
 from .playback import PlayerState
 from .ytdldownloader import YtdlDownloader
 from .utils import isiterable, load_file, write_file, fixg
@@ -126,7 +126,7 @@ class ModuBot(Bot):
             'auto_paused': False,
             'availability_paused': False
         }
-        # guild are of type RichGuild
+        # guild are of type SmartGuild
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
         super().__init__(command_prefix = self.config.command_prefix, help_command = None, *args, **kwargs)
@@ -526,7 +526,7 @@ class ModuBot(Bot):
                     continue
 
                 try:
-                    await guild.set_connected_voice_channel(channel)
+                    await guild.player.set_voice_channel(channel)
                     joined_servers.add(guild)
 
                     self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
@@ -765,11 +765,11 @@ class ModuBot(Bot):
         guilds = get_guild_list(self)
         for guild in guilds:
             try:
-                await guild.set_connected_voice_channel(None)
+                await guild.player.set_voice_channel(None)
             except:
                 pass
                 
-            await guild.serialize_to_file()
+            guild.serialize_to_dir(dir = guild._save_dir)
         await self.unload_all_module()
         await super().close()
         await self.aiosession.close()

@@ -4,7 +4,7 @@ from ...utils import write_file
 from discord import User
 from discord.ext.commands import Cog, command, Greedy
 
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ... import messagemanager
 
 class Moderation(Cog):

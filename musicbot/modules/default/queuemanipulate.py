@@ -21,7 +21,7 @@ from ...utils import fixg, ftimedelta, _func_
 from ... import exceptions
 
 from ... import messagemanager
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ...playback import PlayerState
 from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
 

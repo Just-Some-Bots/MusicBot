@@ -9,7 +9,7 @@ from typing import Optional
 from discord.ext.commands import Cog, command
 
 from ... import exceptions
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ...utils import ftimedelta
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command
 

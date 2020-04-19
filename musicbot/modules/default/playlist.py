@@ -9,7 +9,7 @@ from ... import exceptions
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 from ...utils import ftimedelta
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command, inject_as_group
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ...playback import Playlist, PlayerState
 from ...ytdldownloader import get_unprocessed_entry
 from ... import messagemanager

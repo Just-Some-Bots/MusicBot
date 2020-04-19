@@ -3,7 +3,7 @@ import re
 from discord.ext.commands import Cog, command
 
 from ...lib.srtdecode.parser import gen_srt_block_list_from_file, get_transcript
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ... import messagemanager
 from ... import exceptions
 from ...constants import DISCORD_MSG_CHAR_LIMIT

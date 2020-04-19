@@ -11,7 +11,7 @@ from typing import Optional
 from ...utils import _get_variable
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command
 from ... import exceptions
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ...wrappers import owner_only
 
 from ... import messagemanager
@@ -25,7 +25,7 @@ class BotManagement(InjectableMixin, Cog):
         
         Forces the bot leave the current voice channel.
         """
-        await get_guild(ctx.bot, ctx.guild).set_connected_voice_channel(None)
+        await get_guild(ctx.bot, ctx.guild).player.set_voice_channel(None)
         await messagemanager.safe_send_normal(ctx, ctx, "Disconnected from `{0.name}`".format(ctx.guild), expire_in=20)
         return
 
@@ -228,7 +228,7 @@ class BotManagement(InjectableMixin, Cog):
             raise exceptions.CommandError(ctx.bot.str.get('cmd-summon-novc', 'You are not connected to voice. Try joining a voice channel!'))
 
         guild = get_guild(ctx.bot, ctx.guild)
-        await guild.set_connected_voice_channel(ctx.author.voice.channel)
+        await guild.player.set_voice_channel(ctx.author.voice.channel)
         # TODO: check if autoplay
 
         ctx.bot.log.info("Joining {0.guild.name}/{0.name}".format(ctx.author.voice.channel))

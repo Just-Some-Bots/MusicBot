@@ -33,7 +33,7 @@ import ssl
 from ..wrappers import owner_only
 
 from .. import messagemanager
-from ..rich_guild import get_guild
+from ..smart_guild import get_guild
 
 aiolocks = defaultdict(asyncio.Lock)
 

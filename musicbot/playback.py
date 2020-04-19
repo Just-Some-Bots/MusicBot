@@ -69,6 +69,7 @@ from random import shuffle, random
 from .lib.event_emitter import EventEmitter, AsyncEventEmitter
 from .constructs import Serializable, Serializer
 from .exceptions import VersionError, PlaybackError, InvalidDataError
+from .smart_vc import SmartVC
 import logging
 
 # optionally using pymediainfo instead of ffprobe if presents
@@ -460,12 +461,13 @@ class SourcePlaybackCounter(AudioSource):
         self._source.cleanup()
 
 class Player(AsyncEventEmitter, Serializable):
+    voice: SmartVC = SmartVC()
+
     def __init__(self, guild, volume = 0.15):
         super().__init__()
-        self._aiolocks = defaultdict(Lock)
+        self._lock = defaultdict(threading.RLock)
         self._current = None
         self._guild = guild
-        self._player = None
         self._playlist = None
         self._entry_finished_tasks = defaultdict(list)
         self._play_task = None
@@ -493,39 +495,20 @@ class Player(AsyncEventEmitter, Serializable):
         })
 
     @classmethod
-    def _deserialize(cls, data, guild=None):
+    def _deserialize(cls, data, guild = None):
         assert guild is not None, cls._bad('guild')
 
-        if 'version' not in data or data['version'] < 2:
-            raise VersionError('data version needs to be higher than 2')
+        if 'version' not in data or data['version'] < 5:
+            raise VersionError('data version needs to be at least 5')
 
         player = cls(guild)
+        data_pl = data.get('pl_name')
+        if data_pl:
+            pl = guild._playlists[data_pl]
+            player.set_playlist(pl)
 
-        if 'version' not in data or data['version'] < 3:
-            guild._bot.log.warning('upgrading player of `{}` to player version 4'.format(guild._id))
-            data_pl = data.get('pl_name')
-            if data_pl:
-                try:
-                    pl = guild._playlists[data_pl._name]
-                except KeyError:
-                    guild._bot.log.warning('not found playlist in the player in the guild save, proceeding by registering it to the guild')
-                    guild._playlists[data_pl._name] = data_pl
-                    # @TheerapakG: WARN: if current entry it get doubled because ensure_future run after this finished. Still, it just do that when convert playlist.
-                    ensure_future(guild.serialize_playlist(data_pl))
-                    pl = data_pl
-        else:
-            data_pl = data.get('pl_name')
-            if data_pl:
-                pl = guild._playlists[data_pl]
-
-        player._set_playlist(pl)
-
-        if 'version' not in data or data['version'] < 5:
-            player.random = False
-            player.pull_persist = False
-        else:
-            player.random = data['random']
-            player.pull_persist = data['pull_persist']
+        player.random = data['random']
+        player.pull_persist = data['pull_persist']
 
         current_entry_data = data['current_entry']
         if current_entry_data['entry']:
@@ -546,8 +529,10 @@ class Player(AsyncEventEmitter, Serializable):
         return player
 
     @classmethod
-    def from_json(cls, raw_json, guild, bot, extractor):
+    def from_json(cls, raw_json, guild):
         try:
+            bot = guild._bot
+            extractor = bot.downloader
             obj = json.loads(raw_json, object_hook=Serializer.deserialize)
             if isinstance(obj, dict):
                 guild._bot.log.warning('Cannot parse incompatible player data. Instantiating new player instead.')
@@ -567,45 +552,40 @@ class Player(AsyncEventEmitter, Serializable):
     @volume.setter
     def volume(self, val):
         self._volume = val
-        async def set_if_source():
-            async with self._aiolocks['player']:
-                if self._source:
-                    self._source._source.volume = val
-        ensure_future(set_if_source())
+        with self._lock['player']:
+            if self._source:
+                self._source._source.volume = val
 
-    async def status(self):
-        async with self._aiolocks['player']:
+    def status(self):
+        with self._lock['player']:
             return self.state
 
-    def _set_playlist(self, pl: Optional[Playlist]):
-        if self._playlist:
-            self._playlist.off('entry-added', self.on_playlist_entry_added)
-            self._playlist.remove_owner()
-        if pl:
-            pl.set_owner(self)
-            self._playlist = pl.on('entry-added', self.on_playlist_entry_added)
-        else:
-            self._playlist = None
+    def set_playlist(self, pl: Optional[Playlist]):
+        with self._lock['playlist']:
+            if self._playlist:
+                self._playlist.off('entry-added', self.on_playlist_entry_added)
+                self._playlist.remove_owner()
+            if pl:
+                pl.set_owner(self)
+                self._playlist = pl.on('entry-added', self.on_playlist_entry_added)
+            else:
+                self._playlist = None
 
-    async def set_playlist(self, pl: Optional[Playlist]):
-        async with self._aiolocks['playlist']:
-            self._set_playlist(pl)
-
-    async def get_playlist(self):
-        async with self._aiolocks['playlist']:
+    def get_playlist(self):
+        with self._lock['playlist']:
             return self._playlist
 
     async def _play(self, *, play_wait_cb = None, play_success_cb = None):
-        async with self._aiolocks['player']:
+        with self._lock['player']:
             self.state = PlayerState.WAITING
             self._current = None
         entry = None
         self._guild._bot.log.debug('trying to get entry...')
         while not entry:
             try:
-                async with self._aiolocks['playlist']:
+                with self._lock['playlist']:
                     entry, cache = await self._playlist._get_entry(self.random, self.pull_persist)
-                    async with self._aiolocks['player']:
+                    with self._lock['player']:
                         self.state = PlayerState.DOWNLOADING
                         self._guild._bot.log.debug('got entry...')
                         self._guild._bot.log.debug(str(entry))
@@ -626,9 +606,8 @@ class Player(AsyncEventEmitter, Serializable):
         def _playback_finished(error = None):
             async def _async_playback_finished():
                 entry = self._current
-                async with self._aiolocks['player']:
+                with self._lock['player']:
                     self._current = None
-                    self._player = None
                     self._source = None
 
                 if error:
@@ -685,15 +664,14 @@ class Player(AsyncEventEmitter, Serializable):
                 )
             )
 
-            async with self._aiolocks['player']:
-                self._player = self._guild._voice_client
-                self._guild._voice_client.play(source, after=_playback_finished)
+            with self._lock['player']:
+                self.voice.play(source, after=_playback_finished)
                 self._source = source
                 self.state = PlayerState.PLAYING
 
             await self.emit('play', player=self, entry=self._current)
         
-        async with self._aiolocks['playtask']:
+        with self._lock['playtask']:
             self._play_task = ensure_future(_download_and_play())            
 
         try:
@@ -702,12 +680,12 @@ class Player(AsyncEventEmitter, Serializable):
         except (CancelledError, PlaybackError):
             _entry_cleanup(entry, self._guild._bot)
             self._guild._bot.log.debug('aww... next one then.')
-            async with self._aiolocks['player']:
+            with self._lock['player']:
                 if self.state != PlayerState.PAUSE:
                     ensure_future(self._play())
 
-    async def _play_safe(self, *callback, play_wait_cb = None, play_success_cb = None):
-        async with self._aiolocks['playsafe']:
+    def _play_safe(self, *callback, play_wait_cb = None, play_success_cb = None):
+        with self._lock['playsafe']:
             if not self._play_safe_task:
                 self._play_safe_task = ensure_future(self._play(play_wait_cb = play_wait_cb, play_success_cb = play_success_cb))
                 def clear_play_safe_task(future):
@@ -720,8 +698,8 @@ class Player(AsyncEventEmitter, Serializable):
                 return
 
     async def play(self, *, play_fail_cb = None, play_success_cb = None, play_wait_cb = None):
-        async with self._aiolocks['play']:
-            async with self._aiolocks['player']:
+        with self._lock['play']:
+            with self._lock['player']:
                 if self.state != PlayerState.PAUSE:
                     exc = PlaybackError('player is not paused')
                     if play_fail_cb:
@@ -730,38 +708,35 @@ class Player(AsyncEventEmitter, Serializable):
                         raise exc
                     return
 
-                if self._player:
+                if self.voice:
                     self.state = PlayerState.PLAYING
-                    self._player.resume()
+                    self.voice.resume()
                     if play_success_cb:
                         play_success_cb()
                     await self.emit('resume', player=self, entry=self._current)
                     return
 
-                await self._play_safe(play_wait_cb = play_wait_cb, play_success_cb = play_success_cb)
+                self._play_safe(play_wait_cb = play_wait_cb, play_success_cb = play_success_cb)
 
     async def _pause(self):
-        async with self._aiolocks['player']:
+        with self._lock['player']:
             if self.state != PlayerState.PAUSE:
-                if self._player:
-                    self._player.pause()
+                if self.voice:
+                    self.voice.pause()
                     self.state = PlayerState.PAUSE
                     await self.emit('pause', player=self, entry=self._current)
 
     async def pause(self):
-        async with self._aiolocks['pause']:
-            async with self._aiolocks['player']:
+        with self._lock['pause']:
+            with self._lock['player']:
                 if self.state == PlayerState.PAUSE:
                     return
 
                 elif self.state == PlayerState.PLAYING:
-                    self._player.pause()
-                    self.state = PlayerState.PAUSE
-                    await self.emit('pause', player=self, entry=self._current)
-                    return
+                    await self._pause()
 
                 elif self.state == PlayerState.DOWNLOADING:
-                    async with self._aiolocks['playtask']:
+                    with self._lock['playtask']:
                         self._play_task.add_done_callback(
                             callback_dummy_future(
                                 partial(ensure_future, self._pause())
@@ -779,19 +754,19 @@ class Player(AsyncEventEmitter, Serializable):
     async def skip(self):
         wait_entry = False
         entry = await self.get_current_entry()
-        async with self._aiolocks['skip']:
-            async with self._aiolocks['player']:
+        with self._lock['skip']:
+            with self._lock['player']:
                 if self.state == PlayerState.PAUSE:
                     await self._play_safe(partial(ensure_future, self._pause()))
                     _entry_cleanup(entry, self._guild._bot)
                     return
 
                 elif self.state == PlayerState.PLAYING:
-                    self._player.stop()
+                    self.voice.stop()
                     wait_entry = True
 
                 elif self.state == PlayerState.DOWNLOADING:
-                    async with self._aiolocks['playtask']:
+                    with self._lock['playtask']:
                         self._play_task.cancel()
                     return
 
@@ -807,22 +782,22 @@ class Player(AsyncEventEmitter, Serializable):
             return
     
     async def kill(self):
-        async with self._aiolocks['kill']:
+        with self._lock['kill']:
             # TODO: destruct
             pass
         await self.emit('stop', player=self)
 
     async def progress(self):
-        async with self._aiolocks['player']:
+        with self._lock['player']:
             if self._source:
                 return self._source.get_progress()
             else:
                 raise Exception('not playing!')
 
     async def estimate_time_until(self, position):
-        async with self._aiolocks['playlist']:
+        with self._lock['playlist']:
             future = None
-            async with self._aiolocks['player']:
+            with self._lock['player']:
                 if self.state == PlayerState.DOWNLOADING:
                     self._guild._bot.log.debug('scheduling estimate time after current entry is playing')
                     future = Future()
@@ -850,9 +825,9 @@ class Player(AsyncEventEmitter, Serializable):
             return estimated_time
 
     async def estimate_time_until_entry(self, entry):
-        async with self._aiolocks['playlist']:
+        with self._aiolocks['playlist']:
             future = None
-            async with self._aiolocks['player']:
+            with self._aiolocks['player']:
                 if self.state == PlayerState.DOWNLOADING:
                     self._guild._bot.log.debug('scheduling estimate time after current entry is playing')
                     future = Future()
@@ -881,5 +856,5 @@ class Player(AsyncEventEmitter, Serializable):
             return estimated_time
 
     async def get_current_entry(self):
-        async with self._aiolocks['player']:
+        with self._lock['player']:
             return self._current

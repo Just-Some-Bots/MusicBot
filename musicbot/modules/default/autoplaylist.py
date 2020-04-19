@@ -8,7 +8,7 @@ from ... import exceptions
 from ...utils import write_file
 
 from ...messagemanager import safe_send_normal
-from ...rich_guild import get_guild
+from ...smart_guild import get_guild
 from ...ytdldownloader import get_unprocessed_entry, get_stream_entry
 from ...playback import Playlist
 
