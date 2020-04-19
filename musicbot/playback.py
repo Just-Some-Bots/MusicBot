@@ -389,7 +389,7 @@ class Playlist(EntriesHolder):
         return position + 1   
 
     async def add_entry(self, entry, *, head = False):
-        self._add_entry(entry, head = head)      
+        return self._add_entry(entry, head = head)
 
     async def get_length(self):
         return len(self._list)
