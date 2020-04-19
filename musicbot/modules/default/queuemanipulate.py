@@ -233,11 +233,11 @@ class QueueManagement(Cog):
 
             if not entry:
                 async def get_info(song_url):
-                    info = await self.downloader.extract_info(player.playlist.loop, song_url, download=False, process=False)
+                    info = await self.downloader.extract_info(song_url, download=False, process=False)
                     # If there is an exception arise when processing we go on and let extract_info down the line report it
                     # because info might be a playlist and thing that's broke it might be individual entry
                     try:
-                        info_process = await self.downloader.extract_info(player.playlist.loop, song_url, download=False)
+                        info_process = await self.downloader.extract_info(song_url, download=False)
                         info_process_err = None
                     except Exception as e:
                         info_process = None
