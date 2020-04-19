@@ -23,7 +23,7 @@ from ... import exceptions
 from ... import messagemanager
 from ...rich_guild import get_guild
 from ...playback import PlayerState
-from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
+from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry, YtdlDownloader
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ class QueueManagement(Cog):
     def pre_init(self, bot):
         self.bot = bot
         self.bot.crossmodule.register_object('_play', self._play)
+        self.downloader = YtdlDownloader(bot, 'audio_cache')
 
     def uninit(self):
         self.bot.crossmodule.unregister_object('_play')
