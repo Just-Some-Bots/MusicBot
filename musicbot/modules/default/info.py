@@ -135,9 +135,10 @@ class Information(InjectableMixin, Cog):
 
         Sends the user a list of their permissions, or the permissions of the user specified.
         """
-        member = ctx.guild.get_member(user.id)
-        if member:
-            user = member
+        if user is not None:
+            user = ctx.guild.get_member(user.id)
+        else:
+            user = ctx.author
 
         if user:
             permissions = ctx.bot.permissions.for_user(user)
