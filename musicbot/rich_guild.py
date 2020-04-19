@@ -688,6 +688,7 @@ def register_bot(bot):
     bot.event(on_voice_state_update)
 
     async def on_command_error(ctx, exception):
+        ctx.bot.log.exception(exception)
         message = exception.message if isinstance(exception, exceptions.MusicbotException) else str(exception)
         expire_in = exception.expire_in if isinstance(exception, exceptions.MusicbotException) else None
         await safe_send_message(ctx, content_gen(ctx, message, color = ContentTypeColor.ERROR), expire_in = expire_in)
