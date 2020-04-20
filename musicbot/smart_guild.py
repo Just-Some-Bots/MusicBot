@@ -36,6 +36,8 @@ import json
 import os
 import random
 import glob
+import inspect
+from .lib.event_emitter import EventEmitter
 from .utils import check_restricted
 from .guild_config import GuildConfig
 from .playback import Player, Playlist, PlayerState
@@ -47,7 +49,7 @@ from . import exceptions
 
 guilds = dict()
 
-class SmartGuild(Serializable):
+class SmartGuild(Serializable, EventEmitter):
     _lock: DefaultDict[str, RLock] = defaultdict(RLock)
     _id: int
     config: GuildConfig
@@ -59,12 +61,17 @@ class SmartGuild(Serializable):
     _save_dir: str
 
     def __init__(self, bot, guildid, save_dir = None):
+        """
+        DO NOT init DIRECTLY! use factory method `try_deserialize_from_dir` instead
+        """
+        # @TheerapakG: TODO: make ^ not necessary
         super().__init__()
         self._bot = bot
         self._id = guildid
         self.config = GuildConfig(bot)
         self.player = self.apply_player_hooks(Player(self))
         self._save_dir = 'data/{}'.format(self._id) if not save_dir else save_dir
+        self.emit('initialize', self)
 
     def __json__(self):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
@@ -107,6 +114,8 @@ class SmartGuild(Serializable):
             bot.log.exception('cannot deserialize queue, using default one')
             bot.log.exception(e)
 
+        guild.emit('deserialize', guild)
+
         return guild
 
     def apply_player_hooks(self, player):
@@ -135,18 +144,18 @@ class SmartGuild(Serializable):
             self._bot.log.info("Leaving auto in {}".format(self._id))
             with self._lock['c_auto']:
                 self.serialize_playlist(self._auto)
-                self._player.set_playlist(self._not_auto)
-            self._player.random = False
-            self._player.pull_persist = False
+                self.player.set_playlist(self._not_auto)
+            self.player.random = False
+            self.player.pull_persist = False
             if also_skip:
-                self._player.skip()
+                self.player.skip()
 
     def set_auto(self, pl: Optional[Playlist] = None):
         self._bot.log.info("Setting auto in {}".format(self._id))
         with self._lock['c_auto']:
             self.serialize_playlist(self._auto)
             if (self.is_currently_auto()):
-                self._player.set_playlist(pl)
+                self.player.set_playlist(pl)
             self._auto = pl
 
     def get_auto(self):
@@ -189,17 +198,31 @@ class SmartGuild(Serializable):
             with open(dir + '/smartguildinfo.json', 'w', encoding='utf8') as f:
                 f.write(self.serialize(sort_keys=True))
 
+            self.emit('serialize', self)
+
         self.serialize_queue()
 
         self._bot.log.debug("Serialized {}".format(self._id))
 
     @classmethod
-    def deserialize_from_dir(cls, bot, id, save_dir):
+    def try_deserialize_from_dir(cls, bot, id, save_dir):
         if not os.path.isfile(save_dir + '/smartguildinfo.json'):
             bot.log.debug("Using defaults for guild {}".format(id))
-            return cls(bot, id, save_dir)
+            guild = cls(bot, id, save_dir)
         with open(save_dir + '/smartguildinfo.json', 'r', encoding='utf8') as f:
-            return cls.from_json(f.read(), bot, id, save_dir)
+            guild = cls.from_json(f.read(), bot, id, save_dir)
+        for cog in bot.cogs.values():
+            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='on_guild_instantiate', args...=(guild)]@TheerapakG
+            try:
+                potential_method = getattr(cog, 'on_guild_instantiate')
+                potential_descriptor = inspect.getattr_static(cog, 'on_guild_instantiate')
+            except AttributeError:
+                continue
+            if isinstance(potential_descriptor, classmethod) or isinstance(potential_descriptor, staticmethod):
+                potential_method(guild)
+            else:
+                potential_method(cog, guild)
+        return guild
 
     def serialize_playlist(self, playlist):
         """
@@ -270,7 +293,7 @@ class SmartGuild(Serializable):
         """
         Writes the current song to file
         """
-        if not self._player:
+        if not self.player:
             return
 
         dir = self._save_dir + 'current.txt'
@@ -449,11 +472,11 @@ def get_guild_list(bot) -> SmartGuild:
     return list(guilds[bot.user.id].values())
 
 def register_bot(bot):
-    guilds[bot.user.id] = {guild.id:SmartGuild.deserialize_from_dir(bot, guild.id, 'data/{}'.format(guild.id)) for guild in bot.guilds}
+    guilds[bot.user.id] = {guild.id:SmartGuild.try_deserialize_from_dir(bot, guild.id, 'data/{}'.format(guild.id)) for guild in bot.guilds}
 
     async def on_guild_join(guild):
         if bot.is_ready():
-            guilds[bot.user.id][guild.id] = SmartGuild.deserialize_from_file(bot, guild.id)
+            guilds[bot.user.id][guild.id] = SmartGuild.try_deserialize_from_dir(bot, guild.id)
             bot.log.info('joined guild {}'.format(guild.name))
 
     bot.event(on_guild_join)
