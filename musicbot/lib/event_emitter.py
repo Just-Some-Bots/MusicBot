@@ -4,7 +4,8 @@ import collections
 from functools import partial
 
 class EventEmitter:
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._events = collections.defaultdict(list)
         self.loop = asyncio.get_event_loop()
         self.log = None
@@ -54,8 +55,8 @@ class EventEmitter:
         return self.on(event, callback)
 
 class AsyncEventEmitter(EventEmitter):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     async def emit(self, event, *args, **kwargs):
         if event not in self._events:

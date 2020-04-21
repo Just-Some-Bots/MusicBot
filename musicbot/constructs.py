@@ -76,6 +76,9 @@ class Serializer(json.JSONEncoder):
 class Serializable:
     _class_signature = ('__class__', '__module__', 'data')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def _enclose_json(self, data):
         return {
             '__class__': self.__class__.__qualname__,

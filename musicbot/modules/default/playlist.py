@@ -1,3 +1,6 @@
+import glob, os
+from functools import partial
+
 from discord.ext.commands import Cog, command, group
 from discord import User
 
@@ -10,12 +13,186 @@ from ...constants import DISCORD_MSG_CHAR_LIMIT
 from ...utils import ftimedelta
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command, inject_as_group
 from ...smart_guild import get_guild
-from ...playback import Playlist, PlayerState
+from ...playback import Player, Playlist, PlayerState
 from ...ytdldownloader import get_unprocessed_entry
 from ... import messagemanager
 
-
 class PlaylistManagement(InjectableMixin, Cog):
+    # @TheerapakG: TODO: deserialize playlists and players to this cog instead of guild
+    # @TheerapakG: TODO: move auto stuff to auto cog
+    async def on_player_play(self, guild, player, entry):
+        guild._bot.log.debug('Running on_player_play')
+        await guild._bot.update_now_playing_status(entry)
+        guild.skip_state.reset()
+
+        # This is the one event where its ok to serialize autoplaylist entries
+        guild.serialize_queue()
+
+        if guild._bot.config.write_current_song:
+            guild.write_current_song(entry)
+
+        if not guild.is_currently_auto():
+            channel = entry._metadata.get('channel', None)
+            author = guild.guild.get_member(entry.queuer_id)
+
+            if author:
+                author_perms = guild._bot.permissions.for_user(author)
+
+                if author not in player.voice.voice_channel().members and author_perms.skip_when_absent:
+                    newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
+                        player.voice.voice_channel().name, entry.title, author.name)
+                    await player.skip()
+                elif guild._bot.config.now_playing_mentions:
+                    newmsg = '%s - your song `%s` is now playing in `%s`!' % (
+                        author.mention, entry.title, player.voice.voice_channel().name)
+                else:
+                    newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
+                        player.voice.voice_channel().name, entry.title, author.name)
+            elif entry.queuer_id:
+                if author_perms.skip_when_absent:
+                    newmsg = 'Skipping next song in `%s`: `%s` added by user id `%s` as queuer already left the guild' % (
+                        player.voice.voice_channel().name, entry.title, entry.queuer_id)
+                    await player.skip()
+                else:
+                    newmsg = 'Now playing in `%s`: `%s` added by user id `%s`' % (
+                        player.voice.voice_channel().name, entry.title, entry.queuer_id)
+        else:
+            # it's an autoplaylist
+            channel = None
+            author = None            
+            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
+                entry.title, player.voice.voice_channel().name)
+
+        if newmsg:
+            if guild._bot.config.dm_nowplaying and author:
+                await messagemanager.safe_send_message(author, newmsg)
+                return
+
+            if guild._bot.config.no_nowplaying_auto and not author:
+                return
+
+            last_np_msg = guild._bot.server_specific_data[guild]['last_np_msg']
+
+            if guild._bot.config.nowplaying_channels:
+                for potential_channel_id in guild._bot.config.nowplaying_channels:
+                    potential_channel = guild._bot.get_channel(potential_channel_id)
+                    if potential_channel and potential_channel.guild == guild.guild:
+                        channel = potential_channel
+                        break
+
+            meta = entry.get_metadata()
+
+            if channel:
+                pass
+            elif 'channel_id' in meta:
+                channel = guild.guild.get_channel(meta['channel_id'])
+            elif not channel and last_np_msg:
+                channel = last_np_msg.channel
+            else:
+                guild._bot.log.debug('no channel to put now playing message into')
+                return
+
+            # send it in specified channel
+            guild._bot.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(channel, newmsg)
+
+        # TODO: Check channel voice state?
+
+    async def on_player_resume(self, guild, player, entry, **_):
+        guild._bot.log.debug('Running on_player_resume')
+        await guild._bot.update_now_playing_status(entry)
+
+    async def on_player_pause(self, guild, player, entry, **_):
+        guild._bot.log.debug('Running on_player_pause')
+        await guild._bot.update_now_playing_status(entry, True)
+        # await self.serialize_queue(self)
+
+    async def on_player_stop(self, guild, player, **_):
+        guild._bot.log.debug('Running on_player_stop')
+        await guild._bot.update_now_playing_status()
+
+    async def on_player_finished_playing(self, guild, player, **_):
+        guild._bot.log.debug('Running on_player_finished_playing')
+
+        # delete last_np_msg somewhere if we have cached it
+        if guild._bot.config.delete_nowplaying:
+            last_np_msg = guild._bot.server_specific_data[guild]['last_np_msg']
+            if last_np_msg:
+                await messagemanager.safe_delete_message(last_np_msg)
+        
+        def _autopause(player):
+            if guild._bot._check_if_empty(player.voice.voice_channel()):
+                guild._bot.log.info("Player finished playing, autopaused in empty channel")
+
+                player.pause()
+                guild._bot.server_specific_data[guild]['auto_paused'] = True
+
+        current = player.get_playlist()
+        with guild._lock['c_auto']:
+            if await current.get_length() == 0 and guild._auto:
+                guild._bot.log.info("Entering auto in {}".format(guild._id))
+                guild._not_auto = current
+                player.set_playlist(guild._auto)
+                player.random = guild.config.auto_random
+                player.pull_persist = True
+
+                if guild._bot.config.auto_pause:
+                    player.once('play', lambda player, **_: _autopause(player))
+
+        await guild.serialize_queue()
+
+    async def on_player_entry_added(self, guild, player, playlist, entry, **_):
+        guild._bot.log.debug('Running on_player_entry_added')
+        if entry.queuer_id:
+            await guild.serialize_queue()
+
+    async def on_player_error(self, guild, player, entry, ex, **_):
+        if 'channel_id' in entry._metadata:
+            await messagemanager.safe_send_message(
+                guild.guild.get_channel(entry._metadata['channel_id']),
+                "```\nError from FFmpeg:\n{}\n```".format(ex)
+            )
+        else:
+            guild._bot.log.exception("Player error", exc_info=ex)
+
+    def apply_player_hooks(self, player, guild):
+        return player.on('play', partial(self.on_player_play, self, guild)) \
+                    .on('resume', partial(self.on_player_resume, self, guild)) \
+                    .on('pause', partial(self.on_player_pause, self, guild)) \
+                    .on('stop', partial(self.on_player_stop, self, guild)) \
+                    .on('finished-playing', partial(self.on_player_finished_playing, self, guild)) \
+                    .on('entry-added', partial(self.on_player_entry_added, self, guild)) \
+                    .on('error', partial(self.on_player_error, self, guild))
+
+    def deserialize_playlists(self, guild):
+        """
+        Deserialize playlists for the server.
+        """
+        for path in glob.iglob(os.path.join(guild._save_dir + '/playlists', '*.json')):
+            with open(path, 'r') as f:
+                data = f.read()
+                playlist = Playlist.from_json(data, guild._bot, guild._bot.downloader)
+                guild._playlists[playlist._name] = playlist
+
+        try:
+            with open(guild._save_dir + '/queue.json', 'r', encoding='utf8') as playerf:
+                playerdata = playerf.read()
+                guild.player = Player.from_json(playerdata, guild)
+        except Exception as e:
+            guild._bot.log.exception('cannot deserialize queue, using default one')
+            guild._bot.log.exception(e)
+            guild.player = Player(guild)
+        
+        self.apply_player_hooks(guild.player, guild)        
+
+        data_auto = guild.data['_auto']
+        guild._auto = guild._playlists[data_auto] if data_auto else None
+
+        data_not_auto = guild.data['_not_auto']
+        guild._not_auto = guild._playlists[data_not_auto] if data_not_auto else None
+
+    def on_guild_instantiate(self, guild):
+        self.deserialize_playlists(guild)
+
     @inject_as_main_command('playlist', invoke_without_command=False)
     @inject_as_group
     async def playlist(self, ctx):
