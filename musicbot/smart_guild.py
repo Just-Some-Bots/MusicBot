@@ -53,7 +53,6 @@ class SmartGuild(Serializable, EventEmitter):
     _lock: DefaultDict[str, RLock] = defaultdict(RLock)
     _id: int
     config: GuildConfig
-    _playlists: Dict[str, Playlist] = dict()
     _auto: Optional[Playlist] = None
     _not_auto: Optional[Playlist] = None
     skip_state: SkipState = SkipState()
@@ -186,11 +185,10 @@ class SmartGuild(Serializable, EventEmitter):
             guild = cls(bot, id, save_dir)
         with open(save_dir + '/smartguildinfo.json', 'r', encoding='utf8') as f:
             guild = cls.from_json(f.read(), bot, id, save_dir)
-        for cog in bot.cogs.values():
+        for cog in bot.crossmodule.cogs_by_deps():
             # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='on_guild_instantiate', args...=(guild)]@TheerapakG
             try:
                 potential_method = getattr(cog, 'on_guild_instantiate')
-                potential_descriptor = inspect.getattr_static(cog, 'on_guild_instantiate')
             except AttributeError:
                 continue
             potential_method(guild)
@@ -207,7 +205,8 @@ class SmartGuild(Serializable, EventEmitter):
             os.makedirs(os.path.dirname(dir), exist_ok=True)
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(playlist.serialize(sort_keys=True))
-                self._playlists[playlist._name].path = dir
+
+    # @TheerapakG: TODO: move playlists things
 
     def serialize_playlists(self):
         for p in self._playlists.copy():

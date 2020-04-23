@@ -107,5 +107,14 @@ class CrossModule:
         self.dependency_graph.remove_item(module_name)
         del self.module[module_name]
 
+    def cogs_by_deps(self):
+        '''
+        yield cogs according to the dependency order of the module
+        '''
+        module_order = self.dependency_graph.get_state()[0]
+        for module_name in module_order:
+            for cog in self.module[module_name].cogs:
+                yield cog
+
     def loaded_modules_name(self):
         return set(self.module.keys())

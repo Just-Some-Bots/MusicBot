@@ -9,20 +9,6 @@ from ... import messagemanager
 
 class Moderation(Cog):
     @command()
-    async def karaoke(self, ctx):
-        """
-        Usage:
-            {command_prefix}karaoke
-
-        Activates karaoke mode. During karaoke mode, only groups with the BypassKaraokeMode
-        permission in the config file can queue music.
-        """
-        guild = get_guild(ctx.bot, ctx.guild)
-        playlist = await guild.get_playlist()
-        playlist.karaoke_mode = not playlist.karaoke_mode
-        await messagemanager.safe_send_normal(ctx, ctx, "\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][playlist.karaoke_mode], expire_in=15)
-
-    @command()
     async def blacklist(self, ctx, option:str, users: Greedy[User]):
         """
         Usage:

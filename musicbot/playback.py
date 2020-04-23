@@ -504,7 +504,7 @@ class Player(AsyncEventEmitter, Serializable):
         player = cls(guild)
         data_pl = data.get('pl_name')
         if data_pl:
-            pl = guild._playlists[data_pl]
+            pl = guild._bot.crossmodule.get_object('playlists')[guild][data_pl]
             player.set_playlist(pl)
 
         player.random = data['random']
@@ -855,6 +855,6 @@ class Player(AsyncEventEmitter, Serializable):
             estimated_time += await self._playlist.estimate_time_until_entry(entry)
             return estimated_time
 
-    async def get_current_entry(self):
+    async def get_current_entry(self) -> Optional[Entry]:
         with self._lock['player']:
             return self._current

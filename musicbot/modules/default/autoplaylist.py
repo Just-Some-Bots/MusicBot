@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Optional
+from typing import Optional, Dict, DefaultDict
 
 from discord.ext.commands import Cog, command
 
@@ -8,16 +8,23 @@ from ... import exceptions
 from ...utils import write_file
 
 from ...messagemanager import safe_send_normal
-from ...smart_guild import get_guild
+from ...smart_guild import SmartGuild, get_guild
 from ...ytdldownloader import get_unprocessed_entry, get_stream_entry
-from ...playback import Playlist
+from ...playback import Playlist, Player
 
 class Autoplaylist(Cog):
+    playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
+    player: Optional[Dict[SmartGuild, Player]]
+
     def __init__(self):
         self.entrybuilders = None
+        self.playlists = None
+        self.player = None
 
     def pre_init(self, bot):
         self.entrybuilders = bot.crossmodule.get_object('entrybuilders')
+        self.playlists = bot.crossmodule.get_object('playlists')
+        self.player = bot.crossmodule.get_object('player')
 
     @command()
     async def resetplaylist(self, ctx):
@@ -54,7 +61,7 @@ class Autoplaylist(Cog):
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
-        player = await guild.get_player()
+        player = self.player[guild]
         current = await player.get_current_entry()
         if not guild._auto:
             raise exceptions.CommandError('There is no autoplaylist.')
@@ -86,8 +93,8 @@ class Autoplaylist(Cog):
         if not name:
             await guild.set_auto(None)
 
-        elif name in guild._playlists:
-            await guild.set_auto(guild._playlists[name])
+        elif name in self.playlists[guild]:
+            await guild.set_auto(self.playlists[guild][name])
 
         else:
             raise exceptions.CommandError('There is no playlist with that name.')
@@ -145,4 +152,4 @@ class Autoplaylist(Cog):
         await safe_send_normal(ctx, ctx, 'successfully processed {} attachments'.format(processed))
 
 cogs = [Autoplaylist]
-deps = ['default.queryconverter']
+deps = ['default.queryconverter', 'default.playlist']

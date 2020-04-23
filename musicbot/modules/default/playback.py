@@ -181,3 +181,4 @@ class Playback(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, reply_msg, delete_after=15)
 
 cogs = [Playback]
+deps = ['default.playlist']

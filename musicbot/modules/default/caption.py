@@ -169,3 +169,4 @@ class Caption(Cog):
             )
 
 cogs = [Caption]
+deps = ['default.playlist']
