@@ -164,10 +164,8 @@ if (!($result_code -eq 200))
 $result_object = ConvertFrom-Json -InputObject $result_content
 # Cause whoever wrote ConvertFrom-Json cmdlet was insane and use some strange data type instead
 $result_table = @{}
-$result_object.parameters | Get-Member -MemberType NoteProperty | ForEach-Object{
-    $result_table += @{
-        $_.name = $result_object.parameters."$($_.name)" | Select-Object -ExpandProperty Value
-    }
+$result_object.PsObject.Properties | ForEach-Object{
+    $result_table[$_.Name] = $_.Value
 }
 $result_table += @{"token" = $token_plain}
 $config = (Get-Content -Path ".\config\options.ini") -creplace "bot_token", $token_plain
@@ -190,7 +188,7 @@ $cowner = Read-Host "Would you like to automatically get the owner ID from the O
 if($cowner -eq "N" -or $cowner -eq "n")
 {
     $owner = Read-Host "Please enter the owner ID. "
-    $config = $config -creplace "OwnerID = auto", "OwnerID = $prefix"
+    $config = $config -creplace "OwnerID = auto", "OwnerID = $owner"
 }
 else
 {
