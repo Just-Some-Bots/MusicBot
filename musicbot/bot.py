@@ -873,4 +873,16 @@ class ModuBot(Bot):
 
     async def exec_bot(self, code):
         exec(code)
+
+    async def async_call(self, name, *args, **kwargs):
+        '''
+        shorthand for `self.crossmodule.async_call_object`
+        '''
+        return await self._objs[name](*args, **kwargs)
+
+    def call(self, name, *args, **kwargs):
+        '''
+        shorthand for `self.crossmodule.call_object`
+        '''
+        return self._objs[name](*args, **kwargs)
         

@@ -1,6 +1,7 @@
 import logging
 import time
 from typing import Optional, Dict, DefaultDict
+from threading import RLock
 
 from discord.ext.commands import Cog, command
 
@@ -15,16 +16,89 @@ from ...playback import Playlist, Player
 class Autoplaylist(Cog):
     playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
     player: Optional[Dict[SmartGuild, Player]]
+    ap: Dict[SmartGuild, Optional[Playlist]] = dict()
+    swap: Dict[SmartGuild, Optional[Playlist]] = dict()
+    _lock: DefaultDict[SmartGuild, RLock] = DefaultDict(RLock)
 
     def __init__(self):
         self.entrybuilders = None
         self.playlists = None
         self.player = None
+        self._set_playlist = None
+        self._get_playlist = None
 
     def pre_init(self, bot):
+        self.bot = bot
         self.entrybuilders = bot.crossmodule.get_object('entrybuilders')
         self.playlists = bot.crossmodule.get_object('playlists')
         self.player = bot.crossmodule.get_object('player')
+
+        self._set_playlist = bot.crossmodule.get_object('set_playlist')
+        self._get_playlist = bot.crossmodule.get_object('get_playlist')
+        self.bot.crossmodule.register_object('set_playlist', self.set_playlist)
+        self.bot.crossmodule.register_object('get_playlist', self.get_playlist)
+
+    def get_guild_data_dict(self, guild):
+        return {
+            'auto': {
+                'ap': self.ap[guild]._name if self.ap[guild] else None,
+                'swap': self.swap[guild]._name if self.swap[guild] else None
+            }
+        }
+
+    def initialize_guild_data_dict(self, guild, data):
+        data = data.get('auto', None) if data else None 
+        self.ap[guild] = data.get('ap', None) if data else None 
+        self.swap[guild] = data.get('swap', None) if data else None 
+
+    def set_playlist(self, guild, playlist):
+        if self.is_currently_auto():
+            with self._lock[guild]:
+                self.swap = playlist
+        else:
+            self._set_playlist(playlist)
+
+    def get_playlist(self, guild, incl_auto = False):
+        pl = self._get_playlist()
+
+        if incl_auto:
+            return pl
+        else:
+            with self._lock[guild]:
+                if self.is_playlist_auto(pl):
+                    return self.swap[guild]
+                else:
+                    return pl
+
+    def is_playlist_auto(self, guild: SmartGuild, pl: Playlist):
+        with self._lock[guild]:
+            return pl is self.ap[guild]
+
+    def is_currently_auto(self, guild: SmartGuild):
+        return self.is_playlist_auto(self.bot.call('get_playlist', guild, incl_auto = True))
+
+    def return_from_auto(self, guild, *, also_skip = False):
+        if self.is_currently_auto():
+            self.bot.log.info("Leaving auto in {}".format(guild._id))
+            with self._lock[guild]:
+                self._set_playlist(guild, self.swap[guild])
+            self.bot.call('serialize_playlist', guild, self.ap[guild])
+            self.player[guild].random = False
+            self.player[guild].pull_persist = False
+            if also_skip:
+                self.player[guild].skip()
+
+    def set_auto(self, guild, pl: Optional[Playlist] = None):
+        self.bot.log.info("Setting auto in {}".format(guild._id))
+        self.bot.call('serialize_playlist', guild, self.ap[guild])
+        with self._lock[guild]:
+            if self.is_currently_auto():
+                self._set_playlist(guild, pl)
+            self.ap[guild] = pl
+
+    def get_auto(self, guild):
+        with self._lock[guild]:
+            return self.ap[guild]
 
     @command()
     async def resetplaylist(self, ctx):
@@ -152,4 +226,4 @@ class Autoplaylist(Cog):
         await safe_send_normal(ctx, ctx, 'successfully processed {} attachments'.format(processed))
 
 cogs = [Autoplaylist]
-deps = ['default.queryconverter', 'default.playlist']
+deps = ['default.queryconverter', 'default.player']

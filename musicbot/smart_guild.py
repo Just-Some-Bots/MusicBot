@@ -57,7 +57,6 @@ class SmartGuild(Serializable, EventEmitter):
     _not_auto: Optional[Playlist] = None
     skip_state: SkipState = SkipState()
     _save_dir: str
-    data: Dict[str, Any] = dict()
 
     def __init__(self, bot, guildid, save_dir = None):
         """
@@ -71,15 +70,33 @@ class SmartGuild(Serializable, EventEmitter):
         self._save_dir = 'data/{}'.format(self._id) if not save_dir else save_dir
         self.emit('initialize', self)
 
+    def gather_addons_data(self):
+        data = dict()
+        for cog in self._bot.crossmodule.cogs_by_deps():
+            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='get_guild_data_dict', args...=(self)]@TheerapakG
+            try:
+                potential_method = getattr(cog, 'get_guild_data_dict')
+            except AttributeError:
+                continue
+            data.update(potential_method(self))
+
+    def init_addons_data(self, data = dict()):
+        for cog in self._bot.crossmodule.cogs_by_deps():
+            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='initialize_guild_data_dict', args...=(self, data)]@TheerapakG
+            try:
+                potential_method = getattr(cog, 'initialize_guild_data_dict')
+            except AttributeError:
+                continue
+            potential_method(self, data)
+
     def __json__(self):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
         # we're shutting down
         return self._enclose_json({
-            'version': 3,
+            'version': 4,
             'id': self._id,
             'config': self.config,
-            'auto': self._auto._name if self._auto else None,
-            'not_auto': self._not_auto._name if self._not_auto else None
+            'external_data': self.gather_addons_data()
         })
 
     @classmethod
@@ -96,45 +113,17 @@ class SmartGuild(Serializable, EventEmitter):
 
         guild.config = data.get('config')
 
-        guild.data['_auto'] = data.get('auto')
-        guild.data['_not_auto'] = data.get('not_auto')
+        guild_data = dict()
+
+        if 'auto' in data:
+            guild_data['auto'] = dict()
+            guild_data['auto']['ap'] = data.get('auto')
+            guild_data['auto']['swap'] = data.get('not_auto')
+
+        guild_data.update(data['external_data'])
+        guild.init_addons_data(guild_data)
 
         return guild
-
-    def is_playlist_auto(self, pl: Playlist):
-        with self._lock['c_auto']:
-            return pl is self._auto
-
-    def is_currently_auto(self):
-        try:
-            plpl = self.get_playlist(incl_auto = True)
-        except exceptions.VoiceConnectionError:
-            return False
-
-        return self.is_playlist_auto(plpl)
-
-    def return_from_auto(self, *, also_skip = False):
-        if (self.is_currently_auto()):
-            self._bot.log.info("Leaving auto in {}".format(self._id))
-            with self._lock['c_auto']:
-                self.serialize_playlist(self._auto)
-                self.player.set_playlist(self._not_auto)
-            self.player.random = False
-            self.player.pull_persist = False
-            if also_skip:
-                self.player.skip()
-
-    def set_auto(self, pl: Optional[Playlist] = None):
-        self._bot.log.info("Setting auto in {}".format(self._id))
-        with self._lock['c_auto']:
-            self.serialize_playlist(self._auto)
-            if (self.is_currently_auto()):
-                self.player.set_playlist(pl)
-            self._auto = pl
-
-    def get_auto(self):
-        with self._lock['c_auto']:
-            return self._auto
 
     @classmethod
     def from_json(cls, raw_json, bot, guildid, save_dir):
@@ -174,8 +163,6 @@ class SmartGuild(Serializable, EventEmitter):
 
             self.emit('serialize', self)
 
-        self.serialize_queue()
-
         self._bot.log.debug("Serialized {}".format(self._id))
 
     @classmethod
@@ -183,6 +170,7 @@ class SmartGuild(Serializable, EventEmitter):
         if not os.path.isfile(save_dir + '/smartguildinfo.json'):
             bot.log.debug("Using defaults for guild {}".format(id))
             guild = cls(bot, id, save_dir)
+            guild.init_addons_data()
         with open(save_dir + '/smartguildinfo.json', 'r', encoding='utf8') as f:
             guild = cls.from_json(f.read(), bot, id, save_dir)
         for cog in bot.crossmodule.cogs_by_deps():
@@ -193,95 +181,6 @@ class SmartGuild(Serializable, EventEmitter):
                 continue
             potential_method(guild)
         return guild
-
-    def serialize_playlist(self, playlist):
-        """
-        Serialize the playlist to json.
-        """
-        dir = self._save_dir + '/playlists/{}.json'.format(playlist._name)
-
-        with self._lock['pl_{}_serialization'.format(playlist._name)]:
-            self._bot.log.debug("Serializing `{}` for {}".format(playlist._name, self._id))
-            os.makedirs(os.path.dirname(dir), exist_ok=True)
-            with open(dir, 'w', encoding='utf8') as f:
-                f.write(playlist.serialize(sort_keys=True))
-
-    # @TheerapakG: TODO: move playlists things
-
-    def serialize_playlists(self):
-        for p in self._playlists.copy():
-            self.serialize_playlist(p)
-
-    def remove_serialized_playlist(self, name):
-        """
-        Remove the playlist serialized to json.
-        """
-        dir = self._save_dir + '/playlists/{}.json'.format(name)
-
-        if not os.path.isfile(dir):
-            return
-
-        with self._lock['pl_{}_serialization'.format(name)]:
-            self._bot.log.debug("Removing serialized `{}` for {}".format(name, self._id))
-            try:
-                del self._playlists[name]
-            except KeyError:
-                pass
-
-            os.unlink(dir)
-
-    def serialize_queue(self):
-        """
-        Serialize the current queue for a server's player to json.
-        """
-        if not self.player:
-            return
-
-        dir = self._save_dir + '/queue.json'
-
-        with self._lock['queue_serialization']:
-            self._bot.log.debug("Serializing queue for %s", self._id)
-
-            with open(dir, 'w', encoding='utf8') as f:
-                f.write(self.player.serialize(sort_keys=True))
-            
-            pl = self.player.get_playlist()
-            if pl:
-                self.serialize_playlist(pl)
-
-    def write_current_song(self, entry, *, dir=None):
-        """
-        Writes the current song to file
-        """
-        if not self.player:
-            return
-
-        dir = self._save_dir + 'current.txt'
-
-        with self._lock['current_song']:
-            self._bot.log.debug("Writing current song for %s", self._id)
-
-            with open(dir, 'w', encoding='utf8') as f:
-                f.write(entry.title)
-    
-    def set_playlist(self, playlist):
-        if self.is_currently_auto():
-            with self._lock['c_auto']:
-                self._not_auto = playlist
-        else:
-            self.player.set_playlist(playlist)
-
-    def get_playlist(self, incl_auto = False):
-        pl = self.player.get_playlist()
-
-        if incl_auto:
-            return pl
-        else:
-            with self._lock['c_auto']:
-                if self.is_playlist_auto(pl):
-                    return self._not_auto
-                else:
-                     return pl
 
     def get_owner(self, *, voice=False):
         return set(
