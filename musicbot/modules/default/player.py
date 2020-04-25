@@ -34,6 +34,8 @@ class Player(InjectableMixin, Cog):
         self.bot.crossmodule.register_object('player', self.player)
         self.bot.crossmodule.register_object('serialize_player', self.serialize_player)
         self.bot.crossmodule.register_object('write_current_song', self.write_current_song)
+        self.bot.crossmodule.register_object('set_playlist', self.set_playlist)
+        self.bot.crossmodule.register_object('get_playlist', self.get_playlist)
 
     def serialize_player(self, guild: SmartGuild):
         """
@@ -234,7 +236,7 @@ class Player(InjectableMixin, Cog):
         """
         guild = get_guild(ctx.bot, ctx.guild)
         player = await guild.get_player()
-        entry = await player.get_current_entry()
+        entry = player.get_current_entry()
 
         if entry:
             if ctx.bot.server_specific_data[guild]['last_np_msg']:
@@ -309,7 +311,7 @@ class Player(InjectableMixin, Cog):
 
         if not name:
             player = await guild.get_player()
-            entry = await player.get_current_entry()
+            entry = player.get_current_entry()
             playlist = await guild.get_playlist()
 
             if (await player.status()) == PlayerState.PLAYING:

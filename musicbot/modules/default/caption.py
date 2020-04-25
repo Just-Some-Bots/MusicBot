@@ -9,6 +9,18 @@ from ... import exceptions
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 
 class Caption(Cog):
+    playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
+    player: Optional[Dict[SmartGuild, Player]]
+
+    def __init__(self):
+        self.playlists = None
+        self.player = None
+
+    def pre_init(self, bot):
+        self.bot = bot
+        self.playlists = bot.crossmodule.get_object('playlists')
+        self.player = bot.crossmodule.get_object('player')
+
     @command()
     async def caption(self, ctx, lang):
         """
@@ -18,8 +30,8 @@ class Caption(Cog):
         Displays the caption of the current song in the specified language in chat.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        entry = await player.get_current_entry()
+        player = self.player[guild]
+        entry = player.get_current_entry()
         if entry:
             if entry.stream:
                 await messagemanager.safe_send_normal(
@@ -92,8 +104,8 @@ class Caption(Cog):
         Displays languages that are possible to get caption.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        entry = await player.get_current_entry()
+        player = self.player[guild]
+        entry = player.get_current_entry()
         if entry:
             if entry.stream:
                 await messagemanager.safe_send_normal(
@@ -143,8 +155,8 @@ class Caption(Cog):
     @command()
     async def reloadcapt(self, ctx):
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        entry = await player.get_current_entry()
+        player = self.player[guild]
+        entry = player.get_current_entry()
         if entry:
             retry = True
             while retry:

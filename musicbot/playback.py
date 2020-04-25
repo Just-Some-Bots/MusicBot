@@ -753,7 +753,7 @@ class Player(AsyncEventEmitter, Serializable):
 
     async def skip(self):
         wait_entry = False
-        entry = await self.get_current_entry()
+        entry = self.get_current_entry()
         with self._lock['skip']:
             with self._lock['player']:
                 if self.state == PlayerState.PAUSE:
@@ -855,6 +855,6 @@ class Player(AsyncEventEmitter, Serializable):
             estimated_time += await self._playlist.estimate_time_until_entry(entry)
             return estimated_time
 
-    async def get_current_entry(self) -> Optional[Entry]:
+    def get_current_entry(self) -> Optional[Entry]:
         with self._lock['player']:
             return self._current

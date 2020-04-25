@@ -11,6 +11,7 @@ from urllib.parse import urljoin
 from typing import Optional, Union
 from datetime import timedelta
 from collections import defaultdict
+from typing import Dict, DefaultDict
 
 from textwrap import dedent
 
@@ -21,8 +22,8 @@ from ...utils import fixg, ftimedelta, _func_
 from ... import exceptions
 
 from ... import messagemanager
-from ...smart_guild import get_guild
-from ...playback import PlayerState
+from ...smart_guild import SmartGuild, get_guild
+from ...playback import PlayerState, Playlist, Player
 from ...ytdldownloader import get_stream_entry, get_entry, get_local_entry, get_unprocessed_entry
 
 log = logging.getLogger(__name__)
@@ -30,14 +31,21 @@ log = logging.getLogger(__name__)
 cog_name = 'queue_management'
 
 class QueueManagement(Cog):
+    playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
+    player: Optional[Dict[SmartGuild, Player]]        
+
     def __init__(self):
         self._aiolocks = defaultdict(asyncio.Lock)
         self.bot = None
+        self.playlists = None
+        self.player = None
         self.entrybuilders = None
 
     def pre_init(self, bot):
         self.bot = bot
         self.entrybuilders = self.bot.crossmodule.get_object('entrybuilders')
+        self.playlists = bot.crossmodule.get_object('playlists')
+        self.player = bot.crossmodule.get_object('player')
         self.bot.crossmodule.register_object('_play', self._play)
 
     def uninit(self):
@@ -86,9 +94,9 @@ class QueueManagement(Cog):
         command current entry will be added to the head of the queue instead.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await guild.get_playlist()
-        current_entry = await player.get_current_entry()
+        player = self.player[guild]
+        playlist = self.bot.call('get_playlist')
+        current_entry = player.get_current_entry()
 
         head = False
         if option in ['head', 'h']:
@@ -489,11 +497,10 @@ class QueueManagement(Cog):
         Owners and those with the instaskip permission can add 'force' or 'f' after the command to force skip.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await player.get_playlist()
+        player = self.player[guild]
+        playlist = self.bot.call('get_playlist')
+        current_entry = player.get_current_entry()
         permissions = ctx.bot.permissions.for_user(ctx.author)
-
-        current_entry = await player.get_current_entry()
 
         permission_force_skip = permissions.instaskip or (ctx.bot.config.allow_author_skip and ctx.author.id == current_entry.queuer_id)
         force_skip = param.lower() in ['force', 'f']

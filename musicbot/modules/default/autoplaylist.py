@@ -37,6 +37,11 @@ class Autoplaylist(Cog):
         self._get_playlist = bot.crossmodule.get_object('get_playlist')
         self.bot.crossmodule.register_object('set_playlist', self.set_playlist)
         self.bot.crossmodule.register_object('get_playlist', self.get_playlist)
+        self.bot.crossmodule.register_object('set_auto', self.set_auto)
+        self.bot.crossmodule.register_object('get_auto', self.get_auto)
+        self.bot.crossmodule.register_object('is_playlist_auto', self.is_playlist_auto)
+        self.bot.crossmodule.register_object('is_currently_auto', self.is_currently_auto)
+        self.bot.crossmodule.register_object('return_from_auto', self.return_from_auto)
 
     def get_guild_data_dict(self, guild):
         return {
@@ -136,7 +141,7 @@ class Autoplaylist(Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
         player = self.player[guild]
-        current = await player.get_current_entry()
+        current = player.get_current_entry()
         if not guild._auto:
             raise exceptions.CommandError('There is no autoplaylist.')
         if url or current:
