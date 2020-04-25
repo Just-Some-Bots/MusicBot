@@ -1,42 +1,24 @@
-FROM alpine:3.11
+FROM ubuntu:18.04
+
+# Add project source
+WORKDIR /usr/src/musicbot
+COPY . ./
+ENV DEBIAN_FRONTEND noninteractive
 
 # Install dependencies
-RUN apk update \
-&& apk add --no-cache \
-  ca-certificates \
-  ffmpeg \
-  opus \
-  python3 \
-  libsodium-dev \
-\
-# Install build dependencies
-&& apk add --no-cache --virtual .build-deps \
-  gcc \
-  git \
-  libffi-dev \
-  make \
-  musl-dev \
-  python3-dev 
+RUN apt-get -y update
+RUN apt-get -y upgrade
 
-# Set working directory
-WORKDIR /usr/src/musicbot
+RUN apt-get -y install build-essential unzip \
+&& apt-get -y install software-properties-common \
+&& apt-get -y update \
+&& apt-get -y install git ffmpeg libopus-dev libffi-dev libsodium-dev python3-pip
 
-# Add project requirements
-COPY ./requirements.txt ./requirements.txt
-
-# Install pip dependencies
-RUN pip3 install --upgrade pip \
- && pip3 install --no-cache-dir -r requirements.txt \
-\
-# Clean up build dependencies
- && apk del .build-deps
-
-# Add project sources
-COPY . ./
+RUN python3 -m pip install -U -r requirements.txt
 
 # Create volume for mapping the config
 VOLUME /usr/src/musicbot/config
 
 ENV APP_ENV=docker
 
-CMD ["python3", "dockerentry.py"]
+ENTRYPOINT ["python3", "run.py"]
