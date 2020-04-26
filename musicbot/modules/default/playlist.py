@@ -157,7 +157,7 @@ class Playlist(InjectableMixin, Cog):
         if target:
             g_pl = self.playlists[guild][target]
         else:
-            g_pl = await guild.get_playlist()
+            g_pl = bot.call('get_playlist', guild)
 
         if name not in self.playlists[guild]:
             raise exceptions.CommandError('There is not any playlist with that name.')
@@ -191,7 +191,7 @@ class Playlist(InjectableMixin, Cog):
                 await guild.remove_serialized_playlist(name)
                 del self.playlists[guild][name]
                 await guild.serialize_to_file()
-            elif pl is (await guild.get_playlist()):
+            elif pl is bot.call('get_playlist', guild):
                 raise exceptions.CommandError('Playlist is currently in use.')
             else:
                 await guild.remove_serialized_playlist(name)
@@ -211,7 +211,7 @@ class Playlist(InjectableMixin, Cog):
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
-        prev = await guild.get_playlist()
+        prev = bot.call('get_playlist', guild)
 
         if name in self.playlists[guild]:
             pl = self.playlists[guild][name]
@@ -236,7 +236,7 @@ class Playlist(InjectableMixin, Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
-        pl = self.playlists[guild][name] if name else (await guild.get_playlist())
+        pl = self.playlists[guild][name] if name else bot.call('get_playlist', guild)
         await bot.crossmodule.async_call_object('_play', ctx, pl, url, send_reply = False)
         await guild.serialize_playlist(pl)
 
@@ -256,7 +256,7 @@ class Playlist(InjectableMixin, Cog):
         if name:
             playlist = self.playlists[guild][name]
         else:
-            playlist = await guild.get_playlist()
+            playlist = bot.call('get_playlist', guild)
 
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
@@ -325,7 +325,7 @@ class Playlist(InjectableMixin, Cog):
         if name:
             playlist = self.playlists[guild][name]
         else:
-            playlist = await guild.get_playlist()
+            playlist = bot.call('get_playlist', guild)
 
         await playlist.clear()
         await guild.serialize_playlist(playlist)
@@ -341,7 +341,7 @@ class Playlist(InjectableMixin, Cog):
         permission in the config file can queue music.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        playlist = await guild.get_playlist()
+        playlist = bot.call('get_playlist', guild)
         playlist.karaoke_mode = not playlist.karaoke_mode
         await messagemanager.safe_send_normal(ctx, ctx, "\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][playlist.karaoke_mode], expire_in=15)
             

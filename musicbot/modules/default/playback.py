@@ -23,7 +23,7 @@ class Playback(Cog):
         Putting + or - before the volume will make the volume change relative to the current volume.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
+        player = self.player[guild]
 
         if not new_volume:
             await messagemanager.safe_send_normal(ctx, ctx, ctx.bot.str.get('cmd-volume-current', 'Current volume: `%s%%`') % int(player.volume * 100), reply=True, expire_in=20)
@@ -70,7 +70,7 @@ class Playback(Cog):
         Resumes playback of a paused song.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
+        player = self.player[guild]
         def fail(exc):
             async def _fail():
                 exceptionstr = 'Cannot resume! {}'.format(str(exc))
@@ -96,7 +96,7 @@ class Playback(Cog):
         Pauses playback of the current song.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
+        player = self.player[guild]
         state = await player.status()
         if state != PlayerState.PAUSE:
             await player.pause()
@@ -115,7 +115,7 @@ class Playback(Cog):
         Apply or remove effects to the playback player, took effect on next entry.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
+        player = self.player[guild]
         # @TheerapakG: TODO: FUTURE#1776?EFFECT: effectloader
         reply_msg = ''
         await messagemanager.safe_send_normal(ctx, ctx, 'warning! effect command is highly experimental!', expire_in=10)

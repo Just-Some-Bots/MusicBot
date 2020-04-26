@@ -235,7 +235,7 @@ class Player(InjectableMixin, Cog):
         Displays the current song in chat.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
+        player = self.player[guild]
         entry = player.get_current_entry()
 
         if entry:
@@ -310,9 +310,9 @@ class Player(InjectableMixin, Cog):
         lines = []
 
         if not name:
-            player = await guild.get_player()
+            player = self.player[guild]
             entry = player.get_current_entry()
-            playlist = await guild.get_playlist()
+            playlist = bot.call('get_playlist', guild)
 
             if (await player.status()) == PlayerState.PLAYING:
                 # TODO: Fix timedelta garbage with util function

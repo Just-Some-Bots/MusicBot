@@ -235,6 +235,6 @@ async def get_player(bot, guildid):
     # playercurrententry = playerentry | dict()
     # playerentry = dict(entryurl, entrytitle)
     guild = get_guild(bot, bot.get_guild(guildid))
-    player = await guild.get_player()
-    playlist = await player.get_playlist()
+    player = bot.crossmodule.get_object('player')[guild]
+    playlist = bot.call('get_playlist')
     return {'voiceclientid':guild._voice_client.session_id, 'playerplaylist':[{'entryurl':entry.source_url, 'entrytitle':entry.title} for entry in playlist], 'playercurrententry':{'entryurl':player._current.source_url, 'entrytitle':player._current.title} if player._current else dict(), 'playerstate':str(player.state), 'playlistkaraokemode':playlist.karaoke_mode} if player else dict()

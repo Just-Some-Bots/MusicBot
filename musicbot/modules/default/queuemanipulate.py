@@ -67,7 +67,7 @@ class QueueManagement(Cog):
         equivalent of the song. Streaming from Spotify is not possible.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        playlist = await guild.get_playlist()
+        playlist = ctx.bot.call('get_playlist', guild)
         await self._play(ctx, playlist, song_url = ' '.join(song_url))
 
     @command()
@@ -81,7 +81,7 @@ class QueueManagement(Cog):
         Like {command_prefix}play, but prepend the entry instead.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        playlist = await guild.get_playlist()
+        playlist = ctx.bot.call('get_playlist', guild)
         await self._play(ctx, playlist, song_url = ' '.join(song_url), head = True)
 
     @command()
@@ -95,7 +95,7 @@ class QueueManagement(Cog):
         """
         guild = get_guild(ctx.bot, ctx.guild)
         player = self.player[guild]
-        playlist = self.bot.call('get_playlist')
+        playlist = self.bot.call('get_playlist', guild)
         current_entry = player.get_current_entry()
 
         head = False
@@ -110,11 +110,11 @@ class QueueManagement(Cog):
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         try:
-            player = await guild.get_player()
+            player = self.player[guild]
         except Exception as e:
             if permissions.summonplay:
                 await ctx.bot.cogs['BotManagement'].summon.callback(ctx.bot.cogs['BotManagement'], ctx)
-                player = await guild.get_player()
+                player = self.player[guild]
             else:
                 raise e
 
@@ -236,10 +236,10 @@ class QueueManagement(Cog):
                     reply_text = "Enqueued **%s** songs to be played. Position of the first entry in queue: %s"
                     btext = str(actual_count - drop_count)                  
 
-                if playlist is (await guild.get_playlist()):
+                if playlist is self.bot.call('get_playlist', guild):
                     await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
 
-                    player = await guild.get_player()
+                    player = self.player[guild]
 
                     try:
                         time_until = await player.estimate_time_until_entry(entry)
@@ -275,15 +275,15 @@ class QueueManagement(Cog):
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         try:
-            player = await guild.get_player()
+            player = self.player[guild]
         except Exception as e:
             if permissions.summonplay:
                 await ctx.bot.cogs['BotManagement'].summon.callback(ctx.bot.cogs['BotManagement'], ctx)
-                player = await guild.get_player()
+                player = self.player[guild]
             else:
                 raise e
 
-        playlist = await guild.get_playlist()
+        playlist = ctx.bot.call('get_playlist', guild)
 
         song_url = song_url.strip('<>')
 
@@ -339,15 +339,15 @@ class QueueManagement(Cog):
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
         try:
-            player = await guild.get_player()
+            player = self.player[guild]
         except Exception as e:
             if permissions.summonplay:
                 await ctx.bot.cogs['BotManagement'].summon.callback(ctx.bot.cogs['BotManagement'], ctx)
-                player = await guild.get_player()
+                player = self.player[guild]
             else:
                 raise e
 
-        playlist = await guild.get_playlist()
+        playlist = ctx.bot.call('get_playlist', guild)
 
         if permissions.max_songs and (await playlist.num_entry_of(ctx.author.id)) > permissions.max_songs:
             raise exceptions.PermissionsError(
@@ -468,8 +468,8 @@ class QueueManagement(Cog):
         Shuffles the server's queue.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        player = await guild.get_player()
-        playlist = await player.get_playlist()
+        player = self.player[guild]
+        playlist = ctx.bot.call('get_playlist', guild)
 
         await playlist.shuffle()
 
@@ -498,7 +498,7 @@ class QueueManagement(Cog):
         """
         guild = get_guild(ctx.bot, ctx.guild)
         player = self.player[guild]
-        playlist = self.bot.call('get_playlist')
+        playlist = self.bot.call('get_playlist', guild)
         current_entry = player.get_current_entry()
         permissions = ctx.bot.permissions.for_user(ctx.author)
 
