@@ -56,6 +56,19 @@ class Autoplaylist(Cog):
         self.ap[guild] = data.get('ap', None) if data else None 
         self.swap[guild] = data.get('swap', None) if data else None 
 
+    def on_guild_instantiate(self, guild):
+        def _autopause(player):
+            if self._check_if_empty(player._guild._voice_channel):
+                self.log.info("Initial autopause in empty channel")
+                player.pause()
+                self.bot.server_specific_data[guild]['auto_paused'] = True
+
+        player = self.player[guild]
+
+        if self.ap[guild] and player.voice.voice_channel:
+            if self.config.auto_pause:
+                player.once('play', lambda player, **_: _autopause(player))
+
     def set_playlist(self, guild, playlist):
         if self.is_currently_auto():
             with self._lock[guild]:

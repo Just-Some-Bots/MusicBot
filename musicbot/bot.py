@@ -482,72 +482,6 @@ class ModuBot(Bot):
 
         return not sum(1 for m in vchannel.members if check(m))
 
-    async def _join_startup_channels(self, channels, *, autosummon=True):
-        joined_servers = set()
-        channel_map = {get_guild(self, c.guild): c for c in channels}
-
-        def _autopause(player):
-            if self._check_if_empty(player._guild._voice_channel):
-                self.log.info("Initial autopause in empty channel")
-
-                asyncio.ensure_future(player.pause())
-                self.server_specific_data[player._guild]['auto_paused'] = True
-
-        for guild in get_guild_list(self):
-            if guild.guild.unavailable or guild in channel_map:
-                continue
-
-            if guild.guild.me.voice:
-                self.log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.guild.me.voice.channel))
-                channel_map[guild] = guild.guild.me.voice.channel
-
-            if autosummon:
-                owner = guild.get_owner(voice=True)
-                for own in owner:
-                    self.log.info("Found owner in \"{}\"".format(own.voice.channel.name))
-                    channel_map[guild] = own.voice.channel
-
-        for guild, channel in channel_map.items():
-            if guild in joined_servers:
-                self.log.info("Already joined a channel in \"{}\", skipping".format(guild.name))
-                continue
-
-            if channel and isinstance(channel, discord.VoiceChannel):
-                self.log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
-
-                chperms = channel.permissions_for(guild.guild.me)
-
-                if not chperms.connect:
-                    self.log.info("Cannot join channel \"{}\", no permission.".format(channel.name))
-                    continue
-
-                elif not chperms.speak:
-                    self.log.info("Will not join channel \"{}\", no permission to speak.".format(channel.name))
-                    continue
-
-                try:
-                    await guild.player.set_voice_channel(channel)
-                    joined_servers.add(guild)
-
-                    self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
-
-                    if guild._auto:
-                        player = await guild.get_player()
-                        if self.config.auto_pause:
-                            player.once('play', lambda player, **_: _autopause(player))
-                        if not player._playlist._list:
-                            await guild.on_player_finished_playing(player)
-
-                except Exception:
-                    self.log.debug("Error joining {0.guild.name}/{0.name}".format(channel), exc_info=True)
-                    self.log.error("Failed to join {0.guild.name}/{0.name}".format(channel))
-
-            elif channel:
-                self.log.warning("Not joining {0.guild.name}/{0.name}, that's a text channel.".format(channel))
-
-            else:
-                self.log.warning("Invalid channel thing: {}".format(channel))
-
     async def on_ready(self):
         self.log.debug("Connection established, ready to go.")
 
@@ -675,6 +609,8 @@ class ModuBot(Bot):
         else:
             self.log.info("Not autojoining any voice channels")
             self.autojoin_channels = set()
+
+        self.autojoin_channel_map = {get_guild(self, c.guild): c for c in self.autojoin_channels}
         
         if self.config.show_config_at_start:
             print(flush=True)
@@ -707,8 +643,6 @@ class ModuBot(Bot):
 
         # maybe option to leave the ownerid blank and generate a random command for the owner to use
         # wait_for_message is pretty neato
-
-        await self._join_startup_channels(self.autojoin_channels, autosummon=self.config.auto_summon)
 
         # we do this after the config stuff because it's a lot easier to notice here
         if self.config.missing_keys:

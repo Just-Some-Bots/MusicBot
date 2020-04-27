@@ -1,8 +1,9 @@
 import glob, os
+import asyncio
 from functools import partial
 
 from discord.ext.commands import Cog, command, group
-from discord import User
+from discord import User, VoiceChannel
 
 from typing import Optional, Union, AnyStr, DefaultDict, Dict
 from datetime import timedelta
@@ -207,7 +208,7 @@ class Player(InjectableMixin, Cog):
                     .on('stop', partial(self.on_player_stop, self, guild)) \
                     .on('finished-playing', partial(self.on_player_finished_playing, self, guild)) \
                     .on('entry-added', partial(self.on_player_entry_added, self, guild)) \
-                    .on('error', partial(self.on_player_error, self, guild))        
+                    .on('error', partial(self.on_player_error, self, guild))             
 
     def on_guild_instantiate(self, guild):
         try:
@@ -218,6 +219,54 @@ class Player(InjectableMixin, Cog):
             self.bot.log.exception('cannot deserialize queue, using default one')
             self.bot.log.exception(e)
             self.player[guild] = self.apply_player_hooks(Player(guild), guild)
+
+        channel = None
+
+        if guild in self.bot.autojoin_channel_map:
+            channel = self.bot.autojoin_channel_map[guild]
+
+        if guild.guild.me.voice:
+            self.bot.log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.guild.me.voice.channel))
+            channel = guild.guild.me.voice.channel
+
+        if self.bot.config.auto_summon:
+            owner = guild.get_owner(voice=True)
+            for own in owner:
+                self.log.info("Found owner in \"{}\"".format(own.voice.channel.name))
+                channel = own.voice.channel
+                break
+
+        elif channel and isinstance(channel, VoiceChannel):
+            self.log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
+
+            chperms = channel.permissions_for(guild.guild.me)
+
+            if not chperms.connect:
+                self.log.info("Cannot join channel \"{}\", no permission.".format(channel.name))
+
+            elif not chperms.speak:
+                self.log.info("Will not join channel \"{}\", no permission to speak.".format(channel.name))
+
+            else:
+                try:
+                    asyncio.ensure_future(self.player[guild].voice.set_voice_channel(channel))
+
+                    self.log.info("Joined {0.guild.name}/{0.name}".format(channel))
+
+                    if not player._playlist._list:
+                        player.pause()
+                        self.bot.server_specific_data[guild]['auto_paused'] = True
+
+                except Exception:
+                    self.log.debug("Error joining {0.guild.name}/{0.name}".format(channel), exc_info=True)
+                    self.log.error("Failed to join {0.guild.name}/{0.name}".format(channel))
+
+        elif channel:
+            self.log.warning("Not joining {0.guild.name}/{0.name}, that's a text channel.".format(channel))
+
+        else:
+            self.log.warning("Invalid channel thing: {}".format(channel))  
+
         guild.on('serialize', self.serialize_player)
 
     def set_playlist(self, guild, playlist):
