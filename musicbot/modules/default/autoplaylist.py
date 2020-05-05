@@ -56,6 +56,35 @@ class Autoplaylist(Cog):
         self.ap[guild] = data.get('ap', None) if data else None 
         self.swap[guild] = data.get('swap', None) if data else None 
 
+    def swap_player_playlist(self, guild, *, random = False, pull_persist = False):
+        player = self.player[guild]
+        with self._lock[guild]:
+            if not self.swap[guild]:
+                raise Exception('No swap target')
+            player.random = random
+            player.pull_persist = pull_persist
+            current = player.get_playlist()
+            player.set_playlist(self.swap[guild])
+            self.swap[guild] = current
+
+    async def on_player_finished_playing(self, guild, player, **_):
+        def _autopause(player):
+            if self.bot._check_if_empty(player.voice.voice_channel()):
+                self.bot.log.info("Player finished playing, autopaused in empty channel")
+
+                player.pause()
+                self.bot.server_specific_data[guild]['auto_paused'] = True
+
+        current = player.get_playlist()
+        with self._lock[guild]:
+            if await current.get_length() == 0 and self.ap[guild]:
+                self.bot.log.info("Entering auto in {}".format(guild._id))
+                self.swap[guild] = current
+                self.swap_player_playlist(guild, random = guild.config.auto_random, pull_persist = True)
+
+                if self.bot.config.auto_pause:
+                    player.once('play', lambda player, **_: _autopause(player))
+
     def on_guild_instantiate(self, guild):
         def _autopause(player):
             if self._check_if_empty(player._guild._voice_channel):

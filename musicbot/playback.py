@@ -576,6 +576,8 @@ class Player(AsyncEventEmitter, Serializable):
             return self._playlist
 
     async def _play(self, *, play_wait_cb = None, play_success_cb = None):
+        if not self.voice:
+            return
         with self._lock['player']:
             self.state = PlayerState.WAITING
             self._current = None
@@ -698,6 +700,12 @@ class Player(AsyncEventEmitter, Serializable):
                 return
 
     async def play(self, *, play_fail_cb = None, play_success_cb = None, play_wait_cb = None):
+        if not self.voice:
+            exc = PlaybackError('player is not connected to voice')
+            if play_fail_cb:
+                play_fail_cb(exc)
+            return
+            
         with self._lock['play']:
             with self._lock['player']:
                 if self.state != PlayerState.PAUSE:
@@ -708,7 +716,7 @@ class Player(AsyncEventEmitter, Serializable):
                         raise exc
                     return
 
-                if self.voice:
+                if self._source:
                     self.state = PlayerState.PLAYING
                     self.voice.resume()
                     if play_success_cb:

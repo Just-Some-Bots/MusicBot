@@ -32,6 +32,7 @@ from discord.ext.commands import check as discord_check
 from discord.ext.commands import Context
 
 from .utils import DependencyResolver
+from .lib.event_emitter import AsyncEventEmitter
 
 ModuleInfo = namedtuple('ModuleInfo', ['name', 'imported_module_obj', 'cogs', 'commands'])
 
@@ -71,6 +72,9 @@ class CrossModule:
         def check_use_name(ctx):
             return discord_check(self._preds[name](ctx))
         return check_use_name
+
+    def __contains__(self, name):
+        return name in self._objs
 
     def register_object(self, name, obj):
         self._objs[name] = obj
@@ -118,3 +122,86 @@ class CrossModule:
 
     def loaded_modules_name(self):
         return set(self.module.keys())
+
+class _CallNext:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+class _RExportFunc(AsyncEventEmitter):
+    def __init__(self):
+        self.func = list()
+
+    def add(self, func):
+        self.func.insert(0, func)
+
+    def remove(self, func):
+        self.func.remove(func)
+
+    def __call__(self, *args, **kwargs):
+        for func in self.func:
+            try:
+                return func(*args, **kwargs)
+            except _CallNext as c:
+                args = c.args
+                kwargs = c.kwargs
+
+    def __bool__(self):
+        return bool(self.func)
+
+class _ExportFunc(AsyncEventEmitter):
+    def __init__(self, func, name):
+        self.func = func
+        self.name = name
+
+    def __call__(self, fself, *args, **kwargs):
+        return fself.bot.crossmodule.call_object(self.name, *args, **kwargs)
+
+def export(name):
+    '''
+    Convenient wrapper that handle registering function
+    '''
+    def wrapper(func):
+        return _ExportFunc(func, name)
+    return wrapper
+
+class ExportableMixin(AsyncEventEmitter):
+    @on('pre_init')
+    async def __pre_init(self, bot):
+        self.bot = bot
+        self.log = self.bot.log
+        self.exports = dict()
+
+    @on('init')
+    async def __init(self):
+        for item in dir(self):
+            if hasattr(type(self), item) and isinstance(getattr(type(self), item), property):
+                continue
+            iteminst = getattr(self, item)
+            if isinstance(iteminst, _ExportFunc):
+                if item in self.bot.crossmodule:
+                    n_func = self.bot.crossmodule.get_object[item]
+                    if isinstance(self.bot.crossmodule.get_object[item], _RExportFunc):
+                        n_func.add(iteminst.func)
+                    else:
+                        self.log.error('{} is already registered with crossmodule but is not an exported function, skipping'.format(item))
+                        continue
+                else:
+                    n_func = _RExportFunc()
+                    n_func.add(iteminst.func)
+                    self.bot.crossmodule.register_object(item, n_func)
+                self.exports[item] = iteminst
+
+    @on('uninit')
+    async def __uninit(self):
+        for item, iteminst in self.exports.items():
+            n_func = self.bot.crossmodule.get_object[item]
+            n_func.remove(iteminst)
+            if not n_func:
+                self.bot.crossmodule.unregister_object(item)
+
+def call_next(*args, **kwargs):
+    '''
+    Call prior registered function with the same name
+    '''
+    raise _CallNext(args, kwargs)

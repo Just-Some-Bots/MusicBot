@@ -69,14 +69,14 @@ class _MarkInject:
 
 class InjectableMixin(AsyncEventEmitter):
     @on('pre_init')
-    async def pre_init(self, bot):
+    async def __pre_init(self, bot):
         self.bot = bot
         self.log = self.bot.log
         self.injects = dict()
         self.injectdeps = DependencyResolver()
 
     @on('init')
-    async def init(self):
+    async def __init(self):
         for item in dir(self):
             if hasattr(type(self), item) and isinstance(getattr(type(self), item), property):
                 continue
@@ -108,7 +108,7 @@ class InjectableMixin(AsyncEventEmitter):
                 self.bot.log.error(traceback.format_exc())
 
     @on('uninit')
-    async def uninit(self):
+    async def __uninit(self):
         unloadlist = self.injectdeps.get_state()[0]
         unloadlist.reverse()
         

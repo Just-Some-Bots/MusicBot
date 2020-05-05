@@ -165,25 +165,6 @@ class Player(InjectableMixin, Cog):
             last_np_msg = self.bot.server_specific_data[guild]['last_np_msg']
             if last_np_msg:
                 await messagemanager.safe_delete_message(last_np_msg)
-        
-        def _autopause(player):
-            if self.bot._check_if_empty(player.voice.voice_channel()):
-                self.bot.log.info("Player finished playing, autopaused in empty channel")
-
-                player.pause()
-                self.bot.server_specific_data[guild]['auto_paused'] = True
-
-        current = player.get_playlist()
-        with guild._lock['c_auto']:
-            if await current.get_length() == 0 and guild._auto:
-                self.bot.log.info("Entering auto in {}".format(guild._id))
-                guild._not_auto = current
-                player.set_playlist(guild._auto)
-                player.random = guild.config.auto_random
-                player.pull_persist = True
-
-                if self.bot.config.auto_pause:
-                    player.once('play', lambda player, **_: _autopause(player))
 
         self.serialize_player(guild)
 
