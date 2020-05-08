@@ -560,4 +560,4 @@ class QueueManagement(Cog):
             )
 
 cogs = [QueueManagement]
-deps = ['default.queryconverter', 'default.playlist']
+deps = ['default.queryconverter', 'default.player']

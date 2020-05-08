@@ -11,6 +11,7 @@ from threading import RLock
 
 from ... import exceptions
 
+from ...crossmodule import ExportableMixin, export_func
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 from ...utils import ftimedelta
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command, inject_as_group
@@ -19,19 +20,19 @@ from ...playback import Player, Playlist, PlayerState
 from ...ytdldownloader import get_unprocessed_entry
 from ... import messagemanager
 
-class Playlist(InjectableMixin, Cog):
+class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
     playlists: DefaultDict[SmartGuild, Dict[str, Playlist]] = defaultdict(dict)
     _lock: DefaultDict[str, RLock] = DefaultDict(RLock)
 
     def __init__(self):
+        super().__init__()
         self.bot = None
 
     def pre_init(self, bot):
         self.bot = bot
         self.bot.crossmodule.register_object('playlists', self.playlists)
-        self.bot.crossmodule.register_object('serialize_playlist', self.serialize_player)
-        self.bot.crossmodule.register_object('write_current_song', self.write_current_song)
 
+    @export_func
     def serialize_playlist(self, guild, playlist):
         """
         Serialize the playlist to json.
@@ -48,6 +49,7 @@ class Playlist(InjectableMixin, Cog):
         for p in self.playlists[guild].values():
             self.serialize_playlist(guild, p)
 
+    @export_func
     def remove_serialized_playlist(self, guild, name):
         """
         Remove the playlist serialized to json.
@@ -63,12 +65,14 @@ class Playlist(InjectableMixin, Cog):
 
             os.unlink(dir)
 
-    def on_guild_instantiate(self, guild):
+    def initialize_guild_data_dict(self, guild, *_):
+        # Discard data arg because we save info in another file
         for path in glob.iglob(os.path.join(guild._save_dir + '/playlists', '*.json')):
             with open(path, 'r') as f:
                 data = f.read()
                 playlist = Playlist.from_json(data, self.bot, self.bot.downloader)
                 self.playlists[guild][playlist._name] = playlist
+            self.bot.log.debug("Loaded playlist {} for {}".format(playlist._name, guild.id))
 
     @inject_as_main_command('playlist', invoke_without_command=False)
     @inject_as_group
@@ -346,5 +350,5 @@ class Playlist(InjectableMixin, Cog):
         await messagemanager.safe_send_normal(ctx, ctx, "\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][playlist.karaoke_mode], expire_in=15)
             
 
-cogs = [Playlist]
+cogs = [Playlist_Cog]
 deps = ['default.base']

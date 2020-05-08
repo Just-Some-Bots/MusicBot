@@ -609,8 +609,6 @@ class ModuBot(Bot):
         else:
             self.log.info("Not autojoining any voice channels")
             self.autojoin_channels = set()
-
-        self.autojoin_channel_map = {get_guild(self, c.guild): c for c in self.autojoin_channels}
         
         if self.config.show_config_at_start:
             print(flush=True)

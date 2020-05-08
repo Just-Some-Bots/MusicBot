@@ -25,6 +25,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+import inspect
 
 from functools import wraps
 from collections import namedtuple
@@ -32,7 +33,7 @@ from discord.ext.commands import check as discord_check
 from discord.ext.commands import Context
 
 from .utils import DependencyResolver
-from .lib.event_emitter import AsyncEventEmitter
+from .lib.event_emitter import AsyncEventEmitter, on
 
 ModuleInfo = namedtuple('ModuleInfo', ['name', 'imported_module_obj', 'cogs', 'commands'])
 
@@ -123,7 +124,7 @@ class CrossModule:
     def loaded_modules_name(self):
         return set(self.module.keys())
 
-class _CallNext:
+class ContinueIteration:
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
@@ -140,11 +141,15 @@ class _RExportFunc(AsyncEventEmitter):
 
     def __call__(self, *args, **kwargs):
         for func in self.func:
-            try:
-                return func(*args, **kwargs)
-            except _CallNext as c:
-                args = c.args
-                kwargs = c.kwargs
+            val = func(*args, **kwargs)
+            if val is ContinueIteration:
+                continue
+            elif isinstance(val, ContinueIteration):
+                args = val.args
+                kwargs = val.kwargs
+                continue
+            else:
+                return val
 
     def __bool__(self):
         return bool(self.func)
@@ -153,16 +158,19 @@ class _ExportFunc(AsyncEventEmitter):
     def __init__(self, func, name):
         self.func = func
         self.name = name
+        self.bot = None # Set when registered to the bot
 
-    def __call__(self, fself, *args, **kwargs):
-        return fself.bot.crossmodule.call_object(self.name, *args, **kwargs)
+    def __call__(self, *args, **kwargs):
+        return self.bot.crossmodule.call_object(self.name, *args, **kwargs)
 
-def export(name):
+def export_func(name_or_func):
     '''
     Convenient wrapper that handle registering function
     '''
+    if inspect.isfunction(name_or_func):
+        return _ExportFunc(name_or_func, name_or_func.__name__)
     def wrapper(func):
-        return _ExportFunc(func, name)
+        return _ExportFunc(func, name_or_func)
     return wrapper
 
 class ExportableMixin(AsyncEventEmitter):
@@ -179,9 +187,10 @@ class ExportableMixin(AsyncEventEmitter):
                 continue
             iteminst = getattr(self, item)
             if isinstance(iteminst, _ExportFunc):
+                iteminst.bot = self.bot
                 if item in self.bot.crossmodule:
-                    n_func = self.bot.crossmodule.get_object[item]
-                    if isinstance(self.bot.crossmodule.get_object[item], _RExportFunc):
+                    n_func = self.bot.crossmodule.get_object(item)
+                    if isinstance(self.bot.crossmodule.get_object(item), _RExportFunc):
                         n_func.add(iteminst.func)
                     else:
                         self.log.error('{} is already registered with crossmodule but is not an exported function, skipping'.format(item))
@@ -195,13 +204,7 @@ class ExportableMixin(AsyncEventEmitter):
     @on('uninit')
     async def __uninit(self):
         for item, iteminst in self.exports.items():
-            n_func = self.bot.crossmodule.get_object[item]
-            n_func.remove(iteminst)
+            n_func = self.bot.crossmodule.get_object(item)
+            n_func.remove(iteminst.func)
             if not n_func:
                 self.bot.crossmodule.unregister_object(item)
-
-def call_next(*args, **kwargs):
-    '''
-    Call prior registered function with the same name
-    '''
-    raise _CallNext(args, kwargs)

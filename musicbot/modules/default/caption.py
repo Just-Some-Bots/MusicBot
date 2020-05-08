@@ -1,11 +1,13 @@
 import glob
 import re
+from typing import Optional, Dict, DefaultDict
 from discord.ext.commands import Cog, command
 
 from ...lib.srtdecode.parser import gen_srt_block_list_from_file, get_transcript
-from ...smart_guild import get_guild
+from ...smart_guild import SmartGuild, get_guild
 from ... import messagemanager
 from ... import exceptions
+from ...playback import Playlist, Player
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 
 class Caption(Cog):
@@ -181,4 +183,4 @@ class Caption(Cog):
             )
 
 cogs = [Caption]
-deps = ['default.playlist']
+deps = ['default.player']

@@ -194,34 +194,30 @@ class Config:
                 "Please set the OwnerID option in {}".format(self.config_file),
                 preface=self._confpreface
             )
+        
+        try:
+            self.bot_exception_ids = set(int(x) for x in self.bot_exception_ids.replace(',', ' ').split() if x)
+        except:
+            log.warning("BotExceptionIDs data is invalid, will ignore all bots")
+            self.bot_exception_ids = set()
 
-        if self.bot_exception_ids:
-            try:
-                self.bot_exception_ids = set(int(x) for x in self.bot_exception_ids.replace(',', ' ').split())
-            except:
-                log.warning("BotExceptionIDs data is invalid, will ignore all bots")
-                self.bot_exception_ids = set()
+        try:
+            self.bound_channels = set(int(x) for x in self.bound_channels.replace(',', ' ').split() if x)
+        except:
+            log.warning("BindToChannels data is invalid, will not bind to any channels")
+            self.bound_channels = set()
+        
+        try:
+            self.autojoin_channels = set(int(x) for x in self.autojoin_channels.replace(',', ' ').split() if x)
+        except:
+            log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
+            self.autojoin_channels = set()
 
-        if self.bound_channels:
-            try:
-                self.bound_channels = set(int(x) for x in self.bound_channels.replace(',', ' ').split() if x)
-            except:
-                log.warning("BindToChannels data is invalid, will not bind to any channels")
-                self.bound_channels = set()
-
-        if self.autojoin_channels:
-            try:
-                self.autojoin_channels = set(int(x) for x in self.autojoin_channels.replace(',', ' ').split() if x)
-            except:
-                log.warning("AutojoinChannels data is invalid, will not autojoin any channels")
-                self.autojoin_channels = set()
-
-        if self.nowplaying_channels:
-            try:
-                self.nowplaying_channels = set(int(x) for x in self.nowplaying_channels.replace(',', ' ').split() if x)
-            except:
-                log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
-                self.nowplaying_channels = set()
+        try:
+            self.nowplaying_channels = set(int(x) for x in self.nowplaying_channels.replace(',', ' ').split() if x)
+        except:
+            log.warning("NowPlayingChannels data is invalid, will use the default behavior for all servers")
+            self.nowplaying_channels = set()
 
         self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:

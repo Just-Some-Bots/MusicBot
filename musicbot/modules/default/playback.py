@@ -1,18 +1,32 @@
 import logging
-from typing import Optional
+from typing import Optional, Dict, DefaultDict
 from asyncio import ensure_future
 
 from discord.ext.commands import Cog, command
 
 from ... import exceptions
 
-from ...smart_guild import get_guild
+from ...smart_guild import SmartGuild, get_guild
+from ...playback import PlayerState, Playlist, Player
 from ... import messagemanager
 from ...playback import PlayerState
 
 log = logging.getLogger(__name__)
 
 class Playback(Cog):
+    playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
+    player: Optional[Dict[SmartGuild, Player]]        
+
+    def __init__(self):
+        self.bot = None
+        self.playlists = None
+        self.player = None
+
+    def pre_init(self, bot):
+        self.bot = bot
+        self.playlists = bot.crossmodule.get_object('playlists')
+        self.player = bot.crossmodule.get_object('player')
+
     @command()
     async def volume(self, ctx, new_volume:Optional[str]=None):
         """
@@ -181,4 +195,4 @@ class Playback(Cog):
         await messagemanager.safe_send_normal(ctx, ctx, reply_msg, delete_after=15)
 
 cogs = [Playback]
-deps = ['default.playlist']
+deps = ['default.player']

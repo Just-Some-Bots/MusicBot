@@ -12,32 +12,30 @@ from threading import RLock
 
 from ... import exceptions
 
+from ...crossmodule import ExportableMixin, export_func
 from ...constants import DISCORD_MSG_CHAR_LIMIT
 from ...utils import ftimedelta
 from ...command_injector import InjectableMixin, inject_as_subcommand, inject_as_main_command, inject_as_group
 from ...smart_guild import SmartGuild, get_guild
-from ...playback import Player as PlayerObj
-from ...playback import Playlist, PlayerState
+from ...playback import Player, Playlist, PlayerState
 from ...ytdldownloader import get_unprocessed_entry
 from ... import messagemanager
 
-class Player(InjectableMixin, Cog):
+class Player_Cog(ExportableMixin, InjectableMixin, Cog):
     playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
-    player: Dict[SmartGuild, PlayerObj] = dict()
+    player: Dict[SmartGuild, Player] = dict()
     _lock: DefaultDict[str, RLock] = DefaultDict(RLock)
 
     def __init__(self):
+        super().__init__()
         self.bot = None
 
     def pre_init(self, bot):
         self.bot = bot
         self.playlists = bot.crossmodule.get_object('playlists')
         self.bot.crossmodule.register_object('player', self.player)
-        self.bot.crossmodule.register_object('serialize_player', self.serialize_player)
-        self.bot.crossmodule.register_object('write_current_song', self.write_current_song)
-        self.bot.crossmodule.register_object('set_playlist', self.set_playlist)
-        self.bot.crossmodule.register_object('get_playlist', self.get_playlist)
 
+    @export_func
     def serialize_player(self, guild: SmartGuild):
         """
         Serialize the current player for a server's player to json.
@@ -54,6 +52,7 @@ class Player(InjectableMixin, Cog):
             if pl:
                 self.serialize_playlist(pl)
 
+    @export_func
     def write_current_song(self, guild: SmartGuild, entry, *, dir=None):
         """
         Writes the current song to file
@@ -66,7 +65,7 @@ class Player(InjectableMixin, Cog):
             with open(dir, 'w', encoding='utf8') as f:
                 f.write(entry.title)
 
-    # @TheerapakG: TODO: move auto stuff to auto cog
+    @export_func
     async def on_player_play(self, guild, player, entry):
         self.bot.log.debug('Running on_player_play')
         await self.bot.update_now_playing_status(entry)
@@ -78,44 +77,34 @@ class Player(InjectableMixin, Cog):
         if self.bot.config.write_current_song:
             self.write_current_song(guild, entry)
 
-        if not guild.is_currently_auto():
-            channel = entry._metadata.get('channel', None)
-            author = guild.guild.get_member(entry.queuer_id)
+        channel = entry._metadata.get('channel', None)
+        author = guild.guild.get_member(entry.queuer_id)
 
-            if author:
-                author_perms = self.bot.permissions.for_user(author)
+        if author:
+            author_perms = self.bot.permissions.for_user(author)
 
-                if author not in player.voice.voice_channel().members and author_perms.skip_when_absent:
-                    newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
-                        player.voice.voice_channel().name, entry.title, author.name)
-                    await player.skip()
-                elif self.bot.config.now_playing_mentions:
-                    newmsg = '%s - your song `%s` is now playing in `%s`!' % (
-                        author.mention, entry.title, player.voice.voice_channel().name)
-                else:
-                    newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
-                        player.voice.voice_channel().name, entry.title, author.name)
-            elif entry.queuer_id:
-                if author_perms.skip_when_absent:
-                    newmsg = 'Skipping next song in `%s`: `%s` added by user id `%s` as queuer already left the guild' % (
-                        player.voice.voice_channel().name, entry.title, entry.queuer_id)
-                    await player.skip()
-                else:
-                    newmsg = 'Now playing in `%s`: `%s` added by user id `%s`' % (
-                        player.voice.voice_channel().name, entry.title, entry.queuer_id)
-        else:
-            # it's an autoplaylist
-            channel = None
-            author = None            
-            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
-                entry.title, player.voice.voice_channel().name)
+            if author not in player.voice.voice_channel().members and author_perms.skip_when_absent:
+                newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
+                    player.voice.voice_channel().name, entry.title, author.name)
+                await player.skip()
+            elif self.bot.config.now_playing_mentions:
+                newmsg = '%s - your song `%s` is now playing in `%s`!' % (
+                    author.mention, entry.title, player.voice.voice_channel().name)
+            else:
+                newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
+                    player.voice.voice_channel().name, entry.title, author.name)
+        elif entry.queuer_id:
+            if author_perms.skip_when_absent:
+                newmsg = 'Skipping next song in `%s`: `%s` added by user id `%s` as queuer already left the guild' % (
+                    player.voice.voice_channel().name, entry.title, entry.queuer_id)
+                await player.skip()
+            else:
+                newmsg = 'Now playing in `%s`: `%s` added by user id `%s`' % (
+                    player.voice.voice_channel().name, entry.title, entry.queuer_id)
 
         if newmsg:
             if self.bot.config.dm_nowplaying and author:
                 await messagemanager.safe_send_message(author, newmsg)
-                return
-
-            if self.bot.config.no_nowplaying_auto and not author:
                 return
 
             last_np_msg = self.bot.server_specific_data[guild]['last_np_msg']
@@ -144,19 +133,23 @@ class Player(InjectableMixin, Cog):
 
         # TODO: Check channel voice state?
 
+    @export_func
     async def on_player_resume(self, guild, player, entry, **_):
         self.bot.log.debug('Running on_player_resume')
         await self.bot.update_now_playing_status(entry)
 
+    @export_func
     async def on_player_pause(self, guild, player, entry, **_):
         self.bot.log.debug('Running on_player_pause')
         await self.bot.update_now_playing_status(entry, True)
         # self.serialize_player(guild)
 
+    @export_func
     async def on_player_stop(self, guild, player, **_):
         self.bot.log.debug('Running on_player_stop')
         await self.bot.update_now_playing_status()
 
+    @export_func
     async def on_player_finished_playing(self, guild, player, **_):
         self.bot.log.debug('Running on_player_finished_playing')
 
@@ -168,11 +161,13 @@ class Player(InjectableMixin, Cog):
 
         self.serialize_player(guild)
 
+    @export_func
     async def on_player_entry_added(self, guild, player, playlist, entry, **_):
         self.bot.log.debug('Running on_player_entry_added')
         if entry.queuer_id:
             self.serialize_player(guild)
 
+    @export_func
     async def on_player_error(self, guild, player, entry, ex, **_):
         if 'channel_id' in entry._metadata:
             await messagemanager.safe_send_message(
@@ -203,8 +198,10 @@ class Player(InjectableMixin, Cog):
 
         channel = None
 
-        if guild in self.bot.autojoin_channel_map:
-            channel = self.bot.autojoin_channel_map[guild]
+        guild_voices = set(map(lambda x: x.id, guild.guild.voice_channels))
+        guild_voice_autojoins = guild_voices & self.bot.config.autojoin_channels
+        if guild_voice_autojoins:
+            channel = guild_voice_autojoins[0]
 
         if guild.guild.me.voice:
             self.bot.log.info("Found resumable voice channel {0.guild.name}/{0.name}".format(guild.guild.me.voice.channel))
@@ -250,9 +247,11 @@ class Player(InjectableMixin, Cog):
 
         guild.on('serialize', self.serialize_player)
 
+    @export_func
     def set_playlist(self, guild, playlist):
         self.player[guild].set_playlist(playlist)
 
+    @export_func
     def get_playlist(self, guild):
         return self.player[guild].get_playlist()
 
@@ -386,5 +385,5 @@ class Player(InjectableMixin, Cog):
         message = '\n'.join(lines)
         await messagemanager.safe_send_normal(ctx, ctx, message, expire_in=30)        
 
-cogs = [Player]
+cogs = [Player_Cog]
 deps = ['default.base', 'default.playlist']

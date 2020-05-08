@@ -79,6 +79,7 @@ class SmartGuild(Serializable, EventEmitter):
             except AttributeError:
                 continue
             data.update(potential_method(self))
+        return data
 
     def init_addons_data(self, data = dict()):
         for cog in self._bot.crossmodule.cogs_by_deps():
@@ -113,15 +114,7 @@ class SmartGuild(Serializable, EventEmitter):
 
         guild.config = data.get('config')
 
-        guild_data = dict()
-
-        if 'auto' in data:
-            guild_data['auto'] = dict()
-            guild_data['auto']['ap'] = data.get('auto')
-            guild_data['auto']['swap'] = data.get('not_auto')
-
-        guild_data.update(data['external_data'])
-        guild.init_addons_data(guild_data)
+        guild.init_addons_data(data['external_data'])
 
         return guild
 
@@ -173,7 +166,7 @@ class SmartGuild(Serializable, EventEmitter):
             guild.init_addons_data()
         with open(save_dir + '/smartguildinfo.json', 'r', encoding='utf8') as f:
             guild = cls.from_json(f.read(), bot, id, save_dir)
-        for cog in bot.crossmodule.cogs_by_deps():
+        for cog in bot.crossmodule.cogs_by_deps():            
             # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='on_guild_instantiate', args...=(guild)]@TheerapakG
             try:
                 potential_method = getattr(cog, 'on_guild_instantiate')

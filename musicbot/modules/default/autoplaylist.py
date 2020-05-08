@@ -8,12 +8,14 @@ from discord.ext.commands import Cog, command
 from ... import exceptions
 from ...utils import write_file
 
+from ...crossmodule import ExportableMixin, export_func, ContinueIteration
+from ... import messagemanager
 from ...messagemanager import safe_send_normal
 from ...smart_guild import SmartGuild, get_guild
 from ...ytdldownloader import get_unprocessed_entry, get_stream_entry
 from ...playback import Playlist, Player
 
-class Autoplaylist(Cog):
+class Autoplaylist(ExportableMixin, Cog):
     playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
     player: Optional[Dict[SmartGuild, Player]]
     ap: Dict[SmartGuild, Optional[Playlist]] = dict()
@@ -21,27 +23,16 @@ class Autoplaylist(Cog):
     _lock: DefaultDict[SmartGuild, RLock] = DefaultDict(RLock)
 
     def __init__(self):
+        super().__init__()
         self.entrybuilders = None
         self.playlists = None
         self.player = None
-        self._set_playlist = None
-        self._get_playlist = None
 
     def pre_init(self, bot):
         self.bot = bot
         self.entrybuilders = bot.crossmodule.get_object('entrybuilders')
         self.playlists = bot.crossmodule.get_object('playlists')
         self.player = bot.crossmodule.get_object('player')
-
-        self._set_playlist = bot.crossmodule.get_object('set_playlist')
-        self._get_playlist = bot.crossmodule.get_object('get_playlist')
-        self.bot.crossmodule.register_object('set_playlist', self.set_playlist)
-        self.bot.crossmodule.register_object('get_playlist', self.get_playlist)
-        self.bot.crossmodule.register_object('set_auto', self.set_auto)
-        self.bot.crossmodule.register_object('get_auto', self.get_auto)
-        self.bot.crossmodule.register_object('is_playlist_auto', self.is_playlist_auto)
-        self.bot.crossmodule.register_object('is_currently_auto', self.is_currently_auto)
-        self.bot.crossmodule.register_object('return_from_auto', self.return_from_auto)
 
     def get_guild_data_dict(self, guild):
         return {
@@ -52,9 +43,21 @@ class Autoplaylist(Cog):
         }
 
     def initialize_guild_data_dict(self, guild, data):
-        data = data.get('auto', None) if data else None 
-        self.ap[guild] = data.get('ap', None) if data else None 
-        self.swap[guild] = data.get('swap', None) if data else None 
+        data = data.get('auto', dict()) if data else dict() 
+
+        try:
+            self.ap[guild] = self.playlists[guild][data['ap']]
+        except KeyError:
+            if data.get('ap', None):
+                self.bot.log.debug('Cannot locate playlist {} to use as ap'.format(data['ap']))
+            self.ap[guild] = None
+
+        try:
+            self.swap[guild] = self.playlists[guild][data['swap']]
+        except KeyError:
+            if data.get('swap', None):
+                self.bot.log.debug('Cannot locate playlist {} to use as swap'.format(data['swap']))
+            self.swap[guild] = None
 
     def swap_player_playlist(self, guild, *, random = False, pull_persist = False):
         player = self.player[guild]
@@ -67,6 +70,41 @@ class Autoplaylist(Cog):
             player.set_playlist(self.swap[guild])
             self.swap[guild] = current
 
+    @export_func
+    async def on_player_play(self, guild, player, entry):
+        self.bot.log.debug('Running autoplaylist on_player_play')
+
+        if guild.is_currently_auto():
+            channel = None
+            author = None            
+            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
+                entry.title, player.voice.voice_channel().name)
+
+            if self.bot.config.no_nowplaying_auto and not author:
+                return
+
+            last_np_msg = self.bot.server_specific_data[guild]['last_np_msg']
+
+            if self.bot.config.nowplaying_channels:
+                for potential_channel_id in self.bot.config.nowplaying_channels:
+                    potential_channel = self.bot.get_channel(potential_channel_id)
+                    if potential_channel and potential_channel.guild == guild.guild:
+                        channel = potential_channel
+                        break
+
+            if last_np_msg:
+                channel = last_np_msg.channel
+            else:
+                self.bot.log.debug('no channel to put now playing message into')
+                return
+
+            # send it in specified channel
+            self.bot.server_specific_data[guild]['last_np_msg'] = await messagemanager.safe_send_message(channel, newmsg)
+
+        else:
+            return ContinueIteration
+
+    @export_func
     async def on_player_finished_playing(self, guild, player, **_):
         def _autopause(player):
             if self.bot._check_if_empty(player.voice.voice_channel()):
@@ -84,6 +122,8 @@ class Autoplaylist(Cog):
 
                 if self.bot.config.auto_pause:
                     player.once('play', lambda player, **_: _autopause(player))
+        
+        return ContinueIteration
 
     def on_guild_instantiate(self, guild):
         def _autopause(player):
@@ -95,54 +135,59 @@ class Autoplaylist(Cog):
         player = self.player[guild]
 
         if self.ap[guild] and player.voice.voice_channel:
-            if self.config.auto_pause:
+            if self.bot.config.auto_pause:
                 player.once('play', lambda player, **_: _autopause(player))
 
-    def set_playlist(self, guild, playlist):
-        if self.is_currently_auto():
+    @export_func
+    def set_playlist(self, guild, playlist, swap = False):
+        if swap and self.is_currently_auto():
             with self._lock[guild]:
                 self.swap = playlist
         else:
-            self._set_playlist(playlist)
+            ContinueIteration(guild, playlist)
 
+    @export_func
     def get_playlist(self, guild, incl_auto = False):
-        pl = self._get_playlist()
-
         if incl_auto:
-            return pl
+           ContinueIteration(guild)
         else:
             with self._lock[guild]:
-                if self.is_playlist_auto(pl):
+                if self.is_currently_auto(guild):
                     return self.swap[guild]
                 else:
-                    return pl
+                    ContinueIteration(guild)
 
+    @export_func
     def is_playlist_auto(self, guild: SmartGuild, pl: Playlist):
         with self._lock[guild]:
             return pl is self.ap[guild]
 
+    @export_func
     def is_currently_auto(self, guild: SmartGuild):
         return self.is_playlist_auto(self.bot.call('get_playlist', guild, incl_auto = True))
 
+    @export_func
     def return_from_auto(self, guild, *, also_skip = False):
         if self.is_currently_auto():
             self.bot.log.info("Leaving auto in {}".format(guild._id))
             with self._lock[guild]:
-                self._set_playlist(guild, self.swap[guild])
+                self.set_playlist(guild, self.swap[guild], swap=False)
             self.bot.call('serialize_playlist', guild, self.ap[guild])
             self.player[guild].random = False
             self.player[guild].pull_persist = False
             if also_skip:
                 self.player[guild].skip()
 
+    @export_func
     def set_auto(self, guild, pl: Optional[Playlist] = None):
         self.bot.log.info("Setting auto in {}".format(guild._id))
         self.bot.call('serialize_playlist', guild, self.ap[guild])
         with self._lock[guild]:
             if self.is_currently_auto():
-                self._set_playlist(guild, pl)
+                self.set_playlist(guild, pl, swap=False)
             self.ap[guild] = pl
 
+    @export_func
     def get_auto(self, guild):
         with self._lock[guild]:
             return self.ap[guild]
