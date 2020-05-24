@@ -59,6 +59,18 @@ class Autoplaylist(ExportableMixin, Cog):
                 self.bot.log.debug('Cannot locate playlist {} to use as swap'.format(data['swap']))
             self.swap[guild] = None
 
+        def _autopause(player):
+            if self._check_if_empty(player._guild._voice_channel):
+                self.log.info("Initial autopause in empty channel")
+                player.pause()
+                self.bot.server_specific_data[guild]['auto_paused'] = True
+
+        player = self.player[guild]
+
+        if self.ap[guild] and player.voice.voice_channel:
+            if self.bot.config.auto_pause:
+                player.once('play', lambda player, **_: _autopause(player))
+
     def swap_player_playlist(self, guild, *, random = False, pull_persist = False):
         player = self.player[guild]
         with self._lock[guild]:
@@ -124,19 +136,6 @@ class Autoplaylist(ExportableMixin, Cog):
                     player.once('play', lambda player, **_: _autopause(player))
         
         return ContinueIteration
-
-    def on_guild_instantiate(self, guild):
-        def _autopause(player):
-            if self._check_if_empty(player._guild._voice_channel):
-                self.log.info("Initial autopause in empty channel")
-                player.pause()
-                self.bot.server_specific_data[guild]['auto_paused'] = True
-
-        player = self.player[guild]
-
-        if self.ap[guild] and player.voice.voice_channel:
-            if self.bot.config.auto_pause:
-                player.once('play', lambda player, **_: _autopause(player))
 
     @export_func
     def set_playlist(self, guild, playlist, swap = False):

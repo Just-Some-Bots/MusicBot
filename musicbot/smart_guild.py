@@ -58,19 +58,19 @@ class SmartGuild(Serializable, EventEmitter):
     skip_state: SkipState = SkipState()
     _save_dir: str
 
-    def __init__(self, bot, guildid, save_dir = None):
-        """
-        DO NOT init DIRECTLY! use factory method `try_deserialize_from_dir` instead
-        """
-        # @TheerapakG: TODO: make ^ not necessary
+    def __init__(self, bot, guildid, *, init_data = True):
         super().__init__()
         self._bot = bot
         self._id = guildid
+
         self.config = GuildConfig(bot)
-        self._save_dir = 'data/{}'.format(self._id) if not save_dir else save_dir
-        self.emit('initialize', self)
+        self._save_dir = 'data/{}'.format(self._id)
+
+        if init_data:
+            self.init_addons_data()              
 
     def gather_addons_data(self):
+        # run when serialize
         data = dict()
         for cog in self._bot.crossmodule.cogs_by_deps():
             # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='get_guild_data_dict', args...=(self)]@TheerapakG
@@ -82,6 +82,7 @@ class SmartGuild(Serializable, EventEmitter):
         return data
 
     def init_addons_data(self, data = dict()):
+        # run when initialize
         for cog in self._bot.crossmodule.cogs_by_deps():
             # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='initialize_guild_data_dict', args...=(self, data)]@TheerapakG
             try:
@@ -89,6 +90,15 @@ class SmartGuild(Serializable, EventEmitter):
             except AttributeError:
                 continue
             potential_method(self, data)
+
+    def unload_addons(self):
+        for cog in self._bot.crossmodule.cogs_by_deps():
+            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='unload_guild', args...=(self)]@TheerapakG
+            try:
+                potential_method = getattr(cog, 'unload_guild')
+            except AttributeError:
+                continue
+            potential_method(self)
 
     def __json__(self):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
@@ -110,7 +120,8 @@ class SmartGuild(Serializable, EventEmitter):
 
         data_id = data.get('id')
 
-        guild = cls(bot, data_id, save_dir = save_dir)
+        guild = cls(bot, data_id, init_data = False)
+        guild._save_dir = save_dir
 
         guild.config = data.get('config')
 
@@ -124,17 +135,15 @@ class SmartGuild(Serializable, EventEmitter):
             extractor = bot.downloader
             obj = json.loads(raw_json, object_hook=Serializer.deserialize)
             if isinstance(obj, dict):
-                bot.log.warning('Cannot parse incompatible smart guild data. Instantiating new smart guild instead.')
+                bot.log.warning('Cannot parse incompatible smart guild data.')
                 bot.log.debug(raw_json)
-                obj = cls(bot, guildid, save_dir)
+                raise Exception('raw_json is not SmartGuild data')
             if obj._id != guildid:
                 bot.log.warning("Guild id contradict with id in the serialized data. Using current guild id instead")
                 obj._id = guildid
             return obj
         except Exception as e:
-            bot.log.exception("Failed to deserialize smart guild, using default one instead")
-            bot.log.exception(e)
-            return cls(bot, guildid, save_dir)
+            raise Exception("Failed to deserialize smart guild") from e
 
     @property
     def id(self):
@@ -158,23 +167,6 @@ class SmartGuild(Serializable, EventEmitter):
 
         self._bot.log.debug("Serialized {}".format(self._id))
 
-    @classmethod
-    def try_deserialize_from_dir(cls, bot, id, save_dir):
-        if not os.path.isfile(save_dir + '/smartguildinfo.json'):
-            bot.log.debug("Using defaults for guild {}".format(id))
-            guild = cls(bot, id, save_dir)
-            guild.init_addons_data()
-        with open(save_dir + '/smartguildinfo.json', 'r', encoding='utf8') as f:
-            guild = cls.from_json(f.read(), bot, id, save_dir)
-        for cog in bot.crossmodule.cogs_by_deps():            
-            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='on_guild_instantiate', args...=(guild)]@TheerapakG
-            try:
-                potential_method = getattr(cog, 'on_guild_instantiate')
-            except AttributeError:
-                continue
-            potential_method(guild)
-        return guild
-
     def get_owner(self, *, voice=False):
         return set(
             filter(
@@ -189,12 +181,21 @@ def get_guild(bot, guild) -> SmartGuild:
 def get_guild_list(bot) -> SmartGuild:
     return list(guilds[bot.user.id].values())
 
+def _init_deserialize_guild(bot, id) -> SmartGuild:
+    save_dir = 'data/{}'.format(id)
+    try:
+        with open(save_dir + '/smartguildinfo.json', 'r', encoding='utf8') as f:
+            guild = SmartGuild.from_json(f.read(), bot, id, save_dir)
+    except Exception:
+        guild = SmartGuild(bot, id)
+    return guild
+
 def register_bot(bot):
-    guilds[bot.user.id] = {guild.id:SmartGuild.try_deserialize_from_dir(bot, guild.id, 'data/{}'.format(guild.id)) for guild in bot.guilds}
+    guilds[bot.user.id] = {guild.id:_init_deserialize_guild(bot, guild.id) for guild in bot.guilds}
 
     async def on_guild_join(guild):
         if bot.is_ready():
-            guilds[bot.user.id][guild.id] = SmartGuild.try_deserialize_from_dir(bot, guild.id)
+            guilds[bot.user.id][guild.id] = _init_deserialize_guild(bot, guild.id)
             bot.log.info('joined guild {}'.format(guild.name))
 
     bot.event(on_guild_join)

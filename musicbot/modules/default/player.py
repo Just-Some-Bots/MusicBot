@@ -186,7 +186,7 @@ class Player_Cog(ExportableMixin, InjectableMixin, Cog):
                     .on('entry-added', partial(self.on_player_entry_added, self, guild)) \
                     .on('error', partial(self.on_player_error, self, guild))             
 
-    def on_guild_instantiate(self, guild):
+    def initialize_guild_data_dict(self, guild, *_):
         try:
             with open(guild._save_dir + '/queue.json', 'r', encoding='utf8') as f:
                 playerdata = f.read()
