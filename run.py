@@ -3,7 +3,7 @@
 """
 The MIT License (MIT)
 
-Copyright (c) 2015-2019 Just-Some-Bots (https://github.com/Just-Some-Bots)
+Copyright (c) 2015-2020 Just-Some-Bots (https://github.com/Just-Some-Bots)
 
 This file incorporates work covered by the following copyright and  
 permission notice:

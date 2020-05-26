@@ -5,7 +5,7 @@ ModuBot: A modular discord bot with dependency management
 The MIT License (MIT)
 
 Copyright (c) 2019 TheerapakG
-Copyright (c) 2019 Just-Some-Bots (https://github.com/Just-Some-Bots)
+Copyright (c) 2019-2020 Just-Some-Bots (https://github.com/Just-Some-Bots)
 
 This file incorporates work covered by the following copyright and  
 permission notice:
