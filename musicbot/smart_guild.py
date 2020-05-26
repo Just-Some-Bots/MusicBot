@@ -37,7 +37,7 @@ import os
 import random
 import glob
 import inspect
-from .lib.event_emitter import EventEmitter
+from .lib.event_emitter import AsyncEventEmitter
 from .utils import check_restricted
 from .guild_config import GuildConfig
 from .playback import Player, Playlist, PlayerState
@@ -49,7 +49,7 @@ from . import exceptions
 
 guilds = dict()
 
-class SmartGuild(Serializable, EventEmitter):
+class SmartGuild(Serializable, AsyncEventEmitter):
     _lock: DefaultDict[str, RLock] = defaultdict(RLock)
     _id: int
     config: GuildConfig
@@ -91,14 +91,16 @@ class SmartGuild(Serializable, EventEmitter):
                 continue
             potential_method(self, data)
 
-    def unload_addons(self):
+    async def unload_addons(self):
         for cog in self._bot.crossmodule.cogs_by_deps():
-            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method[obj=cog, attr='unload_guild', args...=(self)]@TheerapakG
+            # (auto-generated) _thee_tools_inline_pattern[lang=py]: dispatch_method_p_async[obj=cog, attr='unload_guild', args...=(self)]@TheerapakG
             try:
                 potential_method = getattr(cog, 'unload_guild')
             except AttributeError:
                 continue
-            potential_method(self)
+            potential_async = potential_method(self)
+            if inspect.isawaitable(potential_async):
+                await potential_async
 
     def __json__(self):
         # @TheerapakG: playlists are only stored as path as it's highly inefficient to serialize all lists when
@@ -153,7 +155,7 @@ class SmartGuild(Serializable, EventEmitter):
     def guild(self):
         return self._bot.get_guild(self._id)
 
-    def serialize_to_dir(self, *, dir=None):
+    async def serialize_to_dir(self, *, dir=None):
         if dir is None:
             dir = 'data/{}'.format(self._id)
 
@@ -163,7 +165,7 @@ class SmartGuild(Serializable, EventEmitter):
             with open(dir + '/smartguildinfo.json', 'w', encoding='utf8') as f:
                 f.write(self.serialize(sort_keys=True))
 
-            self.emit('serialize', self)
+            await self.emit('serialize', self)
 
         self._bot.log.debug("Serialized {}".format(self._id))
 
@@ -212,96 +214,8 @@ def register_bot(bot):
         if bot.is_ready():
             c = before.channel
             c = after.channel if not c else c
-            guild = c.guild
-            rguild = get_guild(bot, guild)
-
-            if member == bot.user:                   
-                if not after.channel:
-                    await rguild.player.set_voice_channel(None)
-                    return
-                try:
-                    await rguild.player.set_voice_channel(after.channel)
-                except exceptions.VoiceConnectionError:
-                    # same voice channel, probably because we connect to it ourself
-                    pass
-
-            if not rguild._bot.config.auto_pause:
-                return
-
-            autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
-
-            auto_paused = rguild._bot.server_specific_data[rguild]['auto_paused']
-
-            try:
-                player = await rguild.get_player()
-            except:
-                return
-
-            def is_active(member):
-                if not member.voice:
-                    return False
-
-                if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
-                    return False
-
-                return True
-
-            if not member == rguild._bot.user and is_active(member):  # if the user is not inactive
-                if rguild._voice_channel != before.channel and rguild._voice_channel == after.channel:  # if the person joined
-                    if auto_paused and player.state == PlayerState.PAUSE:
-                        rguild._bot.log.info(autopause_msg.format(
-                            state = "Unpausing",
-                            channel = rguild._voice_channel,
-                            reason = ""
-                        ).strip())
-
-                        rguild._bot.server_specific_data[rguild]['auto_paused'] = False
-                        await player.play()
-
-                elif rguild._voice_channel == before.channel and rguild._voice_channel != after.channel:
-                    if not any(is_active(m) for m in rguild._voice_channel.members):  # channel is empty
-                        if not auto_paused and player.state != PlayerState.PAUSE:
-                            rguild._bot.log.info(autopause_msg.format(
-                                state = "Pausing",
-                                channel = rguild._voice_channel,
-                                reason = "(empty channel)"
-                            ).strip())
-
-                            rguild._bot.server_specific_data[rguild]['auto_paused'] = True
-                            await player.pause()
-
-                elif rguild._voice_channel == before.channel and rguild._voice_channel == after.channel:  # if the person undeafen
-                    if auto_paused and player.state == PlayerState.PAUSE:
-                        rguild._bot.log.info(autopause_msg.format(
-                            state = "Unpausing",
-                            channel = rguild._voice_channel,
-                            reason = "(member undeafen)"
-                        ).strip())
-
-                        rguild._bot.server_specific_data[rguild]['auto_paused'] = False
-                        await player.play()
-            else:
-                if any(is_active(m) for m in rguild._voice_channel.members):  # channel is not empty
-                    if auto_paused and player.state == PlayerState.PAUSE:
-                        rguild._bot.log.info(autopause_msg.format(
-                            state = "Unpausing",
-                            channel = rguild._voice_channel,
-                            reason = ""
-                        ).strip())
-    
-                        rguild._bot.server_specific_data[rguild]['auto_paused'] = False
-                        await player.play()
-
-                else:
-                    if not auto_paused and player.state != PlayerState.PAUSE:
-                        rguild._bot.log.info(autopause_msg.format(
-                            state = "Pausing",
-                            channel = rguild._voice_channel,
-                            reason = "(empty channel or member deafened)"
-                        ).strip())
-
-                        rguild._bot.server_specific_data[rguild]['auto_paused'] = True
-                        await player.pause()
+            guild = get_guild(bot, c.guild)
+            await guild.emit('voice-update', guild, member, before, after)
 
     bot.event(on_voice_state_update)
 

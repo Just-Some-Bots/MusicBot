@@ -184,7 +184,97 @@ class Player_Cog(ExportableMixin, InjectableMixin, Cog):
                     .on('stop', partial(self.on_player_stop, self, guild)) \
                     .on('finished-playing', partial(self.on_player_finished_playing, self, guild)) \
                     .on('entry-added', partial(self.on_player_entry_added, self, guild)) \
-                    .on('error', partial(self.on_player_error, self, guild))             
+                    .on('error', partial(self.on_player_error, self, guild))  
+
+    async def on_guild_voice_update(self, guild, member, before, after):
+        if member == self.bot.user:                   
+            if not after.channel:
+                await self.player[guild].voice.set_voice_channel(None)
+                return
+            try:
+                await self.player[guild].voice.set_voice_channel(after.channel)
+            except exceptions.VoiceConnectionError:
+                # same voice channel, probably because we connect to it ourself
+                pass
+
+        if not self.bot.config.auto_pause:
+            return
+
+        autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
+
+        auto_paused = self.bot.server_specific_data[guild]['auto_paused']
+
+        try:
+            player = self.player[guild]
+            channel = await player.voice.voice_channel()
+        except:
+            return
+
+        def is_active(member):
+            if not member.voice:
+                return False
+
+            if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
+                return False
+
+            return True
+
+        if not member == self.bot.user and is_active(member):  # if the user is not inactive
+            if channel != before.channel and channel == after.channel:  # if the person joined
+                if auto_paused and player.state == PlayerState.PAUSE:
+                    self.bot.log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = channel,
+                        reason = ""
+                    ).strip())
+
+                    self.bot.server_specific_data[rguild]['auto_paused'] = False
+                    await player.play()
+
+            elif channel == before.channel and channel != after.channel:
+                if not any(is_active(m) for m in channel.members):  # channel is empty
+                    if not auto_paused and player.state != PlayerState.PAUSE:
+                        self.bot.log.info(autopause_msg.format(
+                            state = "Pausing",
+                            channel = channel,
+                            reason = "(empty channel)"
+                        ).strip())
+
+                        self.bot.server_specific_data[rguild]['auto_paused'] = True
+                        await player.pause()
+
+            elif channel == before.channel and channel == after.channel:  # if the person undeafen
+                if auto_paused and player.state == PlayerState.PAUSE:
+                    self.bot.log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = channel,
+                        reason = "(member undeafen)"
+                    ).strip())
+
+                    self.bot.server_specific_data[rguild]['auto_paused'] = False
+                    await player.play()
+        else:
+            if any(is_active(m) for m in channel.members):  # channel is not empty
+                if auto_paused and player.state == PlayerState.PAUSE:
+                    self.bot.log.info(autopause_msg.format(
+                        state = "Unpausing",
+                        channel = channel,
+                        reason = ""
+                    ).strip())
+
+                    self.bot.server_specific_data[rguild]['auto_paused'] = False
+                    await player.play()
+
+            else:
+                if not auto_paused and player.state != PlayerState.PAUSE:
+                    self.bot.log.info(autopause_msg.format(
+                        state = "Pausing",
+                        channel = channel,
+                        reason = "(empty channel or member deafened)"
+                    ).strip())
+
+                    self.bot.server_specific_data[rguild]['auto_paused'] = True
+                    await player.pause()
 
     def initialize_guild_data_dict(self, guild, *_):
         try:
@@ -246,6 +336,10 @@ class Player_Cog(ExportableMixin, InjectableMixin, Cog):
             self.log.warning("Invalid channel thing: {}".format(channel))  
 
         guild.on('serialize', self.serialize_player)
+        guild.on('voice-update', self.on_guild_voice_update)
+
+    async def unload_guild(self, guild):
+        await self.player[guild].voice.set_voice_channel(None)
 
     @export_func
     def set_playlist(self, guild, playlist):

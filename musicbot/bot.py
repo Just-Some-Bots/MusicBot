@@ -696,12 +696,8 @@ class ModuBot(Bot):
     async def close(self):
         guilds = get_guild_list(self)
         for guild in guilds:
-            try:
-                await guild.player.set_voice_channel(None)
-            except:
-                pass
-                
-            guild.serialize_to_dir(dir = guild._save_dir)
+            await guild.serialize_to_dir(dir = guild._save_dir)
+            await guild.unload_addons()
         await self.unload_all_module()
         await super().close()
         await self.aiosession.close()
