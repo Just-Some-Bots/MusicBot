@@ -237,7 +237,8 @@ class QueueManagement(Cog):
                     btext = str(actual_count - drop_count)                  
 
                 if playlist is self.bot.call('get_playlist', guild):
-                    await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
+                    # @TheerapakG: TODO: check if auto cog loaded
+                    await self.bot.call('return_from_auto', guild, also_skip=ctx.bot.config.skip_if_auto)
 
                     player = self.player[guild]
 
@@ -303,7 +304,8 @@ class QueueManagement(Cog):
         reply_text = "Enqueued `%s` to be streamed. Position in queue: %s"
         btext = entry.title
 
-        await guild.return_from_auto(also_skip=ctx.bot.config.skip_if_auto)
+        # @TheerapakG: TODO: check if auto cog loaded
+        await self.bot.call('return_from_auto', guild, also_skip=ctx.bot.config.skip_if_auto)
 
         # Position msgs
         time_until = await player.estimate_time_until_entry(entry)

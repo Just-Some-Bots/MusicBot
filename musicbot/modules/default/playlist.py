@@ -94,6 +94,8 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
+        # @TheerapakG: TODO: rewrite this
+
         pls = []
         apl = None
 
@@ -185,6 +187,8 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
         """
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
+
+        # @TheerapakG: TODO: rewrite this
 
         if name in self.playlists[guild]:
             pl = self.playlists[guild][name]
@@ -345,7 +349,7 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
         permission in the config file can queue music.
         """
         guild = get_guild(ctx.bot, ctx.guild)
-        playlist = bot.call('get_playlist', guild)
+        playlist = ctx.bot.call('get_playlist', guild)
         playlist.karaoke_mode = not playlist.karaoke_mode
         await messagemanager.safe_send_normal(ctx, ctx, "\N{OK HAND SIGN} Karaoke mode is now " + ['disabled', 'enabled'][playlist.karaoke_mode], expire_in=15)
             
