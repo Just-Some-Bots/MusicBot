@@ -20,6 +20,8 @@ from ...playback import Player, Playlist, PlayerState
 from ...ytdldownloader import get_unprocessed_entry
 from ... import messagemanager
 
+from ...lib.event_emitter import AsyncEventEmitter
+
 class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
     playlists: DefaultDict[SmartGuild, Dict[str, Playlist]] = defaultdict(dict)
     _lock: DefaultDict[str, RLock] = DefaultDict(RLock)
@@ -27,10 +29,12 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
     def __init__(self):
         super().__init__()
         self.bot = None
+        self.playlist_event = AsyncEventEmitter()
 
     def pre_init(self, bot):
         self.bot = bot
         self.bot.crossmodule.register_object('playlists', self.playlists)
+        self.bot.crossmodule.register_object('playlist_event', self.playlist_event)
 
     @export_func
     def serialize_playlist(self, guild, playlist):
@@ -94,28 +98,17 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
-        # @TheerapakG: TODO: rewrite this
-
         pls = []
-        apl = None
 
         for name, pl in self.playlists[guild].items():
-            if pl is not guild._auto:
-                pls.append(name)
-
-        if guild._auto:
-            apl = guild._auto._name
+            pls.append(name)
 
         plmsgtitle = 'playlist{}'.format('s' if len(pls)>1 else '')
         plmsgdesc = '\n'.join(pls) if pls else None
-        
-        aplmsgtitle = 'autoplaylist'
-        aplmsgdesc = apl
 
         await messagemanager.safe_send_normal(ctx, ctx,
             [
-                {'name': plmsgtitle, 'value': plmsgdesc, 'inline': False},
-                {'name': aplmsgtitle, 'value': aplmsgdesc, 'inline': False}
+                {'name': plmsgtitle, 'value': plmsgdesc, 'inline': False}
             ]
         )
 
@@ -188,18 +181,10 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
         bot = ctx.bot
         guild = get_guild(bot, ctx.guild)
 
-        # @TheerapakG: TODO: rewrite this
-
         if name in self.playlists[guild]:
             pl = self.playlists[guild][name]
-            if pl is guild._auto:
-                guild._auto = None
-                if (await guild.is_currently_auto()):
-                    await guild.return_from_auto()
-                await guild.remove_serialized_playlist(name)
-                del self.playlists[guild][name]
-                await guild.serialize_to_file()
-            elif pl is bot.call('get_playlist', guild):
+            await self.playlist_event.emit('prepare-remove-playlist', guild, pl)
+            if pl is bot.call('get_playlist', guild):
                 raise exceptions.CommandError('Playlist is currently in use.')
             else:
                 await guild.remove_serialized_playlist(name)
@@ -207,6 +192,7 @@ class Playlist_Cog(ExportableMixin, InjectableMixin, Cog):
         else:
             raise exceptions.CommandError('There is not any playlist with that name.')
 
+        await self.playlist_event.emit('remove-playlist', guild, name)
         await messagemanager.safe_send_normal(ctx, ctx, 'removed playlist: {}'.format(name))
 
     @command()

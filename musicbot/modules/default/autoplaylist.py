@@ -15,9 +15,12 @@ from ...smart_guild import SmartGuild, get_guild
 from ...ytdldownloader import get_unprocessed_entry, get_stream_entry
 from ...playback import Playlist, Player
 
+from ...lib.event_emitter import AsyncEventEmitter
+
 class Autoplaylist(ExportableMixin, Cog):
     playlists: Optional[DefaultDict[SmartGuild, Dict[str, Playlist]]]
     player: Optional[Dict[SmartGuild, Player]]
+    playlist_event: Optional[AsyncEventEmitter]
     ap: Dict[SmartGuild, Optional[Playlist]] = dict()
     swap: Dict[SmartGuild, Optional[Playlist]] = dict()
     _lock: DefaultDict[SmartGuild, RLock] = DefaultDict(RLock)
@@ -27,12 +30,23 @@ class Autoplaylist(ExportableMixin, Cog):
         self.entrybuilders = None
         self.playlists = None
         self.player = None
+        self.playlist_event = None
+
+    def prepare_remove_playlist(self, guild: SmartGuild, playlist: Playlist):
+        if self.is_playlist_auto(playlist):
+            self.set_auto(guild, None)
+    
+    async def prepare_remove_playlist(self, guild: SmartGuild, *_):
+        await guild.serialize_to_dir()
 
     def pre_init(self, bot):
         self.bot = bot
         self.entrybuilders = bot.crossmodule.get_object('entrybuilders')
         self.playlists = bot.crossmodule.get_object('playlists')
         self.player = bot.crossmodule.get_object('player')
+        self.playlist_event = bot.crossmodule.get_object('playlist_event')
+        self.playlist_event.on('prepare-remove-playlist', self.prepare_remove_playlist)
+        self.playlist_event.on('remove-playlist', self.remove_playlist)
 
     def get_guild_data_dict(self, guild):
         return {
@@ -129,7 +143,7 @@ class Autoplaylist(ExportableMixin, Cog):
         with self._lock[guild]:
             if await current.get_length() == 0 and self.ap[guild]:
                 self.bot.log.info("Entering auto in {}".format(guild._id))
-                self.swap[guild] = current
+                self.swap[guild] = self.ap[guild]
                 self.swap_player_playlist(guild, random = guild.config.auto_random, pull_persist = True)
 
                 if self.bot.config.auto_pause:
@@ -163,7 +177,7 @@ class Autoplaylist(ExportableMixin, Cog):
 
     @export_func
     def is_currently_auto(self, guild: SmartGuild):
-        return self.is_playlist_auto(self.bot.call('get_playlist', guild, incl_auto = True))
+        return self.is_playlist_auto(self.get_playlist(guild, incl_auto = True))
 
     @export_func
     def return_from_auto(self, guild, *, also_skip = False):
@@ -183,7 +197,16 @@ class Autoplaylist(ExportableMixin, Cog):
         self.bot.call('serialize_playlist', guild, self.ap[guild])
         with self._lock[guild]:
             if self.is_currently_auto():
-                self.set_playlist(guild, pl, swap=False)
+                if pl:
+                    # set pl as playlist as we are autoing
+                    self.set_playlist(guild, pl, swap=False)
+                else:
+                    # terminate autoing, then remove auto from swap
+                    self.swap_player_playlist(guild)
+                    self.swap[guild] = None
+            else:
+                # swap target will be the new pl (as new pl is auto)
+                self.swap[guild] = pl
             self.ap[guild] = pl
 
     @export_func
