@@ -1,5 +1,5 @@
 # MusicBot
-
+[![Run on Repl.it](https://repl.it/badge/github/Just-Some-Bots/MusicBot)](https://repl.it/github/Just-Some-Bots/MusicBot)
 [![GitHub stars](https://img.shields.io/github/stars/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/network)
 [![Python version](https://img.shields.io/badge/python-3.5%2C%203.6%2C%203.7-blue.svg)](https://python.org)
