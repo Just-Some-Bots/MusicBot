@@ -1,42 +1,45 @@
-FROM alpine:3.11
+FROM python:3.7-alpine as build
 
-# Install dependencies
-RUN apk update \
-&& apk add --no-cache \
-  ca-certificates \
-  ffmpeg \
+# Prepare build environment
+RUN apk add --no-cache \
   opus \
-  python3 \
   libsodium-dev \
-\
-# Install build dependencies
-&& apk add --no-cache --virtual .build-deps \
   gcc \
   git \
   libffi-dev \
   make \
-  musl-dev \
-  python3-dev 
+  musl-dev
+
+# Build dependencies
+COPY ./requirements.txt ./requirements.txt
+RUN pip3 wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+
+# Build plugins that refresh more often to keep cache
+COPY ./requirements-plugins.txt ./requirements-plugins.txt
+RUN pip3 wheel --no-cache-dir --wheel-dir /wheels -r requirements-plugins.txt
+
+# Install wheels in clean environment
+FROM python:3.7-alpine
+COPY --from=build /wheels /wheels
+RUN pip install --no-cache /wheels/*
+
+# Install opus for voice transfer, gcc is needed for ctypes access
+RUN apk add --no-cache \
+  ca-certificates \
+  ffmpeg \
+  opus \
+  gcc \
+  && ln -s /usr/lib/libopus.so.0 /usr/lib/libopus.so
 
 # Set working directory
-WORKDIR /usr/src/musicbot
-
-# Add project requirements
-COPY ./requirements.txt ./requirements.txt
-
-# Install pip dependencies
-RUN pip3 install --upgrade pip \
- && pip3 install --no-cache-dir -r requirements.txt \
-\
-# Clean up build dependencies
- && apk del .build-deps
+WORKDIR /musicbot
 
 # Add project sources
 COPY . ./
 
-# Create volume for mapping the config
-VOLUME /usr/src/musicbot/config
+# Inject config folder volume
+VOLUME /musicbot/config
 
+# Override default starting point
 ENV APP_ENV=docker
-
 CMD ["python3", "dockerentry.py"]
