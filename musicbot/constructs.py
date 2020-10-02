@@ -21,7 +21,7 @@ class SkipState:
 
     def __init__(self):
         self.skippers = set()
-        self.skip_msgs = set()
+        self.skip_msgs = list()
 
     @property
     def skip_count(self):
@@ -33,7 +33,7 @@ class SkipState:
 
     def add_skipper(self, skipper, msg):
         self.skippers.add(skipper)
-        self.skip_msgs.add(msg)
+        self.skip_msgs.append(msg)
         return self.skip_count
 
 
