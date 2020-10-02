@@ -61,6 +61,6 @@ After creating a bot account, you should probably add your bot to a server by cl
 - `UseAlias` - Whether the bot should use aliases defined in `aliases.json`
 - <span class="badge major">review only</span> `CustomEmbedFooter` - Changes the footer text found in embeds from the default version footer
 
-
 #### Files
+
 - `i18nFile` - The internationalization file to use for the bot (relative path, e.g `config/i18n/en.json`)
