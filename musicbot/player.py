@@ -14,7 +14,6 @@ from array import array
 from threading import Thread
 from collections import deque
 from shutil import get_terminal_size
-from websockets.exceptions import InvalidState
 
 from .utils import avg, _func_
 from .lib.event_emitter import EventEmitter
