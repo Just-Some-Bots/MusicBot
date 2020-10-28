@@ -960,7 +960,7 @@ class MusicBot(discord.Client):
 
         self.init_ok = True
 
-        ################################
+        ###############################
 
         log.info("Connected: {0}/{1}#{2}".format(
             self.user.id,
