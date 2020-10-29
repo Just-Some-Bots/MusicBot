@@ -2000,6 +2000,44 @@ class MusicBot(discord.Client):
 
         player.playlist.clear()
         return Response(self.str.get('cmd-clear-reply', "Cleared `{0}`'s queue").format(player.voice_client.channel.guild), delete_after=20)
+    
+    async def cmd_stop(self, player, author, guild, channel, message, permissions, voice_channel, param=''):
+        """
+        Usage:
+            {command_prefix}stop
+
+        Clears the playlist.
+        """
+
+        player.playlist.clear()
+        if player.is_stopped:
+            raise exceptions.CommandError(self.str.get('cmd-skip-none', "Can't stop! The player is not playing!"), expire_in=20)
+
+        if not player.current_entry:
+            if player.playlist.peek():
+                if player.playlist.peek()._is_downloading:
+                    return Response(self.str.get('cmd-skip-dl', "The next song (`%s`) is downloading, please wait.") % player.playlist.peek().title)
+
+                elif player.playlist.peek().is_downloaded:
+                    print("The next song will be played shortly.  Please wait.")
+                else:
+                    print("Something odd is happening.  "
+                          "You might want to restart the bot if it doesn't start working.")
+            else:
+                print("Something strange is happening.  "
+                      "You might want to restart the bot if it doesn't start working.")
+        
+        current_entry = player.current_entry
+
+        if (param.lower() in ['force', 'f']) or self.config.legacy_skip:
+            if permissions.instaskip \
+                or (self.config.allow_author_skip and author == player.current_entry.meta.get('author', None)):
+
+                player.skip()  # TODO: check autopause stuff here
+                await self._manual_delete_check(message)
+                return Response(self.str.get('cmd-skip-force', 'Stopped Playing `{}`.').format(current_entry.title), reply=True, delete_after=30)
+            else:
+                raise exceptions.PermissionsError(self.str.get('cmd-skip-force-noperms', 'You do not have permission to stop.'), expire_in=30)
 
     async def cmd_remove(self, user_mentions, message, author, permissions, channel, player, index=None):
         """
