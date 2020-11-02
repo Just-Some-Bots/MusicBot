@@ -6,7 +6,6 @@ order: 2
 
 This is a list of the commands that can be used to control the MusicBot. You cannot use commands in private messages. Every command starts with the prefix that you [configured]({{ site.baseurl }}/using/configuration). This page assumes your prefix is `!`, the default. Required parameters are indicated with `<` and `>`, while optional parameters are indicated with `[` and `]`.
 
-
 #### General
 
 - `!help [command]` - Prints a list of commands, or info on a command if one is specified.
@@ -43,6 +42,7 @@ This is a list of the commands that can be used to control the MusicBot. You can
 - `!shutdown` - Shuts down the bot and terminates the process.
 - `!option <option> <y/n>` - Changes a config option without restarting the bot for the current session. Run `!help option` for info.
 - `!remove <number>` - Removes a song from the queue by its numbered position. Use `!queue` to find out song positions.
+- `!resetplaylist` - Resets all songs in the server's autoplaylist.
 
 #### Dev
 

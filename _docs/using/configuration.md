@@ -56,6 +56,11 @@ After creating a bot account, you should probably add your bot to a server by cl
 - `QueueLength` - How many songs should appear in the `queue` command
 - `RemoveFromAPOnError` - Whether the bot should remove songs from the autoplaylist if there is an error
 - `ShowConfigOnLaunch` - Whether the bot should print the configuration options when it starts
+- `LegacySkip` - Whether to use legacy skip behavior, defaulting `!skip` to force skip
+- `LeaveServersWithoutOwner` - Whether the bot should leave servers that the owner is not found in
+- `UseAlias` - Whether the bot should use aliases defined in `aliases.json`
+- <span class="badge major">review only</span> `CustomEmbedFooter` - Changes the footer text found in embeds from the default version footer
 
 #### Files
+
 - `i18nFile` - The internationalization file to use for the bot (relative path, e.g `config/i18n/en.json`)
