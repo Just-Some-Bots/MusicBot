@@ -1,0 +1,6 @@
+{
+	"on_player_play-onChannel_authorNotInChannel_skipWhenAbsent": "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
+	"on_player_play-onChannel_plaingMention": "{author} - your song {title} is now playing in {channel}!",
+	"on_player_play-onChannel": "Now playing in {channel}: {title} added by {author}!",
+	"on_player_play-onChannel_noAuthor_autoplalist": "Now playing automatically added entry {title} in {channel}!"
+}
