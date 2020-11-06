@@ -488,19 +488,29 @@ class MusicBot(discord.Client):
             author_perms = self.permissions.for_user(author)
 
             if author not in player.voice_client.channel.members and author_perms.skip_when_absent:
-                newmsg = 'Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice' % (
-                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+                newmsg = self.str.get('on_player_play-onChannel_authorNotInChannel_skipWhenAbsent', "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!").format (
+                    channel=player.voice_client.channel.name,
+                    title=entry.title,
+                    author=entry.meta['author'].name)
                 player.skip()
             elif self.config.now_playing_mentions:
-                newmsg = '%s - your song `%s` is now playing in `%s`!' % (
-                    entry.meta['author'].mention, entry.title, player.voice_client.channel.name)
+                newmsg = self.str.get('on_player_play-onChannel_plaingMention', "{author} - your song {title} is now playing in {channel}!").format (
+                    author= entry.meta['author'].mention,
+                    title= entry.title,
+                    channel= player.voice_client.channel.name
+                )
             else:
-                newmsg = 'Now playing in `%s`: `%s` added by `%s`' % (
-                    player.voice_client.channel.name, entry.title, entry.meta['author'].name)
+                newmsg = self.str.get('on_player_play-onChannel', "Now playing in {channel}: {title} added by {author}!").format(
+                    channel=player.voice_client.channel.name,
+                    title=entry.title,
+                    author=entry.meta['author'].name
+                )
         else:
             # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
-            newmsg = 'Now playing automatically added entry `%s` in `%s`' % (
-                entry.title, player.voice_client.channel.name)
+            newmsg = self.str.get ('on_player_play-onChannel_noAuthor_autoplalist', "Now playing automatically added entry {title} in {channel}!").format (
+                title=entry.title,
+                channel=player.voice_client.channel.name
+                )
 
         if newmsg:
             if self.config.dm_nowplaying and author:

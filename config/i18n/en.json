@@ -104,5 +104,9 @@
     "playlists-big": "Playlist has too many entries ({0} > {1})",
     "playlists-limit": "Playlist entries + your already queued songs reached limit ({0} + {1} > {2})",
     "karaoke-enabled": "Karaoke mode is enabled, please try again when its disabled!",
-    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it."
+    "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it.",
+	"on_player_play-onChannel_authorNotInChannel_skipWhenAbsent": "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
+	"on_player_play-onChannel_plaingMention": "{author} - your song {title} is now playing in {channel}!",
+	"on_player_play-onChannel": "Now playing in {channel}: {title} added by {author}!",
+	"on_player_play-onChannel_noAuthor_autoplalist": "Now playing automatically added entry {title} in {channel}!"
 }
