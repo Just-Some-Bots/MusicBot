@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - "*"
+      - "*/*"
+
+jobs:
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Get version from common step
+        run: |
+          echo "VERSION=$( git rev-parse HEAD )" >> $GITHUB_ENV
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            --tag paulomartde/musicbot:$VERSION \
+            --file Dockerfile .
+
+      - name: Tag master Release Docker Image
+        if: github.ref == 'refs/heads/master'
+        run: |
+          docker tag paulomartde/musicbot:$VERSION paulomartde/musicbot:latest
+
+      - name: Show Docker Images
+        run: docker images
+
+      - name: Login to Docker
+        run: echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+        env:
+          DOCKER_USER: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_PASS: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Push Docker Image
+        run: docker push paulomartde/musicbot
