@@ -46,9 +46,12 @@ load_opus_lib()
 
 log = logging.getLogger(__name__)
 
+intents = discord.Intents.all()
+intents.typing = False
+intents.presences = False
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=None, perms_file=None, aliases_file=None):
+    def __init__(self, config_file=None, perms_file=None, aliases_file=None, intents=intents):
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
