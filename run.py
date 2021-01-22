@@ -193,7 +193,7 @@ def sanity_checks(optional=True):
     log.info("Starting sanity checks")
     ## Required
 
-    # Make sure we're on Python 3.5+
+    # Make sure we're on Python 3.8+
     req_ensure_py3()
 
     # Fix windows encoding fuckery
@@ -221,19 +221,19 @@ def sanity_checks(optional=True):
 
 
 def req_ensure_py3():
-    log.info("Checking for Python 3.5+")
+    log.info("Checking for Python 3.8+")
 
-    if sys.version_info < (3, 5):
-        log.warning("Python 3.5+ is required. This version is %s", sys.version.split()[0])
-        log.warning("Attempting to locate Python 3.5...")
+    if sys.version_info < (3, 8):
+        log.warning("Python 3.8+ is required. This version is %s", sys.version.split()[0])
+        log.warning("Attempting to locate Python 3.8...")
 
         pycom = None
 
         if sys.platform.startswith('win'):
-            log.info('Trying "py -3.5"')
+            log.info('Trying "py -3.8"')
             try:
-                subprocess.check_output('py -3.5 -c "exit()"', shell=True)
-                pycom = 'py -3.5'
+                subprocess.check_output('py -3.8 -c "exit()"', shell=True)
+                pycom = 'py -3.8'
             except:
 
                 log.info('Trying "python3"')
@@ -252,9 +252,9 @@ def req_ensure_py3():
                 sys.exit(0)
 
         else:
-            log.info('Trying "python3.5"')
+            log.info('Trying "python3.8"')
             try:
-                pycom = subprocess.check_output('python3.5 -c "exit()"'.split()).strip().decode()
+                pycom = subprocess.check_output('python3.8 -c "exit()"'.split()).strip().decode()
             except:
                 pass
 
@@ -262,7 +262,7 @@ def req_ensure_py3():
                 log.info("\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom)
                 pyexec(pycom, 'run.py')
 
-        log.critical("Could not find Python 3.5 or higher.  Please run the bot using Python 3.5")
+        log.critical("Could not find Python 3.8 or higher.  Please run the bot using Python 3.8")
         bugger_off()
 
 
