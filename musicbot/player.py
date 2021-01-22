@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 class PatchedBuff:
     """
-        PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
+    PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
     """
 
     def __init__(self, buff, *, draw=False):
@@ -41,7 +41,7 @@ class PatchedBuff:
 
     def __del__(self):
         if self.draw:
-            print(' ' * (get_terminal_size().columns-1), end='\r')
+            print(" " * (get_terminal_size().columns - 1), end="\r")
 
     def read(self, frame_size):
         self.frame_count += 1
@@ -57,7 +57,7 @@ class PatchedBuff:
             self.rmss.append(rms)
 
             max_rms = sorted(self.rmss)[-1]
-            meter_text = 'avg rms: {:.2f}, max rms: {:.2f} '.format(avg(self.rmss), max_rms)
+            meter_text = "avg rms: {:.2f}, max rms: {:.2f} ".format(avg(self.rmss), max_rms)
             self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
 
         return frame
@@ -67,36 +67,37 @@ class PatchedBuff:
             return audioop.mul(frame, 2, min(mult, maxv))
         else:
             # ffmpeg returns s16le pcm frames.
-            frame_array = array('h', frame)
+            frame_array = array("h", frame)
 
             for i in range(len(frame_array)):
                 frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
 
             return frame_array.tobytes()
 
-    def _pprint_meter(self, perc, *, char='#', text='', shift=True):
+    def _pprint_meter(self, perc, *, char="#", text="", shift=True):
         tx, ty = get_terminal_size()
 
         if shift:
             outstr = text + "{}".format(char * (int((tx - len(text)) * perc) - 1))
         else:
-            outstr = text + "{}".format(char * (int(tx * perc) - 1))[len(text):]
+            outstr = text + "{}".format(char * (int(tx * perc) - 1))[len(text) :]
 
-        print(outstr.ljust(tx - 1), end='\r')
+        print(outstr.ljust(tx - 1), end="\r")
 
 
 class MusicPlayerState(Enum):
     STOPPED = 0  # When the player isn't playing anything
     PLAYING = 1  # The player is actively playing music.
-    PAUSED = 2   # The player is paused on a song.
+    PAUSED = 2  # The player is paused on a song.
     WAITING = 3  # The player has finished its song but is still downloading the next one
-    DEAD = 4     # The player has been killed.
+    DEAD = 4  # The player has been killed.
 
     def __str__(self):
         return self.name
 
+
 class SourcePlaybackCounter(AudioSource):
-    def __init__(self, source, progress = 0):
+    def __init__(self, source, progress=0):
         self._source = source
         self.progress = progress
 
@@ -133,7 +134,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
         self._source = None
 
-        self.playlist.on('entry-added', self.on_entry_added)
+        self.playlist.on("entry-added", self.on_entry_added)
 
     @property
     def volume(self):
@@ -149,7 +150,7 @@ class MusicPlayer(EventEmitter, Serializable):
         if self.is_stopped:
             self.loop.call_later(2, self.play)
 
-        self.emit('entry-added', player=self, playlist=playlist, entry=entry)
+        self.emit("entry-added", player=self, playlist=playlist, entry=entry)
 
     def skip(self):
         self._kill_current_player()
@@ -158,13 +159,13 @@ class MusicPlayer(EventEmitter, Serializable):
         self.state = MusicPlayerState.STOPPED
         self._kill_current_player()
 
-        self.emit('stop', player=self)
+        self.emit("stop", player=self)
 
     def resume(self):
         if self.is_paused and self._current_player:
             self._current_player.resume()
             self.state = MusicPlayerState.PLAYING
-            self.emit('resume', player=self, entry=self.current_entry)
+            self.emit("resume", player=self, entry=self.current_entry)
             return
 
         if self.is_paused and not self._current_player:
@@ -172,7 +173,7 @@ class MusicPlayer(EventEmitter, Serializable):
             self._kill_current_player()
             return
 
-        raise ValueError('Cannot resume playback from state %s' % self.state)
+        raise ValueError("Cannot resume playback from state %s" % self.state)
 
     def pause(self):
         if self.is_playing:
@@ -181,13 +182,13 @@ class MusicPlayer(EventEmitter, Serializable):
             if self._current_player:
                 self._current_player.pause()
 
-            self.emit('pause', player=self, entry=self.current_entry)
+            self.emit("pause", player=self, entry=self.current_entry)
             return
 
         elif self.is_paused:
             return
 
-        raise ValueError('Cannot pause a MusicPlayer in state %s' % self.state)
+        raise ValueError("Cannot pause a MusicPlayer in state %s" % self.state)
 
     def kill(self):
         self.state = MusicPlayerState.DEAD
@@ -208,12 +209,12 @@ class MusicPlayer(EventEmitter, Serializable):
         if self._stderr_future.done() and self._stderr_future.exception():
             # I'm not sure that this would ever not be done if it gets to this point
             # unless ffmpeg is doing something highly questionable
-            self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
+            self.emit("error", player=self, entry=entry, ex=self._stderr_future.exception())
 
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
-                    log.debug("Skipping deletion of \"{}\", found song in queue".format(entry.filename))
+                    log.debug('Skipping deletion of "{}", found song in queue'.format(entry.filename))
 
                 else:
                     log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
@@ -221,22 +222,28 @@ class MusicPlayer(EventEmitter, Serializable):
                     for x in range(30):
                         try:
                             os.unlink(filename)
-                            log.debug('File deleted: {0}'.format(filename))
+                            log.debug("File deleted: {0}".format(filename))
                             break
                         except PermissionError as e:
                             if e.winerror == 32:  # File is in use
-                                log.error('Can\'t delete file, it is currently in use: {0}'.format(filename))
+                                log.error("Can't delete file, it is currently in use: {0}".format(filename))
                         except FileNotFoundError:
-                            log.debug('Could not find delete {} as it was not found. Skipping.'.format(filename), exc_info=True)
+                            log.debug(
+                                "Could not find delete {} as it was not found. Skipping.".format(filename),
+                                exc_info=True,
+                            )
                             break
                         except Exception:
                             log.error("Error trying to delete {}".format(filename), exc_info=True)
                             break
                     else:
-                        print("[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                            os.path.relpath(filename)))
+                        print(
+                            "[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                                os.path.relpath(filename)
+                            )
+                        )
 
-        self.emit('finished-playing', player=self, entry=entry)
+        self.emit("finished-playing", player=self, entry=entry)
 
     def _kill_current_player(self):
         if self._current_player:
@@ -257,7 +264,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
     async def _play(self, _continue=False):
         """
-            Plays the next entry from the playlist, or resumes playback of the current entry if paused.
+        Plays the next entry from the playlist, or resumes playback of the current entry if paused.
         """
         if self.is_paused and self._current_player:
             return self.resume()
@@ -294,15 +301,12 @@ class MusicPlayer(EventEmitter, Serializable):
                 self._source = SourcePlaybackCounter(
                     PCMVolumeTransformer(
                         FFmpegPCMAudio(
-                            entry.filename,
-                            before_options=boptions,
-                            options=aoptions,
-                            stderr=subprocess.PIPE
+                            entry.filename, before_options=boptions, options=aoptions, stderr=subprocess.PIPE
                         ),
-                        self.volume
+                        self.volume,
                     )
                 )
-                log.debug('Playing {0} using {1}'.format(self._source, self.voice_client))
+                log.debug("Playing {0} using {1}".format(self._source, self.voice_client))
                 self.voice_client.play(self._source, after=self._playback_finished)
 
                 self._current_player = self.voice_client
@@ -316,38 +320,40 @@ class MusicPlayer(EventEmitter, Serializable):
                 stderr_thread = Thread(
                     target=filter_stderr,
                     args=(self._source._source.original._process, self._stderr_future),
-                    name="stderr reader"
+                    name="stderr reader",
                 )
 
                 stderr_thread.start()
 
-                self.emit('play', player=self, entry=entry)
+                self.emit("play", player=self, entry=entry)
 
     def __json__(self):
-        return self._enclose_json({
-            'current_entry': {
-                'entry': self.current_entry,
-                'progress': self.progress,
-                'progress_frames': self._current_player._player.loops if self.progress is not None else None
-            },
-            'entries': self.playlist
-        })
+        return self._enclose_json(
+            {
+                "current_entry": {
+                    "entry": self.current_entry,
+                    "progress": self.progress,
+                    "progress_frames": self._current_player._player.loops if self.progress is not None else None,
+                },
+                "entries": self.playlist,
+            }
+        )
 
     @classmethod
     def _deserialize(cls, data, bot=None, voice_client=None, playlist=None):
-        assert bot is not None, cls._bad('bot')
-        assert voice_client is not None, cls._bad('voice_client')
-        assert playlist is not None, cls._bad('playlist')
+        assert bot is not None, cls._bad("bot")
+        assert voice_client is not None, cls._bad("voice_client")
+        assert playlist is not None, cls._bad("playlist")
 
         player = cls(bot, voice_client, playlist)
 
-        data_pl = data.get('entries')
+        data_pl = data.get("entries")
         if data_pl and data_pl.entries:
             player.playlist.entries = data_pl.entries
 
-        current_entry_data = data['current_entry']
-        if current_entry_data['entry']:
-            player.playlist.entries.appendleft(current_entry_data['entry'])
+        current_entry_data = data["current_entry"]
+        if current_entry_data["entry"]:
+            player.playlist.entries.appendleft(current_entry_data["entry"])
             # TODO: progress stuff
             # how do I even do this
             # this would have to be in the entry class right?
@@ -361,7 +367,6 @@ class MusicPlayer(EventEmitter, Serializable):
             return json.loads(raw_json, object_hook=Serializer.deserialize)
         except Exception as e:
             log.exception("Failed to deserialize player", e)
-
 
     @property
     def current_entry(self):
@@ -392,9 +397,11 @@ class MusicPlayer(EventEmitter, Serializable):
             #       192k AKA sampleRate * (bitDepth / 8) * channelCount
             #       Change frame_count to bytes_read in the PatchedBuff
 
+
 # TODO: I need to add a check for if the eventloop is closed
 
-def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
+
+def filter_stderr(popen: subprocess.Popen, future: asyncio.Future):
     last_ex = None
 
     while True:
@@ -411,7 +418,7 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
                 last_ex = e
 
             except FFmpegWarning:
-                pass # useless message
+                pass  # useless message
         else:
             break
 
@@ -420,12 +427,13 @@ def filter_stderr(popen:subprocess.Popen, future:asyncio.Future):
     else:
         future.set_result(True)
 
-def check_stderr(data:bytes):
+
+def check_stderr(data: bytes):
     try:
-        data = data.decode('utf8')
+        data = data.decode("utf8")
     except:
         log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
-        return True # fuck it
+        return True  # fuck it
 
     # log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
 
@@ -437,10 +445,10 @@ def check_stderr(data:bytes):
         "Application provided invalid, non monotonically increasing dts to muxer in stream",
         "Last message repeated",
         "Failed to send close message",
-        "decode_band_types: Input buffer exhausted before END element found"
+        "decode_band_types: Input buffer exhausted before END element found",
     ]
     errors = [
-        "Invalid data found when processing input", # need to regex this properly, its both a warning and an error
+        "Invalid data found when processing input",  # need to regex this properly, its both a warning and an error
     ]
 
     if any(msg in data for msg in warnings):
