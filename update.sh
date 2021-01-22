@@ -4,16 +4,15 @@
 cd "$(dirname "$BASH_SOURCE")"
 
 # Set variables for python versions. Could probably be done cleaner, but this works.
-declare -A python=( ["0"]=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))' || { echo "no py"; }` ["1"]=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py"; }` ["2"]=`python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py"; }` )
-declare -A python3=( ["0"]=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py3"; }` ["1"]=`python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py3"; }` )
-PYTHON35_VERSION=`python3.5 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py35"; }`
-PYTHON36_VERSION=`python3.6 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py36"; }`
-PYTHON37_VERSION=`python3.7 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py37"; }`
-PYTHON38_VERSION=`python3.8 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py38"; }`
+declare -A python=(["0"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))' || { echo "no py"; }) ["1"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py"; }) ["2"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py"; }))
+declare -A python3=(["0"]=$(python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py3"; }) ["1"]=$(python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py3"; }))
+PYTHON35_VERSION=$(python3.5 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py35"; })
+PYTHON36_VERSION=$(python3.6 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py36"; })
+PYTHON37_VERSION=$(python3.7 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py37"; })
+PYTHON38_VERSION=$(python3.8 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py38"; })
 
-
-if [ "${python[0]}" -eq "3" ]; then # Python = 3
-    if [ "${python[1]}" -eq "5" ]; then # Python = 3.5
+if [ "${python[0]}" -eq "3" ]; then         # Python = 3
+    if [ "${python[1]}" -eq "5" ]; then     # Python = 3.5
         if [ "${python[2]}" -ge "3" ]; then # Python = 3.5.3
             python update.py
             exit
@@ -24,10 +23,10 @@ if [ "${python[0]}" -eq "3" ]; then # Python = 3
     fi
 fi
 
-if [ "${python3[0]}" -eq "5" ]; then # Python3 = 3.5
+if [ "${python3[0]}" -eq "5" ]; then     # Python3 = 3.5
     if [ "${python3[1]}" -ge "3" ]; then # Python3 >= 3.5.3
-            python3 update.py
-            exit
+        python3 update.py
+        exit
     fi
 fi
 
