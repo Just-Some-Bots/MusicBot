@@ -51,7 +51,7 @@ intents.typing = False
 intents.presences = False
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=None, perms_file=None, aliases_file=None, intents=intents):
+    def __init__(self, config_file=None, perms_file=None, aliases_file=None):
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
@@ -109,7 +109,7 @@ class MusicBot(discord.Client):
         }
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
-        super().__init__()
+        super().__init__(intents=intents)
         self.aiosession = aiohttp.ClientSession(loop=self.loop)
         self.http.user_agent += ' MusicBot/%s' % BOTVERSION
 

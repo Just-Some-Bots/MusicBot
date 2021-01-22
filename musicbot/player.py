@@ -265,7 +265,7 @@ class MusicPlayer(EventEmitter, Serializable):
         if self.is_dead:
             return
 
-        with await self._play_lock:
+        async with self._play_lock:
             if self.is_stopped or _continue:
                 try:
                     entry = await self.playlist.get_next_entry()
