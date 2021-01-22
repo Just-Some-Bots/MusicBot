@@ -225,11 +225,11 @@ def req_ensure_py3():
 
         pycom = None
 
-        if sys.platform.startswith('win'):
+        if sys.platform.startswith("win"):
             log.info('Trying "py -3.8"')
             try:
                 subprocess.check_output('py -3.8 -c "exit()"', shell=True)
-                pycom = 'py -3.8'
+                pycom = "py -3.8"
             except:
 
                 log.info('Trying "python3"')
