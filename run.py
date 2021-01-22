@@ -24,7 +24,7 @@ class GIT(object):
     @classmethod
     def works(cls):
         try:
-            return bool(subprocess.check_output('git --version', shell=True))
+            return bool(subprocess.check_output("git --version", shell=True))
         except:
             return False
 
@@ -45,16 +45,16 @@ class PIP(object):
 
     @classmethod
     def run_python_m(cls, *args, **kwargs):
-        check_output = kwargs.pop('check_output', False)
+        check_output = kwargs.pop("check_output", False)
         check = subprocess.check_output if check_output else subprocess.check_call
-        return check([sys.executable, '-m', 'pip'] + list(args))
+        return check([sys.executable, "-m", "pip"] + list(args))
 
     @classmethod
     def run_pip_main(cls, *args, **kwargs):
         import pip
 
         args = list(args)
-        check_output = kwargs.pop('check_output', False)
+        check_output = kwargs.pop("check_output", False)
 
         if check_output:
             from io import StringIO
@@ -80,7 +80,7 @@ class PIP(object):
 
     @classmethod
     def run_install(cls, cmd, quiet=False, check_output=False):
-        return cls.run("install %s%s" % ('-q ' if quiet else '', cmd), check_output)
+        return cls.run("install %s%s" % ("-q " if quiet else "", cmd), check_output)
 
     @classmethod
     def run_show(cls, cmd, check_output=False):
@@ -90,6 +90,7 @@ class PIP(object):
     def works(cls):
         try:
             import pip
+
             return True
         except ImportError:
             return False
@@ -103,10 +104,10 @@ class PIP(object):
             if isinstance(out, bytes):
                 out = out.decode()
 
-            datas = out.replace('\r\n', '\n').split('\n')
+            datas = out.replace("\r\n", "\n").split("\n")
             expectedversion = datas[3]
 
-            if expectedversion.startswith('Version: '):
+            if expectedversion.startswith("Version: "):
                 return expectedversion.split()[1]
             else:
                 return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
@@ -114,29 +115,26 @@ class PIP(object):
             pass
 
     @classmethod
-    def get_requirements(cls, file='requirements.txt'):
+    def get_requirements(cls, file="requirements.txt"):
         from pip.req import parse_requirements
+
         return list(parse_requirements(file))
 
 
 # Setup initial loggers
 
-tmpfile = tempfile.TemporaryFile('w+', encoding='utf8')
-log = logging.getLogger('launcher')
+tmpfile = tempfile.TemporaryFile("w+", encoding="utf8")
+log = logging.getLogger("launcher")
 log.setLevel(logging.DEBUG)
 
 sh = logging.StreamHandler(stream=sys.stdout)
-sh.setFormatter(logging.Formatter(
-    fmt="[%(levelname)s] %(name)s: %(message)s"
-))
+sh.setFormatter(logging.Formatter(fmt="[%(levelname)s] %(name)s: %(message)s"))
 
 sh.setLevel(logging.INFO)
 log.addHandler(sh)
 
 tfh = logging.StreamHandler(stream=tmpfile)
-tfh.setFormatter(logging.Formatter(
-    fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"
-))
+tfh.setFormatter(logging.Formatter(fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"))
 tfh.setLevel(logging.DEBUG)
 log.addHandler(tfh)
 
@@ -151,35 +149,33 @@ def finalize_logging():
         except:
             pass
 
-    with open("logs/musicbot.log", 'w', encoding='utf8') as f:
+    with open("logs/musicbot.log", "w", encoding="utf8") as f:
         tmpfile.seek(0)
         f.write(tmpfile.read())
         tmpfile.close()
 
-        f.write('\n')
-        f.write(" PRE-RUN SANITY CHECKS PASSED ".center(80, '#'))
-        f.write('\n\n')
+        f.write("\n")
+        f.write(" PRE-RUN SANITY CHECKS PASSED ".center(80, "#"))
+        f.write("\n\n")
 
     global tfh
     log.removeHandler(tfh)
     del tfh
 
-    fh = logging.FileHandler("logs/musicbot.log", mode='a')
-    fh.setFormatter(logging.Formatter(
-        fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"
-    ))
+    fh = logging.FileHandler("logs/musicbot.log", mode="a")
+    fh.setFormatter(logging.Formatter(fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"))
     fh.setLevel(logging.DEBUG)
     log.addHandler(fh)
 
     sh.setLevel(logging.INFO)
 
-    dlog = logging.getLogger('discord')
+    dlog = logging.getLogger("discord")
     dlh = logging.StreamHandler(stream=sys.stdout)
-    dlh.terminator = ''
+    dlh.terminator = ""
     try:
-        dlh.setFormatter(logging.Formatter('.'))
+        dlh.setFormatter(logging.Formatter("."))
     except ValueError:
-        dlh.setFormatter(logging.Formatter('.', validate = False)) # pylint: disable=unexpected-keyword-arg
+        dlh.setFormatter(logging.Formatter(".", validate=False))  # pylint: disable=unexpected-keyword-arg
     dlog.addHandler(dlh)
 
 
@@ -229,26 +225,26 @@ def req_ensure_py3():
 
         pycom = None
 
-        if sys.platform.startswith('win'):
+        if sys.platform.startswith("win"):
             log.info('Trying "py -3.5"')
             try:
                 subprocess.check_output('py -3.5 -c "exit()"', shell=True)
-                pycom = 'py -3.5'
+                pycom = "py -3.5"
             except:
 
                 log.info('Trying "python3"')
                 try:
                     subprocess.check_output('python3 -c "exit()"', shell=True)
-                    pycom = 'python3'
+                    pycom = "python3"
                 except:
                     pass
 
             if pycom:
                 log.info("Python 3 found.  Launching bot...")
-                pyexec(pycom, 'run.py')
+                pyexec(pycom, "run.py")
 
                 # I hope ^ works
-                os.system('start cmd /k %s run.py' % pycom)
+                os.system("start cmd /k %s run.py" % pycom)
                 sys.exit(0)
 
         else:
@@ -260,7 +256,7 @@ def req_ensure_py3():
 
             if pycom:
                 log.info("\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom)
-                pyexec(pycom, 'run.py')
+                pyexec(pycom, "run.py")
 
         log.critical("Could not find Python 3.5 or higher.  Please run the bot using Python 3.5")
         bugger_off()
@@ -269,8 +265,13 @@ def req_ensure_py3():
 def req_check_deps():
     try:
         import discord
+
         if discord.version_info.major < 1:
-            log.critical("This version of MusicBot requires a newer version of discord.py (1.0+). Your version is {0}. Try running update.py.".format(discord.__version__))
+            log.critical(
+                "This version of MusicBot requires a newer version of discord.py (1.0+). Your version is {0}. Try running update.py.".format(
+                    discord.__version__
+                )
+            )
             bugger_off()
     except ImportError:
         # if we can't import discord.py, an error will be thrown later down the line anyway
@@ -280,15 +281,16 @@ def req_check_deps():
 def req_ensure_encoding():
     log.info("Checking console encoding")
 
-    if sys.platform.startswith('win') or sys.stdout.encoding.replace('-', '').lower() != 'utf8':
+    if sys.platform.startswith("win") or sys.stdout.encoding.replace("-", "").lower() != "utf8":
         log.info("Setting console encoding to UTF-8")
 
         import io
-        sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf8', line_buffering=True)
-        # only slightly evil    
+
+        sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding="utf8", line_buffering=True)
+        # only slightly evil
         sys.__stdout__ = sh.stream = sys.stdout
 
-        if os.environ.get('PYCHARM_HOSTED', None) not in (None, '0'):
+        if os.environ.get("PYCHARM_HOSTED", None) not in (None, "0"):
             log.info("Enabling colors in pycharm pseudoconsole")
             sys.stdout.isatty = lambda: True
 
@@ -296,45 +298,51 @@ def req_ensure_encoding():
 def req_ensure_env():
     log.info("Ensuring we're in the right environment")
 
-    if os.environ.get('APP_ENV') != 'docker' and not os.path.isdir(b64decode('LmdpdA==').decode('utf-8')):
-        log.critical(b64decode('Qm90IHdhc24ndCBpbnN0YWxsZWQgdXNpbmcgR2l0LiBSZWluc3RhbGwgdXNpbmcgaHR0cDovL2JpdC5seS9tdXNpY2JvdGRvY3Mu').decode('utf-8'))
+    if os.environ.get("APP_ENV") != "docker" and not os.path.isdir(b64decode("LmdpdA==").decode("utf-8")):
+        log.critical(
+            b64decode(
+                "Qm90IHdhc24ndCBpbnN0YWxsZWQgdXNpbmcgR2l0LiBSZWluc3RhbGwgdXNpbmcgaHR0cDovL2JpdC5seS9tdXNpY2JvdGRvY3Mu"
+            ).decode("utf-8")
+        )
         bugger_off()
 
     try:
-        assert os.path.isdir('config'), 'folder "config" not found'
-        assert os.path.isdir('musicbot'), 'folder "musicbot" not found'
-        assert os.path.isfile('musicbot/__init__.py'), 'musicbot folder is not a Python module'
+        assert os.path.isdir("config"), 'folder "config" not found'
+        assert os.path.isdir("musicbot"), 'folder "musicbot" not found'
+        assert os.path.isfile("musicbot/__init__.py"), "musicbot folder is not a Python module"
 
-        assert importlib.util.find_spec('musicbot'), "musicbot module is not importable"
+        assert importlib.util.find_spec("musicbot"), "musicbot module is not importable"
     except AssertionError as e:
         log.critical("Failed environment check, %s", e)
         bugger_off()
 
     try:
-        os.mkdir('musicbot-test-folder')
+        os.mkdir("musicbot-test-folder")
     except Exception:
         log.critical("Current working directory does not seem to be writable")
         log.critical("Please move the bot to a folder that is writable")
         bugger_off()
     finally:
-        rmtree('musicbot-test-folder', True)
+        rmtree("musicbot-test-folder", True)
 
-    if sys.platform.startswith('win'):
+    if sys.platform.startswith("win"):
         log.info("Adding local bins/ folder to path")
-        os.environ['PATH'] += ';' + os.path.abspath('bin/')
-        sys.path.append(os.path.abspath('bin/')) # might as well
+        os.environ["PATH"] += ";" + os.path.abspath("bin/")
+        sys.path.append(os.path.abspath("bin/"))  # might as well
 
 
 def req_ensure_folders():
-    pathlib.Path('logs').mkdir(exist_ok=True)
-    pathlib.Path('data').mkdir(exist_ok=True)
+    pathlib.Path("logs").mkdir(exist_ok=True)
+    pathlib.Path("data").mkdir(exist_ok=True)
+
 
 def opt_check_disk_space(warnlimit_mb=200):
-    if disk_usage('.').free < warnlimit_mb*1024*2:
+    if disk_usage(".").free < warnlimit_mb * 1024 * 2:
         log.warning("Less than %sMB of free space remains on this device" % warnlimit_mb)
 
 
 #################################################
+
 
 def pyexec(pycom, *args, pycom2=None):
     pycom2 = pycom2 or pycom
@@ -344,14 +352,14 @@ def pyexec(pycom, *args, pycom2=None):
 def main():
     # TODO: *actual* argparsing
 
-    if '--no-checks' not in sys.argv:
+    if "--no-checks" not in sys.argv:
         sanity_checks()
 
     finalize_logging()
 
     import asyncio
 
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         loop = asyncio.ProactorEventLoop()  # needed for subprocesses
         asyncio.set_event_loop(loop)
 
@@ -368,10 +376,11 @@ def main():
         m = None
         try:
             from musicbot import MusicBot
+
             m = MusicBot()
 
-            sh.terminator = ''
-            sh.terminator = '\n'
+            sh.terminator = ""
+            sh.terminator = "\n"
 
             m.run()
 
@@ -388,12 +397,14 @@ def main():
                 log.exception("Error starting bot")
                 log.info("Attempting to install dependencies...")
 
-                err = PIP.run_install('--upgrade -r requirements.txt')
+                err = PIP.run_install("--upgrade -r requirements.txt")
 
-                if err: # TODO: add the specific error check back as not to always tell users to sudo it
+                if err:  # TODO: add the specific error check back as not to always tell users to sudo it
                     print()
-                    log.critical("You may need to %s to install dependencies." %
-                                 ['use sudo', 'run as admin'][sys.platform.startswith('win')])
+                    log.critical(
+                        "You may need to %s to install dependencies."
+                        % ["use sudo", "run as admin"][sys.platform.startswith("win")]
+                    )
                     break
                 else:
                     print()
@@ -404,8 +415,8 @@ def main():
                 break
 
         except Exception as e:
-            if hasattr(e, '__module__') and e.__module__ == 'musicbot.exceptions':
-                if e.__class__.__name__ == 'HelpfulError':
+            if hasattr(e, "__module__") and e.__module__ == "musicbot.exceptions":
+                if e.__class__.__name__ == "HelpfulError":
                     log.info(e.message)
                     break
 
@@ -430,12 +441,12 @@ def main():
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops*2))
+            log.info("Restarting in {} seconds...".format(loops * 2))
             time.sleep(sleeptime)
 
     print()
     log.info("All done.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
