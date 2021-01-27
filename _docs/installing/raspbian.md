@@ -14,20 +14,28 @@ If you're willing to try it, you can run the following commands in order to inst
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
-########## Link to python3.8 installer here: (NOTE: need to be compiled afaik, so ill make a script for it)
-wget XXXXXXXX
+# Installer for python 3.8
+wget https://cdn.discordapp.com/attachments/157598062020132865/804093346007482418/installer.sh # change this later to another link
+# Make it executable
+sudo chmod +x installer.sh
+# Run the script
+./installer.sh
+
+
+
 
 # Install dependencies
-sudo apt install python3-pip
-sudo apt install git
-sudo apt install libopus-dev
-sudo apt install ffmpeg
+sudo apt -y install python3-dev
+sudo apt -y install python3-pip
+sudo apt -y install git
+sudo apt -y install libopus-dev
+sudo apt -y install ffmpeg
 
 # Clone the MusicBot
 cd ~
 git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
-sudo python3 -m pip install --upgrade -r requirements.txt
+sudo python3.8 -m pip install --upgrade -r requirements.txt
 ```
 
 After this, you can find a folder called `MusicBot` inside your home directory. [Configure]({{ site.baseurl }}/using/configuration) it, and then run `./run.sh` to start the bot.
