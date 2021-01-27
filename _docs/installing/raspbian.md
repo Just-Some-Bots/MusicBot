@@ -14,6 +14,9 @@ If you're willing to try it, you can run the following commands in order to inst
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
+########## Link to python3.8 installer here: (NOTE: need to be compiled afaik, so ill make a script for it)
+wget XXXXXXXX
+
 # Install dependencies
 sudo apt install python3-pip
 sudo apt install git
