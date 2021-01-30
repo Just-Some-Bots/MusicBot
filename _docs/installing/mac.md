@@ -6,7 +6,7 @@ order: 3
 
 <img class="doc-img" src="{{ site.baseurl }}/images/mac.png" alt="Mac" style="width: 75px; float: right;"/>
 
-Installing MusicBot on Mac requires several libraries and applications. First, install Python 3.5+ on your system. For the best results, install [Python 3.5.4](https://www.python.org/ftp/python/3.5.4/python-3.5.4-macosx10.6.pkg) (double-click the pkg file to install). Next, you will need to open Terminal and run the following commands:
+Installing MusicBot on Mac requires several libraries and applications. First, install Python 3.8+ on your system. For the best results, install [Python 3.8.0](https://www.python.org/ftp/python/3.8.0/python-3.8.0rc1-macosx10.6.pkg) (double-click the pkg file to install). Next, you will need to open Terminal and run the following commands:
 
 ```bash
 # Install Homebrew
