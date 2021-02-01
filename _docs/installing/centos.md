@@ -43,7 +43,7 @@ sudo pip3.5 install -U pynacl
 
 ## CentOS 7.4
 
-~~~
+~~~sh
 # Install dependencies
 sudo yum -y update
 sudo yum -y groupinstall "Development Tools"
