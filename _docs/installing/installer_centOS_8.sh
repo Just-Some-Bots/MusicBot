@@ -24,17 +24,3 @@ sudo rm Python-$version.tgz
 
 
 # not yet working
-
-
-
-
-
-
-
-
-
-
-
-
-
-
