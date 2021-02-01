@@ -8,7 +8,7 @@ order: 4
 [![GitHub forks](https://img.shields.io/github/forks/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/network)
 [![Python version](https://img.shields.io/badge/python-3.5%2C%203.6%2C%203.7-blue.svg)](https://python.org)
 
-> MucicBot version 1.9.8 requires Python 3.8.0 or higher. If you are updating the MusicBot with version below than 1.9.8, reinstall Python with the following version.
+> MucicBot version 02.01.21 requires Python 3.8.0 or higher. If you are updating the MusicBot with version below than 02.01.21, reinstall Python with the following version.
 > - Windows: [[Download](https://www.python.org/ftp/python/3.7.0/python-3.7.0.exe)]
 > - Mac: [[Download](https://www.python.org/ftp/python/3.6.6/python-3.6.6-macosx10.6.pkg)]
 > - Linux: Install Python 3.6 and pip using your package manager
