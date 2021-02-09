@@ -2,7 +2,7 @@
 
 Installing MusicBot on Android is simple, just time consuming.
 
-Firstly, ensure you install [Termux](https://play.google.com/store/apps/details?id=com.termux "https://play.google.com/store/apps/details?id=com.termux") on your device.
+Firstly, ensure you install [Termux](https://play.google.com/store/apps/details?id=com.termux) on your device.
 
 After your terminal is installed, you can run the following commands to start getting setup:
 
