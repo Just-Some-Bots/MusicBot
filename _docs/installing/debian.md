@@ -3,12 +3,11 @@ title: Debian
 category: Installing the bot
 order: 5
 ---
-
 <img class="doc-img" src="{{ site.baseurl }}/images/debian.png" alt="debian" style="width: 75px; float: right;"/>
 
 Installing the bot on Debian is similar to [Ubuntu](/installing/ubuntu), but requires some additional system dependencies obtained through `apt`.
 
-~~~ bash
+~~~bash
 # Update system repositories
 sudo apt-get update -y
 sudo apt-get upgrade -y
@@ -19,9 +18,9 @@ sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib
 
 # Install python 3.8
 cd /opt
-sudo wget https://www.python.org/ftp/python/3.8.0/Python-3.8.0.tgz
-sudo tar xzf Python-3.8.0.tgz
-cd Python-3.8.0
+sudo wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
+sudo tar xzf Python-3.8.7.tgz
+cd Python-3.8.7
 sudo ./configure --enable-optimizations
 sudo make altinstall
 

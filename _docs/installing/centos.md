@@ -3,7 +3,6 @@ title: CentOS
 category: Installing the bot
 order: 6
 ---
-
 <img class="doc-img" src="{{ site.baseurl }}/images/centos.png" alt="centos" style="width: 75px; float: right;"/>
 Installation on CentOS is **majorly untested and is not officially supported** due to issues. Please keep this in mind when seeking support.
 
@@ -21,13 +20,13 @@ sudo yum -y install yum-utils opus-devel libsodium-devel
 
 # Install Python3.8
 cd /opt
-wget https://www.python.org/ftp/python/3.8.0/Python-3.8.0.tgz
-tar xzf Python-3.8.0.tgz
-cd Python-3.8.0
+wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
+tar xzf Python-3.8.7.tgz
+cd Python-3.8.7
 sudo ./configure --enable-optimizations
 sudo make altinstall
 cd ..
-sudo rm Python-3.8.0.tgz
+sudo rm Python-3.8.7.tgz
 
 # Install FFmpeg
 sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
@@ -65,13 +64,13 @@ sudo yum -y install gcc openssl-devel bzip2-devel make
 # Install Python3.8
 
 cd /opt
-wget https://www.python.org/ftp/python/3.8.0/Python-3.8.0.tgz
-tar xzf Python-3.8.0.tgz
-cd Python-3.8.0
+wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
+tar xzf Python-3.8.7.tgz
+cd Python-3.8.7
 sudo ./configure --enable-optimizations
 sudo make altinstall
 cd ..
-sudo rm Python-3.8.0.tgz
+sudo rm Python-3.8.7.tgz
 
 # Install FFmpeg
 sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
@@ -85,6 +84,7 @@ cd MusicBot
 # Install bot requirements
 sudo python3.8 -m pip install -U -r requirements.txt
 ~~~
+
 {: title="CentOS 7.4" }
 
 Once everything has been completed, you can go ahead and [configure]({{ site.baseurl }}/using/configuration) the bot and then run with `sudo ./run.sh`.

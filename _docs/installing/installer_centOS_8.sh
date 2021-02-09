@@ -2,7 +2,7 @@
 
 # might need to change this script to another location on the site
 
-version=3.8.0
+version=3.8.7
 
 echo "Installing deps."
 

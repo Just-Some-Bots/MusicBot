@@ -3,14 +3,13 @@ title: OpenBSD
 category: Installing the bot
 order: 8
 ---
-
 MusicBot can run on OpenBSD systems as well. Note that the X11 sets must be installed, due to the `ffmpeg` dependency.
 
 ## OpenBSD 6.6
 
-~~~ bash
+~~~bash
 # Install Python and libraries available as packages
-doas pkg_add python # select version 3.8.0
+doas pkg_add python # select version 3.8.7
 doas pkg_add py3-aiohttp youtube-dl ffmpeg libsodium git
 
 # Ensure pip is set up
