@@ -672,8 +672,11 @@ class MusicBot(discord.Client):
             await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_error(self, player, entry, ex, **_):
-        if "channel" in entry.meta:
-            await self.safe_send_message(entry.meta["channel"], "```\nError from FFmpeg:\n{}\n```".format(ex))
+        if 'channel' in entry.meta:
+            await self.safe_send_message(
+                entry.meta['channel'],
+                "```\nError while playing:\n{}\n```".format(ex)
+            )
         else:
             log.exception("Player error", exc_info=ex)
 
@@ -2177,11 +2180,9 @@ class MusicBot(discord.Client):
 
         if player.is_paused:
             player.resume()
-            return Response(
-                self.str.get("cmd-resume-reply", "Resumed music in `{0.name}`").format(player.voice_client.channel),
-                delete_after=15,
-            )
-
+            return Response(self.str.get('cmd-resume-reply', 'Resumed music in `{0.name}`').format(player.voice_client.channel), delete_after=15)
+        elif player.is_stopped and player.playlist:
+            player.play()
         else:
             raise exceptions.CommandError(self.str.get("cmd-resume-none", "Player is not paused."), expire_in=30)
 
