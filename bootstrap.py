@@ -5,8 +5,8 @@ If this is running then python is obviously installed, but we need to make sure 
 What we need to do:
     0. (optional) Check disk space
         0.1: The same env checks in run.py?
-    1: Make sure this is python 3.5+
-      1.1: If we installed python 3.5, restart using that
+    1: Make sure this is python 3.8+
+      1.1: If we installed python 3.8, restart using that
     2. Check for and install required programs:
       - brew (osx)
       - git
@@ -59,7 +59,7 @@ args = ap.parse_args()
 
 # Logging setup goes here
 
-PY_VERSION = sys.version_info  # (3, 5, 1, ...)
+PY_VERSION = sys.version_info  # (3, 8, 7, ...)
 SYS_PLATFORM = sys.platform  # 'win32', 'linux', 'darwin'
 SYS_UNAME = platform.uname()
 SYS_ARCH = ("32", "64")[SYS_UNAME[4].endswith("64")]
@@ -67,8 +67,8 @@ SYS_PKGMANAGER = None  # TODO: Figure this out
 
 PLATFORMS = ["win32", "linux", "darwin", "linux2"]
 
-MINIMUM_PY_VERSION = (3, 5)
-TARGET_PY_VERSION = "3.5.2"
+MINIMUM_PY_VERSION = (3, 8)
+TARGET_PY_VERSION = "3.8.7"
 
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
@@ -210,7 +210,7 @@ class EnsurePython(SetupTask):
         if PY_VERSION >= MINIMUM_PY_VERSION:
             return True
 
-        # TODO: Check for python 3.5 and restart if found
+        # TODO: Check for python 3.8 and restart if found
 
     def download_win32(self):
         exe, _ = tmpdownload(self.PYTHON_EXE.format(ver=TARGET_PY_VERSION))
@@ -273,7 +273,7 @@ class EnsurePython(SetupTask):
 
     def _restart(self, *cmds):
         # TODO: os.execl
-        pass  # Restart with 3.5 if needed
+        pass  # Restart with 3.8 if needed
 
 
 class EnsureEnv(SetupTask):
@@ -506,15 +506,15 @@ class EnsurePip(SetupTask):
                 ensurepip.bootstrap()
             except PermissionError:
                 # panic and try and sudo it
-                sudo_check_call("python3.5 -m ensurepip")
+                sudo_check_call("python3.8 -m ensurepip")
             return
 
         # Instead, we have to run get-pip.py.
         print("Installing pip...")
         try:
-            sudo_check_call(["python3.5", "{}".format(data)])
+            sudo_check_call(["python3.8", "{}".format(data)])
         except FileNotFoundError:
-            subprocess.check_call(["python3.5", "{}".format(data)])
+            subprocess.check_call(["python3.8", "{}".format(data)])
 
 
 class GitCloneMusicbot(SetupTask):
