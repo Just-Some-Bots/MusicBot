@@ -8,6 +8,11 @@ Configuring the bot is relatively straight forward. First, open your bot folder 
 
 > Editing your configuration file using Notepad or WordPad will result in problems as they save files in strange formats and aren't designed for editing .ini files.
 
+#### Intents
+
+Due to the new Discord update regarding intents, you have to enable the intents to get some options to work.
+More information is [here]({{ site.baseurl }}/using/intents).
+
 #### Credentials
 
 <img class="doc-img" src="{{ site.baseurl }}/images/token.png" alt="Token" style="width: 500px;"/>
