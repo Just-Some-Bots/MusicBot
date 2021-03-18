@@ -107,8 +107,9 @@ class MusicBot(discord.Client):
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
         super().__init__(intents=intents)
-        self.aiosession = aiohttp.ClientSession(loop=self.loop)
-        self.http.user_agent += " MusicBot/%s" % BOTVERSION
+        self.http.user_agent = "MusicBot/%s" % BOTVERSION
+        self.aiosession = aiohttp.ClientSession(
+            loop=self.loop, headers={"User-Agent": self.http.user_agent})
 
         self.spotify = None
         if self.config._spotify:
