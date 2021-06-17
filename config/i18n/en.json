@@ -38,6 +38,7 @@
     "cmd-play-song-reply": "Enqueued `%s` to be played. Position in queue: %s",
     "cmd-play-next": "Up next!",
     "cmd-play-eta": " - estimated time until playing: %s",
+    "cmd-play-eta-error": " - cannot estimate time until playing",
     "cmd-play-badextractor": "You do not have permission to play media from this service.",
     "cmd-promote-nothing-playing": "Can't modify the queue! The player is not playing!",
     "cmd-promote-not-enough-entries": "Can't promote! Please add at least 2 songs to the queue!",
