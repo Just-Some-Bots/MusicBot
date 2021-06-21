@@ -1,42 +1,34 @@
-FROM alpine:3.11
+FROM python:3.8-alpine
+
+# Add project source
+WORKDIR /musicbot
+COPY . ./
+COPY ./config sample_config
+
+# Install build dependencies
+RUN apk update && apk add --no-cache --virtual .build-deps \
+  build-base \
+  libffi-dev \
+  libsodium-dev
 
 # Install dependencies
-RUN apk update \
-&& apk add --no-cache \
+RUN apk update && apk add --no-cache \
   ca-certificates \
   ffmpeg \
-  opus \
-  python3 \
-  libsodium-dev \
-\
-# Install build dependencies
-&& apk add --no-cache --virtual .build-deps \
-  gcc \
-  git \
-  libffi-dev \
-  make \
-  musl-dev \
-  python3-dev 
-
-# Set working directory
-WORKDIR /usr/src/musicbot
-
-# Add project requirements
-COPY ./requirements.txt ./requirements.txt
+  opus-dev \
+  libffi \
+  libsodium \
+  gcc
 
 # Install pip dependencies
-RUN pip3 install --upgrade pip \
- && pip3 install --no-cache-dir -r requirements.txt \
-\
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 # Clean up build dependencies
- && apk del .build-deps
+RUN apk del .build-deps
 
-# Add project sources
-COPY . ./
-
-# Create volume for mapping the config
-VOLUME /usr/src/musicbot/config
+# Create volumes for audio cache, config, data and logs
+VOLUME ["/musicbot/audio_cache", "/musicbot/config", "/musicbot/data", "/musicbot/logs"]
 
 ENV APP_ENV=docker
 
-CMD ["python3", "dockerentry.py"]
+ENTRYPOINT ["/bin/sh", "docker-entrypoint.sh"]
