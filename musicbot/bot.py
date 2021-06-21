@@ -2059,21 +2059,18 @@ class MusicBot(discord.Client):
                         info['entries'][int(choice.content) - 1]['title']), delete_after=30)
         else:
             # Original code
-            for e in info['entries']:
-                result_message = await self.safe_send_message(channel, self.str.get('cmd-search-result', "Result {0}/{1}: {2}").format(
-                    info['entries'].index(e) + 1, len(info['entries']), e['webpage_url']))
-        for e in info["entries"]:
-            result_message = await self.safe_send_message(
-                channel,
-                self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
-                    info["entries"].index(e) + 1, len(info["entries"]), e["webpage_url"]
-                ),
-            )
+            for e in info["entries"]:
+                result_message = await self.safe_send_message(
+                    channel,
+                    self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
+                        info["entries"].index(e) + 1, len(info["entries"]), e["webpage_url"]
+                    ),
+                )
 
-            def check(reaction, user):
-                return (
-                    user == message.author and reaction.message.id == result_message.id
-                )  # why can't these objs be compared directly?
+                def check(reaction, user):
+                    return (
+                        user == message.author and reaction.message.id == result_message.id
+                    )  # why can't these objs be compared directly?
 
                 reactions = ["\u2705", "\U0001F6AB", "\U0001F3C1"]
                 for r in reactions:
@@ -2091,10 +2088,9 @@ class MusicBot(discord.Client):
                     return Response(self.str.get("cmd-search-accept", "Alright, coming right up!"), delete_after=30)
                 elif str(reaction.emoji) == "\U0001F6AB":  # cross
                     await self.safe_delete_message(result_message)
-                    continue
                 else:
                     await self.safe_delete_message(result_message)
-                    break
+
         return Response(self.str.get("cmd-search-decline", "Oh well :("), delete_after=30)
 
     async def cmd_np(self, player, channel, guild, message):
