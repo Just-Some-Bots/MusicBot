@@ -105,7 +105,7 @@
     "karaoke-enabled": "Tryb karaoke jest włączony, proszę spróbować ponownie, gdy będzie wyłączony!",
     "left-no-owner-guilds": "Opuszczono `{}`, ponieważ właściciel bota nie został tam odnaleziony.",
 	"on_player_play-onChannel_authorNotInChannel_skipWhenAbsent":"Pomijanie następnego utworu {channel}: {title} dodanego przez {author}, gdyż dodającego/dodającej nie ma na kanale!",
-	"on_player_play-onChannel_plaingMention":"{author} - Twój utwór {title} jest teraz odtwarzany w {channel}!",
+	"on_player_play-onChannel_playingMention":"{author} - Twój utwór {title} jest teraz odtwarzany w {channel}!",
 	"on_player_play-onChannel":"Teraz odtwarzane w {channel}: {title} dodane przez {author}!",
-	"on_player_play-onChannel_noAuthor_autoplalist": "Teraz odtwarzane automatycznie dodaną pozycję {title} w {channel}!"
+	"on_player_play-onChannel_noAuthor_autoplaylist": "Teraz odtwarzane automatycznie dodaną pozycję {title} w {channel}!"
 }
