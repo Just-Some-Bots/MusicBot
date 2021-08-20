@@ -15,7 +15,7 @@ FOR /F "usebackq tokens=1-3" %%A IN (`REG QUERY %KEY_NAME% /v %VALUE_NAME% 2^>nu
 
 IF x%ValueValue:0x0=%==x%ValueValue% (
     ECHO Unhiding file extensions...
-    START CMD /c REG ADD HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced /v HideFileExt /t REG_DWORD /d 0 /f
+    START CMD /c /k REG ADD HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced /v HideFileExt /t REG_DWORD /d 0 /f
 )
 ENDLOCAL
 
