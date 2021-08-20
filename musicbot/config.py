@@ -108,6 +108,8 @@ class Config:
         )
         self.usealias = config.getboolean("MusicBot", "UseAlias", fallback=ConfigDefaults.usealias)
         self.footer_text = config.get("MusicBot", "CustomEmbedFooter", fallback=ConfigDefaults.footer_text)
+        self.searchlist = config.getboolean('MusicBot','SearchList', fallback=ConfigDefaults.searchlist)
+        self.defaultsearchresults = config.getint('MusicBot', 'DefaultSearchResults', fallback=ConfigDefaults.defaultsearchresults)
 
         self.debug_level = config.get("MusicBot", "DebugLevel", fallback=ConfigDefaults.debug_level)
         self.debug_level_str = self.debug_level
@@ -389,6 +391,8 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    searchlist = False
+    defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
 
     options_file = "config/options.ini"
@@ -405,7 +409,6 @@ setattr(ConfigDefaults, codecs.decode(b"dG9rZW4=", "\x62\x61\x73\x65\x36\x34").d
 # and id/object conversion so types aren't an issue
 class Blacklist:
     pass
-
 
 class Whitelist:
     pass
