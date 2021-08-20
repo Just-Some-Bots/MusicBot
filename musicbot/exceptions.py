@@ -60,12 +60,22 @@ class SpotifyError(MusicbotException):
 class PermissionsError(CommandError):
     @property
     def message(self):
-        return "You don't have permission to use that command.\nReason: " + self._message
+        return (
+            "You don't have permission to use that command.\nReason: " + self._message
+        )
 
 
 # Error with pretty formatting for hand-holding users through various errors
 class HelpfulError(MusicbotException):
-    def __init__(self, issue, solution, *, preface="An error has occured:", footnote="", expire_in=0):
+    def __init__(
+        self,
+        issue,
+        solution,
+        *,
+        preface="An error has occured:",
+        footnote="",
+        expire_in=0
+    ):
         self.issue = issue
         self.solution = solution
         self.preface = preface
@@ -100,7 +110,9 @@ class HelpfulError(MusicbotException):
             width = shutil.get_terminal_size().columns
 
         lines = textwrap.wrap(text, width=width - 5)
-        lines = (("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines)
+        lines = (
+            ("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines
+        )
 
         return pretext + "".join(lines).rstrip()
 
