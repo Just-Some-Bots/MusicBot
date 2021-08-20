@@ -56,7 +56,7 @@ if (!((Get-Command "python" -errorAction SilentlyContinue) -or (Get-Command "py"
 {
     # install python (chocolatey does not allow specifying version range currently so it's going to be pegged like this atm)
     "installing python..."
-    Invoke-Expression "choco install python3 -y --version=3.8.2"
+    Invoke-Expression "choco install python3 -y --version=3.9.5"
 }
 else
 {
@@ -137,6 +137,11 @@ Invoke-Expression "py -3.8 -c 'exit()'"
 if($LastExitCode -eq 0)
 {
     $PYTHON = "py -3.8"
+}
+Invoke-Expression "py -3.9 -c 'exit()'"
+if($LastExitCode -eq 0)
+{
+    $PYTHON = "py -3.9"
 }
 
 Invoke-Expression "$PYTHON -m pip install --upgrade -r requirements.txt"
