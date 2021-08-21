@@ -35,29 +35,43 @@ class Spotify:
 
     async def get_playlist(self, user, uri):
         """Get a playlist's info from its URI"""
-        return await self.make_spotify_req(self.API_BASE + "users/{0}/playlists/{1}{2}".format(user, uri))
+        return await self.make_spotify_req(
+            self.API_BASE + "users/{0}/playlists/{1}{2}".format(user, uri)
+        )
 
     async def get_playlist_tracks(self, uri):
         """Get a list of a playlist's tracks"""
-        return await self.make_spotify_req(self.API_BASE + "playlists/{0}/tracks".format(uri))
+        return await self.make_spotify_req(
+            self.API_BASE + "playlists/{0}/tracks".format(uri)
+        )
 
     async def make_spotify_req(self, url):
         """Proxy method for making a Spotify req using the correct Auth headers"""
         token = await self.get_token()
-        return await self.make_get(url, headers={"Authorization": "Bearer {0}".format(token)})
+        return await self.make_get(
+            url, headers={"Authorization": "Bearer {0}".format(token)}
+        )
 
     async def make_get(self, url, headers=None):
         """Makes a GET request and returns the results"""
         async with self.aiosession.get(url, headers=headers) as r:
             if r.status != 200:
-                raise SpotifyError("Issue making GET request to {0}: [{1.status}] {2}".format(url, r, await r.json()))
+                raise SpotifyError(
+                    "Issue making GET request to {0}: [{1.status}] {2}".format(
+                        url, r, await r.json()
+                    )
+                )
             return await r.json()
 
     async def make_post(self, url, payload, headers=None):
         """Makes a POST request and returns the results"""
         async with self.aiosession.post(url, data=payload, headers=headers) as r:
             if r.status != 200:
-                raise SpotifyError("Issue making POST request to {0}: [{1.status}] {2}".format(url, r, await r.json()))
+                raise SpotifyError(
+                    "Issue making POST request to {0}: [{1.status}] {2}".format(
+                        url, r, await r.json()
+                    )
+                )
             return await r.json()
 
     async def get_token(self):
@@ -78,10 +92,16 @@ class Spotify:
         else:
             token = await self.request_token()
             if token is None:
-                raise SpotifyError("Requested a token from Spotify, did not end up getting one")
+                raise SpotifyError(
+                    "Requested a token from Spotify, did not end up getting one"
+                )
             token["expires_at"] = int(time.time()) + token["expires_in"]
             self.token = token
-        log.debug("Created a new {0}access token: {1}".format("guest " if self.guest_mode else "", self.token))
+        log.debug(
+            "Created a new {0}access token: {1}".format(
+                "guest " if self.guest_mode else "", self.token
+            )
+        )
         return self.token["access_token"]
 
     async def check_token(self, token):
@@ -103,11 +123,19 @@ class Spotify:
         ) as r:
             if r.status != 200:
                 try:
-                    raise SpotifyError("Issue generating guest token: [{0.status}] {1}".format(r, await r.json()))
+                    raise SpotifyError(
+                        "Issue generating guest token: [{0.status}] {1}".format(
+                            r, await r.json()
+                        )
+                    )
                 except aiohttp.client_exceptions.ContentTypeError as e:
-                    raise SpotifyError("Issue generating guest token: [{0.status}] {1}".format(r, e))
+                    raise SpotifyError(
+                        "Issue generating guest token: [{0.status}] {1}".format(r, e)
+                    )
             return await r.json()
 
     def _make_token_auth(self, client_id, client_secret):
-        auth_header = base64.b64encode((client_id + ":" + client_secret).encode("ascii"))
+        auth_header = base64.b64encode(
+            (client_id + ":" + client_secret).encode("ascii")
+        )
         return {"Authorization": "Basic %s" % auth_header.decode("ascii")}

@@ -34,7 +34,9 @@ class Aliases:
             except:
                 raise HelpfulError(
                     "Failed to parse aliases file.",
-                    "Ensure your {} is a valid json file and restart the bot.".format(str(self.aliases_file)),
+                    "Ensure your {} is a valid json file and restart the bot.".format(
+                        str(self.aliases_file)
+                    ),
                 )
 
         # construct
@@ -42,7 +44,9 @@ class Aliases:
             if not isinstance(cmd, str) or not isinstance(aliases, list):
                 raise HelpfulError(
                     "Failed to parse aliases file.",
-                    "See documents and config {} properly!".format(str(self.aliases_file)),
+                    "See documents and config {} properly!".format(
+                        str(self.aliases_file)
+                    ),
                 )
             self.aliases.update({alias.lower(): cmd.lower() for alias in aliases})
 
