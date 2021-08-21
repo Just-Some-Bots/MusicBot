@@ -16,7 +16,9 @@ def load_file(filename, skip_commented_lines=True, comment_char="#"):
             for line in f:
                 line = line.strip()
 
-                if line and not (skip_commented_lines and line.startswith(comment_char)):
+                if line and not (
+                    skip_commented_lines and line.startswith(comment_char)
+                ):
                     results.append(line)
 
             return results
@@ -172,8 +174,11 @@ def _get_variable(name):
     finally:
         del stack
 
+
 def format_song_duration(ftd):
-    duration_array = ftd.split(':')
-    return ftd \
-        if int(duration_array[0]) > 0 \
+    duration_array = ftd.split(":")
+    return (
+        ftd
+        if int(duration_array[0]) > 0
         else "{0}:{1}".format(duration_array[1], duration_array[2])
+    )

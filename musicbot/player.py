@@ -57,7 +57,9 @@ class PatchedBuff:
             self.rmss.append(rms)
 
             max_rms = sorted(self.rmss)[-1]
-            meter_text = "avg rms: {:.2f}, max rms: {:.2f} ".format(avg(self.rmss), max_rms)
+            meter_text = "avg rms: {:.2f}, max rms: {:.2f} ".format(
+                avg(self.rmss), max_rms
+            )
             self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
 
         return frame
@@ -89,7 +91,9 @@ class MusicPlayerState(Enum):
     STOPPED = 0  # When the player isn't playing anything
     PLAYING = 1  # The player is actively playing music.
     PAUSED = 2  # The player is paused on a song.
-    WAITING = 3  # The player has finished its song but is still downloading the next one
+    WAITING = (
+        3  # The player has finished its song but is still downloading the next one
+    )
     DEAD = 4  # The player has been killed.
 
     def __str__(self):
@@ -208,23 +212,31 @@ class MusicPlayer(EventEmitter, Serializable):
 
         if error:
             self.stop()
-            self.emit('error', player=self, entry=entry, ex=error)
+            self.emit("error", player=self, entry=entry, ex=error)
             return
 
         if self._stderr_future.done() and self._stderr_future.exception():
             # I'm not sure that this would ever not be done if it gets to this point
             # unless ffmpeg is doing something highly questionable
             self.stop()
-            self.emit('error', player=self, entry=entry, ex=self._stderr_future.exception())
+            self.emit(
+                "error", player=self, entry=entry, ex=self._stderr_future.exception()
+            )
             return
 
         if not self.bot.config.save_videos and entry:
             if not isinstance(entry, StreamPlaylistEntry):
                 if any([entry.filename == e.filename for e in self.playlist.entries]):
-                    log.debug('Skipping deletion of "{}", found song in queue'.format(entry.filename))
+                    log.debug(
+                        'Skipping deletion of "{}", found song in queue'.format(
+                            entry.filename
+                        )
+                    )
 
                 else:
-                    log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
+                    log.debug(
+                        "Deleting file: {}".format(os.path.relpath(entry.filename))
+                    )
                     filename = entry.filename
                     for x in range(30):
                         try:
@@ -233,15 +245,24 @@ class MusicPlayer(EventEmitter, Serializable):
                             break
                         except PermissionError as e:
                             if e.winerror == 32:  # File is in use
-                                log.error("Can't delete file, it is currently in use: {0}".format(filename))
+                                log.error(
+                                    "Can't delete file, it is currently in use: {0}".format(
+                                        filename
+                                    )
+                                )
                         except FileNotFoundError:
                             log.debug(
-                                "Could not find delete {} as it was not found. Skipping.".format(filename),
+                                "Could not find delete {} as it was not found. Skipping.".format(
+                                    filename
+                                ),
                                 exc_info=True,
                             )
                             break
                         except Exception:
-                            log.error("Error trying to delete {}".format(filename), exc_info=True)
+                            log.error(
+                                "Error trying to delete {}".format(filename),
+                                exc_info=True,
+                            )
                             break
                     else:
                         print(
@@ -300,17 +321,26 @@ class MusicPlayer(EventEmitter, Serializable):
                 else:
                     aoptions = "-vn"
 
-                log.ffmpeg("Creating player with options: {} {} {}".format(boptions, aoptions, entry.filename))
+                log.ffmpeg(
+                    "Creating player with options: {} {} {}".format(
+                        boptions, aoptions, entry.filename
+                    )
+                )
 
                 self._source = SourcePlaybackCounter(
                     PCMVolumeTransformer(
                         FFmpegPCMAudio(
-                            entry.filename, before_options=boptions, options=aoptions, stderr=subprocess.PIPE
+                            entry.filename,
+                            before_options=boptions,
+                            options=aoptions,
+                            stderr=subprocess.PIPE,
                         ),
                         self.volume,
                     )
                 )
-                log.debug("Playing {0} using {1}".format(self._source, self.voice_client))
+                log.debug(
+                    "Playing {0} using {1}".format(self._source, self.voice_client)
+                )
                 self.voice_client.play(self._source, after=self._playback_finished)
 
                 self._current_player = self.voice_client
@@ -337,7 +367,9 @@ class MusicPlayer(EventEmitter, Serializable):
                 "current_entry": {
                     "entry": self.current_entry,
                     "progress": self.progress,
-                    "progress_frames": self._current_player._player.loops if self.progress is not None else None,
+                    "progress_frames": self._current_player._player.loops
+                    if self.progress is not None
+                    else None,
                 },
                 "entries": self.playlist,
             }

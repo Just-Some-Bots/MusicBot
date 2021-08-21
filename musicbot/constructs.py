@@ -46,7 +46,9 @@ class Response:
         self.reply = reply
         self.delete_after = delete_after
         self.codeblock = codeblock
-        self._codeblock = "```{!s}\n{{}}\n```".format("" if codeblock is True else codeblock)
+        self._codeblock = "```{!s}\n{{}}\n```".format(
+            "" if codeblock is True else codeblock
+        )
 
     @property
     def content(self):
@@ -78,7 +80,9 @@ class Serializer(json.JSONEncoder):
             # log.debug("Found object %s", factory)
             if factory and issubclass(factory, Serializable):
                 # log.debug("Deserializing %s object", factory)
-                return factory._deserialize(data["data"], **cls._get_vars(factory._deserialize))
+                return factory._deserialize(
+                    data["data"], **cls._get_vars(factory._deserialize)
+                )
 
         return data
 
@@ -103,7 +107,11 @@ class Serializable:
     _class_signature = ("__class__", "__module__", "data")
 
     def _enclose_json(self, data):
-        return {"__class__": self.__class__.__qualname__, "__module__": self.__module__, "data": data}
+        return {
+            "__class__": self.__class__.__qualname__,
+            "__module__": self.__module__,
+            "data": data,
+        }
 
     # Perhaps convert this into some sort of decorator
     @staticmethod

@@ -101,7 +101,11 @@ def _add_logger_level(levelname, level, *, func_name=None):
     setattr(logging, levelname, level)
     logging.addLevelName(level, levelname)
 
-    exec(_func_prototype.format(logger_func_name=func_name, levelname=levelname), logging.__dict__, locals())
+    exec(
+        _func_prototype.format(logger_func_name=func_name, levelname=levelname),
+        logging.__dict__,
+        locals(),
+    )
     setattr(logging.Logger, func_name, eval(func_name))
 
 
