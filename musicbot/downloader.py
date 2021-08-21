@@ -55,7 +55,9 @@ class Downloader:
     def ytdl(self):
         return self.safe_ytdl
 
-    async def extract_info(self, loop, *args, on_error=None, retry_on_error=False, **kwargs):
+    async def extract_info(
+        self, loop, *args, on_error=None, retry_on_error=False, **kwargs
+    ):
         """
         Runs ytdl.extract_info within the threadpool. Returns a future that will fire when it's done.
         If `on_error` is passed and an exception is raised, the exception will be caught and passed to
@@ -64,7 +66,8 @@ class Downloader:
         if callable(on_error):
             try:
                 return await loop.run_in_executor(
-                    self.thread_pool, functools.partial(self.unsafe_ytdl.extract_info, *args, **kwargs)
+                    self.thread_pool,
+                    functools.partial(self.unsafe_ytdl.extract_info, *args, **kwargs),
                 )
 
             except Exception as e:
@@ -84,10 +87,12 @@ class Downloader:
                     return await self.safe_extract_info(loop, *args, **kwargs)
         else:
             return await loop.run_in_executor(
-                self.thread_pool, functools.partial(self.unsafe_ytdl.extract_info, *args, **kwargs)
+                self.thread_pool,
+                functools.partial(self.unsafe_ytdl.extract_info, *args, **kwargs),
             )
 
     async def safe_extract_info(self, loop, *args, **kwargs):
         return await loop.run_in_executor(
-            self.thread_pool, functools.partial(self.safe_ytdl.extract_info, *args, **kwargs)
+            self.thread_pool,
+            functools.partial(self.safe_ytdl.extract_info, *args, **kwargs),
         )

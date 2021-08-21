@@ -69,7 +69,11 @@ class Permissions:
 
             except Exception as e:
                 traceback.print_exc()
-                raise RuntimeError("Unable to copy config/example_permissions.ini to {}: {}".format(config_file, e))
+                raise RuntimeError(
+                    "Unable to copy config/example_permissions.ini to {}: {}".format(
+                        config_file, e
+                    )
+                )
 
         self.default_group = PermissionGroup("Default", self.config["Default"])
         self.groups = set()
@@ -79,14 +83,20 @@ class Permissions:
                 self.groups.add(PermissionGroup(section, self.config[section]))
 
         if self.config.has_section("Owner (auto)"):
-            owner_group = PermissionGroup("Owner (auto)", self.config["Owner (auto)"], fallback=Permissive)
+            owner_group = PermissionGroup(
+                "Owner (auto)", self.config["Owner (auto)"], fallback=Permissive
+            )
 
         else:
-            log.info("[Owner (auto)] section not found, falling back to permissive default")
+            log.info(
+                "[Owner (auto)] section not found, falling back to permissive default"
+            )
             # Create a fake section to fallback onto the default permissive values to grant to the owner
             # noinspection PyTypeChecker
             owner_group = PermissionGroup(
-                "Owner (auto)", configparser.SectionProxy(self.config, "Owner (auto)"), fallback=Permissive
+                "Owner (auto)",
+                configparser.SectionProxy(self.config, "Owner (auto)"),
+                fallback=Permissive,
             )
 
         if hasattr(grant_all, "__iter__"):
@@ -138,22 +148,44 @@ class PermissionGroup:
     def __init__(self, name, section_data, fallback=PermissionsDefaults):
         self.name = name
 
-        self.command_whitelist = section_data.get("CommandWhiteList", fallback=fallback.CommandWhiteList)
-        self.command_blacklist = section_data.get("CommandBlackList", fallback=fallback.CommandBlackList)
-        self.ignore_non_voice = section_data.get("IgnoreNonVoice", fallback=fallback.IgnoreNonVoice)
-        self.granted_to_roles = section_data.get("GrantToRoles", fallback=fallback.GrantToRoles)
+        self.command_whitelist = section_data.get(
+            "CommandWhiteList", fallback=fallback.CommandWhiteList
+        )
+        self.command_blacklist = section_data.get(
+            "CommandBlackList", fallback=fallback.CommandBlackList
+        )
+        self.ignore_non_voice = section_data.get(
+            "IgnoreNonVoice", fallback=fallback.IgnoreNonVoice
+        )
+        self.granted_to_roles = section_data.get(
+            "GrantToRoles", fallback=fallback.GrantToRoles
+        )
         self.user_list = section_data.get("UserList", fallback=fallback.UserList)
 
         self.max_songs = section_data.get("MaxSongs", fallback=fallback.MaxSongs)
-        self.max_song_length = section_data.get("MaxSongLength", fallback=fallback.MaxSongLength)
-        self.max_playlist_length = section_data.get("MaxPlaylistLength", fallback=fallback.MaxPlaylistLength)
-        self.max_search_items = section_data.get("MaxSearchItems", fallback=fallback.MaxSearchItems)
+        self.max_song_length = section_data.get(
+            "MaxSongLength", fallback=fallback.MaxSongLength
+        )
+        self.max_playlist_length = section_data.get(
+            "MaxPlaylistLength", fallback=fallback.MaxPlaylistLength
+        )
+        self.max_search_items = section_data.get(
+            "MaxSearchItems", fallback=fallback.MaxSearchItems
+        )
 
-        self.allow_playlists = section_data.getboolean("AllowPlaylists", fallback=fallback.AllowPlaylists)
-        self.instaskip = section_data.getboolean("InstaSkip", fallback=fallback.InstaSkip)
+        self.allow_playlists = section_data.getboolean(
+            "AllowPlaylists", fallback=fallback.AllowPlaylists
+        )
+        self.instaskip = section_data.getboolean(
+            "InstaSkip", fallback=fallback.InstaSkip
+        )
         self.remove = section_data.getboolean("Remove", fallback=fallback.Remove)
-        self.skip_when_absent = section_data.getboolean("SkipWhenAbsent", fallback=fallback.SkipWhenAbsent)
-        self.bypass_karaoke_mode = section_data.getboolean("BypassKaraokeMode", fallback=fallback.BypassKaraokeMode)
+        self.skip_when_absent = section_data.getboolean(
+            "SkipWhenAbsent", fallback=fallback.SkipWhenAbsent
+        )
+        self.bypass_karaoke_mode = section_data.getboolean(
+            "BypassKaraokeMode", fallback=fallback.BypassKaraokeMode
+        )
 
         self.extractors = section_data.get("Extractors", fallback=fallback.Extractors)
 
@@ -203,7 +235,9 @@ class PermissionGroup:
             self.max_search_items = 100
 
     @staticmethod
-    def _process_list(seq, *, split=" ", lower=True, strip=", ", coerce=str, rcoerce=list):
+    def _process_list(
+        seq, *, split=" ", lower=True, strip=", ", coerce=str, rcoerce=list
+    ):
         lower = str.lower if lower else None
         _strip = (lambda x: x.strip(strip)) if strip else None
         coerce = coerce if callable(coerce) else None

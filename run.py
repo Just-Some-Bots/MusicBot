@@ -134,7 +134,11 @@ sh.setLevel(logging.INFO)
 log.addHandler(sh)
 
 tfh = logging.StreamHandler(stream=tmpfile)
-tfh.setFormatter(logging.Formatter(fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"))
+tfh.setFormatter(
+    logging.Formatter(
+        fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"
+    )
+)
 tfh.setLevel(logging.DEBUG)
 log.addHandler(tfh)
 
@@ -163,7 +167,11 @@ def finalize_logging():
     del tfh
 
     fh = logging.FileHandler("logs/musicbot.log", mode="a")
-    fh.setFormatter(logging.Formatter(fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"))
+    fh.setFormatter(
+        logging.Formatter(
+            fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"
+        )
+    )
     fh.setLevel(logging.DEBUG)
     log.addHandler(fh)
 
@@ -175,7 +183,9 @@ def finalize_logging():
     try:
         dlh.setFormatter(logging.Formatter("."))
     except ValueError:
-        dlh.setFormatter(logging.Formatter(".", validate=False))  # pylint: disable=unexpected-keyword-arg
+        dlh.setFormatter(
+            logging.Formatter(".", validate=False)
+        )  # pylint: disable=unexpected-keyword-arg
     dlog.addHandler(dlh)
 
 
@@ -220,7 +230,9 @@ def req_ensure_py3():
     log.info("Checking for Python 3.8+")
 
     if sys.version_info < (3, 8):
-        log.warning("Python 3.8+ is required. This version is %s", sys.version.split()[0])
+        log.warning(
+            "Python 3.8+ is required. This version is %s", sys.version.split()[0]
+        )
         log.warning("Attempting to locate Python 3.8...")
 
         pycom = None
@@ -250,15 +262,23 @@ def req_ensure_py3():
         else:
             log.info('Trying "python3.8"')
             try:
-                pycom = subprocess.check_output('python3.8 -c "exit()"'.split()).strip().decode()
+                pycom = (
+                    subprocess.check_output('python3.8 -c "exit()"'.split())
+                    .strip()
+                    .decode()
+                )
             except:
                 pass
 
             if pycom:
-                log.info("\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom)
+                log.info(
+                    "\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom
+                )
                 pyexec(pycom, "run.py")
 
-        log.critical("Could not find Python 3.8 or higher.  Please run the bot using Python 3.8")
+        log.critical(
+            "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
+        )
         bugger_off()
 
 
@@ -281,12 +301,17 @@ def req_check_deps():
 def req_ensure_encoding():
     log.info("Checking console encoding")
 
-    if sys.platform.startswith("win") or sys.stdout.encoding.replace("-", "").lower() != "utf8":
+    if (
+        sys.platform.startswith("win")
+        or sys.stdout.encoding.replace("-", "").lower() != "utf8"
+    ):
         log.info("Setting console encoding to UTF-8")
 
         import io
 
-        sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding="utf8", line_buffering=True)
+        sys.stdout = io.TextIOWrapper(
+            sys.stdout.detach(), encoding="utf8", line_buffering=True
+        )
         # only slightly evil
         sys.__stdout__ = sh.stream = sys.stdout
 
@@ -298,7 +323,9 @@ def req_ensure_encoding():
 def req_ensure_env():
     log.info("Ensuring we're in the right environment")
 
-    if os.environ.get("APP_ENV") != "docker" and not os.path.isdir(b64decode("LmdpdA==").decode("utf-8")):
+    if os.environ.get("APP_ENV") != "docker" and not os.path.isdir(
+        b64decode("LmdpdA==").decode("utf-8")
+    ):
         log.critical(
             b64decode(
                 "Qm90IHdhc24ndCBpbnN0YWxsZWQgdXNpbmcgR2l0LiBSZWluc3RhbGwgdXNpbmcgaHR0cDovL2JpdC5seS9tdXNpY2JvdGRvY3Mu"
@@ -309,7 +336,9 @@ def req_ensure_env():
     try:
         assert os.path.isdir("config"), 'folder "config" not found'
         assert os.path.isdir("musicbot"), 'folder "musicbot" not found'
-        assert os.path.isfile("musicbot/__init__.py"), "musicbot folder is not a Python module"
+        assert os.path.isfile(
+            "musicbot/__init__.py"
+        ), "musicbot folder is not a Python module"
 
         assert importlib.util.find_spec("musicbot"), "musicbot module is not importable"
     except AssertionError as e:
@@ -338,7 +367,9 @@ def req_ensure_folders():
 
 def opt_check_disk_space(warnlimit_mb=200):
     if disk_usage(".").free < warnlimit_mb * 1024 * 2:
-        log.warning("Less than %sMB of free space remains on this device" % warnlimit_mb)
+        log.warning(
+            "Less than %sMB of free space remains on this device" % warnlimit_mb
+        )
 
 
 #################################################
@@ -399,7 +430,9 @@ def main():
 
                 err = PIP.run_install("--upgrade -r requirements.txt")
 
-                if err:  # TODO: add the specific error check back as not to always tell users to sudo it
+                if (
+                    err
+                ):  # TODO: add the specific error check back as not to always tell users to sudo it
                     print()
                     log.critical(
                         "You may need to %s to install dependencies."
