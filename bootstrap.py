@@ -1,12 +1,12 @@
-'''
+"""
 
 If this is running then python is obviously installed, but we need to make sure that python3 is installed.
 
 What we need to do:
     0. (optional) Check disk space
         0.1: The same env checks in run.py?
-    1: Make sure this is python 3.5+
-      1.1: If we installed python 3.5, restart using that
+    1: Make sure this is python 3.8+
+      1.1: If we installed python 3.8, restart using that
     2. Check for and install required programs:
       - brew (osx)
       - git
@@ -25,7 +25,7 @@ Remember to make sure the user knows the script might prompt for password
 Print the command beforehand just so they know whats happening
 
 When the script runs the user should be greeted with some text and a press [enter/whatever] to continue prompt
-'''
+"""
 
 from __future__ import print_function
 
@@ -54,35 +54,37 @@ except ImportError:
 
 # Arguments
 ap = argparse.ArgumentParser()
-ap.add_argument('--dir', help='the name of the directory to install to (default: MusicBot)')
+ap.add_argument(
+    "--dir", help="the name of the directory to install to (default: MusicBot)"
+)
 args = ap.parse_args()
 
 # Logging setup goes here
 
-PY_VERSION = sys.version_info  # (3, 5, 1, ...)
+PY_VERSION = sys.version_info  # (3, 8, 7, ...)
 SYS_PLATFORM = sys.platform  # 'win32', 'linux', 'darwin'
 SYS_UNAME = platform.uname()
-SYS_ARCH = ('32', '64')[SYS_UNAME[4].endswith('64')]
+SYS_ARCH = ("32", "64")[SYS_UNAME[4].endswith("64")]
 SYS_PKGMANAGER = None  # TODO: Figure this out
 
-PLATFORMS = ['win32', 'linux', 'darwin', 'linux2']
+PLATFORMS = ["win32", "linux", "darwin", "linux2"]
 
-MINIMUM_PY_VERSION = (3, 5)
-TARGET_PY_VERSION = "3.5.2"
+MINIMUM_PY_VERSION = (3, 8)
+TARGET_PY_VERSION = "3.8.7"
 
 if SYS_PLATFORM not in PLATFORMS:
     raise RuntimeError('Unsupported system "%s"' % SYS_PLATFORM)
 
-if SYS_PLATFORM == 'linux2':
-    SYS_PLATFORM = 'linux'
+if SYS_PLATFORM == "linux2":
+    SYS_PLATFORM = "linux"
 
-TEMP_DIR = tempfile.TemporaryDirectory(prefix='musicbot-')
+TEMP_DIR = tempfile.TemporaryDirectory(prefix="musicbot-")
 try:
     PY_BUILD_DIR = os.path.join(TEMP_DIR, "Python-%s" % TARGET_PY_VERSION)
 except TypeError:  # expected str, bytes or os.PathLike object, not TemporaryDirectory
     PY_BUILD_DIR = os.path.join(TEMP_DIR.name, "Python-%s" % TARGET_PY_VERSION)
 
-INSTALL_DIR = args.dir if args.dir is not None else 'MusicBot'
+INSTALL_DIR = args.dir if args.dir is not None else "MusicBot"
 
 GET_PIP = "https://bootstrap.pypa.io/get-pip.py"
 
@@ -103,32 +105,38 @@ def sudo_check_output(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
 
-    return subprocess.check_output(('sudo',) + tuple(args), **kwargs)
+    return subprocess.check_output(("sudo",) + tuple(args), **kwargs)
 
 
 def sudo_check_call(args, **kwargs):
     if not isinstance(args, (list, tuple)):
         args = args.split()
 
-    return subprocess.check_call(('sudo',) + tuple(args), **kwargs)
+    return subprocess.check_call(("sudo",) + tuple(args), **kwargs)
 
-def tmpdownload(url, name=None, subdir=''):
+
+def tmpdownload(url, name=None, subdir=""):
     if name is None:
         name = os.path.basename(url)
 
     _name = os.path.join(TEMP_DIR.name, subdir, name)
     return urlretrieve(url, _name)
 
+
 def find_library(libname):
-    if SYS_PLATFORM == 'win32': return
+    if SYS_PLATFORM == "win32":
+        return
 
     # TODO: This
 
+
 def yes_no(question):
     while True:  # spooky
-        ri = raw_input('{} (y/n): '.format(question))
-        if ri.lower() in ['yes', 'y']: return True
-        elif ri.lower() in ['no', 'n']: return False
+        ri = raw_input("{} (y/n): ".format(question))
+        if ri.lower() in ["yes", "y"]:
+            return True
+        elif ri.lower() in ["no", "n"]:
+            return False
 
 
 """
@@ -148,18 +156,20 @@ class SetupTask(object):
     def __getattribute__(self, item):
         try:
             # Check for platform variant of function first
-            return object.__getattribute__(self, item + '_' + SYS_PLATFORM)
+            return object.__getattribute__(self, item + "_" + SYS_PLATFORM)
         except:
             pass
 
-        if item.endswith('_dist'):
+        if item.endswith("_dist"):
             try:
                 # check for dist aliases, ex: setup_dist -> setup_win32
-                return object.__getattribute__(self, item.rsplit('_', 1)[0] + '_' + SYS_PLATFORM)
+                return object.__getattribute__(
+                    self, item.rsplit("_", 1)[0] + "_" + SYS_PLATFORM
+                )
             except:
                 try:
                     # If there's no dist variant, try to fallback to the generic, ex: setup_dist -> setup
-                    return object.__getattribute__(self, item.rsplit('_', 1)[0])
+                    return object.__getattribute__(self, item.rsplit("_", 1)[0])
                 except:
                     pass
 
@@ -204,7 +214,7 @@ class EnsurePython(SetupTask):
         if PY_VERSION >= MINIMUM_PY_VERSION:
             return True
 
-        # TODO: Check for python 3.5 and restart if found
+        # TODO: Check for python 3.8 and restart if found
 
     def download_win32(self):
         exe, _ = tmpdownload(self.PYTHON_EXE.format(ver=TARGET_PY_VERSION))
@@ -212,12 +222,8 @@ class EnsurePython(SetupTask):
 
     def setup_win32(self, data):
         # https://docs.python.org/3/using/windows.html#installing-without-ui
-        args = {
-            'PrependPath': '1',
-            'InstallLauncherAllUsers': '0',
-            'Include_test': '0'
-        }
-        command = [data, '/quiet'] + ['='.join(x) for x in args.items()]
+        args = {"PrependPath": "1", "InstallLauncherAllUsers": "0", "Include_test": "0"}
+        command = [data, "/quiet"] + ["=".join(x) for x in args.items()]
 
         subprocess.check_call(command)
         self._restart(None)
@@ -242,8 +248,10 @@ class EnsurePython(SetupTask):
         os.chdir(PY_BUILD_DIR)
 
         # Configure and make.
-        subprocess.check_call('./configure --enable-ipv6 --enable-shared --with-system-ffi --without-ensurepip'.split())
-        subprocess.check_call('make')
+        subprocess.check_call(
+            "./configure --enable-ipv6 --enable-shared --with-system-ffi --without-ensurepip".split()
+        )
+        subprocess.check_call("make")
         sudo_check_call("make install")
 
         # Change back.
@@ -257,19 +265,21 @@ class EnsurePython(SetupTask):
         # Restart into the new executable.
         print("Rebooting into Python {}...".format(TARGET_PY_VERSION))
         # Use os.execl to switch program
-        os.execl("/usr/local/bin/{}".format(executable), "{}".format(executable), __file__)
+        os.execl(
+            "/usr/local/bin/{}".format(executable), "{}".format(executable), __file__
+        )
 
     def download_darwin(self):
         pkg, _ = tmpdownload(self.PYTHON_PKG.format(ver=TARGET_PY_VERSION))
         return pkg
 
     def setup_darwin(self, data):
-        subprocess.check_call(data.split()) # I hope this works?
+        subprocess.check_call(data.split())  # I hope this works?
         self._restart(None)
 
     def _restart(self, *cmds):
         # TODO: os.execl
-        pass  # Restart with 3.5 if needed
+        pass  # Restart with 3.8 if needed
 
 
 class EnsureEnv(SetupTask):
@@ -278,9 +288,9 @@ class EnsureEnv(SetupTask):
 
 class EnsureBrew(SetupTask):
     def check(self):
-        if SYS_PLATFORM == 'darwin':
+        if SYS_PLATFORM == "darwin":
             try:
-                subprocess.check_output(['brew'])
+                subprocess.check_output(["brew"])
             except FileNotFoundError:
                 return False
             except subprocess.CalledProcessError:
@@ -293,11 +303,12 @@ class EnsureBrew(SetupTask):
         subprocess.check_call(cmd, shell=True)
 
     def setup(self, data):
-        subprocess.check_call('brew update'.split())
+        subprocess.check_call("brew update".split())
 
 
 class EnsureGit(SetupTask):
-    WIN_OPTS = dedent("""
+    WIN_OPTS = dedent(
+        """
         [Setup]
         Lang=default
         Group=Git
@@ -310,11 +321,12 @@ class EnsureGit(SetupTask):
         CRLFOption=CRLFAlways
         BashTerminalOption=MinTTY
         PerformanceTweaksFSCache=Enabled
-        """)
+        """
+    )
 
     def check(self):
         try:
-            subprocess.check_output(['git', '--version'])
+            subprocess.check_output(["git", "--version"])
         except FileNotFoundError:
             return False
 
@@ -322,15 +334,15 @@ class EnsureGit(SetupTask):
 
     @staticmethod
     def _get_latest_win_git_version():
-        version = ('2.10.1', 'v2.10.1.windows.1')
+        version = ("2.10.1", "v2.10.1.windows.1")
         try:
             url = "https://github.com/git-for-windows/git/releases/latest"
-            req = Request(url, method='HEAD')
+            req = Request(url, method="HEAD")
 
             with urlopen(req) as resp:
                 full_ver = os.path.basename(resp.url)
 
-            match = re.match(r'v(\d+\.\d+\.\d+)', full_ver)
+            match = re.match(r"v(\d+\.\d+\.\d+)", full_ver)
             return match.groups()[0], full_ver
         except:
             return version
@@ -343,23 +355,23 @@ class EnsureGit(SetupTask):
         return url.format(full_ver=full_ver, ver=dist_ver, arch=SYS_ARCH)
 
     def download_win32(self):
-        result, _ = tmpdownload(self._get_latest_win_git_version(), 'git-setup.exe')
+        result, _ = tmpdownload(self._get_latest_win_git_version(), "git-setup.exe")
         return result
 
     def setup_win32(self, data):
-        with tempfile.NamedTemporaryFile('w+', encoding='utf8') as f:
+        with tempfile.NamedTemporaryFile("w+", encoding="utf8") as f:
             f.file.write(self.WIN_OPTS)
             f.file.flush()
 
             args = [
                 data,
-                '/SILENT',
-                '/NORESTART',
-                '/NOCANCEL',
-                '/SP-',
-                '/LOG',
-                '/SUPPRESSMSGBOXES',
-                '/LOADINF="%s"' % f.name
+                "/SILENT",
+                "/NORESTART",
+                "/NOCANCEL",
+                "/SP-",
+                "/LOG",
+                "/SUPPRESSMSGBOXES",
+                '/LOADINF="%s"' % f.name,
             ]
             subprocess.check_call(args)
 
@@ -370,7 +382,7 @@ class EnsureGit(SetupTask):
     #     pass  # nothing really needed, I don't think setting any git options is necessary
 
     def download_darwin(self):
-        subprocess.check_call('brew install git'.split())
+        subprocess.check_call("brew install git".split())
 
     # def setup_darwin(self, data):
     #     pass  # same as linux, probably can just delete these stubs
@@ -380,11 +392,13 @@ class EnsureFFmpeg(SetupTask):
     AVCONV_CHECK = b"Please use avconv instead"
 
     def check_win32(self):
-        return True # ffmpeg comes with the bot
+        return True  # ffmpeg comes with the bot
 
     def check(self):
         try:
-            data = subprocess.check_output(['ffmpeg', '-version'], stderr=subprocess.STDOUT)
+            data = subprocess.check_output(
+                ["ffmpeg", "-version"], stderr=subprocess.STDOUT
+            )
         except FileNotFoundError:
             return False
         else:
@@ -400,7 +414,7 @@ class EnsureFFmpeg(SetupTask):
         pass
 
     def download_darwin(self):
-        subprocess.check_call('brew install ffmpeg'.split())
+        subprocess.check_call("brew install ffmpeg".split())
 
 
 class EnsureOpus(SetupTask):
@@ -409,7 +423,7 @@ class EnsureOpus(SetupTask):
     """
 
     def check_win32(self):
-        return True # opus comes with the lib
+        return True  # opus comes with the lib
 
     def check(self):
         pass
@@ -433,7 +447,7 @@ class EnsureFFI(SetupTask):
     """
 
     def check_win32(self):
-        return True # cffi has wheels
+        return True  # cffi has wheels
 
     def check(self):
         pass
@@ -451,7 +465,6 @@ class EnsureFFI(SetupTask):
         pass
 
 
-
 class EnsureSodium(SetupTask):
     # This one is going to be weird since sometimes its not needed (check python import)
 
@@ -463,7 +476,7 @@ class EnsureCompiler(SetupTask):
     # oh god
 
     def check_win32(self):
-        return True # yay wheels
+        return True  # yay wheels
 
 
 class EnsurePip(SetupTask):
@@ -480,6 +493,7 @@ class EnsurePip(SetupTask):
         # Try and use ensurepip.
         try:
             import ensurepip
+
             return False
         except ImportError:
             # Download `get-pip.py`.
@@ -496,18 +510,19 @@ class EnsurePip(SetupTask):
             print("Installing pip...")
             try:
                 import ensurepip
+
                 ensurepip.bootstrap()
             except PermissionError:
                 # panic and try and sudo it
-                sudo_check_call("python3.5 -m ensurepip")
+                sudo_check_call("python3.8 -m ensurepip")
             return
 
         # Instead, we have to run get-pip.py.
         print("Installing pip...")
         try:
-            sudo_check_call(["python3.5", "{}".format(data)])
+            sudo_check_call(["python3.8", "{}".format(data)])
         except FileNotFoundError:
-            subprocess.check_call(["python3.5", "{}".format(data)])
+            subprocess.check_call(["python3.8", "{}".format(data)])
 
 
 class GitCloneMusicbot(SetupTask):
@@ -517,9 +532,13 @@ class GitCloneMusicbot(SetupTask):
     def download(self):
         print("Cloning files using Git...")
         if os.path.isdir(INSTALL_DIR):
-            r = yes_no('A folder called %s already exists here. Overwrite?' % INSTALL_DIR)
+            r = yes_no(
+                "A folder called %s already exists here. Overwrite?" % INSTALL_DIR
+            )
             if r is False:
-                print('Exiting. Use the --dir parameter when running this script to specify a different folder.')
+                print(
+                    "Exiting. Use the --dir parameter when running this script to specify a different folder."
+                )
                 sys.exit(1)
             else:
                 os.rmdir(INSTALL_DIR)
@@ -529,6 +548,7 @@ class GitCloneMusicbot(SetupTask):
         os.chdir(INSTALL_DIR)
 
         import pip
+
         pip.main("install --upgrade -r requirements.txt".split())
 
 
@@ -547,33 +567,36 @@ class SetupMusicbot(SetupTask):
     def _rm_dir(self, d):
         return rmtree(d, ignore_errors=True)
 
-    def download(self): # lazy way to call a function on all platforms
-        self._rm('.dockerignore')
-        self._rm('Dockerfile')
+    def download(self):  # lazy way to call a function on all platforms
+        self._rm(".dockerignore")
+        self._rm("Dockerfile")
 
     def setup_win32(self, data):
-        self._rm_glob('*.sh')
-        self._rm_glob('*.command')
+        self._rm_glob("*.sh")
+        self._rm_glob("*.command")
 
     def setup_linux(self, data):
-        self._rm_glob('*.bat')
-        self._rm_glob('*.command')
-        self._rm_dir('bin')
+        self._rm_glob("*.bat")
+        self._rm_glob("*.command")
+        self._rm_dir("bin")
 
     def setup_darwin(self, data):
-        self._rm_glob('*.bat')
-        self._rm_glob('*.sh')
-        self._rm_dir('bin')
+        self._rm_glob("*.bat")
+        self._rm_glob("*.sh")
+        self._rm_dir("bin")
 
 
 ###############################################################################
 
 
 def preface():
-    print(" MusicBot Bootstrapper (v0.1) ".center(50, '#'))
-    print("This script will install the MusicBot into a folder called '%s' in your current directory." % INSTALL_DIR,
-          "\nDepending on your system and environment, several packages and dependencies will be installed.",
-          "\nTo ensure there are no issues, you should probably run this script as an administrator.")
+    print(" MusicBot Bootstrapper (v0.1) ".center(50, "#"))
+    print(
+        "This script will install the MusicBot into a folder called '%s' in your current directory."
+        % INSTALL_DIR,
+        "\nDepending on your system and environment, several packages and dependencies will be installed.",
+        "\nTo ensure there are no issues, you should probably run this script as an administrator.",
+    )
     print()
     raw_input("Press enter to begin. ")
     print()
@@ -581,7 +604,7 @@ def preface():
 
 def main():
     preface()
-    print("Bootstrapping MusicBot on Python %s." % '.'.join(list(map(str, PY_VERSION))))
+    print("Bootstrapping MusicBot on Python %s." % ".".join(list(map(str, PY_VERSION))))
 
     EnsurePython.run()
     EnsureBrew.run()
@@ -596,7 +619,7 @@ def main():
     SetupMusicbot.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except SystemExit:

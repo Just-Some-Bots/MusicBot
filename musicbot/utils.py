@@ -9,14 +9,16 @@ from .constants import DISCORD_MSG_CHAR_LIMIT
 log = logging.getLogger(__name__)
 
 
-def load_file(filename, skip_commented_lines=True, comment_char='#'):
+def load_file(filename, skip_commented_lines=True, comment_char="#"):
     try:
-        with open(filename, encoding='utf8') as f:
+        with open(filename, encoding="utf8") as f:
             results = []
             for line in f:
                 line = line.strip()
 
-                if line and not (skip_commented_lines and line.startswith(comment_char)):
+                if line and not (
+                    skip_commented_lines and line.startswith(comment_char)
+                ):
                     results.append(line)
 
             return results
@@ -27,31 +29,32 @@ def load_file(filename, skip_commented_lines=True, comment_char='#'):
 
 
 def write_file(filename, contents):
-    with open(filename, 'w', encoding='utf8') as f:
+    with open(filename, "w", encoding="utf8") as f:
         for item in contents:
             f.write(str(item))
-            f.write('\n')
+            f.write("\n")
+
 
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
     Split up a large string or list of strings into chunks for sending to discord.
     """
     if type(content) == str:
-        contentlist = content.split('\n')
+        contentlist = content.split("\n")
     elif type(content) == list:
         contentlist = content
     else:
         raise ValueError("Content must be str or list, not %s" % type(content))
 
     chunks = []
-    currentchunk = ''
+    currentchunk = ""
 
     for line in contentlist:
         if len(currentchunk) + len(line) < length - reserve:
-            currentchunk += line + '\n'
+            currentchunk += line + "\n"
         else:
             chunks.append(currentchunk)
-            currentchunk = ''
+            currentchunk = ""
 
     if currentchunk:
         chunks.append(currentchunk)
@@ -60,8 +63,8 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
 
 
 async def get_header(session, url, headerfield=None, *, timeout=5):
-    req_timeout = aiohttp.ClientTimeout(total = timeout)
-    async with session.head(url, timeout = req_timeout) as response:
+    req_timeout = aiohttp.ClientTimeout(total=timeout)
+    async with session.head(url, timeout=req_timeout) as response:
         if headerfield:
             return response.headers.get(headerfield)
         else:
@@ -75,18 +78,20 @@ def md5sum(filename, limit=0):
             fhash.update(chunk)
     return fhash.hexdigest()[-limit:]
 
+
 def fixg(x, dp=2):
-    return ('{:.%sf}' % dp).format(x).rstrip('0').rstrip('.')
+    return ("{:.%sf}" % dp).format(x).rstrip("0").rstrip(".")
 
 
 def ftimedelta(td):
-    p1, p2 = str(td).rsplit(':', 1)
-    return ':'.join([p1, '{:02d}'.format(int(float(p2)))])
+    p1, p2 = str(td).rsplit(":", 1)
+    return ":".join([p1, "{:02d}".format(int(float(p2)))])
 
 
-def safe_print(content, *, end='\n', flush=True):
-    sys.stdout.buffer.write((content + end).encode('utf-8', 'replace'))
-    if flush: sys.stdout.flush()
+def safe_print(content, *, end="\n", flush=True):
+    sys.stdout.buffer.write((content + end).encode("utf-8", "replace"))
+    if flush:
+        sys.stdout.flush()
 
 
 def avg(i):
@@ -99,12 +104,12 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
     if access_attr is None:
         attrdir = lambda x: x
 
-    elif access_attr == 'auto':
-        if hasattr(obj1, '__slots__') and hasattr(obj2, '__slots__'):
-            attrdir = lambda x: getattr(x, '__slots__')
+    elif access_attr == "auto":
+        if hasattr(obj1, "__slots__") and hasattr(obj2, "__slots__"):
+            attrdir = lambda x: getattr(x, "__slots__")
 
-        elif hasattr(obj1, '__dict__') and hasattr(obj2, '__dict__'):
-            attrdir = lambda x: getattr(x, '__dict__')
+        elif hasattr(obj1, "__dict__") and hasattr(obj2, "__dict__"):
+            attrdir = lambda x: getattr(x, "__dict__")
 
         else:
             # log.everything("{}{} or {} has no slots or dict".format('-' * (depth+1), repr(obj1), repr(obj2)))
@@ -127,7 +132,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
             if depth:
                 # log.everything("Inspecting level {}".format(depth))
-                idiff = objdiff(iobj1, iobj2, access_attr='auto', depth=depth - 1)
+                idiff = objdiff(iobj1, iobj2, access_attr="auto", depth=depth - 1)
                 if idiff:
                     changes[item] = idiff
 
@@ -145,12 +150,15 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
 
     return changes
 
+
 def color_supported():
     return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+
 
 def _func_():
     # emulate __func__ from C++
     return inspect.currentframe().f_back.f_code.co_name
+
 
 def _get_variable(name):
     stack = inspect.stack()
@@ -165,3 +173,12 @@ def _get_variable(name):
                 del frame
     finally:
         del stack
+
+
+def format_song_duration(ftd):
+    duration_array = ftd.split(":")
+    return (
+        ftd
+        if int(duration_array[0]) > 0
+        else "{0}:{1}".format(duration_array[1], duration_array[2])
+    )
