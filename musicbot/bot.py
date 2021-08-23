@@ -50,6 +50,9 @@ from .json import Json
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
 
+from typing import Optional
+
+
 load_opus_lib()
 
 log = logging.getLogger(__name__)
@@ -507,7 +510,7 @@ class MusicBot(discord.Client):
         # I hope I don't have to set the channel here
         # instead of waiting for the event to update it
 
-    def get_player_in(self, guild: discord.Guild) -> MusicPlayer:
+    def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
         return self.players.get(guild.id)
 
     async def get_player(
@@ -1634,7 +1637,7 @@ class MusicBot(discord.Client):
         return True
 
     async def cmd_play(
-        self, message, player, channel, author, permissions, leftover_args, song_url
+        self, message, _player, channel, author, permissions, leftover_args, song_url
     ):
         """
         Usage:
@@ -1652,7 +1655,7 @@ class MusicBot(discord.Client):
 
         return await self._cmd_play(
             message,
-            player,
+            _player,
             channel,
             author,
             permissions,
@@ -1662,7 +1665,7 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_playnext(
-        self, message, player, channel, author, permissions, leftover_args, song_url
+        self, message, _player, channel, author, permissions, leftover_args, song_url
     ):
         """
         Usage:
@@ -1680,7 +1683,7 @@ class MusicBot(discord.Client):
 
         return await self._cmd_play(
             message,
-            player,
+            _player,
             channel,
             author,
             permissions,
@@ -1692,7 +1695,7 @@ class MusicBot(discord.Client):
     async def _cmd_play(
         self,
         message,
-        player,
+        _player,
         channel,
         author,
         permissions,
@@ -1700,6 +1703,33 @@ class MusicBot(discord.Client):
         song_url,
         head,
     ):
+        if _player:
+            player = _player
+        elif permissions.summonplay:
+            vc = author.voice.channel if author.voice else None
+            response = await self.cmd_summon(
+                channel, channel.guild, author, vc
+            )  # @TheerapakG: As far as I know voice_channel param is unused
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = "summon"
+                content.description = response.content
+            else:
+                content = response.content
+            await self.safe_send_message(
+                channel,
+                content,
+                expire_in=response.delete_after if self.config.delete_messages else 0,
+            )
+            player = self.get_player_in(channel.guild)
+
+        if not player:
+            raise exceptions.CommandError(
+                "The bot is not in a voice channel.  "
+                "Use %ssummon to summon it to your voice channel."
+                % self.config.command_prefix
+            )
+
         song_url = song_url.strip("<>")
 
         await self.send_typing(channel)
@@ -2274,7 +2304,7 @@ class MusicBot(discord.Client):
             delete_after=30,
         )
 
-    async def cmd_stream(self, player, channel, author, permissions, song_url):
+    async def cmd_stream(self, _player, channel, author, permissions, song_url):
         """
         Usage:
             {command_prefix}stream song_link
@@ -2284,6 +2314,33 @@ class MusicBot(discord.Client):
         media without predownloading it.  Note: FFmpeg is notoriously bad at handling
         streams, especially on poor connections.  You have been warned.
         """
+
+        if _player:
+            player = _player
+        elif permissions.summonplay:
+            vc = author.voice.channel if author.voice else None
+            response = await self.cmd_summon(
+                channel, channel.guild, author, vc
+            )  # @TheerapakG: As far as I know voice_channel param is unused
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = "summon"
+                content.description = response.content
+            else:
+                content = response.content
+            await self.safe_send_message(
+                channel,
+                content,
+                expire_in=response.delete_after if self.config.delete_messages else 0,
+            )
+            player = self.get_player_in(channel.guild)
+
+        if not player:
+            raise exceptions.CommandError(
+                "The bot is not in a voice channel.  "
+                "Use %ssummon to summon it to your voice channel."
+                % self.config.command_prefix
+            )
 
         song_url = song_url.strip("<>")
 
@@ -2706,6 +2763,8 @@ class MusicBot(discord.Client):
 
         Call the bot to the summoner's voice channel.
         """
+
+        # @TheerapakG: Maybe summon should have async lock?
 
         if not author.voice:
             raise exceptions.CommandError(
