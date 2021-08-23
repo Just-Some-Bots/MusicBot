@@ -246,6 +246,17 @@ class MusicBot(discord.Client):
 
         shandler = logging.StreamHandler(stream=sys.stdout)
         sformatter = colorlog.LevelFormatter(
+            fmt={
+                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
+                "INFO": "{log_color}{message}",
+                "WARNING": "{log_color}{levelname}: {message}",
+                "ERROR": "{log_color}[{levelname}:{module}] {message}",
+                "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
+                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
+                "NOISY": "{log_color}[{levelname}:{module}] {message}",
+                "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
+                "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
+            },
             log_colors={
                 "DEBUG": "cyan",
                 "INFO": "white",
@@ -260,17 +271,6 @@ class MusicBot(discord.Client):
             style="{",
             datefmt="",
         )
-        sformatter.fmt = {
-            "DEBUG": "{log_color}[{levelname}:{module}] {message}",
-            "INFO": "{log_color}{message}",
-            "WARNING": "{log_color}{levelname}: {message}",
-            "ERROR": "{log_color}[{levelname}:{module}] {message}",
-            "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
-            "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
-            "NOISY": "{log_color}[{levelname}:{module}] {message}",
-            "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-            "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-        }
         shandler.setFormatter(sformatter)
         shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
