@@ -151,29 +151,6 @@ class Permissions:
 class PermissionGroup:
     def __init__(self, name, section_data, fallback=PermissionsDefaults):
         self.name = name
-<<<<<<< HEAD
-        
-        self.command_whitelist = section_data.get('CommandWhiteList', fallback=fallback.CommandWhiteList)
-        self.command_blacklist = section_data.get('CommandBlackList', fallback=fallback.CommandBlackList)
-        self.ignore_non_voice = section_data.get('IgnoreNonVoice', fallback=fallback.IgnoreNonVoice)
-        self.granted_to_roles = section_data.get('GrantToRoles', fallback=fallback.GrantToRoles)
-        self.user_list = section_data.get('UserList', fallback=fallback.UserList)
-
-        self.max_songs = section_data.get('MaxSongs', fallback=fallback.MaxSongs)
-        self.max_song_length = section_data.get('MaxSongLength', fallback=fallback.MaxSongLength)
-        self.max_playlist_length = section_data.get('MaxPlaylistLength', fallback=fallback.MaxPlaylistLength)
-        self.max_search_items = section_data.get('MaxSearchItems', fallback=fallback.MaxSearchItems)
-
-        self.allow_playlists = section_data.getboolean('AllowPlaylists', fallback=fallback.AllowPlaylists)
-        self.instaskip = section_data.getboolean('InstaSkip', fallback=fallback.InstaSkip)
-        self.remove = section_data.getboolean('Remove', fallback=fallback.Remove)
-        self.skip_when_absent = section_data.getboolean('SkipWhenAbsent', fallback=fallback.SkipWhenAbsent)
-        self.bypass_karaoke_mode = section_data.getboolean('BypassKaraokeMode', fallback=fallback.BypassKaraokeMode)
-
-        self.summonplay = section_data.getboolean('SummonNoVoice', fallback=fallback.SummonNoVoice)
-
-        self.extractors = section_data.get('Extractors', fallback=fallback.Extractors)
-=======
 
         self.command_whitelist = section_data.get(
             "CommandWhiteList", fallback=fallback.CommandWhiteList
@@ -214,8 +191,11 @@ class PermissionGroup:
             "BypassKaraokeMode", fallback=fallback.BypassKaraokeMode
         )
 
+        self.summonplay = section_data.getboolean(
+            "SummonNoVoice", fallback=fallback.SummonNoVoice
+        )
+
         self.extractors = section_data.get("Extractors", fallback=fallback.Extractors)
->>>>>>> dcd38b9d30843b830a4fbf01110db3ac3a8de05b
 
         self.validate()
 
