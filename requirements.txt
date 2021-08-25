@@ -1,4 +1,4 @@
-pynacl==1.2.1
+pynacl
 discord.py[voice]
 pip
 youtube_dl
