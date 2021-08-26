@@ -172,6 +172,7 @@ class Config:
         )
         self.dmhelp = config.getboolean(
             "MusicBot", "DMHelp", fallback=ConfigDefaults.dmhelp
+        )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
         )

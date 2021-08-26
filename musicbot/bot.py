@@ -1061,7 +1061,7 @@ class MusicBot(discord.Client):
         except:
             pass
 
-        pending = asyncio..all_tasks()
+        pending = asyncio.all_tasks()
         gathered = asyncio.gather(*pending)
 
         try:
@@ -2153,7 +2153,6 @@ class MusicBot(discord.Client):
                     )
 
                 entry, position = await player.playlist.add_entry(
-
                     song_url, channel=channel, author=author, head=head
                 )
 
@@ -2187,7 +2186,6 @@ class MusicBot(discord.Client):
 
     async def _cmd_play_playlist_async(
         self, player, channel, author, permissions, playlist_url, extractor_type, head
-
     ):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
