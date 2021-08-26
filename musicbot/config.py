@@ -170,6 +170,14 @@ class Config:
         self.footer_text = config.get(
             "MusicBot", "CustomEmbedFooter", fallback=ConfigDefaults.footer_text
         )
+        self.searchlist = config.getboolean(
+            "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
+        )
+        self.defaultsearchresults = config.getint(
+            "MusicBot",
+            "DefaultSearchResults",
+            fallback=ConfigDefaults.defaultsearchresults,
+        )
 
         self.debug_level = config.get(
             "MusicBot", "DebugLevel", fallback=ConfigDefaults.debug_level
@@ -501,6 +509,8 @@ class ConfigDefaults:
     legacy_skip = False
     leavenonowners = False
     usealias = True
+    searchlist = False
+    defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
 
     options_file = "config/options.ini"
