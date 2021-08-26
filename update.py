@@ -19,7 +19,9 @@ def update_deps():
 
     try:
         subprocess.check_call(
-            '"{}" -m pip install --no-warn-script-location --user -U -r requirements.txt'.format(sys.executable),
+            '"{}" -m pip install --no-warn-script-location --user -U -r requirements.txt'.format(
+                sys.executable
+            ),
             shell=True,
         )
     except subprocess.CalledProcessError:
@@ -55,12 +57,16 @@ def main():
     try:
         subprocess.check_call("git --version", shell=True, stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
-        raise EnvironmentError("Couldn't use Git on the CLI. You will need to run 'git pull' yourself.")
+        raise EnvironmentError(
+            "Couldn't use Git on the CLI. You will need to run 'git pull' yourself."
+        )
 
     print("Passed Git checks...")
 
     # Check that the current working directory is clean
-    sp = subprocess.check_output("git status --porcelain", shell=True, universal_newlines=True)
+    sp = subprocess.check_output(
+        "git status --porcelain", shell=True, universal_newlines=True
+    )
     if sp:
         oshit = y_n(
             "You have modified files that are tracked by Git (e.g the bot's source files).\n"
@@ -72,7 +78,9 @@ def main():
             except subprocess.CalledProcessError:
                 raise OSError("Could not reset the directory to a clean state.")
         else:
-            wowee = y_n("OK, skipping bot update. Do you still want to update dependencies?")
+            wowee = y_n(
+                "OK, skipping bot update. Do you still want to update dependencies?"
+            )
             if wowee:
                 update_deps()
             else:
@@ -84,7 +92,9 @@ def main():
     try:
         subprocess.check_call("git pull", shell=True)
     except subprocess.CalledProcessError:
-        raise OSError("Could not update the bot. You will need to run 'git pull' yourself.")
+        raise OSError(
+            "Could not update the bot. You will need to run 'git pull' yourself."
+        )
 
     update_deps()
     finalize()
