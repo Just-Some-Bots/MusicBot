@@ -35,23 +35,12 @@ from .config import Config, ConfigDefaults
 from .permissions import Permissions, PermissionsDefaults
 from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
-from .utils import (
-    load_file,
-    write_file,
-    fixg,
-    ftimedelta,
-    _func_,
-    _get_variable,
-    format_song_duration,
-)
+from .utils import load_file, write_file, fixg, ftimedelta, _func_, _get_variable
 from .spotify import Spotify
 from .json import Json
 
 from .constants import VERSION as BOTVERSION
 from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
-
-from typing import Optional
-
 
 load_opus_lib()
 
@@ -249,17 +238,6 @@ class MusicBot(discord.Client):
 
         shandler = logging.StreamHandler(stream=sys.stdout)
         sformatter = colorlog.LevelFormatter(
-            fmt={
-                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
-                "INFO": "{log_color}{message}",
-                "WARNING": "{log_color}{levelname}: {message}",
-                "ERROR": "{log_color}[{levelname}:{module}] {message}",
-                "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
-                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
-                "NOISY": "{log_color}[{levelname}:{module}] {message}",
-                "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-                "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-            },
             log_colors={
                 "DEBUG": "cyan",
                 "INFO": "white",
@@ -274,6 +252,17 @@ class MusicBot(discord.Client):
             style="{",
             datefmt="",
         )
+        sformatter.fmt = {
+            "DEBUG": "{log_color}[{levelname}:{module}] {message}",
+            "INFO": "{log_color}{message}",
+            "WARNING": "{log_color}{levelname}: {message}",
+            "ERROR": "{log_color}[{levelname}:{module}] {message}",
+            "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
+            "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
+            "NOISY": "{log_color}[{levelname}:{module}] {message}",
+            "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
+            "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
+        }
         shandler.setFormatter(sformatter)
         shandler.setLevel(self.config.debug_level)
         logging.getLogger(__package__).addHandler(shandler)
@@ -510,7 +499,7 @@ class MusicBot(discord.Client):
         # I hope I don't have to set the channel here
         # instead of waiting for the event to update it
 
-    def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
+    def get_player_in(self, guild: discord.Guild) -> MusicPlayer:
         return self.players.get(guild.id)
 
     async def get_player(
@@ -587,39 +576,30 @@ class MusicBot(discord.Client):
                 author not in player.voice_client.channel.members
                 and author_perms.skip_when_absent
             ):
-                newmsg = self.str.get(
-                    "on_player_play-onChannel_authorNotInChannel_skipWhenAbsent",
-                    "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
-                ).format(
-                    channel=player.voice_client.channel.name,
-                    title=entry.title,
-                    author=entry.meta["author"].name,
+                newmsg = "Skipping next song in `%s`: `%s` added by `%s` as queuer not in voice" % (
+                    player.voice_client.channel.name,
+                    entry.title,
+                    entry.meta["author"].name,
                 )
                 player.skip()
             elif self.config.now_playing_mentions:
-                newmsg = self.str.get(
-                    "on_player_play-onChannel_playingMention",
-                    "{author} - your song {title} is now playing in {channel}!",
-                ).format(
-                    author=entry.meta["author"].mention,
-                    title=entry.title,
-                    channel=player.voice_client.channel.name,
+                newmsg = "%s - your song `%s` is now playing in `%s`!" % (
+                    entry.meta["author"].mention,
+                    entry.title,
+                    player.voice_client.channel.name,
                 )
             else:
-                newmsg = self.str.get(
-                    "on_player_play-onChannel",
-                    "Now playing in {channel}: {title} added by {author}!",
-                ).format(
-                    channel=player.voice_client.channel.name,
-                    title=entry.title,
-                    author=entry.meta["author"].name,
+                newmsg = "Now playing in `%s`: `%s` added by `%s`" % (
+                    player.voice_client.channel.name,
+                    entry.title,
+                    entry.meta["author"].name,
                 )
         else:
             # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
-            newmsg = self.str.get(
-                "on_player_play-onChannel_noAuthor_autoplaylist",
-                "Now playing automatically added entry {title} in {channel}!",
-            ).format(title=entry.title, channel=player.voice_client.channel.name)
+            newmsg = "Now playing automatically added entry `%s` in `%s`" % (
+                entry.title,
+                player.voice_client.channel.name,
+            )
 
         if newmsg:
             if self.config.dm_nowplaying and author:
@@ -754,9 +734,7 @@ class MusicBot(discord.Client):
                     player.once("play", lambda player, **_: _autopause(player))
 
                 try:
-                    await player.playlist.add_entry(
-                        song_url, channel=None, author=None, head=False
-                    )
+                    await player.playlist.add_entry(song_url, channel=None, author=None)
                 except exceptions.ExtractionError as e:
                     log.error("Error adding song from autoplaylist: {}".format(e))
                     log.debug("", exc_info=True)
@@ -1049,7 +1027,7 @@ class MusicBot(discord.Client):
 
     async def restart(self):
         self.exit_signal = exceptions.RestartSignal()
-        await self.close()
+        await self.logout()
 
     def restart_threadsafe(self):
         asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
@@ -1061,7 +1039,7 @@ class MusicBot(discord.Client):
         except:
             pass
 
-        pending = asyncio..all_tasks()
+        pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
 
         try:
@@ -1095,7 +1073,7 @@ class MusicBot(discord.Client):
 
     async def logout(self):
         await self.disconnect_all_voice_clients()
-        return await super().close()
+        return await super().logout()
 
     async def on_error(self, event, *args, **kwargs):
         ex_type, ex, stack = sys.exc_info()
@@ -1637,7 +1615,7 @@ class MusicBot(discord.Client):
         return True
 
     async def cmd_play(
-        self, message, _player, channel, author, permissions, leftover_args, song_url
+        self, message, player, channel, author, permissions, leftover_args, song_url
     ):
         """
         Usage:
@@ -1652,83 +1630,6 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-
-        return await self._cmd_play(
-            message,
-            _player,
-            channel,
-            author,
-            permissions,
-            leftover_args,
-            song_url,
-            head=False,
-        )
-
-    async def cmd_playnext(
-        self, message, _player, channel, author, permissions, leftover_args, song_url
-    ):
-        """
-        Usage:
-            {command_prefix}playnext song_link
-            {command_prefix}playnext text to search for
-            {command_prefix}playnext spotify_uri
-
-        Adds the song to the playlist next.  If a link is not provided, the first
-        result from a youtube search is added to the queue.
-
-        If enabled in the config, the bot will also support Spotify URIs, however
-        it will use the metadata (e.g song name and artist) to find a YouTube
-        equivalent of the song. Streaming from Spotify is not possible.
-        """
-
-        return await self._cmd_play(
-            message,
-            _player,
-            channel,
-            author,
-            permissions,
-            leftover_args,
-            song_url,
-            head=True,
-        )
-
-    async def _cmd_play(
-        self,
-        message,
-        _player,
-        channel,
-        author,
-        permissions,
-        leftover_args,
-        song_url,
-        head,
-    ):
-        if _player:
-            player = _player
-        elif permissions.summonplay:
-            vc = author.voice.channel if author.voice else None
-            response = await self.cmd_summon(
-                channel, channel.guild, author, vc
-            )  # @TheerapakG: As far as I know voice_channel param is unused
-            if self.config.embeds:
-                content = self._gen_embed()
-                content.title = "summon"
-                content.description = response.content
-            else:
-                content = response.content
-            await self.safe_send_message(
-                channel,
-                content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
-            )
-            player = self.get_player_in(channel.guild)
-
-        if not player:
-            raise exceptions.CommandError(
-                "The bot is not in a voice channel.  "
-                "Use %ssummon to summon it to your voice channel."
-                % self.config.command_prefix
-            )
 
         song_url = song_url.strip("<>")
 
@@ -1770,7 +1671,6 @@ class MusicBot(discord.Client):
 
                     elif "album" in parts:
                         res = await self.spotify.get_album(parts[-1])
-
                         await self._do_playlist_checks(
                             permissions, player, author, res["tracks"]["items"]
                         )
@@ -1793,7 +1693,6 @@ class MusicBot(discord.Client):
                                 leftover_args,
                                 song_url,
                             )
-
                         await self.safe_delete_message(procmesg)
                         return Response(
                             self.str.get(
@@ -1821,7 +1720,6 @@ class MusicBot(discord.Client):
                             ).format(parts[-1], song_url),
                         )
                         for i in res:
-
                             song_url = (
                                 i["track"]["name"]
                                 + " "
@@ -1837,7 +1735,6 @@ class MusicBot(discord.Client):
                                 leftover_args,
                                 song_url,
                             )
-
                         await self.safe_delete_message(procmesg)
                         return Response(
                             self.str.get(
@@ -2133,8 +2030,7 @@ class MusicBot(discord.Client):
                     )
 
                 entry, position = await player.playlist.add_entry(
-
-                    song_url, channel=channel, author=author, head=head
+                    song_url, channel=channel, author=author
                 )
 
                 reply_text = self.str.get(
@@ -2415,9 +2311,6 @@ class MusicBot(discord.Client):
 
     async def _cmd_play_playlist_async(
         self, player, channel, author, permissions, playlist_url, extractor_type
-
-    async def _cmd_play_playlist_async(
-        self, player, channel, author, permissions, playlist_url, extractor_type, head
     ):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
@@ -2556,7 +2449,7 @@ class MusicBot(discord.Client):
             delete_after=30,
         )
 
-    async def cmd_stream(self, _player, channel, author, permissions, song_url):
+    async def cmd_stream(self, player, channel, author, permissions, song_url):
         """
         Usage:
             {command_prefix}stream song_link
@@ -2566,33 +2459,6 @@ class MusicBot(discord.Client):
         media without predownloading it.  Note: FFmpeg is notoriously bad at handling
         streams, especially on poor connections.  You have been warned.
         """
-
-        if _player:
-            player = _player
-        elif permissions.summonplay:
-            vc = author.voice.channel if author.voice else None
-            response = await self.cmd_summon(
-                channel, channel.guild, author, vc
-            )  # @TheerapakG: As far as I know voice_channel param is unused
-            if self.config.embeds:
-                content = self._gen_embed()
-                content.title = "summon"
-                content.description = response.content
-            else:
-                content = response.content
-            await self.safe_send_message(
-                channel,
-                content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
-            )
-            player = self.get_player_in(channel.guild)
-
-        if not player:
-            raise exceptions.CommandError(
-                "The bot is not in a voice channel.  "
-                "Use %ssummon to summon it to your voice channel."
-                % self.config.command_prefix
-            )
 
         song_url = song_url.strip("<>")
 
@@ -2693,7 +2559,7 @@ class MusicBot(discord.Client):
             )
 
         service = "youtube"
-        items_requested = self.config.defaultsearchresults
+        items_requested = 3
         max_items = permissions.max_search_items
         services = {
             "youtube": "ytsearch",
@@ -2758,85 +2624,32 @@ class MusicBot(discord.Client):
                 self.str.get("cmd-search-none", "No videos found."), delete_after=30
             )
 
-        # Decide if the list approach or the reaction approach should be used
-        if self.config.searchlist:
-            result_message_array = []
-
-            if self.config.embeds:
-                content = self._gen_embed()
-                content.title = self.str.get(
-                    "cmd-search-title", "{0} search results:"
-                ).format(service.capitalize())
-                content.description = "To select a song, type the corresponding number"
-            else:
-                result_header = self.str.get(
-                    "cmd-search-title", "{0} search results:"
-                ).format(service.capitalize())
-                result_header += "\n\n"
-
-            for e in info["entries"]:
-                # This formats the results and adds it to an array
-                # format_song_duration removes the hour section
-                # if the song is shorter than an hour
-                result_message_array.append(
-                    self.str.get(
-                        "cmd-search-list-entry", "**{0}**. **{1}** | {2}"
-                    ).format(
-                        info["entries"].index(e) + 1,
-                        e["title"],
-                        format_song_duration(
-                            ftimedelta(timedelta(seconds=e["duration"]))
-                        ),
-                    )
-                )
-            # This combines the formatted result strings into one list.
-            result_string = "\n".join(
-                "{0}".format(result) for result in result_message_array
+        for e in info["entries"]:
+            result_message = await self.safe_send_message(
+                channel,
+                self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
+                    info["entries"].index(e) + 1, len(info["entries"]), e["webpage_url"]
+                ),
             )
-            result_string += "\n**0.** Cancel"
 
-            if self.config.embeds:
-                # Add the result entries to the embedded message and send it to the channel
-                content.add_field(
-                    name=self.str.get("cmd-search-field-name", "Pick a song"),
-                    value=result_string,
-                    inline=False,
-                )
-                result_message = await self.safe_send_message(channel, content)
-            else:
-                # Construct the complete message and send it to the channel.
-                result_string = result_header + result_string
-                result_string += "\n\nSelect song by typing the corresponding number or type cancel to cancel search"
-                result_message = await self.safe_send_message(
-                    channel,
-                    self.str.get("cmd-search-result-list-noembed", "{0}").format(
-                        result_string
-                    ),
-                )
-
-            # Check to verify that recived message is valid.
-            def check(reply):
+            def check(reaction, user):
                 return (
-                    reply.channel.id == channel.id
-                    and reply.author == message.author
-                    and reply.content.isdigit()
-                    and -1 <= int(reply.content) - 1 <= len(info["entries"])
-                )
+                    user == message.author and reaction.message.id == result_message.id
+                )  # why can't these objs be compared directly?
 
-            # Wait for a response from the author.
+            reactions = ["\u2705", "\U0001F6AB", "\U0001F3C1"]
+            for r in reactions:
+                await result_message.add_reaction(r)
+
             try:
                 reaction, user = await self.wait_for(
                     "reaction_add", timeout=30.0, check=check
                 )
-                choice = await self.wait_for("message", timeout=30.0, check=check)
             except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
                 return
 
-            if choice.content == "0":
-                # Choice 0 will cancel the search
-                if self.config.delete_invoking:
-                    await self.safe_delete_message(choice)
+            if str(reaction.emoji) == "\u2705":  # check
                 await self.safe_delete_message(result_message)
                 await self.cmd_play(
                     message, player, channel, author, permissions, [], e["webpage_url"]
@@ -2849,85 +2662,8 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(result_message)
                 continue
             else:
-                # Here we have a valid choice lets queue it.
-                if self.config.delete_invoking:
-                    await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
-                await self.cmd_play(
-                    message,
-                    player,
-                    channel,
-                    author,
-                    permissions,
-                    [],
-                    info["entries"][int(choice.content) - 1]["webpage_url"],
-                )
-                if self.config.embeds:
-                    return Response(
-                        self.str.get(
-                            "cmd-search-accept-list-embed", "[{0}]({1}) added to queue"
-                        ).format(
-                            info["entries"][int(choice.content) - 1]["title"],
-                            info["entries"][int(choice.content) - 1]["webpage_url"],
-                        ),
-                        delete_after=30,
-                    )
-                else:
-                    return Response(
-                        self.str.get(
-                            "cmd-search-accept-list-noembed", "{0} added to queue"
-                        ).format(info["entries"][int(choice.content) - 1]["title"]),
-                        delete_after=30,
-                    )
-        else:
-            # Original code
-            for e in info["entries"]:
-                result_message = await self.safe_send_message(
-                    channel,
-                    self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
-                        info["entries"].index(e) + 1,
-                        len(info["entries"]),
-                        e["webpage_url"],
-                    ),
-                )
-
-                def check(reaction, user):
-                    return (
-                        user == message.author
-                        and reaction.message.id == result_message.id
-                    )  # why can't these objs be compared directly?
-
-                reactions = ["\u2705", "\U0001F6AB", "\U0001F3C1"]
-                for r in reactions:
-                    await result_message.add_reaction(r)
-
-                try:
-                    reaction, user = await self.wait_for(
-                        "reaction_add", timeout=30.0, check=check
-                    )
-                except asyncio.TimeoutError:
-                    await self.safe_delete_message(result_message)
-                    return
-
-                if str(reaction.emoji) == "\u2705":  # check
-                    await self.safe_delete_message(result_message)
-                    await self.cmd_play(
-                        message,
-                        player,
-                        channel,
-                        author,
-                        permissions,
-                        [],
-                        e["webpage_url"],
-                    )
-                    return Response(
-                        self.str.get("cmd-search-accept", "Alright, coming right up!"),
-                        delete_after=30,
-                    )
-                elif str(reaction.emoji) == "\U0001F6AB":  # cross
-                    await self.safe_delete_message(result_message)
-                else:
-                    await self.safe_delete_message(result_message)
+                break
 
         return Response(
             self.str.get("cmd-search-decline", "Oh well :("), delete_after=30
@@ -3028,8 +2764,6 @@ class MusicBot(discord.Client):
 
         Call the bot to the summoner's voice channel.
         """
-
-        # @TheerapakG: Maybe summon should have async lock?
 
         if not author.voice:
             raise exceptions.CommandError(
