@@ -1061,7 +1061,7 @@ class MusicBot(discord.Client):
         except:
             pass
 
-        pending = asyncio..all_tasks()
+        pending = asyncio.all_tasks()
         gathered = asyncio.gather(*pending)
 
         try:
@@ -1312,6 +1312,7 @@ class MusicBot(discord.Client):
             )
             if self.config.status_message:
                 log.info("  Status message: " + self.config.status_message)
+
             log.info(
                 "  Write current songs to file: "
                 + ["Disabled", "Enabled"][self.config.write_current_song]
@@ -1331,6 +1332,9 @@ class MusicBot(discord.Client):
             log.info(
                 "  Leave non owners: "
                 + ["Disabled", "Enabled"][self.config.leavenonowners]
+            )
+            log.info(
+                "  Direct message help: " + ["Disabled", "Enabled"][self.config.dmhelp]
             )
 
         print(flush=True)
@@ -1437,7 +1441,23 @@ class MusicBot(discord.Client):
                 "\nOnly showing commands you can use, for a list of all commands, run `{}help all`",
             ).format(prefix)
 
-        return Response(desc, reply=True, delete_after=60)
+        if self.config.dmhelp:
+            content = desc
+
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = "Help"
+                content.add_field(name="Commands", value="{}".format(desc), inline=True)
+            await self.safe_send_message(message.author, content, expire_in=60)
+
+            if not isinstance(message.channel, discord.abc.PrivateChannel):
+                return Response(":mailbox_with_mail:", reply=False, delete_after=15)
+        else:
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = "Help"
+                content.add_field(name="Commands", value="{}".format(desc), inline=True)
+            return Response(content, reply=True, delete_after=60)
 
     async def cmd_blacklist(self, message, user_mentions, option, something):
         """
@@ -2825,10 +2845,14 @@ class MusicBot(discord.Client):
 
             # Wait for a response from the author.
             try:
+
+
                 reaction, user = await self.wait_for(
                     "reaction_add", timeout=30.0, check=check
                 )
+
                 choice = await self.wait_for("message", timeout=30.0, check=check)
+
             except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
                 return
@@ -2838,6 +2862,7 @@ class MusicBot(discord.Client):
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
                 await self.safe_delete_message(result_message)
+
                 await self.cmd_play(
                     message, player, channel, author, permissions, [], e["webpage_url"]
                 )
@@ -2848,6 +2873,7 @@ class MusicBot(discord.Client):
             elif str(reaction.emoji) == "\U0001F6AB":  # cross
                 await self.safe_delete_message(result_message)
                 continue
+
             else:
                 # Here we have a valid choice lets queue it.
                 if self.config.delete_invoking:
@@ -4143,6 +4169,34 @@ class MusicBot(discord.Client):
             " "
         )  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix) :].lower().strip()
+
+        if isinstance(message.channel, discord.abc.PrivateChannel):
+            if not (
+                message.author.id == self.config.owner_id
+                and command == "joinserver"
+                or command == "help"
+            ):
+                await self.safe_send_message(
+                    message.channel, "You cannot use this bot in private messages."
+                )
+                return
+
+        if (
+            self.config.bound_channels
+            and message.channel.id not in self.config.bound_channels
+            and not isinstance(message.channel, discord.abc.PrivateChannel)
+        ):
+            if self.config.unbound_servers:
+                for channel in message.guild.channels:
+                    if channel.id in self.config.bound_channels:
+                        return
+            else:
+                return  # if I want to log this I just move it under the prefix check
+
+        if (not isinstance(message.channel, discord.abc.GuildChannel)) and (
+            not isinstance(message.channel, discord.abc.PrivateChannel)
+        ):
+            return
 
         # [] produce [''] which is not what we want (it break things)
         if args:
