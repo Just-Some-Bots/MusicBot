@@ -167,7 +167,6 @@ class PermissionGroup:
         self.user_list = section_data.get("UserList", fallback=fallback.UserList)
 
         self.max_songs = section_data.get("MaxSongs", fallback=fallback.MaxSongs)
-
         self.max_song_length = section_data.get(
             "MaxSongLength", fallback=fallback.MaxSongLength
         )
@@ -185,7 +184,6 @@ class PermissionGroup:
             "InstaSkip", fallback=fallback.InstaSkip
         )
         self.remove = section_data.getboolean("Remove", fallback=fallback.Remove)
-
         self.skip_when_absent = section_data.getboolean(
             "SkipWhenAbsent", fallback=fallback.SkipWhenAbsent
         )
@@ -195,6 +193,7 @@ class PermissionGroup:
         self.summonplay = section_data.getboolean(
             "SummonNoVoice", fallback=fallback.SummonNoVoice
         )
+
         self.extractors = section_data.get("Extractors", fallback=fallback.Extractors)
 
         self.validate()
