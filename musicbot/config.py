@@ -172,6 +172,7 @@ class Config:
         )
         self.dmhelp = config.getboolean(
             "MusicBot", "DMHelp", fallback=ConfigDefaults.dmhelp
+<<<<<<< HEAD
         )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
@@ -180,6 +181,8 @@ class Config:
             "MusicBot",
             "DefaultSearchResults",
             fallback=ConfigDefaults.defaultsearchresults,
+=======
+>>>>>>> parent of fd3f241 (Merge branch 'review' into patch-1)
         )
 
         self.debug_level = config.get(
@@ -513,8 +516,6 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     dmhelp = True
-    searchlist = False
-    defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
 
     options_file = "config/options.ini"

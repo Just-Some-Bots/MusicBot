@@ -15,13 +15,7 @@ What type of issue are you creating?
 - [ ] Feature request
 - [ ] Question
 
-What OS are you on?
-
-- 
-
 ----
-
-
 
 ### Description of issue
 

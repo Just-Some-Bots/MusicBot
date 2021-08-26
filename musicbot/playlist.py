@@ -54,7 +54,7 @@ class Playlist(EventEmitter, Serializable):
         self.entries.rotate(index)
         return entry
 
-    async def add_entry(self, song_url, *, head, **meta):
+    async def add_entry(self, song_url, **meta):
         """
         Validates and adds a song_url to be played. This does not start the download of the song.
 
@@ -135,8 +135,8 @@ class Playlist(EventEmitter, Serializable):
             self.downloader.ytdl.prepare_filename(info),
             **meta
         )
-        self._add_entry(entry, head=head)
-        return entry, (1 if head else len(self.entries))
+        self._add_entry(entry)
+        return entry, len(self.entries)
 
     async def add_stream_entry(self, song_url, info=None, **meta):
         if info is None:
@@ -209,7 +209,7 @@ class Playlist(EventEmitter, Serializable):
         :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
         :param meta: Any additional metadata to add to the playlist entry
         """
-        position = 1 if head else len(self.entries) + 1
+        position = len(self.entries) + 1
         entry_list = []
 
         try:
@@ -233,9 +233,6 @@ class Playlist(EventEmitter, Serializable):
             url_field = "webpage_url"
 
         baditems = 0
-        entries = list(info["entries"])
-        if head:
-            entries.reverse()
         for item in info["entries"]:
             if item:
                 try:
@@ -248,7 +245,7 @@ class Playlist(EventEmitter, Serializable):
                         **meta
                     )
 
-                    self._add_entry(entry, head=head)
+                    self._add_entry(entry)
                     entry_list.append(entry)
                 except Exception as e:
                     baditems += 1
@@ -260,11 +257,9 @@ class Playlist(EventEmitter, Serializable):
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
 
-        if head:
-            entry_list.reverse()
         return entry_list, position
 
-    async def async_process_youtube_playlist(self, playlist_url, *, head, **meta):
+    async def async_process_youtube_playlist(self, playlist_url, **meta):
         """
         Processes youtube playlists links from `playlist_url` in a questionable, async fashion.
 
@@ -289,16 +284,13 @@ class Playlist(EventEmitter, Serializable):
         gooditems = []
         baditems = 0
 
-        entries = list(info["entries"])
-        if head:
-            entries.reverse()
         for entry_data in info["entries"]:
             if entry_data:
                 baseurl = info["webpage_url"].split("playlist?list=")[0]
                 song_url = baseurl + "watch?v=%s" % entry_data["id"]
 
                 try:
-                    entry, elen = await self.add_entry(song_url, head=head, **meta)
+                    entry, elen = await self.add_entry(song_url, **meta)
                     gooditems.append(entry)
 
                 except ExtractionError:
@@ -315,11 +307,9 @@ class Playlist(EventEmitter, Serializable):
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
 
-        if head:
-            gooditems.reverse()
         return gooditems
 
-    async def async_process_sc_bc_playlist(self, playlist_url, *, head, **meta):
+    async def async_process_sc_bc_playlist(self, playlist_url, **meta):
         """
         Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
 
@@ -344,15 +334,12 @@ class Playlist(EventEmitter, Serializable):
         gooditems = []
         baditems = 0
 
-        entries = list(info["entries"])
-        if head:
-            entries.reverse()
         for entry_data in info["entries"]:
             if entry_data:
                 song_url = entry_data["url"]
 
                 try:
-                    entry, elen = await self.add_entry(song_url, head=head, **meta)
+                    entry, elen = await self.add_entry(song_url, **meta)
                     gooditems.append(entry)
 
                 except ExtractionError:
@@ -369,8 +356,6 @@ class Playlist(EventEmitter, Serializable):
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
 
-        if head:
-            gooditems.reverse()
         return gooditems
 
     def _add_entry(self, entry, *, head=False):
