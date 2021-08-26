@@ -1049,7 +1049,7 @@ class MusicBot(discord.Client):
 
     async def restart(self):
         self.exit_signal = exceptions.RestartSignal()
-        await self.close()
+        await self.logout()
 
     def restart_threadsafe(self):
         asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
@@ -1057,11 +1057,11 @@ class MusicBot(discord.Client):
     def _cleanup(self):
         try:
             self.loop.run_until_complete(self.logout())
-            self.loop.run_until_complete(self.aiosession.close())
+            self.loop.run_until_complete(self.aiosession.logout())
         except:
             pass
 
-        pending = asyncio.all_tasks()
+        pending = asyncio.Task.all_tasks()
         gathered = asyncio.gather(*pending)
 
         try:
@@ -1095,7 +1095,7 @@ class MusicBot(discord.Client):
 
     async def logout(self):
         await self.disconnect_all_voice_clients()
-        return await super().close()
+        return await super().logout()
 
     async def on_error(self, event, *args, **kwargs):
         ex_type, ex, stack = sys.exc_info()
