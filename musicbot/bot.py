@@ -1061,7 +1061,7 @@ class MusicBot(discord.Client):
         except:
             pass
 
-        pending = asyncio..all_tasks()
+        pending = asyncio.all_tasks()
         gathered = asyncio.gather(*pending)
 
         try:
