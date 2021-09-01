@@ -200,7 +200,7 @@ class Playlist(EventEmitter, Serializable):
         self._add_entry(entry)
         return entry, len(self.entries)
 
-    async def import_from(self, playlist_url, **meta):
+    async def import_from(self, playlist_url, head, **meta):
         """
         Imports the songs from `playlist_url` and queues them to be played.
 

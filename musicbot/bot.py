@@ -2057,7 +2057,7 @@ class MusicBot(discord.Client):
                 #       Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
 
                 entry_list, position = await player.playlist.import_from(
-                    song_url, channel=channel, author=author
+                    song_url, channel=channel, author=author, head=False
                 )
 
                 tnow = time.time()
@@ -2165,7 +2165,7 @@ class MusicBot(discord.Client):
         return Response(reply_text, delete_after=30)
 
     async def _cmd_play_playlist_async(
-        self, player, channel, author, permissions, playlist_url, extractor_type, head
+        self, player, channel, author, permissions, playlist_url, extractor_type
     ):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
