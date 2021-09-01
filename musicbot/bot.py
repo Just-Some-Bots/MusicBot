@@ -483,7 +483,9 @@ class MusicBot(discord.Client):
         if channel.guild.voice_client:
             return channel.guild.voice_client
         else:
-            return await channel.connect(timeout=60, reconnect=True)
+            client = await channel.connect(timeout=60, reconnect=True)
+            await channel.guild.change_voice_state(channel=channel, self_mute=False, self_deaf=True)
+            return client
 
     async def disconnect_voice_client(self, guild):
         vc = self.voice_client_in(guild)
@@ -498,17 +500,6 @@ class MusicBot(discord.Client):
     async def disconnect_all_voice_clients(self):
         for vc in list(self.voice_clients).copy():
             await self.disconnect_voice_client(vc.channel.guild)
-
-    async def set_voice_state(self, vchannel, *, mute=False, deaf=False):
-        if isinstance(vchannel, discord.Object):
-            vchannel = self.get_channel(vchannel.id)
-
-        if getattr(vchannel, "type", ChannelType.text) != ChannelType.voice:
-            raise AttributeError("Channel passed must be a voice channel")
-
-        await self.ws.voice_state(vchannel.guild.id, vchannel.id, mute, deaf)
-        # I hope I don't have to set the channel here
-        # instead of waiting for the event to update it
 
     def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
         return self.players.get(guild.id)
