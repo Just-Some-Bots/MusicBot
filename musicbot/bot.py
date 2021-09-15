@@ -3097,7 +3097,17 @@ class MusicBot(discord.Client):
                 delete_after=20,
             )
 
-    async def cmd_skipto(self, player, channel, author, message, permissions, voice_channel, index, param=''):
+    async def cmd_skipto(
+        self,
+        player,
+        channel,
+        author,
+        message,
+        permissions,
+        voice_channel,
+        index,
+        param="",
+    ):
         """
         Usage:
             {command_prefix}skipto [# in queue]
@@ -3110,36 +3120,66 @@ class MusicBot(discord.Client):
         try:
             index = int(index)
         except (TypeError, ValueError):
-            raise exceptions.CommandError(self.str.get('cmd-skipto-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-skipto-invalid",
+                    "Invalid number. Use {}queue to find queue positions.",
+                ).format(self.config.command_prefix),
+                expire_in=20,
+            )
 
         if index > len(player.playlist.entries):
-            raise exceptions.CommandError(self.str.get('cmd-skipto-invalid', "Invalid number. Use {}queue to find queue positions.").format(self.config.command_prefix), expire_in=20)
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-skipto-invalid",
+                    "Invalid number. Use {}queue to find queue positions.",
+                ).format(self.config.command_prefix),
+                expire_in=20,
+            )
 
         if player.is_stopped:
-            raise exceptions.CommandError(self.str.get('cmd-skip-none', "Can't skip! The player is not playing!"), expire_in=20)
+            raise exceptions.CommandError(
+                self.str.get("cmd-skip-none", "Can't skip! The player is not playing!"),
+                expire_in=20,
+            )
 
         if not player.current_entry:
             if player.playlist.peek():
                 if player.playlist.peek()._is_downloading:
-                    return Response(self.str.get('cmd-skip-dl', "The next song (`%s`) is downloading, please wait.") % player.playlist.peek().title)
+                    return Response(
+                        self.str.get(
+                            "cmd-skip-dl",
+                            "The next song (`%s`) is downloading, please wait.",
+                        )
+                        % player.playlist.peek().title
+                    )
 
                 elif player.playlist.peek().is_downloaded:
                     log.info("The next song will be played shortly.  Please wait.")
                 else:
-                    log.warning("Something odd is happening.  "
-                          "You might want to restart the bot if it doesn't start working.")
+                    log.warning(
+                        "Something odd is happening.  "
+                        "You might want to restart the bot if it doesn't start working."
+                    )
             else:
-                log.warning("Something strange is happening.  "
-                      "You might want to restart the bot if it doesn't start working.")
-        
-        player.skipto(index - 1) 
+                log.warning(
+                    "Something strange is happening.  "
+                    "You might want to restart the bot if it doesn't start working."
+                )
+
+        player.skipto(index - 1)
         return Response(
-            self.str.get('cmd-skipto-reply-skipped', 'Your skip to song #`{0}` was acknowledged.\n{1}').format(
+            self.str.get(
+                "cmd-skipto-reply-skipped",
+                "Your skip to song #`{0}` was acknowledged.\n{1}",
+            ).format(
                 index,
-                self.str.get('cmd-skip-reply-skipped-2', ' Next song coming up!') if player.playlist.peek() else ''
+                self.str.get("cmd-skip-reply-skipped-2", " Next song coming up!")
+                if player.playlist.peek()
+                else "",
             ),
             reply=True,
-            delete_after=20
+            delete_after=20,
         )
 
     async def cmd_volume(self, message, player, new_volume=None):
