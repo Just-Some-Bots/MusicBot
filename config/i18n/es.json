@@ -66,7 +66,7 @@
     "cmd-shuffle-reply": "Mezclado la cola de '{0}'",
     "cmd-clear-reply": "Limpiada la cola de '{0}'",
     "cmd-remove-none": "No hay nada que eliminar!",
-    "cmd-remove-reply": "Eliminado '{0}' añadido por '{1}'",
+    "cmd-remove-reply": "Eliminado '{0} item{2}' añadido por '{1}'",
     "cmd-remove-missing": "No se ha encontrado nada en la cola de '%s'",
     "cmd-remove-noperms": "No tienes los permisos para eliminar ese elemento de la cola, asegurate de ser el que lo ha añadido o de que tienes permisos de instaskip.",
     "cmd-remove-invalid": "Numero no valido. Utiliza {}queue para encontrar posiciones en la cola.",

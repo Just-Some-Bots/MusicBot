@@ -484,7 +484,9 @@ class MusicBot(discord.Client):
             return channel.guild.voice_client
         else:
             client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(channel=channel, self_mute=False, self_deaf=True)
+            await channel.guild.change_voice_state(
+                channel=channel, self_mute=False, self_deaf=True
+            )
             return client
 
     async def disconnect_voice_client(self, guild):
@@ -2941,12 +2943,16 @@ class MusicBot(discord.Client):
                         ]
                         for entry in entry_indexes:
                             player.playlist.entries.remove(entry)
-                        entry_text = "{0} item{1}".format(len(entry_indexes), "s" if len(entry_indexes) != 1 else "")
                         return Response(
                             self.str.get(
-                                "cmd-remove-reply", "Removed `{0}` added by `{1}`"
+                                "cmd-remove-reply",
+                                "Removed `{0} item{2}` added by `{1}`",
                             )
-                            .format(entry_text, user.name)
+                            .format(
+                                len(entry_indexes),
+                                user.name,
+                                "s" if len(entry_indexes) != 1 else "",
+                            )
                             .strip()
                         )
 
