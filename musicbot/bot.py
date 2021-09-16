@@ -307,7 +307,7 @@ class MusicBot(discord.Client):
 
             return True
 
-        return not sum(1 for m in vchannel.members if check(m))
+        return not any(check(m) for m in vchannel.members)
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
@@ -4175,17 +4175,10 @@ class MusicBot(discord.Client):
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
         auto_paused = self.server_specific_data[channel.guild]["auto_paused"]
 
-        def is_active(member):
-            return member.voice and not any(
-                [member.voice.deaf, member.voice.self_deaf, member.bot]
-            )
-
         def set_autopause(value):
             self.server_specific_data[player.voice_client.guild]["auto_paused"] = value
 
-        if any(
-            is_active(m) for m in player.voice_client.channel.members
-        ):  # channel is not empty
+        if self._check_if_empty(player.voice_client.channel):  # channel is not empty
             if auto_paused and player.is_paused:
                 log.info(
                     autopause_msg.format(
