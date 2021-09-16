@@ -293,13 +293,13 @@ class MusicBot(discord.Client):
 
     @staticmethod
     def _check_if_empty(
-        vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False
+        vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=True
     ):
-        def check(member):
+        def is_active(member):
             if excluding_me and member == vchannel.guild.me:
                 return False
 
-            if excluding_deaf and any([member.deaf, member.self_deaf]):
+            if excluding_deaf and any([member.voice.deaf, member.voice.self_deaf]):
                 return False
 
             if member.bot:
@@ -307,20 +307,20 @@ class MusicBot(discord.Client):
 
             return True
 
-        return not any(check(m) for m in vchannel.members)
+        return not any(is_active(m) for m in vchannel.members)
+
+    def _autopause(self, player):
+        if self._check_if_empty(player.voice_client.channel):
+            log.info("Autopause in empty channel")
+
+            player.pause()
+            self.server_specific_data[player.voice_client.channel.guild][
+                "auto_paused"
+            ] = True
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
         channel_map = {c.guild: c for c in channels}
-
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Initial autopause in empty channel")
-
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild][
-                    "auto_paused"
-                ] = True
 
         for guild in self.guilds:
             if guild.unavailable or guild in channel_map:
@@ -379,7 +379,7 @@ class MusicBot(discord.Client):
 
                     if self.config.auto_playlist:
                         if self.config.auto_pause:
-                            player.once("play", lambda player, **_: _autopause(player))
+                            player.once("play", lambda player, **_: self._autopause(player))
                         if not player.playlist.entries:
                             await self.on_player_finished_playing(player)
 
@@ -668,15 +668,6 @@ class MusicBot(discord.Client):
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
 
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Player finished playing, autopaused in empty channel")
-
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild][
-                    "auto_paused"
-                ] = True
-
         if (
             not player.playlist.entries
             and not player.current_entry
@@ -742,7 +733,7 @@ class MusicBot(discord.Client):
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
 
                 if self.config.auto_pause:
-                    player.once("play", lambda player, **_: _autopause(player))
+                    player.once("play", lambda player, **_: self._autopause(player))
 
                 try:
                     await player.playlist.add_entry(
@@ -1800,7 +1791,6 @@ class MusicBot(discord.Client):
                             res.extend(r["items"])
                             if r["next"] is not None:
                                 r = await self.spotify.make_spotify_req(r["next"])
-                                continue
                             else:
                                 break
                         await self._do_playlist_checks(permissions, player, author, res)
@@ -4159,7 +4149,7 @@ class MusicBot(discord.Client):
         else:
             return
 
-        if member == self.username:
+        if member == self.user:
             if not after.channel:  # if bot was disconnected from channel
                 await self.disconnect_voice_client(before.channel.guild)
             return
@@ -4179,6 +4169,16 @@ class MusicBot(discord.Client):
             self.server_specific_data[player.voice_client.guild]["auto_paused"] = value
 
         if self._check_if_empty(player.voice_client.channel):  # channel is not empty
+            if not auto_paused and player.is_playing:
+                log.info(
+                    autopause_msg.format(
+                        state="Pausing",
+                        channel=player.voice_client.channel,
+                        reason="(empty channel or member deafened)",
+                    ).strip()
+                )
+                self._autopause(player)
+        else:
             if auto_paused and player.is_paused:
                 log.info(
                     autopause_msg.format(
@@ -4190,18 +4190,7 @@ class MusicBot(discord.Client):
 
                 set_autopause(False)
                 player.resume()
-        else:
-            if not auto_paused and player.is_playing:
-                log.info(
-                    autopause_msg.format(
-                        state="Pausing",
-                        channel=player.voice_client.channel,
-                        reason="(empty channel or member deafened)",
-                    ).strip()
-                )
 
-                set_autopause(True)
-                player.pause()
 
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
         if before.region != after.region:
