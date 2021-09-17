@@ -292,22 +292,15 @@ class MusicBot(discord.Client):
             dlogger.addHandler(dhandler)
 
     @staticmethod
-    def _check_if_empty(
-        vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=True
-    ):
-        def is_active(member):
-            if excluding_me and member == vchannel.guild.me:
-                return False
+    def _check_if_empty(vchannel: discord.abc.GuildChannel, *, deaf_as_inactive=True):
+        def is_inactive(member):
+            return (
+                member.bot
+                or (not member.voice)
+                or (deaf_as_inactive and (member.voice.deaf or member.voice.self_deaf))
+            )
 
-            if excluding_deaf and any([member.voice.deaf, member.voice.self_deaf]):
-                return False
-
-            if member.bot:
-                return False
-
-            return True
-
-        return not any(is_active(m) for m in vchannel.members)
+        return all(is_inactive(m) for m in vchannel.members)
 
     def _autopause(self, player):
         if self._check_if_empty(player.voice_client.channel):
