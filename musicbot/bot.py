@@ -379,7 +379,9 @@ class MusicBot(discord.Client):
 
                     if self.config.auto_playlist:
                         if self.config.auto_pause:
-                            player.once("play", lambda player, **_: self._autopause(player))
+                            player.once(
+                                "play", lambda player, **_: self._autopause(player)
+                            )
                         if not player.playlist.entries:
                             await self.on_player_finished_playing(player)
 
@@ -484,7 +486,9 @@ class MusicBot(discord.Client):
             return channel.guild.voice_client
         else:
             client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(channel=channel, self_mute=False, self_deaf=True)
+            await channel.guild.change_voice_state(
+                channel=channel, self_mute=False, self_deaf=True
+            )
             return client
 
     async def disconnect_voice_client(self, guild):
@@ -4190,7 +4194,6 @@ class MusicBot(discord.Client):
 
                 set_autopause(False)
                 player.resume()
-
 
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
         if before.region != after.region:
