@@ -1,0 +1,6 @@
+{
+    "play": ["p"],
+    "skip": ["s"],
+    "queue": ["q"],
+    "remove" : ["rm]
+}
