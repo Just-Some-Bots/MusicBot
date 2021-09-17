@@ -52,7 +52,7 @@
     "cmd-search-result": "Result {0}/{1}: {2}",
     "cmd-search-list-entry": "**{0}**. **{1}** | {2}",
     "cmd-search-result-list-noembed": "{0}",
-    "cmd-search-accept": "Alright, coming right up!",
+    "cmd-search-accept": "Alright, let's twerk!",
     "cmd-search-accept-list-embed": "[{0}]({1}) added to queue",
     "cmd-search-accept-list-noembed": "{0} added to queue",
     "cmd-search-decline": "Oh well :(",
@@ -115,6 +115,6 @@
     "left-no-owner-guilds": "Left `{}` due to bot owner not being found in it.",
 	"on_player_play-onChannel_authorNotInChannel_skipWhenAbsent": "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
 	"on_player_play-onChannel_playingMention": "{author} - your song {title} is now playing in {channel}!",
-	"on_player_play-onChannel": "Now playing in {channel}: {title} added by {author}!",
+	"on_player_play-onChannel": "Now twerking in {channel}: {title} added by {author}!",
 	"on_player_play-onChannel_noAuthor_autoplaylist": "Now playing automatically added entry {title} in {channel}!"
 }
