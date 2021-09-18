@@ -2801,6 +2801,10 @@ class MusicBot(discord.Client):
 
         log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
 
+        # edge case: we're summoned by a deafened member and should pause on join
+        if self.config.auto_pause:
+            player.once("play", lambda player, **_: self._autopause(player))
+
         return Response(
             self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
                 author.voice.channel
