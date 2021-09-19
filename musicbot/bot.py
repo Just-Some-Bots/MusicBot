@@ -559,7 +559,8 @@ class MusicBot(discord.Client):
 
     async def on_player_play(self, player, entry):
         log.debug("Running on_player_play")
-        await self.update_now_playing_status(entry)
+        await self.update_now_playing_status()
+        await self.update_now_playing_message(entry, player)
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
@@ -572,82 +573,19 @@ class MusicBot(discord.Client):
         author = entry.meta.get("author", None)
 
         if channel and author:
-            author_perms = self.permissions.for_user(author)
+            skip_absent = self.permissions.for_user(author).skip_when_absent
 
-            if (
-                author not in player.voice_client.channel.members
-                and author_perms.skip_when_absent
-            ):
+            if (skip_absent and author not in player.voice_client.channel.members):
+                player.skip()
                 newmsg = self.str.get(
                     "on_player_play-onChannel_authorNotInChannel_skipWhenAbsent",
                     "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
-                ).format(
-                    channel=player.voice_client.channel.name,
-                    title=entry.title,
-                    author=entry.meta["author"].name,
                 )
-                player.skip()
-            elif self.config.now_playing_mentions:
-                newmsg = self.str.get(
-                    "on_player_play-onChannel_playingMention",
-                    "{author} - your song {title} is now playing in {channel}!",
-                ).format(
-                    author=entry.meta["author"].mention,
-                    title=entry.title,
-                    channel=player.voice_client.channel.name,
-                )
-            else:
-                newmsg = self.str.get(
-                    "on_player_play-onChannel",
-                    "Now playing in {channel}: {title} added by {author}!",
-                ).format(
-                    channel=player.voice_client.channel.name,
-                    title=entry.title,
-                    author=entry.meta["author"].name,
-                )
-        else:
-            # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
-            newmsg = self.str.get(
-                "on_player_play-onChannel_noAuthor_autoplaylist",
-                "Now playing automatically added entry {title} in {channel}!",
-            ).format(title=entry.title, channel=player.voice_client.channel.name)
-
-        if newmsg:
-            if self.config.dm_nowplaying and author:
-                await self.safe_send_message(author, newmsg)
-                return
-
-            if self.config.no_nowplaying_auto and not author:
-                return
-
-            guild = player.voice_client.guild
-            last_np_msg = self.server_specific_data[guild]["last_np_msg"]
-
-            if self.config.nowplaying_channels:
-                for potential_channel_id in self.config.nowplaying_channels:
-                    potential_channel = self.get_channel(potential_channel_id)
-                    if potential_channel and potential_channel.guild == guild:
-                        channel = potential_channel
-                        break
-
-            if channel:
-                pass
-            elif not channel and last_np_msg:
-                channel = last_np_msg.channel
-            else:
-                log.debug("no channel to put now playing message into")
-                return
-
-            # send it in specified channel
-            self.server_specific_data[guild][
-                "last_np_msg"
-            ] = await self.safe_send_message(channel, newmsg)
-
-        # TODO: Check channel voice state?
+                await self.safe_send_message(channel, newmsg)
 
     async def on_player_resume(self, player, entry, **_):
         log.debug("Running on_player_resume")
-        await self.update_now_playing_status(entry)
+        await self.update_now_playing_status()
 
     async def on_player_pause(self, player, entry, **_):
         log.debug("Running on_player_pause")
@@ -780,66 +718,83 @@ class MusicBot(discord.Client):
             log.exception("Player error", exc_info=ex)
 
     async def update_now_playing_status(self, entry=None, is_paused=False):
-        game = None
+        status = ""
 
-        if not self.config.status_message:
-            if self.user.bot:
-                activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-                if activeplayers > 1:
-                    game = discord.Game(
-                        type=0, name="music on %s guilds" % activeplayers
-                    )
-                    entry = None
-
-                elif activeplayers == 1:
-                    player = discord.utils.get(self.players.values(), is_playing=True)
-                    entry = player.current_entry
-
-            if entry:
-                prefix = u"\u275A\u275A " if is_paused else ""
-
-                name = u"{}{}".format(prefix, entry.title)[:128]
-                game = discord.Game(type=0, name=name)
+        if self.config.status_message:
+            status = self.config.status_message.strip()
         else:
-            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
+            activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+            if activeplayers > 1:
+                status = "music on %s guilds" % activeplayers
+            elif activeplayers == 1:
+                player = discord.utils.get(self.players.values(), is_playing=True)
+                status = player.current_entry.title
+            elif entry:
+                prefix = u"\u275A\u275A " if is_paused else ""
+                status = u"{}{}".format(prefix, entry.title)
+        activity = discord.Game(type=0, name=status[:128])
 
         async with self.aiolocks[_func_()]:
-            if game != self.last_status:
-                await self.change_presence(activity=game)
-                self.last_status = game
+            if activity != self.last_status:
+                await self.change_presence(activity=activity)
+                self.last_status = activity
 
-    async def update_now_playing_message(self, guild, message, *, channel=None):
-        lnp = self.server_specific_data[guild]["last_np_msg"]
-        m = None
+    async def update_now_playing_message(self, entry, player):
+        def getNpChannel(enqueue_channel):
+            # highest prio: configured now playing channels
+            if self.config.nowplaying_channels:
+                for potential_channel in map(self.getChannel, self.config.nowplaying_channels):
+                    if potential_channel and potential_channel.guild == guild:
+                        return potential_channel
+            # lowest prio: channel of cached message
+            if enqueue_channel is None and self.server_specific_data[guild]["last_np_msg"]:
+                return self.server_specific_data[guild]["last_np_msg"].channel
+            return enqueue_channel
 
-        if message is None and lnp:
-            await self.safe_delete_message(lnp, quiet=True)
+        channel = getNpChannel(entry.meta.get("channel", None))
+        author = entry.meta.get("author", None)
 
-        elif lnp:  # If there was a previous lp message
-            oldchannel = lnp.channel
+        if author:
+            author_cred = author.mention if self.config.now_playing_mentions else author.name
+            if self.config.embeds:
+                newmsg = self._gen_embed()
+                newmsg.title = self.str.get("np-embed-title", "Now Playing")
+                newmsg.description = self.str.get("np-embed", "**{0}**\nadded by {1}").format(entry.title, author_cred)
+            else:
+                newmsg = self.str.get(
+                    "now-playing",
+                    "Now playing in {channel}: {title} added by {author}!",
+                ).format(
+                    channel=player.voice_client.channel.name,
+                    title=entry.title,
+                    author=author_cred
+                )
+            if self.config.dm_nowplaying:
+                await self.safe_send_message(author, newmsg)
+                return
+        else:
+            # no author (and channel), it's an autoplaylist entry
+            if self.config.embeds:
+                newmsg = self._gen_embed()
+                newmsg.title = self.str.get("np-embed-title", "Now Playing")
+                newmsg.description = self.str.get("np-embed-auto", "**{0}**\nfrom the autoplaylist").format(entry.title)
+            else:
+                newmsg = self.str.get(
+                    "now-playing-autoplaylist",
+                    "Now playing automatically added entry {title} in {channel}!",
+                ).format(title=entry.title, channel=player.voice_client.channel.name)
 
-            if lnp.channel == oldchannel:  # If we have a channel to update it in
-                async for lmsg in lnp.channel.history(limit=1):
-                    if lmsg != lnp and lnp:  # If we need to resend it
-                        await self.safe_delete_message(lnp, quiet=True)
-                        m = await self.safe_send_message(channel, message, quiet=True)
-                    else:
-                        m = await self.safe_edit_message(
-                            lnp, message, send_if_fail=True, quiet=False
-                        )
+        if not author and self.config.no_nowplaying_auto:
+            return
+        if not channel:
+            log.debug("no channel to put now playing message into")
+            return
 
-            elif channel:  # If we have a new channel to send it to
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(channel, message, quiet=True)
-
-            else:  # we just resend it in the old channel
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(oldchannel, message, quiet=True)
-
-        elif channel:  # No previous message
-            m = await self.safe_send_message(channel, message, quiet=True)
-
-        self.server_specific_data[guild]["last_np_msg"] = m
+        # send it in specified channel
+        self.server_specific_data[player.voice_client.guild][
+            "last_np_msg"
+        ] = await self.safe_send_message(channel, newmsg)
+        
 
     async def serialize_queue(self, guild, *, dir=None):
         """
