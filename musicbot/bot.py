@@ -560,7 +560,6 @@ class MusicBot(discord.Client):
     async def on_player_play(self, player, entry):
         log.debug("Running on_player_play")
         await self.update_now_playing_status()
-        await self.update_now_playing_message(entry, player)
         player.skip_state.reset()
 
         # This is the one event where its ok to serialize autoplaylist entries
@@ -576,12 +575,17 @@ class MusicBot(discord.Client):
             skip_absent = self.permissions.for_user(author).skip_when_absent
 
             if (skip_absent and author not in player.voice_client.channel.members):
-                player.skip()
                 newmsg = self.str.get(
                     "on_player_play-onChannel_authorNotInChannel_skipWhenAbsent",
                     "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
+                ).format(
+                    channel=player.voice_client.channel.name,
+                    title=entry.title,
+                    author=author.name
                 )
+                player.skip()
                 await self.safe_send_message(channel, newmsg)
+        await self.update_now_playing_message(entry, player)
 
     async def on_player_resume(self, player, entry, **_):
         log.debug("Running on_player_resume")
