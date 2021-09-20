@@ -114,7 +114,6 @@
     "karaoke-enabled": "कराओके मोड सक्षम है, कृपया इसके अक्षम होने पर पुन: प्रयास करें!",
     "left-no-owner-guilds": "उसने चैनल `{}` छोड़ दिया, बॉट ओनर न मिलने के कारण।",
 	"on_player_play-onChannel_authorNotInChannel_skipWhenAbsent": "अगला गाना {channel} में स्किप किया जा रहा है : {title} जो {author} के द्वारा ऐड किया गया था वह वॉइस चैनल में नहीं है",
-	"on_player_play-onChannel_playingMention": "{author} - आपका गाना {title} अब {channel} में चल रहा है!",
-	"on_player_play-onChannel": "अब {channel} मैं बज रहा है: {title} जो {author} के द्वारा जोड़ा गया था",
-	"on_player_play-onChannel_noAuthor_autoplaylist": "अब {channel} में स्वतः जोड़ी गई प्रविष्टि {title} चला रही है!"
+	"now-playing": "अब {channel} मैं बज रहा है: {title} जो {author} के द्वारा जोड़ा गया था",
+	"now-playing-autoplaylist": "अब {channel} में स्वतः जोड़ी गई प्रविष्टि {title} चला रही है!"
 }
