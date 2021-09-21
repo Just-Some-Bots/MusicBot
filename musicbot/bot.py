@@ -743,7 +743,7 @@ class MusicBot(discord.Client):
                 await self.change_presence(activity=activity)
                 self.last_status = activity
 
-    async def update_now_playing_message(self, entry, player):
+    async def update_now_playing_message(self, entry, player, extended=False):
         def getNpChannel(enqueue_channel):
             # highest prio: configured now playing channels
             if self.config.nowplaying_channels:
@@ -755,51 +755,83 @@ class MusicBot(discord.Client):
                 return self.server_specific_data[guild]["last_np_msg"].channel
             return enqueue_channel
 
-        channel = getNpChannel(entry.meta.get("channel", None))
-        author = entry.meta.get("author", None)
+        def getProgress():
+            # TODO: Fix timedelta garbage with util function
+            song_progress = ftimedelta(timedelta(seconds=player.progress)) if player.progress else "--:--"
+            song_total = (
+                ftimedelta(timedelta(seconds=player.current_entry.duration))
+                if player.current_entry.duration is not None
+                else "--:--"
+            )
 
-        if author:
-            author_cred = author.mention if self.config.now_playing_mentions else author.name
-            if self.config.embeds:
-                newmsg = self._gen_embed()
-                newmsg.title = self.str.get("np-embed-title", "Now Playing")
-                newmsg.description = self.str.get("np-embed", "**{0}**\nadded by {1}").format(entry.title, author_cred)
+            # percentage shows how much of the current song has already been played
+            percentage = 0.0
+            bar_length = 30
+            if player.current_entry.duration and player.current_entry.duration > 0:
+                percentage = player.progress / player.current_entry.duration
+            prog_bar = "█" * int(percentage * bar_length) + "░" * int((1 - percentage) * bar_length)
+
+            return "`{} {} {}`".format(song_progress, prog_bar, song_total)
+
+        def formatNpEmbed(title, author, extended):
+            np = self._gen_embed()
+            np.title = self.str.get("np-embed-title", "Now Playing")
+            if author:
+                np.description = self.str.get("np-embed", "**{0}**\nadded by {1}").format(title, author)
             else:
-                newmsg = self.str.get(
+                np.description = self.str.get("np-embed-auto", "**{0}**\nfrom the autoplaylist").format(title)
+            if extended:
+                np.description += "\n{}\n<{}>".format(getProgress(), entry.url)
+            return np
+
+        def formatNpMsg(title, author, channel, extended):
+            if author:
+                np = self.str.get(
                     "now-playing",
                     "Now playing in {channel}: {title} added by {author}!",
-                ).format(
-                    channel=player.voice_client.channel.name,
-                    title=entry.title,
-                    author=author_cred
                 )
-            if self.config.dm_nowplaying:
-                await self.safe_send_message(author, newmsg)
-                return
-        else:
-            # no author (and channel), it's an autoplaylist entry
-            if self.config.embeds:
-                newmsg = self._gen_embed()
-                newmsg.title = self.str.get("np-embed-title", "Now Playing")
-                newmsg.description = self.str.get("np-embed-auto", "**{0}**\nfrom the autoplaylist").format(entry.title)
             else:
-                newmsg = self.str.get(
+                np = self.str.get(
                     "now-playing-autoplaylist",
                     "Now playing automatically added entry {title} in {channel}!",
-                ).format(title=entry.title, channel=player.voice_client.channel.name)
+                )
+            np = np.format(channel=channel, title=title, author=author)
+            if extended:
+                np += "\n`{}`\n<{}>".format(getProgress(), entry.url)
+            return np
 
+        channel = getNpChannel(entry.meta.get("channel", None))
+        author = entry.meta.get("author", None)
+        if author:
+            author_cred = author.mention if self.config.now_playing_mentions else author.name
+        else:
+            author_cred = None
+
+        newmsg = formatNpEmbed(entry.title, author_cred, extended) if self.config.embeds else formatNpMsg(entry.title, author_cred, player.voice_client.channel.name, extended)
+
+        # DM the message if configured to do so
+        if author and self.config.dm_nowplaying and not extended:
+            await self.safe_send_message(author, newmsg)
+            return
+        # Don't send now playing msgs for autoplaylist if configured to do so
         if not author and self.config.no_nowplaying_auto:
             return
-        if not channel:
+        if channel:
+            await self.replace_or_edit_np_message(player.voice_client.guild, channel, newmsg)
+        else:
             log.debug("no channel to put now playing message into")
-            return
 
-        # send it in specified channel
-        self.server_specific_data[player.voice_client.guild][
-            "last_np_msg"
-        ] = await self.safe_send_message(channel, newmsg)
+    async def replace_or_edit_np_message(self, guild, channel, message):
+        lnp = self.server_specific_data[guild]['last_np_msg']
         
-
+        if lnp and lnp.channel == channel and (await channel.history(limit=1).flatten())[0] == lnp:
+            m = await self.safe_edit_message(lnp, message, send_if_fail=True, quiet=False)
+        else:
+            if lnp:
+                await self.safe_delete_message(lnp, quiet=True)
+            m = await self.safe_send_message(channel, message, quiet=True)
+        self.server_specific_data[guild]['last_np_msg'] = m
+        
     async def serialize_queue(self, guild, *, dir=None):
         """
         Serialize the current queue for a server's player to json.
@@ -2627,76 +2659,7 @@ class MusicBot(discord.Client):
         """
 
         if player.current_entry:
-            if self.server_specific_data[guild]["last_np_msg"]:
-                await self.safe_delete_message(
-                    self.server_specific_data[guild]["last_np_msg"]
-                )
-                self.server_specific_data[guild]["last_np_msg"] = None
-
-            # TODO: Fix timedelta garbage with util function
-            song_progress = ftimedelta(timedelta(seconds=player.progress))
-            song_total = (
-                ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
-                else "(no duration data)"
-            )
-
-            streaming = isinstance(player.current_entry, StreamPlaylistEntry)
-            prog_str = (
-                "`[{progress}]`" if streaming else "`[{progress}/{total}]`"
-            ).format(progress=song_progress, total=song_total)
-            prog_bar_str = ""
-
-            # percentage shows how much of the current song has already been played
-            percentage = 0.0
-            if player.current_entry.duration and player.current_entry.duration > 0:
-                percentage = player.progress / player.current_entry.duration
-
-            # create the actual bar
-            progress_bar_length = 30
-            for i in range(progress_bar_length):
-                if percentage < 1 / progress_bar_length * i:
-                    prog_bar_str += "□"
-                else:
-                    prog_bar_str += "■"
-
-            action_text = (
-                self.str.get("cmd-np-action-streaming", "Streaming")
-                if streaming
-                else self.str.get("cmd-np-action-playing", "Playing")
-            )
-
-            if player.current_entry.meta.get(
-                "channel", False
-            ) and player.current_entry.meta.get("author", False):
-                np_text = self.str.get(
-                    "cmd-np-reply-author",
-                    "Now {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
-                ).format(
-                    action=action_text,
-                    title=player.current_entry.title,
-                    author=player.current_entry.meta["author"].name,
-                    progress_bar=prog_bar_str,
-                    progress=prog_str,
-                    url=player.current_entry.url,
-                )
-            else:
-
-                np_text = self.str.get(
-                    "cmd-np-reply-noauthor",
-                    "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
-                ).format(
-                    action=action_text,
-                    title=player.current_entry.title,
-                    progress_bar=prog_bar_str,
-                    progress=prog_str,
-                    url=player.current_entry.url,
-                )
-
-            self.server_specific_data[guild][
-                "last_np_msg"
-            ] = await self.safe_send_message(channel, np_text)
-            await self._manual_delete_check(message)
+            await self.update_now_playing_message(player.current_entry, player, extended=True)
         else:
             return Response(
                 self.str.get(
