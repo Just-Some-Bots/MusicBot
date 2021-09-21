@@ -103,5 +103,9 @@
     "playlists-big": "В плейлисте слишком много треков ({0} > {1})",
     "playlists-limit": "Треки из плейлиста + треки из вашей очереди достигли максимально доступного лимита ({0} + {1} > {2})",
     "karaoke-enabled": "Режим караоке включен, попробуйте сделать это еще раз, когда он будет выключен!",
-    "left-no-owner-guilds": "Осталось `{}` из-за того что владелец бота не был найден."
+    "left-no-owner-guilds": "Осталось `{}` из-за того что владелец бота не был найден.",
+	"on_player_play-onChannel_authorNotInChannel_skipWhenAbsent": "Пропуск трека `{title}` от `{author}`. Пользователь вышел из `{channel}`",
+	"on_player_play-onChannel_playingMention": "`{author}`, ваш трек `{title}` сейчас играет в `{channel}`!",
+	"on_player_play-onChannel": "Сейчас в `{channel}` играет трек `{title}` добавленный `{author}`!",
+	"on_player_play-onChannel_noAuthor_autoplaylist": "Сейчас играет автоматически добавленный трек `{title}` в `{channel}`!"
 }
