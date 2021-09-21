@@ -294,11 +294,12 @@ class MusicBot(discord.Client):
     @staticmethod
     def _check_if_empty(vchannel: discord.abc.GuildChannel, *, deaf_as_inactive=True):
         def is_inactive(member):
-            return (
-                member.bot
-                or (not member.voice)
-                or (deaf_as_inactive and (member.voice.deaf or member.voice.self_deaf))
-            )
+            if member.bot or not member.voice:
+                return True
+            if deaf_as_inactive:
+                return member.voice.deaf or member.voice.self_deaf
+            else:
+                return False
 
         return all(is_inactive(m) for m in vchannel.members)
 
@@ -4150,9 +4151,9 @@ class MusicBot(discord.Client):
         else:
             return
 
-        if member == self.user:
-            if not after.channel:  # if bot was disconnected from channel
-                await self.disconnect_voice_client(before.channel.guild)
+        # if bot was disconnected from the server
+        if member == self.user and not after.channel:
+            await self.disconnect_voice_client(before.channel.guild)
             return
 
         if not self.config.auto_pause:
@@ -4165,9 +4166,6 @@ class MusicBot(discord.Client):
 
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
         auto_paused = self.server_specific_data[channel.guild]["auto_paused"]
-
-        def set_autopause(value):
-            self.server_specific_data[player.voice_client.guild]["auto_paused"] = value
 
         if self._check_if_empty(player.voice_client.channel):  # channel is empty
             if not auto_paused and player.is_playing:
@@ -4189,7 +4187,9 @@ class MusicBot(discord.Client):
                     ).strip()
                 )
 
-                set_autopause(False)
+                self.server_specific_data[player.voice_client.guild][
+                    "auto_paused"
+                ] = False
                 player.resume()
 
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
