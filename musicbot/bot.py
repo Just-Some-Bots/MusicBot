@@ -484,7 +484,9 @@ class MusicBot(discord.Client):
             return channel.guild.voice_client
         else:
             client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(channel=channel, self_mute=False, self_deaf=True)
+            await channel.guild.change_voice_state(
+                channel=channel, self_mute=False, self_deaf=True
+            )
             return client
 
     async def disconnect_voice_client(self, guild):
@@ -574,14 +576,14 @@ class MusicBot(discord.Client):
         if channel and author:
             skip_absent = self.permissions.for_user(author).skip_when_absent
 
-            if (skip_absent and author not in player.voice_client.channel.members):
+            if skip_absent and author not in player.voice_client.channel.members:
                 newmsg = self.str.get(
                     "on_player_play-onChannel_authorNotInChannel_skipWhenAbsent",
                     "Skipping next song in {channel}: {title} added by {author} as queuer not in voice!",
                 ).format(
                     channel=player.voice_client.channel.name,
                     title=entry.title,
-                    author=author.name
+                    author=author.name,
                 )
                 player.skip()
                 await self.safe_send_message(channel, newmsg)
@@ -747,17 +749,26 @@ class MusicBot(discord.Client):
         def getNpChannel(enqueue_channel):
             # highest prio: configured now playing channels
             if self.config.nowplaying_channels:
-                for potential_channel in map(self.getChannel, self.config.nowplaying_channels):
+                for potential_channel in map(
+                    self.getChannel, self.config.nowplaying_channels
+                ):
                     if potential_channel and potential_channel.guild == guild:
                         return potential_channel
             # lowest prio: channel of cached message
-            if enqueue_channel is None and self.server_specific_data[guild]["last_np_msg"]:
+            if (
+                enqueue_channel is None
+                and self.server_specific_data[guild]["last_np_msg"]
+            ):
                 return self.server_specific_data[guild]["last_np_msg"].channel
             return enqueue_channel
 
         def getProgress():
             # TODO: Fix timedelta garbage with util function
-            song_progress = ftimedelta(timedelta(seconds=player.progress)) if player.progress else "--:--"
+            song_progress = (
+                ftimedelta(timedelta(seconds=player.progress))
+                if player.progress
+                else "--:--"
+            )
             song_total = (
                 ftimedelta(timedelta(seconds=player.current_entry.duration))
                 if player.current_entry.duration is not None
@@ -769,7 +780,9 @@ class MusicBot(discord.Client):
             bar_length = 30
             if player.current_entry.duration and player.current_entry.duration > 0:
                 percentage = player.progress / player.current_entry.duration
-            prog_bar = "█" * int(percentage * bar_length) + "░" * int((1 - percentage) * bar_length)
+            prog_bar = "█" * int(percentage * bar_length) + "░" * int(
+                (1 - percentage) * bar_length
+            )
 
             return "`{} {} {}`".format(song_progress, prog_bar, song_total)
 
@@ -777,9 +790,13 @@ class MusicBot(discord.Client):
             np = self._gen_embed()
             np.title = self.str.get("np-embed-title", "Now Playing")
             if author:
-                np.description = self.str.get("np-embed", "**{0}**\nadded by {1}").format(title, author)
+                np.description = self.str.get(
+                    "np-embed", "**{0}**\nadded by {1}"
+                ).format(title, author)
             else:
-                np.description = self.str.get("np-embed-auto", "**{0}**\nfrom the autoplaylist").format(title)
+                np.description = self.str.get(
+                    "np-embed-auto", "**{0}**\nfrom the autoplaylist"
+                ).format(title)
             if extended:
                 np.description += "\n{}\n<{}>".format(getProgress(), entry.url)
             return np
@@ -803,11 +820,19 @@ class MusicBot(discord.Client):
         channel = getNpChannel(entry.meta.get("channel", None))
         author = entry.meta.get("author", None)
         if author:
-            author_cred = author.mention if self.config.now_playing_mentions else author.name
+            author_cred = (
+                author.mention if self.config.now_playing_mentions else author.name
+            )
         else:
             author_cred = None
 
-        newmsg = formatNpEmbed(entry.title, author_cred, extended) if self.config.embeds else formatNpMsg(entry.title, author_cred, player.voice_client.channel.name, extended)
+        newmsg = (
+            formatNpEmbed(entry.title, author_cred, extended)
+            if self.config.embeds
+            else formatNpMsg(
+                entry.title, author_cred, player.voice_client.channel.name, extended
+            )
+        )
 
         # DM the message if configured to do so
         if author and self.config.dm_nowplaying and not extended:
@@ -817,21 +842,29 @@ class MusicBot(discord.Client):
         if not author and self.config.no_nowplaying_auto:
             return
         if channel:
-            await self.replace_or_edit_np_message(player.voice_client.guild, channel, newmsg)
+            await self.replace_or_edit_np_message(
+                player.voice_client.guild, channel, newmsg
+            )
         else:
             log.debug("no channel to put now playing message into")
 
     async def replace_or_edit_np_message(self, guild, channel, message):
-        lnp = self.server_specific_data[guild]['last_np_msg']
-        
-        if lnp and lnp.channel == channel and (await channel.history(limit=1).flatten())[0] == lnp:
-            m = await self.safe_edit_message(lnp, message, send_if_fail=True, quiet=False)
+        lnp = self.server_specific_data[guild]["last_np_msg"]
+
+        if (
+            lnp
+            and lnp.channel == channel
+            and (await channel.history(limit=1).flatten())[0] == lnp
+        ):
+            m = await self.safe_edit_message(
+                lnp, message, send_if_fail=True, quiet=False
+            )
         else:
             if lnp:
                 await self.safe_delete_message(lnp, quiet=True)
             m = await self.safe_send_message(channel, message, quiet=True)
-        self.server_specific_data[guild]['last_np_msg'] = m
-        
+        self.server_specific_data[guild]["last_np_msg"] = m
+
     async def serialize_queue(self, guild, *, dir=None):
         """
         Serialize the current queue for a server's player to json.
@@ -2659,7 +2692,9 @@ class MusicBot(discord.Client):
         """
 
         if player.current_entry:
-            await self.update_now_playing_message(player.current_entry, player, extended=True)
+            await self.update_now_playing_message(
+                player.current_entry, player, extended=True
+            )
         else:
             return Response(
                 self.str.get(
