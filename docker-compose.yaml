@@ -11,4 +11,4 @@ services:
 
 secrets:
   musicbot_discord_token:
-    external: true
+    file: ./.secrets/discord_bot_token
