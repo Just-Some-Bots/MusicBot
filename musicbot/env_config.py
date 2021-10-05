@@ -19,7 +19,7 @@ class MusicBotSettings(BaseSettings):
     class Config:
         env_prefix = "MUSICBOT_"
         case_sensitive = False
-        secrets_dir = "musicbot/.secrets/"
+        secrets_dir = "../run/secrets"
 
 def get_env_settings():
     """ Cleans up settings
@@ -27,7 +27,7 @@ def get_env_settings():
 
     # Catch warnings when working locally and ./secrets does not exist
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+        warnings.simplefilter("ignore", category=UserWarning)
         settings = MusicBotSettings().dict()
 
     if settings["bind_to_channels"]:

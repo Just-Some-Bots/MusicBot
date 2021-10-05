@@ -6,14 +6,9 @@ services:
     restart: always
     env_file:
       - .env
-#     configs:
-#       -musicbot_config
-#     secrets:
-#       -musicbot_secret
+    secrets:
+      - musicbot_discord_token
 
-
-# configs:
-#   musicbot_config:
-
-# secret:
-#   musicbot_secret:
+secrets:
+  musicbot_discord_token:
+    external: true

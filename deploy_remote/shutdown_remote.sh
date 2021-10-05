@@ -22,20 +22,5 @@ if [[ $ssh_connect != ok ]]; then
     exit 0
 fi
 
-
-DOCKER_BUILDKIT=1 \
-docker build \
-    -t musicbot \
-    -t musicbot:deploy \
-    .
-
-# Push image to remote machine (and use pv as a status bar is possible)
-if ! command -v pv &> /dev/null; then
-    docker save musicbot:deploy | bzip2 | ssh ${USER}@${HOST} docker load
-else
-    docker save musicbot:deploy | bzip2 | pv | ssh ${USER}@${HOST} docker load
-fi
-
-# Create remote context and deploy it to that context
 docker context create remote --docker "host=ssh://${USER}@${HOST}"
-docker-compose --context remote up -d
+docker-compose --context remote down
