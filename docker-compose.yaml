@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+  musicbot:
+    container_name: musicbot
+    image: musicbot:deploy
+    restart: always
+    env_file:
+      - .env
+#     configs:
+#       -musicbot_config
+#     secrets:
+#       -musicbot_secret
+
+
+# configs:
+#   musicbot_config:
+
+# secret:
+#   musicbot_secret:

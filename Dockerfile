@@ -18,7 +18,8 @@ RUN apk update && apk add --no-cache \
   opus-dev \
   libffi \
   libsodium \
-  gcc
+  gcc \
+  bash
 
 # Install pip dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt
@@ -32,3 +33,5 @@ VOLUME ["/musicbot/audio_cache", "/musicbot/config", "/musicbot/data", "/musicbo
 ENV APP_ENV=docker
 
 ENTRYPOINT ["/bin/sh", "docker-entrypoint.sh"]
+
+CMD ["python3", "run.py"]
