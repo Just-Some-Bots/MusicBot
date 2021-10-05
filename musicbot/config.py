@@ -7,6 +7,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
+from .env_config import get_env_settings
 
 log = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class Config:
     # noinspection PyUnresolvedReferences
     def __init__(self, config_file):
         self.config_file = config_file
+        env_settings = get_env_settings()
         self.find_config()
 
         config = configparser.ConfigParser(interpolation=None)
@@ -36,15 +38,20 @@ class Config:
         self._confpreface = "An error has occured reading the config:\n"
         self._confpreface2 = "An error has occured validating the config:\n"
 
-        self._login_token = config.get(
+        discord_token = (env_settings["discord_token"].get_secret_value()
+                            if env_settings["discord_token"] else None)
+        self._login_token = discord_token or config.get(
             "Credentials", "Token", fallback=ConfigDefaults.token
         )
 
         self.auth = ()
 
-        self.spotify_clientid = config.get(
+        self.spotify_clientid = env_settings["spotify_client_id"] or config.get(
             "Credentials", "Spotify_ClientID", fallback=ConfigDefaults.spotify_clientid
         )
+
+        spotify_client_secret = (env_settings["spotify_client_secret"].get_secret_value()
+                                    if env_settings["spotify_client_secret"] else None)
         self.spotify_clientsecret = config.get(
             "Credentials",
             "Spotify_ClientSecret",
@@ -64,7 +71,7 @@ class Config:
         self.command_prefix = config.get(
             "Chat", "CommandPrefix", fallback=ConfigDefaults.command_prefix
         )
-        self.bound_channels = config.get(
+        self.bound_channels = set(env_settings["bind_to_channels"]) or config.get(
             "Chat", "BindToChannels", fallback=ConfigDefaults.bound_channels
         )
         self.unbound_servers = config.getboolean(

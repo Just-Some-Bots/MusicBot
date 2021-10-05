@@ -5,6 +5,8 @@ import configparser
 
 import discord
 
+from .env_config import get_env_settings
+
 log = logging.getLogger(__name__)
 
 # PermissionDefaults class define the strictest value of each permissions
@@ -61,6 +63,7 @@ class Permissive:
 
 class Permissions:
     def __init__(self, config_file, grant_all=None):
+        env_settings = get_env_settings()
         self.config_file = config_file
         self.config = configparser.ConfigParser(interpolation=None)
 
@@ -82,9 +85,14 @@ class Permissions:
         self.default_group = PermissionGroup("Default", self.config["Default"])
         self.groups = set()
 
+        user_dict = env_settings["authorized_user_dict"]
         for section in self.config.sections():
             if section != "Owner (auto)":
-                self.groups.add(PermissionGroup(section, self.config[section]))
+                env_user_list = user_dict[section] if section in user_dict else None
+                self.groups.add(PermissionGroup(section,
+                                                self.config[section],
+                                                env_user_list=env_user_list)
+                                )
 
         if self.config.has_section("Owner (auto)"):
             owner_group = PermissionGroup(
@@ -149,7 +157,7 @@ class Permissions:
 
 
 class PermissionGroup:
-    def __init__(self, name, section_data, fallback=PermissionsDefaults):
+    def __init__(self, name, section_data, env_user_list=None, fallback=PermissionsDefaults):
         self.name = name
 
         self.command_whitelist = section_data.get(
@@ -164,7 +172,7 @@ class PermissionGroup:
         self.granted_to_roles = section_data.get(
             "GrantToRoles", fallback=fallback.GrantToRoles
         )
-        self.user_list = section_data.get("UserList", fallback=fallback.UserList)
+        self.user_list = env_user_list or section_data.get("UserList", fallback=fallback.UserList)
 
         self.max_songs = section_data.get("MaxSongs", fallback=fallback.MaxSongs)
         self.max_song_length = section_data.get(
