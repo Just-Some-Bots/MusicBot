@@ -6,9 +6,3 @@ services:
     restart: always
     env_file:
       - .env
-    secrets:
-      - musicbot_discord_token
-
-secrets:
-  musicbot_discord_token:
-    file: ./.secrets/discord_bot_token
