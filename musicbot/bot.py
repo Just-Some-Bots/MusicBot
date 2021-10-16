@@ -484,7 +484,9 @@ class MusicBot(discord.Client):
             return channel.guild.voice_client
         else:
             client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(channel=channel, self_mute=False, self_deaf=True)
+            await channel.guild.change_voice_state(
+                channel=channel, self_mute=False, self_deaf=True
+            )
             return client
 
     async def disconnect_voice_client(self, guild):

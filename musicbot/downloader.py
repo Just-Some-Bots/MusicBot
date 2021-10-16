@@ -48,6 +48,7 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 """
 
+
 class Downloader:
     def __init__(self, download_folder=None):
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
@@ -56,7 +57,7 @@ class Downloader:
         if download_folder:
             otmpl = unsafe_ytdl_format_options["outtmpl"]
             unsafe_ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
-            #print("setting template to " + os.path.join(download_folder, otmpl))
+            # print("setting template to " + os.path.join(download_folder, otmpl))
 
             otmpl = ytdl_format_options["outtmpl"]
             ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
