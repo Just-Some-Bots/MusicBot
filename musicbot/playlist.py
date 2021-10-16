@@ -5,9 +5,11 @@ import datetime
 from random import shuffle
 from itertools import islice
 from collections import deque
-
 from urllib.error import URLError
-from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
+
+# For the time being, youtube_dl is often slow and inconsistent
+# With this in mind, lets stick to the fork until it gets a dev
+from yt_dlp.utils import ExtractorError, DownloadError, UnsupportedError
 
 from .utils import get_header
 from .constructs import Serializable
