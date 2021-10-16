@@ -7,7 +7,7 @@ from itertools import islice
 from collections import deque
 
 from urllib.error import URLError
-from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
+from yt_dlp.utils import ExtractorError, DownloadError, UnsupportedError #change to yt_dlp
 
 from .utils import get_header
 from .constructs import Serializable
