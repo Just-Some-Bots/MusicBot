@@ -34,6 +34,7 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 """
 
+
 class Downloader:
     def __init__(self, download_folder=None):
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
