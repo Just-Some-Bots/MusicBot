@@ -22,7 +22,6 @@ ytdl_format_options = {
     "source_address": "0.0.0.0",
     "usenetrc": True,
 }
-unsafe_ytdl_format_options = ytdl_format_options.copy()
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -35,21 +34,17 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 """
 
-
 class Downloader:
     def __init__(self, download_folder=None):
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
         self.download_folder = download_folder
 
         if download_folder:
-            otmpl = unsafe_ytdl_format_options["outtmpl"]
-            unsafe_ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
             # print("setting template to " + os.path.join(download_folder, otmpl))
-
             otmpl = ytdl_format_options["outtmpl"]
             ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
 
-        self.unsafe_ytdl = youtube_dl.YoutubeDL(unsafe_ytdl_format_options)
+        self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl = youtube_dl.YoutubeDL(
             {**ytdl_format_options, "ignoreerrors": True}
         )
