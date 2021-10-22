@@ -2,11 +2,7 @@ import os
 import asyncio
 import logging
 import functools
-
-# For the time being, youtube_dl is slow.
-# With this in mind, lets stick to the fork until it gets a dev.
 import yt_dlp as youtube_dl
-import copy
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -18,7 +14,7 @@ ytdl_format_options = {
     "restrictfilenames": True,
     "noplaylist": True,
     "nocheckcertificate": True,
-    "ignoreerrors": True,
+    "ignoreerrors": False,
     "logtostderr": False,
     "quiet": True,
     "no_warnings": True,
@@ -26,16 +22,7 @@ ytdl_format_options = {
     "source_address": "0.0.0.0",
     "usenetrc": True,
 }
-
-"""
-    https://github.com/yt-dlp/yt-dlp/commit/819e05319baff2d896df026f1ef905e1f21be942#diff-d3ba8be45cae8dd7889a71c3360c9e4ac1160de8a5f3443b6e4a656395267f9bL491
-    With the aforementioned usage of yt-dlp, a commit *one week prior* to my work with this broke
-    changing yt-dl object params after creation. I don't fully understand how this was broken in
-    such a manner that two separate objects manage to share their params, nor do I understand how
-    these lines relate to progress reporting, but they did it.
-"""
-unsafe_ytdl_format_options = copy.deepcopy(ytdl_format_options)
-unsafe_ytdl_format_options["ignoreerrors"] = False
+unsafe_ytdl_format_options = ytdl_format_options.copy()
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -63,7 +50,9 @@ class Downloader:
             ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
 
         self.unsafe_ytdl = youtube_dl.YoutubeDL(unsafe_ytdl_format_options)
-        self.safe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+        self.safe_ytdl = youtube_dl.YoutubeDL(
+            {**ytdl_format_options, "ignoreerrors": True}
+        )
 
     @property
     def ytdl(self):
