@@ -32,7 +32,7 @@ from .player import MusicPlayer
 from .entry import StreamPlaylistEntry
 from .opus_loader import load_opus_lib
 from .config import Config, ConfigDefaults
-from .permissions import Permissions, PermissionsDefaults
+from .permissions import PermissionGroup, Permissions, PermissionsDefaults
 from .aliases import Aliases, AliasesDefault
 from .constructs import SkipState, Response
 from .utils import (
@@ -1692,21 +1692,16 @@ class MusicBot(discord.Client):
             head=True,
         )
 
-    async def _cmd_play(
+    async def _try_summonplay(
         self,
-        message,
-        _player,
-        channel,
-        author,
-        permissions,
-        leftover_args,
-        song_url,
-        head,
-    ):
-        if _player:
-            player = _player
-        elif permissions.summonplay:
-            vc = author.voice.channel if author.voice else None
+        channel: discord.TextChannel,
+        author: discord.Member,
+        permissions: PermissionGroup,
+    ) -> Optional[MusicPlayer]:
+        if permissions.summonplay:
+            vc = (
+                author.voice.channel if author.voice else None
+            )  # type: Optional[discord.VoiceChannel]
             response = await self.cmd_summon(
                 channel, channel.guild, author, vc
             )  # @TheerapakG: As far as I know voice_channel param is unused
@@ -1721,7 +1716,25 @@ class MusicBot(discord.Client):
                 content,
                 expire_in=response.delete_after if self.config.delete_messages else 0,
             )
-            player = self.get_player_in(channel.guild)
+            return self.get_player_in(channel.guild)
+
+    async def _cmd_play(
+        self,
+        message,
+        _player,
+        channel,
+        author,
+        permissions,
+        leftover_args,
+        song_url,
+        head,
+    ):
+        player = None
+
+        if _player:
+            player = _player
+        else:
+            player = await self._try_summonplay(channel, author, permissions)
 
         if not player:
             raise exceptions.CommandError(
@@ -2315,25 +2328,12 @@ class MusicBot(discord.Client):
         streams, especially on poor connections.  You have been warned.
         """
 
+        player = None
+
         if _player:
             player = _player
-        elif permissions.summonplay:
-            vc = author.voice.channel if author.voice else None
-            response = await self.cmd_summon(
-                channel, channel.guild, author, vc
-            )  # @TheerapakG: As far as I know voice_channel param is unused
-            if self.config.embeds:
-                content = self._gen_embed()
-                content.title = "summon"
-                content.description = response.content
-            else:
-                content = response.content
-            await self.safe_send_message(
-                channel,
-                content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
-            )
-            player = self.get_player_in(channel.guild)
+        else:
+            player = await self._try_summonplay(channel, author, permissions)
 
         if not player:
             raise exceptions.CommandError(
