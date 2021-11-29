@@ -16,7 +16,7 @@ doas pkg_add py3-aiohttp youtube-dl ffmpeg libsodium git
 python3 -m ensurepip
 
 # Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git -b master
+git clone https://github.com/Just-Some-Bots/MusicBot.git -b review
 cd MusicBot
 
 # Install remaining dependencies

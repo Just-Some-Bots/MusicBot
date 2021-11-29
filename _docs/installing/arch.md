@@ -16,7 +16,7 @@ sudo pacman -S git python python-pip opus libffi libsodium ncurses gdbm glibc zl
 
 # Clone the MusicBot to your home directory
 cd ~
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
 cd MusicBot
 
 # Install dependencies

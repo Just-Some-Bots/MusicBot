@@ -9,7 +9,7 @@ Installing MusicBot on Mac requires several libraries and applications. First, i
 
 ```bash
 # Install Homebrew
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/review/install)"
 brew update
 xcode-select --install
 
@@ -19,7 +19,7 @@ brew install python libsodium libffi opus ffmpeg git
 
 # Clone the MusicBot
 cd desktop
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master 
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review 
 
 # Install Python dependencies
 cd MusicBot

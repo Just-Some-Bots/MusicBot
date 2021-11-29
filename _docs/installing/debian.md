@@ -14,7 +14,7 @@ sudo apt-get upgrade -y
 
 # Install dependencies
 sudo apt-get install git libopus-dev libffi-dev libsodium-dev ffmpeg -y
-sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl libncurses5-dev libnss3-dev libreadline-dev wget libbz2-dev -y
+sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl libncurses5-dev libnss3-dev wget libbz2-dev -y
 
 # Install python 3.8
 cd /opt
@@ -26,7 +26,7 @@ sudo make altinstall
 
 # Clone the MusicBot to your home directory
 cd ~
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
 cd MusicBot
 
 # Install dependencies

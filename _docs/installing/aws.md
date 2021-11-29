@@ -19,8 +19,6 @@ Here, you will need to select “Create a new key pair” from the drop-down box
 Then download your key, and click “Launch Instances.”
 Note: It is suggested that you save this key in multiple places to prevent it being lost, as once you Launch your instance, there is no way to recover the key without creating a brand new Instance.
 
-[![](https://aleanaazure.xyz/lib/exe/fetch.php?w=512&h=512&tok=66b704&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FCreate_New_Key_Pair.PNG)](https://aleanaazure.xyz/lib/exe/fetch.php?tok=489525&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FCreate_New_Key_Pair.PNG "https://britishbenji.github.io/MusicBot/images/AWS/Create_New_Key_Pair.PNG")
-
 ---
 
 ## Instance Interaction
@@ -32,11 +30,8 @@ With PuTTY installed, we first need to open PuTTYgen, this will allow use to cha
 With the PuTTYgen program open, load an existing private key file using the “Load” button, and save it as a Public Key.
 To keep things simple, save this with the same filename as your original key, with the .ppk file extension.
 
-[![](https://aleanaazure.xyz/lib/exe/fetch.php?w=512&h=512&tok=df744d&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FPuTTYgen_UI.PNG)](https://aleanaazure.xyz/lib/exe/fetch.php?tok=673278&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FPuTTYgen_UI.PNG "https://britishbenji.github.io/MusicBot/images/AWS/PuTTYgen_UI.PNG")
 
 Once you have saved this, open PuTTY and AWS side by side. On your AWS window, find and copy your “Public DNS (IPv4)”, and paste this into the “Host Name (or IP address)” text box with the prefix “ubuntu@”
-
-[![](https://aleanaazure.xyz/lib/exe/fetch.php?w=512&h=512&tok=bcffa4&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FConnect_IP.PNG)](https://aleanaazure.xyz/lib/exe/fetch.php?tok=907d59&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FConnect_IP.PNG "https://britishbenji.github.io/MusicBot/images/AWS/Connect_IP.PNG")
 
 Following on from this page, expand the “SSH” tab on the right hand side of the screen and click “Auth” Select your .ppk file using the “Browse…” option, then go back to the “Session” tab and click open.
 You will be brought to a black screen with text on it, you are now in your Ubuntu Workspace on your EC2 Instance.

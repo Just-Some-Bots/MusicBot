@@ -8,6 +8,10 @@ This is a table of common issues and solutions for the bot. Please check here be
 
 Issue | Solution
 --- | ---
+`Intents missing/` | 1. Go to Discord's [applications page](https://discordapp.com/developers/applications/me) (logging in if prompted).
+2. Select your bot.
+3. Go to the page called "Bot", and scroll until you see "Privileged Gateway Intents"
+4. Now enable "PRESENCE INTENT" and "SERVER MEMBERS INTENT" and you should be good to go!
 `Bot was not installed using Git` | You didn't install the bot correctly. Rather than downloading a ZIP, you must install using Git. Use our official installation guides rather than a YouTube video.
 Lagging while playing music | Check your CPU and disk usage. Ensure that you have enough bandwidth. Check your voice channel's bitrate. Check there isn't a [Discord issue](https://status.discordapp.com).
 `Bot can't login, bad credentials` | Check you copied the correct token from your [bot application page](https://discordapp.com/developers/applications/me) into your config file. It is called **Token**, not Client Secret.

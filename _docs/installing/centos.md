@@ -43,7 +43,7 @@ sudo make install
 cd ../.. && rm -rf libsodium
 
 # Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
 cd MusicBot
 
 # Install bot requirements
@@ -78,7 +78,7 @@ sudo rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release
 sudo yum -y install ffmpeg ffmpeg-devel -y
 
 # Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
 cd MusicBot
 
 # Install bot requirements
