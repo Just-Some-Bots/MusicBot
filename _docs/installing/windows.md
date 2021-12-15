@@ -8,7 +8,7 @@ order: 2
 
 > If you do not clone the bot using Git, and instead download the ZIP file from GitHub and attempt to run it, you will receive an error.
 
-MusicBot can be installed on Windows 7, 8, and 10 too, though it requires installing some programs on your computer first.
+MusicBot can be installed on Windows 7 through 11, though it requires installing some programs on your computer first.
 
 1. Install [Python 3.7](https://www.python.org/ftp/python/3.7.0/python-3.7.0.exe).
 2. During the setup, tick `Install launcher for all users (recommended)` and `Add Python 3.7 to PATH` when prompted.
