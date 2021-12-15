@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 import functools
-import youtube_dl
+import yt_dlp as youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -38,18 +38,17 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 class Downloader:
     def __init__(self, download_folder=None):
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
-        self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-        self.safe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-        self.safe_ytdl.params["ignoreerrors"] = True
         self.download_folder = download_folder
 
         if download_folder:
-            otmpl = self.unsafe_ytdl.params["outtmpl"]
-            self.unsafe_ytdl.params["outtmpl"] = os.path.join(download_folder, otmpl)
             # print("setting template to " + os.path.join(download_folder, otmpl))
+            otmpl = ytdl_format_options["outtmpl"]
+            ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
 
-            otmpl = self.safe_ytdl.params["outtmpl"]
-            self.safe_ytdl.params["outtmpl"] = os.path.join(download_folder, otmpl)
+        self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+        self.safe_ytdl = youtube_dl.YoutubeDL(
+            {**ytdl_format_options, "ignoreerrors": True}
+        )
 
     @property
     def ytdl(self):
