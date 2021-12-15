@@ -321,7 +321,7 @@ class Playlist(EventEmitter, Serializable):
             gooditems.reverse()
         return gooditems
 
-    async def async_process_sc_bc_playlist(self, playlist_url, *, head, **meta):
+    async def async_process_sc_bc_playlist(self, playlist_url, *, head=False, **meta):
         """
         Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
 
