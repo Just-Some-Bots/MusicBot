@@ -250,12 +250,18 @@ class Config:
         log.info("Using i18n: {0}".format(self.i18n_file))
 
         if not self._login_token:
-            raise HelpfulError(
-                "No bot token was specified in the config.",
-                "As of v1.9.6_1, you are required to use a Discord bot account. "
-                "See https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ for info.",
-                preface=self._confpreface,
-            )
+            # Attempt to fallback to an environment variable.
+            token_env = os.environ.get('MUSICBOT_TOKEN')
+            if token_env:
+                self._login_token = token_env
+                self.auth = (self._login_token,)
+            else:
+                raise HelpfulError(
+                    "No bot token was specified in the config, or as an environment variable.",
+                    "As of v1.9.6_1, you are required to use a Discord bot account. "
+                    "See https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ for info.",
+                    preface=self._confpreface,
+                )
 
         else:
             self.auth = (self._login_token,)
