@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report broken or incorrect behaviour
+labels: ["t/bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        If you want to report a bug with MusicBot, please enter the details in the form below.
+  - type: textarea
+    attributes:
+      label: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: How do we reproduce this?
+      description: >
+        Give us a step by step on what you did to encounter this problem.
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Which version of the bot are you using?
+      description: >
+        This is displayed when you start the bot.
+        
+        If you followed the official guides and installed the bot with Git, you can run `git describe --tags --always`.
+      multiple: false
+      options:
+        - release-151221
+        - release-260419
+        - I am using the "review" branch
+  - type: dropdown
+    id: system
+    attributes:
+      label: Which operating system are you using?
+      description: >
+        If you are using an OS not listed here, please select "Other" and ensure you have included your OS in the first question.
+      multiple: false
+      options:
+        - macOS Catalina or higher, with Intel chip
+        - macOS Catalina or higher, with Apple M1 chip
+        - Windows 7 or higher
+        - Ubuntu 18.04 or higher
+        - Other
+  - type: checkboxes
+    attributes:
+      label: Just checking...
+      options:
+        - label: I have confirmed that my issue has not already been reported.
+          required: true
+        - label: I am using Python 3.8 or higher.
+          required: true
+        - label: I have updated my Python dependencies.
+          required: true
