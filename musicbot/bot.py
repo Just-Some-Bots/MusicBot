@@ -1696,12 +1696,12 @@ class MusicBot(discord.Client):
         song_url,
         head,
     ):
-        if _player:
-            player = _player
-        elif permissions.summonplay:
-            vc = author.voice.channel if author.voice else None
+        player = _player if _player else None
+
+        if permissions.summonplay:
+            voice_channel = author.voice.channel if author.voice else None
             response = await self.cmd_summon(
-                channel, channel.guild, author, vc
+                channel, channel.guild, author, voice_channel
             )  # @TheerapakG: As far as I know voice_channel param is unused
             if self.config.embeds:
                 content = self._gen_embed()
@@ -1732,14 +1732,13 @@ class MusicBot(discord.Client):
         leftover_args = None  # prevent some crazy shit happening down the line
 
         # Make sure forward slashes work properly in search queries
-        linksRegex = "((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)"
-        pattern = re.compile(linksRegex)
-        matchUrl = pattern.match(song_url)
-        song_url = song_url.replace("/", "%2F") if matchUrl is None else song_url
+        links_regex = r"((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)"
+        match_url = re.compile(links_regex).match(song_url)
+        song_url = song_url.replace("/", "%2F") if match_url is None else song_url
 
         # Rewrite YouTube playlist URLs if the wrong URL type is given
-        playlistRegex = r"watch\?v=.+&(list=[^&]+)"
-        matches = re.search(playlistRegex, song_url)
+        playlist_regex = r"watch\?v=.+&(list=[^&]+)"
+        matches = re.search(playlist_regex, song_url)
         groups = matches.groups() if matches is not None else []
         song_url = (
             "https://www.youtube.com/playlist?" + groups[0]
@@ -1750,10 +1749,10 @@ class MusicBot(discord.Client):
         if self.config._spotify:
             if "open.spotify.com" in song_url:
                 song_url = "spotify:" + re.sub(
-                    "(http[s]?:\/\/)?(open.spotify.com)\/", "", song_url
+                    r"(http[s]?:\/\/)?(open.spotify.com)\/", "", song_url
                 ).replace("/", ":")
                 # remove session id (and other query stuff)
-                song_url = re.sub("\?.*", "", song_url)
+                song_url = re.sub(r"\?.*", "", song_url)
             if song_url.startswith("spotify:"):
                 parts = song_url.split(":")
                 try:
