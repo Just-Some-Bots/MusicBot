@@ -12,7 +12,7 @@ WARNING: If you have the py3-PyNaCl package installed, the final `pip install` c
 
 ~~~ bash
 # Install Python and libraries available as packages
-doas pkg_add python # select version 3.7.4
+doas pkg_add python # select version 3.8 or above
 doas pkg_add py3-aiohttp youtube-dl ffmpeg libsodium git
 
 # Ensure pip is set up
