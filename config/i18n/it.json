@@ -66,7 +66,7 @@
     "cmd-shuffle-reply": "Coda di `{0}` in riproduzione casuale.",
     "cmd-clear-reply": "Coda di `{0}` cancellata",
     "cmd-remove-none": "Niente da rimuovere!",
-    "cmd-remove-reply": "Rimossa `{0}`, era stata aggiunta da `{1}`",
+    "cmd-remove-reply": "Rimossa `{0} item{2}`, era stata aggiunta da `{1}`",
     "cmd-remove-missing": "Nella coda dell'utente `%s` non c'è nulla.",
     "cmd-remove-noperms": "Non hai i permessi necessari per rimuovere questo elemento dalla coda, assicurati di averla aggiunta tu o di avere i permessi di instant skip.",
     "cmd-remove-invalid": "Numero non valido. Usa {}queue per trovare la posizione in coda.",

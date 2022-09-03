@@ -66,7 +66,7 @@
     "cmd-shuffle-reply": "Blandade `{0}`'s kö.",
     "cmd-clear-reply": "Rensade `{0}`'s kö",
     "cmd-remove-none": "Det finns inget att radera!",
-    "cmd-remove-reply": "Raderade `{0}` som lades till av `{1}`",
+    "cmd-remove-reply": "Raderade `{0} item{2}` som lades till av `{1}`",
     "cmd-remove-missing": "Inget funnet i kö från användaren `%s`",
     "cmd-remove-noperms": "Du har inte behörigheter till att ta bort det numret från kön, se till att du är den som köade den eller har tillåtelse att tvångs skippa låtar",
     "cmd-remove-invalid": "Ogiltigt nummer. Använd {}queue för att hitta alla kö positioner.",

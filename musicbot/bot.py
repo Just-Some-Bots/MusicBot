@@ -2942,14 +2942,16 @@ class MusicBot(discord.Client):
                         ]
                         for entry in entry_indexes:
                             player.playlist.entries.remove(entry)
-                        entry_text = "%s " % len(entry_indexes) + "item"
-                        if len(entry_indexes) > 1:
-                            entry_text += "s"
                         return Response(
                             self.str.get(
-                                "cmd-remove-reply", "Removed `{0}` added by `{1}`"
+                                "cmd-remove-reply",
+                                "Removed `{0} item{2}` added by `{1}`",
                             )
-                            .format(entry_text, user.name)
+                            .format(
+                                len(entry_indexes),
+                                user.name,
+                                "s" if len(entry_indexes) != 1 else "",
+                            )
                             .strip()
                         )
 
@@ -3448,7 +3450,7 @@ class MusicBot(discord.Client):
                 return Response(
                     self.str.get(
                         "cmd-clean-reply", "Cleaned up {0} message{1}."
-                    ).format(len(deleted), "s" * bool(deleted)),
+                    ).format(len(deleted), "s" if len(deleted) != 1 else ""),
                     delete_after=15,
                 )
 

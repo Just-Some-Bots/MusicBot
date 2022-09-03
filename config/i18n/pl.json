@@ -66,7 +66,7 @@
     "cmd-shuffle-reply": "Wymieszano kolejkę `{0}`.",
     "cmd-clear-reply": "Wyczyszczono kolejkę `{0}`.",
     "cmd-remove-none": "Nie ma co usuwać!",
-    "cmd-remove-reply": "Usunięto `{0}`, dodane przez `{1}`",
+    "cmd-remove-reply": "Usunięto `{0} item{2}`, dodane przez `{1}`",
     "cmd-remove-missing": "Nie znaleziono nic w kolece od użytkownika `%s`",
     "cmd-remove-noperms": "Nie masz odpowniednich uprawnień do usunięcia tej pozycji w kolejce, upewnij się, że sam(a) to dodałeś/dodałaś albo masz uprawnienia do natychmiastowego pomijania.",
     "cmd-remove-invalid": "Nieprawdłowa liczba. Użyj {}queue by odnaleść pozycję w kolejce.",

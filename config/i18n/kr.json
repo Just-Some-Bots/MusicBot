@@ -66,7 +66,7 @@
     "cmd-shuffle-reply": "대기열 `{0}` 쉐낏쉐낏",
     "cmd-clear-reply": "대기열 `{0}`을 다 갖다버렸어요",
     "cmd-remove-none": "지울게 없는데요?",
-    "cmd-remove-reply": "`{1}`가 추가한 `{0}`을 삭제했어요",
+    "cmd-remove-reply": "`{1}`가 추가한 `{0} item{2}`을 삭제했어요",
     "cmd-remove-missing": "`%s`가 추가한게 대기열에 없는 것 같네요",
     "cmd-remove-noperms": "당신은 대기열에 있는 항목을 삭제할 수 있는 권한이 없어요, 당신이 추가 한 항목이거나 강제 스킵 권한이 있는지 확인해주세요",
     "cmd-remove-invalid": "잘못된 숫자에요. {}queue 를 사용해서 대기열 번호를 확인해주세요.",

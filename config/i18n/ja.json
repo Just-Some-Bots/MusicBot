@@ -66,7 +66,7 @@
     "cmd-shuffle-reply": "`{0}` のキューがシャッフルされました",
     "cmd-clear-reply": "`{0}` のキューがクリアされました",
     "cmd-remove-none": "削除するものがありません！",
-    "cmd-remove-reply": "`{1}` が追加した `{0}` を削除しました",
+    "cmd-remove-reply": "`{1}` が追加した `{0} item{2}` を削除しました",
     "cmd-remove-missing": "ユーザー `%s` が追加したキューは見つかりませんでした",
     "cmd-remove-noperms": "キューからこの項目を削除する権限がありません。あなたが追加した項目である、または強制スキップの権限があることを確認してください。",
     "cmd-remove-invalid": "無効な数字です。 {}queue でキューの位置を確認してください。",

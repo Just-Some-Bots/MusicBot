@@ -75,7 +75,7 @@
     "cmd-shuffle-reply": "Shuffled `{0}`'s queue.",
     "cmd-clear-reply": "Cleared `{0}`'s queue",
     "cmd-remove-none": "There's nothing to remove!",
-    "cmd-remove-reply": "Removed `{0}` added by `{1}`",
+    "cmd-remove-reply": "Removed `{0} item{2}` added by `{1}`",
     "cmd-remove-missing": "Nothing found in the queue from user `%s`",
     "cmd-remove-noperms": "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions",
     "cmd-remove-invalid": "Invalid number. Use {}queue to find queue positions.",
