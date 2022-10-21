@@ -372,7 +372,7 @@ def opt_check_disk_space(warnlimit_mb=200):
         )
 
 
-#################################################
+##################################################
 
 
 def pyexec(pycom, *args, pycom2=None):
@@ -481,5 +481,6 @@ def main():
     log.info("All done.")
 
 
+    ## required
 if __name__ == "__main__":
     main()
