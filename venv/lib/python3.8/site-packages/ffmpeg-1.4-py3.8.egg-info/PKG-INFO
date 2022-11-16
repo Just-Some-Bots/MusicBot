@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: ffmpeg
+Version: 1.4
+Summary: ffmpeg python package url [https://github.com/jiashaokun/ffmpeg]
+Home-page: https://github.com/jiashaokun/ffmpeg
+Author: SkeyJIA
+Author-email: 363604236@qq.com
+License: MIT Licence
+Description: ffmpeg python package
+Keywords: python ffmpeg
+Platform: any

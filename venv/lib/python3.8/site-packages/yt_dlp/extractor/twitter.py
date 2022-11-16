@@ -1,0 +1,1205 @@
+import json
+import re
+import urllib.error
+
+from .common import InfoExtractor
+from .periscope import PeriscopeBaseIE, PeriscopeIE
+from ..compat import functools  # isort: split
+from ..compat import (
+    compat_parse_qs,
+    compat_urllib_parse_unquote,
+    compat_urllib_parse_urlparse,
+)
+from ..utils import (
+    ExtractorError,
+    dict_get,
+    float_or_none,
+    format_field,
+    int_or_none,
+    make_archive_id,
+    str_or_none,
+    strip_or_none,
+    traverse_obj,
+    try_call,
+    try_get,
+    unified_timestamp,
+    update_url_query,
+    url_or_none,
+    xpath_text,
+)
+
+
+class TwitterBaseIE(InfoExtractor):
+    _API_BASE = 'https://api.twitter.com/1.1/'
+    _GRAPHQL_API_BASE = 'https://twitter.com/i/api/graphql/'
+    _TOKENS = {
+        'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA': None,
+        'AAAAAAAAAAAAAAAAAAAAAPYXBAAAAAAACLXUNDekMxqa8h%2F40K4moUkGsoc%3DTYfbDKbT3jJPCEVnMYqilB28NHfOPqkca3qaAxGfsyKCs0wRbw': None,
+    }
+    _BASE_REGEX = r'https?://(?:(?:www|m(?:obile)?)\.)?(?:twitter\.com|twitter3e4tixl4xyajtrzo62zg5vztmjuricljdp2c5kshju4avyoid\.onion)/'
+
+    def _extract_variant_formats(self, variant, video_id):
+        variant_url = variant.get('url')
+        if not variant_url:
+            return [], {}
+        elif '.m3u8' in variant_url:
+            return self._extract_m3u8_formats_and_subtitles(
+                variant_url, video_id, 'mp4', 'm3u8_native',
+                m3u8_id='hls', fatal=False)
+        else:
+            tbr = int_or_none(dict_get(variant, ('bitrate', 'bit_rate')), 1000) or None
+            f = {
+                'url': variant_url,
+                'format_id': 'http' + ('-%d' % tbr if tbr else ''),
+                'tbr': tbr,
+            }
+            self._search_dimensions_in_video_url(f, variant_url)
+            return [f], {}
+
+    def _extract_formats_from_vmap_url(self, vmap_url, video_id):
+        vmap_url = url_or_none(vmap_url)
+        if not vmap_url:
+            return [], {}
+        vmap_data = self._download_xml(vmap_url, video_id)
+        formats = []
+        subtitles = {}
+        urls = []
+        for video_variant in vmap_data.findall('.//{http://twitter.com/schema/videoVMapV2.xsd}videoVariant'):
+            video_variant.attrib['url'] = compat_urllib_parse_unquote(
+                video_variant.attrib['url'])
+            urls.append(video_variant.attrib['url'])
+            fmts, subs = self._extract_variant_formats(
+                video_variant.attrib, video_id)
+            formats.extend(fmts)
+            subtitles = self._merge_subtitles(subtitles, subs)
+        video_url = strip_or_none(xpath_text(vmap_data, './/MediaFile'))
+        if video_url not in urls:
+            fmts, subs = self._extract_variant_formats({'url': video_url}, video_id)
+            formats.extend(fmts)
+            subtitles = self._merge_subtitles(subtitles, subs)
+        return formats, subtitles
+
+    @staticmethod
+    def _search_dimensions_in_video_url(a_format, video_url):
+        m = re.search(r'/(?P<width>\d+)x(?P<height>\d+)/', video_url)
+        if m:
+            a_format.update({
+                'width': int(m.group('width')),
+                'height': int(m.group('height')),
+            })
+
+    @functools.cached_property
+    def is_logged_in(self):
+        return bool(self._get_cookies(self._API_BASE).get('auth_token'))
+
+    def _call_api(self, path, video_id, query={}, graphql=False):
+        cookies = self._get_cookies(self._API_BASE)
+        headers = {}
+
+        csrf_cookie = cookies.get('ct0')
+        if csrf_cookie:
+            headers['x-csrf-token'] = csrf_cookie.value
+
+        if self.is_logged_in:
+            headers.update({
+                'x-twitter-auth-type': 'OAuth2Session',
+                'x-twitter-client-language': 'en',
+                'x-twitter-active-user': 'yes',
+            })
+
+        result, last_error = None, None
+        for bearer_token in self._TOKENS:
+            headers['Authorization'] = f'Bearer {bearer_token}'
+
+            if not self.is_logged_in:
+                if not self._TOKENS[bearer_token]:
+                    headers.pop('x-guest-token', None)
+                    guest_token_response = self._download_json(
+                        self._API_BASE + 'guest/activate.json', video_id,
+                        'Downloading guest token', data=b'', headers=headers)
+
+                    self._TOKENS[bearer_token] = guest_token_response.get('guest_token')
+                    if not self._TOKENS[bearer_token]:
+                        raise ExtractorError('Could not retrieve guest token')
+                headers['x-guest-token'] = self._TOKENS[bearer_token]
+
+            try:
+                allowed_status = {400, 403, 404} if graphql else {403}
+                result = self._download_json(
+                    (self._GRAPHQL_API_BASE if graphql else self._API_BASE) + path,
+                    video_id, headers=headers, query=query, expected_status=allowed_status)
+                break
+
+            except ExtractorError as e:
+                if last_error:
+                    raise last_error
+                elif not isinstance(e.cause, urllib.error.HTTPError) or e.cause.code != 404:
+                    raise
+                last_error = e
+                self.report_warning(
+                    'Twitter API gave 404 response, retrying with deprecated token. '
+                    'Only one media item can be extracted')
+
+        if result.get('errors'):
+            error_message = ', '.join(set(traverse_obj(
+                result, ('errors', ..., 'message'), expected_type=str))) or 'Unknown error'
+            raise ExtractorError(f'Error(s) while querying api: {error_message}', expected=True)
+
+        assert result is not None
+        return result
+
+    def _build_graphql_query(self, media_id):
+        raise NotImplementedError('Method must be implemented to support GraphQL')
+
+    def _call_graphql_api(self, endpoint, media_id):
+        data = self._build_graphql_query(media_id)
+        query = {key: json.dumps(value, separators=(',', ':')) for key, value in data.items()}
+        return traverse_obj(self._call_api(endpoint, media_id, query=query, graphql=True), 'data')
+
+
+class TwitterCardIE(InfoExtractor):
+    IE_NAME = 'twitter:card'
+    _VALID_URL = TwitterBaseIE._BASE_REGEX + r'i/(?:cards/tfw/v1|videos(?:/tweet)?)/(?P<id>\d+)'
+    _TESTS = [
+        {
+            'url': 'https://twitter.com/i/cards/tfw/v1/560070183650213889',
+            # MD5 checksums are different in different places
+            'info_dict': {
+                'id': '560070131976392705',
+                'ext': 'mp4',
+                'title': "Twitter - You can now shoot, edit and share video on Twitter. Capture life's most moving moments from your perspective.",
+                'description': 'md5:18d3e24bb4f6e5007487dd546e53bd96',
+                'uploader': 'Twitter',
+                'uploader_id': 'Twitter',
+                'thumbnail': r're:^https?://.*\.jpg',
+                'duration': 30.033,
+                'timestamp': 1422366112,
+                'upload_date': '20150127',
+                'age_limit': 0,
+                'comment_count': int,
+                'tags': [],
+                'repost_count': int,
+                'like_count': int,
+                'display_id': '560070183650213889',
+                'uploader_url': 'https://twitter.com/Twitter',
+            },
+        },
+        {
+            'url': 'https://twitter.com/i/cards/tfw/v1/623160978427936768',
+            'md5': '7137eca597f72b9abbe61e5ae0161399',
+            'info_dict': {
+                'id': '623160978427936768',
+                'ext': 'mp4',
+                'title': "NASA - Fly over Pluto's icy Norgay Mountains and Sputnik Plain in this @NASANewHorizons #PlutoFlyby video.",
+                'description': "Fly over Pluto's icy Norgay Mountains and Sputnik Plain in this @NASANewHorizons #PlutoFlyby video. https://t.co/BJYgOjSeGA",
+                'uploader': 'NASA',
+                'uploader_id': 'NASA',
+                'timestamp': 1437408129,
+                'upload_date': '20150720',
+                'uploader_url': 'https://twitter.com/NASA',
+                'age_limit': 0,
+                'comment_count': int,
+                'like_count': int,
+                'repost_count': int,
+                'tags': ['PlutoFlyby'],
+            },
+            'params': {'format': '[protocol=https]'}
+        },
+        {
+            'url': 'https://twitter.com/i/cards/tfw/v1/654001591733886977',
+            'md5': 'b6d9683dd3f48e340ded81c0e917ad46',
+            'info_dict': {
+                'id': 'dq4Oj5quskI',
+                'ext': 'mp4',
+                'title': 'Ubuntu 11.10 Overview',
+                'description': 'md5:a831e97fa384863d6e26ce48d1c43376',
+                'upload_date': '20111013',
+                'uploader': 'OMG! UBUNTU!',
+                'uploader_id': 'omgubuntu',
+                'channel_url': 'https://www.youtube.com/channel/UCIiSwcm9xiFb3Y4wjzR41eQ',
+                'channel_id': 'UCIiSwcm9xiFb3Y4wjzR41eQ',
+                'channel_follower_count': int,
+                'chapters': 'count:8',
+                'uploader_url': 'http://www.youtube.com/user/omgubuntu',
+                'duration': 138,
+                'categories': ['Film & Animation'],
+                'age_limit': 0,
+                'comment_count': int,
+                'availability': 'public',
+                'like_count': int,
+                'thumbnail': 'https://i.ytimg.com/vi/dq4Oj5quskI/maxresdefault.jpg',
+                'view_count': int,
+                'tags': 'count:12',
+                'channel': 'OMG! UBUNTU!',
+                'playable_in_embed': True,
+            },
+            'add_ie': ['Youtube'],
+        },
+        {
+            'url': 'https://twitter.com/i/cards/tfw/v1/665289828897005568',
+            'info_dict': {
+                'id': 'iBb2x00UVlv',
+                'ext': 'mp4',
+                'upload_date': '20151113',
+                'uploader_id': '1189339351084113920',
+                'uploader': 'ArsenalTerje',
+                'title': 'Vine by ArsenalTerje',
+                'timestamp': 1447451307,
+                'alt_title': 'Vine by ArsenalTerje',
+                'comment_count': int,
+                'like_count': int,
+                'thumbnail': r're:^https?://[^?#]+\.jpg',
+                'view_count': int,
+                'repost_count': int,
+            },
+            'add_ie': ['Vine'],
+            'params': {'skip_download': 'm3u8'},
+        },
+        {
+            'url': 'https://twitter.com/i/videos/tweet/705235433198714880',
+            'md5': '884812a2adc8aaf6fe52b15ccbfa3b88',
+            'info_dict': {
+                'id': '705235433198714880',
+                'ext': 'mp4',
+                'title': "Brent Yarina - Khalil Iverson's missed highlight dunk. And made highlight dunk. In one highlight.",
+                'description': "Khalil Iverson's missed highlight dunk. And made highlight dunk. In one highlight. https://t.co/OrxcJ28Bns",
+                'uploader': 'Brent Yarina',
+                'uploader_id': 'BTNBrentYarina',
+                'timestamp': 1456976204,
+                'upload_date': '20160303',
+            },
+            'skip': 'This content is no longer available.',
+        },
+        {
+            'url': 'https://twitter.com/i/videos/752274308186120192',
+            'only_matching': True,
+        },
+    ]
+
+    def _real_extract(self, url):
+        status_id = self._match_id(url)
+        return self.url_result(
+            'https://twitter.com/statuses/' + status_id,
+            TwitterIE.ie_key(), status_id)
+
+
+class TwitterIE(TwitterBaseIE):
+    IE_NAME = 'twitter'
+    _VALID_URL = TwitterBaseIE._BASE_REGEX + r'(?:(?:i/web|[^/]+)/status|statuses)/(?P<id>\d+)'
+
+    _TESTS = [{
+        'url': 'https://twitter.com/freethenipple/status/643211948184596480',
+        'info_dict': {
+            'id': '643211870443208704',
+            'display_id': '643211948184596480',
+            'ext': 'mp4',
+            'title': 'FREE THE NIPPLE - FTN supporters on Hollywood Blvd today!',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'description': 'FTN supporters on Hollywood Blvd today! http://t.co/c7jHH749xJ',
+            'uploader': 'FREE THE NIPPLE',
+            'uploader_id': 'freethenipple',
+            'duration': 12.922,
+            'timestamp': 1442188653,
+            'upload_date': '20150913',
+            'uploader_url': 'https://twitter.com/freethenipple',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 18,
+        },
+    }, {
+        'url': 'https://twitter.com/giphz/status/657991469417025536/photo/1',
+        'md5': 'f36dcd5fb92bf7057f155e7d927eeb42',
+        'info_dict': {
+            'id': '657991469417025536',
+            'ext': 'mp4',
+            'title': 'Gifs - tu vai cai tu vai cai tu nao eh capaz disso tu vai cai',
+            'description': 'Gifs on Twitter: "tu vai cai tu vai cai tu nao eh capaz disso tu vai cai https://t.co/tM46VHFlO5"',
+            'thumbnail': r're:^https?://.*\.png',
+            'uploader': 'Gifs',
+            'uploader_id': 'giphz',
+        },
+        'expected_warnings': ['height', 'width'],
+        'skip': 'Account suspended',
+    }, {
+        'url': 'https://twitter.com/starwars/status/665052190608723968',
+        'info_dict': {
+            'id': '665052190608723968',
+            'display_id': '665052190608723968',
+            'ext': 'mp4',
+            'title': 'md5:3f57ab5d35116537a2ae7345cd0060d8',
+            'description': 'A new beginning is coming December 18. Watch the official 60 second #TV spot for #StarWars: #TheForceAwakens. https://t.co/OkSqT2fjWJ',
+            'uploader_id': 'starwars',
+            'uploader': r're:Star Wars.*',
+            'timestamp': 1447395772,
+            'upload_date': '20151113',
+            'uploader_url': 'https://twitter.com/starwars',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': ['TV', 'StarWars', 'TheForceAwakens'],
+            'age_limit': 0,
+        },
+    }, {
+        'url': 'https://twitter.com/BTNBrentYarina/status/705235433198714880',
+        'info_dict': {
+            'id': '705235433198714880',
+            'ext': 'mp4',
+            'title': "Brent Yarina - Khalil Iverson's missed highlight dunk. And made highlight dunk. In one highlight.",
+            'description': "Khalil Iverson's missed highlight dunk. And made highlight dunk. In one highlight. https://t.co/OrxcJ28Bns",
+            'uploader_id': 'BTNBrentYarina',
+            'uploader': 'Brent Yarina',
+            'timestamp': 1456976204,
+            'upload_date': '20160303',
+            'uploader_url': 'https://twitter.com/BTNBrentYarina',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+        'params': {
+            # The same video as https://twitter.com/i/videos/tweet/705235433198714880
+            # Test case of TwitterCardIE
+            'skip_download': True,
+        },
+    }, {
+        'url': 'https://twitter.com/jaydingeer/status/700207533655363584',
+        'info_dict': {
+            'id': '700207414000242688',
+            'display_id': '700207533655363584',
+            'ext': 'mp4',
+            'title': 'jaydin donte geer - BEAT PROD: @suhmeduh #Damndaniel',
+            'description': 'BEAT PROD: @suhmeduh  https://t.co/HBrQ4AfpvZ #Damndaniel https://t.co/byBooq2ejZ',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'uploader': 'jaydin donte geer',
+            'uploader_id': 'jaydingeer',
+            'duration': 30.0,
+            'timestamp': 1455777459,
+            'upload_date': '20160218',
+            'uploader_url': 'https://twitter.com/jaydingeer',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': ['Damndaniel'],
+            'age_limit': 0,
+        },
+    }, {
+        'url': 'https://twitter.com/Filmdrunk/status/713801302971588609',
+        'md5': '89a15ed345d13b86e9a5a5e051fa308a',
+        'info_dict': {
+            'id': 'MIOxnrUteUd',
+            'ext': 'mp4',
+            'title': 'Dr.Pepperの飲み方 #japanese #バカ #ドクペ #電動ガン',
+            'uploader': 'TAKUMA',
+            'uploader_id': '1004126642786242560',
+            'timestamp': 1402826626,
+            'upload_date': '20140615',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'alt_title': 'Vine by TAKUMA',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'view_count': int,
+        },
+        'add_ie': ['Vine'],
+    }, {
+        'url': 'https://twitter.com/captainamerica/status/719944021058060289',
+        'info_dict': {
+            'id': '717462543795523584',
+            'display_id': '719944021058060289',
+            'ext': 'mp4',
+            'title': 'Captain America - @King0fNerd Are you sure you made the right choice? Find out in theaters.',
+            'description': '@King0fNerd Are you sure you made the right choice? Find out in theaters. https://t.co/GpgYi9xMJI',
+            'uploader_id': 'CaptainAmerica',
+            'uploader': 'Captain America',
+            'duration': 3.17,
+            'timestamp': 1460483005,
+            'upload_date': '20160412',
+            'uploader_url': 'https://twitter.com/CaptainAmerica',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+    }, {
+        'url': 'https://twitter.com/OPP_HSD/status/779210622571536384',
+        'info_dict': {
+            'id': '1zqKVVlkqLaKB',
+            'ext': 'mp4',
+            'title': 'Sgt Kerry Schmidt - Ontario Provincial Police - Road rage, mischief, assault, rollover and fire in one occurrence',
+            'upload_date': '20160923',
+            'uploader_id': '1PmKqpJdOJQoY',
+            'uploader': 'Sgt Kerry Schmidt - Ontario Provincial Police',
+            'timestamp': 1474613214,
+            'thumbnail': r're:^https?://.*\.jpg',
+        },
+        'add_ie': ['Periscope'],
+    }, {
+        # has mp4 formats via mobile API
+        'url': 'https://twitter.com/news_al3alm/status/852138619213144067',
+        'info_dict': {
+            'id': '852138619213144067',
+            'ext': 'mp4',
+            'title': 'عالم الأخبار - كلمة تاريخية بجلسة الجناسي التاريخية.. النائب خالد مؤنس العتيبي للمعارضين : اتقوا الله .. الظلم ظلمات يوم القيامة',
+            'description': 'كلمة تاريخية بجلسة الجناسي التاريخية.. النائب خالد مؤنس العتيبي للمعارضين : اتقوا الله .. الظلم ظلمات يوم القيامة   https://t.co/xg6OhpyKfN',
+            'uploader': 'عالم الأخبار',
+            'uploader_id': 'news_al3alm',
+            'duration': 277.4,
+            'timestamp': 1492000653,
+            'upload_date': '20170412',
+        },
+        'skip': 'Account suspended',
+    }, {
+        'url': 'https://twitter.com/i/web/status/910031516746514432',
+        'info_dict': {
+            'id': '910030238373089285',
+            'display_id': '910031516746514432',
+            'ext': 'mp4',
+            'title': 'Préfet de Guadeloupe - [Direct] #Maria Le centre se trouve actuellement au sud de Basse-Terre. Restez confinés. Réfugiez-vous dans la pièce la + sûre.',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'description': '[Direct] #Maria Le centre se trouve actuellement au sud de Basse-Terre. Restez confinés. Réfugiez-vous dans la pièce la + sûre. https://t.co/mwx01Rs4lo',
+            'uploader': 'Préfet de Guadeloupe',
+            'uploader_id': 'Prefet971',
+            'duration': 47.48,
+            'timestamp': 1505803395,
+            'upload_date': '20170919',
+            'uploader_url': 'https://twitter.com/Prefet971',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': ['Maria'],
+            'age_limit': 0,
+        },
+        'params': {
+            'skip_download': True,  # requires ffmpeg
+        },
+    }, {
+        # card via api.twitter.com/1.1/videos/tweet/config
+        'url': 'https://twitter.com/LisPower1/status/1001551623938805763',
+        'info_dict': {
+            'id': '1001551417340022785',
+            'display_id': '1001551623938805763',
+            'ext': 'mp4',
+            'title': 're:.*?Shep is on a roll today.*?',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'description': 'md5:37b9f2ff31720cef23b2bd42ee8a0f09',
+            'uploader': 'Lis Power',
+            'uploader_id': 'LisPower1',
+            'duration': 111.278,
+            'timestamp': 1527623489,
+            'upload_date': '20180529',
+            'uploader_url': 'https://twitter.com/LisPower1',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+        'params': {
+            'skip_download': True,  # requires ffmpeg
+        },
+    }, {
+        'url': 'https://twitter.com/foobar/status/1087791357756956680',
+        'info_dict': {
+            'id': '1087791272830607360',
+            'display_id': '1087791357756956680',
+            'ext': 'mp4',
+            'title': 'Twitter - A new is coming.  Some of you got an opt-in to try it now. Check out the emoji button, quick keyboard shortcuts, upgraded trends, advanced search, and more. Let us know your thoughts!',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'description': 'md5:6dfd341a3310fb97d80d2bf7145df976',
+            'uploader': 'Twitter',
+            'uploader_id': 'Twitter',
+            'duration': 61.567,
+            'timestamp': 1548184644,
+            'upload_date': '20190122',
+            'uploader_url': 'https://twitter.com/Twitter',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+    }, {
+        # not available in Periscope
+        'url': 'https://twitter.com/ViviEducation/status/1136534865145286656',
+        'info_dict': {
+            'id': '1vOGwqejwoWxB',
+            'ext': 'mp4',
+            'title': 'Vivi - Vivi founder @lior_rauchy announcing our new student feedback tool live at @EduTECH_AU #EduTECH2019',
+            'uploader': 'Vivi',
+            'uploader_id': '1eVjYOLGkGrQL',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'tags': ['EduTECH2019'],
+            'view_count': int,
+        },
+        'add_ie': ['TwitterBroadcast'],
+    }, {
+        # unified card
+        'url': 'https://twitter.com/BrooklynNets/status/1349794411333394432?s=20',
+        'info_dict': {
+            'id': '1349774757969989634',
+            'display_id': '1349794411333394432',
+            'ext': 'mp4',
+            'title': 'md5:d1c4941658e4caaa6cb579260d85dcba',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'description': 'md5:71ead15ec44cee55071547d6447c6a3e',
+            'uploader': 'Brooklyn Nets',
+            'uploader_id': 'BrooklynNets',
+            'duration': 324.484,
+            'timestamp': 1610651040,
+            'upload_date': '20210114',
+            'uploader_url': 'https://twitter.com/BrooklynNets',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+        'params': {
+            'skip_download': True,
+        },
+    }, {
+        'url': 'https://twitter.com/oshtru/status/1577855540407197696',
+        'info_dict': {
+            'id': '1577855447914409984',
+            'display_id': '1577855540407197696',
+            'ext': 'mp4',
+            'title': 'oshtru \U0001faac\U0001f47d - gm \u2728\ufe0f now I can post image and video. nice update.',
+            'description': 'gm \u2728\ufe0f now I can post image and video. nice update. https://t.co/cG7XgiINOm',
+            'upload_date': '20221006',
+            'uploader': 'oshtru \U0001faac\U0001f47d',
+            'uploader_id': 'oshtru',
+            'uploader_url': 'https://twitter.com/oshtru',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'duration': 30.03,
+            'timestamp': 1665025050,
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+        'params': {'skip_download': True},
+    }, {
+        'url': 'https://twitter.com/UltimaShadowX/status/1577719286659006464',
+        'info_dict': {
+            'id': '1577719286659006464',
+            'title': 'Ultima | #\u0432\u029f\u043c - Test',
+            'description': 'Test https://t.co/Y3KEZD7Dad',
+            'uploader': 'Ultima | #\u0432\u029f\u043c',
+            'uploader_id': 'UltimaShadowX',
+            'uploader_url': 'https://twitter.com/UltimaShadowX',
+            'upload_date': '20221005',
+            'timestamp': 1664992565,
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': [],
+            'age_limit': 0,
+        },
+        'playlist_count': 4,
+        'params': {'skip_download': True},
+    }, {
+        'url': 'https://twitter.com/MesoMax919/status/1575560063510810624',
+        'info_dict': {
+            'id': '1575559336759263233',
+            'display_id': '1575560063510810624',
+            'ext': 'mp4',
+            'title': 'md5:eec26382babd0f7c18f041db8ae1c9c9',
+            'thumbnail': r're:^https?://.*\.jpg',
+            'description': 'md5:95aea692fda36a12081b9629b02daa92',
+            'uploader': 'Max Olson',
+            'uploader_id': 'MesoMax919',
+            'uploader_url': 'https://twitter.com/MesoMax919',
+            'duration': 21.321,
+            'timestamp': 1664477766,
+            'upload_date': '20220929',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': ['HurricaneIan'],
+            'age_limit': 0,
+        },
+    }, {
+        # Adult content, uses old token
+        # Fails if not logged in (GraphQL)
+        'url': 'https://twitter.com/Rizdraws/status/1575199173472927762',
+        'info_dict': {
+            'id': '1575199163847000068',
+            'display_id': '1575199173472927762',
+            'ext': 'mp4',
+            'title': str,
+            'description': str,
+            'uploader': str,
+            'uploader_id': 'Rizdraws',
+            'uploader_url': 'https://twitter.com/Rizdraws',
+            'upload_date': '20220928',
+            'timestamp': 1664391723,
+            'thumbnail': 're:^https?://.*\\.jpg',
+            'like_count': int,
+            'repost_count': int,
+            'comment_count': int,
+            'age_limit': 18,
+            'tags': []
+        },
+        'expected_warnings': ['404'],
+    }, {
+        # Description is missing one https://t.co url (GraphQL)
+        'url': 'https://twitter.com/Srirachachau/status/1395079556562706435',
+        'playlist_mincount': 2,
+        'info_dict': {
+            'id': '1395079556562706435',
+            'title': str,
+            'tags': [],
+            'uploader': str,
+            'like_count': int,
+            'upload_date': '20210519',
+            'age_limit': 0,
+            'repost_count': int,
+            'description': 'Here it is! Finished my gothic western cartoon. Pretty proud of it. It\'s got some goofs and lots of splashy over the top violence, something for everyone, hope you like it https://t.co/fOsG5glUnw https://t.co/kbXZrozlY7',
+            'uploader_id': 'Srirachachau',
+            'comment_count': int,
+            'uploader_url': 'https://twitter.com/Srirachachau',
+            'timestamp': 1621447860,
+        },
+    }, {
+        # Description is missing one https://t.co url (GraphQL)
+        'url': 'https://twitter.com/DavidToons_/status/1578353380363501568',
+        'playlist_mincount': 2,
+        'info_dict': {
+            'id': '1578353380363501568',
+            'title': str,
+            'uploader_id': 'DavidToons_',
+            'repost_count': int,
+            'like_count': int,
+            'uploader': str,
+            'timestamp': 1665143744,
+            'uploader_url': 'https://twitter.com/DavidToons_',
+            'description': 'Chris sounds like Linda from Bob\'s Burgers, so as an animator: this had to be done. https://t.co/glfQdgfFXH https://t.co/WgJauwIW1w',
+            'tags': [],
+            'comment_count': int,
+            'upload_date': '20221007',
+            'age_limit': 0,
+        },
+    }, {
+        'url': 'https://twitter.com/primevideouk/status/1578401165338976258',
+        'playlist_count': 2,
+        'info_dict': {
+            'id': '1578401165338976258',
+            'title': str,
+            'description': 'md5:659a6b517a034b4cee5d795381a2dc41',
+            'uploader': str,
+            'uploader_id': 'primevideouk',
+            'timestamp': 1665155137,
+            'upload_date': '20221007',
+            'age_limit': 0,
+            'uploader_url': 'https://twitter.com/primevideouk',
+            'comment_count': int,
+            'repost_count': int,
+            'like_count': int,
+            'tags': ['TheRingsOfPower'],
+        },
+    }, {
+        # Twitter Spaces
+        'url': 'https://twitter.com/MoniqueCamarra/status/1550101959377551360',
+        'info_dict': {
+            'id': '1lPJqmBeeNAJb',
+            'ext': 'm4a',
+            'title': 'EuroFile@6 Ukraine Up-date-Draghi Defenestration-the West',
+            'uploader': r're:Monique Camarra.+?',
+            'uploader_id': 'MoniqueCamarra',
+            'live_status': 'was_live',
+            'description': 'md5:acce559345fd49f129c20dbcda3f1201',
+            'timestamp': 1658407771464,
+        },
+        'add_ie': ['TwitterSpaces'],
+        'params': {'skip_download': 'm3u8'},
+    }, {
+        # onion route
+        'url': 'https://twitter3e4tixl4xyajtrzo62zg5vztmjuricljdp2c5kshju4avyoid.onion/TwitterBlue/status/1484226494708662273',
+        'only_matching': True,
+    }, {
+        # Twitch Clip Embed
+        'url': 'https://twitter.com/GunB1g/status/1163218564784017422',
+        'only_matching': True,
+    }, {
+        # promo_video_website card
+        'url': 'https://twitter.com/GunB1g/status/1163218564784017422',
+        'only_matching': True,
+    }, {
+        # promo_video_convo card
+        'url': 'https://twitter.com/poco_dandy/status/1047395834013384704',
+        'only_matching': True,
+    }, {
+        # appplayer card
+        'url': 'https://twitter.com/poco_dandy/status/1150646424461176832',
+        'only_matching': True,
+    }, {
+        # video_direct_message card
+        'url': 'https://twitter.com/qarev001/status/1348948114569269251',
+        'only_matching': True,
+    }, {
+        # poll2choice_video card
+        'url': 'https://twitter.com/CAF_Online/status/1349365911120195585',
+        'only_matching': True,
+    }, {
+        # poll3choice_video card
+        'url': 'https://twitter.com/SamsungMobileSA/status/1348609186725289984',
+        'only_matching': True,
+    }, {
+        # poll4choice_video card
+        'url': 'https://twitter.com/SouthamptonFC/status/1347577658079641604',
+        'only_matching': True,
+    }]
+
+    def _graphql_to_legacy(self, data, twid):
+        result = traverse_obj(data, (
+            'threaded_conversation_with_injections_v2', 'instructions', 0, 'entries',
+            lambda _, v: v['entryId'] == f'tweet-{twid}', 'content', 'itemContent',
+            'tweet_results', 'result'
+        ), expected_type=dict, default={}, get_all=False)
+
+        if 'tombstone' in result:
+            cause = traverse_obj(result, ('tombstone', 'text', 'text'), expected_type=str)
+            raise ExtractorError(f'Twitter API says: {cause or "Unknown error"}', expected=True)
+
+        status = result.get('legacy', {})
+        status.update(traverse_obj(result, {
+            'user': ('core', 'user_results', 'result', 'legacy'),
+            'card': ('card', 'legacy'),
+            'quoted_status': ('quoted_status_result', 'result', 'legacy'),
+        }, expected_type=dict, default={}))
+
+        # extra transformation is needed since result does not match legacy format
+        binding_values = {
+            binding_value.get('key'): binding_value.get('value')
+            for binding_value in traverse_obj(status, ('card', 'binding_values', ...), expected_type=dict)
+        }
+        if binding_values:
+            status['card']['binding_values'] = binding_values
+
+        return status
+
+    def _build_graphql_query(self, media_id):
+        return {
+            'variables': {
+                'focalTweetId': media_id,
+                'includePromotedContent': True,
+                'with_rux_injections': False,
+                'withBirdwatchNotes': True,
+                'withCommunity': True,
+                'withDownvotePerspective': False,
+                'withQuickPromoteEligibilityTweetFields': True,
+                'withReactionsMetadata': False,
+                'withReactionsPerspective': False,
+                'withSuperFollowsTweetFields': True,
+                'withSuperFollowsUserFields': True,
+                'withV2Timeline': True,
+                'withVoice': True,
+            },
+            'features': {
+                'graphql_is_translatable_rweb_tweet_is_translatable_enabled': False,
+                'interactive_text_enabled': True,
+                'responsive_web_edit_tweet_api_enabled': True,
+                'responsive_web_enhance_cards_enabled': True,
+                'responsive_web_graphql_timeline_navigation_enabled': False,
+                'responsive_web_text_conversations_enabled': False,
+                'responsive_web_uc_gql_enabled': True,
+                'standardized_nudges_misinfo': True,
+                'tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled': False,
+                'tweetypie_unmention_optimization_enabled': True,
+                'unified_cards_ad_metadata_container_dynamic_card_content_query_enabled': True,
+                'verified_phone_label_enabled': False,
+                'vibe_api_enabled': True,
+            },
+        }
+
+    def _real_extract(self, url):
+        twid = self._match_id(url)
+        if self.is_logged_in or self._configuration_arg('force_graphql'):
+            self.write_debug(f'Using GraphQL API (Auth = {self.is_logged_in})')
+            result = self._call_graphql_api('zZXycP0V6H7m-2r0mOnFcA/TweetDetail', twid)
+            status = self._graphql_to_legacy(result, twid)
+
+        else:
+            status = self._call_api(f'statuses/show/{twid}.json', twid, {
+                'cards_platform': 'Web-12',
+                'include_cards': 1,
+                'include_reply_count': 1,
+                'include_user_entities': 0,
+                'tweet_mode': 'extended',
+            })
+
+        title = description = status['full_text'].replace('\n', ' ')
+        # strip  'https -_t.co_BJYgOjSeGA' junk from filenames
+        title = re.sub(r'\s+(https?://[^ ]+)', '', title)
+        user = status.get('user') or {}
+        uploader = user.get('name')
+        if uploader:
+            title = f'{uploader} - {title}'
+        uploader_id = user.get('screen_name')
+
+        tags = []
+        for hashtag in (try_get(status, lambda x: x['entities']['hashtags'], list) or []):
+            hashtag_text = hashtag.get('text')
+            if not hashtag_text:
+                continue
+            tags.append(hashtag_text)
+
+        info = {
+            'id': twid,
+            'title': title,
+            'description': description,
+            'uploader': uploader,
+            'timestamp': unified_timestamp(status.get('created_at')),
+            'uploader_id': uploader_id,
+            'uploader_url': format_field(uploader_id, None, 'https://twitter.com/%s'),
+            'like_count': int_or_none(status.get('favorite_count')),
+            'repost_count': int_or_none(status.get('retweet_count')),
+            'comment_count': int_or_none(status.get('reply_count')),
+            'age_limit': 18 if status.get('possibly_sensitive') else 0,
+            'tags': tags,
+        }
+
+        def extract_from_video_info(media):
+            media_id = traverse_obj(media, 'id_str', 'id', expected_type=str_or_none)
+            self.write_debug(f'Extracting from video info: {media_id}')
+            video_info = media.get('video_info') or {}
+
+            formats = []
+            subtitles = {}
+            for variant in video_info.get('variants', []):
+                fmts, subs = self._extract_variant_formats(variant, twid)
+                subtitles = self._merge_subtitles(subtitles, subs)
+                formats.extend(fmts)
+            self._sort_formats(formats, ('res', 'br', 'size', 'proto'))  # The codec of http formats are unknown
+
+            thumbnails = []
+            media_url = media.get('media_url_https') or media.get('media_url')
+            if media_url:
+                def add_thumbnail(name, size):
+                    thumbnails.append({
+                        'id': name,
+                        'url': update_url_query(media_url, {'name': name}),
+                        'width': int_or_none(size.get('w') or size.get('width')),
+                        'height': int_or_none(size.get('h') or size.get('height')),
+                    })
+                for name, size in media.get('sizes', {}).items():
+                    add_thumbnail(name, size)
+                add_thumbnail('orig', media.get('original_info') or {})
+
+            return {
+                'id': media_id,
+                'formats': formats,
+                'subtitles': subtitles,
+                'thumbnails': thumbnails,
+                'duration': float_or_none(video_info.get('duration_millis'), 1000),
+            }
+
+        def extract_from_card_info(card):
+            if not card:
+                return
+
+            self.write_debug(f'Extracting from card info: {card.get("url")}')
+            binding_values = card['binding_values']
+
+            def get_binding_value(k):
+                o = binding_values.get(k) or {}
+                return try_get(o, lambda x: x[x['type'].lower() + '_value'])
+
+            card_name = card['name'].split(':')[-1]
+            if card_name == 'player':
+                yield {
+                    '_type': 'url',
+                    'url': get_binding_value('player_url'),
+                }
+            elif card_name == 'periscope_broadcast':
+                yield {
+                    '_type': 'url',
+                    'url': get_binding_value('url') or get_binding_value('player_url'),
+                    'ie_key': PeriscopeIE.ie_key(),
+                }
+            elif card_name == 'broadcast':
+                yield {
+                    '_type': 'url',
+                    'url': get_binding_value('broadcast_url'),
+                    'ie_key': TwitterBroadcastIE.ie_key(),
+                }
+            elif card_name == 'audiospace':
+                yield {
+                    '_type': 'url',
+                    'url': f'https://twitter.com/i/spaces/{get_binding_value("id")}',
+                    'ie_key': TwitterSpacesIE.ie_key(),
+                }
+            elif card_name == 'summary':
+                yield {
+                    '_type': 'url',
+                    'url': get_binding_value('card_url'),
+                }
+            elif card_name == 'unified_card':
+                unified_card = self._parse_json(get_binding_value('unified_card'), twid)
+                yield from map(extract_from_video_info, traverse_obj(
+                    unified_card, ('media_entities', ...), expected_type=dict))
+            # amplify, promo_video_website, promo_video_convo, appplayer,
+            # video_direct_message, poll2choice_video, poll3choice_video,
+            # poll4choice_video, ...
+            else:
+                is_amplify = card_name == 'amplify'
+                vmap_url = get_binding_value('amplify_url_vmap') if is_amplify else get_binding_value('player_stream_url')
+                content_id = get_binding_value('%s_content_id' % (card_name if is_amplify else 'player'))
+                formats, subtitles = self._extract_formats_from_vmap_url(vmap_url, content_id or twid)
+                self._sort_formats(formats)
+
+                thumbnails = []
+                for suffix in ('_small', '', '_large', '_x_large', '_original'):
+                    image = get_binding_value('player_image' + suffix) or {}
+                    image_url = image.get('url')
+                    if not image_url or '/player-placeholder' in image_url:
+                        continue
+                    thumbnails.append({
+                        'id': suffix[1:] if suffix else 'medium',
+                        'url': image_url,
+                        'width': int_or_none(image.get('width')),
+                        'height': int_or_none(image.get('height')),
+                    })
+
+                yield {
+                    'formats': formats,
+                    'subtitles': subtitles,
+                    'thumbnails': thumbnails,
+                    'duration': int_or_none(get_binding_value(
+                        'content_duration_seconds')),
+                }
+
+        media_path = ((None, 'quoted_status'), 'extended_entities', 'media', lambda _, m: m['type'] != 'photo')
+        videos = map(extract_from_video_info, traverse_obj(status, media_path, expected_type=dict))
+        cards = extract_from_card_info(status.get('card'))
+        entries = [{**info, **data, 'display_id': twid} for data in (*videos, *cards)]
+
+        if not entries:
+            expanded_url = traverse_obj(status, ('entities', 'urls', 0, 'expanded_url'), expected_type=url_or_none)
+            if not expanded_url or expanded_url == url:
+                raise ExtractorError('No video could be found in this tweet', expected=True)
+
+            return self.url_result(expanded_url, display_id=twid, **info)
+
+        entries[0]['_old_archive_ids'] = [make_archive_id(self, twid)]
+
+        if len(entries) == 1:
+            return entries[0]
+
+        for index, entry in enumerate(entries, 1):
+            entry['title'] += f' #{index}'
+
+        return self.playlist_result(entries, **info)
+
+
+class TwitterAmplifyIE(TwitterBaseIE):
+    IE_NAME = 'twitter:amplify'
+    _VALID_URL = r'https?://amp\.twimg\.com/v/(?P<id>[0-9a-f\-]{36})'
+
+    _TEST = {
+        'url': 'https://amp.twimg.com/v/0ba0c3c7-0af3-4c0a-bed5-7efd1ffa2951',
+        'md5': 'fec25801d18a4557c5c9f33d2c379ffa',
+        'info_dict': {
+            'id': '0ba0c3c7-0af3-4c0a-bed5-7efd1ffa2951',
+            'ext': 'mp4',
+            'title': 'Twitter Video',
+            'thumbnail': 're:^https?://.*',
+        },
+        'params': {'format': '[protocol=https]'},
+    }
+
+    def _real_extract(self, url):
+        video_id = self._match_id(url)
+        webpage = self._download_webpage(url, video_id)
+
+        vmap_url = self._html_search_meta(
+            'twitter:amplify:vmap', webpage, 'vmap url')
+        formats, _ = self._extract_formats_from_vmap_url(vmap_url, video_id)
+
+        thumbnails = []
+        thumbnail = self._html_search_meta(
+            'twitter:image:src', webpage, 'thumbnail', fatal=False)
+
+        def _find_dimension(target):
+            w = int_or_none(self._html_search_meta(
+                'twitter:%s:width' % target, webpage, fatal=False))
+            h = int_or_none(self._html_search_meta(
+                'twitter:%s:height' % target, webpage, fatal=False))
+            return w, h
+
+        if thumbnail:
+            thumbnail_w, thumbnail_h = _find_dimension('image')
+            thumbnails.append({
+                'url': thumbnail,
+                'width': thumbnail_w,
+                'height': thumbnail_h,
+            })
+
+        video_w, video_h = _find_dimension('player')
+        formats[0].update({
+            'width': video_w,
+            'height': video_h,
+        })
+
+        return {
+            'id': video_id,
+            'title': 'Twitter Video',
+            'formats': formats,
+            'thumbnails': thumbnails,
+        }
+
+
+class TwitterBroadcastIE(TwitterBaseIE, PeriscopeBaseIE):
+    IE_NAME = 'twitter:broadcast'
+    _VALID_URL = TwitterBaseIE._BASE_REGEX + r'i/broadcasts/(?P<id>[0-9a-zA-Z]{13})'
+
+    _TEST = {
+        # untitled Periscope video
+        'url': 'https://twitter.com/i/broadcasts/1yNGaQLWpejGj',
+        'info_dict': {
+            'id': '1yNGaQLWpejGj',
+            'ext': 'mp4',
+            'title': 'Andrea May Sahouri - Periscope Broadcast',
+            'uploader': 'Andrea May Sahouri',
+            'uploader_id': '1PXEdBZWpGwKe',
+            'thumbnail': r're:^https?://[^?#]+\.jpg\?token=',
+            'view_count': int,
+        },
+    }
+
+    def _real_extract(self, url):
+        broadcast_id = self._match_id(url)
+        broadcast = self._call_api(
+            'broadcasts/show.json', broadcast_id,
+            {'ids': broadcast_id})['broadcasts'][broadcast_id]
+        info = self._parse_broadcast_data(broadcast, broadcast_id)
+        media_key = broadcast['media_key']
+        source = self._call_api(
+            f'live_video_stream/status/{media_key}', media_key)['source']
+        m3u8_url = source.get('noRedirectPlaybackUrl') or source['location']
+        if '/live_video_stream/geoblocked/' in m3u8_url:
+            self.raise_geo_restricted()
+        m3u8_id = compat_parse_qs(compat_urllib_parse_urlparse(
+            m3u8_url).query).get('type', [None])[0]
+        state, width, height = self._extract_common_format_info(broadcast)
+        info['formats'] = self._extract_pscp_m3u8_formats(
+            m3u8_url, broadcast_id, m3u8_id, state, width, height)
+        return info
+
+
+class TwitterSpacesIE(TwitterBaseIE):
+    IE_NAME = 'twitter:spaces'
+    _VALID_URL = TwitterBaseIE._BASE_REGEX + r'i/spaces/(?P<id>[0-9a-zA-Z]{13})'
+    _TWITTER_GRAPHQL = 'https://twitter.com/i/api/graphql/HPEisOmj1epUNLCWTYhUWw/'
+
+    _TESTS = [{
+        'url': 'https://twitter.com/i/spaces/1RDxlgyvNXzJL',
+        'info_dict': {
+            'id': '1RDxlgyvNXzJL',
+            'ext': 'm4a',
+            'title': 'King Carlo e la mossa Kansas City per fare il Grande Centro',
+            'description': 'Twitter Space participated by annarita digiorgio, Signor Ernesto, Raffaello Colosimo, Simone M. Sepe',
+            'uploader': r're:Lucio Di Gaetano.*?',
+            'uploader_id': 'luciodigaetano',
+            'live_status': 'was_live',
+            'timestamp': 1659877956397,
+        },
+        'params': {'skip_download': 'm3u8'},
+    }]
+
+    SPACE_STATUS = {
+        'notstarted': 'is_upcoming',
+        'ended': 'was_live',
+        'running': 'is_live',
+        'timedout': 'post_live',
+    }
+
+    def _build_graphql_query(self, space_id):
+        return {
+            'variables': {
+                'id': space_id,
+                'isMetatagsQuery': True,
+                'withDownvotePerspective': False,
+                'withReactionsMetadata': False,
+                'withReactionsPerspective': False,
+                'withReplays': True,
+                'withSuperFollowsUserFields': True,
+                'withSuperFollowsTweetFields': True,
+            },
+            'features': {
+                'dont_mention_me_view_api_enabled': True,
+                'interactive_text_enabled': True,
+                'responsive_web_edit_tweet_api_enabled': True,
+                'responsive_web_enhance_cards_enabled': True,
+                'responsive_web_uc_gql_enabled': True,
+                'spaces_2022_h2_clipping': True,
+                'spaces_2022_h2_spaces_communities': False,
+                'standardized_nudges_misinfo': True,
+                'tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled': False,
+                'vibe_api_enabled': True,
+            },
+        }
+
+    def _real_extract(self, url):
+        space_id = self._match_id(url)
+        space_data = self._call_graphql_api('HPEisOmj1epUNLCWTYhUWw/AudioSpaceById', space_id)['audioSpace']
+        if not space_data:
+            raise ExtractorError('Twitter Space not found', expected=True)
+
+        metadata = space_data['metadata']
+        live_status = try_call(lambda: self.SPACE_STATUS[metadata['state'].lower()])
+
+        formats = []
+        if live_status == 'is_upcoming':
+            self.raise_no_formats('Twitter Space not started yet', expected=True)
+        elif live_status == 'post_live':
+            self.raise_no_formats('Twitter Space ended but not downloadable yet', expected=True)
+        else:
+            source = self._call_api(
+                f'live_video_stream/status/{metadata["media_key"]}', metadata['media_key'])['source']
+
+            # XXX: Native downloader does not work
+            formats = self._extract_m3u8_formats(
+                traverse_obj(source, 'noRedirectPlaybackUrl', 'location'),
+                metadata['media_key'], 'm4a', 'm3u8', live=live_status == 'is_live')
+            for fmt in formats:
+                fmt.update({'vcodec': 'none', 'acodec': 'aac'})
+
+        participants = ', '.join(traverse_obj(
+            space_data, ('participants', 'speakers', ..., 'display_name'))) or 'nobody yet'
+        return {
+            'id': space_id,
+            'title': metadata.get('title'),
+            'description': f'Twitter Space participated by {participants}',
+            'uploader': traverse_obj(
+                metadata, ('creator_results', 'result', 'legacy', 'name')),
+            'uploader_id': traverse_obj(
+                metadata, ('creator_results', 'result', 'legacy', 'screen_name')),
+            'live_status': live_status,
+            'timestamp': metadata.get('created_at'),
+            'formats': formats,
+        }
+
+
+class TwitterShortenerIE(TwitterBaseIE):
+    IE_NAME = 'twitter:shortener'
+    _VALID_URL = r'https?://t.co/(?P<id>[^?]+)|tco:(?P<eid>[^?]+)'
+    _BASE_URL = 'https://t.co/'
+
+    def _real_extract(self, url):
+        mobj = self._match_valid_url(url)
+        eid, id = mobj.group('eid', 'id')
+        if eid:
+            id = eid
+            url = self._BASE_URL + id
+        new_url = self._request_webpage(url, id, headers={'User-Agent': 'curl'}).geturl()
+        __UNSAFE_LINK = "https://twitter.com/safety/unsafe_link_warning?unsafe_link="
+        if new_url.startswith(__UNSAFE_LINK):
+            new_url = new_url.replace(__UNSAFE_LINK, "")
+        return self.url_result(new_url)
