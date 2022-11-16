@@ -1,0 +1,25 @@
+language: python
+
+matrix:
+  include:
+  - python: "3.8"
+    env: TYPE=docker
+  - python: "3.8"
+    env: TYPE=build
+  - python: "3.9"
+    env: TYPE=docker
+  - python: "3.9"
+    env: TYPE=build
+
+services:
+- docker
+
+install:
+- if [ "$TYPE" = "build" ]; then ./.travis/install.sh; fi;
+- pip install -U -r requirements.txt
+
+script:
+- if [ "$TYPE" = "docker" ]; then docker build -t musicbot .; docker images -a; fi;
+- if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TYPE" == "docker" ]; then docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASS"; docker tag musicbot justsomebots/musicbot:$TRAVIS_BRANCH; docker push justsomebots/musicbot; fi;
+- if [ "$TYPE" = "build" ]; then python -m compileall ./musicbot; fi;
+

@@ -1,0 +1,20 @@
+# Runtime
+audio_cache/
+bin/
+data/
+logs/
+musicbot/__pycache__/
+musicbot/lib/__pycache__/
+
+# Docker
+.dockerignore
+Dockerfile
+
+# Git
+.git/
+.gitattributes
+.gitignore
+
+# IDE
+.idea/
+.vscode/
