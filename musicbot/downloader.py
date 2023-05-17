@@ -63,6 +63,7 @@ class Downloader:
         on_error as an argument.
         """
 
+        #converting Spotify URL to URI for the bot to use
         def convert_url_to_uri(spotify_url):
             parts = spotify_url.split('/')
             spotify_type = parts[-2]  # 'track' or 'playlist'
