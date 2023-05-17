@@ -62,6 +62,22 @@ class Downloader:
         If `on_error` is passed and an exception is raised, the exception will be caught and passed to
         on_error as an argument.
         """
+
+        def convert_url_to_uri(spotify_url):
+            parts = spotify_url.split('/')
+            spotify_type = parts[-2]  # 'track' or 'playlist'
+            spotify_id = parts[-1]  # the ID of the track or playlist
+            spotify_uri = f'spotify:{spotify_type}:{spotify_id}'
+            return spotify_uri
+        
+        if args and args[0].startswith('https://open.spotify.com/'):
+            # Convert the Spotify URL to a URI
+            spotify_url = args[0]
+            spotify_uri = convert_url_to_uri(spotify_url)
+            
+            # Replace the Spotify URL with the URI in the arguments
+            args = (spotify_uri,) + args[1:]
+
         if callable(on_error):
             try:
                 return await loop.run_in_executor(
