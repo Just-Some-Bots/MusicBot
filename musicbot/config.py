@@ -537,6 +537,7 @@ setattr(
     None,
 )
 
+
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue
 class Blacklist:

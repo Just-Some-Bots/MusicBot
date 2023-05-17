@@ -63,19 +63,19 @@ class Downloader:
         on_error as an argument.
         """
 
-        #converting Spotify URL to URI for the bot to use
+        # converting Spotify URL to URI for the bot to use
         def convert_url_to_uri(spotify_url):
-            parts = spotify_url.split('/')
+            parts = spotify_url.split("/")
             spotify_type = parts[-2]  # 'track' or 'playlist'
             spotify_id = parts[-1]  # the ID of the track or playlist
-            spotify_uri = f'spotify:{spotify_type}:{spotify_id}'
+            spotify_uri = f"spotify:{spotify_type}:{spotify_id}"
             return spotify_uri
-        
-        if args and args[0].startswith('https://open.spotify.com/'):
+
+        if args and args[0].startswith("https://open.spotify.com/"):
             # Convert the Spotify URL to a URI
             spotify_url = args[0]
             spotify_uri = convert_url_to_uri(spotify_url)
-            
+
             # Replace the Spotify URL with the URI in the arguments
             args = (spotify_uri,) + args[1:]
 
@@ -87,7 +87,6 @@ class Downloader:
                 )
 
             except Exception as e:
-
                 # (youtube_dl.utils.ExtractorError, youtube_dl.utils.DownloadError)
                 # I hope I don't have to deal with ContentTooShortError's
                 if asyncio.iscoroutinefunction(on_error):
