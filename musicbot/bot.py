@@ -3752,11 +3752,19 @@ class MusicBot(discord.Client):
 
         t = self.get_guild(val)
         if t is None:
+            # Get guild by name
             t = discord.utils.get(self.guilds, name=val)
             if t is None:
-                raise exceptions.CommandError(
-                    "No guild was found with the ID or name as `{0}`".format(val)
-                )
+                # Get guild by snowflake
+                try:
+                    t = discord.utils.get(self.guilds, id=int(val))
+                except ValueError:
+                    pass
+
+                if t is None:
+                    raise exceptions.CommandError(
+                        "No guild was found with the ID or name as `{0}`".format(val)
+                    )
         await t.leave()
         return Response(
             "Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)".format(
