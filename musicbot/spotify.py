@@ -9,6 +9,19 @@ from .exceptions import SpotifyError
 log = logging.getLogger(__name__)
 
 
+def _make_token_auth(client_id, client_secret):
+    auth_header = base64.b64encode(
+        (client_id + ":" + client_secret).encode("ascii")
+    )
+    return {"Authorization": "Basic %s" % auth_header.decode("ascii")}
+
+
+async def check_token(token):
+    """Checks a token is valid"""
+    now = int(time.time())
+    return token["expires_at"] - now < 60
+
+
 class Spotify:
     OAUTH_TOKEN_URL = "https://accounts.spotify.com/api/token"
     API_BASE = "https://api.spotify.com/v1/"
@@ -34,7 +47,7 @@ class Spotify:
     async def get_playlist(self, user, uri):
         """Get a playlist's info from its URI"""
         return await self.make_spotify_req(
-            self.API_BASE + "users/{0}/playlists/{1}{2}".format(user, uri)
+            self.API_BASE + "users/{0}/playlists/{1}".format(user, uri)
         )
 
     async def get_playlist_tracks(self, uri):
@@ -74,7 +87,7 @@ class Spotify:
 
     async def get_token(self):
         """Gets the token or creates a new one if expired"""
-        if self.token and not await self.check_token(self.token):
+        if self.token and not await check_token(self.token):
             return self.token["access_token"]
 
         if self.guest_mode:
@@ -102,15 +115,10 @@ class Spotify:
         )
         return self.token["access_token"]
 
-    async def check_token(self, token):
-        """Checks a token is valid"""
-        now = int(time.time())
-        return token["expires_at"] - now < 60
-
     async def request_token(self):
         """Obtains a token from Spotify and returns it"""
         payload = {"grant_type": "client_credentials"}
-        headers = self._make_token_auth(self.client_id, self.client_secret)
+        headers = _make_token_auth(self.client_id, self.client_secret)
         r = await self.make_post(self.OAUTH_TOKEN_URL, payload=payload, headers=headers)
         return r
 
@@ -126,14 +134,8 @@ class Spotify:
                             r, await r.json()
                         )
                     )
-                except aiohttp.client_exceptions.ContentTypeError as e:
+                except aiohttp.ContentTypeError as e:
                     raise SpotifyError(
                         "Issue generating guest token: [{0.status}] {1}".format(r, e)
                     )
             return await r.json()
-
-    def _make_token_auth(self, client_id, client_secret):
-        auth_header = base64.b64encode(
-            (client_id + ":" + client_secret).encode("ascii")
-        )
-        return {"Authorization": "Basic %s" % auth_header.decode("ascii")}

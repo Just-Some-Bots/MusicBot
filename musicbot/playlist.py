@@ -1,21 +1,20 @@
-import os.path
-import logging
 import datetime
-
-from random import shuffle
-from itertools import islice
+import logging
+import os.path
 from collections import deque
+from itertools import islice
+from random import shuffle
 from urllib.error import URLError
 
 # For the time being, youtube_dl is often slow and inconsistent
 # With this in mind, lets stick to the fork until it gets a dev
-from yt_dlp.utils import ExtractorError, DownloadError, UnsupportedError
+from yt_dlp.utils import DownloadError, UnsupportedError
 
-from .utils import get_header
 from .constructs import Serializable
-from .lib.event_emitter import EventEmitter
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
+from .lib.event_emitter import EventEmitter
+from .utils import get_header
 
 log = logging.getLogger(__name__)
 

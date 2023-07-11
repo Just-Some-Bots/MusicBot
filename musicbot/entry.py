@@ -13,7 +13,7 @@ from .utils import get_header, md5sum
 # optionally using pymediainfo instead of ffprobe if presents
 try:
     import pymediainfo
-except:
+except ImportError:
     pymediainfo = None
 
 log = logging.getLogger(__name__)
@@ -86,6 +86,37 @@ class BasePlaylistEntry(Serializable):
         return id(self)
 
 
+async def run_command(cmd):
+    p = await asyncio.create_subprocess_shell(
+        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    log.debug("Starting asyncio subprocess ({0}) with command: {1}".format(p, cmd))
+    stdout, stderr = await p.communicate()
+    return stdout + stderr
+
+
+def get(program):
+    def is_exe(file_path):
+        found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
+        if not found and sys.platform == "win32":
+            file_path = file_path + ".exe"
+            found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
+        return found
+
+    fpath, __ = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
 class URLPlaylistEntry(BasePlaylistEntry):
     def __init__(
         self, playlist, url, title, duration=None, expected_filename=None, **meta
@@ -96,7 +127,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.url = url
         self.title = title
         self.duration = duration
-        if duration == None:  # duration could be 0
+        if duration is None:  # duration could be 0
             log.info(
                 "Cannot extract duration of the entry. This does not affect the ability of the bot. "
                 "However, estimated time for this entry will not be unavailable and estimated time "
@@ -269,11 +300,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 else:
                     await self._really_download()
 
-            if self.duration == None:
+            if self.duration is None:
                 if pymediainfo:
                     try:
                         mediainfo = pymediainfo.MediaInfo.parse(self.filename)
-                        self.duration = (mediainfo.tracks[0].duration) / 1000
+                        self.duration = mediainfo.tracks[0].duration / 1000
                     except:
                         self.duration = None
 
@@ -290,7 +321,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         'csv="p=0"',
                     ]
 
-                    output = await self.run_command(" ".join(args))
+                    output = await run_command(" ".join(args))
                     output = output.decode("utf-8")
 
                     try:
@@ -338,75 +369,46 @@ class URLPlaylistEntry(BasePlaylistEntry):
         finally:
             self._is_downloading = False
 
-    async def run_command(self, cmd):
-        p = await asyncio.create_subprocess_shell(
-            cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        log.debug("Starting asyncio subprocess ({0}) with command: {1}".format(p, cmd))
-        stdout, stderr = await p.communicate()
-        return stdout + stderr
-
-    def get(self, program):
-        def is_exe(fpath):
-            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-            if not found and sys.platform == "win32":
-                fpath = fpath + ".exe"
-                found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-            return found
-
-        fpath, __ = os.path.split(program)
-        if fpath:
-            if is_exe(program):
-                return program
-        else:
-            for path in os.environ["PATH"].split(os.pathsep):
-                path = path.strip('"')
-                exe_file = os.path.join(path, program)
-                if is_exe(exe_file):
-                    return exe_file
-
-        return None
-
     async def get_mean_volume(self, input_file):
         log.debug("Calculating mean volume of {0}".format(input_file))
         cmd = (
             '"'
-            + self.get("ffmpeg")
+            + get("ffmpeg")
             + '" -i "'
             + input_file
             + '" -af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json -f null /dev/null'
         )
-        output = await self.run_command(cmd)
+        output = await run_command(cmd)
         output = output.decode("utf-8")
         log.debug(output)
         # print('----', output)
 
-        I_matches = re.findall(r'"input_i" : "([-]?([0-9]*\.[0-9]+))",', output)
-        if I_matches:
-            log.debug("I_matches={}".format(I_matches[0][0]))
-            I = float(I_matches[0][0])
+        i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
+        if i_matches:
+            log.debug("i_matches={}".format(i_matches[0][0]))
+            I = float(i_matches[0][0])
         else:
             log.debug("Could not parse I in normalise json.")
             I = float(0)
 
-        LRA_matches = re.findall(r'"input_lra" : "([-]?([0-9]*\.[0-9]+))",', output)
-        if LRA_matches:
-            log.debug("LRA_matches={}".format(LRA_matches[0][0]))
-            LRA = float(LRA_matches[0][0])
+        lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
+        if lra_matches:
+            log.debug("lra_matches={}".format(lra_matches[0][0]))
+            LRA = float(lra_matches[0][0])
         else:
             log.debug("Could not parse LRA in normalise json.")
             LRA = float(0)
 
-        TP_matches = re.findall(r'"input_tp" : "([-]?([0-9]*\.[0-9]+))",', output)
-        if TP_matches:
-            log.debug("TP_matches={}".format(TP_matches[0][0]))
-            TP = float(TP_matches[0][0])
+        tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
+        if tp_matches:
+            log.debug("tp_matches={}".format(tp_matches[0][0]))
+            TP = float(tp_matches[0][0])
         else:
             log.debug("Could not parse TP in normalise json.")
             TP = float(0)
 
         thresh_matches = re.findall(
-            r'"input_thresh" : "([-]?([0-9]*\.[0-9]+))",', output
+            r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output
         )
         if thresh_matches:
             log.debug("thresh_matches={}".format(thresh_matches[0][0]))
@@ -416,7 +418,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             thresh = float(0)
 
         offset_matches = re.findall(
-            r'"target_offset" : "([-]?([0-9]*\.[0-9]+))', output
+            r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output
         )
         if offset_matches:
             log.debug("offset_matches={}".format(offset_matches[0][0]))
@@ -434,6 +436,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         log.info("Download started: {}".format(self.url))
 
         retry = True
+        result = None
         while retry:
             try:
                 result = await self.playlist.downloader.extract_info(

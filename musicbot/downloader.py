@@ -64,12 +64,12 @@ class Downloader:
         """
 
         # converting Spotify URL to URI for the bot to use
-        def convert_url_to_uri(spotify_url):
-            parts = spotify_url.split("/")
+        def convert_url_to_uri(url):
+            parts = url.split("/")
             spotify_type = parts[-2]  # 'track' or 'playlist'
             spotify_id = parts[-1]  # the ID of the track or playlist
-            spotify_uri = f"spotify:{spotify_type}:{spotify_id}"
-            return spotify_uri
+            uri = f"spotify:{spotify_type}:{spotify_id}"
+            return uri
 
         if args and args[0].startswith("https://open.spotify.com/"):
             # Convert the Spotify URL to a URI

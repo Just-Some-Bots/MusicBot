@@ -97,8 +97,8 @@ class HelpfulError(MusicbotException):
     def message_no_format(self):
         return self._message_fmt.format(
             preface=self.preface,
-            problem=self._pretty_wrap(self.issue, "  Problem:", width=None),
-            solution=self._pretty_wrap(self.solution, "  Solution:", width=None),
+            problem=self._pretty_wrap(self.issue, "  Problem:", width=0),
+            solution=self._pretty_wrap(self.solution, "  Solution:", width=0),
             footnote=self.footnote,
         )
 

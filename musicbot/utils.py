@@ -144,7 +144,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
                 pass
                 # log.everything("{obj1}.{item} is {obj2}.{item} ({val1} and {val2})".format(obj1=obj1, obj2=obj2, item=item, val1=iobj1, val2=iobj2))
 
-        except Exception as e:
+        except Exception:
             # log.everything("Error checking {o1}/{o2}.{item}".format(o1=obj1, o2=obj2, item=item), exc_info=e)
             continue
 

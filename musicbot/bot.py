@@ -1,40 +1,41 @@
-import os
-import sys
-import time
-import shlex
-import shutil
-import random
+import asyncio
 import inspect
 import logging
-import asyncio
-import pathlib
-import traceback
 import math
+import os
+import pathlib
+import random
 import re
+import shlex
+import shutil
+import sys
+import time
+import traceback
+from collections import defaultdict
+from datetime import timedelta
+from functools import wraps
+from io import BytesIO, StringIO
+from textwrap import dedent
+from typing import Optional
 
 import aiohttp
-import discord
 import colorlog
+import discord
 
-from io import BytesIO, StringIO
-from functools import wraps
-from textwrap import dedent
-from datetime import timedelta
-from collections import defaultdict
-
-from discord.enums import ChannelType
-
-from . import exceptions
 from . import downloader
-
-from .playlist import Playlist
-from .player import MusicPlayer
-from .entry import StreamPlaylistEntry
-from .opus_loader import load_opus_lib
-from .config import Config, ConfigDefaults
-from .permissions import Permissions, PermissionsDefaults
+from . import exceptions
 from .aliases import Aliases, AliasesDefault
+from .config import Config, ConfigDefaults
+from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+from .constants import VERSION as BOTVERSION
 from .constructs import SkipState, Response
+from .entry import StreamPlaylistEntry
+from .json import Json
+from .opus_loader import load_opus_lib
+from .permissions import Permissions, PermissionsDefaults
+from .player import MusicPlayer
+from .playlist import Playlist
+from .spotify import Spotify
 from .utils import (
     load_file,
     write_file,
@@ -44,14 +45,6 @@ from .utils import (
     _get_variable,
     format_song_duration,
 )
-from .spotify import Spotify
-from .json import Json
-
-from .constants import VERSION as BOTVERSION
-from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
-
-from typing import Optional
-
 
 load_opus_lib()
 
@@ -178,7 +171,7 @@ class MusicBot(discord.Client):
                 )
                 self.config._spotify = False
 
-# TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
+    # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
@@ -867,7 +860,7 @@ class MusicBot(discord.Client):
         await asyncio.gather(*coros, return_exceptions=True)
 
     async def deserialize_queue(
-        self, guild, voice_client, playlist=None, *, dir=None
+        self, guild, voice_client, playlist=None, *, directory=None
     ) -> MusicPlayer:
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
@@ -876,21 +869,21 @@ class MusicBot(discord.Client):
         if playlist is None:
             playlist = Playlist(self)
 
-        if dir is None:
-            dir = "data/%s/queue.json" % guild.id
+        if directory is None:
+            directory = "data/%s/queue.json" % guild.id
 
         async with self.aiolocks["queue_serialization" + ":" + str(guild.id)]:
-            if not os.path.isfile(dir):
+            if not os.path.isfile(directory):
                 return None
 
             log.debug("Deserializing queue for %s", guild.id)
 
-            with open(dir, "r", encoding="utf8") as f:
+            with open(directory, "r", encoding="utf8") as f:
                 data = f.read()
 
         return MusicPlayer.from_json(data, self, voice_client, playlist)
 
-    async def write_current_song(self, guild, entry, *, dir=None):
+    async def write_current_song(self, guild, entry, *, directory=None):
         """
         Writes the current song to file
         """
@@ -898,13 +891,13 @@ class MusicBot(discord.Client):
         if not player:
             return
 
-        if dir is None:
-            dir = "data/%s/current.txt" % guild.id
+        if directory is None:
+            directory = "data/%s/current.txt" % guild.id
 
         async with self.aiolocks["current_song" + ":" + str(guild.id)]:
             log.debug("Writing current song for %s", guild.id)
 
-            with open(dir, "w", encoding="utf8") as f:
+            with open(directory, "w", encoding="utf8") as f:
                 f.write(entry.title)
 
     @ensure_appinfo
@@ -1147,7 +1140,7 @@ class MusicBot(discord.Client):
                         unavailable_servers += 1
                     else:
                         check = s.get_member(owner.id)
-                        if check == None:
+                        if check is None:
                             await s.leave()
                             log.info(
                                 "Left {} due to bot owner not found".format(s.name)
@@ -1741,7 +1734,7 @@ class MusicBot(discord.Client):
             if self.config._spotify:
                 if "open.spotify.com" in song_url:
                     song_url = "spotify:" + re.sub(
-                        r"(http[s]?:\/\/)?(open.spotify.com)\/", "", song_url
+                        r"(https?:\/\/)?(open.spotify.com)\/", "", song_url
                     ).replace("/", ":")
                     # remove session id (and other query stuff)
                     song_url = re.sub(r"\?.*", "", song_url)
@@ -4274,7 +4267,7 @@ class MusicBot(discord.Client):
         owner = self._get_owner(voice=True) or self._get_owner()
         if self.config.leavenonowners:
             check = guild.get_member(owner.id)
-            if check == None:
+            if check is None:
                 await guild.leave()
                 log.info("Left {} due to bot owner not found.".format(guild.name))
                 await owner.send(

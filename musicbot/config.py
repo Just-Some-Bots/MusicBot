@@ -11,6 +11,22 @@ from .constants import VERSION as BOTVERSION
 log = logging.getLogger(__name__)
 
 
+def get_all_keys(conf):
+    """Returns all config keys as a list"""
+    sects = dict(conf.items())
+    keys = []
+    for k in sects:
+        s = sects[k]
+        keys += [key for key in s.keys()]
+    return keys
+
+
+def create_empty_file_ifnoexist(path):
+    if not os.path.isfile(path):
+        open(path, "a").close()
+        log.warning("Creating %s" % path)
+
+
 class Config:
     # noinspection PyUnresolvedReferences
     def __init__(self, config_file):
@@ -196,6 +212,8 @@ class Config:
         )
         self.auto_playlist_removed_file = None
 
+        self._spotify = False
+
         self.run_checks()
 
         self.missing_keys = set()
@@ -203,23 +221,14 @@ class Config:
 
         self.find_autoplaylist()
 
-    def get_all_keys(self, conf):
-        """Returns all config keys as a list"""
-        sects = dict(conf.items())
-        keys = []
-        for k in sects:
-            s = sects[k]
-            keys += [key for key in s.keys()]
-        return keys
-
     def check_changes(self, conf):
         exfile = "config/example_options.ini"
         if os.path.isfile(exfile):
-            usr_keys = self.get_all_keys(conf)
+            usr_keys = get_all_keys(conf)
             exconf = configparser.ConfigParser(interpolation=None)
             if not exconf.read(exfile, encoding="utf-8"):
                 return
-            ex_keys = self.get_all_keys(exconf)
+            ex_keys = get_all_keys(exconf)
             if set(usr_keys) != set(ex_keys):
                 self.missing_keys = set(ex_keys) - set(
                     usr_keys
@@ -339,7 +348,6 @@ class Config:
                 )
                 self.nowplaying_channels = set()
 
-        self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:
             self._spotify = True
 
@@ -364,16 +372,11 @@ class Config:
 
         self.debug_mode = self.debug_level <= logging.DEBUG
 
-        self.create_empty_file_ifnoexist("config/blacklist.txt")
-        self.create_empty_file_ifnoexist("config/whitelist.txt")
+        create_empty_file_ifnoexist("config/blacklist.txt")
+        create_empty_file_ifnoexist("config/whitelist.txt")
 
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
-
-    def create_empty_file_ifnoexist(self, path):
-        if not os.path.isfile(path):
-            open(path, "a").close()
-            log.warning("Creating %s" % path)
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
@@ -468,8 +471,6 @@ class Config:
             else:
                 log.warning("No autoplaylist file found.")
 
-    def write_default_config(self, location):
-        pass
 
 
 class ConfigDefaults:
