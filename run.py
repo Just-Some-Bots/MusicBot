@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import asyncio
 import os
 import sys
 import time
@@ -287,13 +288,13 @@ def req_check_deps():
 
         if discord.version_info.major < 1:
             log.critical(
-                "This version of MusicBot requires a newer version of pycord. Your version is {0}. Try running update.py.".format(
+                "This version of MusicBot requires a newer version of discord.py. Your version is {0}. Try running update.py.".format(
                     discord.__version__
                 )
             )
             bugger_off()
     except ImportError:
-        # if we can't import pycord, an error will be thrown later down the line anyway
+        # if we can't import discord.py, an error will be thrown later down the line anyway
         pass
 
 
@@ -379,7 +380,7 @@ def pyexec(pycom, *args, pycom2=None):
     os.execlp(pycom, pycom2, *args)
 
 
-def main():
+async def main():
     # TODO: *actual* argparsing
 
     if "--no-checks" not in sys.argv:
@@ -408,11 +409,12 @@ def main():
             from musicbot import MusicBot
 
             m = MusicBot()
+            await m._doBotInit()
 
             sh.terminator = ""
             sh.terminator = "\n"
 
-            m.run()
+            await m.run()
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -481,4 +483,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

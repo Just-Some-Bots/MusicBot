@@ -1,5 +1,5 @@
 pynacl
-py-cord[voice]
+discord.py[voice]==2.3.1
 pip
 yt-dlp
 colorlog

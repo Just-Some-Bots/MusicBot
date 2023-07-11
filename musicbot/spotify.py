@@ -23,8 +23,6 @@ class Spotify:
 
         self.token = None
 
-        self.loop.run_until_complete(self.get_token())  # validate token
-
     async def get_track(self, uri):
         """Get a track's info from its URI"""
         return await self.make_spotify_req(self.API_BASE + "tracks/{0}".format(uri))
