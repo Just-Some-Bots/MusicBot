@@ -461,7 +461,7 @@ class MusicBot(discord.Client):
 
     @ensure_appinfo
     async def generate_invite_link(
-        self, *, permissions=discord.Permissions(70380544), guild=None
+        self, *, permissions=discord.Permissions(70380544), guild=discord.utils.MISSING
     ):
         return discord.utils.oauth_url(
             self.cached_app_info.id, permissions=permissions, guild=guild
