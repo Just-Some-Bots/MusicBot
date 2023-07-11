@@ -1,6 +1,7 @@
 import shutil
 import textwrap
 
+
 # Base class for exceptions
 class MusicbotException(Exception):
     def __init__(self, message, *, expire_in=0):

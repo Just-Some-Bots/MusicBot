@@ -243,7 +243,6 @@ def req_ensure_py3():
                 subprocess.check_output('py -3.8 -c "exit()"', shell=True)
                 pycom = "py -3.8"
             except:
-
                 log.info('Trying "python3"')
                 try:
                     subprocess.check_output('python3 -c "exit()"', shell=True)

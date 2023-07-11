@@ -798,9 +798,9 @@ class MusicBot(discord.Client):
                     entry = player.current_entry
 
             if entry:
-                prefix = u"\u275A\u275A " if is_paused else ""
+                prefix = "\u275A\u275A " if is_paused else ""
 
-                name = u"{}{}".format(prefix, entry.title)[:128]
+                name = "{}{}".format(prefix, entry.title)[:128]
                 game = discord.Game(type=0, name=name)
         else:
             game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
@@ -1813,7 +1813,6 @@ class MusicBot(discord.Client):
                             ).format(parts[-1], song_url),
                         )
                         for i in res:
-
                             song_url = (
                                 i["track"]["name"]
                                 + " "
@@ -2723,7 +2722,6 @@ class MusicBot(discord.Client):
                     url=player.current_entry.url,
                 )
             else:
-
                 np_text = self.str.get(
                     "cmd-np-reply-noauthor",
                     "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
@@ -3981,7 +3979,6 @@ class MusicBot(discord.Client):
 
             args_expected = []
             for key, param in list(params.items()):
-
                 # parse (*args) as a list of args
                 if param.kind == param.VAR_POSITIONAL:
                     handler_kwargs[key] = args
