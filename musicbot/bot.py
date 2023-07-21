@@ -120,7 +120,9 @@ class MusicBot(discord.Client):
 
     async def _doBotInit(self):
         self.http.user_agent = "MusicBot/%s" % BOTVERSION
-        self.session = aiohttp.ClientSession(headers={"User-Agent": self.http.user_agent})
+        self.session = aiohttp.ClientSession(
+            headers={"User-Agent": self.http.user_agent}
+        )
 
         self.spotify = None
         if self.config._spotify:
@@ -479,7 +481,7 @@ class MusicBot(discord.Client):
         else:
             client = await channel.connect(timeout=60, reconnect=True)
             await channel.guild.change_voice_state(
-                channel=channel, self_mute=False, self_deaf=True
+                channel=channel, self_mute=False, self_deaf=self.config.self_deafen
             )
             return client
 
@@ -1311,6 +1313,9 @@ class MusicBot(discord.Client):
                 "  Leave non owners: "
                 + ["Disabled", "Enabled"][self.config.leavenonowners]
             )
+            log.info(
+                "  Self Deafen: " + ["Disabled", "Enabled"][self.config.self_deafen]
+            )
 
         print(flush=True)
 
@@ -1789,7 +1794,9 @@ class MusicBot(discord.Client):
                                     continue
                                 else:
                                     break
-                            await self._do_playlist_checks(permissions, player, author, res)
+                            await self._do_playlist_checks(
+                                permissions, player, author, res
+                            )
                             procmesg = await self.safe_send_message(
                                 channel,
                                 self.str.get(
@@ -2342,7 +2349,9 @@ class MusicBot(discord.Client):
             )
 
         async with channel.typing():
-            await player.playlist.add_stream_entry(song_url, channel=channel, author=author)
+            await player.playlist.add_stream_entry(
+                song_url, channel=channel, author=author
+            )
 
         return Response(
             self.str.get("cmd-stream-success", "Streaming."), delete_after=6

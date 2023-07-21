@@ -186,6 +186,9 @@ class Config:
         self.footer_text = config.get(
             "MusicBot", "CustomEmbedFooter", fallback=ConfigDefaults.footer_text
         )
+        self.self_deafen = config.getboolean(
+            "MusicBot", "SelfDeafen", fallback=ConfigDefaults.self_deafen
+        )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
         )
@@ -260,7 +263,7 @@ class Config:
 
         if not self._login_token:
             # Attempt to fallback to an environment variable.
-            token_env = os.environ.get('MUSICBOT_TOKEN')
+            token_env = os.environ.get("MUSICBOT_TOKEN")
             if token_env:
                 self._login_token = token_env
                 self.auth = (self._login_token,)
@@ -472,7 +475,6 @@ class Config:
                 log.warning("No autoplaylist file found.")
 
 
-
 class ConfigDefaults:
     owner_id = None
 
@@ -517,6 +519,7 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     searchlist = False
+    self_deafen = True
     defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
 
