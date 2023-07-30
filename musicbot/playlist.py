@@ -1,19 +1,20 @@
-import os.path
-import logging
 import datetime
-
-from random import shuffle
-from itertools import islice
+import logging
+import os.path
 from collections import deque
-
+from itertools import islice
+from random import shuffle
 from urllib.error import URLError
-from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
 
-from .utils import get_header
+# For the time being, youtube_dl is often slow and inconsistent
+# With this in mind, lets stick to the fork until it gets a dev
+from yt_dlp.utils import DownloadError, UnsupportedError
+
 from .constructs import Serializable
-from .lib.event_emitter import EventEmitter
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
+from .lib.event_emitter import EventEmitter
+from .utils import get_header
 
 log = logging.getLogger(__name__)
 
@@ -324,7 +325,7 @@ class Playlist(EventEmitter, Serializable):
             gooditems.reverse()
         return gooditems
 
-    async def async_process_sc_bc_playlist(self, playlist_url, *, head, **meta):
+    async def async_process_sc_bc_playlist(self, playlist_url, *, head=False, **meta):
         """
         Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
 

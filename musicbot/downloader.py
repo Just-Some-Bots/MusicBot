@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 import functools
-import youtube_dl
+import yt_dlp as youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -38,18 +38,17 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 class Downloader:
     def __init__(self, download_folder=None):
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
-        self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-        self.safe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-        self.safe_ytdl.params["ignoreerrors"] = True
         self.download_folder = download_folder
 
         if download_folder:
-            otmpl = self.unsafe_ytdl.params["outtmpl"]
-            self.unsafe_ytdl.params["outtmpl"] = os.path.join(download_folder, otmpl)
             # print("setting template to " + os.path.join(download_folder, otmpl))
+            otmpl = ytdl_format_options["outtmpl"]
+            ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
 
-            otmpl = self.safe_ytdl.params["outtmpl"]
-            self.safe_ytdl.params["outtmpl"] = os.path.join(download_folder, otmpl)
+        self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+        self.safe_ytdl = youtube_dl.YoutubeDL(
+            {**ytdl_format_options, "ignoreerrors": True}
+        )
 
     @property
     def ytdl(self):
@@ -63,6 +62,23 @@ class Downloader:
         If `on_error` is passed and an exception is raised, the exception will be caught and passed to
         on_error as an argument.
         """
+
+        # converting Spotify URL to URI for the bot to use
+        def convert_url_to_uri(url):
+            parts = url.split("/")
+            spotify_type = parts[-2]  # 'track' or 'playlist'
+            spotify_id = parts[-1]  # the ID of the track or playlist
+            uri = f"spotify:{spotify_type}:{spotify_id}"
+            return uri
+
+        if args and args[0].startswith("https://open.spotify.com/"):
+            # Convert the Spotify URL to a URI
+            spotify_url = args[0]
+            spotify_uri = convert_url_to_uri(spotify_url)
+
+            # Replace the Spotify URL with the URI in the arguments
+            args = (spotify_uri,) + args[1:]
+
         if callable(on_error):
             try:
                 return await loop.run_in_executor(
@@ -71,7 +87,6 @@ class Downloader:
                 )
 
             except Exception as e:
-
                 # (youtube_dl.utils.ExtractorError, youtube_dl.utils.DownloadError)
                 # I hope I don't have to deal with ContentTooShortError's
                 if asyncio.iscoroutinefunction(on_error):

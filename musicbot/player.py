@@ -1,25 +1,23 @@
-import os
-import sys
-import json
-import logging
 import asyncio
 import audioop
+import json
+import logging
+import os
 import subprocess
-import re
+import sys
+from array import array
+from collections import deque
+from enum import Enum
+from shutil import get_terminal_size
+from threading import Thread
 
 from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource
 
-from enum import Enum
-from array import array
-from threading import Thread
-from collections import deque
-from shutil import get_terminal_size
-
-from .utils import avg, _func_
-from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
-from .exceptions import FFmpegError, FFmpegWarning
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
+from .exceptions import FFmpegError, FFmpegWarning
+from .lib.event_emitter import EventEmitter
+from .utils import avg
 
 log = logging.getLogger(__name__)
 

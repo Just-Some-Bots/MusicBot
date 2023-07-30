@@ -11,6 +11,22 @@ from .constants import VERSION as BOTVERSION
 log = logging.getLogger(__name__)
 
 
+def get_all_keys(conf):
+    """Returns all config keys as a list"""
+    sects = dict(conf.items())
+    keys = []
+    for k in sects:
+        s = sects[k]
+        keys += [key for key in s.keys()]
+    return keys
+
+
+def create_empty_file_ifnoexist(path):
+    if not os.path.isfile(path):
+        open(path, "a").close()
+        log.warning("Creating %s" % path)
+
+
 class Config:
     # noinspection PyUnresolvedReferences
     def __init__(self, config_file):
@@ -170,6 +186,9 @@ class Config:
         self.footer_text = config.get(
             "MusicBot", "CustomEmbedFooter", fallback=ConfigDefaults.footer_text
         )
+        self.self_deafen = config.getboolean(
+            "MusicBot", "SelfDeafen", fallback=ConfigDefaults.self_deafen
+        )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
         )
@@ -196,6 +215,8 @@ class Config:
         )
         self.auto_playlist_removed_file = None
 
+        self._spotify = False
+
         self.run_checks()
 
         self.missing_keys = set()
@@ -203,23 +224,14 @@ class Config:
 
         self.find_autoplaylist()
 
-    def get_all_keys(self, conf):
-        """Returns all config keys as a list"""
-        sects = dict(conf.items())
-        keys = []
-        for k in sects:
-            s = sects[k]
-            keys += [key for key in s.keys()]
-        return keys
-
     def check_changes(self, conf):
         exfile = "config/example_options.ini"
         if os.path.isfile(exfile):
-            usr_keys = self.get_all_keys(conf)
+            usr_keys = get_all_keys(conf)
             exconf = configparser.ConfigParser(interpolation=None)
             if not exconf.read(exfile, encoding="utf-8"):
                 return
-            ex_keys = self.get_all_keys(exconf)
+            ex_keys = get_all_keys(exconf)
             if set(usr_keys) != set(ex_keys):
                 self.missing_keys = set(ex_keys) - set(
                     usr_keys
@@ -250,12 +262,18 @@ class Config:
         log.info("Using i18n: {0}".format(self.i18n_file))
 
         if not self._login_token:
-            raise HelpfulError(
-                "No bot token was specified in the config.",
-                "As of v1.9.6_1, you are required to use a Discord bot account. "
-                "See https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ for info.",
-                preface=self._confpreface,
-            )
+            # Attempt to fallback to an environment variable.
+            token_env = os.environ.get("MUSICBOT_TOKEN")
+            if token_env:
+                self._login_token = token_env
+                self.auth = (self._login_token,)
+            else:
+                raise HelpfulError(
+                    "No bot token was specified in the config, or as an environment variable.",
+                    "As of v1.9.6_1, you are required to use a Discord bot account. "
+                    "See https://github.com/Just-Some-Bots/MusicBot/wiki/FAQ for info.",
+                    preface=self._confpreface,
+                )
 
         else:
             self.auth = (self._login_token,)
@@ -333,7 +351,6 @@ class Config:
                 )
                 self.nowplaying_channels = set()
 
-        self._spotify = False
         if self.spotify_clientid and self.spotify_clientsecret:
             self._spotify = True
 
@@ -358,16 +375,11 @@ class Config:
 
         self.debug_mode = self.debug_level <= logging.DEBUG
 
-        self.create_empty_file_ifnoexist("config/blacklist.txt")
-        self.create_empty_file_ifnoexist("config/whitelist.txt")
+        create_empty_file_ifnoexist("config/blacklist.txt")
+        create_empty_file_ifnoexist("config/whitelist.txt")
 
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
-
-    def create_empty_file_ifnoexist(self, path):
-        if not os.path.isfile(path):
-            open(path, "a").close()
-            log.warning("Creating %s" % path)
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
@@ -462,9 +474,6 @@ class Config:
             else:
                 log.warning("No autoplaylist file found.")
 
-    def write_default_config(self, location):
-        pass
-
 
 class ConfigDefaults:
     owner_id = None
@@ -510,6 +519,7 @@ class ConfigDefaults:
     leavenonowners = False
     usealias = True
     searchlist = False
+    self_deafen = True
     defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
 
@@ -536,6 +546,7 @@ setattr(
     codecs.decode(b"dG9rZW4=", "\x62\x61\x73\x65\x36\x34").decode("ascii"),
     None,
 )
+
 
 # These two are going to be wrappers for the id lists, with add/remove/load/save functions
 # and id/object conversion so types aren't an issue

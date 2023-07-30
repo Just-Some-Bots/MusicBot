@@ -31,7 +31,7 @@ class Aliases:
         with self.aliases_file.open() as f:
             try:
                 self.aliases_seed = json.load(f)
-            except:
+            except json.JSONDecodeError:
                 raise HelpfulError(
                     "Failed to parse aliases file.",
                     "Ensure your {} is a valid json file and restart the bot.".format(
