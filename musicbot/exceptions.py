@@ -1,6 +1,7 @@
 import shutil
 import textwrap
 
+
 # Base class for exceptions
 class MusicbotException(Exception):
     def __init__(self, message, *, expire_in=0):
@@ -60,12 +61,22 @@ class SpotifyError(MusicbotException):
 class PermissionsError(CommandError):
     @property
     def message(self):
-        return "You don't have permission to use that command.\nReason: " + self._message
+        return (
+            "You don't have permission to use that command.\nReason: " + self._message
+        )
 
 
 # Error with pretty formatting for hand-holding users through various errors
 class HelpfulError(MusicbotException):
-    def __init__(self, issue, solution, *, preface="An error has occured:", footnote="", expire_in=0):
+    def __init__(
+        self,
+        issue,
+        solution,
+        *,
+        preface="An error has occured:",
+        footnote="",
+        expire_in=0
+    ):
         self.issue = issue
         self.solution = solution
         self.preface = preface
@@ -86,8 +97,8 @@ class HelpfulError(MusicbotException):
     def message_no_format(self):
         return self._message_fmt.format(
             preface=self.preface,
-            problem=self._pretty_wrap(self.issue, "  Problem:", width=None),
-            solution=self._pretty_wrap(self.solution, "  Solution:", width=None),
+            problem=self._pretty_wrap(self.issue, "  Problem:", width=0),
+            solution=self._pretty_wrap(self.solution, "  Solution:", width=0),
             footnote=self.footnote,
         )
 
@@ -100,7 +111,9 @@ class HelpfulError(MusicbotException):
             width = shutil.get_terminal_size().columns
 
         lines = textwrap.wrap(text, width=width - 5)
-        lines = (("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines)
+        lines = (
+            ("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines
+        )
 
         return pretext + "".join(lines).rstrip()
 

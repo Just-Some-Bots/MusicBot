@@ -13,7 +13,7 @@ from .utils import get_header, md5sum
 # optionally using pymediainfo instead of ffprobe if presents
 try:
     import pymediainfo
-except:
+except ImportError:
     pymediainfo = None
 
 log = logging.getLogger(__name__)
@@ -86,15 +86,48 @@ class BasePlaylistEntry(Serializable):
         return id(self)
 
 
+async def run_command(cmd):
+    p = await asyncio.create_subprocess_shell(
+        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    log.debug("Starting asyncio subprocess ({0}) with command: {1}".format(p, cmd))
+    stdout, stderr = await p.communicate()
+    return stdout + stderr
+
+
+def get(program):
+    def is_exe(file_path):
+        found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
+        if not found and sys.platform == "win32":
+            file_path = file_path + ".exe"
+            found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
+        return found
+
+    fpath, __ = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
 class URLPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, duration=None, expected_filename=None, **meta):
+    def __init__(
+        self, playlist, url, title, duration=None, expected_filename=None, **meta
+    ):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
-        if duration == None:  # duration could be 0
+        if duration is None:  # duration could be 0
             log.info(
                 "Cannot extract duration of the entry. This does not affect the ability of the bot. "
                 "However, estimated time for this entry will not be unavailable and estimated time "
@@ -117,9 +150,15 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "downloaded": self.is_downloaded,
                 "expected_filename": self.expected_filename,
                 "filename": self.filename,
-                "full_filename": os.path.abspath(self.filename) if self.filename else self.filename,
+                "full_filename": os.path.abspath(self.filename)
+                if self.filename
+                else self.filename,
                 "meta": {
-                    name: {"type": obj.__class__.__name__, "id": obj.id, "name": obj.name}
+                    name: {
+                        "type": obj.__class__.__name__,
+                        "id": obj.id,
+                        "name": obj.name,
+                    }
                     for name, obj in self.meta.items()
                     if obj
                 },
@@ -136,7 +175,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
             url = data["url"]
             title = data["title"]
             duration = data["duration"]
-            downloaded = data["downloaded"] if playlist.bot.config.save_videos else False
+            downloaded = (
+                data["downloaded"] if playlist.bot.config.save_videos else False
+            )
             filename = data["filename"] if downloaded else None
             expected_filename = data["expected_filename"]
             meta = {}
@@ -144,7 +185,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # TODO: Better [name] fallbacks
             if "channel" in data["meta"]:
                 # int() it because persistent queue from pre-rewrite days saved ids as strings
-                meta["channel"] = playlist.bot.get_channel(int(data["meta"]["channel"]["id"]))
+                meta["channel"] = playlist.bot.get_channel(
+                    int(data["meta"]["channel"]["id"])
+                )
                 if not meta["channel"]:
                     log.warning(
                         "Cannot find channel in an entry loaded from persistent queue. Chennel id: {}".format(
@@ -154,7 +197,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     meta.pop("channel")
                 elif "author" in data["meta"]:
                     # int() it because persistent queue from pre-rewrite days saved ids as strings
-                    meta["author"] = meta["channel"].guild.get_member(int(data["meta"]["author"]["id"]))
+                    meta["author"] = meta["channel"].guild.get_member(
+                        int(data["meta"]["author"]["id"])
+                    )
                     if not meta["author"]:
                         log.warning(
                             "Cannot find author in an entry loaded from persistent queue. Author id: {}".format(
@@ -186,17 +231,28 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             # the generic extractor requires special handling
             if extractor == "generic":
-                flistdir = [f.rsplit("-", 1)[0] for f in os.listdir(self.download_folder)]
-                expected_fname_noex, fname_ex = os.path.basename(self.expected_filename).rsplit(".", 1)
+                flistdir = [
+                    f.rsplit("-", 1)[0] for f in os.listdir(self.download_folder)
+                ]
+                expected_fname_noex, fname_ex = os.path.basename(
+                    self.expected_filename
+                ).rsplit(".", 1)
 
                 if expected_fname_noex in flistdir:
                     try:
-                        rsize = int(await get_header(self.playlist.bot.aiosession, self.url, "CONTENT-LENGTH"))
+                        rsize = int(
+                            await get_header(
+                                self.playlist.bot.aiosession, self.url, "CONTENT-LENGTH"
+                            )
+                        )
                     except:
                         rsize = 0
 
                     lfile = os.path.join(
-                        self.download_folder, os.listdir(self.download_folder)[flistdir.index(expected_fname_noex)]
+                        self.download_folder,
+                        os.listdir(self.download_folder)[
+                            flistdir.index(expected_fname_noex)
+                        ],
                     )
 
                     # print("Resolved %s to %s" % (self.expected_filename, lfile))
@@ -223,25 +279,32 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 # or i have youtube to blame for changing shit again
 
                 if expected_fname_base in ldir:
-                    self.filename = os.path.join(self.download_folder, expected_fname_base)
+                    self.filename = os.path.join(
+                        self.download_folder, expected_fname_base
+                    )
                     log.info("Download cached: {}".format(self.url))
 
                 elif expected_fname_noex in flistdir:
-                    log.info("Download cached (different extension): {}".format(self.url))
-                    self.filename = os.path.join(self.download_folder, ldir[flistdir.index(expected_fname_noex)])
+                    log.info(
+                        "Download cached (different extension): {}".format(self.url)
+                    )
+                    self.filename = os.path.join(
+                        self.download_folder, ldir[flistdir.index(expected_fname_noex)]
+                    )
                     log.debug(
                         "Expected {}, got {}".format(
-                            self.expected_filename.rsplit(".", 1)[-1], self.filename.rsplit(".", 1)[-1]
+                            self.expected_filename.rsplit(".", 1)[-1],
+                            self.filename.rsplit(".", 1)[-1],
                         )
                     )
                 else:
                     await self._really_download()
 
-            if self.duration == None:
+            if self.duration is None:
                 if pymediainfo:
                     try:
                         mediainfo = pymediainfo.MediaInfo.parse(self.filename)
-                        self.duration = (mediainfo.tracks[0].duration) / 1000
+                        self.duration = mediainfo.tracks[0].duration / 1000
                     except:
                         self.duration = None
 
@@ -258,7 +321,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         'csv="p=0"',
                     ]
 
-                    output = await self.run_command(" ".join(args))
+                    output = await run_command(" ".join(args))
                     output = output.decode("utf-8")
 
                     try:
@@ -306,72 +369,47 @@ class URLPlaylistEntry(BasePlaylistEntry):
         finally:
             self._is_downloading = False
 
-    async def run_command(self, cmd):
-        p = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        log.debug("Starting asyncio subprocess ({0}) with command: {1}".format(p, cmd))
-        stdout, stderr = await p.communicate()
-        return stdout + stderr
-
-    def get(self, program):
-        def is_exe(fpath):
-            found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-            if not found and sys.platform == "win32":
-                fpath = fpath + ".exe"
-                found = os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-            return found
-
-        fpath, __ = os.path.split(program)
-        if fpath:
-            if is_exe(program):
-                return program
-        else:
-            for path in os.environ["PATH"].split(os.pathsep):
-                path = path.strip('"')
-                exe_file = os.path.join(path, program)
-                if is_exe(exe_file):
-                    return exe_file
-
-        return None
-
     async def get_mean_volume(self, input_file):
         log.debug("Calculating mean volume of {0}".format(input_file))
         cmd = (
             '"'
-            + self.get("ffmpeg")
+            + get("ffmpeg")
             + '" -i "'
             + input_file
             + '" -af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json -f null /dev/null'
         )
-        output = await self.run_command(cmd)
+        output = await run_command(cmd)
         output = output.decode("utf-8")
         log.debug(output)
         # print('----', output)
 
-        I_matches = re.findall(r'"input_i" : "([-]?([0-9]*\.[0-9]+))",', output)
-        if I_matches:
-            log.debug("I_matches={}".format(I_matches[0][0]))
-            I = float(I_matches[0][0])
+        i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
+        if i_matches:
+            log.debug("i_matches={}".format(i_matches[0][0]))
+            I = float(i_matches[0][0])
         else:
             log.debug("Could not parse I in normalise json.")
             I = float(0)
 
-        LRA_matches = re.findall(r'"input_lra" : "([-]?([0-9]*\.[0-9]+))",', output)
-        if LRA_matches:
-            log.debug("LRA_matches={}".format(LRA_matches[0][0]))
-            LRA = float(LRA_matches[0][0])
+        lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
+        if lra_matches:
+            log.debug("lra_matches={}".format(lra_matches[0][0]))
+            LRA = float(lra_matches[0][0])
         else:
             log.debug("Could not parse LRA in normalise json.")
             LRA = float(0)
 
-        TP_matches = re.findall(r'"input_tp" : "([-]?([0-9]*\.[0-9]+))",', output)
-        if TP_matches:
-            log.debug("TP_matches={}".format(TP_matches[0][0]))
-            TP = float(TP_matches[0][0])
+        tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
+        if tp_matches:
+            log.debug("tp_matches={}".format(tp_matches[0][0]))
+            TP = float(tp_matches[0][0])
         else:
             log.debug("Could not parse TP in normalise json.")
             TP = float(0)
 
-        thresh_matches = re.findall(r'"input_thresh" : "([-]?([0-9]*\.[0-9]+))",', output)
+        thresh_matches = re.findall(
+            r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output
+        )
         if thresh_matches:
             log.debug("thresh_matches={}".format(thresh_matches[0][0]))
             thresh = float(thresh_matches[0][0])
@@ -379,7 +417,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
             log.debug("Could not parse thresh in normalise json.")
             thresh = float(0)
 
-        offset_matches = re.findall(r'"target_offset" : "([-]?([0-9]*\.[0-9]+))', output)
+        offset_matches = re.findall(
+            r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output
+        )
         if offset_matches:
             log.debug("offset_matches={}".format(offset_matches[0][0]))
             offset = float(offset_matches[0][0])
@@ -396,9 +436,12 @@ class URLPlaylistEntry(BasePlaylistEntry):
         log.info("Download started: {}".format(self.url))
 
         retry = True
+        result = None
         while retry:
             try:
-                result = await self.playlist.downloader.extract_info(self.playlist.loop, self.url, download=True)
+                result = await self.playlist.downloader.extract_info(
+                    self.playlist.loop, self.url, download=True
+                )
                 break
             except Exception as e:
                 raise ExtractionError(e)
@@ -410,11 +453,15 @@ class URLPlaylistEntry(BasePlaylistEntry):
             raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
-        self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(result)
+        self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(
+            result
+        )
 
         if hash:
             # insert the 8 last characters of the file hash to the file name to ensure uniqueness
-            self.filename = md5sum(unhashed_fname, 8).join("-.").join(unhashed_fname.rsplit(".", 1))
+            self.filename = (
+                md5sum(unhashed_fname, 8).join("-.").join(unhashed_fname.rsplit(".", 1))
+            )
 
             if os.path.isfile(self.filename):
                 # Oh bother it was actually there.
@@ -447,7 +494,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 "title": self.title,
                 "destination": self.destination,
                 "meta": {
-                    name: {"type": obj.__class__.__name__, "id": obj.id, "name": obj.name}
+                    name: {
+                        "type": obj.__class__.__name__,
+                        "id": obj.id,
+                        "name": obj.name,
+                    }
                     for name, obj in self.meta.items()
                     if obj
                 },
@@ -472,7 +523,9 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 meta["channel"] = ch or data["meta"]["channel"]["name"]
 
             if "author" in data["meta"]:
-                meta["author"] = meta["channel"].guild.get_member(data["meta"]["author"]["id"])
+                meta["author"] = meta["channel"].guild.get_member(
+                    data["meta"]["author"]["id"]
+                )
 
             entry = cls(playlist, url, title, destination=destination, **meta)
             if not destination and filename:
@@ -489,7 +542,9 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         url = self.destination if fallback else self.url
 
         try:
-            result = await self.playlist.downloader.extract_info(self.playlist.loop, url, download=False)
+            result = await self.playlist.downloader.extract_info(
+                self.playlist.loop, url, download=False
+            )
         except Exception as e:
             if not fallback and self.destination:
                 return await self._download(fallback=True)

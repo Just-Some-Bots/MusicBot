@@ -16,7 +16,9 @@ def load_file(filename, skip_commented_lines=True, comment_char="#"):
             for line in f:
                 line = line.strip()
 
-                if line and not (skip_commented_lines and line.startswith(comment_char)):
+                if line and not (
+                    skip_commented_lines and line.startswith(comment_char)
+                ):
                     results.append(line)
 
             return results
@@ -142,7 +144,7 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
                 pass
                 # log.everything("{obj1}.{item} is {obj2}.{item} ({val1} and {val2})".format(obj1=obj1, obj2=obj2, item=item, val1=iobj1, val2=iobj2))
 
-        except Exception as e:
+        except Exception:
             # log.everything("Error checking {o1}/{o2}.{item}".format(o1=obj1, o2=obj2, item=item), exc_info=e)
             continue
 
@@ -171,3 +173,12 @@ def _get_variable(name):
                 del frame
     finally:
         del stack
+
+
+def format_song_duration(ftd):
+    duration_array = ftd.split(":")
+    return (
+        ftd
+        if int(duration_array[0]) > 0
+        else "{0}:{1}".format(duration_array[1], duration_array[2])
+    )

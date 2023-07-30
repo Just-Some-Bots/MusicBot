@@ -1,19 +1,20 @@
-import os.path
-import logging
 import datetime
-
-from random import shuffle
-from itertools import islice
+import logging
+import os.path
 from collections import deque
-
+from itertools import islice
+from random import shuffle
 from urllib.error import URLError
-from youtube_dl.utils import ExtractorError, DownloadError, UnsupportedError
 
-from .utils import get_header
+# For the time being, youtube_dl is often slow and inconsistent
+# With this in mind, lets stick to the fork until it gets a dev
+from yt_dlp.utils import DownloadError, UnsupportedError
+
 from .constructs import Serializable
-from .lib.event_emitter import EventEmitter
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
+from .lib.event_emitter import EventEmitter
+from .utils import get_header
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class Playlist(EventEmitter, Serializable):
         self.entries.rotate(index)
         return entry
 
-    async def add_entry(self, song_url, **meta):
+    async def add_entry(self, song_url, *, head, **meta):
         """
         Validates and adds a song_url to be played. This does not start the download of the song.
 
@@ -65,9 +66,13 @@ class Playlist(EventEmitter, Serializable):
         """
 
         try:
-            info = await self.downloader.extract_info(self.loop, song_url, download=False)
+            info = await self.downloader.extract_info(
+                self.loop, song_url, download=False
+            )
         except Exception as e:
-            raise ExtractionError("Could not extract information from {}\n\n{}".format(song_url, e))
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(song_url, e)
+            )
 
         if not info:
             raise ExtractionError("Could not extract information from %s" % song_url)
@@ -75,7 +80,9 @@ class Playlist(EventEmitter, Serializable):
         # TODO: Sort out what happens next when this happens
         if info.get("_type", None) == "playlist":
             raise WrongEntryTypeError(
-                "This is a playlist.", True, info.get("webpage_url", None) or info.get("url", None)
+                "This is a playlist.",
+                True,
+                info.get("webpage_url", None) or info.get("url", None),
             )
 
         if info.get("is_live", False):
@@ -89,23 +96,37 @@ class Playlist(EventEmitter, Serializable):
                 content_type = headers.get("CONTENT-TYPE")
                 log.debug("Got content type {}".format(content_type))
             except Exception as e:
-                log.warning("Failed to get content type for url {} ({})".format(song_url, e))
+                log.warning(
+                    "Failed to get content type for url {} ({})".format(song_url, e)
+                )
                 content_type = None
 
             if content_type:
                 if content_type.startswith(("application/", "image/")):
                     if not any(x in content_type for x in ("/ogg", "/octet-stream")):
                         # How does a server say `application/ogg` what the actual fuck
-                        raise ExtractionError('Invalid content type "%s" for url %s' % (content_type, song_url))
+                        raise ExtractionError(
+                            'Invalid content type "%s" for url %s'
+                            % (content_type, song_url)
+                        )
 
-                elif content_type.startswith("text/html") and info["extractor"] == "generic":
-                    log.warning("Got text/html for content-type, this might be a stream.")
+                elif (
+                    content_type.startswith("text/html")
+                    and info["extractor"] == "generic"
+                ):
+                    log.warning(
+                        "Got text/html for content-type, this might be a stream."
+                    )
                     return await self.add_stream_entry(
                         song_url, info=info, **meta
                     )  # TODO: Check for shoutcast/icecast
 
                 elif not content_type.startswith(("audio/", "video/")):
-                    log.warning('Questionable content-type "{}" for url {}'.format(content_type, song_url))
+                    log.warning(
+                        'Questionable content-type "{}" for url {}'.format(
+                            content_type, song_url
+                        )
+                    )
 
         entry = URLPlaylistEntry(
             self,
@@ -115,26 +136,36 @@ class Playlist(EventEmitter, Serializable):
             self.downloader.ytdl.prepare_filename(info),
             **meta
         )
-        self._add_entry(entry)
-        return entry, len(self.entries)
+        self._add_entry(entry, head=head)
+        return entry, (1 if head else len(self.entries))
 
     async def add_stream_entry(self, song_url, info=None, **meta):
         if info is None:
             info = {"title": song_url, "extractor": None}
 
             try:
-                info = await self.downloader.extract_info(self.loop, song_url, download=False)
+                info = await self.downloader.extract_info(
+                    self.loop, song_url, download=False
+                )
 
             except DownloadError as e:
-                if e.exc_info[0] == UnsupportedError:  # ytdl doesn't like it but its probably a stream
+                if (
+                    e.exc_info[0] == UnsupportedError
+                ):  # ytdl doesn't like it but its probably a stream
                     log.debug("Assuming content is a direct stream")
 
                 elif e.exc_info[0] == URLError:
                     if os.path.exists(os.path.abspath(song_url)):
-                        raise ExtractionError("This is not a stream, this is a file path.")
+                        raise ExtractionError(
+                            "This is not a stream, this is a file path."
+                        )
 
                     else:  # it might be a file path that just doesn't exist
-                        raise ExtractionError("Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(e))
+                        raise ExtractionError(
+                            "Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(
+                                e
+                            )
+                        )
 
                 else:
                     # traceback.print_exc()
@@ -142,18 +173,24 @@ class Playlist(EventEmitter, Serializable):
 
             except Exception as e:
                 log.error(
-                    "Could not extract information from {} ({}), falling back to direct".format(song_url, e),
+                    "Could not extract information from {} ({}), falling back to direct".format(
+                        song_url, e
+                    ),
                     exc_info=True,
                 )
 
-        if info.get("is_live") is None and info.get("extractor", None) != "generic":  # wew hacky
+        if (
+            info.get("is_live") is None and info.get("extractor", None) != "generic"
+        ):  # wew hacky
             raise ExtractionError("This is not a stream.")
 
         dest_url = song_url
         if info.get("extractor"):
             dest_url = info.get("url")
 
-        if info.get("extractor", None) == "twitch:stream":  # may need to add other twitch types
+        if (
+            info.get("extractor", None) == "twitch:stream"
+        ):  # may need to add other twitch types
             title = info.get("description")
         else:
             title = info.get("title", "Untitled")
@@ -164,7 +201,7 @@ class Playlist(EventEmitter, Serializable):
         self._add_entry(entry)
         return entry, len(self.entries)
 
-    async def import_from(self, playlist_url, **meta):
+    async def import_from(self, playlist_url, head, **meta):
         """
         Imports the songs from `playlist_url` and queues them to be played.
 
@@ -173,16 +210,22 @@ class Playlist(EventEmitter, Serializable):
         :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
         :param meta: Any additional metadata to add to the playlist entry
         """
-        position = len(self.entries) + 1
+        position = 1 if head else len(self.entries) + 1
         entry_list = []
 
         try:
-            info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False)
+            info = await self.downloader.safe_extract_info(
+                self.loop, playlist_url, download=False
+            )
         except Exception as e:
-            raise ExtractionError("Could not extract information from {}\n\n{}".format(playlist_url, e))
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+            )
 
         if not info:
-            raise ExtractionError("Could not extract information from %s" % playlist_url)
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
 
         # Once again, the generic extractor fucks things up.
         if info.get("extractor", None) == "generic":
@@ -191,6 +234,9 @@ class Playlist(EventEmitter, Serializable):
             url_field = "webpage_url"
 
         baditems = 0
+        entries = list(info["entries"])
+        if head:
+            entries.reverse()
         for item in info["entries"]:
             if item:
                 try:
@@ -203,7 +249,7 @@ class Playlist(EventEmitter, Serializable):
                         **meta
                     )
 
-                    self._add_entry(entry)
+                    self._add_entry(entry, head=head)
                     entry_list.append(entry)
                 except Exception as e:
                     baditems += 1
@@ -215,9 +261,11 @@ class Playlist(EventEmitter, Serializable):
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
 
+        if head:
+            entry_list.reverse()
         return entry_list, position
 
-    async def async_process_youtube_playlist(self, playlist_url, **meta):
+    async def async_process_youtube_playlist(self, playlist_url, *, head, **meta):
         """
         Processes youtube playlists links from `playlist_url` in a questionable, async fashion.
 
@@ -226,23 +274,32 @@ class Playlist(EventEmitter, Serializable):
         """
 
         try:
-            info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False, process=False)
+            info = await self.downloader.safe_extract_info(
+                self.loop, playlist_url, download=False, process=False
+            )
         except Exception as e:
-            raise ExtractionError("Could not extract information from {}\n\n{}".format(playlist_url, e))
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+            )
 
         if not info:
-            raise ExtractionError("Could not extract information from %s" % playlist_url)
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
 
         gooditems = []
         baditems = 0
 
+        entries = list(info["entries"])
+        if head:
+            entries.reverse()
         for entry_data in info["entries"]:
             if entry_data:
                 baseurl = info["webpage_url"].split("playlist?list=")[0]
                 song_url = baseurl + "watch?v=%s" % entry_data["id"]
 
                 try:
-                    entry, elen = await self.add_entry(song_url, **meta)
+                    entry, elen = await self.add_entry(song_url, head=head, **meta)
                     gooditems.append(entry)
 
                 except ExtractionError:
@@ -250,16 +307,20 @@ class Playlist(EventEmitter, Serializable):
 
                 except Exception as e:
                     baditems += 1
-                    log.error("Error adding entry {}".format(entry_data["id"]), exc_info=e)
+                    log.error(
+                        "Error adding entry {}".format(entry_data["id"]), exc_info=e
+                    )
             else:
                 baditems += 1
 
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
 
+        if head:
+            gooditems.reverse()
         return gooditems
 
-    async def async_process_sc_bc_playlist(self, playlist_url, **meta):
+    async def async_process_sc_bc_playlist(self, playlist_url, *, head=False, **meta):
         """
         Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
 
@@ -268,22 +329,31 @@ class Playlist(EventEmitter, Serializable):
         """
 
         try:
-            info = await self.downloader.safe_extract_info(self.loop, playlist_url, download=False, process=False)
+            info = await self.downloader.safe_extract_info(
+                self.loop, playlist_url, download=False, process=False
+            )
         except Exception as e:
-            raise ExtractionError("Could not extract information from {}\n\n{}".format(playlist_url, e))
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+            )
 
         if not info:
-            raise ExtractionError("Could not extract information from %s" % playlist_url)
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
 
         gooditems = []
         baditems = 0
 
+        entries = list(info["entries"])
+        if head:
+            entries.reverse()
         for entry_data in info["entries"]:
             if entry_data:
                 song_url = entry_data["url"]
 
                 try:
-                    entry, elen = await self.add_entry(song_url, **meta)
+                    entry, elen = await self.add_entry(song_url, head=head, **meta)
                     gooditems.append(entry)
 
                 except ExtractionError:
@@ -291,13 +361,17 @@ class Playlist(EventEmitter, Serializable):
 
                 except Exception as e:
                     baditems += 1
-                    log.error("Error adding entry {}".format(entry_data["id"]), exc_info=e)
+                    log.error(
+                        "Error adding entry {}".format(entry_data["id"]), exc_info=e
+                    )
             else:
                 baditems += 1
 
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
 
+        if head:
+            gooditems.reverse()
         return gooditems
 
     def _add_entry(self, entry, *, head=False):
