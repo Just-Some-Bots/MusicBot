@@ -1,0 +1,34 @@
+name: Feature Request
+description: Request a new feature for the bot
+labels: t/request
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for requesting a new feature.
+
+        Please check that your feature has not already been requested, or has not already been implemented in the `review` branch before continuing.
+  - type: textarea
+    attributes:
+      label: What new feature would you like to see?
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Which of these categories fit your request?
+      multiple: false
+      options:
+        - New command
+        - Existing command update
+        - Service support (e.g YouTube, Spotify)
+        - New configurable option or change to existing one
+        - Other
+  - type: checkboxes
+    attributes:
+      label: Just checking...
+      options:
+        - label: I have confirmed that my feature has not already been requested.
+          required: true
+        - label: I have confirmed that my feature has not already been implemented in the `review` branch.
+          required: true
