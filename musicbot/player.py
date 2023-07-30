@@ -207,7 +207,7 @@ class MusicPlayer(EventEmitter, Serializable):
             self.playlist.entries.appendleft(entry)
         elif self.loopqueue:
             self.playlist.entries.append(entry)
-        
+
         if self._current_player:
             self._current_player.after = None
             self._kill_current_player()
