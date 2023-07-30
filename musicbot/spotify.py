@@ -10,9 +10,7 @@ log = logging.getLogger(__name__)
 
 
 def _make_token_auth(client_id, client_secret):
-    auth_header = base64.b64encode(
-        (client_id + ":" + client_secret).encode("ascii")
-    )
+    auth_header = base64.b64encode((client_id + ":" + client_secret).encode("ascii"))
     return {"Authorization": "Basic %s" % auth_header.decode("ascii")}
 
 

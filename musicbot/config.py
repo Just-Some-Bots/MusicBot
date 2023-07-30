@@ -104,11 +104,13 @@ class Config:
             "Chat", "DeleteNowPlaying", fallback=ConfigDefaults.delete_nowplaying
         )
         self.nowplaying_topic_channels = config.get(
-            "Chat", "NowPlayingTopicChannels", fallback=ConfigDefaults.nowplaying_topic_channels
-            )
+            "Chat",
+            "NowPlayingTopicChannels",
+            fallback=ConfigDefaults.nowplaying_topic_channels,
+        )
         self.default_topic = config.get(
             "Chat", "DefaultTopic", fallback=ConfigDefaults.default_topic
-            )
+        )
 
         self.default_volume = config.getfloat(
             "MusicBot", "DefaultVolume", fallback=ConfigDefaults.default_volume
@@ -359,11 +361,17 @@ class Config:
 
         if self.nowplaying_topic_channels:
             try:
-                self.nowplaying_topic_channels = set(int(x) for x in self.nowplaying_topic_channels.replace(',', ' ').split() if x)
+                self.nowplaying_topic_channels = set(
+                    int(x)
+                    for x in self.nowplaying_topic_channels.replace(",", " ").split()
+                    if x
+                )
             except:
-                log.warning("NowPlayingTopicChannels data is invalid, will not attempt to set now playing channel topic")
+                log.warning(
+                    "NowPlayingTopicChannels data is invalid, will not attempt to set now playing channel topic"
+                )
                 self.nowplaying_topic_channels = set()
-                
+
         self._spotify = False
 
         if self.spotify_clientid and self.spotify_clientsecret:

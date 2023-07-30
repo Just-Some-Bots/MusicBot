@@ -653,7 +653,6 @@ class MusicBot(discord.Client):
 
         if self.config.nowplaying_topic_channels:
             await self.update_now_playing_topic(entry)
- 
 
     async def on_player_pause(self, player, entry, **_):
         log.debug("Running on_player_pause")
@@ -827,9 +826,9 @@ class MusicBot(discord.Client):
         for id in self.config.nowplaying_topic_channels:
             channel = self.get_channel(id)
             if entry and is_paused:
-                await channel.edit(topic=':pause_button: **' + entry.title + '**')
+                await channel.edit(topic=":pause_button: **" + entry.title + "**")
             elif entry and not is_paused:
-                await channel.edit(topic=':arrow_forward: **' + entry.title + '**')
+                await channel.edit(topic=":arrow_forward: **" + entry.title + "**")
             elif entry is None:
                 await channel.edit(topic=self.config.default_topic)
 
