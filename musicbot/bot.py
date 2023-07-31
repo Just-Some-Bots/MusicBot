@@ -1746,6 +1746,14 @@ class MusicBot(discord.Client):
                     "Sent indexes are outside of the playlist scope!", delete_after=30
                 )
 
+        formatted = str(leftover_args).strip("['']")
+
+        await self.safe_send_message(
+            channel,
+            f"Successfully moved the requested song from postion {command} in queue to {formatted}!",
+            delete_after=30,
+        )  # to-do actually put the song name instead of just writting song Just Snow
+
         song = player.playlist.delete_entry_at_index(indexes[0])
 
         player.playlist.insert_entry_at_index(indexes[1], song)
@@ -3557,7 +3565,7 @@ class MusicBot(discord.Client):
                 "youtube": lambda d: "https://www.youtube.com/watch?v=%s" % d["id"],
                 "soundcloud": lambda d: d["url"],
                 "bandcamp": lambda d: d["url"],
-            }
+            },
         )
 
         exfunc = linegens[info["extractor"].split(":")[0]]
