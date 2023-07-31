@@ -1751,7 +1751,7 @@ class MusicBot(discord.Client):
         await self.safe_send_message(
             channel,
             f"Successfully moved the requested song from postion {command} in queue to {formatted}!",
-            delete_after=30,
+            expire_in=30,
         )  # to-do actually put the song name instead of just writting song Just Snow
 
         song = player.playlist.delete_entry_at_index(indexes[0])
