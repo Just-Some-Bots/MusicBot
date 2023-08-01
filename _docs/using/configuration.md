@@ -13,7 +13,7 @@ Configuring the bot is relatively straight forward. First, open your bot folder 
 
 <img class="doc-img" src="{{ site.baseurl }}/images/token.png" alt="Token" style="width: 500px;"/>
 
-- `Token` - *This is the only required option for your bot to run.* You must provide the token for your Discord bot account. To create a bot account, go to your [applications page](https://discordapp.com/developers/applications/me) (logging in if prompted), and then follow this [10 second video](https://drive.google.com/file/d/1wZG_TBVfjQfj0CEYaRTzS60D-cbfeeYZ/view). If you followed it entirely, you should have revealed your token and can now copy it into the config file.
+- `Token` - *This is the only required option for your bot to run.* You must provide the token for your Discord bot account. To create a bot account, go to your [applications page](https://discord.com/developers/applications/me) (logging in if prompted), and then follow this [10 second video](https://drive.google.com/file/d/1wZG_TBVfjQfj0CEYaRTzS60D-cbfeeYZ/view). If you followed it entirely, you should have revealed your token and can now copy it into the config file.
 
 After creating a bot account, you should probably add your bot to a server by clicking the 'Generate OAuth2 URL' button on the application page and copying the URL in the box to your address bar and pressing enter. You can then select what server you wish to add it to.
 {: .info }
