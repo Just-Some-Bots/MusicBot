@@ -1,4 +1,8 @@
-# Android
+---
+title: Android
+category: Installing the bot
+order: 9
+---
 
 Installing MusicBot on Android is simple, just time consuming.
 

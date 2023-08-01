@@ -1,3 +1,9 @@
+---
+title: AWS
+category: Installing the bot
+order: 9
+---
+
 This walkthrough will take you through the steps required to host the bot externally using a VPS. For this, we recommend the use of Amazon Web Service. You must first have a Personal Account with them before continuing with this walkthrough.
 
 ## AWS Installation
