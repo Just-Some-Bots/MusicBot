@@ -1,4 +1,8 @@
-# PM2
+---
+title: PM2
+category: Using the bot
+order: 9
+---
 
 This guide will assist you in installing PM2 to run MusicBot in the background of Linux and Mac, automatically restart it if it crashes, and at startup.
 To start out with, ensure you have installed [Node.js and NPM](https://nodejs.org/en/download/package-manager/).

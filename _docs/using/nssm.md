@@ -1,5 +1,8 @@
-# NSSM
-
+---
+title: NSSM
+category: Using the bot
+order: 10
+---
 This guide will assist you in installing NSSM to run Musicbot in the background of Windows, automatically restart it if it crashes, and at startup.
 
 1. Download the latest release of [NSSM](https://nssm.cc/release/nssm-2.24.zip).
