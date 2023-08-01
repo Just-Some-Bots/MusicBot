@@ -15,7 +15,7 @@ order: 4
 >
 > If you are updating the MusicBot with version below than 1.9.7-rc2. Please follow instructions in the `Manual update` section.
 
-Before updating, make sure to read the [latest changes](/changelog), as some behaviour may have changed significantly.
+Before updating, make sure to read the [latest changes](/MusicBot/changelog), as some behaviour may have changed significantly.
 
 * **Linux/MacOS**: `./update.sh` (for Mac users: run this in a Terminal)
 * **Windows**: Open `update.bat`.
