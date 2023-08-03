@@ -9,7 +9,7 @@ MusicBot can run on OpenBSD systems as well. Note that the X11 sets must be inst
 
 ~~~bash
 # Install Python and libraries available as packages
-doas pkg_add python # select version 3.8.7
+doas pkg_add python # select version 3.8 or above
 doas pkg_add py3-aiohttp youtube-dl ffmpeg libsodium git
 
 # Ensure pip is set up

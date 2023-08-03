@@ -39,19 +39,28 @@ sudo python3.8 -m pip install -U -r requirements.txt
 ## Ubuntu 18.04
 
 ~~~ bash
+# Add external repositories
+sudo add-apt-repository ppa:deadsnakes/ppa
+
 # Install build tools
 sudo apt-get install build-essential unzip -y
 sudo apt-get install software-properties-common -y
 
 # Install system dependencies
 sudo apt-get update -y
-sudo apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3-pip 
+sudo apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3.8
 sudo apt-get upgrade -y
-
 # Install python 3.8
 sudo add-apt-repository ppa:deadsnakes/ppa
 # press enter
+
 sudo apt -y install python3.8 
+
+# Install pip
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.8 get-pip.py
+
+
 
 # Clone the MusicBot to your home directory
 git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b review
@@ -76,10 +85,12 @@ sudo add-apt-repository ppa:deadsnakes/ppa -y
 # Install system dependencies
 sudo apt-get update -y
 sudo apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3.8 -y
+sudo apt-get install git ffmpeg libopus-dev libffi-dev libsodium-dev python3.8 -y
 sudo apt-get upgrade -y
 
 # Install pip
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3.8 get-pip.py
 python3.8 get-pip.py
 
 # Clone the MusicBot to your home directory
