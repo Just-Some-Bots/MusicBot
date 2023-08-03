@@ -64,7 +64,7 @@ After creating a bot account, you should probably add your bot to a server by cl
 - `LegacySkip` - Whether to use legacy skip behavior, defaulting `!skip` to force skip
 - `LeaveServersWithoutOwner` - Whether the bot should leave servers that the owner is not found in
 - `UseAlias` - Whether the bot should use aliases defined in `aliases.json`
-- <span class="badge major">review only</span> `CustomEmbedFooter` - Changes the footer text found in embeds from the default version footer
+- `CustomEmbedFooter` - Changes the footer text found in embeds from the default version footer
 
 #### Files
 

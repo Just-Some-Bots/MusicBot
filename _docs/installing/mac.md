@@ -23,7 +23,7 @@ brew install python libsodium libffi opus ffmpeg git
 
 # Clone the MusicBot
 cd desktop
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review 
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master 
 
 # Install Python dependencies
 cd MusicBot

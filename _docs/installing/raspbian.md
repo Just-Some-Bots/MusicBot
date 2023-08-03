@@ -57,7 +57,7 @@ rm -r pytemp
 
 # Clone the MusicBot
 cd ~
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 sudo python3.8 -m pip install --upgrade -r requirements.txt
 sudo python3.8 -m pip install --upgrade -r requirements.txt

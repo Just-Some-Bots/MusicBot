@@ -94,7 +94,7 @@ python3.8 get-pip.py
 python3.8 get-pip.py
 
 # Clone the MusicBot to your home directory
-git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b review
+git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b master
 cd ~/MusicBot
 
 # Install Python dependencies

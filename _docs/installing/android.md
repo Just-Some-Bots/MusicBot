@@ -23,7 +23,7 @@ pkg install python git ffmpeg
 ```
 # Clone MusicBot
 cd ~
-git clone https://github.com/Just-Some-Bots/Musicbot.git MusicBot -b review
+git clone https://github.com/Just-Some-Bots/Musicbot.git MusicBot -b master
 cd MusicBot
 python -m pip install -U -r requirements.txt
 ```
