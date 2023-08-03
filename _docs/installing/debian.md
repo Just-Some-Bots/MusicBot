@@ -19,9 +19,9 @@ sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib
 # Install Python 3.8
 mkdir pytemp
 cd pytemp
-wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
-tar zxf Python-3.8.7.tgz
-cd Python-3.8.7
+wget https://www.python.org/ftp/python/3.8.17/Python-3.8.17.tgz
+tar zxf Python-3.8.17.tgz
+cd Python-3.8.17
 ./configure --enable-optimizations
 make -j4
 sudo make altinstall

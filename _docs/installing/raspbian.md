@@ -15,9 +15,9 @@ sudo apt-get update -y
 sudo apt-get upgrade -y
 
 
-wget https://www.python.org/ftp/python/3.8.12/Python-3.8.12.tar.xz # Download the Python files.
-tar -xf Python-3.8.12.tar.xz # Unarchive the files.
-cd Python-3.8.12 # Move to the unarchived files.
+wget https://www.python.org/ftp/python/3.8.12/Python-3.8.17.tar.xz # Download the Python files.
+tar -xf Python-3.8.17.tar.xz # Unarchive the files.
+cd Python-3.8.17 # Move to the unarchived files.
 ./configure --enable-optimizations 
 make -j
 sudo make altinstall # This can take some time.
@@ -25,8 +25,8 @@ cd ..
 wget https://bootstrap.pypa.io/get-pip.py # Install pip.
 python3.8 get-pip.py
 rm get-pip.py # Cleanup.
-rm Python-3.8.12.tar.xz # Cleanup.
-sudo rm -rf Python-3.8.12 #Cleanup
+rm Python-3.8.17.tar.xz # Cleanup.
+sudo rm -rf Python-3.8.17 #Cleanup
 
 # Install dependencies
 sudo apt install git
@@ -39,9 +39,9 @@ libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
 # Install Python 3.8
 mkdir pytemp
 cd pytemp
-wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
-tar zxf Python-3.8.7.tgz
-cd Python-3.8.7
+wget https://www.python.org/ftp/python/3.8.17/Python-3.8.17.tgz
+tar zxf Python-3.8.17.tgz
+cd Python-3.8.17
 ./configure --enable-optimizations
 make -j4
 sudo make altinstall

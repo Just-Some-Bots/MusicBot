@@ -64,13 +64,13 @@ sudo yum -y install gcc openssl-devel bzip2-devel make
 # Install Python3.8
 
 cd /opt
-wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
-tar xzf Python-3.8.7.tgz
-cd Python-3.8.7
+wget https://www.python.org/ftp/python/3.8.17/Python-3.8.17.tgz
+tar xzf Python-3.8.17.tgz
+cd Python-3.8.17
 sudo ./configure --enable-optimizations
 sudo make altinstall
 cd ..
-sudo rm Python-3.8.7.tgz
+sudo rm Python-3.8.17.tgz
 
 # Install FFmpeg
 sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
