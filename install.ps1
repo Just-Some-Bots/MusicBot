@@ -1,49 +1,17 @@
-# Check if running as administrator
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
-{
-    # Run as administrator
-    if (Test-Path "$PSHome\powershell.exe")
-    {
-        # Normal Powershell
-        Start-Process -FilePath "$PSHome\powershell.exe" -Verb RunAs "-NoProfile -ExecutionPolicy Bypass -Command `"cd '$pwd'; & '$PSCommandPath';`"";
-    }
-    if (Test-Path "$PSHome\pwsh.exe")
-    {
-        # Powershell 6
-        Start-Process -FilePath "$PSHome\pwsh.exe" -Verb RunAs "-NoProfile -ExecutionPolicy Bypass -Command `"cd '$pwd'; & '$PSCommandPath';`"";
-    }
-
-}
-
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
 $DEFAULT_URL_BASE = "https://discordapp.com/api"
 
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
 
-# We will be using chocolatey to aid our installation
-# Check if chocolatey is installed
-"checking if chocolatey is already installed..."
-if (!(Get-Command "choco" -errorAction SilentlyContinue))
-{
-    # install chocolatey
-    "installing chocolatey..."
-    Set-ExecutionPolicy Bypass -Scope Process -Force;
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;
-    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'));
-}
-else
-{
-    "chocolatey already installed"
-}
-
 # Check if git is installed
 "checking if git is already installed..."
-if (!(Get-Command "git" -errorAction SilentlyContinue))
+Invoke-Expression "winget list -q Git.Git"
+if (!($LastExitCode -eq 0))
 {
     # install git
     "installing git..."
-    Invoke-Expression "choco install git -y --params '`"/GitOnlyOnPath`"'"
+    Invoke-Expression "winget install Git.Git"
 }
 else
 {
@@ -52,11 +20,12 @@ else
 
 # Check if python is installed
 "checking if python is already installed..."
-if (!((Get-Command "python" -errorAction SilentlyContinue) -or (Get-Command "py" -errorAction SilentlyContinue)))
+Invoke-Expression "winget list -q Python.Python.3"
+if (!($LastExitCode -eq 0))
 {
-    # install python (chocolatey does not allow specifying version range currently so it's going to be pegged like this atm)
+    # install python
     "installing python..."
-    Invoke-Expression "choco install python3 -y --version=3.9.5"
+    Invoke-Expression "winget install Python.Python.3.11 --custom \`"/passive Include_launcher=1\`""
 }
 else
 {
