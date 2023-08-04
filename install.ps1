@@ -67,27 +67,12 @@ Invoke-Expression "refreshenv"
 
 # --------------------------------------------------PULLING THE BOT----------------------------------------------------
 
-"Do you want to install experimental branch?"
-$experimental = Read-Host "Installing experimental branch means limited support, but you get access to newer fixes and features. (N/y): "
+"Do you want to install experimental (review) branch?"
+$experimental = Read-Host "Installing experimental (review) branch means limited support, but you get access to newer fixes and features. (N/y): "
 if($experimental -eq "Y" -or $experimental -eq "y")
 {
-    "There currently are two experimental branch of the bot: review and cogs-rewrite"
-    ""
-    "The review branch might contains fixes to the master branch or some new features"
-    "The cogs-rewrite branch is a rewritten version of the bot and contain several new features"
-    "compared to the master and the review branch, but can be very unstable"
-    ""
-    $review = Read-Host "Do you want to install the review branch or the cogs-rewrite branch? ([r]eview/[c]ogs-rewrite): "
-    if($review -eq "C" -or $review -eq "C" -or $review -eq "cogs-rewrite" -or $review -eq "Cogs-rewrite")
-    {
-        "installing cogs-rewrite branch..."
-        $branch = "cogs-rewrite"
-    }
-    else
-    {
-        "installing review branch..."
-        $branch = "review"
-    }
+    "installing review branch..."
+    $branch = "review"
 }
 else
 {
@@ -102,46 +87,22 @@ Invoke-Expression "cd MusicBot"
 
 if (Get-Command "python" -errorAction SilentlyContinue)
 {
-    $pythonver = @()
-    $pythonver += Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[0]))'"
-    $pythonver += Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[1]))'"
-    $pythonver += Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'"
-    if([int]($pythonver[0]) -gt 2 -and [int]($pythonver[1]) -gt 4)
+    Invoke-Expression "python -c 'import sys; exit(0 if sys.version_info >= (3, 6) else 1)'"
+    if($LastExitCode -eq 0)
     {
-        if([int]($pythonver[1]) -eq 5 -and [int]($pythonver[2]) -gt 3)
-        {
-            $PYTHON = "python"
-        }
+        $PYTHON = "python"
     }
 }
 
-Invoke-Expression "py -3.5 -c 'exit()'"
-if($LastExitCode -eq 0)
+$versionArray = "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"
+
+foreach ($version in $versionArray)
 {
-    if([int](Invoke-Expression "python -c 'import sys; version=sys.version_info[:3]; print(\`"{0}\`".format(version[2]))'") -gt 2)
+    Invoke-Expression "py -$version -c 'exit()'"
+    if($LastExitCode -eq 0)
     {
-        $PYTHON = "py -3.5"
+        $PYTHON = "py -$version"
     }
-}
-Invoke-Expression "py -3.6 -c 'exit()'"
-if($LastExitCode -eq 0)
-{
-    $PYTHON = "py -3.6"
-}
-Invoke-Expression "py -3.7 -c 'exit()'"
-if($LastExitCode -eq 0)
-{
-    $PYTHON = "py -3.7"
-}
-Invoke-Expression "py -3.8 -c 'exit()'"
-if($LastExitCode -eq 0)
-{
-    $PYTHON = "py -3.8"
-}
-Invoke-Expression "py -3.9 -c 'exit()'"
-if($LastExitCode -eq 0)
-{
-    $PYTHON = "py -3.9"
 }
 
 Invoke-Expression "$PYTHON -m pip install --upgrade -r requirements.txt"
