@@ -1721,7 +1721,7 @@ class MusicBot(discord.Client):
     async def cmd_move(self, command, leftover_args, channel):
         """
         Usage:
-            {command_prefix}move {Index of song to move} {Index to move song to}
+            {command_prefix}move [Index of song to move] [Index to move song to]
             Ex: !move 1 3
 
         Swaps the location of a song within the playlist.
@@ -1746,13 +1746,12 @@ class MusicBot(discord.Client):
                     "Sent indexes are outside of the playlist scope!", delete_after=30
                 )
 
-        formatted = str(leftover_args).strip("['']")
-
         await self.safe_send_message(
             channel,
-            f"Successfully moved the requested song from postion {command} in queue to {formatted}!",
-            expire_in=30,
-        )  # to-do actually put the song name instead of just writting song Just Snow
+            "Succefully moved the requested song from positon number {} in queue to position {}!".format(
+                indexes[0] + 1, indexes[1] + 1
+            ),
+        )
 
         song = player.playlist.delete_entry_at_index(indexes[0])
 
