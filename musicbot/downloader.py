@@ -11,20 +11,22 @@ from types import MappingProxyType
 log = logging.getLogger(__name__)
 
 # Immutable dict is needed, because something is modifying the 'outtmpl' value. I suspect it being ytdl, but I'm not sure.
-ytdl_format_options_immutable = MappingProxyType({
-    "format": "bestaudio/best",
-    "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
-    "restrictfilenames": True,
-    "noplaylist": True,
-    "nocheckcertificate": True,
-    "ignoreerrors": False,
-    "logtostderr": False,
-    "quiet": True,
-    "no_warnings": True,
-    "default_search": "auto",
-    "source_address": "0.0.0.0",
-    "usenetrc": True,
-})
+ytdl_format_options_immutable = MappingProxyType(
+    {
+        "format": "bestaudio/best",
+        "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
+        "restrictfilenames": True,
+        "noplaylist": True,
+        "nocheckcertificate": True,
+        "ignoreerrors": False,
+        "logtostderr": False,
+        "quiet": True,
+        "no_warnings": True,
+        "default_search": "auto",
+        "source_address": "0.0.0.0",
+        "usenetrc": True,
+    }
+)
 
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
@@ -41,7 +43,6 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 class Downloader:
     def __init__(self, download_folder=None):
-
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
         self.download_folder = download_folder
 

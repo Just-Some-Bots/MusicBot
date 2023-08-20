@@ -407,9 +407,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             log.debug("Could not parse TP in normalise json.")
             TP = float(0)
 
-        thresh_matches = re.findall(
-            r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output
-        )
+        thresh_matches = re.findall(r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output)
         if thresh_matches:
             log.debug("thresh_matches={}".format(thresh_matches[0][0]))
             thresh = float(thresh_matches[0][0])
@@ -417,9 +415,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             log.debug("Could not parse thresh in normalise json.")
             thresh = float(0)
 
-        offset_matches = re.findall(
-            r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output
-        )
+        offset_matches = re.findall(r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output)
         if offset_matches:
             log.debug("offset_matches={}".format(offset_matches[0][0]))
             offset = float(offset_matches[0][0])

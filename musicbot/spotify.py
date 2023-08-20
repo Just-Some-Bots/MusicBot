@@ -11,9 +11,7 @@ log = logging.getLogger(__name__)
 
 
 def _make_token_auth(client_id, client_secret):
-    auth_header = base64.b64encode(
-        (client_id + ":" + client_secret).encode("ascii")
-    )
+    auth_header = base64.b64encode((client_id + ":" + client_secret).encode("ascii"))
     return {"Authorization": "Basic %s" % auth_header.decode("ascii")}
 
 
@@ -140,12 +138,18 @@ class Spotify:
                         )
                     except aiohttp.ContentTypeError as e:
                         raise SpotifyError(
-                            "Issue generating guest token: [{0.status}] {1}".format(r, e)
+                            "Issue generating guest token: [{0.status}] {1}".format(
+                                r, e
+                            )
                         )
                 return await r.json()
-        except asyncio.exceptions.CancelledError as e:  # fails to generate after a restart, but succeeds if you just try again
-            if self.max_token_tries == 0:               # Unfortunately this logic has to be here, because if just tried
-                raise e                                 # to get a token in get_token() again it fails for some reason
+        except (
+            asyncio.exceptions.CancelledError
+        ) as e:  # fails to generate after a restart, but succeeds if you just try again
+            if (
+                self.max_token_tries == 0
+            ):  # Unfortunately this logic has to be here, because if just tried
+                raise e  # to get a token in get_token() again it fails for some reason
 
             self.max_token_tries -= 1
             return await self.request_guest_token()
