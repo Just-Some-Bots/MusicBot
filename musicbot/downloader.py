@@ -6,9 +6,12 @@ import yt_dlp as youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
 
+from types import MappingProxyType
+
 log = logging.getLogger(__name__)
 
-ytdl_format_options = {
+# Immutable dict is needed, because something is modifying the 'outtmpl' value. I suspect it being ytdl, but I'm not sure.
+ytdl_format_options_immutable = MappingProxyType({
     "format": "bestaudio/best",
     "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
     "restrictfilenames": True,
@@ -21,7 +24,8 @@ ytdl_format_options = {
     "default_search": "auto",
     "source_address": "0.0.0.0",
     "usenetrc": True,
-}
+})
+
 
 # Fuck your useless bugreports message that gets two link embeds and confuses users
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -37,8 +41,12 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 class Downloader:
     def __init__(self, download_folder=None):
+
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
         self.download_folder = download_folder
+
+        # Copy immutable dict and use the mutable copy for everything else.
+        ytdl_format_options = ytdl_format_options_immutable.copy()
 
         if download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))

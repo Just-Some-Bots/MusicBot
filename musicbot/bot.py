@@ -560,7 +560,7 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status(entry)
         player.skip_state.reset()
 
-        # This is the one event where its ok to serialize autoplaylist entries
+        # This is the one event where it's ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.guild)
 
         if self.config.write_current_song:
@@ -1037,7 +1037,7 @@ class MusicBot(discord.Client):
 
     async def _cleanup(self):
         try:
-            self.loop.run_until_complete(self.logout())
+            self.loop.run_until_complete(await self.logout())
             self.loop.run_until_complete(self.session.close())
         except:
             pass
@@ -1689,7 +1689,7 @@ class MusicBot(discord.Client):
     ):
         player = _player if _player else None
 
-        if permissions.summonplay and not player:
+        if permissions.summonplay:
             voice_channel = author.voice.channel if author.voice else None
             response = await self.cmd_summon(
                 channel, channel.guild, author, voice_channel

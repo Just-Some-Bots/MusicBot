@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import asyncio.exceptions
 import base64
 import logging
 import time
@@ -35,6 +36,8 @@ class Spotify:
         self.loop = loop if loop else asyncio.get_event_loop()
 
         self.token = None
+
+        self.max_token_tries = 2
 
     async def get_track(self, uri):
         """Get a track's info from its URI"""
@@ -124,18 +127,25 @@ class Spotify:
 
     async def request_guest_token(self):
         """Obtains a web player token from Spotify and returns it"""
-        async with self.aiosession.get(
-            "https://open.spotify.com/get_access_token?reason=transport&productType=web_player"
-        ) as r:
-            if r.status != 200:
-                try:
-                    raise SpotifyError(
-                        "Issue generating guest token: [{0.status}] {1}".format(
-                            r, await r.json()
+        try:
+            async with self.aiosession.get(
+                "https://open.spotify.com/get_access_token?reason=transport&productType=web_player"
+            ) as r:
+                if r.status != 200:
+                    try:
+                        raise SpotifyError(
+                            "Issue generating guest token: [{0.status}] {1}".format(
+                                r, await r.json()
+                            )
                         )
-                    )
-                except aiohttp.ContentTypeError as e:
-                    raise SpotifyError(
-                        "Issue generating guest token: [{0.status}] {1}".format(r, e)
-                    )
-            return await r.json()
+                    except aiohttp.ContentTypeError as e:
+                        raise SpotifyError(
+                            "Issue generating guest token: [{0.status}] {1}".format(r, e)
+                        )
+                return await r.json()
+        except asyncio.exceptions.CancelledError as e:  # fails to generate after a restart, but succeeds if you just try again
+            if self.max_token_tries == 0:               # Unfortunately this logic has to be here, because if just tried
+                raise e                                 # to get a token in get_token() again it fails for some reason
+
+            self.max_token_tries -= 1
+            return await self.request_guest_token()
