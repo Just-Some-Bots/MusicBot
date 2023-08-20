@@ -133,6 +133,7 @@ class MusicBot(discord.Client):
                     aiosession=self.session,
                     loop=self.loop,
                 )
+                await self.spotify.get_token()
                 if not self.spotify.token:
                     log.warning("Spotify did not provide us with a token. Disabling.")
                     self.config._spotify = False
@@ -1689,7 +1690,7 @@ class MusicBot(discord.Client):
     ):
         player = _player if _player else None
 
-        if permissions.summonplay:
+        if permissions.summonplay and not player:
             voice_channel = author.voice.channel if author.voice else None
             response = await self.cmd_summon(
                 channel, channel.guild, author, voice_channel
