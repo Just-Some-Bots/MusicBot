@@ -133,6 +133,7 @@ class MusicBot(discord.Client):
                     aiosession=self.session,
                     loop=self.loop,
                 )
+                await self.spotify.get_token()
                 if not self.spotify.token:
                     log.warning("Spotify did not provide us with a token. Disabling.")
                     self.config._spotify = False
@@ -560,7 +561,7 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status(entry)
         player.skip_state.reset()
 
-        # This is the one event where its ok to serialize autoplaylist entries
+        # This is the one event where it's ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.guild)
 
         if self.config.write_current_song:
