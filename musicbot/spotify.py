@@ -121,7 +121,9 @@ class Spotify:
         try:
             payload = {"grant_type": "client_credentials"}
             headers = _make_token_auth(self.client_id, self.client_secret)
-            r = await self.make_post(self.OAUTH_TOKEN_URL, payload=payload, headers=headers)
+            r = await self.make_post(
+                self.OAUTH_TOKEN_URL, payload=payload, headers=headers
+            )
             return r
         except asyncio.exceptions.CancelledError as e:  # see request_guest_token()
             if self.max_token_tries == 0:
