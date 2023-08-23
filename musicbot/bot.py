@@ -1038,19 +1038,18 @@ class MusicBot(discord.Client):
 
     async def _cleanup(self):
         try:
-            self.loop.run_until_complete(await self.logout())
-            self.loop.run_until_complete(self.session.close())
+            await self.logout()
+            await self.session.close()
         except:
             pass
 
-        pending = asyncio.all_tasks()
-        gathered = asyncio.gather(*pending)
+        pending = asyncio.all_tasks(loop=self.loop)
 
+        for task in pending:
+            task.cancel()
         try:
-            gathered.cancel()
-            self.loop.run_until_complete(gathered)
-            gathered.exception()
-        except:
+            await task
+        except asyncio.CancelledError:
             pass
 
     # noinspection PyMethodOverriding
