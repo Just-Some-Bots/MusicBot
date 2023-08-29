@@ -133,7 +133,6 @@ class MusicBot(discord.Client):
                     aiosession=self.session,
                     loop=self.loop,
                 )
-                await self.spotify.get_token()
                 if not self.spotify.token:
                     log.warning("Spotify did not provide us with a token. Disabling.")
                     self.config._spotify = False
@@ -561,7 +560,7 @@ class MusicBot(discord.Client):
         await self.update_now_playing_status(entry)
         player.skip_state.reset()
 
-        # This is the one event where it's ok to serialize autoplaylist entries
+        # This is the one event where its ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.guild)
 
         if self.config.write_current_song:
@@ -1038,18 +1037,19 @@ class MusicBot(discord.Client):
 
     async def _cleanup(self):
         try:
-            await self.logout()
-            await self.session.close()
+            self.loop.run_until_complete(self.logout())
+            self.loop.run_until_complete(self.session.close())
         except:
             pass
 
-        pending = asyncio.all_tasks(loop=self.loop)
+        pending = asyncio.all_tasks()
+        gathered = asyncio.gather(*pending)
 
-        for task in pending:
-            task.cancel()
         try:
-            await task
-        except asyncio.CancelledError:
+            gathered.cancel()
+            self.loop.run_until_complete(gathered)
+            gathered.exception()
+        except:
             pass
 
     # noinspection PyMethodOverriding
@@ -1806,7 +1806,7 @@ class MusicBot(discord.Client):
     ):
         player = _player if _player else None
 
-        if permissions.summonplay and not player:
+        if permissions.summonplay:
             voice_channel = author.voice.channel if author.voice else None
             response = await self.cmd_summon(
                 channel, channel.guild, author, voice_channel
