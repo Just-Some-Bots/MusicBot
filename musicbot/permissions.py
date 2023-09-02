@@ -197,6 +197,7 @@ class PermissionGroup:
 
         self.extractors = section_data.get("Extractors", fallback=fallback.Extractors)
 
+
         self.validate()
 
     def validate(self):
