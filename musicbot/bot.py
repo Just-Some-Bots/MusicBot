@@ -1676,6 +1676,168 @@ class MusicBot(discord.Client):
             head=True,
         )
 
+    async def cmd_repeat(self, channel, option=None):
+        """
+        Usage:
+            {command_prefix}repeat [all | song]
+
+        Toggles playlist or song looping.
+        If no option is provided the current song will be repeated.
+        If no option is provided and the song is already repeating, repeating will be turned off.
+        """
+
+        player = self.get_player_in(channel.guild)
+        option = option.lower() if option else ""
+
+        if not player:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-repeat-no-voice",
+                    "The bot is not in a voice channel.  "
+                    "Use %ssummon to summon it to your voice channel.",
+                )
+                % self.config.command_prefix,
+            )
+
+        if not player.current_entry:
+            return Response(
+                self.str.get(
+                    "cmd-repeat-no-songs",
+                    "No songs are queued. Play something with{}play.".format(
+                        self.config.command_prefix
+                    ),
+                ),
+            )
+
+        if option == "all":
+            player.loopqueue = not player.loopqueue
+            if player.loopqueue:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-playlist-looping", "Playlist is now repeating."
+                    ),
+                    delete_after=30,
+                )
+
+            else:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-playlist-not-looping",
+                        "Playlist is no longer repeating.",
+                    ),
+                    delete_after=30,
+                )
+
+        elif option == "song":
+            player.repeatsong = not player.repeatsong
+            if player.repeatsong:
+                return Response(
+                    self.str.get("cmd-repeat-song-looping", "Song is now repeating."),
+                    delete_after=30,
+                )
+
+            else:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-song-not-looping", "Song is no longer repeating."
+                    ),
+                    delete_after=30,
+                )
+        else:
+            if player.repeatsong:
+                player.loopqueue = True
+                player.repeatsong = False
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-noOption-playlist-looping",
+                        "Playlist is now repeating.",
+                    )
+                )
+            elif player.loopqueue:
+                if player.playlist.entries.__len__() > 0:
+                    message = self.str.get(
+                        "cmd-repeat-noOption-playlist-not-looping",
+                        "Playlist is no longer repeating.",
+                    )
+                else:
+                    message = self.str.get(
+                        "cmd-repeat-noOption-song-not-looping",
+                        "Song is no longer repeating.",
+                    )
+                player.loopqueue = False
+            else:
+                player.repeatsong = True
+                message = self.str.get(
+                    "cmd-repeat-noOption-song-looping", "Song is now repeating."
+                )
+
+        return Response(message, delete_after=30)
+
+    async def cmd_move(self, channel, command, leftover_args):
+        """
+        Usage:
+            {command_prefix}move [Index of song to move] [Index to move song to]
+            Ex: !move 1 3
+
+        Swaps the location of a song within the playlist.
+        """
+        player = self.get_player_in(channel.guild)
+        if not player:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-move-no-voice",
+                    "The bot is not in a voice channel.  "
+                    "Use %ssummon to summon it to your voice channel."
+                    % self.config.command_prefix,
+                )
+            )
+
+        if not player.current_entry:
+            return Response(
+                self.str.get(
+                    "cmd-move-no-songs",
+                    "There are no songs queued. Play something with {}play".format(
+                        self.config.command_prefix
+                    ),
+                ),
+            )
+
+        indexes = []
+        try:
+            indexes.append(int(command) - 1)
+            indexes.append(int(leftover_args[0]) - 1)
+        except:
+            return Response(
+                self.str.get(
+                    "cmd-move-indexes_not_intergers", "Song indexes must be integers!"
+                ),
+                delete_after=30,
+            )
+
+        for i in indexes:
+            if i < 0 or i > player.playlist.entries.__len__() - 1:
+                return Response(
+                    self.str.get(
+                        "cmd-move-invalid-indexes",
+                        "Sent indexes are outside of the playlist scope!",
+                    ),
+                    delete_after=30,
+                )
+
+        await self.safe_send_message(
+            channel,
+            self.str.get(
+                "cmd-move-success",
+                "Succefully moved the requested song from positon number {} in queue to position {}!".format(
+                    indexes[0] + 1, indexes[1] + 1
+                ),
+            ),
+        ),
+
+        song = player.playlist.delete_entry_at_index(indexes[0])
+
+        player.playlist.insert_entry_at_index(indexes[1], song)
+
     async def _cmd_play(
         self,
         message,
@@ -3064,11 +3226,16 @@ class MusicBot(discord.Client):
         force_skip = param.lower() in ["force", "f"]
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
-            player.skip()  # TODO: check autopause stuff here
-            await self._manual_delete_check(message)
-            return Response(
+            if not permissions.skiplooped and player.repeatsong:
+                raise errors.PermissionsError(self.str.get('cmd-skip-force-noperms-looped-song', "You do not have permission to force skip a looped song."))
+            else:
+                if player.repeatsong:
+                    player.repeatsong = False
+                player.skip()
+                await self._manual_delete_check(message)
+                return Response(
                 self.str.get("cmd-skip-force", "Force skipped `{}`.").format(
-                    current_entry.title
+                current_entry.title
                 ),
                 reply=True,
                 delete_after=30,
@@ -3107,8 +3274,14 @@ class MusicBot(discord.Client):
         )
 
         if skips_remaining <= 0:
-            player.skip()  # check autopause stuff here
+            if not permissions.skiplooped and player.repeatsong:
+                raise exceptions.PermissionsError(self.str.get('cmd-skip-vote-noperms-looped-song', "You do not have permission to skip a looped song."))
+            else:
+                if player.repeatsong:
+                    player.repeatsong = False
+            # check autopause stuff here
             # @TheerapakG: Check for pausing state in the player.py make more sense
+            player.skip()
             return Response(
                 self.str.get(
                     "cmd-skip-reply-skipped-1",
@@ -3125,20 +3298,25 @@ class MusicBot(discord.Client):
 
         else:
             # TODO: When a song gets skipped, delete the old x needed to skip messages
-            return Response(
-                self.str.get(
-                    "cmd-skip-reply-voted-1",
-                    "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
-                ).format(
-                    current_entry.title,
-                    skips_remaining,
-                    self.str.get("cmd-skip-reply-voted-2", "person is")
-                    if skips_remaining == 1
-                    else self.str.get("cmd-skip-reply-voted-3", "people are"),
-                ),
-                reply=True,
-                delete_after=20,
-            )
+            if not permissions.skiplooped and player.repeatsong:
+                raise exceptions.PermissionsError(self.str.get('cmd-skip-vote-noperms-looped-song'))
+            else:
+                if player.repeatsong:
+                    player.repeatsong = False
+                return Response(
+                    self.str.get(
+                        "cmd-skip-reply-voted-1",
+                        "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
+                    ).format(
+                        current_entry.title,
+                        skips_remaining,
+                        self.str.get("cmd-skip-reply-voted-2", "person is")
+                        if skips_remaining == 1
+                        else self.str.get("cmd-skip-reply-voted-3", "people are"),
+                    ),
+                    reply=True,
+                    delete_after=20,
+                )
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
@@ -3483,7 +3661,7 @@ class MusicBot(discord.Client):
                 "youtube": lambda d: "https://www.youtube.com/watch?v=%s" % d["id"],
                 "soundcloud": lambda d: d["url"],
                 "bandcamp": lambda d: d["url"],
-            }
+            },
         )
 
         exfunc = linegens[info["extractor"].split(":")[0]]
