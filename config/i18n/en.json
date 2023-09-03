@@ -90,6 +90,8 @@
     "cmd-skip-reply-voted-1": "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
     "cmd-skip-reply-voted-2": "person is",
     "cmd-skip-reply-voted-3": "people are",
+    "cmd-skip-force-noperms-looped-song": "You do not have permission to force skip a looped song.",
+    "cmd-skip-vote-noperms-looped-song": "You do not have permission to skip a looped song.",
     "cmd-volume-current": "Current volume: `%s%%`",
     "cmd-volume-invalid": "`{0}` is not a valid number",
     "cmd-volume-reply": "Updated volume from **%d** to **%d**",

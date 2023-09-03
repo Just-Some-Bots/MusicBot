@@ -3226,11 +3226,16 @@ class MusicBot(discord.Client):
         force_skip = param.lower() in ["force", "f"]
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
-            player.skip()  # TODO: check autopause stuff here
-            await self._manual_delete_check(message)
-            return Response(
+            if not permissions.skiplooped and player.repeatsong:
+                raise errors.PermissionsError(self.str.get('cmd-skip-force-noperms-looped-song', "You do not have permission to force skip a looped song."))
+            else:
+                if player.repeatsong:
+                    player.repeatsong = False
+                player.skip()
+                await self._manual_delete_check(message)
+                return Response(
                 self.str.get("cmd-skip-force", "Force skipped `{}`.").format(
-                    current_entry.title
+                current_entry.title
                 ),
                 reply=True,
                 delete_after=30,
@@ -3269,8 +3274,14 @@ class MusicBot(discord.Client):
         )
 
         if skips_remaining <= 0:
-            player.skip()  # check autopause stuff here
+            if not permissions.skiplooped and player.repeatsong:
+                raise exceptions.PermissionsError(self.str.get('cmd-skip-vote-noperms-looped-song', "You do not have permission to skip a looped song."))
+            else:
+                if player.repeatsong:
+                    player.repeatsong = False
+            # check autopause stuff here
             # @TheerapakG: Check for pausing state in the player.py make more sense
+            player.skip()
             return Response(
                 self.str.get(
                     "cmd-skip-reply-skipped-1",
@@ -3287,20 +3298,25 @@ class MusicBot(discord.Client):
 
         else:
             # TODO: When a song gets skipped, delete the old x needed to skip messages
-            return Response(
-                self.str.get(
-                    "cmd-skip-reply-voted-1",
-                    "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
-                ).format(
-                    current_entry.title,
-                    skips_remaining,
-                    self.str.get("cmd-skip-reply-voted-2", "person is")
-                    if skips_remaining == 1
-                    else self.str.get("cmd-skip-reply-voted-3", "people are"),
-                ),
-                reply=True,
-                delete_after=20,
-            )
+            if not permissions.skiplooped and player.repeatsong:
+                raise exceptions.PermissionsError(self.str.get('cmd-skip-vote-noperms-looped-song'))
+            else:
+                if player.repeatsong:
+                    player.repeatsong = False
+                return Response(
+                    self.str.get(
+                        "cmd-skip-reply-voted-1",
+                        "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
+                    ).format(
+                        current_entry.title,
+                        skips_remaining,
+                        self.str.get("cmd-skip-reply-voted-2", "person is")
+                        if skips_remaining == 1
+                        else self.str.get("cmd-skip-reply-voted-3", "people are"),
+                    ),
+                    reply=True,
+                    delete_after=20,
+                )
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
