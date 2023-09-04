@@ -186,7 +186,8 @@ class PermissionGroup:
             "InstaSkip", fallback=fallback.InstaSkip
         )
         self.skiplooped = section_data.getboolean(
-            "SkipLooped", fallback=fallback.SkipLooped)
+            "SkipLooped", fallback=fallback.SkipLooped
+        )
         self.remove = section_data.getboolean("Remove", fallback=fallback.Remove)
         self.skip_when_absent = section_data.getboolean(
             "SkipWhenAbsent", fallback=fallback.SkipWhenAbsent

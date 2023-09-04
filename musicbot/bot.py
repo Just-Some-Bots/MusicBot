@@ -3227,19 +3227,24 @@ class MusicBot(discord.Client):
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
             if not permissions.skiplooped and player.repeatsong:
-                raise errors.PermissionsError(self.str.get('cmd-skip-force-noperms-looped-song', "You do not have permission to force skip a looped song."))
+                raise errors.PermissionsError(
+                    self.str.get(
+                        "cmd-skip-force-noperms-looped-song",
+                        "You do not have permission to force skip a looped song.",
+                    )
+                )
             else:
                 if player.repeatsong:
                     player.repeatsong = False
                 player.skip()
                 await self._manual_delete_check(message)
                 return Response(
-                self.str.get("cmd-skip-force", "Force skipped `{}`.").format(
-                current_entry.title
-                ),
-                reply=True,
-                delete_after=30,
-            )
+                    self.str.get("cmd-skip-force", "Force skipped `{}`.").format(
+                        current_entry.title
+                    ),
+                    reply=True,
+                    delete_after=30,
+                )
 
         if not permission_force_skip and force_skip:
             raise exceptions.PermissionsError(
@@ -3275,7 +3280,12 @@ class MusicBot(discord.Client):
 
         if skips_remaining <= 0:
             if not permissions.skiplooped and player.repeatsong:
-                raise exceptions.PermissionsError(self.str.get('cmd-skip-vote-noperms-looped-song', "You do not have permission to skip a looped song."))
+                raise exceptions.PermissionsError(
+                    self.str.get(
+                        "cmd-skip-vote-noperms-looped-song",
+                        "You do not have permission to skip a looped song.",
+                    )
+                )
             else:
                 if player.repeatsong:
                     player.repeatsong = False
@@ -3299,7 +3309,12 @@ class MusicBot(discord.Client):
         else:
             # TODO: When a song gets skipped, delete the old x needed to skip messages
             if not permissions.skiplooped and player.repeatsong:
-                raise exceptions.PermissionsError(self.str.get('cmd-skip-vote-noperms-looped-song'))
+                raise exceptions.PermissionsError(
+                    self.str.get(
+                        "cmd-skip-vote-noperms-looped-song",
+                        "You do not have permission to skip a looped song.",
+                    )
+                )
             else:
                 if player.repeatsong:
                     player.repeatsong = False
