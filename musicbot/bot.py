@@ -2892,7 +2892,6 @@ class MusicBot(discord.Client):
             self.server_specific_data[guild][
                 "last_np_msg"
             ] = await self.safe_send_message(channel, np_text)
-            await self._manual_delete_check(message)
         else:
             return Response(
                 self.str.get(
@@ -3152,7 +3151,6 @@ class MusicBot(discord.Client):
             index - 1
         ).meta.get("author", None):
             entry = player.playlist.delete_entry_at_index((index - 1))
-            await self._manual_delete_check(message)
             if entry.meta.get("channel", False) and entry.meta.get("author", False):
                 return Response(
                     self.str.get(
@@ -3232,7 +3230,6 @@ class MusicBot(discord.Client):
                 if player.repeatsong:
                     player.repeatsong = False
                 player.skip()
-                await self._manual_delete_check(message)
                 return Response(
                 self.str.get("cmd-skip-force", "Force skipped `{}`.").format(
                 current_entry.title
