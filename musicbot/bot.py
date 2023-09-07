@@ -604,6 +604,7 @@ class MusicBot(discord.Client):
                     title=entry.title,
                     author=entry.meta["author"].name,
                 )
+
         else:
             # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
             newmsg = self.str.get(
@@ -637,10 +638,17 @@ class MusicBot(discord.Client):
                 log.debug("no channel to put now playing message into")
                 return
 
-            # send it in specified channel
-            self.server_specific_data[guild][
-                "last_np_msg"
-            ] = await self.safe_send_message(channel, newmsg)
+        if self.config.embeds:
+            content = self._gen_embed()
+            content.title = newmsg
+            url = player.current_entry.url
+            videoID = url.split("watch?v=")[1].split("&")[0]
+            content.set_image(url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg")
+
+        # send it in specified channel
+        self.server_specific_data[guild]["last_np_msg"] = await self.safe_send_message(
+            channel, content if self.config.embeds else newmsg
+        )
 
         # TODO: Check channel voice state?
 
@@ -2888,10 +2896,26 @@ class MusicBot(discord.Client):
                     progress=prog_str,
                     url=player.current_entry.url,
                 )
+            if self.config.embeds:
+                url = player.current_entry.url
+                videoID = url.split("watch?v=")[1].split("&")[0]
+                np_text = (
+                    np_text.replace("Now ", "")
+                    .replace(action_text, "")
+                    .replace(": ", "", 1)
+                )
+                content = self._gen_embed()
+                content.title = action_text
+                content.add_field(name="** **", value=np_text, inline=True)
+                content.set_image(
+                    url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
+                )
 
             self.server_specific_data[guild][
                 "last_np_msg"
-            ] = await self.safe_send_message(channel, np_text)
+            ] = await self.safe_send_message(
+                channel, content if self.config.embeds else np_text
+            )
         else:
             return Response(
                 self.str.get(
