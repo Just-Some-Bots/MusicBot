@@ -401,11 +401,6 @@ class MusicBot(discord.Client):
         await asyncio.sleep(after)
         await self.safe_delete_message(message, quiet=True)
 
-    # TODO: Check to see if I can just move this to on_message after the response check
-    async def _manual_delete_check(self, message, *, quiet=False):
-        if self.config.delete_invoking:
-            await self.safe_delete_message(message, quiet=quiet)
-
     async def _check_ignore_non_voice(self, msg):
         if msg.guild.me.voice:
             vc = msg.guild.me.voice.channel
