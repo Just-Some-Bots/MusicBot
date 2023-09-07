@@ -642,7 +642,7 @@ class MusicBot(discord.Client):
 
         # send it in specified channel
         self.server_specific_data[guild]["last_np_msg"] = await self.safe_send_message(
-            channel, content if self.config.embeds else newmsg
+            channel, content if self.config.embeds else newmsg, expire_in=30
         )
 
         # TODO: Check channel voice state?
@@ -2909,7 +2909,7 @@ class MusicBot(discord.Client):
             self.server_specific_data[guild][
                 "last_np_msg"
             ] = await self.safe_send_message(
-                channel, content if self.config.embeds else np_text
+                channel, content if self.config.embeds else np_text, expire_in=30
             )
         else:
             return Response(
@@ -2990,7 +2990,8 @@ class MusicBot(discord.Client):
         return Response(
             self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
                 author.voice.channel
-            )
+            ),
+            delete_after=30,
         )
 
     async def cmd_pause(self, player):
