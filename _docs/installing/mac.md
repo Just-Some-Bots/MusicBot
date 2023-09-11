@@ -14,7 +14,9 @@ You will need to open Terminal and run the following commands:
 
 ```bash
 # Install Homebrew and Xcode command line tools
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/$(id -un)/.zprofile \
+eval "$(/opt/homebrew/bin/brew shellenv)" # To fix "zsh: command not found: brew"
 brew update
 xcode-select --install
 
