@@ -37,8 +37,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install bot requirements
-sudo pip3.5 install -U -r requirements.txt
-sudo pip3.5 install -U pynacl
+pip3.5 install -U -r requirements.txt
+pip3.5 install -U pynacl
 ~~~
 
 ## CentOS 7.4
@@ -60,7 +60,7 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install bot requirements
-sudo python3.5 -m pip install -U -r requirements.txt
+python3.5 -m pip install -U -r requirements.txt
 ~~~
 {: title="CentOS 7.4" }
 

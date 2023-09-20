@@ -84,8 +84,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b master
 cd ~/MusicBot
 
 # Install Python dependencies
-sudo python3.8 -m pip install -U pip
-sudo python3.8 -m pip install -U -r requirements.txt 
+python3.8 -m pip install -U pip
+python3.8 -m pip install -U -r requirements.txt 
 ~~~
 
 
