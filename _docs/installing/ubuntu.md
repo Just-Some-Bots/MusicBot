@@ -67,8 +67,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b review
 cd ~/MusicBot
 
 # Install Python dependencies
-sudo python3.8 -m pip install -U pip
-sudo python3.8 -m pip install -U -r requirements.txt
+python3.8 -m pip install -U pip
+python3.8 -m pip install -U -r requirements.txt
 ~~~
 
 ## Ubuntu 16.04
@@ -98,8 +98,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git ~/MusicBot -b master
 cd ~/MusicBot
 
 # Install Python dependencies
-sudo python3.8 -m pip install -U pip
-sudo python3.8 -m pip install -U -r requirements.txt 
+python3.8 -m pip install -U pip
+python3.8 -m pip install -U -r requirements.txt 
 ~~~
 
 After doing those commands, you can [configure]({{ site.baseurl }}/using/configuration) the bot and then run it using `sudo ./run.sh`.
