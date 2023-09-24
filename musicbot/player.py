@@ -1,8 +1,8 @@
 import asyncio
+import io
 import json
 import logging
 import os
-import subprocess
 import sys
 from enum import Enum
 from threading import Thread
@@ -264,13 +264,15 @@ class MusicPlayer(EventEmitter, Serializable):
                     )
                 )
 
+                stderr_io = io.BytesIO()
+
                 self._source = SourcePlaybackCounter(
                     PCMVolumeTransformer(
                         FFmpegPCMAudio(
                             entry.filename,
                             before_options=boptions,
                             options=aoptions,
-                            stderr=subprocess.PIPE,
+                            stderr=stderr_io,
                         ),
                         self.volume,
                     )
@@ -290,7 +292,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 stderr_thread = Thread(
                     target=filter_stderr,
-                    args=(self._source._source.original._process, self._stderr_future),
+                    args=(stderr_io, self._stderr_future),
                     name="stderr reader",
                 )
 
@@ -374,11 +376,11 @@ class MusicPlayer(EventEmitter, Serializable):
 # TODO: I need to add a check for if the eventloop is closed
 
 
-def filter_stderr(popen: subprocess.Popen, future: asyncio.Future):
+def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
     last_ex = None
 
     while True:
-        data = popen.stderr.readline()
+        data = stderr.readline()
         if data:
             log.ffmpeg("Data from ffmpeg: {}".format(data))
             try:
