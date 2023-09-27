@@ -1,4 +1,5 @@
 # MusicBot
+# For Personal Use I am using this fork to updated my modded version of Musicbot this isn't intended to be used by anyone
 
 [![GitHub stars](https://img.shields.io/github/stars/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/network)
