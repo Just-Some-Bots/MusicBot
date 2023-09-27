@@ -1,6 +1,7 @@
 import sys
 import inspect
 import logging
+from datetime import datetime
 
 from textwrap import dedent
 
@@ -117,7 +118,9 @@ _add_logger_level("VOICEDEBUG", 6)
 log = logging.getLogger(__name__)
 log.setLevel(logging.EVERYTHING)
 
-fhandler = logging.FileHandler(filename="logs/musicbot.log", encoding="utf-8", mode="a")
+# added code for handing logs with dates in the name
+musicbotlog = datetime.now().strftime('logs/musicbot_%Y-%m-%d_%H-%M.log')
+fhandler = logging.FileHandler(filename=musicbotlog, encoding='utf-8', mode='a')
 fhandler.setFormatter(
     logging.Formatter(
         "[{relativeCreated:.16f}] {asctime} - {levelname} - {name} | "

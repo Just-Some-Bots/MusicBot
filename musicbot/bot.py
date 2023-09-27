@@ -9,7 +9,6 @@ import re
 import shlex
 import shutil
 import sys
-import time
 import traceback
 from collections import defaultdict
 from datetime import timedelta
@@ -17,11 +16,10 @@ from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
 from typing import Optional
-
+from time import time
 import aiohttp
 import colorlog
 import discord
-
 from . import downloader
 from . import exceptions
 from .aliases import Aliases, AliasesDefault
@@ -49,6 +47,13 @@ from .utils import (
 load_opus_lib()
 
 log = logging.getLogger(__name__)
+log.warning("Deleting logs older than 1 week")
+
+# Logs folder path
+path = 'logs/'
+# searches for files that are older than 7 days and deletes them
+result = [os.remove(file) for file in (os.path.join(path, file) for path, _, files in os.walk(path) for file in files) if os.stat(file).st_mtime < time() - 7 * 86400]
+log.info("old logs deleted")
 
 intents = discord.Intents.all()
 intents.typing = False
