@@ -94,6 +94,10 @@ def safe_print(content, *, end="\n", flush=True):
         sys.stdout.flush()
 
 
+def avg(i):
+    return sum(i) / len(i)
+
+
 def objdiff(obj1, obj2, *, access_attr=None, depth=0):
     changes = {}
 

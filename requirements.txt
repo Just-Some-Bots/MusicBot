@@ -1,5 +1,5 @@
 pynacl
-git+https://github.com/imayhaveborkedit/discord.py@voice_rewrite#egg=discord.py[voice]
+discord.py[voice]==2.3.1
 pip
 yt-dlp
 colorlog

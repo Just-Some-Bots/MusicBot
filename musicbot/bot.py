@@ -12,7 +12,7 @@ import sys
 import time
 import traceback
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, datetime
 from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
@@ -49,6 +49,21 @@ from .utils import (
 load_opus_lib()
 
 log = logging.getLogger(__name__)
+log.warning("purging logs older than 1 week")
+
+now = time.time()
+cutoff = now - (7 * 86400)
+
+files = os.listdir("logs/")
+for xfile in files:
+    if os.path.isfile("logs/" + xfile):
+                t = os.stat("logs/" + xfile)
+                c = t.st_ctime
+
+                # delete file if older than a week
+                if c < cutoff:
+                    os.remove("logs/" + xfile)
+
 
 intents = discord.Intents.all()
 intents.typing = False
@@ -1344,17 +1359,32 @@ class MusicBot(discord.Client):
 
     def _gen_embed(self):
         """Provides a basic template for embeds"""
+        timekeeper = datetime.now().strftime('%I:%M %p %m/%d/%Y')
         e = discord.Embed()
-        e.colour = 7506394
-        e.set_footer(
-            text=self.config.footer_text, icon_url="https://i.imgur.com/gFHBoZA.png"
-        )
-        e.set_author(
-            name=self.user.name,
-            url="https://github.com/Just-Some-Bots/MusicBot",
-            icon_url=self.user.avatar.url if self.user.avatar else None,
-        )
+        e.colour = 5577355
+        e.set_footer(text='[ChickenFocker: {}]  [{}]'.format(BOTVERSION, timekeeper),
+                     icon_url=self.user.avatar.url)
+        e.set_author(name=self.user.name, url='https://just-some-bots.github.io/MusicBot/',
+                     icon_url=self.user.avatar.url)
         return e
+
+    async def cmd_info(self):
+        """
+        Usage:
+            {command_prefix}info
+        basic info on the bot
+        """
+        timekeeper = datetime.now().strftime('%I:%M %p %m/%d/%Y')
+        embed = discord.Embed(title='Rhapsody', color=0x752c00, description='Rhapsody is a mod/fork of the Just-Some-Bots MusicBot')
+        embed.add_field(name='Source Project', value='https://github.com/Just-Some-Bots/MusicBot', inline=False)
+        embed.set_thumbnail(url='https://i.imgur.com/WHDvEbm.png')
+        embed.add_field(name='Version', value=BOTVERSION, inline=True)
+        embed.add_field(name='Developer', value='Ozzy Helix', inline=False)
+        embed.add_field(name='Codename', value='Fuji', inline=False)
+        embed.add_field(name='based on', value='The Rhapsody Project/Just-Some-Bots', inline=False)
+        embed.set_footer(text='[Rhapsody: {}]  [{}]'.format(BOTVERSION, timekeeper), icon_url='https://i.imgur.com/MC1QQLI.png')
+        embed.set_author(name=self.user.name, url='https://just-some-bots.github.io/MusicBot/', icon_url=self.user.avatar_url)
+        return Response(embed, delete_after=25)
 
     async def cmd_resetplaylist(self, player, channel):
         """
@@ -2881,6 +2911,7 @@ class MusicBot(discord.Client):
                     url=player.current_entry.url,
                 )
             else:
+
                 np_text = self.str.get(
                     "cmd-np-reply-noauthor",
                     "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
@@ -2891,26 +2922,11 @@ class MusicBot(discord.Client):
                     progress=prog_str,
                     url=player.current_entry.url,
                 )
-            if self.config.embeds:
-                url = player.current_entry.url
-                videoID = url.split("watch?v=")[1].split("&")[0]
-                np_text = (
-                    np_text.replace("Now ", "")
-                    .replace(action_text, "")
-                    .replace(": ", "", 1)
-                )
-                content = self._gen_embed()
-                content.title = action_text
-                content.add_field(name="** **", value=np_text, inline=True)
-                content.set_image(
-                    url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
-                )
 
             self.server_specific_data[guild][
                 "last_np_msg"
-            ] = await self.safe_send_message(
-                channel, content if self.config.embeds else np_text, expire_in=30
-            )
+            ] = await self.safe_send_message(channel, np_text)
+            await self._manual_delete_check(message)
         else:
             return Response(
                 self.str.get(
@@ -3942,21 +3958,65 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-    async def cmd_shutdown(self, channel):
+    @owner_only
+    async def cmd_stop(self, channel, message):
         """
         Usage:
-            {command_prefix}shutdown
-
-        Disconnects from voice channels and closes the bot process.
+            {command_prefix}stop
+        turns the bot off completely
         """
-        await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
+        warning_message = await self.safe_send_message(channel, 'This will make the bot go offline.'
+                                                                ' Are you sure you want to continue?')
 
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
+        def check(reaction, user):
+            return user == message.author and reaction.message.id == warning_message.id  # why can't these objs be compared directly?
 
-        await self.disconnect_all_voice_clients()
-        raise exceptions.TerminateSignal()
+        reactions = ['\U0001F1FE', '\U0001F1F3']
+        for r in reactions:
+            await warning_message.add_reaction(r)
+
+        try:
+            reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+        except asyncio.TimeoutError:
+            await self.safe_delete_message(warning_message)
+            return
+
+        for r in reactions:
+            await warning_message.add_reaction(r)
+
+        if str(reaction.emoji) == '\U0001F1FE':  # check
+            await self.safe_send_message(channel, "**Shutting Down Rhapsody framework** :wave::skin-tone-1:")
+            await self.disconnect_all_voice_clients()
+            raise exceptions.TerminateSignal()
+
+        elif str(reaction.emoji) == '\U0001F1F3':
+
+            return Response(self.str.get('cmd-nopoweroff-reply', "**Shutdown Cancelled**"), delete_after=10)
+
+    async def cmd_leaveserver(self, val, leftover_args):
+        """
+        Usage:
+            {command_prefix}leaveserver <name/ID>
+
+        Forces the bot to leave a server.
+        When providing names, names are case-sensitive.
+        """
+        if leftover_args:
+            val = " ".join([val, *leftover_args])
+
+        t = self.get_guild(val)
+        if t is None:
+            t = discord.utils.get(self.guilds, name=val)
+            if t is None:
+                raise exceptions.CommandError(
+                    "No guild was found with the ID or name as `{0}`".format(val)
+                )
+        await t.leave()
+        return Response(
+            "Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)".format(
+                t
+            )
+        )
 
     async def cmd_leaveserver(self, val, leftover_args):
         """

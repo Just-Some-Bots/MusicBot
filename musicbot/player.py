@@ -1,10 +1,14 @@
 import asyncio
-import io
+import audioop
 import json
 import logging
 import os
+import subprocess
 import sys
+from array import array
+from collections import deque
 from enum import Enum
+from shutil import get_terminal_size
 from threading import Thread
 
 from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource
@@ -13,8 +17,72 @@ from .constructs import Serializable, Serializer
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import FFmpegError, FFmpegWarning
 from .lib.event_emitter import EventEmitter
+from .utils import avg
 
 log = logging.getLogger(__name__)
+
+
+class PatchedBuff:
+    """
+    PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
+    """
+
+    def __init__(self, buff, *, draw=False):
+        self.buff = buff
+        self.frame_count = 0
+        self.volume = 1.0
+
+        self.draw = draw
+        self.use_audioop = True
+        self.frame_skip = 2
+        self.rmss = deque([2048], maxlen=90)
+
+    def __del__(self):
+        if self.draw:
+            print(" " * (get_terminal_size().columns - 1), end="\r")
+
+    def read(self, frame_size):
+        self.frame_count += 1
+
+        frame = self.buff.read(frame_size)
+
+        if self.volume != 1:
+            frame = self._frame_vol(frame, self.volume, maxv=2)
+
+        if self.draw and not self.frame_count % self.frame_skip:
+            # these should be processed for every frame, but "overhead"
+            rms = audioop.rms(frame, 2)
+            self.rmss.append(rms)
+
+            max_rms = sorted(self.rmss)[-1]
+            meter_text = "avg rms: {:.2f}, max rms: {:.2f} ".format(
+                avg(self.rmss), max_rms
+            )
+            self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
+
+        return frame
+
+    def _frame_vol(self, frame, mult, *, maxv=2, use_audioop=True):
+        if use_audioop:
+            return audioop.mul(frame, 2, min(mult, maxv))
+        else:
+            # ffmpeg returns s16le pcm frames.
+            frame_array = array("h", frame)
+
+            for i in range(len(frame_array)):
+                frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
+
+            return frame_array.tobytes()
+
+    def _pprint_meter(self, perc, *, char="#", text="", shift=True):
+        tx, ty = get_terminal_size()
+
+        if shift:
+            outstr = text + "{}".format(char * (int((tx - len(text)) * perc) - 1))
+        else:
+            outstr = text + "{}".format(char * (int(tx * perc) - 1))[len(text) :]
+
+        print(outstr.ljust(tx - 1), end="\r")
 
 
 class MusicPlayerState(Enum):
@@ -264,15 +332,13 @@ class MusicPlayer(EventEmitter, Serializable):
                     )
                 )
 
-                stderr_io = io.BytesIO()
-
                 self._source = SourcePlaybackCounter(
                     PCMVolumeTransformer(
                         FFmpegPCMAudio(
                             entry.filename,
                             before_options=boptions,
                             options=aoptions,
-                            stderr=stderr_io,
+                            stderr=subprocess.PIPE,
                         ),
                         self.volume,
                     )
@@ -292,7 +358,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 stderr_thread = Thread(
                     target=filter_stderr,
-                    args=(stderr_io, self._stderr_future),
+                    args=(self._source._source.original._process, self._stderr_future),
                     name="stderr reader",
                 )
 
@@ -376,11 +442,11 @@ class MusicPlayer(EventEmitter, Serializable):
 # TODO: I need to add a check for if the eventloop is closed
 
 
-def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
+def filter_stderr(popen: subprocess.Popen, future: asyncio.Future):
     last_ex = None
 
     while True:
-        data = stderr.readline()
+        data = popen.stderr.readline()
         if data:
             log.ffmpeg("Data from ffmpeg: {}".format(data))
             try:
