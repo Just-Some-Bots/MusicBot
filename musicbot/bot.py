@@ -2905,7 +2905,7 @@ class MusicBot(discord.Client):
                 if match:
                     videoID = match.group(1)
                 else:
-                    log.error("Unkknown link or unable to get video ID.")
+                    log.error("Unknown link or unable to get video ID.")
 
                 np_text = (
                     np_text.replace("Now ", "")
