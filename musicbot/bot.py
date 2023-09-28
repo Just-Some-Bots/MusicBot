@@ -634,10 +634,16 @@ class MusicBot(discord.Client):
                 return
 
         if self.config.embeds:
+            url = player.current_entry.url
+            # Attempt to grab video ID from possible link names
+            match = re.search(r'(?:youtu\.be/|youtube\.com/watch\?v=|youtube\.com/embed/)([\w-]+)', url)
+
+            if match:
+                videoID = match.group(1)
+            else:
+                log.error("Unkknown link or unable to get video ID.")
             content = self._gen_embed()
             content.title = newmsg
-            url = player.current_entry.url
-            videoID = url.split("watch?v=")[1].split("&")[0]
             content.set_image(url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg")
 
         # send it in specified channel
@@ -2893,7 +2899,14 @@ class MusicBot(discord.Client):
                 )
             if self.config.embeds:
                 url = player.current_entry.url
-                videoID = url.split("watch?v=")[1].split("&")[0]
+                # Attempt to grab video ID from possible link names
+                match = re.search(r'(?:youtu\.be/|youtube\.com/watch\?v=|youtube\.com/embed/)([\w-]+)', url)
+
+                if match:
+                    videoID = match.group(1)
+                else:
+                    log.error("Unkknown link or unable to get video ID.")
+
                 np_text = (
                     np_text.replace("Now ", "")
                     .replace(action_text, "")
