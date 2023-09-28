@@ -27,6 +27,7 @@ class PermissionsDefaults:
 
     AllowPlaylists = True
     InstaSkip = False
+    SkipLooped = False
     Remove = False
     SkipWhenAbsent = True
     BypassKaraokeMode = False
@@ -50,6 +51,7 @@ class Permissive:
 
     AllowPlaylists = True
     InstaSkip = True
+    SkipLooped = False
     Remove = True
     SkipWhenAbsent = False
     BypassKaraokeMode = True
@@ -183,6 +185,9 @@ class PermissionGroup:
         self.instaskip = section_data.getboolean(
             "InstaSkip", fallback=fallback.InstaSkip
         )
+        self.skiplooped = section_data.getboolean(
+            "SkipLooped", fallback=fallback.SkipLooped
+        )
         self.remove = section_data.getboolean("Remove", fallback=fallback.Remove)
         self.skip_when_absent = section_data.getboolean(
             "SkipWhenAbsent", fallback=fallback.SkipWhenAbsent
@@ -209,10 +214,10 @@ class PermissionGroup:
         if self.ignore_non_voice:
             self.ignore_non_voice = set(self.ignore_non_voice.lower().split())
 
-        if self.granted_to_roles:
+        if self.granted_to_roles or self.granted_to_roles == "":
             self.granted_to_roles = set([int(x) for x in self.granted_to_roles.split()])
 
-        if self.user_list:
+        if self.user_list or self.user_list == "":
             self.user_list = set([int(x) for x in self.user_list.split()])
 
         if self.extractors:

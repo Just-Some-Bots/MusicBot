@@ -55,6 +55,11 @@ class Playlist(EventEmitter, Serializable):
         self.entries.rotate(index)
         return entry
 
+    def insert_entry_at_index(self, index, song):
+        self.entries.rotate(-index)
+        self.entries.appendleft(song)
+        self.entries.rotate(index)
+
     async def add_entry(self, song_url, *, head, **meta):
         """
         Validates and adds a song_url to be played. This does not start the download of the song.
