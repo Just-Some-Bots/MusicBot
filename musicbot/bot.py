@@ -74,6 +74,8 @@ class MusicBot(discord.Client):
             aliases_file = AliasesDefault.aliases_file
 
         self.players = {}
+        self.guild_data = {}
+        self.timers = {}
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
@@ -4423,9 +4425,43 @@ class MusicBot(discord.Client):
                         "{}{}".format(self.config.command_prefix, command_name)
                     )
 
+    async def on_timer_expired(self, voice_channel):
+        guild_id = voice_channel.guild.id
+        timers = self.guild_data.get(guild_id, {}).get("voice_channel_timers", {})
+        if voice_channel.id in timers:
+            guild = self.get_guild(guild_id)
+            vc = guild.get_channel(voice_channel.id)
+            if vc:
+                log.debug(f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity.") #At some point I want to send this to a channel instead of just logging it
+                await self.disconnect_voice_client(guild)
+            del timers[voice_channel.id]
+
     async def on_voice_state_update(self, member, before, after):
         if not self.init_ok:
             return  # Ignore stuff before ready
+
+        if self.config.leave_inactives:
+            guild_id = member.guild.id
+
+            # Ensure timers are initialized for this guild
+            if guild_id not in self.guild_data:
+                self.guild_data[guild_id] = {
+                    "voice_channel_timers": {}
+                }
+
+            timers = self.guild_data[guild_id]["voice_channel_timers"]
+
+            if before.channel and member != self.user:
+                if not any(not user.bot for user in before.channel.members):
+                    if before.channel.id not in timers:
+                        timers[before.channel.id] = self.loop.create_task(asyncio.sleep(self.config.leave_inactiveVCTimeOut))
+                        timers[before.channel.id].add_done_callback(lambda task: asyncio.ensure_future(self.on_timer_expired(before.channel)))
+                        log.debug(f"Started timer for inactive channel {before.channel.name} in {before.channel.guild}")
+            elif after.channel:
+                if after.channel.id in timers:
+                    timers[after.channel.id].cancel()
+                    log.debug("Cancelling timer as voice channel is no longer inactive.") #same here
+                    del timers[after.channel.id]
 
         if before.channel:
             channel = before.channel
