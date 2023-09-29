@@ -193,7 +193,9 @@ class Config:
             "MusicBot", "LeaveInactiveVC", fallback=ConfigDefaults.leave_inactiveVC
         )
         self.leave_inactiveVCTimeOut = config.getint(
-            "MusicBot", "LeaveInactiveVCTimeOut", fallback=ConfigDefaults.leave_inactiveVCTimeOut
+            "MusicBot",
+            "LeaveInactiveVCTimeOut",
+            fallback=ConfigDefaults.leave_inactiveVCTimeOut,
         )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
