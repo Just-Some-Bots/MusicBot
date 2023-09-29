@@ -4463,6 +4463,14 @@ class MusicBot(discord.Client):
                     log.debug("Cancelling timer as voice channel is no longer inactive.") #same here
                     del timers[after.channel.id]
 
+            for channel_id in list(timers.keys()):
+                channel = self.get_channel(channel_id)
+                if channel and member == self.user and before.channel != after.channel:
+                    if not any(not user.bot for user in channel.members):
+                        timers[channel_id].cancel()
+                        log.debug(f"Cancelling timer for inactive channel {channel.name}.")
+                        del timers[channel_id]
+
         if before.channel:
             channel = before.channel
         elif after.channel:
