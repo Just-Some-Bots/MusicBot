@@ -4432,7 +4432,7 @@ class MusicBot(discord.Client):
             guild = self.get_guild(guild_id)
             vc = guild.get_channel(voice_channel.id)
             if vc:
-                log.debug(
+                log.info(
                     f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity."
                 )  # At some point I want to send this to a channel instead of just logging it
                 await self.disconnect_voice_client(guild)
@@ -4453,7 +4453,10 @@ class MusicBot(discord.Client):
 
             if before.channel and member != self.user:
                 if not any(not user.bot for user in before.channel.members):
-                    if before.channel.id not in timers:
+                    if not any(
+                        str(before.channel.id) in str(channel_id)
+                        for channel_id in [timers, self.config.autojoin_channels]
+                    ):
                         timers[before.channel.id] = self.loop.create_task(
                             asyncio.sleep(self.config.leave_inactiveVCTimeOut)
                         )
@@ -4462,14 +4465,18 @@ class MusicBot(discord.Client):
                                 self.on_timer_expired(before.channel)
                             )
                         )
-                        log.debug(
+                        log.info(
                             f"Started timer for inactive channel {before.channel.name} in {before.channel.guild}"
+                        )
+                    if str(before.channel.id) in str(self.config.autojoin_channels):
+                        log.info(
+                            f"Ignoring {before.channel.name} in {before.channel.guild} as it is a binded voice channel."
                         )
             elif after.channel:
                 if after.channel.id in timers:
                     timers[after.channel.id].cancel()
-                    log.debug(
-                        "Cancelling timer as voice channel is no longer inactive."
+                    log.info(
+                        f"Cancelling timer for {after.channel.name} in {after.channel.guild} as channel is no longer inactive."
                     )  # same here
                     del timers[after.channel.id]
 
@@ -4478,8 +4485,8 @@ class MusicBot(discord.Client):
                 if channel and member == self.user and before.channel != after.channel:
                     if not any(not user.bot for user in channel.members):
                         timers[channel_id].cancel()
-                        log.debug(
-                            f"Cancelling timer for inactive channel {channel.name}."
+                        log.info(
+                            f"Cancelling timer for {channel.name} in {channel.guild} as channel is no longer inactive."
                         )
                         del timers[channel_id]
 
