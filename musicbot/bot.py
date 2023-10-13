@@ -4435,9 +4435,19 @@ class MusicBot(discord.Client):
             guild = self.get_guild(guild_id)
             vc = guild.get_channel(voice_channel.id)
             if vc:
-                log.info(
-                    f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity."
-                )  # At some point I want to send this to a channel instead of just logging it
+                try:
+                    last_np_msg = last_np_msg = self.server_specific_data[guild][
+                        "last_np_msg"
+                    ]
+                    channel = last_np_msg.channel
+                    await self.safe_send_message(
+                        channel,
+                        f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity.",
+                    )
+                except:
+                    log.info(
+                        f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity."
+                    )
                 await self.disconnect_voice_client(guild)
             del timers[voice_channel.id]
 
@@ -4480,7 +4490,7 @@ class MusicBot(discord.Client):
                     timers[after.channel.id].cancel()
                     log.info(
                         f"Cancelling timer for {after.channel.name} in {after.channel.guild} as channel is no longer inactive."
-                    )  # same here
+                    )
                     del timers[after.channel.id]
 
             for channel_id in list(timers.keys()):
