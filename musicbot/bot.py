@@ -672,6 +672,10 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         log.debug("Running on_player_finished_playing")
+        if self.config.leave_after_song:
+            guild = player.voice_client.guild
+            if player.playlist.entries.__len__() == 0:
+                await self.disconnect_voice_client(guild)
 
         # delete last_np_msg somewhere if we have cached it
         if self.config.delete_nowplaying:
