@@ -75,7 +75,6 @@ class MusicBot(discord.Client):
 
         self.players = {}
         self.guild_data = {}
-        self.timers = {}
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
