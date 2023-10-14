@@ -74,7 +74,6 @@ class MusicBot(discord.Client):
             aliases_file = AliasesDefault.aliases_file
 
         self.players = {}
-        self.guild_data = {}
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
@@ -114,6 +113,8 @@ class MusicBot(discord.Client):
             "last_np_msg": None,
             "auto_paused": False,
             "availability_paused": False,
+            "guild_id": None,
+            "voice_channel_timers": None,
         }
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
@@ -4430,7 +4431,9 @@ class MusicBot(discord.Client):
 
     async def on_timer_expired(self, voice_channel):
         guild_id = voice_channel.guild.id
-        timers = self.guild_data.get(guild_id, {}).get("voice_channel_timers", {})
+        timers = self.server_specific_data.get(guild_id, {}).get(
+            "voice_channel_timers", {}
+        )
         if voice_channel.id in timers:
             guild = self.get_guild(guild_id)
             vc = guild.get_channel(voice_channel.id)
@@ -4459,10 +4462,10 @@ class MusicBot(discord.Client):
             guild_id = member.guild.id
 
             # Ensure timers are initialized for this guild
-            if guild_id not in self.guild_data:
-                self.guild_data[guild_id] = {"voice_channel_timers": {}}
+            if guild_id not in self.server_specific_data:
+                self.server_specific_data[guild_id] = {"voice_channel_timers": {}}
 
-            timers = self.guild_data[guild_id]["voice_channel_timers"]
+            timers = self.server_specific_data[guild_id]["voice_channel_timers"]
 
             if before.channel and member != self.user:
                 if not any(not user.bot for user in before.channel.members):
