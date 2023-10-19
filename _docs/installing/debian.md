@@ -41,8 +41,10 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install dependencies
+
 python3 -m pip install --upgrade pip
 python3 -m pip install --upgrade -r requirements.txt
+
 ~~~
 
 After this, you can find a folder called `MusicBot` inside your home directory. [Configure]({{ site.baseurl }}/using/configuration) it, and then run `bash ./run.sh` to start the bot.
