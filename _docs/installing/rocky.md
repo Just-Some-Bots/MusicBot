@@ -6,7 +6,7 @@ order: 11
 
 <img class="doc-img" src="{{ site.baseurl }}/images/rocky.png" alt="rocky" style="width: 75px; float: right;"/>
 
-Installing the bot on Rocky is similar to [Ubuntu](/installing/ubuntu), but requires a different package manager.
+Installing the bot on Rocky is similar to [Ubuntu]({{ site.baseurl }}/installing/ubuntu), but requires a different package manager.
 
 # Rocky (tested on Rocky 9)
 ~~~bash

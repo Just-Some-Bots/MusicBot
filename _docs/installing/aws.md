@@ -16,7 +16,7 @@ From here, you can click the Orange “Launch Instance” button, to start setti
 
 [![](https://aleanaazure.xyz/lib/exe/fetch.php?w=512&h=512&tok=6d2992&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FLaunch_Instance.PNG)](https://aleanaazure.xyz/lib/exe/fetch.php?tok=fa29ee&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FLaunch_Instance.PNG "https://britishbenji.github.io/MusicBot/images/AWS/Launch_Instance.PNG")
 
-You will be given many different options for which option to run. Our suggestion is that you choose the “Ubuntu Server 18.04 LTS (HMV)” service and this walkthrough will be catered to that option.
+You will be given many different options for which option to run. Our suggestion is that you choose the “Ubuntu Server 22.04 LTS (HMV)” service and this walkthrough will be catered to that option.
 
 [![](https://aleanaazure.xyz/lib/exe/fetch.php?w=512&h=512&tok=52beda&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FFree_Tier_Ubuntu.PNG)](https://aleanaazure.xyz/lib/exe/fetch.php?tok=bd0c9e&media=https%3A%2F%2Fbritishbenji.github.io%2FMusicBot%2Fimages%2FAWS%2FFree_Tier_Ubuntu.PNG "https://britishbenji.github.io/MusicBot/images/AWS/Free_Tier_Ubuntu.PNG")
 
@@ -41,4 +41,4 @@ Once you have saved this, open PuTTY and AWS side by side. On your AWS window, f
 
 Following on from this page, expand the “SSH” tab on the right hand side of the screen and click “Auth” Select your .ppk file using the “Browse…” option, then go back to the “Session” tab and click open.
 You will be brought to a black screen with text on it, you are now in your Ubuntu Workspace on your EC2 Instance.
-From here, you can install the bot by following the [configure]({{ site.baseurl }}/installing/ubuntu.md) guide, and can keep it running in the background using [PM2]({{ site.baseurl }}/installing/pm2.md).
+From here, you can install the bot by following the [configure]({{ site.baseurl }}/using/configuration) guide, and can keep it running in the background using [PM2]({{ site.baseurl }}/using/pm2).
