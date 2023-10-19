@@ -11,35 +11,24 @@ Installing the bot on Rocky is similar to [Ubuntu](/installing/ubuntu), but requ
 # Rocky 9
 ~~~bash
 # Update system repositories
-sudo yum -y update 
+sudo dnf -y update 
 
 # Install dependencies
-sudo yum -y install epel-release
-sudo yum -y groupinstall "Development Tools"
-sudo yum -y install git openssl-devel bzip2-devel libffi-devel xz-devel
+sudo dnf -y install epel-release
+sudo dnf -y groupinstall "Development Tools"
+sudo dnf -y install git openssl-devel bzip2-devel libffi-devel xz-devel
+
+sudo dnf -y install https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
+sudo dnf  config-manager --set-enabled crb
+sudo dnf -y install ffmpeg
 
 
-sudo apt-get install git libopus-dev libffi-dev libsodium-dev ffmpeg -y
-sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl libncurses5-dev libnss3-dev wget libbz2-dev -y
-
-# Install Python 3.8
-mkdir pytemp
-cd pytemp
-wget https://www.python.org/ftp/python/3.8.18/Python-3.8.18.tgz
-tar zxf Python-3.8.18.tgz
-cd Python-3.8.18
-./configure --enable-optimizations
-make -j4
-sudo make altinstall
-cd ..
+# Install Python (skip this if `python3 --version` shows python 3.8.18 or newer is installed)
+sudo dnf install -y python3 
 
 # Install pip
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.8 get-pip.py
-
-# Remove temporary python directory
-cd ..
-rm -r pytemp
+python3 get-pip.py
 
 # Clone the MusicBot to your home directory
 cd ~
@@ -47,8 +36,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install dependencies
-python3.8 -m pip install --upgrade pip
-python3.8 -m pip install --upgrade -r requirements.txt
+python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade -r requirements.txt
 ~~~
 
 After this, you can find a folder called `MusicBot` inside your home directory. [Configure]({{ site.baseurl }}/using/configuration) it, and then run `bash ./run.sh` to start the bot.
