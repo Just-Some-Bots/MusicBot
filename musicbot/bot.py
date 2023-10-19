@@ -111,10 +111,11 @@ class MusicBot(discord.Client):
         # TODO: Do these properly
         ssd_defaults = {
             "last_np_msg": None,
-            "auto_paused": False,
             "availability_paused": False,
-            "guild_id": None,
-            "timeout_event": asyncio.Event(),
+            "timeout_event": (
+                asyncio.Event(),
+                False,
+            ),  # The boolean is going show if the timeout is active or not
         }
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
@@ -1394,23 +1395,26 @@ class MusicBot(discord.Client):
         log.debug("Removed {} from autoplaylist".format(url))
 
     async def handle_timeout(self, guild: discord.Guild):
-        event = self.server_specific_data[guild]["timeout_event"]
+        event, active = self.server_specific_data[guild]["timeout_event"]
+
+        self.server_specific_data[guild]["timeout_event"] = (event, True)
 
         try:
-            log.debug(
+            log.info(
                 f"About to go to sleep for {self.config.leave_inactiveVCTimeOut} seconds"
             )
             await discord.utils.sane_wait_for(
                 [event.wait()], timeout=self.config.leave_inactiveVCTimeOut
             )
         except asyncio.TimeoutError:
-            log.debug("Timeout timed out, leaving channel")
+            log.info("Timeout timed out, leaving channel")
 
             await self.on_timeout_expired(guild.me.voice.channel)
         else:
-            log.debug("Timeout event got set, stopping")
+            log.info("Timeout event got set, stopping")
         finally:
-            log.debug("Event cleared")
+            log.info("Event cleared")
+            self.server_specific_data[guild]["timeout_event"] = (event, False)
             event.clear()
 
     async def cmd_resetplaylist(self, player, channel):
@@ -4479,22 +4483,31 @@ class MusicBot(discord.Client):
 
         if self.config.leave_inactives:
             guild = member.guild
-
-            event = self.server_specific_data[guild]["timeout_event"]
+            event, active = self.server_specific_data[guild]["timeout_event"]
 
             if (
                 before.channel
                 and member != self.user
                 and self.user in before.channel.members
             ):
-                if not any(not user.bot for user in before.channel.members):
-                    log.debug("Channel is empty, should be handling disconnects now")
+                if str(before.channel.id) in str(self.config.autojoin_channels):
+                    log.info(
+                        f"Ignoring {before.channel.name} in {before.channel.guild} as it is a binded voice channel."
+                    )
+
+                elif not any(not user.bot for user in before.channel.members):
+                    log.info(
+                        f"{before.channel.name} has been detected as empty. Handling timeouts."
+                    )
                     await self.handle_timeout(guild)
             elif after.channel and member != self.user:
                 if self.user in after.channel.members:
-                    log.debug(
-                        "Someone joined the channel again, should cancel the timer for disconnects"
-                    )
+                    if (
+                        active
+                    ):  # Added to not spam the console with the message for every person that joins
+                        log.info(
+                            f"A user joined {after.channel.name}, cancelling timer."
+                        )
                     event.set()
 
         if before.channel:
