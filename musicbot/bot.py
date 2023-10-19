@@ -111,10 +111,11 @@ class MusicBot(discord.Client):
         # TODO: Do these properly
         ssd_defaults = {
             "last_np_msg": None,
-            "auto_paused": False,
             "availability_paused": False,
-            "guild_id": None,
-            "voice_channel_timers": None,
+            "timeout_event": (
+                asyncio.Event(),
+                False,
+            ),  # The boolean is going show if the timeout is active or not
         }
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
@@ -1392,6 +1393,29 @@ class MusicBot(discord.Client):
         self.autoplaylist.remove(url)
         write_file(self.config.auto_playlist_file, self.autoplaylist)
         log.debug("Removed {} from autoplaylist".format(url))
+
+    async def handle_timeout(self, guild: discord.Guild):
+        event, active = self.server_specific_data[guild]["timeout_event"]
+
+        self.server_specific_data[guild]["timeout_event"] = (event, True)
+
+        try:
+            log.info(
+                f"About to go to sleep for {self.config.leave_inactiveVCTimeOut} seconds"
+            )
+            await discord.utils.sane_wait_for(
+                [event.wait()], timeout=self.config.leave_inactiveVCTimeOut
+            )
+        except asyncio.TimeoutError:
+            log.info("Timeout timed out, leaving channel")
+
+            await self.on_timeout_expired(guild.me.voice.channel)
+        else:
+            log.info("Timeout event got set, stopping")
+        finally:
+            log.info("Event cleared")
+            self.server_specific_data[guild]["timeout_event"] = (event, False)
+            event.clear()
 
     async def cmd_resetplaylist(self, player, channel):
         """
@@ -4429,82 +4453,62 @@ class MusicBot(discord.Client):
                         "{}{}".format(self.config.command_prefix, command_name)
                     )
 
-    async def on_timer_expired(self, voice_channel):
-        guild_id = voice_channel.guild.id
-        timers = self.server_specific_data.get(guild_id, {}).get(
-            "voice_channel_timers", {}
-        )
-        if voice_channel.id in timers:
-            guild = self.get_guild(guild_id)
-            vc = guild.get_channel(voice_channel.id)
-            if vc:
-                try:
-                    last_np_msg = last_np_msg = self.server_specific_data[guild][
-                        "last_np_msg"
-                    ]
-                    channel = last_np_msg.channel
+    async def on_timeout_expired(self, voice_channel):
+        guild = voice_channel.guild
+
+        if voice_channel:
+            try:
+                last_np_msg = self.server_specific_data[guild]["last_np_msg"]
+                channel = last_np_msg.channel
+                if self.config.embeds:
+                    embed = self._gen_embed()
+                    embed.title = "Leaving voice channel"
+                    embed.description = f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity."
+                    await self.safe_send_message(channel, embed, expire_in=30)
+                else:
                     await self.safe_send_message(
                         channel,
                         f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity.",
+                        expire_in=30,
                     )
-                except:
-                    log.info(
-                        f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity."
-                    )
-                await self.disconnect_voice_client(guild)
-            del timers[voice_channel.id]
+            except Exception as e:
+                log.info(
+                    f"Leaving voice channel {voice_channel.name} in {voice_channel.guild} due to inactivity."
+                )
+            await self.disconnect_voice_client(guild)
 
     async def on_voice_state_update(self, member, before, after):
         if not self.init_ok:
             return  # Ignore stuff before ready
 
         if self.config.leave_inactives:
-            guild_id = member.guild.id
+            guild = member.guild
+            event, active = self.server_specific_data[guild]["timeout_event"]
 
-            # Ensure timers are initialized for this guild
-            if guild_id not in self.server_specific_data:
-                self.server_specific_data[guild_id] = {"voice_channel_timers": {}}
-
-            timers = self.server_specific_data[guild_id]["voice_channel_timers"]
-
-            if before.channel and member != self.user:
-                if not any(not user.bot for user in before.channel.members):
-                    if not any(
-                        str(before.channel.id) in str(channel_id)
-                        for channel_id in [timers, self.config.autojoin_channels]
-                    ):
-                        timers[before.channel.id] = self.loop.create_task(
-                            asyncio.sleep(self.config.leave_inactiveVCTimeOut)
-                        )
-                        timers[before.channel.id].add_done_callback(
-                            lambda task: asyncio.ensure_future(
-                                self.on_timer_expired(before.channel)
-                            )
-                        )
-                        log.info(
-                            f"Started timer for inactive channel {before.channel.name} in {before.channel.guild}"
-                        )
-                    if str(before.channel.id) in str(self.config.autojoin_channels):
-                        log.info(
-                            f"Ignoring {before.channel.name} in {before.channel.guild} as it is a binded voice channel."
-                        )
-            elif after.channel:
-                if after.channel.id in timers:
-                    timers[after.channel.id].cancel()
+            if (
+                before.channel
+                and member != self.user
+                and self.user in before.channel.members
+            ):
+                if str(before.channel.id) in str(self.config.autojoin_channels):
                     log.info(
-                        f"Cancelling timer for {after.channel.name} in {after.channel.guild} as channel is no longer inactive."
+                        f"Ignoring {before.channel.name} in {before.channel.guild} as it is a binded voice channel."
                     )
-                    del timers[after.channel.id]
 
-            for channel_id in list(timers.keys()):
-                channel = self.get_channel(channel_id)
-                if channel and member == self.user and before.channel != after.channel:
-                    if not any(not user.bot for user in channel.members):
-                        timers[channel_id].cancel()
+                elif not any(not user.bot for user in before.channel.members):
+                    log.info(
+                        f"{before.channel.name} has been detected as empty. Handling timeouts."
+                    )
+                    await self.handle_timeout(guild)
+            elif after.channel and member != self.user:
+                if self.user in after.channel.members:
+                    if (
+                        active
+                    ):  # Added to not spam the console with the message for every person that joins
                         log.info(
-                            f"Cancelling timer for {channel.name} in {channel.guild} as channel is no longer inactive."
+                            f"A user joined {after.channel.name}, cancelling timer."
                         )
-                        del timers[channel_id]
+                    event.set()
 
         if before.channel:
             channel = before.channel
