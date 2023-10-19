@@ -5,6 +5,7 @@ order: 3
 ---
 <img class="doc-img" src="{{ site.baseurl }}/images/mac.png" alt="Mac" style="width: 75px; float: right;"/>
 
+
 Installing MusicBot on Mac is quite simple.
 
 > **The steps below are for macOS Catalina and above. They may not work on older versions of macOS.**
