@@ -8,7 +8,7 @@ order: 11
 
 Installing the bot on Rocky is similar to [Ubuntu](/installing/ubuntu), but requires a different package manager.
 
-# Rocky 9
+# Rocky (tested on Rocky 9)
 ~~~bash
 # Update system repositories
 sudo dnf -y update 
