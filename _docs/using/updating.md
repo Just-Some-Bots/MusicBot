@@ -6,15 +6,18 @@ order: 4
 
 [![GitHub stars](https://img.shields.io/github/stars/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/network)
-[![Python version](https://img.shields.io/badge/python-3.5%2C%203.6%2C%203.7-blue.svg)](https://python.org)
 
-> Recent MucicBot versions require Python 3.8 or higher. If you are updating the MusicBot with version that still looks like 1.9.8, reinstall Python with the following version.
-> - Windows: [[Download](https://www.python.org/ftp/python/3.8.10/python-3.8.10-amd64.exe)]
-> - Mac: [[Download](https://www.python.org/ftp/python/3.8.10/python-3.8.10-macosx10.9.pkg)]
+[![Python version](https://img.shields.io/badge/python-3.8%203.9%203.10%203.11-blue.svg)](https://python.org)
+
+
+> MucicBot version 02.01.21 requires Python 3.8 or higher. If you are updating the MusicBot with version below than 02.01.21, reinstall Python with the following version.
+> - Windows: [[Download](https://www.python.org/ftp/python/3.8.17/python-3.8.17.exe)]
+> - Mac: [[Download](https://www.python.org/ftp/python/3.8.17/python-3.8.17-macosx10.6.pkg)]
 > - Linux: Install Python 3.8 and pip using your package manager
 >
 > If you are updating the MusicBot with version below than 1.9.7-rc2. Please follow instructions in the `Manual update` section.
 
+Before updating, make sure to read the [latest changes](/MusicBot/changelog), as some behaviour may have changed significantly.
 Before updating, make sure to read the [latest changes](/MusicBot/changelog), as some behaviour may have changed significantly.
 
 * **Linux/MacOS**: `./update.sh` (for Mac users: run this in a Terminal)
