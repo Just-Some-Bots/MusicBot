@@ -17,7 +17,7 @@ You didn't install the bot correctly. Rather than downloading a ZIP, you must in
 
 ---
 
-Lagging while playing music
+`Lagging while playing music`
 
 Check your CPU and disk usage. Ensure that you have enough bandwidth. Check your voice channel's bitrate. Check there isn't a [Discord issue](https://status.discordapp.com).
 
@@ -47,7 +47,7 @@ This will usually occur if you have updated the bot. In order to avoid issues, b
 
 ---
 
-`git: unable to access 'https://github.com/Just-Some-Bots/MusicBot.git' 
+`git: unable to access 'https://github.com/Just-Some-Bots/MusicBot.git'
 SSL certificate problem: self signed certificate in certificate chain`
 
 Try disabling your antivirus. Some antivirus software is known to interfere with git.
