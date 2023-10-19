@@ -1412,7 +1412,9 @@ class MusicBot(discord.Client):
 
             await self.on_timeout_expired(guild.me.voice.channel)
         else:
-            log.info(f"{guild.me.voice.channel.name} in {guild.name} is no longer inactive. Cancelling timer.")
+            log.info(
+                f"{guild.me.voice.channel.name} in {guild.name} is no longer inactive. Cancelling timer."
+            )
         finally:
             log.info(f"Cleaning up timer for guild {guild.name}.")
             self.server_specific_data[guild]["timeout_event"] = (event, False)
@@ -4486,10 +4488,7 @@ class MusicBot(discord.Client):
             guild = member.guild
             event, active = self.server_specific_data[guild]["timeout_event"]
 
-            if (
-                before.channel
-                and self.user in before.channel.members
-            ):
+            if before.channel and self.user in before.channel.members:
                 if str(before.channel.id) in str(self.config.autojoin_channels):
                     log.info(
                         f"Ignoring {before.channel.name} in {before.channel.guild} as it is a binded voice channel."
@@ -4510,13 +4509,19 @@ class MusicBot(discord.Client):
                         )
                     event.set()
 
-            if member == self.user and before.channel and after.channel:  # bot got moved from channel to channel
+            if (
+                member == self.user and before.channel and after.channel
+            ):  # bot got moved from channel to channel
                 if not any(not user.bot for user in after.channel.members):
-                    log.info(f"The bot got moved and the voice channel {after.channel.name} is empty. Handling timeouts.")
+                    log.info(
+                        f"The bot got moved and the voice channel {after.channel.name} is empty. Handling timeouts."
+                    )
                     await self.handle_timeout(guild)
                 else:
                     if active:
-                        log.info(f"The bot got moved and the voice channel {after.channel.name} is not empty.")
+                        log.info(
+                            f"The bot got moved and the voice channel {after.channel.name} is not empty."
+                        )
                         event.set()
 
         if before.channel:
