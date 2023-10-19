@@ -8,11 +8,12 @@ Configuring the bot is relatively straight forward. First, open your bot folder 
 
 > Editing your configuration file using Notepad or WordPad will result in problems as they save files in strange formats and aren't designed for editing .ini files.
 
+
 #### Credentials
 
 <img class="doc-img" src="{{ site.baseurl }}/images/token.png" alt="Token" style="width: 500px;"/>
 
-- `Token` - *This is the only required option for your bot to run.* You must provide the token for your Discord bot account. To create a bot account, go to your [applications page](https://discordapp.com/developers/applications/me) (logging in if prompted), and then follow this [10 second video](https://drive.google.com/file/d/1wZG_TBVfjQfj0CEYaRTzS60D-cbfeeYZ/view). If you followed it entirely, you should have revealed your token and can now copy it into the config file.
+- `Token` - *This is the only required option for your bot to run.* You must provide the token for your Discord bot account. To create a bot account, go to your [applications page](https://discord.com/developers/applications/me) (logging in if prompted), and then follow this [10 second video](https://drive.google.com/file/d/1wZG_TBVfjQfj0CEYaRTzS60D-cbfeeYZ/view). If you followed it entirely, you should have revealed your token and can now copy it into the config file.
 
 Please note that MusicBot requires privileged intents to function. You need to enable each of the Gateway Intents on your [Discord Application](https://discord.com/developers/applications)'s 'Bot' page.
 
@@ -63,7 +64,7 @@ After creating a bot account, you should probably add your bot to a server by cl
 - `LegacySkip` - Whether to use legacy skip behavior, defaulting `!skip` to force skip
 - `LeaveServersWithoutOwner` - Whether the bot should leave servers that the owner is not found in
 - `UseAlias` - Whether the bot should use aliases defined in `aliases.json`
-- <span class="badge major">review only</span> `CustomEmbedFooter` - Changes the footer text found in embeds from the default version footer
+- `CustomEmbedFooter` - Changes the footer text found in embeds from the default version footer
 
 #### Files
 

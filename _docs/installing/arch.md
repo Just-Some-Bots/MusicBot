@@ -20,8 +20,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install dependencies
-sudo pip install --upgrade pip
-sudo pip install --upgrade -r requirements.txt
+pip install --upgrade pip
+pip install --upgrade -r requirements.txt
 ~~~
 
 Once everything has been completed, you can go ahead and [configure]({{ site.baseurl }}/using/configuration) the bot and then run with `sh ./run.sh`.
