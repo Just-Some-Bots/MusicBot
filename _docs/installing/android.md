@@ -10,17 +10,17 @@ Firstly, ensure you install [Termux](https://play.google.com/store/apps/details?
 
 After your terminal is installed, you can run the following commands to start getting setup:
 
-```
+```bash
 # Update system packages
 apt update -y
 apt upgrade -y
 ```
-```
+```bash
 # Install dependencies
 pkg install glib libffi cmake
 pkg install python git ffmpeg
 ```
-```
+```bash
 # Clone MusicBot
 cd ~
 git clone https://github.com/Just-Some-Bots/Musicbot.git MusicBot -b master

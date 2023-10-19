@@ -16,12 +16,12 @@ sudo apt-get upgrade -y
 sudo apt-get install git libopus-dev libffi-dev libsodium-dev ffmpeg -y
 sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl libncurses5-dev libnss3-dev wget libbz2-dev -y
 
-# Install Python 3.8
+# Install Python 3.10
 mkdir pytemp
 cd pytemp
-wget https://www.python.org/ftp/python/3.8.17/Python-3.8.18.tgz
-tar zxf Python-3.8.18.tgz
-cd Python-3.8.18
+wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
+tar zxf Python-3.10.13.tgz
+cd Python-3.10.13
 ./configure --enable-optimizations
 make -j4
 sudo make altinstall
@@ -29,7 +29,7 @@ cd ..
 
 # Install pip
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.8 get-pip.py
+python3 get-pip.py
 
 # Remove temporary python directory
 cd ..
@@ -41,8 +41,8 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install dependencies
-python3.8 -m pip install --upgrade pip
-python3.8 -m pip install --upgrade -r requirements.txt
+python3 -m pip install --upgrade pip
+python3 -m pip install --upgrade -r requirements.txt
 ~~~
 
 After this, you can find a folder called `MusicBot` inside your home directory. [Configure]({{ site.baseurl }}/using/configuration) it, and then run `bash ./run.sh` to start the bot.

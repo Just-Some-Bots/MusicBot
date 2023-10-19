@@ -23,7 +23,7 @@ sudo dnf  config-manager --set-enabled crb
 sudo dnf -y install ffmpeg
 
 
-# Install Python (skip this if `python3 --version` shows python 3.8.18 or newer is installed)
+# Install Python (skip this if `python3 --version` shows python 3.8.x or newer is installed)
 sudo dnf install -y python3 
 
 # Install pip

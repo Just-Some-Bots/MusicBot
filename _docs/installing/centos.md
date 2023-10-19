@@ -18,15 +18,15 @@ sudo yum -y install https://centos6.iuscommunity.org/ius-release.rpm
 sudo yum -y install gcc openssl-devel bzip2-devel libffi-devel make
 sudo yum -y install yum-utils opus-devel libsodium-devel 
 
-# Install Python3.8
+# Install Python3.10
 cd /opt
-wget https://www.python.org/ftp/python/3.8.7/Python-3.8.7.tgz
-tar xzf Python-3.8.7.tgz
-cd Python-3.8.7
+wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
+tar xzf Python-3.10.13.tgz
+cd Python-3.10.13
 sudo ./configure --enable-optimizations
 sudo make altinstall
 cd ..
-sudo rm Python-3.8.7.tgz
+sudo rm Python-3.10.13.tgz
 
 # Install FFmpeg
 sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
@@ -43,12 +43,12 @@ sudo make install
 cd ../.. && rm -rf libsodium
 
 # Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
 cd MusicBot
 
 # Install bot requirements
-python3.8 -m pip install -U -r requirements.txt
-python3.8 -m pip install -U pynacl
+python3 -m pip install -U -r requirements.txt
+python3 -m pip install -U pynacl
 ~~~
 
 ## CentOS 7.4
@@ -61,16 +61,16 @@ sudo yum -y install https://centos7.iuscommunity.org/ius-release.rpm
 sudo yum -y install curl opus-devel libffi-devel libsodium-devel
 sudo yum -y install gcc openssl-devel bzip2-devel make
 
-# Install Python3.8
+# Install Python3.10
 
 cd /opt
-wget https://www.python.org/ftp/python/3.8.17/Python-3.8.17.tgz
-tar xzf Python-3.8.17.tgz
-cd Python-3.8.17
+wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
+tar xzf Python-3.10.13.tgz
+cd Python-3.10.13
 sudo ./configure --enable-optimizations
 sudo make altinstall
 cd ..
-sudo rm Python-3.8.17.tgz
+sudo rm Python-3.10.13.tgz
 
 # Install FFmpeg
 sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
@@ -82,7 +82,7 @@ git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
 cd MusicBot
 
 # Install bot requirements
-python3.8 -m pip install -U -r requirements.txt
+python3 -m pip install -U -r requirements.txt
 ~~~
 
 {: title="CentOS 7.4" }

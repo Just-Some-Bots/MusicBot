@@ -9,8 +9,8 @@ order: 2
 
 MusicBot can be installed on Windows 7 through 11, though it requires installing some programs on your computer first.
 
-1. Install [Python 3.8](https://www.python.org/ftp/python/3.8.18/python-3.8.18-amd64.exe).
-2. During the setup, tick `Install launcher for all users (recommended)` and `Add Python 3.8 to PATH` when prompted.
+1. Install [Python 3.10](https://www.python.org/ftp/python/3.10.13/python-3.10.13-amd64.exe).
+2. During the setup, tick `Install launcher for all users (recommended)` and `Add Python 3.10 to PATH` when prompted.
 3. Install [Git for Windows](http://gitforwindows.org/).
 4. During the setup, tick `Git from the command line and also 3rd-party software`, `Checkout Windows-style, commit Unix-style endings`, and `Use MinTTY (the default terminal MSYS2)`.
 5. Open Git Bash by right-clicking an empty space inside of a folder (e.g My Documents) and clicking `Git Bash here`.
