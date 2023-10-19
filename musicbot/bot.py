@@ -112,6 +112,7 @@ class MusicBot(discord.Client):
         ssd_defaults = {
             "last_np_msg": None,
             "availability_paused": False,
+            "auto_paused": False,
             "timeout_event": (
                 asyncio.Event(),
                 False,
