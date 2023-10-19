@@ -3,8 +3,8 @@ title: MacOS
 category: Installing the bot
 order: 3
 ---
-
 <img class="doc-img" src="{{ site.baseurl }}/images/mac.png" alt="Mac" style="width: 75px; float: right;"/>
+
 
 Installing MusicBot on Mac is quite simple.
 
@@ -21,7 +21,8 @@ brew update
 xcode-select --install
 
 # Install dependencies
-brew install git ffmpeg opus libffi libsodium
+brew install python libsodium libffi opus ffmpeg git
+
 
 # Clone the MusicBot
 cd desktop
