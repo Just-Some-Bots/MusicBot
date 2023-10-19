@@ -1,25 +1,31 @@
 ---
-title: Debian
+title: Rocky
 category: Installing the bot
-order: 5
+order: 11
 ---
-<img class="doc-img" src="{{ site.baseurl }}/images/debian.png" alt="debian" style="width: 75px; float: right;"/>
 
-Installing the bot on Debian is similar to [Ubuntu](/installing/ubuntu), but requires some additional system dependencies obtained through `apt`.
+<img class="doc-img" src="{{ site.baseurl }}/images/rocky.png" alt="rocky" style="width: 75px; float: right;"/>
 
+Installing the bot on Rocky is similar to [Ubuntu](/installing/ubuntu), but requires a different package manager.
+
+# Rocky 9
 ~~~bash
 # Update system repositories
-sudo apt-get update -y
-sudo apt-get upgrade -y
+sudo yum -y update 
 
 # Install dependencies
+sudo yum -y install epel-release
+sudo yum -y groupinstall "Development Tools"
+sudo yum -y install git openssl-devel bzip2-devel libffi-devel xz-devel
+
+
 sudo apt-get install git libopus-dev libffi-dev libsodium-dev ffmpeg -y
 sudo apt-get install build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl libncurses5-dev libnss3-dev wget libbz2-dev -y
 
 # Install Python 3.8
 mkdir pytemp
 cd pytemp
-wget https://www.python.org/ftp/python/3.8.17/Python-3.8.18.tgz
+wget https://www.python.org/ftp/python/3.8.18/Python-3.8.18.tgz
 tar zxf Python-3.8.18.tgz
 cd Python-3.8.18
 ./configure --enable-optimizations
