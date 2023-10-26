@@ -1831,10 +1831,8 @@ class MusicBot(discord.Client):
             channel,
             self.str.get(
                 "cmd-move-success",
-                "Succefully moved the requested song from positon number {} in queue to position {}!".format(
-                    indexes[0] + 1, indexes[1] + 1
-                ),
-            ),
+                "Successfully moved the requested song from positon number {} in queue to position {}!",
+            ).format(indexes[0] + 1, indexes[1] + 1),
         ),
 
         song = player.playlist.delete_entry_at_index(indexes[0])
