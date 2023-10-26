@@ -3569,7 +3569,6 @@ class MusicBot(discord.Client):
                             )
                         )
                     self.config.auto_playlist = True
-                    await self.on_player_finished_playing(player)
             elif value in bool_n:
                 if not self.config.auto_playlist:
                     raise exceptions.CommandError(
