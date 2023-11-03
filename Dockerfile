@@ -18,7 +18,8 @@ RUN apk update && apk add --no-cache \
   opus-dev \
   libffi \
   libsodium \
-  gcc
+  gcc \
+  git
 
 # Install pip dependencies
 RUN pip3 install --no-cache-dir -r requirements.txt
