@@ -1005,13 +1005,14 @@ class MusicBot(discord.Client):
                 )
 
         finally:
-            if msg and expire_in:
-                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+            if self.config.delete_messages:
+                if msg and expire_in:
+                    asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
 
-            if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+                if also_delete and isinstance(also_delete, discord.Message):
+                    asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
-        return msg
+            return msg
 
     async def safe_delete_message(self, message, *, quiet=False):
         lfunc = log.debug if quiet else log.warning
