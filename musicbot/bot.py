@@ -1008,11 +1008,12 @@ class MusicBot(discord.Client):
             if self.config.delete_messages:
                 if msg and expire_in:
                     asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
-
+                    
+            if self.config.delete_invoking:
                 if also_delete and isinstance(also_delete, discord.Message):
                     asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
-            return msg
+        return msg
 
     async def safe_delete_message(self, message, *, quiet=False):
         lfunc = log.debug if quiet else log.warning
@@ -1924,6 +1925,7 @@ class MusicBot(discord.Client):
                 "cmd-move-success",
                 "Successfully moved the requested song from positon number {} in queue to position {}!",
             ).format(indexes[0] + 1, indexes[1] + 1),
+            expire_in=30,
         ),
 
         song = player.playlist.delete_entry_at_index(indexes[0])
