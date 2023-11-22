@@ -655,7 +655,9 @@ class MusicBot(discord.Client):
 
         # send it in specified channel
         self.server_specific_data[guild]["last_np_msg"] = await self.safe_send_message(
-            channel, content if self.config.embeds else newmsg, expire_in=30
+            channel,
+            content if self.config.embeds else newmsg,
+            expire_in=30 if self.config.delete_nowplaying else 0,
         )
 
         # TODO: Check channel voice state?
@@ -1008,7 +1010,7 @@ class MusicBot(discord.Client):
             if self.config.delete_messages:
                 if msg and expire_in:
                     asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
-                    
+
             if self.config.delete_invoking:
                 if also_delete and isinstance(also_delete, discord.Message):
                     asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
@@ -1307,6 +1309,9 @@ class MusicBot(discord.Client):
                 log.info(
                     "    Delete Invoking: "
                     + ["Disabled", "Enabled"][self.config.delete_invoking]
+                )
+                log.info(
+                    f"    Delete Nowplaying: {['Disabled', 'Enabled'][self.config.delete_nowplaying]}"
                 )
             log.info("  Debug Mode: " + ["Disabled", "Enabled"][self.config.debug_mode])
             log.info(
