@@ -1018,6 +1018,9 @@ class MusicBot(discord.Client):
     async def safe_delete_message(self, message, *, quiet=False):
         lfunc = log.debug if quiet else log.warning
 
+        if not self.config.delete_messages:
+            return
+
         try:
             return await message.delete()
 
