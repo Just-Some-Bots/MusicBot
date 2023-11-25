@@ -4034,6 +4034,11 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     "Cannot set command prefix containing spaces.", expire_in=20
                 )
+            if "clear" == prefix:
+                self.server_specific_data[channel.guild]["command_prefix"] = None
+                await self._save_guild_options(channel.guild)
+                return Response("Command Prefix is cleared.")
+
             self.server_specific_data[channel.guild]["command_prefix"] = prefix
             await self._save_guild_options(channel.guild)
             return Response(
