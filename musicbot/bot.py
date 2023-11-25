@@ -972,6 +972,8 @@ class MusicBot(discord.Client):
 
     async def _load_guild_options(self, guild: discord.Guild):
         opt_file = f"data/{guild.id}/options.json"
+        if not os.path.exists(opt_file):
+            return
         options = Json( opt_file )
         guild_prefix = options.get("command_prefix", None)
         if guild_prefix:
