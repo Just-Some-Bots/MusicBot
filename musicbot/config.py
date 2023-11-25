@@ -208,6 +208,12 @@ class Config:
             "DefaultSearchResults",
             fallback=ConfigDefaults.defaultsearchresults,
         )
+        
+        self.enable_options_per_guild = config.getboolean(
+            "MusicBot",
+            "EnableOptionsPerGuild",
+            fallback=ConfigDefaults.enable_options_per_guild
+        )
 
         self.debug_level = config.get(
             "MusicBot", "DebugLevel", fallback=ConfigDefaults.debug_level
@@ -535,6 +541,7 @@ class ConfigDefaults:
     leave_inactiveVCTimeOut = 300
     leave_after_song = False
     defaultsearchresults = 3
+    enable_options_per_guild = False
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
 
     options_file = "config/options.ini"
