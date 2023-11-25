@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import json
 import logging
 import math
 import os
@@ -974,17 +975,18 @@ class MusicBot(discord.Client):
         opt_file = f"data/{guild.id}/options.json"
         if not os.path.exists(opt_file):
             return
-        options = Json( opt_file )
+        options = Json(opt_file)
         guild_prefix = options.get("command_prefix", None)
         if guild_prefix:
             self.server_specific_data[guild]["command_prefix"] = guild_prefix
+            log.info(f"Custom command prefix for: {guild.name}  Prefix: {guild_prefix}")
 
     async def _save_guild_options(self, guild: discord.Guild):
         opt_file = f"data/{guild.id}/options.json"
         opt_dict = {
             "command_prefix": self.server_specific_data[guild]["command_prefix"]
         }
-        with open( opt_file, 'w' ) as fh:
+        with open(opt_file, "w") as fh:
             fh.write(json.dumps(opt_dict))
 
     def _get_guild_cmd_prefix(self, guild: discord.Guild):
@@ -1374,6 +1376,10 @@ class MusicBot(discord.Client):
             )
             log.info(
                 "  Self Deafen: " + ["Disabled", "Enabled"][self.config.self_deafen]
+            )
+            log.info(
+                "  Per-server command prefix: "
+                + ["Disabled", "Enabled"][self.config.enable_options_per_guild]
             )
 
         print(flush=True)
@@ -4020,17 +4026,23 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}setprefix prefix
-        
+
         If enabled by owner, set an override for command prefix with a custom prefix.
         """
         if self.config.enable_options_per_guild:
             if " " in prefix:
-                raise exceptions.CommandError("Cannot set command prefix containing spaces.", expire_in=20)
+                raise exceptions.CommandError(
+                    "Cannot set command prefix containing spaces.", expire_in=20
+                )
             self.server_specific_data[channel.guild]["command_prefix"] = prefix
             await self._save_guild_options(channel.guild)
-            return Response("Command Prefix is now:  {0}".format(prefix), delete_after=60)
+            return Response(
+                "Command Prefix is now:  {0}".format(prefix), delete_after=60
+            )
         else:
-            raise exceptions.CommandError("Prefix per server is not enabled!", expire_in=20)
+            raise exceptions.CommandError(
+                "Prefix per server is not enabled!", expire_in=20
+            )
 
     @owner_only
     async def cmd_setavatar(self, message, url=None):
@@ -4410,9 +4422,7 @@ class MusicBot(discord.Client):
                 docs = dedent(docs)
                 await self.safe_send_message(
                     message.channel,
-                    "```\n{}\n```".format(
-                        docs.format(command_prefix=command_prefix)
-                    ),
+                    "```\n{}\n```".format(docs.format(command_prefix=command_prefix)),
                     expire_in=60,
                 )
                 return
@@ -4496,9 +4506,7 @@ class MusicBot(discord.Client):
                 whitelist = user_permissions.command_whitelist
                 blacklist = user_permissions.command_blacklist
                 if list_all_cmds:
-                    self.commands.append(
-                        "{}{}".format(command_prefix, command_name)
-                    )
+                    self.commands.append("{}{}".format(command_prefix, command_name))
 
                 elif blacklist and command_name in blacklist:
                     pass
@@ -4507,9 +4515,7 @@ class MusicBot(discord.Client):
                     pass
 
                 else:
-                    self.commands.append(
-                        "{}{}".format(command_prefix, command_name)
-                    )
+                    self.commands.append("{}{}".format(command_prefix, command_name))
 
     async def on_timeout_expired(self, voice_channel):
         guild = voice_channel.guild
