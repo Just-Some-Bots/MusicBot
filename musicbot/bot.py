@@ -1359,7 +1359,7 @@ class MusicBot(discord.Client):
                 log.info(
                     f"    Delete if unused for {self.config.storage_limit_days} days"
                 )
-            if self.config.save_videos and self.config.storage_limit_bytess:
+            if self.config.save_videos and self.config.storage_limit_bytes:
                 size = format_size_bytes(self.config.storage_limit_bytes)
                 log.info(f"    Delete if size exceeds {size}")
 
