@@ -252,23 +252,24 @@ class MusicBot(discord.Client):
             removed_count = 0
             removed_size = 0
             for cache_file in cached_files:
+                file_size = os.path.getsize(cache_file)
                 if (
                     self.config.storage_limit_bytes
                     and self.config.storage_limit_bytes <= cached_size
                 ):
                     _unlink_path(cache_file)
                     removed_count += 1
-                    removed_size += os.path.getsize(cache_file)
+                    removed_size += file_size
                     continue
 
                 if self.config.storage_limit_days:
                     if os.path.getatime(cache_file) < max_age:
                         _unlink_path(cache_file)
                         removed_count += 1
-                        removed_size += os.path.getsize(cache_file)
+                        removed_size += file_size
                         continue
 
-                cached_size += os.path.getsize(cache_file)
+                cached_size += file_size
             rsize = format_size_bytes(removed_size)
             log.debug(f"Deleted {removed_count} files from cache, total of {rsize}. ")
         else:
