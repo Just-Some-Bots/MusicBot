@@ -3711,11 +3711,11 @@ class MusicBot(discord.Client):
                     cached_files += 1
                     cached_bytes += os.path.getsize(cache_file)
                 cached_size = format_size_bytes(cached_bytes)
-                size_now = "\n**Cache Size Now:** {} files in *{}*".format(
-                    cached_files, cached_size
+                size_now = "\n\n**Cached Now:**  {} in {} files".format(
+                    cached_size, cached_files
                 )
 
-            info = "**Cache Videos:** *{}*\n**Size Limit:** *{}*\n**Time Limit:** *{}*{}".format(
+            info = "**Video Cache:** *{}*\n**Size Target:** *{}*\n**Time Limit:** *{}*{}".format(
                 save_videos, size_limit, time_limit, size_now
             )
             return Response(info, delete_after=60)
