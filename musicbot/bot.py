@@ -270,7 +270,7 @@ class MusicBot(discord.Client):
 
                 cached_size += os.path.getsize(cache_file)
             rsize = format_size_bytes(removed_size)
-            log.debug(f"Deleted {removed_count} files from cache, total of {size}. ")
+            log.debug(f"Deleted {removed_count} files from cache, total of {rsize}. ")
         else:
             try:
                 shutil.rmtree(path)
