@@ -44,6 +44,7 @@ from .utils import (
     _func_,
     _get_variable,
     format_song_duration,
+    format_size_bytes,
 )
 
 load_opus_lib()
@@ -227,19 +228,42 @@ class MusicBot(discord.Client):
         )
 
     def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
-        try:
-            shutil.rmtree(path)
-            return True
-        except:
-            try:
-                os.rename(path, path + "__")
-            except:
-                return False
+        def _rmtree(path):
             try:
                 shutil.rmtree(path)
-            except:
-                os.rename(path + "__", path)
-                return False
+                return True
+            except Exception:
+                log.error(f"Failed to delete old cache:  {path}")
+                log.exception()
+                try:
+                    os.rename(path, path + "__")
+                except Exception:
+                    return False
+                try:
+                    shutil.rmtree(path)
+                except Exception:
+                    os.rename(path + "__", path)
+                    return False
+
+        if self.config.save_videos:
+            max_age = time.time() - (86400 * self.config.storage_limit_days)
+            cached_size = 0
+            cached_files = sorted(Path(path).iterdir(), key=os.path.getatime)
+            for cache_file in cached_files:
+                if (
+                    self.config.storage_limit_bytes
+                    and self.config.storage_limit_bytes <= cached_size
+                ):
+                    _rmtree(cache_file)
+                    continue
+
+                if self.config.storage_limit_days:
+                    if os.path.getatime(cache_file) < max_age:
+                        _rmtree(cache_file)
+                        continue
+                cached_size += os.path.getsize(cache_file)
+        else:
+            return _rmtree(path)
 
         return True
 
@@ -948,7 +972,7 @@ class MusicBot(discord.Client):
             for guild in sorted(self.guilds, key=lambda s: int(s.id)):
                 f.write("{:<22} {}\n".format(guild.id, guild.name))
 
-        if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
+        if os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache():
                 log.debug("Deleted old audio cache")
             else:
@@ -1318,6 +1342,14 @@ class MusicBot(discord.Client):
                 "  Downloaded songs will be "
                 + ["deleted", "saved"][self.config.save_videos]
             )
+            if self.config.save_videos and self.config.storage_limit_bytes:
+                log.info(
+                    f"    Delete if unused for {self.config.storage_limit_bytes} days"
+                )
+            if self.config.save_videos and self.config.storage_limit_days:
+                size = format_size_bytes(self.config.storage_limit_bytes)
+                log.info(f"    Delete if size exceeds {size}")
+
             if self.config.status_message:
                 log.info("  Status message: " + self.config.status_message)
             log.info(
