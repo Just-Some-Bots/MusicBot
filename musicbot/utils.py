@@ -181,7 +181,7 @@ def format_song_duration(ftd):
 
 
 def format_size_bytes(size: int):
-    suffix = {0: "", 1: "K", 2: "M", 3: "G", 4: "T"}
+    suffix = {0: "", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
     power = 1024
     i = 0
     while size > power:
