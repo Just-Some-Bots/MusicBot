@@ -3677,6 +3677,59 @@ class MusicBot(discord.Client):
                     )
                 )
 
+    @owner_only
+    async def cmd_cache(self, leftover_args, opt="info"):
+        """
+        Usage:
+            {command_prefix}cache
+
+        Display cache storage info or clear cache files.
+        Valid options are:  info, clear
+        """
+        opt = opt.lower()
+        valid_opt = ["info", "clear"]
+        if opt not in valid_opt:
+            opt = "info"
+
+        if opt == "info":
+            save_videos = ["Disabled", "Enabled"][self.config.save_videos]
+            time_limit = self.config.storage_limit_days
+            size_limit = format_size_bytes(self.config.storage_limit_bytes)
+            size_now = ""
+
+            if not self.config.storage_limit_bytes:
+                size_limit = "Unlimited"
+
+            if not self.config.storage_limit_days:
+                time_limit = "Unlimited"
+
+            if os.path.isdir(AUDIO_CACHE_PATH):
+                cached_bytes = 0
+                cached_files = 0
+                for cache_file in pathlib.Path(AUDIO_CACHE_PATH).iterdir():
+                    cached_files += 1
+                    cached_bytes += os.path.getsize(cache_file)
+                cached_size = format_size_bytes(cached_bytes)
+                size_now = "\n**Cache Size Now:** {} files in *{}*".format(
+                    cached_files, cached_size
+                )
+
+            info = "**Cache Videos:** *{}*\n**Size Limit:** *{}*\n**Time Limit:** *{}*{}".format(
+                save_videos, size_limit, time_limit, size_now
+            )
+            return Response(info, delete_after=60)
+
+        if opt == "clear":
+            if os.path.isdir(AUDIO_CACHE_PATH):
+                if self._delete_old_audiocache():
+                    return Response("Cache has been cleared.", delete_after=30)
+                else:
+                    return Response(
+                        "**Failed** to delete cache, check logs for more info...",
+                        delete_after=30,
+                    )
+            return Response("No cache found to clear.", delete_after=30)
+
     async def cmd_queue(self, channel, player):
         """
         Usage:
