@@ -278,7 +278,6 @@ class MusicBot(discord.Client):
                     os.rename(path + "__", path)
                     return False
 
-
         return True
 
     def _setup_logging(self):
@@ -1356,11 +1355,11 @@ class MusicBot(discord.Client):
                 "  Downloaded songs will be "
                 + ["deleted", "saved"][self.config.save_videos]
             )
-            if self.config.save_videos and self.config.storage_limit_bytes:
-                log.info(
-                    f"    Delete if unused for {self.config.storage_limit_bytes} days"
-                )
             if self.config.save_videos and self.config.storage_limit_days:
+                log.info(
+                    f"    Delete if unused for {self.config.storage_limit_days} days"
+                )
+            if self.config.save_videos and self.config.storage_limit_bytess:
                 size = format_size_bytes(self.config.storage_limit_bytes)
                 log.info(f"    Delete if size exceeds {size}")
 
