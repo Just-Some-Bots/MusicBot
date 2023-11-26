@@ -228,13 +228,46 @@ class MusicBot(discord.Client):
         )
 
     def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
-        def _rmtree(path):
+        def _unlink_path(path: pathlib.Path):
+            try:
+                path.unlink(missing_ok=True)
+                return True
+            except Exception:
+                log.exception(f"Failed to delete cache file:  {path}")
+                return False
+
+        if self.config.save_videos:
+            if (
+                self.config.storage_limit_bytes == 0
+                and self.config.storage_limit_days == 0
+            ):
+                log.debug("Skip delete audio cache, no limits set.")
+                return False
+
+            # Sort cache by access-time and delete any that are older than set limit.
+            # Accumulate file sizes until a set limit is reached and purge remaining files.
+            max_age = time.time() - (86400 * self.config.storage_limit_days)
+            cached_size = 0
+            cached_files = sorted(pathlib.Path(path).iterdir(), key=os.path.getatime)
+            for cache_file in cached_files:
+                if (
+                    self.config.storage_limit_bytes
+                    and self.config.storage_limit_bytes <= cached_size
+                ):
+                    _unlink_path(cache_file)
+                    continue
+
+                if self.config.storage_limit_days:
+                    if os.path.getatime(cache_file) < max_age:
+                        _unlink_path(cache_file)
+                        continue
+
+                cached_size += os.path.getsize(cache_file)
+        else:
             try:
                 shutil.rmtree(path)
                 return True
             except Exception:
-                log.error(f"Failed to delete old cache:  {path}")
-                log.exception()
                 try:
                     os.rename(path, path + "__")
                 except Exception:
@@ -245,31 +278,6 @@ class MusicBot(discord.Client):
                     os.rename(path + "__", path)
                     return False
 
-        if self.config.save_videos:
-            if (
-                self.config.storage_limit_bytes == 0
-                and self.config.storage_limit_days == 0
-            ):
-                log.debug("Skip delete audio cache, no limits set.")
-                return False
-            max_age = time.time() - (86400 * self.config.storage_limit_days)
-            cached_size = 0
-            cached_files = sorted(pathlib.Path(path).iterdir(), key=os.path.getatime)
-            for cache_file in cached_files:
-                if (
-                    self.config.storage_limit_bytes
-                    and self.config.storage_limit_bytes <= cached_size
-                ):
-                    _rmtree(cache_file)
-                    continue
-
-                if self.config.storage_limit_days:
-                    if os.path.getatime(cache_file) < max_age:
-                        _rmtree(cache_file)
-                        continue
-                cached_size += os.path.getsize(cache_file)
-        else:
-            return _rmtree(path)
 
         return True
 
