@@ -3693,7 +3693,7 @@ class MusicBot(discord.Client):
 
         if opt == "info":
             save_videos = ["Disabled", "Enabled"][self.config.save_videos]
-            time_limit = self.config.storage_limit_days
+            time_limit = f"{self.config.storage_limit_days} days"
             size_limit = format_size_bytes(self.config.storage_limit_bytes)
             size_now = ""
 

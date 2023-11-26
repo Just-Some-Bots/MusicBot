@@ -187,4 +187,4 @@ def format_size_bytes(size: int):
     while size > power:
         size /= power
         i += 1
-    return f"{size} {suffix[i]}B"
+    return f"{size:.3f} {suffix[i]}B"
