@@ -246,9 +246,15 @@ class MusicBot(discord.Client):
                     return False
 
         if self.config.save_videos:
+            if (
+                self.config.storage_limit_bytes == 0
+                and self.config.storage_limit_days == 0
+            ):
+                log.debug("Skip delete audio cache, no limits set.")
+                return False
             max_age = time.time() - (86400 * self.config.storage_limit_days)
             cached_size = 0
-            cached_files = sorted(Path(path).iterdir(), key=os.path.getatime)
+            cached_files = sorted(pathlib.Path(path).iterdir(), key=os.path.getatime)
             for cache_file in cached_files:
                 if (
                     self.config.storage_limit_bytes
