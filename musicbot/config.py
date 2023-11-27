@@ -209,6 +209,12 @@ class Config:
             fallback=ConfigDefaults.defaultsearchresults,
         )
 
+        self.round_robin_queue = config.getboolean(
+            "MusicBot",
+            "RoundRobinQueue",
+            fallback=ConfigDefaults.defaultround_robin_queue
+        )
+
         self.debug_level = config.get(
             "MusicBot", "DebugLevel", fallback=ConfigDefaults.debug_level
         )
@@ -536,6 +542,7 @@ class ConfigDefaults:
     leave_after_song = False
     defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
+    defaultround_robin_queue = False
 
     options_file = "config/options.ini"
     blacklist_file = "config/blacklist.txt"
