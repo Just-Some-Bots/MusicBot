@@ -212,7 +212,7 @@ class Config:
         self.round_robin_queue = config.getboolean(
             "MusicBot",
             "RoundRobinQueue",
-            fallback=ConfigDefaults.defaultround_robin_queue
+            fallback=ConfigDefaults.defaultround_robin_queue,
         )
 
         self.debug_level = config.get(
