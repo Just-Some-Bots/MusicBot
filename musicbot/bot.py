@@ -3557,7 +3557,7 @@ class MusicBot(discord.Client):
             "delete_messages",
             "delete_invoking",
             "write_current_song",
-            "round_robin_queue"
+            "round_robin_queue",
         ]  # these need to match attribute names in the Config class
         if option in ["autoplaylist", "auto_playlist"]:
             if value in bool_y:
