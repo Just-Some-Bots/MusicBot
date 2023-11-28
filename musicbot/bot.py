@@ -3701,9 +3701,14 @@ class MusicBot(discord.Client):
         Valid options are:  info, clear
         """
         opt = opt.lower()
-        valid_opt = ["info", "clear"]
-        if opt not in valid_opt:
-            opt = "info"
+        if opt not in ["info", "clear"]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-cache-invalid-arg",
+                    'Invalid option "{0}" specified, use info or clear',
+                ).format(opt),
+                expire_in=30,
+            )
 
         if opt == "info":
             save_videos = ["Disabled", "Enabled"][self.config.save_videos]

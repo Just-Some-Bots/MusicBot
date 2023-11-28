@@ -108,6 +108,7 @@
     "cmd-option-autoplaylist-none": "There are no entries in the autoplaylist file.",
     "cmd-option-invalid-value": "The value provided was not valid.",
     "cmd-option-invalid-param": "The parameters provided were invalid.",
+    "cmd-cache-invalid-arg": "Invalid option \"{0}\" specified, use info or clear",
     "cmd-cache-size-now": "\n\n**Cached Now:**  {0} in {1} file(s)",
     "cmd-cache-info": "**Video Cache:** *{0}*\n**Storage Limit:** *{1}*\n**Time Limit:** *{2}*{3}",
     "cmd-cache-clear-success": "Cache has been cleared.",
