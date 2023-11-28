@@ -78,6 +78,7 @@ class MusicBot(discord.Client):
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
+        self.cached_audio_bytes = 0  # Only used with SaveVideos option.
         self.last_status = None
 
         self.config = Config(config_file)
@@ -708,6 +709,16 @@ class MusicBot(discord.Client):
 
         # TODO: Check channel voice state?
 
+        if self.config.save_videos and self.config.storage_limit_bytes:
+            # TODO: Improve this so it isn't called every song when cache is full.
+            #  ideal second option for keeping cache between min and max.
+            cache_size_now = self.cached_audio_bytes + entry.downloaded_bytes
+            if cache_size_now > self.config.storage_limit_bytes:
+                log.debug(
+                    f"Cache level requires cleanup. {format_size_bytes(cache_size_now)}"
+                )
+                self._delete_old_audiocache()
+
     async def on_player_resume(self, player, entry, **_):
         log.debug("Running on_player_resume")
         await self.update_now_playing_status(entry)
@@ -999,6 +1010,8 @@ class MusicBot(discord.Client):
                 log.debug("Deleted old audio cache")
             else:
                 log.debug("Could not delete old audio cache, moving on.")
+            for cache_file in pathlib.Path(AUDIO_CACHE_PATH).iterdir():
+                self.cached_audio_bytes += os.path.getsize(cache_file)
 
     async def _scheck_server_permissions(self):
         log.debug("Checking server permissions")
@@ -3715,7 +3728,7 @@ class MusicBot(discord.Client):
                     cached_size, cached_files
                 )
 
-            info = "**Video Cache:** *{}*\n**Size Target:** *{}*\n**Time Limit:** *{}*{}".format(
+            info = "**Video Cache:** *{}*\n**Storage Limit:** *{}*\n**Time Limit:** *{}*{}".format(
                 save_videos, size_limit, time_limit, size_now
             )
             return Response(info, delete_after=60)
