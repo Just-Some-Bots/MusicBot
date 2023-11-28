@@ -3725,25 +3725,43 @@ class MusicBot(discord.Client):
                     cached_bytes += os.path.getsize(cache_file)
                 self.cached_audio_bytes = cached_bytes
                 cached_size = format_size_bytes(cached_bytes)
-                size_now = "\n\n**Cached Now:**  {} in {} files".format(
-                    cached_size, cached_files
-                )
+                size_now = self.str.get(
+                    "cmd-cache-size-now", "\n\n**Cached Now:**  {0} in {1} file(s)"
+                ).format(cached_size, cached_files)
 
-            info = "**Video Cache:** *{}*\n**Storage Limit:** *{}*\n**Time Limit:** *{}*{}".format(
-                save_videos, size_limit, time_limit, size_now
+            return Response(
+                self.str.get(
+                    "cmd-cache-info",
+                    "**Video Cache:** *{0}*\n**Storage Limit:** *{1}*\n**Time Limit:** *{2}*{3}",
+                ).format(save_videos, size_limit, time_limit, size_now),
+                delete_after=60,
             )
-            return Response(info, delete_after=60)
 
         if opt == "clear":
             if os.path.isdir(AUDIO_CACHE_PATH):
                 if self._delete_old_audiocache():
-                    return Response("Cache has been cleared.", delete_after=30)
-                else:
                     return Response(
-                        "**Failed** to delete cache, check logs for more info...",
+                        self.str.get(
+                            "cmd-cache-clear-success",
+                            "Cache has been cleared.",
+                        ),
                         delete_after=30,
                     )
-            return Response("No cache found to clear.", delete_after=30)
+                else:
+                    raise exceptions.CommandError(
+                        self.str.get(
+                            "cmd-cache-clear-failed",
+                            "**Failed** to delete cache, check logs for more info...",
+                        ),
+                        expire_in=30,
+                    )
+            return Response(
+                self.str.get(
+                    "cmd-cache-clear-no-cache",
+                    "No cache found to clear.",
+                ),
+                delete_after=30,
+            )
 
     async def cmd_queue(self, channel, player):
         """
