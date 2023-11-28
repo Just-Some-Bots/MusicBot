@@ -273,9 +273,11 @@ class MusicBot(discord.Client):
                 cached_size += file_size
             rsize = format_size_bytes(removed_size)
             log.debug(f"Deleted {removed_count} files from cache, total of {rsize}. ")
+            self.cached_audio_bytes = cached_size
         else:
             try:
                 shutil.rmtree(path)
+                self.cached_audio_bytes = 0
                 return True
             except Exception:
                 try:
@@ -1010,8 +1012,6 @@ class MusicBot(discord.Client):
                 log.debug("Deleted old audio cache")
             else:
                 log.debug("Could not delete old audio cache, moving on.")
-            for cache_file in pathlib.Path(AUDIO_CACHE_PATH).iterdir():
-                self.cached_audio_bytes += os.path.getsize(cache_file)
 
     async def _scheck_server_permissions(self):
         log.debug("Checking server permissions")
