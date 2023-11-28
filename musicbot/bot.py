@@ -714,10 +714,10 @@ class MusicBot(discord.Client):
         if self.config.save_videos and self.config.storage_limit_bytes:
             # TODO: Improve this so it isn't called every song when cache is full.
             #  ideal second option for keeping cache between min and max.
-            cache_size_now = self.cached_audio_bytes + entry.downloaded_bytes
-            if cache_size_now > self.config.storage_limit_bytes:
+            self.cached_audio_bytes = self.cached_audio_bytes + entry.downloaded_bytes
+            if self.cached_audio_bytes > self.config.storage_limit_bytes:
                 log.debug(
-                    f"Cache level requires cleanup. {format_size_bytes(cache_size_now)}"
+                    f"Cache level requires cleanup. {format_size_bytes(self.cached_audio_bytes)}"
                 )
                 self._delete_old_audiocache()
 
