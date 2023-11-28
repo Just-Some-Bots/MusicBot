@@ -3723,6 +3723,7 @@ class MusicBot(discord.Client):
                 for cache_file in pathlib.Path(AUDIO_CACHE_PATH).iterdir():
                     cached_files += 1
                     cached_bytes += os.path.getsize(cache_file)
+                self.cached_audio_bytes = cached_bytes
                 cached_size = format_size_bytes(cached_bytes)
                 size_now = "\n\n**Cached Now:**  {} in {} files".format(
                     cached_size, cached_files
