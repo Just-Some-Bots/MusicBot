@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 class Playlist(EventEmitter, Serializable):
     """
-    A playlist is manages the list of songs that will be played.
+    A playlist that manages the list of songs that will be played.
     """
 
     def __init__(self, bot):
@@ -379,11 +379,51 @@ class Playlist(EventEmitter, Serializable):
             gooditems.reverse()
         return gooditems
 
+    def get_next_song_from_author(self, author):
+        for entry in self.entries:
+            if entry.meta.get("author", None) == author:
+                return entry
+
+        return None
+
+    def reorder_for_round_robin(self):
+        """
+        Reorders the queue for round-robin
+        """
+        new_queue = deque()
+
+        all_authors = []
+
+        for song in self.entries:
+            author = song.meta.get("author", None)
+            if author not in all_authors:
+                all_authors.append(author)
+
+        request_counter = 0
+        while self.entries:
+            if request_counter == len(all_authors):
+                request_counter = 0
+
+            song = self.get_next_song_from_author(all_authors[request_counter])
+
+            if song is None:
+                all_authors.pop(request_counter)
+                continue
+
+            new_queue.append(song)
+            self.entries.remove(song)
+            request_counter += 1
+
+        self.entries = new_queue
+
     def _add_entry(self, entry, *, head=False):
         if head:
             self.entries.appendleft(entry)
         else:
             self.entries.append(entry)
+
+        if self.bot.config.round_robin_queue:
+            self.reorder_for_round_robin()
 
         self.emit("entry-added", playlist=self, entry=entry)
 

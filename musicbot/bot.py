@@ -3541,11 +3541,10 @@ class MusicBot(discord.Client):
 
         Valid options:
             autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
-            delete_messages, delete_invoking, write_current_song
+            delete_messages, delete_invoking, write_current_song, round_robin_queue
 
         For information about these options, see the option's comment in the config file.
         """
-
         option = option.lower()
         value = value.lower()
         bool_y = ["on", "y", "enabled"]
@@ -3558,6 +3557,7 @@ class MusicBot(discord.Client):
             "delete_messages",
             "delete_invoking",
             "write_current_song",
+            "round_robin_queue",
         ]  # these need to match attribute names in the Config class
         if option in ["autoplaylist", "auto_playlist"]:
             if value in bool_y:
