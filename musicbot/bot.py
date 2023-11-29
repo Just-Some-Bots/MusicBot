@@ -228,7 +228,7 @@ class MusicBot(discord.Client):
             server.members if server else self.get_all_members(),
         )
 
-    def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
+    def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH, remove_dir=False):
         def _unlink_path(path: pathlib.Path):
             try:
                 path.unlink(missing_ok=True)
@@ -249,14 +249,30 @@ class MusicBot(discord.Client):
             # Accumulate file sizes until a set limit is reached and purge remaining files.
             max_age = time.time() - (86400 * self.config.storage_limit_days)
             cached_size = 0
-            cached_files = sorted(pathlib.Path(path).iterdir(), key=os.path.getatime)
+            if os.name == "nt":
+                # On Windows, creation time (ctime) is the only reliable way to do this.
+                # mtime is usually older than download time. atime is changed on multiple files by some part of the player.
+                # To make this consistent everywhere, we need to store last-played times for songs on our own.
+                cached_files = sorted(
+                    pathlib.Path(path).iterdir(), key=os.path.getctime, reverse=True
+                )
+            else:
+                cached_files = sorted(
+                    pathlib.Path(path).iterdir(), key=os.path.getatime, reverse=True
+                )
+
             removed_count = 0
             removed_size = 0
             for cache_file in cached_files:
                 file_size = os.path.getsize(cache_file)
+                if os.name == "nt":
+                    file_time = os.path.getctime(cache_file)
+                else:
+                    file_time = os.path.getatime(cache_file)
+
                 if (
                     self.config.storage_limit_bytes
-                    and self.config.storage_limit_bytes <= cached_size
+                    and self.config.storage_limit_bytes <= (cached_size + file_size)
                 ):
                     _unlink_path(cache_file)
                     removed_count += 1
@@ -264,17 +280,23 @@ class MusicBot(discord.Client):
                     continue
 
                 if self.config.storage_limit_days:
-                    if os.path.getatime(cache_file) < max_age:
+                    if file_time < max_age:
                         _unlink_path(cache_file)
                         removed_count += 1
                         removed_size += file_size
                         continue
 
                 cached_size += file_size
-            rsize = format_size_bytes(removed_size)
-            log.debug(f"Deleted {removed_count} files from cache, total of {rsize}. ")
             self.cached_audio_bytes = cached_size
-        else:
+            log.debug(
+                "Deleted {0} files from cache, total of {1}.  Cache is now {2} over {3} file(s).".format(
+                    removed_count,
+                    format_size_bytes(removed_size),
+                    format_size_bytes(cached_size),
+                    len(cached_files) - remove_count,
+                )
+            )
+        elif remove_dir:
             try:
                 shutil.rmtree(path)
                 self.cached_audio_bytes = 0
@@ -1008,7 +1030,7 @@ class MusicBot(discord.Client):
                 f.write("{:<22} {}\n".format(guild.id, guild.name))
 
         if os.path.isdir(AUDIO_CACHE_PATH):
-            if self._delete_old_audiocache():
+            if self._delete_old_audiocache(remove_dir=True):
                 log.debug("Deleted old audio cache")
             else:
                 log.debug("Could not delete old audio cache, moving on.")
