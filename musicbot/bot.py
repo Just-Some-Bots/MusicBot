@@ -1748,6 +1748,25 @@ class MusicBot(discord.Client):
             head=False,
         )
 
+    async def cmd_shuffleplay(
+        self, message, _player, channel, author, permissions, leftover_args, song_url
+    ):
+        """Usage:
+            {command_prefix}shuffleplay playlist_link
+        Adds a playlist to be shhuffled then played. Shorthand for doing {command_prefix}play and then {command_prefix}shuffle
+        """
+        return await self._cmd_play(
+            message,
+            _player,
+            channel,
+            author,
+            permissions,
+            leftover_args,
+            song_url,
+            head=False,
+        )
+        return await self.cmd_shuffle(channel, player)
+
     async def cmd_playnext(
         self, message, _player, channel, author, permissions, leftover_args, song_url
     ):
