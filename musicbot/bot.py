@@ -293,7 +293,7 @@ class MusicBot(discord.Client):
                     removed_count,
                     format_size_bytes(removed_size),
                     format_size_bytes(cached_size),
-                    len(cached_files) - remove_count,
+                    len(cached_files) - removed_count,
                 )
             )
         elif remove_dir:
