@@ -1758,10 +1758,10 @@ class MusicBot(discord.Client):
         """Usage:
             {command_prefix}shuffleplay playlist_link
         Adds a playlist to be shhuffled then played. Shorthand for doing {command_prefix}play and then {command_prefix}shuffle
-        The first few songs will be in the correct order as the rest of the playlist is downloaded. 
+        If nothing is playing, then the first few songs will be played in order while the rest of the playlist downloads.
         """
-        #TO-DO, don't play the first few songs so the entire playlist can be shuffled
-        #In my test run it's only 2-3 songs that get played in the order this is because of how the _cmd_play works. 
+        # TO-DO, don't play the first few songs so the entire playlist can be shuffled
+        # In my test run it's only 2-3 songs that get played in the order this is because of how the _cmd_play works.
         return await self._cmd_play(
             message,
             _player,
