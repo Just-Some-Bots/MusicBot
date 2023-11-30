@@ -116,6 +116,12 @@ class Config:
         self.save_videos = config.getboolean(
             "MusicBot", "SaveVideos", fallback=ConfigDefaults.save_videos
         )
+        self.storage_limit_bytes = config.getint(
+            "MusicBot", "StorageLimitBytes", fallback=ConfigDefaults.storage_limit_bytes
+        )
+        self.storage_limit_days = config.getint(
+            "MusicBot", "StorageLimitDays", fallback=ConfigDefaults.storage_limit_days
+        )
         self.now_playing_mentions = config.getboolean(
             "MusicBot",
             "NowPlayingMentions",
@@ -515,6 +521,8 @@ class ConfigDefaults:
     skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
+    storage_limit_bytes = 0
+    storage_limit_days = 0
     now_playing_mentions = False
     auto_summon = True
     auto_playlist = True

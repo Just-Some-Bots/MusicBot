@@ -178,3 +178,13 @@ def format_song_duration(ftd):
         if int(duration_array[0]) > 0
         else "{0}:{1}".format(duration_array[1], duration_array[2])
     )
+
+
+def format_size_bytes(size: int):
+    suffix = {0: "", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
+    power = 1024
+    i = 0
+    while size > power:
+        size /= power
+        i += 1
+    return f"{size:.3f} {suffix[i]}B"
