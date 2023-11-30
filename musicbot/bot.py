@@ -1755,14 +1755,17 @@ class MusicBot(discord.Client):
     async def cmd_shuffleplay(
         self, message, _player, channel, author, permissions, leftover_args, song_url
     ):
-        """Usage:
+        """
+        Usage:
             {command_prefix}shuffleplay playlist_link
         Adds a playlist to be shhuffled then played. Shorthand for doing {command_prefix}play and then {command_prefix}shuffle
         If nothing is playing, then the first few songs will be played in order while the rest of the playlist downloads.
         """
         # TO-DO, don't play the first few songs so the entire playlist can be shuffled
         # In my test run it's only 2-3 songs that get played in the order this is because of how the _cmd_play works.
-        return await self._cmd_play(
+        player = self.get_player_in(channel.guild)
+
+        await self._cmd_play(
             message,
             _player,
             channel,
@@ -1772,7 +1775,14 @@ class MusicBot(discord.Client):
             song_url,
             head=False,
         )
+
         player.playlist.shuffle()
+        return Response(
+            self.str.get("cmd-shuffleplay-shuffled", "Shuffled {0}'s playlist").format(
+                message.guild
+            ),
+            delete_after=30,
+        )
 
     async def cmd_playnext(
         self, message, _player, channel, author, permissions, leftover_args, song_url
@@ -1823,16 +1833,16 @@ class MusicBot(discord.Client):
                     "Use %ssummon to summon it to your voice channel.",
                 )
                 % self.config.command_prefix,
+                expire_in=30
             )
 
         if not player.current_entry:
             return Response(
                 self.str.get(
                     "cmd-repeat-no-songs",
-                    "No songs are queued. Play something with{}play.".format(
-                        self.config.command_prefix
-                    ),
-                ),
+                    "No songs are queued. Play something with{}play."
+                ).format(self.config.command_prefix),
+                delete_after=30,
             )
 
         if option == "all":
