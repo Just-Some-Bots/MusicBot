@@ -650,7 +650,11 @@ class MusicBot(discord.Client):
             else:
                 log.error("Unkknown link or unable to get video ID.")
             content = self._gen_embed()
-            content.title = newmsg
+            if self.config.now_playing_mentions:
+                content.title = None
+                content.add_field(name="\n", value=newmsg, inline=True)
+            else:
+                content.title = newmsg
             content.set_image(url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg")
 
         # send it in specified channel
