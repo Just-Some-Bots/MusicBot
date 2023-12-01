@@ -1522,7 +1522,7 @@ class MusicBot(discord.Client):
         write_file(self.config.auto_playlist_file, self.autoplaylist)
         log.debug("Removed {} from autoplaylist".format(url))
 
-    async def handle_timeout(self, guild: discord.Guild):
+    async def handle_vc_inactivity(self, guild: discord.Guild):
         event, active = self.server_specific_data[guild]["inactive_vc_timer"]
 
         self.server_specific_data[guild]["inactive_vc_timer"] = (event, True)
@@ -1538,7 +1538,7 @@ class MusicBot(discord.Client):
             log.debug(
                 f"Channel activity timer for {guild.name} has expired. Disconnecting."
             )
-            await self.on_timeout_expired(guild.me.voice.channel)
+            await self.on_inactivity_timeout_expired(guild.me.voice.channel)
         else:
             log.debug(
                 f"Channel activity timer canceled for: {guild.me.voice.channel.name} in {guild.name}"
@@ -1577,7 +1577,7 @@ class MusicBot(discord.Client):
             log.debug(
                 f"Player activity timer for {guild.name} has expired. Disconnecting."
             )
-            await self.on_timeout_expired(guild.me.voice.channel)
+            await self.on_inactivity_timeout_expired(guild.me.voice.channel)
         else:
             log.debug(
                 f"Player activity timer canceled for: {guild.me.voice.channel.name} in {guild.name}"
@@ -4739,7 +4739,7 @@ class MusicBot(discord.Client):
                         "{}{}".format(self.config.command_prefix, command_name)
                     )
 
-    async def on_timeout_expired(self, voice_channel):
+    async def on_inactivity_timeout_expired(self, voice_channel):
         guild = voice_channel.guild
 
         if voice_channel:
@@ -4781,7 +4781,7 @@ class MusicBot(discord.Client):
                     log.info(
                         f"{before.channel.name} has been detected as empty. Handling timeouts."
                     )
-                    await self.handle_timeout(guild)
+                    await self.handle_vc_inactivity(guild)
             elif after.channel and member != self.user:
                 if self.user in after.channel.members:
                     if (
@@ -4799,7 +4799,7 @@ class MusicBot(discord.Client):
                     log.info(
                         f"The bot got moved and the voice channel {after.channel.name} is empty. Handling timeouts."
                     )
-                    await self.handle_timeout(guild)
+                    await self.handle_vc_inactivity(guild)
                 else:
                     if active:
                         log.info(
