@@ -180,7 +180,7 @@ def format_song_duration(ftd):
     )
 
 
-def format_size_bytes(size: int):
+def format_size_from_bytes(size: int):
     suffix = {0: "", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
     power = 1024
     i = 0
@@ -190,7 +190,7 @@ def format_size_bytes(size: int):
     return f"{size:.3f} {suffix[i]}B"
 
 
-def size_format_to_bytes(size_str: str, strict_si=False) -> int:
+def format_size_to_bytes(size_str: str, strict_si=False) -> int:
     """Convert human-friendly *bytes notation into integer.
     Note: this function is not intended to convert Bits notation.
 

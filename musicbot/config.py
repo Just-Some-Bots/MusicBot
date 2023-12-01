@@ -7,7 +7,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
-from .utils import size_format_to_bytes
+from .utils import format_size_to_bytes
 
 log = logging.getLogger(__name__)
 
@@ -407,7 +407,7 @@ class Config:
 
         if self.storage_limit_bytes:
             try:
-                self.storage_limit_bytes = size_format_to_bytes(
+                self.storage_limit_bytes = format_size_to_bytes(
                     self.storage_limit_bytes
                 )
             except ValueError:
