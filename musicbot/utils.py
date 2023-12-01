@@ -188,3 +188,58 @@ def format_size_bytes(size: int):
         size /= power
         i += 1
     return f"{size:.3f} {suffix[i]}B"
+
+
+def size_format_to_bytes(size_str: str, strict_si=False) -> int:
+    """Convert human-friendly *bytes notation into integer.
+    Note: this function is not intended to convert Bits notation.
+
+    Option `strict_si` will use 1000 rather than 1024 for SI suffixes.
+    """
+    si_units = 1024
+    if strict_si:
+        si_units = 1000
+    suffix_list = {
+        "kilobyte": si_units,
+        "megabyte": si_units**2,
+        "gigabyte": si_units**3,
+        "terabyte": si_units**4,
+        "petabyte": si_units**5,
+        "exabyte": si_units**6,
+        "zetabyte": si_units**7,
+        "yottabyte": si_units**8,
+        "kb": si_units,
+        "mb": si_units**2,
+        "gb": si_units**3,
+        "tb": si_units**4,
+        "pb": si_units**5,
+        "eb": si_units**6,
+        "zb": si_units**7,
+        "yb": si_units**8,
+        "kibibyte": 1024,
+        "mebibyte": 1024**2,
+        "gibibyte": 1024**3,
+        "tebibyte": 1024**4,
+        "pebibyte": 1024**5,
+        "exbibyte": 1024**6,
+        "zebibyte": 1024**7,
+        "yobibyte": 1024**8,
+        "kib": 1024,
+        "mib": 1024**2,
+        "gib": 1024**3,
+        "tib": 1024**4,
+        "pib": 1024**5,
+        "eib": 1024**6,
+        "zib": 1024**7,
+        "yib": 1024**8,
+    }
+    size_str = size_str.lower().strip().strip("s")
+    for suffix in suffix_list:
+        if size_str.endswith(suffix):
+            return int(float(size_str[0 : -len(suffix)]) * suffix_list[suffix])
+    else:
+        if size_str.endswith("b"):
+            size_str = size_str[0:-1]
+        elif size_str.endswith("byte"):
+            size_str = size_str[0:-4]
+    return int(size_str)
