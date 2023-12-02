@@ -1568,7 +1568,7 @@ class MusicBot(discord.Client):
 
         try:
             log.debug(
-                f"Player activity timer waiting {self.config.leave_player_inactive_for} seconds to leave channel: {guild.me.voice.channel.name}"
+                f"Player activity timer waiting {self.config.leave_player_inactive_for} seconds to leave channel: {channel.name}"
             )
             await discord.utils.sane_wait_for(
                 [event.wait()], timeout=self.config.leave_player_inactive_for
@@ -1577,10 +1577,10 @@ class MusicBot(discord.Client):
             log.debug(
                 f"Player activity timer for {guild.name} has expired. Disconnecting."
             )
-            await self.on_inactivity_timeout_expired(guild.me.voice.channel)
+            await self.on_inactivity_timeout_expired(channel)
         else:
             log.debug(
-                f"Player activity timer canceled for: {guild.me.voice.channel.name} in {guild.name}"
+                f"Player activity timer canceled for: {channel.name} in {guild.name}"
             )
         finally:
             log.debug(f"Cleaning up player activity timer for guild {guild.name}.")
@@ -1592,7 +1592,7 @@ class MusicBot(discord.Client):
             return
         guild = player.voice_client.channel.guild
         event, active = self.server_specific_data[guild]["inactive_player_timer"]
-        if active:
+        if active and not event.is_set():
             event.set()
             log.debug("Player activity timer is being reset.")
 
