@@ -4236,16 +4236,29 @@ class MusicBot(discord.Client):
             if "clear" == prefix:
                 self.server_specific_data[channel.guild]["command_prefix"] = None
                 await self._save_guild_options(channel.guild)
-                return Response("Command Prefix is cleared.")
+                return Response(
+                    self.str.get(
+                        "cmd-setprefix-cleared",
+                        "Server command prefix is cleared.",
+                    )
+                )
 
             self.server_specific_data[channel.guild]["command_prefix"] = prefix
             await self._save_guild_options(channel.guild)
             return Response(
-                "Command Prefix is now:  {0}".format(prefix), delete_after=60
+                self.str.get(
+                    "cmd-setprefix-changed",
+                    "Server command prefix is now:  {0}",
+                ).format(prefix),
+                delete_after=60,
             )
         else:
             raise exceptions.CommandError(
-                "Prefix per server is not enabled!", expire_in=20
+                self.str.get(
+                    "cmd-setprefix-disabled",
+                    "Prefix per server is not enabled!",
+                ),
+                expire_in=20,
             )
 
     @owner_only
