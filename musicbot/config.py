@@ -7,6 +7,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
+from .utils import format_size_to_bytes
 
 log = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class Config:
         self.save_videos = config.getboolean(
             "MusicBot", "SaveVideos", fallback=ConfigDefaults.save_videos
         )
-        self.storage_limit_bytes = config.getint(
+        self.storage_limit_bytes = config.get(
             "MusicBot", "StorageLimitBytes", fallback=ConfigDefaults.storage_limit_bytes
         )
         self.storage_limit_days = config.getint(
@@ -403,6 +404,19 @@ class Config:
 
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
+
+        if self.storage_limit_bytes:
+            try:
+                self.storage_limit_bytes = format_size_to_bytes(
+                    self.storage_limit_bytes
+                )
+            except ValueError:
+                log.exception(
+                    "StorageLimitBytes has invalid config value '{}' using default instead.".format(
+                        self.storage_limit_bytes,
+                    ),
+                )
+                self.storage_limit_bytes = ConfigDefaults.storage_limit_bytes
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file

@@ -44,7 +44,7 @@ from .utils import (
     _func_,
     _get_variable,
     format_song_duration,
-    format_size_bytes,
+    format_size_from_bytes,
 )
 
 load_opus_lib()
@@ -291,8 +291,8 @@ class MusicBot(discord.Client):
             log.debug(
                 "Deleted {0} files from cache, total of {1}.  Cache is now {2} over {3} file(s).".format(
                     removed_count,
-                    format_size_bytes(removed_size),
-                    format_size_bytes(cached_size),
+                    format_size_from_bytes(removed_size),
+                    format_size_from_bytes(cached_size),
                     len(cached_files) - removed_count,
                 )
             )
@@ -743,7 +743,7 @@ class MusicBot(discord.Client):
             self.cached_audio_bytes = self.cached_audio_bytes + entry.downloaded_bytes
             if self.cached_audio_bytes > self.config.storage_limit_bytes:
                 log.debug(
-                    f"Cache level requires cleanup. {format_size_bytes(self.cached_audio_bytes)}"
+                    f"Cache level requires cleanup. {format_size_from_bytes(self.cached_audio_bytes)}"
                 )
                 self._delete_old_audiocache()
 
@@ -1408,7 +1408,7 @@ class MusicBot(discord.Client):
                     f"    Delete if unused for {self.config.storage_limit_days} days"
                 )
             if self.config.save_videos and self.config.storage_limit_bytes:
-                size = format_size_bytes(self.config.storage_limit_bytes)
+                size = format_size_from_bytes(self.config.storage_limit_bytes)
                 log.info(f"    Delete if size exceeds {size}")
 
             if self.config.status_message:
@@ -3771,7 +3771,7 @@ class MusicBot(discord.Client):
         if opt == "info":
             save_videos = ["Disabled", "Enabled"][self.config.save_videos]
             time_limit = f"{self.config.storage_limit_days} days"
-            size_limit = format_size_bytes(self.config.storage_limit_bytes)
+            size_limit = format_size_from_bytes(self.config.storage_limit_bytes)
             size_now = ""
 
             if not self.config.storage_limit_bytes:
@@ -3787,7 +3787,7 @@ class MusicBot(discord.Client):
                     cached_files += 1
                     cached_bytes += os.path.getsize(cache_file)
                 self.cached_audio_bytes = cached_bytes
-                cached_size = format_size_bytes(cached_bytes)
+                cached_size = format_size_from_bytes(cached_bytes)
                 size_now = self.str.get(
                     "cmd-cache-size-now", "\n\n**Cached Now:**  {0} in {1} file(s)"
                 ).format(cached_size, cached_files)
