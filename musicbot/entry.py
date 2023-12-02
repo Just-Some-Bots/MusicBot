@@ -135,6 +135,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "entry name: {}".format(self.title)
             )
         self.expected_filename = expected_filename
+        self.downloaded_bytes = 0
         self.meta = meta
         self.aoptions = "-vn"
 
@@ -466,6 +467,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
 
+        # It should be safe to get our newly downloaded file size now...
+        # This should also leave self.downloaded_bytes set to 0 if the file is in cache already.
+        self.downloaded_bytes = os.path.getsize(self.filename)
+
 
 class StreamPlaylistEntry(BasePlaylistEntry):
     def __init__(self, playlist, url, title, *, destination=None, **meta):
@@ -476,6 +481,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.title = title
         self.destination = destination
         self.duration = None
+        self.downloaded_bytes = 0
         self.meta = meta
 
         if self.destination:
