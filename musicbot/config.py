@@ -214,11 +214,11 @@ class Config:
             "DefaultSearchResults",
             fallback=ConfigDefaults.defaultsearchresults,
         )
-        
+
         self.enable_options_per_guild = config.getboolean(
             "MusicBot",
             "EnableOptionsPerGuild",
-            fallback=ConfigDefaults.enable_options_per_guild
+            fallback=ConfigDefaults.enable_options_per_guild,
         )
 
         self.round_robin_queue = config.getboolean(
