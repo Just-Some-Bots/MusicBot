@@ -4232,10 +4232,7 @@ class MusicBot(discord.Client):
         If enabled by owner, set an override for command prefix with a custom prefix.
         """
         if self.config.enable_options_per_guild:
-            if " " in prefix:
-                raise exceptions.CommandError(
-                    "Cannot set command prefix containing spaces.", expire_in=20
-                )
+            # TODO: maybe filter out emoji, odd unicode, or bad words...
             if "clear" == prefix:
                 self.server_specific_data[channel.guild]["command_prefix"] = None
                 await self._save_guild_options(channel.guild)
