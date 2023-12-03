@@ -1643,7 +1643,7 @@ class MusicBot(discord.Client):
         else:
             desc = (
                 "```\n"
-                + ", ".join(commands)
+                + f", {prefix}".join(commands)
                 + "\n```\n"
                 + self.str.get(
                     "cmd-help-response",
