@@ -1580,21 +1580,21 @@ class MusicBot(discord.Client):
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
         """
-        self.commands = []
-        self.is_all = False
+        commands = []
+        is_all = False
         prefix = self._get_guild_cmd_prefix(channel.guild)
 
         if command:
             if command.lower() == "all":
-                self.is_all = True
-                await self.gen_cmd_list(message, list_all_cmds=True)
+                is_all = True
+                commands = await self.gen_cmd_list(message, list_all_cmds=True)
 
             else:
                 cmd = getattr(self, "cmd_" + command, None)
                 if cmd and not hasattr(cmd, "dev_cmd"):
                     return Response(
                         "```\n{}```".format(dedent(cmd.__doc__)).format(
-                            command_prefix=self._get_guild_cmd_prefix(channel.guild)
+                            command_prefix=prefix
                         ),
                         delete_after=60,
                     )
@@ -1605,14 +1605,14 @@ class MusicBot(discord.Client):
                     )
 
         elif message.author.id == self.config.owner_id:
-            await self.gen_cmd_list(message, list_all_cmds=True)
+            commands = await self.gen_cmd_list(message, list_all_cmds=True)
 
         else:
-            await self.gen_cmd_list(message)
+            commands = await self.gen_cmd_list(message)
 
         desc = (
             "```\n"
-            + ", ".join(self.commands)
+            + ", ".join(commands)
             + "\n```\n"
             + self.str.get(
                 "cmd-help-response",
@@ -1620,7 +1620,7 @@ class MusicBot(discord.Client):
                 "For further help, see https://just-some-bots.github.io/MusicBot/",
             ).format(prefix)
         )
-        if not self.is_all:
+        if not is_all:
             desc += self.str.get(
                 "cmd-help-all",
                 "\nOnly showing commands you can use, for a list of all commands, run `{}help all`",
@@ -4714,6 +4714,7 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(message, quiet=True)
 
     async def gen_cmd_list(self, message, list_all_cmds=False):
+        commands = []
         for att in dir(self):
             # This will always return at least cmd_help, since they needed perms to run this command
             if att.startswith("cmd_") and not hasattr(getattr(self, att), "dev_cmd"):
@@ -4723,7 +4724,7 @@ class MusicBot(discord.Client):
                 whitelist = user_permissions.command_whitelist
                 blacklist = user_permissions.command_blacklist
                 if list_all_cmds:
-                    self.commands.append("{}{}".format(command_prefix, command_name))
+                    commands.append("{}{}".format(command_prefix, command_name))
 
                 elif blacklist and command_name in blacklist:
                     pass
@@ -4732,7 +4733,8 @@ class MusicBot(discord.Client):
                     pass
 
                 else:
-                    self.commands.append("{}{}".format(command_prefix, command_name))
+                    commands.append("{}{}".format(command_prefix, command_name))
+        return commands
 
     async def on_timeout_expired(self, voice_channel):
         guild = voice_channel.guild
