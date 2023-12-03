@@ -1602,7 +1602,9 @@ class MusicBot(discord.Client):
                     return Response(
                         "```\n{0}```{1}".format(
                             dedent(cmd.__doc__),
-                            f"\n**Prefix Required:**  {prefix}`{command} ...`\n" if is_emoji else "",
+                            f"\n**Prefix Required:**  {prefix}`{command} ...`\n"
+                            if is_emoji
+                            else "",
                         ).format(
                             command_prefix=prefix if not is_emoji else "",
                         ),
@@ -1630,7 +1632,9 @@ class MusicBot(discord.Client):
                     "For information about a particular command, run {example_cmd}\n"
                     "For further help, see https://just-some-bots.github.io/MusicBot/",
                 ).format(
-                    example_cmd=f"{prefix}`help [command]`" if is_emoji else f"`{prefix}help [command]`",
+                    example_cmd=f"{prefix}`help [command]`"
+                    if is_emoji
+                    else f"`{prefix}help [command]`",
                 )
             )
         else:
@@ -1643,7 +1647,9 @@ class MusicBot(discord.Client):
                     "For information about a particular command, run {example_cmd}\n"
                     "For further help, see https://just-some-bots.github.io/MusicBot/",
                 ).format(
-                    example_cmd=f"{prefix}`help [command]`" if is_emoji else f"`{prefix}help [command]`",
+                    example_cmd=f"{prefix}`help [command]`"
+                    if is_emoji
+                    else f"`{prefix}help [command]`",
                 )
             )
         if not is_all:
@@ -1651,7 +1657,9 @@ class MusicBot(discord.Client):
                 "cmd-help-all",
                 "\nOnly showing commands you can use, for a list of all commands, run {example_cmd}",
             ).format(
-                example_cmd=f"{prefix}`help all`" if is_emoji else f"`{prefix}help all`",
+                example_cmd=f"{prefix}`help all`"
+                if is_emoji
+                else f"`{prefix}help all`",
             )
 
         return Response(desc, reply=True, delete_after=60)
@@ -4273,7 +4281,7 @@ class MusicBot(discord.Client):
                         self.str.get(
                             "cmd-setprefix-emoji-unavailable",
                             "Custom emoji must be from this server to use as a prefix.",
-                        )
+                        ),
                         expire_in=30,
                     )
 
