@@ -120,7 +120,7 @@ class Config:
         self.storage_limit_bytes = config.get(
             "MusicBot", "StorageLimitBytes", fallback=ConfigDefaults.storage_limit_bytes
         )
-        self.storage_limit_days = config.get(
+        self.storage_limit_days = config.getint(
             "MusicBot", "StorageLimitDays", fallback=ConfigDefaults.storage_limit_days
         )
         self.now_playing_mentions = config.getboolean(
@@ -424,9 +424,6 @@ class Config:
                     ),
                 )
                 self.storage_limit_bytes = ConfigDefaults.storage_limit_bytes
-
-        if self.storage_limit_days:
-            self.storage_limit_days = format_time_to_seconds(self.storage_limit_days)
 
         if self.leave_inactive_channel_timeout:
             self.leave_inactive_channel_timeout = format_time_to_seconds(
