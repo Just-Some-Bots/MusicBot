@@ -7,7 +7,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
-from .utils import format_size_to_bytes
+from .utils import format_size_to_bytes, format_time_to_seconds
 
 log = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ class Config:
         self.storage_limit_bytes = config.get(
             "MusicBot", "StorageLimitBytes", fallback=ConfigDefaults.storage_limit_bytes
         )
-        self.storage_limit_days = config.getint(
+        self.storage_limit_days = config.get(
             "MusicBot", "StorageLimitDays", fallback=ConfigDefaults.storage_limit_days
         )
         self.now_playing_mentions = config.getboolean(
@@ -201,7 +201,7 @@ class Config:
             "LeaveInactiveVC",
             fallback=ConfigDefaults.leave_inactive_channel,
         )
-        self.leave_inactive_channel_timeout = config.getint(
+        self.leave_inactive_channel_timeout = config.get(
             "MusicBot",
             "LeaveInactiveVCTimeOut",
             fallback=ConfigDefaults.leave_inactive_channel_timeout,
@@ -209,7 +209,7 @@ class Config:
         self.leave_after_song = config.getboolean(
             "MusicBot", "LeaveAfterSong", fallback=ConfigDefaults.leave_after_song
         )
-        self.leave_player_inactive_for = config.getint(
+        self.leave_player_inactive_for = config.get(
             "MusicBot",
             "LeavePlayerInactiveFor",
             fallback=ConfigDefaults.leave_player_inactive_for,
@@ -424,6 +424,19 @@ class Config:
                     ),
                 )
                 self.storage_limit_bytes = ConfigDefaults.storage_limit_bytes
+
+        if self.storage_limit_days:
+            self.storage_limit_days = format_time_to_seconds(self.storage_limit_days)
+
+        if self.leave_inactive_channel_timeout:
+            self.leave_inactive_channel_timeout = format_time_to_seconds(
+                self.leave_inactive_channel_timeout
+            )
+
+        if self.leave_player_inactive_for:
+            self.leave_player_inactive_for = format_time_to_seconds(
+                self.leave_player_inactive_for
+            )
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
