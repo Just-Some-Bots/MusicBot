@@ -1582,7 +1582,14 @@ class MusicBot(discord.Client):
         """
         commands = []
         is_all = False
+        is_emoji = False
         prefix = self._get_guild_cmd_prefix(channel.guild)
+        if prefix.startswith("<:") and prefix.endswith(">"):
+            # custom guild emoji.
+            is_emoji = True
+        if prefix.startswith(":") and prefix.endswith(":"):
+            # emoji that isn't in unicode is likely.
+            is_emoji = True
 
         if command:
             if command.lower() == "all":
@@ -1593,8 +1600,11 @@ class MusicBot(discord.Client):
                 cmd = getattr(self, "cmd_" + command, None)
                 if cmd and not hasattr(cmd, "dev_cmd"):
                     return Response(
-                        "```\n{}```".format(dedent(cmd.__doc__)).format(
-                            command_prefix=prefix
+                        "```\n{0}```{1}".format(
+                            dedent(cmd.__doc__),
+                            f"\n**Prefix Required:**  {prefix}`{command} ...`\n" if is_emoji else "",
+                        ).format(
+                            command_prefix=prefix if not is_emoji else "",
                         ),
                         delete_after=60,
                     )
@@ -1610,21 +1620,39 @@ class MusicBot(discord.Client):
         else:
             commands = await self.gen_cmd_list(message)
 
-        desc = (
-            "```\n"
-            + ", ".join(commands)
-            + "\n```\n"
-            + self.str.get(
-                "cmd-help-response",
-                "For information about a particular command, run `{}help [command]`\n"
-                "For further help, see https://just-some-bots.github.io/MusicBot/",
-            ).format(prefix)
-        )
+        if is_emoji:
+            desc = (
+                f"---\n{prefix}`"
+                + f"`, {prefix}`".join(commands)
+                + "`\n\n"
+                + self.str.get(
+                    "cmd-help-response",
+                    "For information about a particular command, run {example_cmd}\n"
+                    "For further help, see https://just-some-bots.github.io/MusicBot/",
+                ).format(
+                    example_cmd=f"{prefix}`help [command]`" if is_emoji else f"`{prefix}help [command]`",
+                )
+            )
+        else:
+            desc = (
+                "```\n"
+                + ", ".join(commands)
+                + "\n```\n"
+                + self.str.get(
+                    "cmd-help-response",
+                    "For information about a particular command, run {example_cmd}\n"
+                    "For further help, see https://just-some-bots.github.io/MusicBot/",
+                ).format(
+                    example_cmd=f"{prefix}`help [command]`" if is_emoji else f"`{prefix}help [command]`",
+                )
+            )
         if not is_all:
             desc += self.str.get(
                 "cmd-help-all",
-                "\nOnly showing commands you can use, for a list of all commands, run `{}help all`",
-            ).format(prefix)
+                "\nOnly showing commands you can use, for a list of all commands, run {example_cmd}",
+            ).format(
+                example_cmd=f"{prefix}`help all`" if is_emoji else f"`{prefix}help all`",
+            )
 
         return Response(desc, reply=True, delete_after=60)
 
@@ -4232,7 +4260,23 @@ class MusicBot(discord.Client):
         If enabled by owner, set an override for command prefix with a custom prefix.
         """
         if self.config.enable_options_per_guild:
-            # TODO: maybe filter out emoji, odd unicode, or bad words...
+            # TODO: maybe filter odd unicode or bad words...
+            # Filter custom guild emoji, bot can only use in-guild emoji.
+            if prefix.startswith("<:") and prefix.endswith(">"):
+                e_name, e_id = prefix[2:-1].split(":")
+                try:
+                    emoji = self.get_emoji(int(e_id))
+                except ValueError:
+                    emoji = None
+                if not emoji:
+                    raise exceptions.CommandError(
+                        self.str.get(
+                            "cmd-setprefix-emoji-unavailable",
+                            "Custom emoji must be from this server to use as a prefix.",
+                        )
+                        expire_in=30,
+                    )
+
             if "clear" == prefix:
                 self.server_specific_data[channel.guild]["command_prefix"] = None
                 await self._save_guild_options(channel.guild)
@@ -4258,7 +4302,7 @@ class MusicBot(discord.Client):
                     "cmd-setprefix-disabled",
                     "Prefix per server is not enabled!",
                 ),
-                expire_in=20,
+                expire_in=30,
             )
 
     @owner_only
@@ -4714,17 +4758,22 @@ class MusicBot(discord.Client):
                 await self.safe_delete_message(message, quiet=True)
 
     async def gen_cmd_list(self, message, list_all_cmds=False):
+        """
+        Return a list of valid command names, without prefix, for the given message author.
+        Commands marked with @dev_cmd are never included.
+
+        Param `list_all_cmds` set True will list commands regardless of permission restrictions.
+        """
         commands = []
         for att in dir(self):
             # This will always return at least cmd_help, since they needed perms to run this command
             if att.startswith("cmd_") and not hasattr(getattr(self, att), "dev_cmd"):
                 user_permissions = self.permissions.for_user(message.author)
-                command_prefix = self._get_guild_cmd_prefix(message.channel.guild)
                 command_name = att.replace("cmd_", "").lower()
                 whitelist = user_permissions.command_whitelist
                 blacklist = user_permissions.command_blacklist
                 if list_all_cmds:
-                    commands.append("{}{}".format(command_prefix, command_name))
+                    commands.append(command_name)
 
                 elif blacklist and command_name in blacklist:
                     pass
@@ -4733,7 +4782,7 @@ class MusicBot(discord.Client):
                     pass
 
                 else:
-                    commands.append("{}{}".format(command_prefix, command_name))
+                    commands.append(command_name)
         return commands
 
     async def on_timeout_expired(self, voice_channel):
