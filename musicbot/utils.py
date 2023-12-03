@@ -270,7 +270,6 @@ def format_time_to_seconds(time_str: str) -> int:
     }
     total_sec = 0
     for value, unit in time_lex.findall(time_str):
-        print(value, unit)
         if not unit:
             unit = "s"
         else:
