@@ -1642,7 +1642,7 @@ class MusicBot(discord.Client):
             )
         else:
             desc = (
-                "```\n"
+                f"```\n{prefix}"
                 + f", {prefix}".join(commands)
                 + "\n```\n"
                 + self.str.get(
