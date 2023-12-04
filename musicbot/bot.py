@@ -104,8 +104,6 @@ class MusicBot(discord.Client):
             log.warning("Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
         else:
-            if self.config.storage_retain_autoplay:
-                await self._preload_autoplay_filenames()
             log.info(
                 "Loaded autoplaylist with {} entries".format(len(self.autoplaylist))
             )
@@ -1095,6 +1093,14 @@ class MusicBot(discord.Client):
         with open("data/server_names.txt", "w", encoding="utf8") as f:
             for guild in sorted(self.guilds, key=lambda s: int(s.id)):
                 f.write("{:<22} {}\n".format(guild.id, guild.name))
+
+        # be sure to load autoplay retention data before we handle cache.
+        if (
+            self.config.storage_retain_autoplay
+            and self.config.save_videos
+            and self.config.auto_playlist
+        ):
+            await self._preload_autoplay_filenames()
 
         if os.path.isdir(AUDIO_CACHE_PATH):
             if self._delete_old_audiocache(remove_dir=True):
