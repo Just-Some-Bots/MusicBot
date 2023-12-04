@@ -4,7 +4,7 @@
     "cmd-help-no-perms": "You don't have permission to use any commands. Run {example_cmd} to list every command anyway",
     "cmd-help-response": "For information about a particular command, run {example_cmd}\nFor further help, see https://just-some-bots.github.io/MusicBot/",
     "cmd-help-all": "\nOnly showing commands you can use, for a list of all commands, run {example_cmd}",
-    "cmd-help-prefix-required": "\n**Prefix required for use:**\n{example_cmd}\n"
+    "cmd-help-prefix-required": "\n**Prefix required for use:**\n{example_cmd}\n",
     "cmd-blacklist-invalid": "Invalid option '{0}' specified, use +, -, add, or remove",
     "cmd-blacklist-added": "{0} users have been added to the blacklist",
     "cmd-blacklist-none": "None of those users are in the blacklist.",
