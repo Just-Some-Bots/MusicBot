@@ -123,6 +123,11 @@ class Config:
         self.storage_limit_days = config.getint(
             "MusicBot", "StorageLimitDays", fallback=ConfigDefaults.storage_limit_days
         )
+        self.storage_retain_autoplay = config.getboolean(
+            "MusicBot",
+            "StorageRetainAutoPlay",
+            fallback=ConfigDefaults.storage_retain_autoplay,
+        )
         self.now_playing_mentions = config.getboolean(
             "MusicBot",
             "NowPlayingMentions",
@@ -535,6 +540,7 @@ class ConfigDefaults:
     skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
+    storage_retain_autoplay = True
     storage_limit_bytes = 0
     storage_limit_days = 0
     now_playing_mentions = False

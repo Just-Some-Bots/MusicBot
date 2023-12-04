@@ -93,6 +93,7 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.autoplay_filenames = set()
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder="audio_cache")
@@ -103,6 +104,8 @@ class MusicBot(discord.Client):
             log.warning("Autoplaylist is empty, disabling.")
             self.config.auto_playlist = False
         else:
+            if self.config.storage_retain_autoplay:
+                await self._preload_autoplay_filenames()
             log.info(
                 "Loaded autoplaylist with {} entries".format(len(self.autoplaylist))
             )
@@ -123,6 +126,36 @@ class MusicBot(discord.Client):
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
         super().__init__(intents=intents)
+
+    async def _preload_autoplay_filenames(self):
+        log.debug("Fetching autoplaylist file names.")
+        for ap_url in self.autoplaylist:
+            try:
+                # TODO: check file extensions, since those could be different.
+                filename = await self.downloader.url_to_filename(self, ap_url)
+                self.autoplay_filenames.add(filename)
+            except Exception:
+                log.exception("Autoplay URL could not be converted to a filename.")
+
+    async def _remove_autoplay_filename(self, url):
+        try:
+            ap_filename = await self.downloader.url_to_filename(self, url)
+            self.autoplay_filenames.remove(ap_filename)
+        except (ExtractionError, WrongEntryTypeError):
+            log.debug("Autoplay URL could not be converted to a filename.")
+        except KeyError:
+            log.debug("Autoplay URL does not exist to be removed.")
+        except Exception:
+            log.exception("Exception while trying to remove autoplay filename.")
+
+    async def _add_autoplay_filename(self, url):
+        try:
+            ap_filename = await self.downloader.url_to_filename(self, url)
+            self.autoplay_filenames.add(ap_filename)
+        except (ExtractionError, WrongEntryTypeError):
+            log.debug("Autoplay URL could not be converted to a filename.")
+        except Exception:
+            log.exception("Exception while trying to add autoplay filename.")
 
     async def _doBotInit(self):
         self.http.user_agent = "MusicBot/%s" % BOTVERSION
@@ -238,6 +271,8 @@ class MusicBot(discord.Client):
                 return False
 
         if self.config.save_videos:
+            # Sort cache by access or creation time and delete any that are older than set limit.
+            # Accumulate file sizes until a set limit is reached and purge remaining files.
             if (
                 self.config.storage_limit_bytes == 0
                 and self.config.storage_limit_days == 0
@@ -245,10 +280,6 @@ class MusicBot(discord.Client):
                 log.debug("Skip delete audio cache, no limits set.")
                 return False
 
-            # Sort cache by access-time and delete any that are older than set limit.
-            # Accumulate file sizes until a set limit is reached and purge remaining files.
-            max_age = time.time() - (86400 * self.config.storage_limit_days)
-            cached_size = 0
             if os.name == "nt":
                 # On Windows, creation time (ctime) is the only reliable way to do this.
                 # mtime is usually older than download time. atime is changed on multiple files by some part of the player.
@@ -261,15 +292,29 @@ class MusicBot(discord.Client):
                     pathlib.Path(path).iterdir(), key=os.path.getatime, reverse=True
                 )
 
+            max_age = time.time() - (86400 * self.config.storage_limit_days)
+            cached_size = 0
             removed_count = 0
             removed_size = 0
+            retained_count = 0
+            retained_size = 0
             for cache_file in cached_files:
                 file_size = os.path.getsize(cache_file)
+
+                # Do not purge files from autoplaylist if retention is enabled.
+                if self.config.storage_retain_autoplay:
+                    if os.path.basename(cache_file) in self.autoplay_filenames:
+                        retained_count += 1
+                        retained_size += file_size
+                        continue
+
+                # get file access/creation time.
                 if os.name == "nt":
                     file_time = os.path.getctime(cache_file)
                 else:
                     file_time = os.path.getatime(cache_file)
 
+                # enforce size limit before time limit.
                 if (
                     self.config.storage_limit_bytes
                     and self.config.storage_limit_bytes <= (cached_size + file_size)
@@ -288,12 +333,29 @@ class MusicBot(discord.Client):
 
                 cached_size += file_size
             self.cached_audio_bytes = cached_size
+            if removed_count:
+                log.debug(
+                    "Audio cache deleted {} file{}, total of {} removed.".format(
+                        removed_count,
+                        "" if removed_count == 1 else "s",
+                        format_size_from_bytes(removed_size),
+                    )
+                )
+            if retained_count:
+                log.debug(
+                    "Audio cached retained {} files from autoplaylist, total of {} retained.".format(
+                        retained_count,
+                        format_size_from_bytes(retained_size),
+                        "" if retained_count == 1 else "s",
+                    )
+                )
+            cached_count = len(cached_files) - removed_count
+            cached_size += retained_size
             log.debug(
-                "Deleted {0} files from cache, total of {1}.  Cache is now {2} over {3} file(s).".format(
-                    removed_count,
-                    format_size_from_bytes(removed_size),
+                "Audio cache is now {} over {} file{}.".format(
                     format_size_from_bytes(cached_size),
-                    len(cached_files) - removed_count,
+                    cached_count,
+                    "" if cached_count == 1 else "s",
                 )
             )
         elif remove_dir:
@@ -508,6 +570,7 @@ class MusicBot(discord.Client):
 
         async with self.aiolocks[_func_()]:
             self.autoplaylist.remove(song_url)
+            await self._remove_autoplay_filename(url)
             log.info(
                 "Removing unplayable song from session autoplaylist: %s" % song_url
             )
@@ -1691,6 +1754,7 @@ class MusicBot(discord.Client):
             if option in ["+", "add"]:
                 if url not in self.autoplaylist:
                     self._add_url_to_autoplaylist(url)
+                    await self._add_autoplay_filename(url)
                     return Response(
                         self.str.get(
                             "cmd-save-success", "Added <{0}> to the autoplaylist."
@@ -1708,6 +1772,7 @@ class MusicBot(discord.Client):
             elif option in ["-", "remove"]:
                 if url in self.autoplaylist:
                     self._remove_url_from_autoplaylist(url)
+                    await self._remove_autoplay_filename(url)
                     return Response(
                         self.str.get(
                             "cmd-unsave-success", "Removed <{0}> from the autoplaylist."
