@@ -2,12 +2,15 @@ import aiohttp
 import asyncio
 import asyncio.exceptions
 import base64
+import certifi
 import logging
+import ssl
 import time
 
 from .exceptions import SpotifyError
 
 log = logging.getLogger(__name__)
+ssl_context = ssl.create_default_context(cafile=certifi.where())
 
 
 def _make_token_auth(client_id, client_secret):
@@ -66,7 +69,7 @@ class Spotify:
 
     async def make_get(self, url, headers=None):
         """Makes a GET request and returns the results"""
-        async with self.aiosession.get(url, headers=headers) as r:
+        async with self.aiosession.get(url, headers=headers, ssl=ssl_context) as r:
             if r.status != 200:
                 raise SpotifyError(
                     "Issue making GET request to {0}: [{1.status}] {2}".format(
@@ -77,7 +80,9 @@ class Spotify:
 
     async def make_post(self, url, payload, headers=None):
         """Makes a POST request and returns the results"""
-        async with self.aiosession.post(url, data=payload, headers=headers) as r:
+        async with self.aiosession.post(
+            url, data=payload, headers=headers, ssl=ssl_context
+        ) as r:
             if r.status != 200:
                 raise SpotifyError(
                     "Issue making POST request to {0}: [{1.status}] {2}".format(
@@ -136,7 +141,8 @@ class Spotify:
         """Obtains a web player token from Spotify and returns it"""
         try:
             async with self.aiosession.get(
-                "https://open.spotify.com/get_access_token?reason=transport&productType=web_player"
+                "https://open.spotify.com/get_access_token?reason=transport&productType=web_player",
+                ssl=ssl_context,
             ) as r:
                 if r.status != 200:
                     try:
