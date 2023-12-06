@@ -428,7 +428,7 @@ class MusicBot(discord.Client):
             self.autoplaylist.remove(song_url)
             log.info(
                 "Removing{} song from session autoplaylist: {}".format(
-                    " unplayable" if ex and not instanceof(ex, UserWarning) else "",
+                    " unplayable" if ex and not isinstance(ex, UserWarning) else "",
                     song_url,
                 ),
             )

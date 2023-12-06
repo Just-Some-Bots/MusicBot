@@ -1,8 +1,13 @@
 import json
-import pathlib
 import logging
+import os
+import pathlib
+import shutil
+import time
 
-log = logging.get_logger(__name__)
+from .utils import _func_, format_size_from_bytes
+
+log = logging.getLogger(__name__)
 
 
 class AudioFileCache:
@@ -140,10 +145,10 @@ class AudioFileCache:
                 )
             if retained_count:
                 log.debug(
-                    "Audio cached retained {} files from autoplaylist, total of {} retained.".format(
+                    "Audio cached retained {} file{} from autoplaylist, total of {} retained.".format(
                         retained_count,
-                        format_size_from_bytes(retained_size),
                         "" if retained_count == 1 else "s",
+                        format_size_from_bytes(retained_size),
                     )
                 )
             self.file_count = len(cached_files) - removed_count
@@ -157,20 +162,23 @@ class AudioFileCache:
             )
         elif remove_dir:
             try:
-                shutil.rmtree(path)
+                shutil.rmtree(self.cache_path)
                 self.cached_audio_bytes = 0
                 log.debug("Audio cache directory has been removed.")
                 return True
             except Exception:
+                new_name = self.cache_path.stem + "__"
                 try:
-                    os.rename(path, path + "__")
+                    new_path = self.cache_path.rename(
+                        self.cache_path.with_stem(new_name)
+                    )
                 except Exception:
                     log.debug("Audio cache directory could not be removed or renamed.")
                     return False
                 try:
-                    shutil.rmtree(path)
+                    shutil.rmtree(new_path)
                 except Exception:
-                    os.rename(path + "__", path)
+                    new_path.rename(self.cache_path)
                     log.debug("Audio cache directory could not be removed.")
                     return False
 
