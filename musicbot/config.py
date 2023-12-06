@@ -1,4 +1,5 @@
 import os
+import pathlib
 import sys
 import codecs
 import shutil
@@ -242,7 +243,11 @@ class Config:
         self.i18n_file = config.get(
             "Files", "i18nFile", fallback=ConfigDefaults.i18n_file
         )
+        self.audio_cache_path = config.get(
+            "Files", "AudioCachePath", fallback=ConfigDefaults.audio_cache_path
+        )
         self.auto_playlist_removed_file = None
+        self.auto_playlist_cachemap_file = None
 
         self._spotify = False
 
@@ -289,6 +294,41 @@ class Config:
             )
 
         log.info("Using i18n: {0}".format(self.i18n_file))
+
+        self.audio_cache_path = self.audio_cache_path.strip()
+        if self.audio_cache_path:
+            try:
+                acpath = pathlib.Path(self.audio_cache_path)
+                if acpath.is_file():
+                    raise HelpfulError(
+                        "AudioCachePath config option is a file path.",
+                        "Change it to a directory / folder path instead.",
+                        preface=self._confpreface2,
+                    )
+                # Might as well test for multiple issues here since we can give feedback.
+                if not acpath.is_dir():
+                    acpath.mkdir(parents=True, exist_ok=True)
+                actest = acpath.joinpath(".bot-test-write")
+                actest.touch(exist_ok=True)
+                actest.unlink(missing_ok=True)
+            except PermissionError:
+                raise HelpfulError(
+                    "AudioCachePath config option cannot be used due to invalid permissions.",
+                    "Check that directory permissions and ownership are correct.",
+                    preface=self._confpreface2,
+                )
+            except Exception:
+                raise HelpfulError(
+                    "AudioCachePath config option could not be set due to some exception we did not expect.",
+                    "Double check the setting and maybe report an issue.",
+                    preface=self._confpreface2,
+                )
+                log.exception(
+                    "Some other exception was thrown while validating AudioCachePath."
+                )
+        else:
+            self.audio_cache_path = ConfigDefaults.audio_cache_path
+        log.info(f"Audio Cache will be stored in:  {self.audio_cache_path}")
 
         if not self._login_token:
             # Attempt to fallback to an environment variable.
@@ -389,6 +429,9 @@ class Config:
         apn_name, apn_ext = os.path.splitext(ap_name)
         self.auto_playlist_removed_file = os.path.join(
             ap_path, apn_name + "_removed" + apn_ext
+        )
+        self.auto_playlist_cachemap_file = os.path.join(
+            ap_path, f"{apn_name}.cachemap.json"
         )
 
         if hasattr(logging, self.debug_level.upper()):
@@ -578,6 +621,7 @@ class ConfigDefaults:
         "config/autoplaylist.txt"  # this will change when I add playlists
     )
     i18n_file = "config/i18n/en.json"
+    audio_cache_path = os.path.join(os.getcwd(), "audio_cache")
 
 
 setattr(

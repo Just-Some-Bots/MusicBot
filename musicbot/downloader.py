@@ -5,7 +5,6 @@ import functools
 import yt_dlp as youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
-
 from types import MappingProxyType
 
 log = logging.getLogger(__name__)
@@ -120,78 +119,3 @@ class Downloader:
             self.thread_pool,
             functools.partial(self.safe_ytdl.extract_info, *args, **kwargs),
         )
-
-    async def url_to_filename(self, bot, song_url: str) -> str:
-        """
-        Validates a song_url to be played and returns only the filename.
-
-        :param song_url: The song url to add to the playlist.
-        """
-
-        try:
-            info = await self.extract_info(bot.loop, song_url, download=False)
-        except Exception as e:
-            raise ExtractionError(
-                "Could not extract information from {}\n\n{}".format(song_url, e)
-            )
-
-        if not info:
-            raise ExtractionError("Could not extract information from %s" % song_url)
-
-        # TODO: if/when playlists work in autoplaylist.txt we will need to handle this.
-        if info.get("_type", None) == "playlist":
-            raise WrongEntryTypeError(
-                "This is a playlist.",
-                True,
-                info.get("webpage_url", None) or info.get("url", None),
-            )
-
-        if info.get("is_live", False):
-            raise WrongEntryTypeError(
-                "This is a live stream.",
-                True,
-                info.get("webpage_url", None) or info.get("url", None),
-            )
-
-        if info["extractor"] in ["generic", "Dropbox"]:
-            log.debug("Detected a generic extractor, or Dropbox")
-            try:
-                headers = await get_header(bot.session, info["url"])
-                content_type = headers.get("CONTENT-TYPE")
-                log.debug("Got content type {}".format(content_type))
-            except Exception as e:
-                log.warning(
-                    "Failed to get content type for url {} ({})".format(song_url, e)
-                )
-                content_type = None
-
-            if content_type:
-                if content_type.startswith(("application/", "image/")):
-                    if not any(x in content_type for x in ("/ogg", "/octet-stream")):
-                        # How does a server say `application/ogg` what the actual fuck
-                        raise ExtractionError(
-                            'Invalid content type "%s" for url %s'
-                            % (content_type, song_url)
-                        )
-
-                elif (
-                    content_type.startswith("text/html")
-                    and info["extractor"] == "generic"
-                ):
-                    log.warning(
-                        "Got text/html for content-type, this might be a stream."
-                    )
-                    raise WrongEntryTypeError(
-                        "This is a playlist.",
-                        True,
-                        info.get("webpage_url", None) or info.get("url", None),
-                    )
-
-                elif not content_type.startswith(("audio/", "video/")):
-                    log.warning(
-                        'Questionable content-type "{}" for url {}'.format(
-                            content_type, song_url
-                        )
-                    )
-
-        return self.downloader.ytdl.prepare_filename(info)
