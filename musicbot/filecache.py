@@ -7,8 +7,6 @@ import shutil
 import time
 
 from .utils import format_size_from_bytes
-from .bot import MusicBot
-from .entry import Entry
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +16,7 @@ class AudioFileCache:
     This class provides methods to manage the audio file cache and get info about it.
     """
 
-    def __init__(self, bot: MusicBot) -> None:
+    def __init__(self, bot: 'MusicBot') -> None:
         self.bot = bot
         self.config = bot.config
         self.cache_path = pathlib.Path(bot.config.audio_cache_path)
@@ -201,8 +199,8 @@ class AudioFileCache:
 
         return True
 
-    def handle_new_cache_entry(self, entry: Entry) -> None:
-        """
+    def handle_new_cache_entry(self, entry: 'BasePlaylistEntry') -> None:
+        """1
         Test given entry for cachemap inclusion and run cache limit checks.
         """
         if entry.url in self.bot.autoplaylist:
@@ -278,7 +276,7 @@ class AudioFileCache:
             except Exception:
                 log.exception("Failed to save autoplaylist cache map.")
 
-    def add_autoplay_cachemap_entry(self, entry: Entry) -> None:
+    def add_autoplay_cachemap_entry(self, entry: 'BasePlaylistEntry') -> None:
         """
         Store an entry in autoplaylist cachemap, and update the cachemap file if needed.
         """
@@ -309,7 +307,7 @@ class AudioFileCache:
         if change_made:
             self.bot.loop.create_task(self.save_autoplay_cachemap())
 
-    def remove_autoplay_cachemap_entry(self, entry: Entry) -> None:
+    def remove_autoplay_cachemap_entry(self, entry: 'BasePlaylistEntry') -> None:
         """
         Remove an entry from cachemap and update cachemap file if needed.
         """
