@@ -1420,6 +1420,9 @@ class MusicBot(discord.Client):
     @staticmethod
     def _get_song_url_or_none(url, player):
         """Return song url if provided or one is currently playing, else returns None"""
+        if not player:
+            return url
+
         if url or (
             player.current_entry
             and not isinstance(player.current_entry, StreamPlaylistEntry)
@@ -1612,14 +1615,14 @@ class MusicBot(discord.Client):
                 delete_after=35,
             )
 
-    async def cmd_autoplaylist(self, player, option, url=None):
+    async def cmd_autoplaylist(self, _player, option, url=None):
         """
         Usage:
             {command_prefix}autoplaylist [ + | - | add | remove] [url]
 
         Adds or removes the specified song or currently playing song to/from the playlist.
         """
-        url = self._get_song_url_or_none(url, player)
+        url = self._get_song_url_or_none(url, _player)
 
         if url:
             if option in ["+", "add"]:
