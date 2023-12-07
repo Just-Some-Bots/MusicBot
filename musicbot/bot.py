@@ -461,6 +461,7 @@ class MusicBot(discord.Client):
                     apl.write_text(data)
                 except Exception:
                     log.exception("Failed to save autoplaylist file.")
+                self.filecache.remove_autoplay_cachemap_entry_by_url(song_url)
 
     async def add_url_to_autoplaylist(self, song_url: str):
         if song_url in self.autoplaylist:
