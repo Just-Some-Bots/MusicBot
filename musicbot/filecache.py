@@ -187,14 +187,17 @@ class AudioFileCache:
     def handle_new_cache_entry(self, entry):
         # ignore partial downloads
         if entry.cache_busted:
+            log.noise("Audio cache file marked as busted, ignoring it.")
             return
 
         if entry.url in self.bot.autoplaylist:
+            log.noise("Audio cache entry is an autoplaylist URL.")
             self.add_autoplay_cachemap_entry(entry)
 
         if self.config.save_videos and self.config.storage_limit_bytes:
             # TODO: Improve this so it isn't called every song when cache is full.
             #  idealy a second option for keeping cache between min and max.
+            # TODO: Maybe check for storage_limit_days at runtime too, currently avoided for the reason above.
             self.size_bytes = self.size_bytes + entry.downloaded_bytes
             if self.size_bytes > self.config.storage_limit_bytes:
                 log.debug(
@@ -251,6 +254,9 @@ class AudioFileCache:
                 log.exception("Failed to save auto playlist cache map.")
 
     def add_autoplay_cachemap_entry(self, entry):
+        """
+        Store an entry in auto playlist cachemap, and update the cachemap file if needed.
+        """
         if (
             not self.config.storage_retain_autoplay
             or not self.config.auto_playlist
@@ -258,6 +264,7 @@ class AudioFileCache:
         ):
             return
 
+        change_made = False
         filename = pathlib.Path(entry.filename).stem
         if filename in self.auto_playlist_cachemap:
             if self.auto_playlist_cachemap[filename] != entry.url:
@@ -268,9 +275,19 @@ class AudioFileCache:
                         entry.url,
                     )
                 )
-        self.auto_playlist_cachemap[filename] = entry.url
+                self.auto_playlist_cachemap[filename] = entry.url
+                change_made = True
+        else:
+            self.auto_playlist_cachemap[filename] = entry.url
+            change_made = True
+
+        if change_made:
+            self.bot.loop.create_task(self.save_autoplay_cachemap())
 
     def remove_autoplay_cachemap_entry(self, entry):
+        """
+        Remove an entry from cachemap and update cachemap file if needed.
+        """
         if (
             not self.config.storage_retain_autoplay
             or not self.config.auto_playlist
@@ -281,8 +298,12 @@ class AudioFileCache:
         filename = pathlib.Path(entry.filename).stem
         if filename in self.auto_playlist_cachemap:
             del self.auto_playlist_cachemap[filename]
+            self.bot.loop.create_task(self.save_autoplay_cachemap())
 
     def remove_autoplay_cachemap_entry_by_url(self, url):
+        """
+        Remove all entries having the given URL from cachemap and update cachemap if needed.
+        """
         if (
             not self.config.storage_retain_autoplay
             or not self.config.auto_playlist
@@ -294,8 +315,12 @@ class AudioFileCache:
         for map_key, map_url in self.auto_playlist_cachemap.items():
             if map_url == url:
                 to_remove.add(map_key)
+
         for key in to_remove:
             del self.auto_playlist_cachemap[key]
+
+        if len(to_remove):
+            self.bot.loop.create_task(self.save_autoplay_cachemap())
 
     def _check_autoplay_cachemap(self, filename: pathlib.Path) -> bool:
         """
