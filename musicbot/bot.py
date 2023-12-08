@@ -763,13 +763,13 @@ class MusicBot(discord.Client):
     async def on_player_pause(self, player, entry, **_):
         log.debug("Running on_player_pause")
         await self.update_now_playing_status(entry, True)
-        await self.handle_player_inactivity(player)
+        self.loop.create_task(self.handle_player_inactivity(player))
         # await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_stop(self, player, **_):
         log.debug("Running on_player_stop")
-        await self.handle_player_inactivity(player)
         await self.update_now_playing_status()
+        self.loop.create_task(self.handle_player_inactivity(player))
 
     async def on_player_finished_playing(self, player, **_):
         log.debug("Running on_player_finished_playing")
@@ -4783,7 +4783,7 @@ class MusicBot(discord.Client):
                     log.info(
                         f"{before.channel.name} has been detected as empty. Handling timeouts."
                     )
-                    await self.handle_vc_inactivity(guild)
+                    self.loop.create_task(self.handle_vc_inactivity(guild))
             elif after.channel and member != self.user:
                 if self.user in after.channel.members:
                     if (
@@ -4801,7 +4801,7 @@ class MusicBot(discord.Client):
                     log.info(
                         f"The bot got moved and the voice channel {after.channel.name} is empty. Handling timeouts."
                     )
-                    await self.handle_vc_inactivity(guild)
+                    self.loop.create_task(self.handle_vc_inactivity(guild))
                 else:
                     if active:
                         log.info(
