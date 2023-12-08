@@ -4749,7 +4749,9 @@ class MusicBot(discord.Client):
                 if self.config.embeds:
                     embed = self._gen_embed()
                     embed.title = "Leaving voice channel"
-                    embed.description = f"Leaving voice channel {voice_channel.name} due to inactivity."
+                    embed.description = (
+                        f"Leaving voice channel {voice_channel.name} due to inactivity."
+                    )
                     await self.safe_send_message(channel, embed, expire_in=30)
                 else:
                     await self.safe_send_message(
