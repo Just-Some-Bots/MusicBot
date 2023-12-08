@@ -127,6 +127,7 @@ class AudioFileCache:
             if self._check_autoplay_cachemap(cache_file):
                 retained_count += 1
                 retained_size += file_size
+                cached_size += file_size
                 continue
 
             # get file access/creation time.
@@ -171,7 +172,7 @@ class AudioFileCache:
                 )
             )
         self.file_count = len(cached_files) - removed_count
-        self.size_bytes = cached_size + retained_size
+        self.size_bytes = cached_size
         log.debug(
             "Audio cache is now {} over {} file{}.".format(
                 format_size_from_bytes(self.size_bytes),
