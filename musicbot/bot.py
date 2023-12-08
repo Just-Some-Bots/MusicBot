@@ -4495,6 +4495,14 @@ class MusicBot(discord.Client):
 
         command_prefix = self._get_guild_cmd_prefix(message.channel.guild)
         message_content = message.content.strip()
+        # if the prefix is an emoji, silently remove the space often auto-inserted after it.
+        if (command_prefix.startswith("<:") and command_prefix.endswith(">")) or (
+            command_prefix.startswith(":") and command_prefix.endwith(":")
+        ):
+            message_content = message_content.replace(
+                f"{command_prefix} ", command_prefix
+            )
+
         if not message_content.startswith(command_prefix):
             return
 
