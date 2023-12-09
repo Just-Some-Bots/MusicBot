@@ -567,8 +567,14 @@ class MusicBot(discord.Client):
 
         if guild.id in self.players:
             player = self.players.pop(guild.id)
-            if self.config.leave_player_inactive_for > 0:
-                await self.reset_player_inactivity(player)
+
+            await self.reset_player_inactivity(player)
+
+            if self.config.leave_inactive_channel:
+                event, active = self.server_specific_data[guild]["inactive_vc_timer"]
+                if active and not event.is_set():
+                    event.set()
+
             player.kill()
 
         await self.update_now_playing_status()
