@@ -643,7 +643,7 @@ class MusicBot(discord.Client):
     async def on_player_play(self, player, entry):
         log.debug("Running on_player_play")
         await self.reset_player_inactivity(player)
-        await self.update_now_playing_status(entry)
+        await self.update_now_playing_status()
         player.skip_state.reset()
 
         # This is the one event where it's ok to serialize autoplaylist entries
@@ -765,11 +765,11 @@ class MusicBot(discord.Client):
     async def on_player_resume(self, player, entry, **_):
         log.debug("Running on_player_resume")
         await self.reset_player_inactivity(player)
-        await self.update_now_playing_status(entry)
+        await self.update_now_playing_status()
 
     async def on_player_pause(self, player, entry, **_):
         log.debug("Running on_player_pause")
-        await self.update_now_playing_status(entry, True)
+        await self.update_now_playing_status()
         self.loop.create_task(self.handle_player_inactivity(player))
         # await self.serialize_queue(player.voice_client.channel.guild)
 
@@ -904,24 +904,25 @@ class MusicBot(discord.Client):
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def update_now_playing_status(self, entry=None, is_paused=False):
+    async def update_now_playing_status(self):
         game = None
 
         if not self.config.status_message:
-            if self.user.bot:
-                activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-                if activeplayers > 1:
-                    game = discord.Game(
-                        type=0, name="music on %s guilds" % activeplayers
-                    )
-                    entry = None
+            entry = None
+            paused = False
+            activeplayers = sum(1 for p in self.players.values() if p.is_playing)
+            if activeplayers > 1:
+                game = discord.Game(
+                    type=0, name="music on %s guilds" % activeplayers
+                )
 
-                elif activeplayers == 1:
-                    player = discord.utils.get(self.players.values(), is_playing=True)
-                    entry = player.current_entry
+            elif activeplayers == 1:
+                player = discord.utils.get(self.players.values(), is_playing=True)
+                paused = player.is_paused
+                entry = player.current_entry
 
             if entry:
-                prefix = "\u275A\u275A " if is_paused else ""
+                prefix = "\u275A\u275A " if paused else ""
 
                 name = "{}{}".format(prefix, entry.title)[:128]
                 game = discord.Game(type=0, name=name)
