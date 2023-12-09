@@ -571,6 +571,7 @@ class MusicBot(discord.Client):
                 await self.reset_player_inactivity(player)
             player.kill()
 
+        await self.update_now_playing_status()
         await vc.disconnect()
 
     async def disconnect_all_voice_clients(self):
