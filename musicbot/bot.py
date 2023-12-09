@@ -912,9 +912,7 @@ class MusicBot(discord.Client):
             paused = False
             activeplayers = [p for p in self.players.values() if p.is_playing]
             if len(activeplayers) > 1:
-                game = discord.Game(
-                    type=0, name="music on %s guilds" % activeplayers
-                )
+                game = discord.Game(type=0, name="music on %s guilds" % activeplayers)
 
             elif len(activeplayers) == 1:
                 player = activeplayers[0]
@@ -932,9 +930,7 @@ class MusicBot(discord.Client):
                 name = "{}{}".format(prefix, entry.title)[:128]
                 game = discord.Game(type=0, name=name)
         else:
-            game = discord.Game(
-                type=0, name=self.config.status_message.strip()[:128]
-            )
+            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
 
         async with self.aiolocks[_func_()]:
             if game != self.last_status:
