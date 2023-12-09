@@ -1536,6 +1536,9 @@ class MusicBot(discord.Client):
     async def handle_vc_inactivity(self, guild: discord.Guild):
         event, active = self.server_specific_data[guild]["inactive_vc_timer"]
 
+        if active:
+            log.debug(f"Channel activity already waiting in guild: {guild}")
+            return
         self.server_specific_data[guild]["inactive_vc_timer"] = (event, True)
 
         try:
