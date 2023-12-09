@@ -910,14 +910,19 @@ class MusicBot(discord.Client):
         if not self.config.status_message:
             entry = None
             paused = False
-            activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-            if activeplayers > 1:
+            activeplayers = [p for p in self.players.values() if p.is_playing]
+            if len(activeplayers) > 1:
                 game = discord.Game(
                     type=0, name="music on %s guilds" % activeplayers
                 )
 
-            elif activeplayers == 1:
-                player = discord.utils.get(self.players.values(), is_playing=True)
+            elif len(activeplayers) == 1:
+                player = activeplayers[0]
+                paused = player.is_paused
+                entry = player.current_entry
+
+            elif len(self.players):
+                player = list(self.players.values())[0]
                 paused = player.is_paused
                 entry = player.current_entry
 
