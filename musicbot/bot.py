@@ -932,7 +932,9 @@ class MusicBot(discord.Client):
                 name = "{}{}".format(prefix, entry.title)[:128]
                 game = discord.Game(type=0, name=name)
         else:
-            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
+            game = discord.Game(
+                type=0, name=self.config.status_message.strip()[:128]
+            )
 
         async with self.aiolocks[_func_()]:
             if game != self.last_status:
