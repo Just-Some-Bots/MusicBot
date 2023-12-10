@@ -144,7 +144,7 @@ class AudioFileCache:
             # enforce size limit before time limit.
             if (
                 self.config.storage_limit_bytes
-                and self.config.storage_limit_bytes < cached_size + file_size
+                and self.config.storage_limit_bytes < cached_size
             ):
                 self._delete_cache_file(cache_file)
                 removed_count += 1
