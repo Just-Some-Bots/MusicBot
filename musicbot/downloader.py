@@ -5,7 +5,6 @@ import functools
 import yt_dlp as youtube_dl
 
 from concurrent.futures import ThreadPoolExecutor
-
 from types import MappingProxyType
 
 log = logging.getLogger(__name__)
