@@ -207,7 +207,9 @@ class Config:
             fallback=ConfigDefaults.leave_inactive_channel_timeout,
         )
         self.leave_after_queue_empty = config.getboolean(
-            "MusicBot", "LeaveAfterQueueEmpty", fallback=ConfigDefaults.leave_after_queue_empty
+            "MusicBot",
+            "LeaveAfterQueueEmpty",
+            fallback=ConfigDefaults.leave_after_queue_empty,
         )
         self.leave_player_inactive_for = config.get(
             "MusicBot",
