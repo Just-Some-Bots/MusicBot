@@ -208,7 +208,7 @@ class Config:
         )
         self.leave_after_queue_empty = config.getboolean(
             "MusicBot",
-            "LeaveAfterQueueEmpty",
+            "LeaveAfterSong",
             fallback=ConfigDefaults.leave_after_queue_empty,
         )
         self.leave_player_inactive_for = config.get(
