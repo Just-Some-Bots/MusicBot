@@ -253,9 +253,6 @@ def req_ensure_py3():
 
             if pycom:
                 log.info("Python 3 found.  Launching bot...")
-                pyexec(pycom, "run.py")
-
-                # I hope ^ works
                 os.system("start cmd /k %s run.py" % pycom)
                 sys.exit(0)
 
@@ -274,7 +271,7 @@ def req_ensure_py3():
                 log.info(
                     "\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom
                 )
-                pyexec(pycom, "run.py")
+                os.execlp(pycom, pycom, "run.py")
 
         log.critical(
             "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
@@ -375,10 +372,29 @@ def opt_check_disk_space(warnlimit_mb=200):
 #################################################
 
 
-def pyexec(pycom, *args, pycom2=None):
-    pycom2 = pycom2 or pycom
-    os.execlp(pycom, pycom2, *args)
+def respawn_bot_process(pybin=None):
+    if not pybin:
+        pybin = os.path.basename(sys.executable)
+    exec_args = [pybin] + sys.argv
 
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    if os.name == "nt":
+        # On Windows, this creates a new process window that dies when the script exits. 
+        # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
+        # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
+        # The moment we end this instance of the process, control is returned to the starting shell.
+        subprocess.Popen(
+            exec_args,
+            creationflags=subprocess.CREATE_NEW_WINDOW,
+        )
+        sys.exit(0)
+    else:
+        # On Unix/Linux/Mac this should immediately replace the current program.
+        # No new PID, and the babies all get thrown out with the bath.  Kinda dangerous...
+        # We need to make sure files and things are closed before we do this.
+        os.execlp(exec_args[0], *exec_args)
 
 async def main():
     # TODO: *actual* argparsing
@@ -388,12 +404,7 @@ async def main():
 
     finalize_logging()
 
-    import asyncio
-
-    if sys.platform == "win32":
-        loop = asyncio.ProactorEventLoop()  # needed for subprocesses
-        asyncio.set_event_loop(loop)
-
+    exit_signal = None
     tried_requirementstxt = False
     tryagain = True
 
@@ -410,10 +421,6 @@ async def main():
 
             m = MusicBot()
             await m._doBotInit()
-
-            sh.terminator = ""
-            sh.terminator = "\n"
-
             await m.run()
 
         except SyntaxError:
@@ -455,9 +462,14 @@ async def main():
                     break
 
                 elif e.__class__.__name__ == "TerminateSignal":
+                    exit_signal = e
                     break
 
                 elif e.__class__.__name__ == "RestartSignal":
+                    exit_signal = e
+                    break
+
+                elif e.__class__.__name__ == "ReloadSignal":
                     loops = 0
                     pass
             else:
@@ -470,17 +482,27 @@ async def main():
                     traceback.print_exc()
                 break
 
-            asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops * 2))
+            log.info(f"Restarting in {sleeptime} seconds...")
             time.sleep(sleeptime)
 
     print()
     log.info("All done.")
+    return exit_signal
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    if sys.platform.startswith("win"):
+        asyncio.set_event_loop_policy(
+            #asyncio.WindowsSelectorEventLoopPolicy()  # both might be options now?
+            asyncio.WindowsProactorEventLoopPolicy()
+        )
+    exit_sig = asyncio.run(main())
+    if exit_sig:
+        if exit_sig.__class__.__name__ == "RestartSignal":
+            respawn_bot_process()
+        elif exit_sig.__class__.__name__ == "TerminateSignal":
+            sys.exit(exit_sig.exit_code)

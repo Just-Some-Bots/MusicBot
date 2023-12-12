@@ -47,17 +47,12 @@ from .utils import (
     format_size_from_bytes,
 )
 
-load_opus_lib()
-
 log = logging.getLogger(__name__)
-
-intents = discord.Intents.all()
-intents.typing = False
-intents.presences = False
 
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None, aliases_file=None):
+        load_opus_lib()
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except:
@@ -122,6 +117,9 @@ class MusicBot(discord.Client):
         }
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
+        intents = discord.Intents.all()
+        intents.typing = False
+        intents.presences = False
         super().__init__(intents=intents)
 
     async def _doBotInit(self):
@@ -4227,15 +4225,22 @@ class MusicBot(discord.Client):
         await self.disconnect_voice_client(guild)
         return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
 
-    async def cmd_restart(self, channel):
+    async def cmd_restart(self, channel, leftover_args, opt="soft"):
         """
         Usage:
-            {command_prefix}restart
+            {command_prefix}restart [soft|full]
 
-        Restarts the bot.
-        Will not properly load new dependencies or file updates unless fully shutdown
-        and restarted.
+        Restarts the bot.  
+        soft option reloads config without reloading source or dependencies.
+        full option will quit the current instance and start a new instance in its place.
         """
+        opt = opt.strip().lower()
+        if opt not in ["soft", "full"]:
+            raise exceptions.CommandError(
+                "Invalid option given, use soft or full.",
+                expire_in=30
+            )
+
         await self.safe_send_message(
             channel,
             "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
@@ -4247,7 +4252,10 @@ class MusicBot(discord.Client):
             player.resume()
 
         await self.disconnect_all_voice_clients()
-        raise exceptions.RestartSignal()
+        if opt == "soft":
+            raise exceptions.ReloadSignal()
+        elif opt == "full":
+            raise exceptions.RestartSignal()
 
     async def cmd_shutdown(self, channel):
         """
