@@ -780,7 +780,7 @@ class MusicBot(discord.Client):
 
     async def on_player_finished_playing(self, player, **_):
         log.debug("Running on_player_finished_playing")
-        if self.config.leave_after_song:
+        if self.config.leave_after_queue_empty:
             guild = player.voice_client.guild
             if player.playlist.entries.__len__() == 0:
                 log.info("Player finished and queue is empty, leaving voice channel...")
@@ -1465,7 +1465,7 @@ class MusicBot(discord.Client):
             )
             log.info(
                 "  Leave at song end/empty queue: "
-                + ["Disabled", "Enabled"][self.config.leave_after_song]
+                + ["Disabled", "Enabled"][self.config.leave_after_queue_empty]
             )
             log.info(
                 f"  Leave when player idles: {'Disabled' if self.config.leave_player_inactive_for == 0 else 'Enabled'}"

@@ -206,8 +206,8 @@ class Config:
             "LeaveInactiveVCTimeOut",
             fallback=ConfigDefaults.leave_inactive_channel_timeout,
         )
-        self.leave_after_song = config.getboolean(
-            "MusicBot", "LeaveAfterSong", fallback=ConfigDefaults.leave_after_song
+        self.leave_after_queue_empty = config.getboolean(
+            "MusicBot", "LeaveAfterQueueEmpty", fallback=ConfigDefaults.leave_after_queue_empty
         )
         self.leave_player_inactive_for = config.get(
             "MusicBot",
@@ -578,7 +578,7 @@ class ConfigDefaults:
     self_deafen = True
     leave_inactive_channel = False
     leave_inactive_channel_timeout = 300
-    leave_after_song = False
+    leave_after_queue_empty = False
     leave_player_inactive_for = 0
     defaultsearchresults = 3
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
