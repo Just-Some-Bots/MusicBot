@@ -114,6 +114,7 @@ class MusicBot(discord.Client):
         # TODO: Do these properly
         ssd_defaults = {
             "command_prefix": None,
+            "session_prefix_history": set(),  # only populated by changing prefixes.
             "last_np_msg": None,
             "availability_paused": False,
             "auto_paused": False,
@@ -3996,7 +3997,7 @@ class MusicBot(discord.Client):
         try:
             float(search_range)  # lazy check
             search_range = min(int(search_range), 1000)
-        except:
+        except ValueError:
             return Response(
                 self.str.get(
                     "cmd-clean-invalid",
@@ -4009,11 +4010,20 @@ class MusicBot(discord.Client):
         await self.safe_delete_message(message, quiet=True)
 
         def is_possible_command_invoke(entry):
-            valid_call = any(
-                entry.content.startswith(prefix)
-                for prefix in [self._get_guild_cmd_prefix(channel.guild)]
-            )  # can be expanded
-            return valid_call and not entry.content[1:2].isspace()
+            prefix_list = [self._get_guild_cmd_prefix(channel.guild)] + list(
+                self.server_specific_data[channel.guild]["session_prefix_history"]
+            )
+            emoji_regex = re.compile("^<a?:.+:\d+> \w+")
+            content = entry.content
+            for prefix in prefix_list:
+                if entry.content.startswith(prefix):
+                    # emoji prefix may have exactly one space.
+                    if emoji_regex.match(entry.content):
+                        return True
+                    content = content.replace(prefix, "")
+                    if content and not content[0].isspace():
+                        return True
+            return False
 
         delete_invokes = True
         delete_all = (
@@ -4263,7 +4273,7 @@ class MusicBot(discord.Client):
 
         return Response("Set the bot's nickname to `{0}`".format(nick), delete_after=20)
 
-    async def cmd_setprefix(self, channel, leftover_args, prefix):
+    async def cmd_setprefix(self, guild, leftover_args, prefix):
         """
         Usage:
             {command_prefix}setprefix prefix
@@ -4273,8 +4283,9 @@ class MusicBot(discord.Client):
         if self.config.enable_options_per_guild:
             # TODO: maybe filter odd unicode or bad words...
             # Filter custom guild emoji, bot can only use in-guild emoji.
-            if prefix.startswith("<:") and prefix.endswith(">"):
-                e_name, e_id = prefix[2:-1].split(":")
+            emoji_match = re.match("^<a?:(.+):(\d+)>$", prefix)
+            if emoji_match:
+                e_name, e_id = emoji_match.groups()
                 try:
                     emoji = self.get_emoji(int(e_id))
                 except ValueError:
@@ -4289,8 +4300,8 @@ class MusicBot(discord.Client):
                     )
 
             if "clear" == prefix:
-                self.server_specific_data[channel.guild]["command_prefix"] = None
-                await self._save_guild_options(channel.guild)
+                self.server_specific_data[guild]["command_prefix"] = None
+                await self._save_guild_options(guild)
                 return Response(
                     self.str.get(
                         "cmd-setprefix-cleared",
@@ -4298,8 +4309,12 @@ class MusicBot(discord.Client):
                     )
                 )
 
-            self.server_specific_data[channel.guild]["command_prefix"] = prefix
-            await self._save_guild_options(channel.guild)
+            old_prefix = self._get_guild_cmd_prefix(guild)
+            self.server_specific_data[guild]["command_prefix"] = prefix
+            self.server_specific_data[guild]["session_prefix_history"].add(old_prefix)
+            if len(self.server_specific_data[guild]["session_prefix_history"]) > 3:
+                self.server_specific_data[guild]["session_prefix_history"].pop()
+            await self._save_guild_options(guild)
             return Response(
                 self.str.get(
                     "cmd-setprefix-changed",
