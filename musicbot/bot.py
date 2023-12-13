@@ -4013,7 +4013,7 @@ class MusicBot(discord.Client):
             prefix_list = [self._get_guild_cmd_prefix(channel.guild)] + list(
                 self.server_specific_data[channel.guild]["session_prefix_history"]
             )
-            emoji_regex = re.compile("^<a?:.+:\d+> \w+")
+            emoji_regex = re.compile(r"^<a?:.+:\d+> \w+")
             content = entry.content
             for prefix in prefix_list:
                 if entry.content.startswith(prefix):
@@ -4283,7 +4283,7 @@ class MusicBot(discord.Client):
         if self.config.enable_options_per_guild:
             # TODO: maybe filter odd unicode or bad words...
             # Filter custom guild emoji, bot can only use in-guild emoji.
-            emoji_match = re.match("^<a?:(.+):(\d+)>$", prefix)
+            emoji_match = re.match(r"^<a?:(.+):(\d+)>$", prefix)
             if emoji_match:
                 e_name, e_id = emoji_match.groups()
                 try:
@@ -4511,8 +4511,9 @@ class MusicBot(discord.Client):
         command_prefix = self._get_guild_cmd_prefix(message.channel.guild)
         message_content = message.content.strip()
         # if the prefix is an emoji, silently remove the space often auto-inserted after it.
-        if (command_prefix.startswith("<:") and command_prefix.endswith(">")) or (
-            command_prefix.startswith(":") and command_prefix.endwith(":")
+        emoji_regex = re.compile(r"<a?:.+:\d+>")
+        if emoji_regex.match(command_prefix) or (
+            command_prefix.startswith(":") and command_prefix.endswith(":")
         ):
             message_content = message_content.replace(
                 f"{command_prefix} ", command_prefix
