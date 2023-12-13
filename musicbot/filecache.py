@@ -5,11 +5,11 @@ import os
 import pathlib
 import shutil
 import time
+import typing
 
-from typing import TYPE_CHECKING
 from .utils import format_size_from_bytes
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from .bot import MusicBot
     from .entry import BasePlaylistEntry
 
@@ -37,13 +37,13 @@ class AudioFileCache:
         """Wrapper for self.cache.is_dir() for external use."""
         return self.cache_path.is_dir()
 
-    def get_cache_size(self) -> tuple[int, int]:
+    def get_cache_size(self) -> typing.Tuple[int, int]:
         """
         Returns AudioFileCache size as a two member tuple containing size_bytes and file_count.
         """
         return (self.size_bytes, self.file_count)
 
-    def scan_audio_cache(self) -> tuple[int, int]:
+    def scan_audio_cache(self) -> typing.Tuple[int, int]:
         """
         Scan the audio cache directory and return a tuple with info.
         Returns (size_in_bytes:int, number_of_files:int)
