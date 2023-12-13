@@ -4511,6 +4511,7 @@ class MusicBot(discord.Client):
         command_prefix = self._get_guild_cmd_prefix(message.channel.guild)
         message_content = message.content.strip()
         # if the prefix is an emoji, silently remove the space often auto-inserted after it.
+        # TODO: make this and related checks work for unicode emojis as well.
         emoji_regex = re.compile(r"<a?:.+:\d+>")
         if emoji_regex.match(command_prefix) or (
             command_prefix.startswith(":") and command_prefix.endswith(":")
