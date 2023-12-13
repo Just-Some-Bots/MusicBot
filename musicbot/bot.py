@@ -1859,14 +1859,14 @@ class MusicBot(discord.Client):
                     "Use %ssummon to summon it to your voice channel.",
                 )
                 % self.config.command_prefix,
-                expire_in=30
+                expire_in=30,
             )
 
         if not player.current_entry:
             return Response(
                 self.str.get(
                     "cmd-repeat-no-songs",
-                    "No songs are queued. Play something with{}play."
+                    "No songs are queued. Play something with{}play.",
                 ).format(self.config.command_prefix),
                 delete_after=30,
             )
