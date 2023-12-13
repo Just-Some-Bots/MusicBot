@@ -2,13 +2,21 @@ language: python
 
 matrix:
   include:
-- python: "3.9"
+  - python: "3.9"
     env: TYPE=docker
   - python: "3.9"
     env: TYPE=build
   - python: "3.10"
     env: TYPE=docker
   - python: "3.10"
+    env: TYPE=build
+  - python: "3.11"
+    env: TYPE=docker
+  - python: "3.11"
+    env: TYPE=build
+  - python: "3.12"
+    env: TYPE=docker
+  - python: "3.12"
     env: TYPE=build
 
 services:
