@@ -26,10 +26,11 @@ from . import downloader
 from . import exceptions
 from .aliases import Aliases, AliasesDefault
 from .config import Config, ConfigDefaults
-from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+from .constants import DISCORD_MSG_CHAR_LIMIT
 from .constants import VERSION as BOTVERSION
 from .constructs import SkipState, Response
 from .entry import StreamPlaylistEntry
+from .filecache import AudioFileCache
 from .json import Json
 from .opus_loader import load_opus_lib
 from .permissions import Permissions, PermissionsDefaults
@@ -78,7 +79,6 @@ class MusicBot(discord.Client):
         self.exit_signal = None
         self.init_ok = False
         self.cached_app_info = None
-        self.cached_audio_bytes = 0  # Only used with SaveVideos option.
         self.last_status = None
 
         self.config = Config(config_file)
@@ -95,7 +95,10 @@ class MusicBot(discord.Client):
         self.autoplaylist = load_file(self.config.auto_playlist_file)
 
         self.aiolocks = defaultdict(asyncio.Lock)
-        self.downloader = downloader.Downloader(download_folder="audio_cache")
+        self.filecache = AudioFileCache(self)
+        self.downloader = downloader.Downloader(
+            download_folder=self.config.audio_cache_path
+        )
 
         log.info("Starting MusicBot {}".format(BOTVERSION))
 
@@ -106,6 +109,7 @@ class MusicBot(discord.Client):
             log.info(
                 "Loaded autoplaylist with {} entries".format(len(self.autoplaylist))
             )
+            self.filecache.load_autoplay_cachemap()
 
         if self.blacklist:
             log.debug("Loaded blacklist with {} entries".format(len(self.blacklist)))
@@ -231,92 +235,6 @@ class MusicBot(discord.Client):
             lambda m: m.id == self.config.owner_id and (m.voice if voice else True),
             server.members if server else self.get_all_members(),
         )
-
-    def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH, remove_dir=False):
-        def _unlink_path(path: pathlib.Path):
-            try:
-                path.unlink(missing_ok=True)
-                return True
-            except Exception:
-                log.exception(f"Failed to delete cache file:  {path}")
-                return False
-
-        if self.config.save_videos:
-            if (
-                self.config.storage_limit_bytes == 0
-                and self.config.storage_limit_days == 0
-            ):
-                log.debug("Skip delete audio cache, no limits set.")
-                return False
-
-            # Sort cache by access-time and delete any that are older than set limit.
-            # Accumulate file sizes until a set limit is reached and purge remaining files.
-            max_age = time.time() - (86400 * self.config.storage_limit_days)
-            cached_size = 0
-            if os.name == "nt":
-                # On Windows, creation time (ctime) is the only reliable way to do this.
-                # mtime is usually older than download time. atime is changed on multiple files by some part of the player.
-                # To make this consistent everywhere, we need to store last-played times for songs on our own.
-                cached_files = sorted(
-                    pathlib.Path(path).iterdir(), key=os.path.getctime, reverse=True
-                )
-            else:
-                cached_files = sorted(
-                    pathlib.Path(path).iterdir(), key=os.path.getatime, reverse=True
-                )
-
-            removed_count = 0
-            removed_size = 0
-            for cache_file in cached_files:
-                file_size = os.path.getsize(cache_file)
-                if os.name == "nt":
-                    file_time = os.path.getctime(cache_file)
-                else:
-                    file_time = os.path.getatime(cache_file)
-
-                if (
-                    self.config.storage_limit_bytes
-                    and self.config.storage_limit_bytes <= (cached_size + file_size)
-                ):
-                    _unlink_path(cache_file)
-                    removed_count += 1
-                    removed_size += file_size
-                    continue
-
-                if self.config.storage_limit_days:
-                    if file_time < max_age:
-                        _unlink_path(cache_file)
-                        removed_count += 1
-                        removed_size += file_size
-                        continue
-
-                cached_size += file_size
-            self.cached_audio_bytes = cached_size
-            log.debug(
-                "Deleted {0} files from cache, total of {1}.  Cache is now {2} over {3} file(s).".format(
-                    removed_count,
-                    format_size_from_bytes(removed_size),
-                    format_size_from_bytes(cached_size),
-                    len(cached_files) - removed_count,
-                )
-            )
-        elif remove_dir:
-            try:
-                shutil.rmtree(path)
-                self.cached_audio_bytes = 0
-                return True
-            except Exception:
-                try:
-                    os.rename(path, path + "__")
-                except Exception:
-                    return False
-                try:
-                    shutil.rmtree(path)
-                except Exception:
-                    os.rename(path + "__", path)
-                    return False
-
-        return True
 
     def _setup_logging(self):
         if len(logging.getLogger(__package__).handlers) > 1:
@@ -503,17 +421,20 @@ class MusicBot(discord.Client):
 
         return self.cached_app_info
 
-    async def remove_from_autoplaylist(
+    async def remove_url_from_autoplaylist(
         self, song_url: str, *, ex: Exception = None, delete_from_ap=False
     ):
         if song_url not in self.autoplaylist:
             log.debug('URL "{}" not in autoplaylist, ignoring'.format(song_url))
             return
 
-        async with self.aiolocks[_func_()]:
+        async with self.aiolocks["autoplaylist_update_lock"]:
             self.autoplaylist.remove(song_url)
             log.info(
-                "Removing unplayable song from session autoplaylist: %s" % song_url
+                "Removing{} song from session autoplaylist: {}".format(
+                    " unplayable" if ex and not isinstance(ex, UserWarning) else "",
+                    song_url,
+                ),
             )
 
             with open(
@@ -521,8 +442,9 @@ class MusicBot(discord.Client):
             ) as f:
                 f.write(
                     "# Entry removed {ctime}\n"
+                    "# URL:  {url}\n"
                     "# Reason: {ex}\n"
-                    "{url}\n\n{sep}\n\n".format(
+                    "\n{sep}\n\n".format(
                         ctime=time.ctime(),
                         ex=str(ex).replace(
                             "\n", "\n#" + " " * 10
@@ -533,8 +455,40 @@ class MusicBot(discord.Client):
                 )
 
             if delete_from_ap:
-                log.info("Updating autoplaylist")
-                write_file(self.config.auto_playlist_file, self.autoplaylist)
+                log.info("Updating autoplaylist file...")
+                # read the original file in and remove lines with the URL.
+                # this is done to preserve the comments and formatting.
+                try:
+                    apl = pathlib.Path(self.config.auto_playlist_file)
+                    data = apl.read_text()
+                    data = data.replace(song_url, f"#Removed# {song_url}")
+                    apl.write_text(data)
+                except Exception:
+                    log.exception("Failed to save autoplaylist file.")
+                self.filecache.remove_autoplay_cachemap_entry_by_url(song_url)
+
+    async def add_url_to_autoplaylist(self, song_url: str):
+        if song_url in self.autoplaylist:
+            log.debug("URL already in autoplaylist, ignoring")
+            return
+
+        async with self.aiolocks["autoplaylist_update_lock"]:
+            # Note, this does not update the player's copy of the list.
+            self.autoplaylist.append(song_url)
+            log.info(f"Adding new URL to autoplaylist: {song_url}")
+
+            try:
+                # append to the file to preserve its formatting.
+                with open(self.config.auto_playlist_file, "r+") as fh:
+                    lines = fh.readlines()
+                    if lines[-1].endswith("\n"):
+                        lines.append(f"{song_url}\n")
+                    else:
+                        lines.append(f"\n{song_url}\n")
+                    fh.seek(0)
+                    fh.writelines(lines)
+            except Exception:
+                log.exception("Failed to save autoplaylist file.")
 
     @ensure_appinfo
     async def generate_invite_link(
@@ -644,6 +598,8 @@ class MusicBot(discord.Client):
         log.debug("Running on_player_play")
         await self.reset_player_inactivity(player)
         await self.update_now_playing_status()
+        # manage the cache since we may have downloaded something.
+        self.filecache.handle_new_cache_entry(entry)
         player.skip_state.reset()
 
         # This is the one event where it's ok to serialize autoplaylist entries
@@ -752,16 +708,6 @@ class MusicBot(discord.Client):
 
         # TODO: Check channel voice state?
 
-        if self.config.save_videos and self.config.storage_limit_bytes:
-            # TODO: Improve this so it isn't called every song when cache is full.
-            #  ideal second option for keeping cache between min and max.
-            self.cached_audio_bytes = self.cached_audio_bytes + entry.downloaded_bytes
-            if self.cached_audio_bytes > self.config.storage_limit_bytes:
-                log.debug(
-                    f"Cache level requires cleanup. {format_size_from_bytes(self.cached_audio_bytes)}"
-                )
-                self._delete_old_audiocache()
-
     async def on_player_resume(self, player, entry, **_):
         log.debug("Running on_player_resume")
         await self.reset_player_inactivity(player)
@@ -843,7 +789,7 @@ class MusicBot(discord.Client):
                             'Error processing "{url}": {ex}'.format(url=song_url, ex=e)
                         )
 
-                    await self.remove_from_autoplaylist(
+                    await self.remove_url_from_autoplaylist(
                         song_url, ex=e, delete_from_ap=self.config.remove_ap
                     )
                     continue
@@ -854,7 +800,9 @@ class MusicBot(discord.Client):
                     )
                     log.exception()
 
-                    self.autoplaylist.remove(song_url)
+                    await self.remove_url_from_autoplaylist(
+                        song_url, ex=e, delete_from_ap=self.config.remove_ap
+                    )
                     continue
 
                 if info.get("entries", None):  # or .get('_type', '') == 'playlist'
@@ -1056,11 +1004,7 @@ class MusicBot(discord.Client):
             for guild in sorted(self.guilds, key=lambda s: int(s.id)):
                 f.write("{:<22} {}\n".format(guild.id, guild.name))
 
-        if os.path.isdir(AUDIO_CACHE_PATH):
-            if self._delete_old_audiocache(remove_dir=True):
-                log.debug("Deleted old audio cache")
-            else:
-                log.debug("Could not delete old audio cache, moving on.")
+        self.filecache.delete_old_audiocache(remove_dir=True)
 
     async def _scheck_server_permissions(self):
         log.debug("Checking server permissions")
@@ -1514,6 +1458,9 @@ class MusicBot(discord.Client):
     @staticmethod
     def _get_song_url_or_none(url, player):
         """Return song url if provided or one is currently playing, else returns None"""
+        if not player:
+            return url
+
         if url or (
             player.current_entry
             and not isinstance(player.current_entry, StreamPlaylistEntry)
@@ -1766,19 +1713,19 @@ class MusicBot(discord.Client):
                 delete_after=35,
             )
 
-    async def cmd_autoplaylist(self, player, option, url=None):
+    async def cmd_autoplaylist(self, _player, option, url=None):
         """
         Usage:
             {command_prefix}autoplaylist [ + | - | add | remove] [url]
 
         Adds or removes the specified song or currently playing song to/from the playlist.
         """
-        url = self._get_song_url_or_none(url, player)
+        url = self._get_song_url_or_none(url, _player)
 
         if url:
             if option in ["+", "add"]:
                 if url not in self.autoplaylist:
-                    self._add_url_to_autoplaylist(url)
+                    await self.add_url_to_autoplaylist(url)
                     return Response(
                         self.str.get(
                             "cmd-save-success", "Added <{0}> to the autoplaylist."
@@ -1795,7 +1742,7 @@ class MusicBot(discord.Client):
                     )
             elif option in ["-", "remove"]:
                 if url in self.autoplaylist:
-                    self._remove_url_from_autoplaylist(url)
+                    await self.remove_url_from_autoplaylist(url, delete_from_ap=True)
                     return Response(
                         self.str.get(
                             "cmd-unsave-success", "Removed <{0}> from the autoplaylist."
@@ -3844,10 +3791,10 @@ class MusicBot(discord.Client):
             {command_prefix}cache
 
         Display cache storage info or clear cache files.
-        Valid options are:  info, clear
+        Valid options are:  info, update, clear
         """
         opt = opt.lower()
-        if opt not in ["info", "clear"]:
+        if opt not in ["info", "update", "clear"]:
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-cache-invalid-arg",
@@ -3856,6 +3803,13 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
+        # actually query the filesystem.
+        if opt == "update":
+            self.filecache.scan_audio_cache()
+            # force output of info after we have updated it.
+            opt = "info"
+
+        # report cache info as it is.
         if opt == "info":
             save_videos = ["Disabled", "Enabled"][self.config.save_videos]
             time_limit = f"{self.config.storage_limit_days} days"
@@ -3868,17 +3822,13 @@ class MusicBot(discord.Client):
             if not self.config.storage_limit_days:
                 time_limit = "Unlimited"
 
-            if os.path.isdir(AUDIO_CACHE_PATH):
-                cached_bytes = 0
-                cached_files = 0
-                for cache_file in pathlib.Path(AUDIO_CACHE_PATH).iterdir():
-                    cached_files += 1
-                    cached_bytes += os.path.getsize(cache_file)
-                self.cached_audio_bytes = cached_bytes
-                cached_size = format_size_from_bytes(cached_bytes)
-                size_now = self.str.get(
-                    "cmd-cache-size-now", "\n\n**Cached Now:**  {0} in {1} file(s)"
-                ).format(cached_size, cached_files)
+            cached_bytes, cached_files = self.filecache.get_cache_size()
+            size_now = self.str.get(
+                "cmd-cache-size-now", "\n\n**Cached Now:**  {0} in {1} file(s)"
+            ).format(
+                format_size_from_bytes(cached_bytes),
+                cached_files,
+            )
 
             return Response(
                 self.str.get(
@@ -3888,9 +3838,10 @@ class MusicBot(discord.Client):
                 delete_after=60,
             )
 
+        # clear cache according to settings.
         if opt == "clear":
-            if os.path.isdir(AUDIO_CACHE_PATH):
-                if self._delete_old_audiocache():
+            if self.filecache.cache_dir_exists():
+                if self.filecache.delete_old_audiocache():
                     return Response(
                         self.str.get(
                             "cmd-cache-clear-success",
@@ -3913,6 +3864,7 @@ class MusicBot(discord.Client):
                 ),
                 delete_after=30,
             )
+        # TODO: maybe add a "purge" option that fully empties cache regardless of settings.
 
     async def cmd_queue(self, channel, player):
         """
