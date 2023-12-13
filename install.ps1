@@ -56,14 +56,14 @@ Invoke-Expression "cd MusicBot"
 
 if (Get-Command "python" -errorAction SilentlyContinue)
 {
-    Invoke-Expression "python -c 'import sys; exit(0 if sys.version_info >= (3, 6) else 1)'"
+    Invoke-Expression "python -c 'import sys; exit(0 if sys.version_info >= (3, 9) else 1)'"
     if($LastExitCode -eq 0)
     {
         $PYTHON = "python"
     }
 }
 
-$versionArray = "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"
+$versionArray = "3.9", "3.10", "3.11"
 
 foreach ($version in $versionArray)
 {

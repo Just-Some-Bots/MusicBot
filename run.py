@@ -200,7 +200,7 @@ def sanity_checks(optional=True):
     log.info("Starting sanity checks")
     ## Required
 
-    # Make sure we're on Python 3.8+
+    # Make sure we're on Python 3.9+
     req_ensure_py3()
 
     # Fix windows encoding fuckery
@@ -228,21 +228,21 @@ def sanity_checks(optional=True):
 
 
 def req_ensure_py3():
-    log.info("Checking for Python 3.8+")
+    log.info("Checking for Python 3.9+")
 
-    if sys.version_info < (3, 8):
+    if sys.version_info < (3, 9):
         log.warning(
-            "Python 3.8+ is required. This version is %s", sys.version.split()[0]
+            "Python 3.9+ is required. This version is %s", sys.version.split()[0]
         )
-        log.warning("Attempting to locate Python 3.8...")
+        log.warning("Attempting to locate Python 3.9...")
 
         pycom = None
 
         if sys.platform.startswith("win"):
-            log.info('Trying "py -3.8"')
+            log.info('Trying "py -3.9"')
             try:
-                subprocess.check_output('py -3.8 -c "exit()"', shell=True)
-                pycom = "py -3.8"
+                subprocess.check_output('py -3.9 -c "exit()"', shell=True)
+                pycom = "py -3.9"
             except:
                 log.info('Trying "python3"')
                 try:
@@ -260,10 +260,10 @@ def req_ensure_py3():
                 sys.exit(0)
 
         else:
-            log.info('Trying "python3.8"')
+            log.info('Trying "python3.9"')
             try:
                 pycom = (
-                    subprocess.check_output('python3.8 -c "exit()"'.split())
+                    subprocess.check_output('python3.9 -c "exit()"'.split())
                     .strip()
                     .decode()
                 )
@@ -277,7 +277,7 @@ def req_ensure_py3():
                 pyexec(pycom, "run.py")
 
         log.critical(
-            "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
+            "Could not find Python 3.9 or higher.  Please run the bot using Python 3.9"
         )
         bugger_off()
 
