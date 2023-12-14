@@ -8,7 +8,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
-from .utils import format_size_to_bytes
+from .utils import format_size_to_bytes, format_time_to_seconds
 
 log = logging.getLogger(__name__)
 
@@ -202,16 +202,25 @@ class Config:
         self.self_deafen = config.getboolean(
             "MusicBot", "SelfDeafen", fallback=ConfigDefaults.self_deafen
         )
-        self.leave_inactives = config.getboolean(
-            "MusicBot", "LeaveInactiveVC", fallback=ConfigDefaults.leave_inactiveVC
+        self.leave_inactive_channel = config.getboolean(
+            "MusicBot",
+            "LeaveInactiveVC",
+            fallback=ConfigDefaults.leave_inactive_channel,
         )
-        self.leave_inactiveVCTimeOut = config.getint(
+        self.leave_inactive_channel_timeout = config.get(
             "MusicBot",
             "LeaveInactiveVCTimeOut",
-            fallback=ConfigDefaults.leave_inactiveVCTimeOut,
+            fallback=ConfigDefaults.leave_inactive_channel_timeout,
         )
-        self.leave_after_song = config.getboolean(
-            "MusicBot", "LeaveAfterSong", fallback=ConfigDefaults.leave_after_song
+        self.leave_after_queue_empty = config.getboolean(
+            "MusicBot",
+            "LeaveAfterSong",
+            fallback=ConfigDefaults.leave_after_queue_empty,
+        )
+        self.leave_player_inactive_for = config.get(
+            "MusicBot",
+            "LeavePlayerInactiveFor",
+            fallback=ConfigDefaults.leave_player_inactive_for,
         )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
@@ -220,6 +229,12 @@ class Config:
             "MusicBot",
             "DefaultSearchResults",
             fallback=ConfigDefaults.defaultsearchresults,
+        )
+
+        self.enable_options_per_guild = config.getboolean(
+            "MusicBot",
+            "EnablePrefixPerGuild",
+            fallback=ConfigDefaults.enable_options_per_guild,
         )
 
         self.round_robin_queue = config.getboolean(
@@ -466,6 +481,16 @@ class Config:
                 )
                 self.storage_limit_bytes = ConfigDefaults.storage_limit_bytes
 
+        if self.leave_inactive_channel_timeout:
+            self.leave_inactive_channel_timeout = format_time_to_seconds(
+                self.leave_inactive_channel_timeout
+            )
+
+        if self.leave_player_inactive_for:
+            self.leave_player_inactive_for = format_time_to_seconds(
+                self.leave_player_inactive_for
+            )
+
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
 
@@ -608,10 +633,12 @@ class ConfigDefaults:
     usealias = True
     searchlist = False
     self_deafen = True
-    leave_inactiveVC = False
-    leave_inactiveVCTimeOut = 300
-    leave_after_song = False
+    leave_inactive_channel = False
+    leave_inactive_channel_timeout = 300
+    leave_after_queue_empty = False
+    leave_player_inactive_for = 0
     defaultsearchresults = 3
+    enable_options_per_guild = False
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
     defaultround_robin_queue = False
 

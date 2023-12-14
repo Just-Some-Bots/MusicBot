@@ -1,3 +1,4 @@
+import re
 import sys
 import logging
 import aiohttp
@@ -243,3 +244,35 @@ def format_size_to_bytes(size_str: str, strict_si=False) -> int:
         elif size_str.endswith("byte"):
             size_str = size_str[0:-4]
     return int(size_str)
+
+
+def format_time_to_seconds(time_str: str) -> int:
+    """Convert a phrase containing time duration(s) to seconds as int
+    This function allows for intresting/sloppy time notations like:
+    - 1yearand2seconds  = 31556954
+    - 8s 1d             = 86408
+    - .5 hours          = 1800
+    - 99 + 1            = 100
+    - 3600              = 3600
+    Only partial seconds are not supported, thus ".5s + 1.5s" will be 1 not 2.
+
+    Param `time_str` is assumed to contain a time duration.
+    Returns 0 if no time value is recognised, rather than raise a ValueError.
+    """
+    # TODO: find a good way to make this i18n friendly.
+    time_lex = re.compile(r"(\d*\.?\d+)\s*(y|d|h|m|s)?", re.I)
+    unit_seconds = {
+        "y": 31556952,
+        "d": 86400,
+        "h": 3600,
+        "m": 60,
+        "s": 1,
+    }
+    total_sec = 0
+    for value, unit in time_lex.findall(time_str):
+        if not unit:
+            unit = "s"
+        else:
+            unit = unit[0].lower().strip()
+        total_sec += int(float(value) * unit_seconds[unit])
+    return total_sec
