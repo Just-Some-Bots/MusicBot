@@ -1585,11 +1585,9 @@ class MusicBot(discord.Client):
         is_all = False
         is_emoji = False
         prefix = self._get_guild_cmd_prefix(channel.guild)
-        if prefix.startswith("<:") and prefix.endswith(">"):
-            # custom guild emoji.
-            is_emoji = True
-        if prefix.startswith(":") and prefix.endswith(":"):
-            # emoji that isn't in unicode is likely.
+        # Its OK to skip unicode emoji here, they render correctly inside of code boxes.
+        emoji_regex = re.compile(r"^(<a?:.+:\d+>|:.+:)$")
+        if emoji_regex.match(prefix):
             is_emoji = True
 
         if command:
@@ -4013,7 +4011,9 @@ class MusicBot(discord.Client):
             prefix_list = [self._get_guild_cmd_prefix(channel.guild)] + list(
                 self.server_specific_data[channel.guild]["session_prefix_history"]
             )
-            emoji_regex = re.compile(r"^<a?:.+:\d+> \w+")
+            # The semi-cursed use of [^ -~] should match all kinds of unicode, which could be an issue.
+            # If it is a problem, the best solution is probably adding a dependency for emoji.
+            emoji_regex = re.compile(r"^(<a?:.+:\d+>|:.+:|[^ -~]+) \w+")
             content = entry.content
             for prefix in prefix_list:
                 if entry.content.startswith(prefix):
@@ -4511,11 +4511,9 @@ class MusicBot(discord.Client):
         command_prefix = self._get_guild_cmd_prefix(message.channel.guild)
         message_content = message.content.strip()
         # if the prefix is an emoji, silently remove the space often auto-inserted after it.
-        # TODO: make this and related checks work for unicode emojis as well.
-        emoji_regex = re.compile(r"<a?:.+:\d+>")
-        if emoji_regex.match(command_prefix) or (
-            command_prefix.startswith(":") and command_prefix.endswith(":")
-        ):
+        # this regex will get us close enough to knowing if an unicode emoji is in the prefix...
+        emoji_regex = re.compile(r"^(<a?:.+:\d+>|:.+:|[^ -~]+)$")
+        if emoji_regex.match(command_prefix):
             message_content = message_content.replace(
                 f"{command_prefix} ", command_prefix
             )
