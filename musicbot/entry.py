@@ -6,6 +6,7 @@ import re
 import sys
 
 from enum import Enum
+from yt_dlp.utils import ContentTooShortError
 from .constructs import Serializable
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
@@ -31,6 +32,8 @@ class EntryTypes(Enum):
 class BasePlaylistEntry(Serializable):
     def __init__(self):
         self.filename = None
+        self.downloaded_bytes = 0
+        self.cache_busted = False
         self._is_downloading = False
         self._waiting_futures = []
 
@@ -135,7 +138,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "entry name: {}".format(self.title)
             )
         self.expected_filename = expected_filename
-        self.downloaded_bytes = 0
         self.meta = meta
         self.aoptions = "-vn"
 
@@ -432,7 +434,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
     async def _really_download(self, *, hash=False):
         log.info("Download started: {}".format(self.url))
 
-        retry = True
+        retry = 4
         result = None
         while retry:
             try:
@@ -440,6 +442,18 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     self.playlist.loop, self.url, download=True
                 )
                 break
+            except ContentTooShortError as e:
+                # this typically means connection was interupted, any download is probably partial.
+                # we should definitely do something about it to prevent broken cached files.
+                if retry > 0:
+                    log.warning(f"Download may have failed, retrying.  Reason: {e}")
+                    retry -= 1
+                    continue
+                else:
+                    # Mark the file I guess, and maintain the default of raising ExtractionError.
+                    log.error(f"Download failed, not retrying! Reason: {e}")
+                    self.cache_busted = True
+                    raise ExtractionError(e)
             except Exception as e:
                 raise ExtractionError(e)
 
@@ -481,7 +495,6 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.title = title
         self.destination = destination
         self.duration = None
-        self.downloaded_bytes = 0
         self.meta = meta
 
         if self.destination:
