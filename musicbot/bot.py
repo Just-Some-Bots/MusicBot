@@ -344,7 +344,9 @@ class MusicBot(discord.Client):
                 )
                 continue
 
-            if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
+            if channel and isinstance(
+                channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
                 log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
 
                 chperms = channel.permissions_for(guild.me)
@@ -505,9 +507,7 @@ class MusicBot(discord.Client):
         if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
 
-        if not isinstance(
-            channel, (discord.VoiceChannel, discord.StageChannel)
-        ):
+        if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
             raise AttributeError("Channel passed must be a voice channel")
 
         if channel.guild.voice_client:
