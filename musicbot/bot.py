@@ -344,7 +344,7 @@ class MusicBot(discord.Client):
                 )
                 continue
 
-            if channel and isinstance(channel, discord.VoiceChannel):
+            if channel and isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
                 log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
 
                 chperms = channel.permissions_for(guild.me)
@@ -505,16 +505,26 @@ class MusicBot(discord.Client):
         if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
 
-        if not isinstance(channel, discord.VoiceChannel):
+        if not isinstance(
+            channel, (discord.VoiceChannel, discord.StageChannel)
+        ):
             raise AttributeError("Channel passed must be a voice channel")
 
         if channel.guild.voice_client:
             return channel.guild.voice_client
         else:
             client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(
-                channel=channel, self_mute=False, self_deaf=self.config.self_deafen
-            )
+            if isinstance(channel, discord.StageChannel):
+                try:
+                    await channel.guild.me.edit(suppress=False)
+                except Exception as e:
+                    log.error(e)
+            else:
+                await channel.guild.change_voice_state(
+                    channel=channel,
+                    self_mute=False,
+                    self_deaf=self.config.self_deafen,
+                )
             return client
 
     async def disconnect_voice_client(self, guild):
