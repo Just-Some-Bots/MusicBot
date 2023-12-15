@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import asyncio
 import os
+import ssl
 import sys
 import time
 import logging
@@ -395,6 +396,7 @@ async def main():
         asyncio.set_event_loop(loop)
 
     tried_requirementstxt = False
+    use_certifi = False
     tryagain = True
 
     loops = 0
@@ -409,12 +411,19 @@ async def main():
             from musicbot import MusicBot
 
             m = MusicBot()
-            await m._doBotInit()
-
-            sh.terminator = ""
-            sh.terminator = "\n"
-
+            await m._doBotInit(use_certifi)
             await m.run()
+
+        except ssl.SSLCertVerificationError as e:
+            # In case the local trust store does not have the cert, we can try certifi.
+            if e.verify_code == 2:  # OpenSSL X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT
+                if use_certifi:
+                    log.exception("Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi ")
+                    break
+                else:
+                    log.warning("Could not get Issuer Certificate from default trust store, trying certifi instead.")
+                    use_certifi = True
+                    pass
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")

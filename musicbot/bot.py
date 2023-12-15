@@ -1,4 +1,5 @@
 import asyncio
+import certifi
 import inspect
 import json
 import logging
@@ -9,6 +10,7 @@ import random
 import re
 import shlex
 import shutil
+import ssl
 import sys
 import time
 import traceback
@@ -135,11 +137,23 @@ class MusicBot(discord.Client):
 
         super().__init__(intents=intents)
 
-    async def _doBotInit(self):
+    async def _doBotInit(self, use_certifi: bool = False):
         self.http.user_agent = "MusicBot/%s" % BOTVERSION
-        self.session = aiohttp.ClientSession(
-            headers={"User-Agent": self.http.user_agent}
-        )
+        if use_certifi:
+            ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+            tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
+
+            # Patches discord.py HTTPClient.
+            self.http.connector = tcp_connector
+
+            self.session = aiohttp.ClientSession(
+                headers={"User-Agent": self.http.user_agent},
+                connector=tcp_connector,
+            )
+        else:
+            self.session = aiohttp.ClientSession(
+                headers={"User-Agent": self.http.user_agent}
+            )
 
         self.spotify = None
         if self.config._spotify:
