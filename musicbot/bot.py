@@ -516,7 +516,12 @@ class MusicBot(discord.Client):
             client = await channel.connect(timeout=60, reconnect=True)
             if isinstance(channel, discord.StageChannel):
                 try:
-                    await channel.guild.me.edit(suppress=False, mute=False, deafen=self.config.self_deafen)
+                    await channel.guild.me.edit(suppress=False)
+                    await channel.guild.change_voice_state(
+                        channel=channel,
+                        self_mute=False,
+                        self_deaf=self.config.self_deafen,
+                    )
                 except Exception as e:
                     log.error(e)
             else:
