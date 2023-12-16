@@ -390,12 +390,6 @@ async def main():
 
     finalize_logging()
 
-    import asyncio
-
-    if sys.platform == "win32":
-        loop = asyncio.ProactorEventLoop()  # needed for subprocesses
-        asyncio.set_event_loop(loop)
-
     tried_requirementstxt = False
     use_certifi = False
     tryagain = True
@@ -494,7 +488,6 @@ async def main():
                     traceback.print_exc()
                 break
 
-            asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
         sleeptime = min(loops * 2, max_wait_time)
@@ -507,4 +500,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # py3.8 made ProactorEventLoop default.
+    # Now we need to make adjustments for a bug in aiohttp :)
+    loop = asynio.get_event_loop_policy().get_event_loop()
+    loop.run_until_complete(main())

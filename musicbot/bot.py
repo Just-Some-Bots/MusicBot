@@ -1159,19 +1159,24 @@ class MusicBot(discord.Client):
 
     async def _cleanup(self):
         try:
-            await self.logout()
+            await self.close()  # changed in d.py 2.0
+        except Exception:
+            log.exception("Issue while closing discord client connection.")
+            pass
+        try:
             await self.session.close()
-        except:
+        except Exception:
+            log.exception("Issue while cleaning up aiohttp session.")
             pass
 
         pending = asyncio.all_tasks(loop=self.loop)
 
         for task in pending:
             task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     # noinspection PyMethodOverriding
     async def run(self):
