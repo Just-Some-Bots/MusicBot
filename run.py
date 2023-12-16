@@ -413,6 +413,10 @@ async def main():
             ssl.SSLCertVerificationError,
             aiohttp.client_exceptions.ClientConnectorCertificateError,
         ) as e:
+            if m and m.session:
+                # make sure we close the session(s)
+                await m._cleanup()
+
             if (
                 isinstance(e, aiohttp.client_exceptions.ClientConnectorCertificateError)
                 and isinstance(e.__cause__, ssl.SSLCertVerificationError)
