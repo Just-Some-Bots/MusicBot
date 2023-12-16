@@ -3258,7 +3258,9 @@ class MusicBot(discord.Client):
                     .replace("Currently ", "")
                 )
                 content = self._gen_embed()
-                content.add_field(name=f"Currently {action_text}", value=np_text, inline=True)
+                content.add_field(
+                    name=f"Currently {action_text}", value=np_text, inline=True
+                )
                 content.set_image(
                     url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
                 )
