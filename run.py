@@ -16,6 +16,7 @@ from shutil import disk_usage, rmtree
 from base64 import b64decode
 
 try:
+    import aiohttp
     import pathlib
     import importlib.util
 except ImportError:
@@ -414,16 +415,30 @@ async def main():
             await m._doBotInit(use_certifi)
             await m.run()
 
-        except ssl.SSLCertVerificationError as e:
-            # In case the local trust store does not have the cert, we can try certifi.
-            if e.verify_code == 2:  # OpenSSL X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT
+        except (
+            ssl.SSLCertVerificationError,
+            aiohttp.client_exceptions.ClientConnectorCertificateError,
+        ) as e:
+            if (
+                isinstance(e, aiohttp.client_exceptions.ClientConnectorCertificateError)
+                and isinstance(e.__cause__, ssl.SSLCertVerificationError)
+            ):
+                e = e.__cause__
+            else:
+                log.critical("Certificate error is not a verification error, not trying certifi and exiting.")
+                break
+
+            # In case the local trust store does not have the cert locally, we can try certifi.
+            # We don't want to patch working systems with a third-party trust chain outright.
+            # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
+            if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
                 if use_certifi:
                     log.exception("Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi ")
-                    break
                 else:
                     log.warning("Could not get Issuer Certificate from default trust store, trying certifi instead.")
                     use_certifi = True
                     pass
+            break
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -473,7 +488,7 @@ async def main():
                 log.exception("Error starting bot")
 
         finally:
-            if not m or not m.init_ok:
+            if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
                     traceback.print_exc()
