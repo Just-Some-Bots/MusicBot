@@ -2030,7 +2030,7 @@ class MusicBot(discord.Client):
     async def cmd_repeat(self, channel, option=None):
         """
         Usage:
-            {command_prefix}repeat [all | song]
+            {command_prefix}repeat [all | playlist | song | on | off]
 
         Toggles playlist or song looping.
         If no option is provided the current song will be repeated.
@@ -2039,6 +2039,7 @@ class MusicBot(discord.Client):
 
         player = self.get_player_in(channel.guild)
         option = option.lower() if option else ""
+        prefix = self._get_guild_cmd_prefix(channel.guild)
 
         if not player:
             raise exceptions.CommandError(
@@ -2060,7 +2061,16 @@ class MusicBot(discord.Client):
                 delete_after=30,
             )
 
-        if option == "all":
+        if option not in ["all", "playlist", "on", "off", "song", ""]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-repeat-invalid",
+                    "Invalid option, please run {}help repeat to a list of available options.",
+                ).format(prefix),
+                expire_in=30,
+            )
+
+        if option in ["all", "playlist"]:
             player.loopqueue = not player.loopqueue
             if player.loopqueue:
                 return Response(
@@ -2086,41 +2096,53 @@ class MusicBot(discord.Client):
                     self.str.get("cmd-repeat-song-looping", "Song is now repeating."),
                     delete_after=30,
                 )
-
             else:
                 return Response(
                     self.str.get(
                         "cmd-repeat-song-not-looping", "Song is no longer repeating."
+                    )
+                )
+
+        elif option == "on":
+            player.repeatsong = True
+            return Response(self.str.get("cmd-repeat-song-looping"), delete_after=30)
+            if player.repeatsong:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-already-looping", "Song is already looping!"
                     ),
                     delete_after=30,
                 )
+
+        elif option == "off":
+            player.repeatsong = False
+            player.loopqueue = False
+            if player.playlist.entries.__len__() > 0:
+                return Response(
+                    self.str.get("cmd-repeat-playlist-not-looping"), delete_after=30
+                )
+            else:
+                return Response(
+                    self.str.get("cmd-repeat-song-not-looping"), delete_after=30
+                )
+
         else:
             if player.repeatsong:
                 player.loopqueue = True
                 player.repeatsong = False
                 return Response(
-                    self.str.get(
-                        "cmd-repeat-noOption-playlist-looping",
-                        "Playlist is now repeating.",
-                    )
+                    self.str.get("cmd-repeat-playlist-looping"), delete_after=30
                 )
+
             elif player.loopqueue:
                 if player.playlist.entries.__len__() > 0:
-                    message = self.str.get(
-                        "cmd-repeat-noOption-playlist-not-looping",
-                        "Playlist is no longer repeating.",
-                    )
+                    message = self.str.get("cmd-repeat-playlist-not-looping")
                 else:
-                    message = self.str.get(
-                        "cmd-repeat-noOption-song-not-looping",
-                        "Song is no longer repeating.",
-                    )
+                    message = self.str.get("cmd-repeat-song-not-looping")
                 player.loopqueue = False
             else:
                 player.repeatsong = True
-                message = self.str.get(
-                    "cmd-repeat-noOption-song-looping", "Song is now repeating."
-                )
+                message = self.str.get("cmd-repeat-song-looping")
 
         return Response(message, delete_after=30)
 
