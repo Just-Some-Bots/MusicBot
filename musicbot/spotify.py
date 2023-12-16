@@ -77,9 +77,7 @@ class Spotify:
 
     async def make_post(self, url, payload, headers=None):
         """Makes a POST request and returns the results"""
-        async with self.aiosession.post(
-            url, data=payload, headers=headers
-        ) as r:
+        async with self.aiosession.post(url, data=payload, headers=headers) as r:
             if r.status != 200:
                 raise SpotifyError(
                     "Issue making POST request to {0}: [{1.status}] {2}".format(

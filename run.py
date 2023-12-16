@@ -28,7 +28,7 @@ class GIT(object):
     def works(cls):
         try:
             return bool(subprocess.check_output("git --version", shell=True))
-        except:
+        except Exception:
             return False
 
 
@@ -42,7 +42,7 @@ class PIP(object):
             return PIP.run_python_m(*command.split(), check_output=check_output)
         except subprocess.CalledProcessError as e:
             return e.returncode
-        except:
+        except Exception:
             traceback.print_exc()
             print("Error using -m method")
 
@@ -67,7 +67,7 @@ class PIP(object):
 
             try:
                 pip.main(args)
-            except:
+            except Exception:
                 traceback.print_exc()
             finally:
                 sys.stdout = sys.__stdout__
@@ -114,7 +114,7 @@ class PIP(object):
                 return expectedversion.split()[1]
             else:
                 return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
-        except:
+        except Exception:
             pass
 
     @classmethod
@@ -153,7 +153,7 @@ def finalize_logging():
             if os.path.isfile("logs/musicbot.log.last"):
                 os.unlink("logs/musicbot.log.last")
             os.rename("logs/musicbot.log", "logs/musicbot.log.last")
-        except:
+        except Exception:
             pass
 
     with open("logs/musicbot.log", "w", encoding="utf8") as f:
@@ -245,12 +245,12 @@ def req_ensure_py3():
             try:
                 subprocess.check_output('py -3.8 -c "exit()"', shell=True)
                 pycom = "py -3.8"
-            except:
+            except Exception:
                 log.info('Trying "python3"')
                 try:
                     subprocess.check_output('python3 -c "exit()"', shell=True)
                     pycom = "python3"
-                except:
+                except Exception:
                     pass
 
             if pycom:
@@ -269,7 +269,7 @@ def req_ensure_py3():
                     .strip()
                     .decode()
                 )
-            except:
+            except Exception:
                 pass
 
             if pycom:
@@ -449,12 +449,12 @@ async def main():
 
                 err = PIP.run_install("--upgrade -r requirements.txt")
 
-                if (
-                    err
-                ):  # TODO: add the specific error check back as not to always tell users to sudo it
+                if err:  # TODO: add the specific error check back.
+                    # The proper thing to do here is tell the user to fix their install, not help make it worse.
+                    # Comprehensive return codes aren't really a feature of pip, we'd need to read the log, and so does the user.
                     print()
                     log.critical(
-                        "You may need to %s to install dependencies."
+                        "This is not recommended! You can try to %s to install dependencies anyways."
                         % ["use sudo", "run as admin"][sys.platform.startswith("win")]
                     )
                     break
@@ -500,7 +500,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    # py3.8 made ProactorEventLoop default.
+    # py3.8 made ProactorEventLoop default on windows.
     # Now we need to make adjustments for a bug in aiohttp :)
-    loop = asynio.get_event_loop_policy().get_event_loop()
+    loop = asyncio.get_event_loop_policy().get_event_loop()
     loop.run_until_complete(main())
