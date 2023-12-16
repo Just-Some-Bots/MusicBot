@@ -432,11 +432,11 @@ async def main():
             if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
                 if use_certifi:
                     log.exception("Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi ")
+                    break
                 else:
                     log.warning("Could not get Issuer Certificate from default trust store, trying certifi instead.")
                     use_certifi = True
                     pass
-            break
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
