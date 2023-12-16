@@ -708,7 +708,7 @@ class MusicBot(discord.Client):
             if match:
                 videoID = match.group(1)
             else:
-                log.error("Unkknown link or unable to get video ID.")
+                log.error("Unknown link or unable to get video ID.")
             content = self._gen_embed()
             if self.config.now_playing_mentions:
                 content.title = None
@@ -3218,7 +3218,7 @@ class MusicBot(discord.Client):
             ) and player.current_entry.meta.get("author", False):
                 np_text = self.str.get(
                     "cmd-np-reply-author",
-                    "Now {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
+                    "Currently {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
                 ).format(
                     action=action_text,
                     title=player.current_entry.title,
@@ -3230,7 +3230,7 @@ class MusicBot(discord.Client):
             else:
                 np_text = self.str.get(
                     "cmd-np-reply-noauthor",
-                    "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
+                    "Currently {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
                 ).format(
                     action=action_text,
                     title=player.current_entry.title,
@@ -3255,10 +3255,10 @@ class MusicBot(discord.Client):
                     np_text.replace("Now ", "")
                     .replace(action_text, "")
                     .replace(": ", "", 1)
+                    .replace("Currently ", "")
                 )
                 content = self._gen_embed()
-                content.title = action_text
-                content.add_field(name="** **", value=np_text, inline=True)
+                content.add_field(name=f"Currently {action_text}", value=np_text, inline=True)
                 content.set_image(
                     url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
                 )
