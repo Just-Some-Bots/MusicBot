@@ -417,13 +417,14 @@ async def main():
                 # make sure we close the session(s)
                 await m._cleanup()
 
-            if (
-                isinstance(e, aiohttp.client_exceptions.ClientConnectorCertificateError)
-                and isinstance(e.__cause__, ssl.SSLCertVerificationError)
-            ):
+            if isinstance(
+                e, aiohttp.client_exceptions.ClientConnectorCertificateError
+            ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
                 e = e.__cause__
             else:
-                log.critical("Certificate error is not a verification error, not trying certifi and exiting.")
+                log.critical(
+                    "Certificate error is not a verification error, not trying certifi and exiting."
+                )
                 break
 
             # In case the local trust store does not have the cert locally, we can try certifi.
@@ -431,10 +432,14 @@ async def main():
             # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
             if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
                 if use_certifi:
-                    log.exception("Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi ")
+                    log.exception(
+                        "Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi "
+                    )
                     break
                 else:
-                    log.warning("Could not get Issuer Certificate from default trust store, trying certifi instead.")
+                    log.warning(
+                        "Could not get Issuer Certificate from default trust store, trying certifi instead."
+                    )
                     use_certifi = True
                     pass
 
