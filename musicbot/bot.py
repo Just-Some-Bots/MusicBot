@@ -4508,7 +4508,7 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-soft",
                     "{emoji} Restarting current instance...",
-                ).format(emoji="\N{WAVING HAND SIGN}")
+                ).format(emoji="\N{WAVING HAND SIGN}"),
             )
         elif opt == "full":
             await self.safe_send_message(
@@ -4516,7 +4516,7 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-full",
                     "{emoji} Restarting bot process...",
-                ).format(emoji="\N{WAVING HAND SIGN}")
+                ).format(emoji="\N{WAVING HAND SIGN}"),
             )
 
         if _player and _player.is_paused:
