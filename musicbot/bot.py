@@ -413,7 +413,8 @@ class MusicBot(discord.Client):
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
-        await self.safe_delete_message(message, quiet=True)
+        if not self.is_closed():
+            await self.safe_delete_message(message, quiet=True)
 
     async def _check_ignore_non_voice(self, msg):
         if msg.guild.me.voice:
@@ -1193,8 +1194,7 @@ class MusicBot(discord.Client):
             pass
 
         # now cancel all pending tasks, except for run.py::main()
-        pending = asyncio.all_tasks(loop=self.loop)
-        for task in pending:
+        for task in asyncio.all_tasks(loop=self.loop):
             if (
                 task.get_coro().__name__ == "main"
                 and task.get_name().lower() == "task-1"
