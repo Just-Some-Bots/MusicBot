@@ -723,7 +723,9 @@ class MusicBot(discord.Client):
             if match:
                 # TODO: come up with a good way to extract thumbnails from ytdl data.
                 videoID = match.group(1)
-                content.set_image(url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg")
+                content.set_image(
+                    url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
+                )
             else:
                 log.error("Unknown link or unable to get video ID.")
 
