@@ -389,7 +389,7 @@ def respawn_bot_process(pybin=None):
         # The moment we end this instance of the process, control is returned to the starting shell.
         subprocess.Popen(
             exec_args,
-            creationflags=subprocess.CREATE_NEW_WINDOW,
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
         )
         sys.exit(0)
     else:
