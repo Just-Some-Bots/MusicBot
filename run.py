@@ -381,6 +381,7 @@ def respawn_bot_process(pybin=None):
 
     sys.stdout.flush()
     sys.stderr.flush()
+    logging.shutdown()
 
     if os.name == "nt":
         # On Windows, this creates a new process window that dies when the script exits.
