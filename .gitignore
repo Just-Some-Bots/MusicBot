@@ -18,3 +18,4 @@ config/whitelist.txt
 config/blacklist.txt
 
 docker-compose.yml
+config/autoplaylist.cachemap.json

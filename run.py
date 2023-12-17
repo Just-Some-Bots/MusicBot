@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import asyncio
 import os
+import ssl
 import sys
 import time
 import logging
@@ -15,6 +16,7 @@ from shutil import disk_usage, rmtree
 from base64 import b64decode
 
 try:
+    import aiohttp
     import pathlib
     import importlib.util
 except ImportError:
@@ -26,7 +28,7 @@ class GIT(object):
     def works(cls):
         try:
             return bool(subprocess.check_output("git --version", shell=True))
-        except:
+        except Exception:
             return False
 
 
@@ -40,7 +42,7 @@ class PIP(object):
             return PIP.run_python_m(*command.split(), check_output=check_output)
         except subprocess.CalledProcessError as e:
             return e.returncode
-        except:
+        except Exception:
             traceback.print_exc()
             print("Error using -m method")
 
@@ -65,7 +67,7 @@ class PIP(object):
 
             try:
                 pip.main(args)
-            except:
+            except Exception:
                 traceback.print_exc()
             finally:
                 sys.stdout = sys.__stdout__
@@ -112,7 +114,7 @@ class PIP(object):
                 return expectedversion.split()[1]
             else:
                 return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
-        except:
+        except Exception:
             pass
 
     @classmethod
@@ -151,7 +153,7 @@ def finalize_logging():
             if os.path.isfile("logs/musicbot.log.last"):
                 os.unlink("logs/musicbot.log.last")
             os.rename("logs/musicbot.log", "logs/musicbot.log.last")
-        except:
+        except Exception:
             pass
 
     with open("logs/musicbot.log", "w", encoding="utf8") as f:
@@ -243,12 +245,12 @@ def req_ensure_py3():
             try:
                 subprocess.check_output('py -3.8 -c "exit()"', shell=True)
                 pycom = "py -3.8"
-            except:
+            except Exception:
                 log.info('Trying "python3"')
                 try:
                     subprocess.check_output('python3 -c "exit()"', shell=True)
                     pycom = "python3"
-                except:
+                except Exception:
                     pass
 
             if pycom:
@@ -264,7 +266,7 @@ def req_ensure_py3():
                     .strip()
                     .decode()
                 )
-            except:
+            except Exception:
                 pass
 
             if pycom:
@@ -406,6 +408,7 @@ async def main():
 
     exit_signal = None
     tried_requirementstxt = False
+    use_certifi = False
     tryagain = True
 
     loops = 0
@@ -420,8 +423,42 @@ async def main():
             from musicbot import MusicBot
 
             m = MusicBot()
-            await m._doBotInit()
+            await m._doBotInit(use_certifi)
             await m.run()
+
+        except (
+            ssl.SSLCertVerificationError,
+            aiohttp.client_exceptions.ClientConnectorCertificateError,
+        ) as e:
+            if m and m.session:
+                # make sure we close the session(s)
+                await m._cleanup()
+
+            if isinstance(
+                e, aiohttp.client_exceptions.ClientConnectorCertificateError
+            ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
+                e = e.__cause__
+            else:
+                log.critical(
+                    "Certificate error is not a verification error, not trying certifi and exiting."
+                )
+                break
+
+            # In case the local trust store does not have the cert locally, we can try certifi.
+            # We don't want to patch working systems with a third-party trust chain outright.
+            # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
+            if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+                if use_certifi:
+                    log.exception(
+                        "Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi "
+                    )
+                    break
+                else:
+                    log.warning(
+                        "Could not get Issuer Certificate from default trust store, trying certifi instead."
+                    )
+                    use_certifi = True
+                    pass
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -438,12 +475,12 @@ async def main():
 
                 err = PIP.run_install("--upgrade -r requirements.txt")
 
-                if (
-                    err
-                ):  # TODO: add the specific error check back as not to always tell users to sudo it
+                if err:  # TODO: add the specific error check back.
+                    # The proper thing to do here is tell the user to fix their install, not help make it worse.
+                    # Comprehensive return codes aren't really a feature of pip, we'd need to read the log, and so does the user.
                     print()
                     log.critical(
-                        "You may need to %s to install dependencies."
+                        "This is not recommended! You can try to %s to install dependencies anyways."
                         % ["use sudo", "run as admin"][sys.platform.startswith("win")]
                     )
                     break
@@ -476,7 +513,7 @@ async def main():
                 log.exception("Error starting bot")
 
         finally:
-            if not m or not m.init_ok:
+            if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
                     traceback.print_exc()
@@ -495,12 +532,10 @@ async def main():
 
 
 if __name__ == "__main__":
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(
-            #asyncio.WindowsSelectorEventLoopPolicy()  # both might be options now?
-            asyncio.WindowsProactorEventLoopPolicy()
-        )
-    exit_sig = asyncio.run(main())
+    # py3.8 made ProactorEventLoop default on windows.
+    # Now we need to make adjustments for a bug in aiohttp :)
+    loop = asyncio.get_event_loop_policy().get_event_loop()
+    exit_sig = loop.run_until_complete(main())
     if exit_sig:
         if exit_sig.__class__.__name__ == "RestartSignal":
             respawn_bot_process()

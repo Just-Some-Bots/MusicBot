@@ -1,4 +1,5 @@
 import asyncio
+import certifi
 import inspect
 import json
 import logging
@@ -9,6 +10,7 @@ import random
 import re
 import shlex
 import shutil
+import ssl
 import sys
 import time
 import traceback
@@ -133,11 +135,23 @@ class MusicBot(discord.Client):
         intents.presences = False
         super().__init__(intents=intents)
 
-    async def _doBotInit(self):
+    async def _doBotInit(self, use_certifi: bool = False):
         self.http.user_agent = "MusicBot/%s" % BOTVERSION
-        self.session = aiohttp.ClientSession(
-            headers={"User-Agent": self.http.user_agent}
-        )
+        if use_certifi:
+            ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+            tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
+
+            # Patches discord.py HTTPClient.
+            self.http.connector = tcp_connector
+
+            self.session = aiohttp.ClientSession(
+                headers={"User-Agent": self.http.user_agent},
+                connector=tcp_connector,
+            )
+        else:
+            self.session = aiohttp.ClientSession(
+                headers={"User-Agent": self.http.user_agent}
+            )
 
         self.spotify = None
         if self.config._spotify:
@@ -342,7 +356,9 @@ class MusicBot(discord.Client):
                 )
                 continue
 
-            if channel and isinstance(channel, discord.VoiceChannel):
+            if channel and isinstance(
+                channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
                 log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
 
                 chperms = channel.permissions_for(guild.me)
@@ -503,16 +519,29 @@ class MusicBot(discord.Client):
         if isinstance(channel, discord.Object):
             channel = self.get_channel(channel.id)
 
-        if not isinstance(channel, discord.VoiceChannel):
+        if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
             raise AttributeError("Channel passed must be a voice channel")
 
         if channel.guild.voice_client:
             return channel.guild.voice_client
         else:
             client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(
-                channel=channel, self_mute=False, self_deaf=self.config.self_deafen
-            )
+            if isinstance(channel, discord.StageChannel):
+                try:
+                    await channel.guild.me.edit(suppress=False)
+                    await channel.guild.change_voice_state(
+                        channel=channel,
+                        self_mute=False,
+                        self_deaf=self.config.self_deafen,
+                    )
+                except Exception as e:
+                    log.error(e)
+            else:
+                await channel.guild.change_voice_state(
+                    channel=channel,
+                    self_mute=False,
+                    self_deaf=self.config.self_deafen,
+                )
             return client
 
     async def disconnect_voice_client(self, guild):
@@ -691,7 +720,7 @@ class MusicBot(discord.Client):
             if match:
                 videoID = match.group(1)
             else:
-                log.error("Unkknown link or unable to get video ID.")
+                log.error("Unknown link or unable to get video ID.")
             content = self._gen_embed()
             if self.config.now_playing_mentions:
                 content.title = None
@@ -1143,19 +1172,24 @@ class MusicBot(discord.Client):
 
     async def _cleanup(self):
         try:
-            await self.logout()
+            await self.close()  # changed in d.py 2.0
+        except Exception:
+            log.exception("Issue while closing discord client connection.")
+            pass
+        try:
             await self.session.close()
-        except:
+        except Exception:
+            log.exception("Issue while cleaning up aiohttp session.")
             pass
 
         pending = asyncio.all_tasks(loop=self.loop)
 
         for task in pending:
             task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
     # noinspection PyMethodOverriding
     async def run(self):
@@ -2013,7 +2047,7 @@ class MusicBot(discord.Client):
     async def cmd_repeat(self, channel, option=None):
         """
         Usage:
-            {command_prefix}repeat [all | song]
+            {command_prefix}repeat [all | playlist | song | on | off]
 
         Toggles playlist or song looping.
         If no option is provided the current song will be repeated.
@@ -2022,6 +2056,7 @@ class MusicBot(discord.Client):
 
         player = self.get_player_in(channel.guild)
         option = option.lower() if option else ""
+        prefix = self._get_guild_cmd_prefix(channel.guild)
 
         if not player:
             raise exceptions.CommandError(
@@ -2043,7 +2078,16 @@ class MusicBot(discord.Client):
                 delete_after=30,
             )
 
-        if option == "all":
+        if option not in ["all", "playlist", "on", "off", "song", ""]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-repeat-invalid",
+                    "Invalid option, please run {}help repeat to a list of available options.",
+                ).format(prefix),
+                expire_in=30,
+            )
+
+        if option in ["all", "playlist"]:
             player.loopqueue = not player.loopqueue
             if player.loopqueue:
                 return Response(
@@ -2069,41 +2113,53 @@ class MusicBot(discord.Client):
                     self.str.get("cmd-repeat-song-looping", "Song is now repeating."),
                     delete_after=30,
                 )
-
             else:
                 return Response(
                     self.str.get(
                         "cmd-repeat-song-not-looping", "Song is no longer repeating."
+                    )
+                )
+
+        elif option == "on":
+            player.repeatsong = True
+            return Response(self.str.get("cmd-repeat-song-looping"), delete_after=30)
+            if player.repeatsong:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-already-looping", "Song is already looping!"
                     ),
                     delete_after=30,
                 )
+
+        elif option == "off":
+            player.repeatsong = False
+            player.loopqueue = False
+            if player.playlist.entries.__len__() > 0:
+                return Response(
+                    self.str.get("cmd-repeat-playlist-not-looping"), delete_after=30
+                )
+            else:
+                return Response(
+                    self.str.get("cmd-repeat-song-not-looping"), delete_after=30
+                )
+
         else:
             if player.repeatsong:
                 player.loopqueue = True
                 player.repeatsong = False
                 return Response(
-                    self.str.get(
-                        "cmd-repeat-noOption-playlist-looping",
-                        "Playlist is now repeating.",
-                    )
+                    self.str.get("cmd-repeat-playlist-looping"), delete_after=30
                 )
+
             elif player.loopqueue:
                 if player.playlist.entries.__len__() > 0:
-                    message = self.str.get(
-                        "cmd-repeat-noOption-playlist-not-looping",
-                        "Playlist is no longer repeating.",
-                    )
+                    message = self.str.get("cmd-repeat-playlist-not-looping")
                 else:
-                    message = self.str.get(
-                        "cmd-repeat-noOption-song-not-looping",
-                        "Song is no longer repeating.",
-                    )
+                    message = self.str.get("cmd-repeat-song-not-looping")
                 player.loopqueue = False
             else:
                 player.repeatsong = True
-                message = self.str.get(
-                    "cmd-repeat-noOption-song-looping", "Song is now repeating."
-                )
+                message = self.str.get("cmd-repeat-song-looping")
 
         return Response(message, delete_after=30)
 
@@ -3201,7 +3257,7 @@ class MusicBot(discord.Client):
             ) and player.current_entry.meta.get("author", False):
                 np_text = self.str.get(
                     "cmd-np-reply-author",
-                    "Now {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
+                    "Currently {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
                 ).format(
                     action=action_text,
                     title=player.current_entry.title,
@@ -3213,7 +3269,7 @@ class MusicBot(discord.Client):
             else:
                 np_text = self.str.get(
                     "cmd-np-reply-noauthor",
-                    "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
+                    "Currently {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
                 ).format(
                     action=action_text,
                     title=player.current_entry.title,
@@ -3238,10 +3294,12 @@ class MusicBot(discord.Client):
                     np_text.replace("Now ", "")
                     .replace(action_text, "")
                     .replace(": ", "", 1)
+                    .replace("Currently ", "")
                 )
                 content = self._gen_embed()
-                content.title = action_text
-                content.add_field(name="** **", value=np_text, inline=True)
+                content.add_field(
+                    name=f"Currently {action_text}", value=np_text, inline=True
+                )
                 content.set_image(
                     url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
                 )

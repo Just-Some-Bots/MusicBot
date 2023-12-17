@@ -4,6 +4,7 @@ import logging
 import aiohttp
 import inspect
 
+from typing import Union
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
@@ -246,7 +247,7 @@ def format_size_to_bytes(size_str: str, strict_si=False) -> int:
     return int(size_str)
 
 
-def format_time_to_seconds(time_str: str) -> int:
+def format_time_to_seconds(time_str: Union[str, int]) -> int:
     """Convert a phrase containing time duration(s) to seconds as int
     This function allows for intresting/sloppy time notations like:
     - 1yearand2seconds  = 31556954
@@ -256,9 +257,12 @@ def format_time_to_seconds(time_str: str) -> int:
     - 3600              = 3600
     Only partial seconds are not supported, thus ".5s + 1.5s" will be 1 not 2.
 
-    Param `time_str` is assumed to contain a time duration.
+    Param `time_str` is assumed to contain a time duration as str or int.
     Returns 0 if no time value is recognised, rather than raise a ValueError.
     """
+    if isinstance(time_str, int):
+        return time_str
+
     # TODO: find a good way to make this i18n friendly.
     time_lex = re.compile(r"(\d*\.?\d+)\s*(y|d|h|m|s)?", re.I)
     unit_seconds = {
