@@ -4484,30 +4484,43 @@ class MusicBot(discord.Client):
         await self.disconnect_voice_client(guild)
         return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
 
-    async def cmd_restart(self, channel, leftover_args, opt="soft"):
+    async def cmd_restart(self, _player, channel, leftover_args, opt="soft"):
         """
         Usage:
             {command_prefix}restart [soft|full]
 
         Restarts the bot, uses soft restart by default.
         soft option reloads config without reloading source or dependencies.
-        full option will reload everything from disk again.
+        full option will reload source code and config from disk again.
         """
         opt = opt.strip().lower()
         if opt not in ["soft", "full"]:
             raise exceptions.CommandError(
-                "Invalid option given, use soft or full.", expire_in=30
+                self.str.get(
+                    "cmd-restart-invalid-arg",
+                    "Invalid option given, use soft or full.",
+                ),
+                expire_in=30,
+            )
+        elif opt == "soft":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-soft",
+                    "{emoji} Restarting current instance...",
+                ).format(emoji="\N{WAVING HAND SIGN}")
+            )
+        elif opt == "full":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-full",
+                    "{emoji} Restarting bot process...",
+                ).format(emoji="\N{WAVING HAND SIGN}")
             )
 
-        await self.safe_send_message(
-            channel,
-            "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
-            "or its dependencies, you need to restart the bot properly, rather than using this command.",
-        )
-
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
+        if _player and _player.is_paused:
+            _player.resume()
 
         await self.disconnect_all_voice_clients()
         if opt == "soft":
