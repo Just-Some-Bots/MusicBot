@@ -383,7 +383,7 @@ def respawn_bot_process(pybin=None):
     sys.stderr.flush()
 
     if os.name == "nt":
-        # On Windows, this creates a new process window that dies when the script exits. 
+        # On Windows, this creates a new process window that dies when the script exits.
         # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
         # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
         # The moment we end this instance of the process, control is returned to the starting shell.
@@ -397,6 +397,7 @@ def respawn_bot_process(pybin=None):
         # No new PID, and the babies all get thrown out with the bath.  Kinda dangerous...
         # We need to make sure files and things are closed before we do this.
         os.execlp(exec_args[0], *exec_args)
+
 
 async def main():
     # TODO: *actual* argparsing
@@ -430,10 +431,6 @@ async def main():
             ssl.SSLCertVerificationError,
             aiohttp.client_exceptions.ClientConnectorCertificateError,
         ) as e:
-            if m and m.session:
-                # make sure we close the session(s)
-                await m._cleanup()
-
             if isinstance(
                 e, aiohttp.client_exceptions.ClientConnectorCertificateError
             ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
@@ -513,6 +510,11 @@ async def main():
                 log.exception("Error starting bot")
 
         finally:
+            if m and (m.session or m.http.connector):
+                # in case we never made it to m.run(), ensure cleanup.
+                log.debug("Doing cleanup late.")
+                await m._cleanup()
+
             if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...

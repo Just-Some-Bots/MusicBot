@@ -126,13 +126,16 @@ class HelpfulWarning(HelpfulError):
 class Signal(Exception):
     pass
 
+
 # signal to reload the bot
 class ReloadSignal(Signal):
     pass
 
+
 # signal to restart the bot
 class RestartSignal(Signal):
     pass
+
 
 # signal to end the bot "gracefully"
 class TerminateSignal(Signal):

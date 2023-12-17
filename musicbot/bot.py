@@ -1171,20 +1171,36 @@ class MusicBot(discord.Client):
         asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
 
     async def _cleanup(self):
-        try:
+        try:  # make sure discord.Client is closed.
             await self.close()  # changed in d.py 2.0
         except Exception:
-            log.exception("Issue while closing discord client connection.")
+            log.exception("Issue while closing discord client session.")
             pass
-        try:
+
+        try:  # make sure discord.http.connector is closed.
+            # This may be a bug in aiohttp or within discord.py handling of it.
+            # Have read aiohttp 4.x is supposed to fix this, but have not verified.
+            if self.http.connector:
+                await self.http.connector.close()
+        except Exception:
+            log.exception("Issue while closing discord aiohttp connector.")
+            pass
+
+        try:  # make sure our aiohttp session is closed.
             await self.session.close()
         except Exception:
-            log.exception("Issue while cleaning up aiohttp session.")
+            log.exception("Issue while closing our aiohttp session.")
             pass
 
+        # now cancel all pending tasks, except for run.py::main()
         pending = asyncio.all_tasks(loop=self.loop)
-
         for task in pending:
+            if (
+                task.get_coro().__name__ == "main"
+                and task.get_name().lower() == "task-1"
+            ):
+                continue
+
             task.cancel()
             try:
                 await task
@@ -4473,15 +4489,14 @@ class MusicBot(discord.Client):
         Usage:
             {command_prefix}restart [soft|full]
 
-        Restarts the bot.  
+        Restarts the bot, uses soft restart by default.
         soft option reloads config without reloading source or dependencies.
-        full option will quit the current instance and start a new instance in its place.
+        full option will reload everything from disk again.
         """
         opt = opt.strip().lower()
         if opt not in ["soft", "full"]:
             raise exceptions.CommandError(
-                "Invalid option given, use soft or full.",
-                expire_in=30
+                "Invalid option given, use soft or full.", expire_in=30
             )
 
         await self.safe_send_message(
