@@ -719,17 +719,21 @@ class MusicBot(discord.Client):
                 url,
             )
 
+            content = self._gen_embed()
             if match:
+                # TODO: come up with a good way to extract thumbnails from ytdl data.
                 videoID = match.group(1)
+                content.set_image(
+                    url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
+                )
             else:
                 log.error("Unknown link or unable to get video ID.")
-            content = self._gen_embed()
+
             if self.config.now_playing_mentions:
                 content.title = None
                 content.add_field(name="\n", value=newmsg, inline=True)
             else:
                 content.title = newmsg
-            content.set_image(url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg")
 
         # send it in specified channel
         self.server_specific_data[guild]["last_np_msg"] = await self.safe_send_message(
@@ -3287,8 +3291,11 @@ class MusicBot(discord.Client):
                     url,
                 )
 
+                thumb_url = None
                 if match:
+                    # TODO: come up with a good way to extract thumbnails from the ytdl data.
                     videoID = match.group(1)
+                    thumb_url = f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
                 else:
                     log.error("Unknown link or unable to get video ID.")
 
@@ -3302,9 +3309,8 @@ class MusicBot(discord.Client):
                 content.add_field(
                     name=f"Currently {action_text}", value=np_text, inline=True
                 )
-                content.set_image(
-                    url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
-                )
+                if thumb_url:
+                    content.set_image(url=thumb_url)
 
             self.server_specific_data[guild][
                 "last_np_msg"
