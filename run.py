@@ -479,7 +479,7 @@ async def main():
                         "Could not get Issuer Certificate from default trust store, trying certifi instead."
                     )
                     use_certifi = True
-                    pass
+                    continue
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -524,9 +524,8 @@ async def main():
                     break
 
                 elif e.__class__.__name__ == "RestartSignal":
-                    if e.restart_code.name == "RESTART_SOFT":
+                    if e.get_name() == "RESTART_SOFT":
                         loops = 0
-                        continue
                     else:
                         exit_signal = e
                         break
@@ -564,16 +563,16 @@ if __name__ == "__main__":
     exit_sig = loop.run_until_complete(main())
     if exit_sig:
         if exit_sig.__class__.__name__ == "RestartSignal":
-            if exit_sig.code.name == "RESTART_FULL":
+            if exit_sig.get_name() == "RESTART_FULL":
                 respawn_bot_process()
-            elif exit_sig.code.name == "RESTART_UPGRADE_ALL":
+            elif exit_sig.get_name() == "RESTART_UPGRADE_ALL":
                 PIP.run_upgrade_requirements()
                 GIT.run_upgrade_pull()
                 respawn_bot_process()
-            elif exit_sig.code.name == "RESTART_UPGRADE_PIP":
+            elif exit_sig.get_name() == "RESTART_UPGRADE_PIP":
                 PIP.run_upgrade_requirements()
                 respawn_bot_process()
-            elif exit_sig.code.name == "RESTART_UPGRADE_GIT":
+            elif exit_sig.get_name() == "RESTART_UPGRADE_GIT":
                 GIT.run_upgrade_pull()
                 respawn_bot_process()
         elif exit_sig.__class__.__name__ == "TerminateSignal":

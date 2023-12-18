@@ -145,6 +145,9 @@ class RestartSignal(Signal):
     def get_code(self) -> int:
         return self.restart_code.value
 
+    def get_name(self) -> str:
+        return self.restart_code.name
+
 
 # signal to end the bot "gracefully"
 class TerminateSignal(Signal):
