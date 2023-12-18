@@ -35,7 +35,7 @@ class GIT(object):
     def run_upgrade_pull(cls):
         log.info("Attempting to upgrade with `git pull` on current path.")
         try:
-            git_data = str(subprocess.check_output("git pull"))
+            git_data = str(subprocess.check_output("git pull", shell=True))
             log.info(f"Result of git pull:  {git_data}")
         except Exception:
             log.exception("Upgrade failed, you need to run `git pull` manually.")
