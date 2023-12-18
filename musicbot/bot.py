@@ -1164,13 +1164,6 @@ class MusicBot(discord.Client):
                 lfunc("Sending message instead")
                 return await self.safe_send_message(message.channel, new)
 
-    async def restart(self):
-        self.exit_signal = exceptions.RestartSignal()
-        await self.close()
-
-    def restart_threadsafe(self):
-        asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
-
     async def _cleanup(self):
         try:  # make sure discord.Client is closed.
             await self.close()  # changed in d.py 2.0
