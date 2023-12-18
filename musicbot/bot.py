@@ -4504,7 +4504,9 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-soft",
                     "{emoji} Restarting current instance...",
-                ).format(emoji="\u21A9\uFE0F"),  # Right arrow curving left
+                ).format(
+                    emoji="\u21A9\uFE0F",  # Right arrow curving left
+                ),
             )
         elif opt == "full":
             await self.safe_send_message(
@@ -4512,7 +4514,9 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-full",
                     "{emoji} Restarting bot process...",
-                ).format(emoji="\U0001F504"),  # counterclockwise arrows
+                ).format(
+                    emoji="\U0001F504",  # counterclockwise arrows
+                ),
             )
         elif opt == "uppip":
             await self.safe_send_message(
@@ -4520,7 +4524,9 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-uppip",
                     "{emoji} Will try to upgrade required pip packages and restart the bot...",
-                ).format(emoji="\U0001F4E6"),  # package / box
+                ).format(
+                    emoji="\U0001F4E6",  # package / box
+                ),
             )
         elif opt == "upgit":
             await self.safe_send_message(
@@ -4528,7 +4534,9 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-upgit",
                     "{emoji} Will try to update bot code with git and restart the bot...",
-                ).format(emoji="\U0001F5C3\uFE0F"),  # card box
+                ).format(
+                    emoji="\U0001F5C3\uFE0F",  # card box
+                ),
             )
         elif opt == "upgrade":
             await self.safe_send_message(
@@ -4536,7 +4544,9 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-upgrade",
                     "{emoji} Will try to upgrade everything and restart the bot...",
-                ).format(emoji="\U0001F310"),  # globe with meridians
+                ).format(
+                    emoji="\U0001F310",  # globe with meridians
+                ),
             )
 
         if _player and _player.is_paused:
