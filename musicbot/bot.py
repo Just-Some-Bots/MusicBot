@@ -4487,18 +4487,21 @@ class MusicBot(discord.Client):
     async def cmd_restart(self, _player, channel, leftover_args, opt="soft"):
         """
         Usage:
-            {command_prefix}restart [soft|full]
+            {command_prefix}restart [soft|full|upgrade|upgit|uppip]
 
         Restarts the bot, uses soft restart by default.
-        soft option reloads config without reloading source or dependencies.
-        full option will reload source code and config from disk again.
+        `soft` option reloads config without reloading source or dependencies.
+        `full` option will reload source code and config from disk again.
+        `uppip` option is a full restart but runs pip to update dependencies.
+        `upgit` option is a full restart but runs git pull to update bot source.
+        `upgrade` option is a full restart but runs both pip and git updates.
         """
         opt = opt.strip().lower()
-        if opt not in ["soft", "full"]:
+        if opt not in ["soft", "full", "upgrade", "uppip", "upgit"]:
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-restart-invalid-arg",
-                    "Invalid option given, use soft or full.",
+                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit",
                 ),
                 expire_in=30,
             )
@@ -4524,9 +4527,21 @@ class MusicBot(discord.Client):
 
         await self.disconnect_all_voice_clients()
         if opt == "soft":
-            raise exceptions.ReloadSignal()
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_SOFT)
         elif opt == "full":
-            raise exceptions.RestartSignal()
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_FULL)
+        elif opt == "upgrade":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_ALL
+            )
+        elif opt == "uppip":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_PIP
+            )
+        elif opt == "upgit":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_GIT
+            )
 
     async def cmd_shutdown(self, channel):
         """

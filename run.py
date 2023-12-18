@@ -31,6 +31,15 @@ class GIT(object):
         except Exception:
             return False
 
+    @classmethod
+    def run_upgrade_pull(cls):
+        log.info("Attempting to upgrade with `git pull` on current path.")
+        try:
+            git_data = str(subprocess.check_output("git pull"))
+            log.info(f"Result of git pull:  {git_data}")
+        except Exception:
+            log.exception("Upgrade failed, you need to run `git pull` manually.")
+
 
 class PIP(object):
     @classmethod
@@ -122,6 +131,20 @@ class PIP(object):
         from pip.req import parse_requirements
 
         return list(parse_requirements(file))
+
+    @classmethod
+    def run_upgrade_requirements(cls):
+        log.info(
+            "Attempting to upgrade with `pip install --upgrade -r requirements.txt` on current path."
+        )
+        cmd = [sys.executable] + "-m pip install --upgrade -r requirements.txt".split()
+        try:
+            pip_data = subprocess.check_output(cmd)
+            log.info(f"Result of pip upgrade:  {pip_data}")
+        except Exception:
+            log.exception(
+                "Upgrade failed, you need to run `pip install --upgrade -r requirements.txt` manually."
+            )
 
 
 # Setup initial loggers
@@ -501,12 +524,12 @@ async def main():
                     break
 
                 elif e.__class__.__name__ == "RestartSignal":
-                    exit_signal = e
-                    break
-
-                elif e.__class__.__name__ == "ReloadSignal":
-                    loops = 0
-                    pass
+                    if e.restart_code.name == "RESTART_SOFT":
+                        loops = 0
+                        continue
+                    else:
+                        exit_signal = e
+                        break
             else:
                 log.exception("Error starting bot")
 
@@ -541,6 +564,17 @@ if __name__ == "__main__":
     exit_sig = loop.run_until_complete(main())
     if exit_sig:
         if exit_sig.__class__.__name__ == "RestartSignal":
-            respawn_bot_process()
+            if exit_sig.code.name == "RESTART_FULL":
+                respawn_bot_process()
+            elif exit_sig.code.name == "RESTART_UPGRADE_ALL":
+                PIP.run_upgrade_requirements()
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+            elif exit_sig.code.name == "RESTART_UPGRADE_PIP":
+                PIP.run_upgrade_requirements()
+                respawn_bot_process()
+            elif exit_sig.code.name == "RESTART_UPGRADE_GIT":
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
         elif exit_sig.__class__.__name__ == "TerminateSignal":
             sys.exit(exit_sig.exit_code)
