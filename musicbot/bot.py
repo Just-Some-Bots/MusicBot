@@ -1236,7 +1236,7 @@ class MusicBot(discord.Client):
             await self.logout()
 
         elif issubclass(ex_type, exceptions.Signal):
-            self.exit_signal = ex_type
+            self.exit_signal = ex
             await self.logout()
 
         else:
