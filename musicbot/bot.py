@@ -4483,11 +4483,11 @@ class MusicBot(discord.Client):
             {command_prefix}restart [soft|full|upgrade|upgit|uppip]
 
         Restarts the bot, uses soft restart by default.
-        `soft` option reloads config without reloading source or dependencies.
-        `full` option will reload source code and config from disk again.
-        `uppip` option is a full restart but runs pip to update dependencies.
-        `upgit` option is a full restart but runs git pull to update bot source.
-        `upgrade` option is a full restart but runs both pip and git updates.
+        `soft` reloads config without reloading bot code.
+        `full` restart reloading source code and configs.
+        `uppip` upgrade pip packages then fully restarts.
+        `upgit` upgrade bot with git then fully restarts.
+        `upgrade` upgrade bot and packages then restarts.
         """
         opt = opt.strip().lower()
         if opt not in ["soft", "full", "upgrade", "uppip", "upgit"]:
@@ -4504,7 +4504,7 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-soft",
                     "{emoji} Restarting current instance...",
-                ).format(emoji="\N{WAVING HAND SIGN}"),
+                ).format(emoji="\u21A9\uFE0F"),  # Right arrow curving left
             )
         elif opt == "full":
             await self.safe_send_message(
@@ -4512,7 +4512,31 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-full",
                     "{emoji} Restarting bot process...",
-                ).format(emoji="\N{WAVING HAND SIGN}"),
+                ).format(emoji="\U0001F504"),  # counterclockwise arrows
+            )
+        elif opt == "uppip":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-uppip",
+                    "{emoji} Will try to upgrade required pip packages and restart the bot...",
+                ).format(emoji="\U0001F4E6"),  # package / box
+            )
+        elif opt == "upgit":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgit",
+                    "{emoji} Will try to update bot code with git and restart the bot...",
+                ).format(emoji="\U0001F5C3\uFE0F"),  # card box
+            )
+        elif opt == "upgrade":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgrade",
+                    "{emoji} Will try to upgrade everything and restart the bot...",
+                ).format(emoji="\U0001F310"),  # globe with meridians
             )
 
         if _player and _player.is_paused:
