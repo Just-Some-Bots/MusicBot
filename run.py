@@ -35,7 +35,8 @@ class GIT(object):
     def run_upgrade_pull(cls):
         log.info("Attempting to upgrade with `git pull` on current path.")
         try:
-            git_data = str(subprocess.check_output("git pull", shell=True))
+            git_data = subprocess.check_output("git pull", shell=True)
+            git_data = git_data.decode("utf8").strip()
             log.info(f"Result of git pull:  {git_data}")
         except Exception:
             log.exception("Upgrade failed, you need to run `git pull` manually.")
@@ -140,6 +141,7 @@ class PIP(object):
         cmd = [sys.executable] + "-m pip install --upgrade -r requirements.txt".split()
         try:
             pip_data = subprocess.check_output(cmd)
+            pip_data = pip_data.decode("utf8").strip()
             log.info(f"Result of pip upgrade:  {pip_data}")
         except Exception:
             log.exception(
