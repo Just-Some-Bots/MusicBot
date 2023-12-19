@@ -75,7 +75,7 @@ class HelpfulError(MusicbotException):
         *,
         preface="An error has occured:",
         footnote="",
-        expire_in=0
+        expire_in=0,
     ):
         self.issue = issue
         self.solution = solution
