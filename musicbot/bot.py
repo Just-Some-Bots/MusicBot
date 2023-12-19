@@ -3501,7 +3501,7 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def cmd_clear(self, player, author):
+    async def cmd_clear(self, guild, player, author):
         """
         Usage:
             {command_prefix}clear
@@ -3512,9 +3512,9 @@ class MusicBot(discord.Client):
         player.playlist.clear()
 
         # This lets us signal to playlist queuing loops to stop adding to the queue.
-        self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = True
+        self.server_specific_data[guild.id]["halt_playlist_unpack"] = True
         await asyncio.sleep(3)
-        self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = False
+        self.server_specific_data[guild.id]["halt_playlist_unpack"] = False
 
         return Response(
             self.str.get("cmd-clear-reply", "Cleared `{0}`'s queue").format(
