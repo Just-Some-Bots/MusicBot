@@ -2274,6 +2274,9 @@ class MusicBot(discord.Client):
 
         song_url = song_url.strip("<>")
 
+        if self.server_specific_data[channel.guild.id]["halt_playlist_unpack"]:
+            self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = False
+
         async with channel.typing():
             if leftover_args:
                 song_url = " ".join([song_url, *leftover_args])
@@ -3513,8 +3516,6 @@ class MusicBot(discord.Client):
 
         # This lets us signal to playlist queuing loops to stop adding to the queue.
         self.server_specific_data[guild.id]["halt_playlist_unpack"] = True
-        await asyncio.sleep(3)
-        self.server_specific_data[guild.id]["halt_playlist_unpack"] = False
 
         return Response(
             self.str.get("cmd-clear-reply", "Cleared `{0}`'s queue").format(
