@@ -329,7 +329,7 @@ class MusicBot(discord.Client):
                 log.info("Initial autopause in empty channel")
 
                 player.pause()
-                self.server_specific_data[player.voice_client.channel.guild][
+                self.server_specific_data[player.voice_client.channel.guild.id][
                     "auto_paused"
                 ] = True
 
@@ -557,7 +557,7 @@ class MusicBot(discord.Client):
             await self.reset_player_inactivity(player)
 
             if self.config.leave_inactive_channel:
-                event, active = self.server_specific_data[guild]["inactive_vc_timer"]
+                event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
                 if active and not event.is_set():
                     event.set()
 
@@ -694,7 +694,7 @@ class MusicBot(discord.Client):
                 return
 
             guild = player.voice_client.guild
-            last_np_msg = self.server_specific_data[guild]["last_np_msg"]
+            last_np_msg = self.server_specific_data[guild.id]["last_np_msg"]
 
             if self.config.nowplaying_channels:
                 for potential_channel_id in self.config.nowplaying_channels:
@@ -736,7 +736,9 @@ class MusicBot(discord.Client):
                 content.title = newmsg
 
         # send it in specified channel
-        self.server_specific_data[guild]["last_np_msg"] = await self.safe_send_message(
+        self.server_specific_data[guild.id][
+            "last_np_msg"
+        ] = await self.safe_send_message(
             channel,
             content if self.config.embeds else newmsg,
             expire_in=30 if self.config.delete_nowplaying else 0,
@@ -771,7 +773,7 @@ class MusicBot(discord.Client):
         # delete last_np_msg somewhere if we have cached it
         if self.config.delete_nowplaying:
             guild = player.voice_client.guild
-            last_np_msg = self.server_specific_data[guild]["last_np_msg"]
+            last_np_msg = self.server_specific_data[guild.id]["last_np_msg"]
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
 
@@ -780,7 +782,7 @@ class MusicBot(discord.Client):
                 log.info("Player finished playing, autopaused in empty channel")
 
                 player.pause()
-                self.server_specific_data[player.voice_client.channel.guild][
+                self.server_specific_data[player.voice_client.channel.guild.id][
                     "auto_paused"
                 ] = True
 
@@ -922,7 +924,7 @@ class MusicBot(discord.Client):
                 self.last_status = game
 
     async def update_now_playing_message(self, guild, message, *, channel=None):
-        lnp = self.server_specific_data[guild]["last_np_msg"]
+        lnp = self.server_specific_data[guild.id]["last_np_msg"]
         m = None
 
         if message is None and lnp:
@@ -952,7 +954,7 @@ class MusicBot(discord.Client):
         elif channel:  # No previous message
             m = await self.safe_send_message(channel, message, quiet=True)
 
-        self.server_specific_data[guild]["last_np_msg"] = m
+        self.server_specific_data[guild.id]["last_np_msg"] = m
 
     async def serialize_queue(self, guild, *, dir=None):
         """
@@ -1064,20 +1066,20 @@ class MusicBot(discord.Client):
         options = Json(opt_file)
         guild_prefix = options.get("command_prefix", None)
         if guild_prefix:
-            self.server_specific_data[guild]["command_prefix"] = guild_prefix
+            self.server_specific_data[guild.id]["command_prefix"] = guild_prefix
             log.info(f"Custom command prefix for: {guild.name}  Prefix: {guild_prefix}")
 
     async def _save_guild_options(self, guild: discord.Guild):
         opt_file = f"data/{guild.id}/options.json"
         opt_dict = {
-            "command_prefix": self.server_specific_data[guild]["command_prefix"]
+            "command_prefix": self.server_specific_data[guild.id]["command_prefix"]
         }
         with open(opt_file, "w") as fh:
             fh.write(json.dumps(opt_dict))
 
     def _get_guild_cmd_prefix(self, guild: discord.Guild):
         if self.config.enable_options_per_guild:
-            prefix = self.server_specific_data[guild]["command_prefix"]
+            prefix = self.server_specific_data[guild.id]["command_prefix"]
             if not prefix:
                 return self.config.command_prefix
             else:
@@ -1558,12 +1560,12 @@ class MusicBot(discord.Client):
         log.debug("Removed {} from autoplaylist".format(url))
 
     async def handle_vc_inactivity(self, guild: discord.Guild):
-        event, active = self.server_specific_data[guild]["inactive_vc_timer"]
+        event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
 
         if active:
             log.debug(f"Channel activity already waiting in guild: {guild}")
             return
-        self.server_specific_data[guild]["inactive_vc_timer"] = (event, True)
+        self.server_specific_data[guild.id]["inactive_vc_timer"] = (event, True)
 
         try:
             log.info(
@@ -1582,7 +1584,7 @@ class MusicBot(discord.Client):
                 f"Channel activity timer canceled for: {guild.me.voice.channel.name} in {guild.name}"
             )
         finally:
-            self.server_specific_data[guild]["inactive_vc_timer"] = (event, False)
+            self.server_specific_data[guild.id]["inactive_vc_timer"] = (event, False)
             event.clear()
 
     async def handle_player_inactivity(self, player):
@@ -1590,7 +1592,9 @@ class MusicBot(discord.Client):
             return
         channel = player.voice_client.channel
         guild = channel.guild
-        event, event_active = self.server_specific_data[guild]["inactive_player_timer"]
+        event, event_active = self.server_specific_data[guild.id][
+            "inactive_player_timer"
+        ]
 
         if str(channel.id) in str(self.config.autojoin_channels):
             log.debug(
@@ -1601,7 +1605,7 @@ class MusicBot(discord.Client):
         if event_active:
             log.debug(f"Player activity timer already waiting in guild: {guild}")
             return
-        self.server_specific_data[guild]["inactive_player_timer"] = (event, True)
+        self.server_specific_data[guild.id]["inactive_player_timer"] = (event, True)
 
         try:
             log.info(
@@ -1620,14 +1624,17 @@ class MusicBot(discord.Client):
                 f"Player activity timer canceled for: {channel.name} in {guild.name}"
             )
         finally:
-            self.server_specific_data[guild]["inactive_player_timer"] = (event, False)
+            self.server_specific_data[guild.id]["inactive_player_timer"] = (
+                event,
+                False,
+            )
             event.clear()
 
     async def reset_player_inactivity(self, player):
         if not self.config.leave_player_inactive_for:
             return
         guild = player.voice_client.channel.guild
-        event, active = self.server_specific_data[guild]["inactive_player_timer"]
+        event, active = self.server_specific_data[guild.id]["inactive_player_timer"]
         if active and not event.is_set():
             event.set()
             log.debug("Player activity timer is being reset.")
@@ -2793,9 +2800,9 @@ class MusicBot(discord.Client):
                 and player.current_entry.duration > permissions.max_song_length
             ):
                 await self.safe_delete_message(
-                    self.server_specific_data[channel.guild]["last_np_msg"]
+                    self.server_specific_data[channel.guild.id]["last_np_msg"]
                 )
-                self.server_specific_data[channel.guild]["last_np_msg"] = None
+                self.server_specific_data[channel.guild.id]["last_np_msg"] = None
                 skipped = True
                 player.skip()
                 entries_added.pop()
@@ -3219,11 +3226,11 @@ class MusicBot(discord.Client):
         """
 
         if player.current_entry:
-            if self.server_specific_data[guild]["last_np_msg"]:
+            if self.server_specific_data[guild.id]["last_np_msg"]:
                 await self.safe_delete_message(
-                    self.server_specific_data[guild]["last_np_msg"]
+                    self.server_specific_data[guild.id]["last_np_msg"]
                 )
-                self.server_specific_data[guild]["last_np_msg"] = None
+                self.server_specific_data[guild.id]["last_np_msg"] = None
 
             # TODO: Fix timedelta garbage with util function
             song_progress = ftimedelta(timedelta(seconds=player.progress))
@@ -3312,7 +3319,7 @@ class MusicBot(discord.Client):
                 if thumb_url:
                     content.set_image(url=thumb_url)
 
-            self.server_specific_data[guild][
+            self.server_specific_data[guild.id][
                 "last_np_msg"
             ] = await self.safe_send_message(
                 channel, content if self.config.embeds else np_text, expire_in=30
@@ -4113,7 +4120,7 @@ class MusicBot(discord.Client):
 
         def is_possible_command_invoke(entry):
             prefix_list = [self._get_guild_cmd_prefix(channel.guild)] + list(
-                self.server_specific_data[channel.guild]["session_prefix_history"]
+                self.server_specific_data[channel.guild.id]["session_prefix_history"]
             )
             # The semi-cursed use of [^ -~] should match all kinds of unicode, which could be an issue.
             # If it is a problem, the best solution is probably adding a dependency for emoji.
@@ -4404,7 +4411,7 @@ class MusicBot(discord.Client):
                     )
 
             if "clear" == prefix:
-                self.server_specific_data[guild]["command_prefix"] = None
+                self.server_specific_data[guild.id]["command_prefix"] = None
                 await self._save_guild_options(guild)
                 return Response(
                     self.str.get(
@@ -4414,10 +4421,12 @@ class MusicBot(discord.Client):
                 )
 
             old_prefix = self._get_guild_cmd_prefix(guild)
-            self.server_specific_data[guild]["command_prefix"] = prefix
-            self.server_specific_data[guild]["session_prefix_history"].add(old_prefix)
-            if len(self.server_specific_data[guild]["session_prefix_history"]) > 3:
-                self.server_specific_data[guild]["session_prefix_history"].pop()
+            self.server_specific_data[guild.id]["command_prefix"] = prefix
+            self.server_specific_data[guild.id]["session_prefix_history"].add(
+                old_prefix
+            )
+            if len(self.server_specific_data[guild.id]["session_prefix_history"]) > 3:
+                self.server_specific_data[guild.id]["session_prefix_history"].pop()
             await self._save_guild_options(guild)
             return Response(
                 self.str.get(
@@ -4928,7 +4937,7 @@ class MusicBot(discord.Client):
 
         if voice_channel:
             try:
-                last_np_msg = self.server_specific_data[guild]["last_np_msg"]
+                last_np_msg = self.server_specific_data[guild.id]["last_np_msg"]
                 channel = last_np_msg.channel
                 if self.config.embeds:
                     embed = self._gen_embed()
@@ -4955,7 +4964,7 @@ class MusicBot(discord.Client):
 
         if self.config.leave_inactive_channel:
             guild = member.guild
-            event, active = self.server_specific_data[guild]["inactive_vc_timer"]
+            event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
 
             if before.channel and self.user in before.channel.members:
                 if str(before.channel.id) in str(self.config.autojoin_channels):
@@ -5011,7 +5020,7 @@ class MusicBot(discord.Client):
 
         autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
 
-        auto_paused = self.server_specific_data[channel.guild]["auto_paused"]
+        auto_paused = self.server_specific_data[channel.guild.id]["auto_paused"]
 
         try:
             player = await self.get_player(channel)
@@ -5041,7 +5050,7 @@ class MusicBot(discord.Client):
                         ).strip()
                     )
 
-                    self.server_specific_data[player.voice_client.guild][
+                    self.server_specific_data[player.voice_client.guild.id][
                         "auto_paused"
                     ] = False
                     player.resume()
@@ -5061,7 +5070,7 @@ class MusicBot(discord.Client):
                             ).strip()
                         )
 
-                        self.server_specific_data[player.voice_client.guild][
+                        self.server_specific_data[player.voice_client.guild.id][
                             "auto_paused"
                         ] = True
                         player.pause()
@@ -5078,7 +5087,7 @@ class MusicBot(discord.Client):
                         ).strip()
                     )
 
-                    self.server_specific_data[player.voice_client.guild][
+                    self.server_specific_data[player.voice_client.guild.id][
                         "auto_paused"
                     ] = False
                     player.resume()
@@ -5095,7 +5104,7 @@ class MusicBot(discord.Client):
                         ).strip()
                     )
 
-                    self.server_specific_data[player.voice_client.guild][
+                    self.server_specific_data[player.voice_client.guild.id][
                         "auto_paused"
                     ] = False
                     player.resume()
@@ -5110,7 +5119,7 @@ class MusicBot(discord.Client):
                         ).strip()
                     )
 
-                    self.server_specific_data[player.voice_client.guild][
+                    self.server_specific_data[player.voice_client.guild.id][
                         "auto_paused"
                     ] = True
                     player.pause()
@@ -5159,13 +5168,13 @@ class MusicBot(discord.Client):
         player = self.get_player_in(guild)
 
         if player and player.is_paused:
-            av_paused = self.server_specific_data[guild]["availability_paused"]
+            av_paused = self.server_specific_data[guild.id]["availability_paused"]
 
             if av_paused:
                 log.debug(
                     'Resuming player in "{}" due to availability.'.format(guild.name)
                 )
-                self.server_specific_data[guild]["availability_paused"] = False
+                self.server_specific_data[guild.id]["availability_paused"] = False
                 player.resume()
 
     async def on_guild_unavailable(self, guild: discord.Guild):
@@ -5177,7 +5186,7 @@ class MusicBot(discord.Client):
             log.debug(
                 'Pausing player in "{}" due to unavailability.'.format(guild.name)
             )
-            self.server_specific_data[guild]["availability_paused"] = True
+            self.server_specific_data[guild.id]["availability_paused"] = True
             player.pause()
 
     def voice_client_in(self, guild):

@@ -139,7 +139,7 @@ class Playlist(EventEmitter, Serializable):
             info.get("title", "Untitled"),
             info.get("duration", None) or None,
             self.downloader.ytdl.prepare_filename(info),
-            **meta
+            **meta,
         )
         self._add_entry(entry, head=head)
         return entry, (1 if head else len(self.entries))
@@ -251,7 +251,7 @@ class Playlist(EventEmitter, Serializable):
                         item.get("title", "Untitled"),
                         item.get("duration", 0) or 0,
                         self.downloader.ytdl.prepare_filename(item),
-                        **meta
+                        **meta,
                     )
 
                     self._add_entry(entry, head=head)
