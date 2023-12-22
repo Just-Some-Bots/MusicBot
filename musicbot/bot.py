@@ -2145,17 +2145,19 @@ class MusicBot(discord.Client):
                 )
 
         elif option == "off":
-            player.repeatsong = False
-            player.loopqueue = False
-            if player.playlist.entries.__len__() > 0:
-                return Response(
-                    self.str.get("cmd-repeat-playlist-not-looping"), delete_after=30
-                )
+            if player.repeatsong:
+                player.repeatsong = False
+                return Response(self.str.get("cmd-repeat-song-not-looping"))
+            elif player.loopqueue:
+                player.loopqueue = False
+                return Response(self.str.get("cmd-repeat-playlist-not-looping"))
             else:
-                return Response(
-                    self.str.get("cmd-repeat-song-not-looping"), delete_after=30
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-repeat-already-off", "The player is not currently looping."
+                    ),
+                    expire_in=30,
                 )
-
         else:
             if player.repeatsong:
                 player.loopqueue = True

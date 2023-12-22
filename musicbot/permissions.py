@@ -51,7 +51,7 @@ class Permissive:
 
     AllowPlaylists = True
     InstaSkip = True
-    SkipLooped = False
+    SkipLooped = True
     Remove = True
     SkipWhenAbsent = False
     BypassKaraokeMode = True
