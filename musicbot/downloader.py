@@ -71,6 +71,7 @@ class Downloader:
         on_error as an argument.
         """
 
+        log.noise(f"Called extract_info with:  {args}, oe={on_error}, roe={retry_on_error}, {kwargs}")
         # converting Spotify URL to URI for the bot to use
         def convert_url_to_uri(url):
             parts = url.split("/")

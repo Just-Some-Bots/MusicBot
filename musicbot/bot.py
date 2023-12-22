@@ -19,6 +19,7 @@ from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
 from typing import Optional
+from urllib.parse import quote_plus
 
 import aiohttp
 import colorlog
@@ -164,8 +165,7 @@ class MusicBot(discord.Client):
                     aiosession=self.session,
                     loop=self.loop,
                 )
-                await self.spotify.get_token()
-                if not self.spotify.token:
+                if not await self.spotify.has_token():
                     log.warning("Spotify did not provide us with a token. Disabling.")
                     self.config._spotify = False
                 else:
@@ -188,8 +188,7 @@ class MusicBot(discord.Client):
                 self.spotify = Spotify(
                     None, None, aiosession=self.session, loop=self.loop
                 )
-                await self.spotify.get_token()
-                if not self.spotify.token:
+                if not await self.spotify.has_token():
                     log.warning("Spotify did not provide us with a token. Disabling.")
                     self.config._spotify = False
                 else:
@@ -1927,8 +1926,11 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def _do_playlist_checks(self, permissions, player, author, testobj):
-        num_songs = sum(1 for _ in testobj)
+    async def _do_playlist_checks(self, permissions, player, author, testobj, total=0):
+        if total:
+            num_songs = total
+        else:
+            num_songs = sum(1 for _ in testobj)
 
         # I have to do exe extra checks anyways because you can request an arbitrary number of search results
         if not permissions.allow_playlists and num_songs > 1:
@@ -2244,6 +2246,14 @@ class MusicBot(discord.Client):
 
         player.playlist.insert_entry_at_index(indexes[1], song)
 
+    async def _cmd_play_spotify(self, song_url):
+        pass
+        # TODO: move all the spotify code from _cmd_play to here.
+        
+    async def _cmd_play_ytdl(self, song_url):
+        pass
+        # TODO: move all the ytdl related code from _cmd_play to here.
+
     async def _cmd_play(
         self,
         message,
@@ -2282,161 +2292,235 @@ class MusicBot(discord.Client):
                 % self._get_guild_cmd_prefix(channel.guild)
             )
 
-        song_url = song_url.strip("<>")
-
         if self.server_specific_data[channel.guild.id]["halt_playlist_unpack"]:
             self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = False
 
-        async with channel.typing():
-            if leftover_args:
-                song_url = " ".join([song_url, *leftover_args])
-            leftover_args = None  # prevent some crazy shit happening down the line
+        await channel.typing()
 
-            # Make sure forward slashes work properly in search queries
-            links_regex = r"((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)"
-            match_url = re.compile(links_regex).match(song_url)
-            song_url = song_url.replace("/", "%2F") if match_url is None else song_url
+        # TODO: song_url should be song_subject for clarity sake. 
+        # or we should have a function that makes the distinction.
+        song_url = song_url.strip("<>")
 
-            # Rewrite YouTube playlist URLs if the wrong URL type is given
-            playlist_regex = r"watch\?v=.+&(list=[^&]+)"
-            matches = re.search(playlist_regex, song_url)
-            groups = matches.groups() if matches is not None else []
-            song_url = (
-                "https://www.youtube.com/playlist?" + groups[0]
-                if len(groups) > 0
-                else song_url
-            )
+        if leftover_args:  # include all the text from the command.
+            song_url = " ".join([song_url, *leftover_args])
+            leftover_args = None
 
-            if self.config._spotify:
-                if "open.spotify.com" in song_url:
-                    song_url = "spotify:" + re.sub(
-                        r"(https?:\/\/)?(open.spotify.com)\/", "", song_url
-                    ).replace("/", ":")
-                    # remove session id (and other query stuff)
-                    song_url = re.sub(r"\?.*", "", song_url)
-                if song_url.startswith("spotify:"):
-                    parts = song_url.split(":")
-                    try:
-                        if "track" in parts:
-                            res = await self.spotify.get_track(parts[-1])
-                            song_url = res["artists"][0]["name"] + " " + res["name"]
+        # If the song_subject is not a url, make sure to url encode it for search.
+        links_regex = r"(?:https?://|www\.)[a-zA-Z0-9/\.~]*"
+        match_url = re.compile(links_regex).match(song_url)
+        song_url = quote_plus(song_url) if match_url is None else song_url
 
-                        elif "album" in parts:
-                            res = await self.spotify.get_album(parts[-1])
+        # Rewrite YouTube playlist URLs if the wrong URL type is given
+        playlist_regex = r"watch\?v=.+&(list=[^&]+)"
+        matches = re.search(playlist_regex, song_url)
+        groups = matches.groups() if matches is not None else []
+        song_url = (
+            "https://www.youtube.com/playlist?" + groups[0]
+            if len(groups) > 0
+            else song_url
+        )
 
-                            await self._do_playlist_checks(
-                                permissions, player, author, res["tracks"]["items"]
-                            )
-                            procmesg = await self.safe_send_message(
-                                channel,
-                                self.str.get(
-                                    "cmd-play-spotify-album-process",
-                                    "Processing album `{0}` (`{1}`)",
-                                ).format(res["name"], song_url),
-                            )
-                            for i in res["tracks"]["items"]:
-                                if self.server_specific_data[channel.guild.id][
-                                    "halt_playlist_unpack"
-                                ]:
-                                    log.debug(
-                                        "Halting spotify album queuing due to clear command."
-                                    )
-                                    break
-                                song_url = i["name"] + " " + i["artists"][0]["name"]
+        if self.config._spotify and "open.spotify.com" in song_url:
+            parts = Spotify.url_to_parts(song_url)
+
+            if parts and (
+                parts[0] != "spotify"
+                or all([_ not in parts for _ in ["track", "album", "playlist"]])
+            ):
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-play-spotify-invalid",
+                        "Detected a spotify link, but it appears to be invalid or not supported.",
+                    )
+                )
+            elif "track" in parts:
+                res = await self.spotify.get_track(parts[-1])
+                song_url = res["artists"][0]["name"] + " " + res["name"]
+                await self.safe_send_message(
+                    channel,
+                    self.str.get(
+                        "cmd-play-spotify-track",
+                        "Found spotify track, now searching youtube for:  {song_subject}",
+                        expire_in=30,
+                    )
+                )
+            elif "album" in parts:
+                res = await self.spotify.get_album(parts[-1])
+                res["total"]  # should contain number of total tracks.
+
+                await self._do_playlist_checks(
+                    permissions, player, author, res["tracks"]["items"], total=res["total"]
+                )
+                
+                procmesg = await self.safe_send_message(
+                    channel,
+                    self.str.get(
+                        "cmd-play-spotify-album-process",
+                        "Processing album `{0}` (`{1}`)",
+                    ).format(res["name"], song_url),
+                )
+                for i in res["tracks"]["items"]:
+                    if self.server_specific_data[channel.guild.id][
+                        "halt_playlist_unpack"
+                    ]:
+                        log.debug(
+                            "Halting spotify album queuing due to clear command."
+                        )
+                        break
+                    song_url = i["name"] + " " + i["artists"][0]["name"]
+                    log.debug(
+                        "Processing spotify album track:  {0}".format(
+                            song_url
+                        )
+                    )
+                    await self.cmd_play(
+                        message,
+                        player,
+                        channel,
+                        author,
+                        permissions,
+                        leftover_args,
+                        song_url,
+                    )
+
+                await self.safe_delete_message(procmesg)
+                return Response(
+                    self.str.get(
+                        "cmd-play-spotify-album-queued",
+                        "Enqueued `{0}` with **{1}** songs.",
+                    ).format(res["name"], len(res["tracks"]["items"]))
+                )
+            elif "playlist" in parts:
+                obj = await self.spotify.get_playlist(parts[-1])
+                data = await self.spotify.get_all_tracks_in_playlist(obj.spotify_id)
+                log.debug(f"Spotify Playlist Data:  {obj.name} / {obj.total_tracks} --  {data}")
+            
+            """
+            # TODO: make the rest of this move to beyond the lock...
+            # TODO: maybe get as much info as we can first and report back on the track/album/playlist and entry counts.
+            #  - Also use the counts for rough estimates.
+                try:
+                    if "track" in parts:
+                        res = await self.spotify.get_track(parts[-1])
+                        song_url = res["artists"][0]["name"] + " " + res["name"]
+
+                    elif "album" in parts:
+                        res = await self.spotify.get_album(parts[-1])
+
+                        await self._do_playlist_checks(
+                            permissions, player, author, res["tracks"]["items"]
+                        )
+                        procmesg = await self.safe_send_message(
+                            channel,
+                            self.str.get(
+                                "cmd-play-spotify-album-process",
+                                "Processing album `{0}` (`{1}`)",
+                            ).format(res["name"], song_url),
+                        )
+                        for i in res["tracks"]["items"]:
+                            if self.server_specific_data[channel.guild.id][
+                                "halt_playlist_unpack"
+                            ]:
                                 log.debug(
-                                    "Processing spotify album track:  {0}".format(
-                                        song_url
-                                    )
+                                    "Halting spotify album queuing due to clear command."
                                 )
-                                await self.cmd_play(
-                                    message,
-                                    player,
-                                    channel,
-                                    author,
-                                    permissions,
-                                    leftover_args,
-                                    song_url,
+                                break
+                            song_url = i["name"] + " " + i["artists"][0]["name"]
+                            log.debug(
+                                "Processing spotify album track:  {0}".format(
+                                    song_url
                                 )
-
-                            await self.safe_delete_message(procmesg)
-                            return Response(
-                                self.str.get(
-                                    "cmd-play-spotify-album-queued",
-                                    "Enqueued `{0}` with **{1}** songs.",
-                                ).format(res["name"], len(res["tracks"]["items"]))
                             )
-
-                        elif "playlist" in parts:
-                            res = []
-                            r = await self.spotify.get_playlist_tracks(parts[-1])
-                            while True:
-                                res.extend(r["items"])
-                                if r["next"] is not None:
-                                    r = await self.spotify.make_spotify_req(r["next"])
-                                    continue
-                                else:
-                                    break
-                            await self._do_playlist_checks(
-                                permissions, player, author, res
-                            )
-                            procmesg = await self.safe_send_message(
+                            await self.cmd_play(
+                                message,
+                                player,
                                 channel,
-                                self.str.get(
-                                    "cmd-play-spotify-playlist-process",
-                                    "Processing playlist `{0}` (`{1}`)",
-                                ).format(parts[-1], song_url),
+                                author,
+                                permissions,
+                                leftover_args,
+                                song_url,
                             )
-                            for i in res:
-                                if self.server_specific_data[channel.guild.id][
-                                    "halt_playlist_unpack"
-                                ]:
-                                    log.debug(
-                                        "Halting spotify playlist queuing due to clear command."
-                                    )
-                                    break
-                                song_url = (
-                                    i["track"]["name"]
-                                    + " "
-                                    + i["track"]["artists"][0]["name"]
-                                )
+
+                        await self.safe_delete_message(procmesg)
+                        return Response(
+                            self.str.get(
+                                "cmd-play-spotify-album-queued",
+                                "Enqueued `{0}` with **{1}** songs.",
+                            ).format(res["name"], len(res["tracks"]["items"]))
+                        )
+
+                    elif "playlist" in parts:
+                        res = []
+                        r = await self.spotify.get_playlist_tracks(parts[-1])
+                        while True:
+                            res.extend(r["items"])
+                            if r["next"] is not None:
+                                r = await self.spotify.make_spotify_req(r["next"])
+                                continue
+                            else:
+                                break
+                        await self._do_playlist_checks(
+                            permissions, player, author, res
+                        )
+                        procmesg = await self.safe_send_message(
+                            channel,
+                            self.str.get(
+                                "cmd-play-spotify-playlist-process",
+                                "Processing playlist `{0}` (`{1}`)",
+                            ).format(parts[-1], song_url),
+                        )
+                        for i in res:
+                            if self.server_specific_data[channel.guild.id][
+                                "halt_playlist_unpack"
+                            ]:
                                 log.debug(
-                                    "Processing spotify playlist track:  {0}".format(
-                                        song_url
-                                    )
+                                    "Halting spotify playlist queuing due to clear command."
                                 )
-                                await self.cmd_play(
-                                    message,
-                                    player,
-                                    channel,
-                                    author,
-                                    permissions,
-                                    leftover_args,
-                                    song_url,
+                                break
+                            song_url = (
+                                i["track"]["name"]
+                                + " "
+                                + i["track"]["artists"][0]["name"]
+                            )
+                            log.debug(
+                                "Processing spotify playlist track:  {0}".format(
+                                    song_url
                                 )
-
-                            await self.safe_delete_message(procmesg)
-                            return Response(
-                                self.str.get(
-                                    "cmd-play-spotify-playlist-queued",
-                                    "Enqueued `{0}` with **{1}** songs.",
-                                ).format(parts[-1], len(res))
+                            )
+                            await self.cmd_play(
+                                message,
+                                player,
+                                channel,
+                                author,
+                                permissions,
+                                leftover_args,
+                                song_url,
                             )
 
-                        else:
-                            raise exceptions.CommandError(
-                                self.str.get(
-                                    "cmd-play-spotify-unsupported",
-                                    "That is not a supported Spotify URI.",
-                                ),
-                                expire_in=30,
-                            )
-                    except exceptions.SpotifyError:
+                        await self.safe_delete_message(procmesg)
+                        return Response(
+                            self.str.get(
+                                "cmd-play-spotify-playlist-queued",
+                                "Enqueued `{0}` with **{1}** songs.",
+                            ).format(parts[-1], len(res))
+                        )
+
+                    else:
                         raise exceptions.CommandError(
                             self.str.get(
-                                "cmd-play-spotify-invalid",
-                                "You either provided an invalid URI, or there was a problem.",
-                            )
+                                "cmd-play-spotify-unsupported",
+                                "That is not a supported Spotify URI.",
+                            ),
+                            expire_in=30,
                         )
+                except exceptions.SpotifyError:
+                    raise exceptions.CommandError(
+                        self.str.get(
+                            "cmd-play-spotify-invalid",
+                            "You either provided an invalid URI, or there was a problem.",
+                        )
+                    )
+            ##"""
 
         async def get_info(song_url):
             info = await self.downloader.extract_info(
@@ -2477,6 +2561,8 @@ class MusicBot(discord.Client):
                     ),
                     expire_in=30,
                 )
+
+            # TODO: Check for spotify and handle it without continuing?
 
             # Try to determine entry type, if _type is playlist then there should be entries
             while True:
