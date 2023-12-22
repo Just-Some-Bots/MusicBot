@@ -9,7 +9,6 @@ import pathlib
 import random
 import re
 import shlex
-import shutil
 import ssl
 import sys
 import time
@@ -64,7 +63,7 @@ class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None, aliases_file=None):
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
-        except:
+        except Exception:
             pass
 
         print()
@@ -1210,7 +1209,7 @@ class MusicBot(discord.Client):
                 "Bot cannot login, bad credentials.",
                 "Fix your token in the options file.  "
                 "Remember that each field should be on their own line.",
-            )  #     ^^^^ In theory self.config.auth should never have no items
+            )  # ^^^^ In theory self.config.auth should never have no items
 
         finally:
             try:
@@ -2184,6 +2183,7 @@ class MusicBot(discord.Client):
 
         Swaps the location of a song within the playlist.
         """
+        # TODO: this command needs some tlc. args renamed, better checks.
         player = self.get_player_in(channel.guild)
         if not player:
             raise exceptions.CommandError(
@@ -2209,7 +2209,8 @@ class MusicBot(discord.Client):
         try:
             indexes.append(int(command) - 1)
             indexes.append(int(leftover_args[0]) - 1)
-        except:
+        except (ValueError, IndexError):
+            # TODO: return command error instead, specific to the exception.
             return Response(
                 self.str.get(
                     "cmd-move-indexes_not_intergers", "Song indexes must be integers!"
@@ -2706,8 +2707,8 @@ class MusicBot(discord.Client):
                     reply_text += self.str.get(
                         "cmd-play-eta-error", " - cannot estimate time until playing"
                     )
-                except:
-                    traceback.print_exc()
+                except Exception:
+                    log.exception("Unhandled exception in _cmd_play time until play.")
 
         return Response(reply_text, delete_after=30)
 
@@ -2789,7 +2790,7 @@ class MusicBot(discord.Client):
                         player.playlist.entries.remove(e)
                         entries_added.remove(e)
                         drop_count += 1
-                    except:
+                    except Exception:
                         pass
 
             if drop_count:
@@ -3236,7 +3237,7 @@ class MusicBot(discord.Client):
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = (
                 ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
+                if player.current_entry.duration is not None
                 else "(no duration data)"
             )
 
@@ -3652,13 +3653,19 @@ class MusicBot(discord.Client):
 
         permission_force_skip = permissions.instaskip or (
             self.config.allow_author_skip
-            and author == player.current_entry.meta.get("author", None)
+            and author == current_entry.meta.get("author", None)
+            # TODO: Is there a case where this fails due to changes in author objects?
         )
         force_skip = param.lower() in ["force", "f"]
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
-            if not permissions.skiplooped and player.repeatsong:
-                raise errors.PermissionsError(
+            if (
+                not permission_force_skip
+                and not permissions.skiplooped
+                and player.repeatsong
+            ):
+                # TODO: permissions.skiplooped defaults to False even in Permissive. Change that maybe?
+                raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-force-noperms-looped-song",
                         "You do not have permission to force skip a looped song.",
@@ -4030,7 +4037,7 @@ class MusicBot(discord.Client):
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = (
                 ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
+                if player.current_entry.duration is not None
                 else "(no duration data)"
             )
             prog_str = "`[%s/%s]`" % (song_progress, song_total)
@@ -4307,7 +4314,7 @@ class MusicBot(discord.Client):
 
         if not user_mentions and target:
             user = guild.get_member_named(target)
-            if user == None:
+            if user is None:
                 try:
                     user = await self.fetch_user(target)
                 except discord.NotFound:
@@ -4606,7 +4613,7 @@ class MusicBot(discord.Client):
 
         try:
             result = eval(code, scope)
-        except:
+        except Exception:
             try:
                 exec(code, scope)
             except Exception as e:

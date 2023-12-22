@@ -33,7 +33,6 @@ import os
 import re
 import shutil
 import sys
-import logging
 import platform
 import tempfile
 import traceback
@@ -157,7 +156,7 @@ class SetupTask(object):
         try:
             # Check for platform variant of function first
             return object.__getattribute__(self, item + "_" + SYS_PLATFORM)
-        except:
+        except Exception:
             pass
 
         if item.endswith("_dist"):
@@ -166,11 +165,11 @@ class SetupTask(object):
                 return object.__getattribute__(
                     self, item.rsplit("_", 1)[0] + "_" + SYS_PLATFORM
                 )
-            except:
+            except Exception:
                 try:
                     # If there's no dist variant, try to fallback to the generic, ex: setup_dist -> setup
                     return object.__getattribute__(self, item.rsplit("_", 1)[0])
-                except:
+                except Exception:
                     pass
 
         return object.__getattribute__(self, item)
@@ -308,7 +307,7 @@ class EnsureBrew(SetupTask):
 
 class EnsureGit(SetupTask):
     WIN_OPTS = dedent(
-        """
+        r"""
         [Setup]
         Lang=default
         Group=Git
@@ -344,7 +343,7 @@ class EnsureGit(SetupTask):
 
             match = re.match(r"v(\d+\.\d+\.\d+)", full_ver)
             return match.groups()[0], full_ver
-        except:
+        except Exception:
             return version
 
     @classmethod
@@ -483,7 +482,7 @@ class EnsurePip(SetupTask):
     def check(self):
         # Check if pip is installed by importing it.
         try:
-            import pip
+            import pip  # noqa: F401
         except ImportError:
             return False
         else:
@@ -492,7 +491,7 @@ class EnsurePip(SetupTask):
     def download(self):
         # Try and use ensurepip.
         try:
-            import ensurepip
+            import ensurepip  # noqa: F401
 
             return False
         except ImportError:
@@ -556,7 +555,7 @@ class SetupMusicbot(SetupTask):
     def _rm(self, f):
         try:
             return os.unlink(f)
-        except:
+        except Exception:
             pass
 
     def _rm_glob(self, p):
