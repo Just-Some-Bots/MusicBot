@@ -123,6 +123,7 @@ class MusicBot(discord.Client):
             "last_np_msg": None,
             "availability_paused": False,
             "auto_paused": False,
+            "halt_playlist_unpack": False,
             "inactive_player_timer": (
                 asyncio.Event(),
                 False,  # event state tracking.
@@ -2281,6 +2282,9 @@ class MusicBot(discord.Client):
 
         song_url = song_url.strip("<>")
 
+        if self.server_specific_data[channel.guild.id]["halt_playlist_unpack"]:
+            self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = False
+
         async with channel.typing():
             if leftover_args:
                 song_url = " ".join([song_url, *leftover_args])
@@ -2329,8 +2333,19 @@ class MusicBot(discord.Client):
                                 ).format(res["name"], song_url),
                             )
                             for i in res["tracks"]["items"]:
+                                if self.server_specific_data[channel.guild.id][
+                                    "halt_playlist_unpack"
+                                ]:
+                                    log.debug(
+                                        "Halting spotify album queuing due to clear command."
+                                    )
+                                    break
                                 song_url = i["name"] + " " + i["artists"][0]["name"]
-                                log.debug("Processing {0}".format(song_url))
+                                log.debug(
+                                    "Processing spotify album track:  {0}".format(
+                                        song_url
+                                    )
+                                )
                                 await self.cmd_play(
                                     message,
                                     player,
@@ -2370,12 +2385,23 @@ class MusicBot(discord.Client):
                                 ).format(parts[-1], song_url),
                             )
                             for i in res:
+                                if self.server_specific_data[channel.guild.id][
+                                    "halt_playlist_unpack"
+                                ]:
+                                    log.debug(
+                                        "Halting spotify playlist queuing due to clear command."
+                                    )
+                                    break
                                 song_url = (
                                     i["track"]["name"]
                                     + " "
                                     + i["track"]["artists"][0]["name"]
                                 )
-                                log.debug("Processing {0}".format(song_url))
+                                log.debug(
+                                    "Processing spotify playlist track:  {0}".format(
+                                        song_url
+                                    )
+                                )
                                 await self.cmd_play(
                                     message,
                                     player,
@@ -3486,7 +3512,7 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def cmd_clear(self, player, author):
+    async def cmd_clear(self, guild, player, author):
         """
         Usage:
             {command_prefix}clear
@@ -3495,6 +3521,10 @@ class MusicBot(discord.Client):
         """
 
         player.playlist.clear()
+
+        # This lets us signal to playlist queuing loops to stop adding to the queue.
+        self.server_specific_data[guild.id]["halt_playlist_unpack"] = True
+
         return Response(
             self.str.get("cmd-clear-reply", "Cleared `{0}`'s queue").format(
                 player.voice_client.channel.guild
