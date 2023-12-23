@@ -3696,7 +3696,7 @@ class MusicBot(discord.Client):
                 and not permissions.skiplooped
                 and player.repeatsong
             ):
-                # TODO: permissions.skiplooped defaults to False even in Permissive. Change that maybe?
+                
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-force-noperms-looped-song",
