@@ -47,6 +47,7 @@ from .utils import (
     ftimedelta,
     _func_,
     _get_variable,
+    is_empty_voice_channel,
     format_song_duration,
     format_size_from_bytes,
 )
@@ -324,15 +325,6 @@ class MusicBot(discord.Client):
         joined_servers = set()
         channel_map = {c.guild: c for c in channels}
 
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Initial autopause in empty channel")
-
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild.id][
-                    "auto_paused"
-                ] = True
-
         for guild in self.guilds:
             if guild.unavailable or guild in channel_map:
                 continue
@@ -391,8 +383,6 @@ class MusicBot(discord.Client):
                         player.play()
 
                     if self.config.auto_playlist:
-                        if self.config.auto_pause:
-                            player.once("play", lambda player, **_: _autopause(player))
                         if not player.playlist.entries:
                             await self.on_player_finished_playing(player)
 
@@ -628,6 +618,7 @@ class MusicBot(discord.Client):
 
     async def on_player_play(self, player, entry):
         log.debug("Running on_player_play")
+        self._handle_guild_auto_pause(player)
         await self.reset_player_inactivity(player)
         await self.update_now_playing_status()
         # manage the cache since we may have downloaded something.
@@ -777,15 +768,6 @@ class MusicBot(discord.Client):
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
 
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Player finished playing, autopaused in empty channel")
-
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild.id][
-                    "auto_paused"
-                ] = True
-
         if (
             not player.playlist.entries
             and not player.current_entry
@@ -851,9 +833,6 @@ class MusicBot(discord.Client):
 
                 # Do I check the initial conditions again?
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-
-                if self.config.auto_pause:
-                    player.once("play", lambda player, **_: _autopause(player))
 
                 try:
                     await player.playlist.add_entry(
@@ -1969,6 +1948,56 @@ class MusicBot(discord.Client):
             )
         return True
 
+    def _handle_guild_auto_pause(
+        self, player: MusicPlayer, voice_channel: discord.VoiceChannel = None
+    ):
+        """
+        Unified function to handle guild activity and availability pausing and unpausing.
+        """
+        if not self.config.auto_pause:
+            return
+
+        if not player.voice_client:
+            return
+
+        channel = voice_channel
+        if not voice_channel:
+            channel = player.voice_client.channel
+
+        guild = channel.guild
+        auto_paused = self.server_specific_data[guild.id]["auto_paused"]
+
+        if is_empty_voice_channel(channel) and not auto_paused and player.is_playing:
+            log.info(
+                f"Playing in an empty voice channel, running auto pause for guild: {guild}"
+            )
+            player.pause()
+            self.server_specific_data[guild.id]["auto_paused"] = True
+
+        elif not is_empty_voice_channel(channel) and auto_paused and player.is_paused:
+            log.info(f"Previously auto paused player is unpausing for guild: {guild}")
+            player.resume()
+            self.server_specific_data[guild.id]["auto_paused"] = False
+
+    async def _do_cmd_unpause_check(
+        self, player: MusicPlayer, channel: discord.abc.GuildChannel
+    ):
+        """
+        Checks for paused player and resumes it while sending a notice.
+
+        This function should not be called from _cmd_play().
+        """
+        if player and player.is_paused:
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-unpause-check",
+                    "Bot was previously paused, resuming playback now.",
+                ),
+                expire_in=30,
+            )
+            player.resume()
+
     async def cmd_play(
         self, message, _player, channel, author, permissions, leftover_args, song_url
     ):
@@ -1985,6 +2014,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
+        await self._do_cmd_unpause_check(_player, channel)
 
         return await self._cmd_play(
             message,
@@ -2006,6 +2036,8 @@ class MusicBot(discord.Client):
         Adds a playlist to be shhuffled then played. Shorthand for doing {command_prefix}play and then {command_prefix}shuffle
         If nothing is playing, then the first few songs will be played in order while the rest of the playlist downloads.
         """
+        await self._do_cmd_unpause_check(_player, channel)
+
         # TO-DO, don't play the first few songs so the entire playlist can be shuffled
         # In my test run it's only 2-3 songs that get played in the order this is because of how the _cmd_play works.
         player = self.get_player_in(channel.guild)
@@ -2045,6 +2077,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
+        await self._do_cmd_unpause_check(_player, channel)
 
         return await self._cmd_play(
             message,
@@ -2861,6 +2894,8 @@ class MusicBot(discord.Client):
         media without predownloading it.  Note: FFmpeg is notoriously bad at handling
         streams, especially on poor connections.  You have been warned.
         """
+
+        await self._do_cmd_unpause_check(_player, channel)
 
         if _player:
             player = _player
@@ -4958,7 +4993,12 @@ class MusicBot(discord.Client):
                 )
             await self.disconnect_voice_client(guild)
 
-    async def on_voice_state_update(self, member, before, after):
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState,
+    ):
         if not self.init_ok:
             return  # Ignore stuff before ready
 
@@ -5015,114 +5055,10 @@ class MusicBot(discord.Client):
             await self.disconnect_voice_client(before.channel.guild)
             return
 
-        if not self.config.auto_pause:
-            return
-
-        autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
-
-        auto_paused = self.server_specific_data[channel.guild.id]["auto_paused"]
-
-        try:
-            player = await self.get_player(channel)
-        except exceptions.CommandError:
-            return
-
-        def is_active(member):
-            if not member.voice:
-                return False
-
-            if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
-                return False
-
-            return True
-
-        if not member == self.user and is_active(member):  # if the user is not inactive
-            if (
-                player.voice_client.channel != before.channel
-                and player.voice_client.channel == after.channel
-            ):  # if the person joined
-                if auto_paused and player.is_paused:
-                    log.info(
-                        autopause_msg.format(
-                            state="Unpausing",
-                            channel=player.voice_client.channel,
-                            reason="",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild.id][
-                        "auto_paused"
-                    ] = False
-                    player.resume()
-            elif (
-                player.voice_client.channel == before.channel
-                and player.voice_client.channel != after.channel
-            ):
-                if not any(
-                    is_active(m) for m in player.voice_client.channel.members
-                ):  # channel is empty
-                    if not auto_paused and player.is_playing:
-                        log.info(
-                            autopause_msg.format(
-                                state="Pausing",
-                                channel=player.voice_client.channel,
-                                reason="(empty channel)",
-                            ).strip()
-                        )
-
-                        self.server_specific_data[player.voice_client.guild.id][
-                            "auto_paused"
-                        ] = True
-                        player.pause()
-            elif (
-                player.voice_client.channel == before.channel
-                and player.voice_client.channel == after.channel
-            ):  # if the person undeafen
-                if auto_paused and player.is_paused:
-                    log.info(
-                        autopause_msg.format(
-                            state="Unpausing",
-                            channel=player.voice_client.channel,
-                            reason="(member undeafen)",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild.id][
-                        "auto_paused"
-                    ] = False
-                    player.resume()
-        else:
-            if any(
-                is_active(m) for m in player.voice_client.channel.members
-            ):  # channel is not empty
-                if auto_paused and player.is_paused:
-                    log.info(
-                        autopause_msg.format(
-                            state="Unpausing",
-                            channel=player.voice_client.channel,
-                            reason="",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild.id][
-                        "auto_paused"
-                    ] = False
-                    player.resume()
-
-            else:
-                if not auto_paused and player.is_playing:
-                    log.info(
-                        autopause_msg.format(
-                            state="Pausing",
-                            channel=player.voice_client.channel,
-                            reason="(empty channel or member deafened)",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild.id][
-                        "auto_paused"
-                    ] = True
-                    player.pause()
+        if after:
+            player = self.get_player_in(after.channel.guild)
+            if player:
+                self._handle_guild_auto_pause(player, after.channel)
 
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
         if before.region != after.region:
@@ -5178,6 +5114,9 @@ class MusicBot(discord.Client):
                 player.resume()
 
     async def on_guild_unavailable(self, guild: discord.Guild):
+        if not self.init_ok:
+            return  # Ignore pre-ready events.
+
         log.debug('Guild "{}" has become unavailable.'.format(guild.name))
 
         player = self.get_player_in(guild)
