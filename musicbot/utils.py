@@ -45,9 +45,9 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
     Split up a large string or list of strings into chunks for sending to discord.
     """
-    if type(content) == str:
+    if isinstance(content, str):
         contentlist = content.split("\n")
-    elif type(content) == list:
+    elif isinstance(content, list):
         contentlist = content
     else:
         raise ValueError("Content must be str or list, not %s" % type(content))
@@ -104,21 +104,21 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
     changes = {}
 
     if access_attr is None:
-        attrdir = lambda x: x
+        attrdir = lambda x: x  # noqa: E731
 
     elif access_attr == "auto":
         if hasattr(obj1, "__slots__") and hasattr(obj2, "__slots__"):
-            attrdir = lambda x: getattr(x, "__slots__")
+            attrdir = lambda x: getattr(x, "__slots__")  # noqa: E731
 
         elif hasattr(obj1, "__dict__") and hasattr(obj2, "__dict__"):
-            attrdir = lambda x: getattr(x, "__dict__")
+            attrdir = lambda x: getattr(x, "__dict__")  # noqa: E731
 
         else:
             # log.everything("{}{} or {} has no slots or dict".format('-' * (depth+1), repr(obj1), repr(obj2)))
             attrdir = dir
 
     elif isinstance(access_attr, str):
-        attrdir = lambda x: list(getattr(x, access_attr))
+        attrdir = lambda x: list(getattr(x, access_attr))  # noqa: E731
 
     else:
         attrdir = dir

@@ -9,7 +9,6 @@ import pathlib
 import random
 import re
 import shlex
-import shutil
 import ssl
 import sys
 import time
@@ -65,7 +64,7 @@ class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None, aliases_file=None):
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
-        except:
+        except Exception:
             pass
 
         print()
@@ -125,6 +124,7 @@ class MusicBot(discord.Client):
             "last_np_msg": None,
             "availability_paused": False,
             "auto_paused": False,
+            "halt_playlist_unpack": False,
             "inactive_player_timer": (
                 asyncio.Event(),
                 False,  # event state tracking.
@@ -1189,7 +1189,7 @@ class MusicBot(discord.Client):
                 "Bot cannot login, bad credentials.",
                 "Fix your token in the options file.  "
                 "Remember that each field should be on their own line.",
-            )  #     ^^^^ In theory self.config.auth should never have no items
+            )  # ^^^^ In theory self.config.auth should never have no items
 
         finally:
             try:
@@ -2174,17 +2174,19 @@ class MusicBot(discord.Client):
                 )
 
         elif option == "off":
-            player.repeatsong = False
-            player.loopqueue = False
-            if player.playlist.entries.__len__() > 0:
-                return Response(
-                    self.str.get("cmd-repeat-playlist-not-looping"), delete_after=30
-                )
+            if player.repeatsong:
+                player.repeatsong = False
+                return Response(self.str.get("cmd-repeat-song-not-looping"))
+            elif player.loopqueue:
+                player.loopqueue = False
+                return Response(self.str.get("cmd-repeat-playlist-not-looping"))
             else:
-                return Response(
-                    self.str.get("cmd-repeat-song-not-looping"), delete_after=30
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-repeat-already-off", "The player is not currently looping."
+                    ),
+                    expire_in=30,
                 )
-
         else:
             if player.repeatsong:
                 player.loopqueue = True
@@ -2213,6 +2215,7 @@ class MusicBot(discord.Client):
 
         Swaps the location of a song within the playlist.
         """
+        # TODO: this command needs some tlc. args renamed, better checks.
         player = self.get_player_in(channel.guild)
         if not player:
             raise exceptions.CommandError(
@@ -2238,7 +2241,8 @@ class MusicBot(discord.Client):
         try:
             indexes.append(int(command) - 1)
             indexes.append(int(leftover_args[0]) - 1)
-        except:
+        except (ValueError, IndexError):
+            # TODO: return command error instead, specific to the exception.
             return Response(
                 self.str.get(
                     "cmd-move-indexes_not_intergers", "Song indexes must be integers!"
@@ -2309,6 +2313,9 @@ class MusicBot(discord.Client):
 
         song_url = song_url.strip("<>")
 
+        if self.server_specific_data[channel.guild.id]["halt_playlist_unpack"]:
+            self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = False
+
         async with channel.typing():
             if leftover_args:
                 song_url = " ".join([song_url, *leftover_args])
@@ -2357,8 +2364,19 @@ class MusicBot(discord.Client):
                                 ).format(res["name"], song_url),
                             )
                             for i in res["tracks"]["items"]:
+                                if self.server_specific_data[channel.guild.id][
+                                    "halt_playlist_unpack"
+                                ]:
+                                    log.debug(
+                                        "Halting spotify album queuing due to clear command."
+                                    )
+                                    break
                                 song_url = i["name"] + " " + i["artists"][0]["name"]
-                                log.debug("Processing {0}".format(song_url))
+                                log.debug(
+                                    "Processing spotify album track:  {0}".format(
+                                        song_url
+                                    )
+                                )
                                 await self.cmd_play(
                                     message,
                                     player,
@@ -2398,12 +2416,23 @@ class MusicBot(discord.Client):
                                 ).format(parts[-1], song_url),
                             )
                             for i in res:
+                                if self.server_specific_data[channel.guild.id][
+                                    "halt_playlist_unpack"
+                                ]:
+                                    log.debug(
+                                        "Halting spotify playlist queuing due to clear command."
+                                    )
+                                    break
                                 song_url = (
                                     i["track"]["name"]
                                     + " "
                                     + i["track"]["artists"][0]["name"]
                                 )
-                                log.debug("Processing {0}".format(song_url))
+                                log.debug(
+                                    "Processing spotify playlist track:  {0}".format(
+                                        song_url
+                                    )
+                                )
                                 await self.cmd_play(
                                     message,
                                     player,
@@ -2735,8 +2764,8 @@ class MusicBot(discord.Client):
                     reply_text += self.str.get(
                         "cmd-play-eta-error", " - cannot estimate time until playing"
                     )
-                except:
-                    traceback.print_exc()
+                except Exception:
+                    log.exception("Unhandled exception in _cmd_play time until play.")
 
         return Response(reply_text, delete_after=30)
 
@@ -2818,7 +2847,7 @@ class MusicBot(discord.Client):
                         player.playlist.entries.remove(e)
                         entries_added.remove(e)
                         drop_count += 1
-                    except:
+                    except Exception:
                         pass
 
             if drop_count:
@@ -3267,7 +3296,7 @@ class MusicBot(discord.Client):
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = (
                 ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
+                if player.current_entry.duration is not None
                 else "(no duration data)"
             )
 
@@ -3516,7 +3545,7 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def cmd_clear(self, player, author):
+    async def cmd_clear(self, guild, player, author):
         """
         Usage:
             {command_prefix}clear
@@ -3525,6 +3554,10 @@ class MusicBot(discord.Client):
         """
 
         player.playlist.clear()
+
+        # This lets us signal to playlist queuing loops to stop adding to the queue.
+        self.server_specific_data[guild.id]["halt_playlist_unpack"] = True
+
         return Response(
             self.str.get("cmd-clear-reply", "Cleared `{0}`'s queue").format(
                 player.voice_client.channel.guild
@@ -3683,13 +3716,19 @@ class MusicBot(discord.Client):
 
         permission_force_skip = permissions.instaskip or (
             self.config.allow_author_skip
-            and author == player.current_entry.meta.get("author", None)
+            and author == current_entry.meta.get("author", None)
+            # TODO: Is there a case where this fails due to changes in author objects?
         )
         force_skip = param.lower() in ["force", "f"]
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
-            if not permissions.skiplooped and player.repeatsong:
-                raise errors.PermissionsError(
+            if (
+                not permission_force_skip
+                and not permissions.skiplooped
+                and player.repeatsong
+            ):
+                
+                raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-force-noperms-looped-song",
                         "You do not have permission to force skip a looped song.",
@@ -4061,7 +4100,7 @@ class MusicBot(discord.Client):
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = (
                 ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
+                if player.current_entry.duration is not None
                 else "(no duration data)"
             )
             prog_str = "`[%s/%s]`" % (song_progress, song_total)
@@ -4338,7 +4377,7 @@ class MusicBot(discord.Client):
 
         if not user_mentions and target:
             user = guild.get_member_named(target)
-            if user == None:
+            if user is None:
                 try:
                     user = await self.fetch_user(target)
                 except discord.NotFound:
@@ -4637,7 +4676,7 @@ class MusicBot(discord.Client):
 
         try:
             result = eval(code, scope)
-        except:
+        except Exception:
             try:
                 exec(code, scope)
             except Exception as e:

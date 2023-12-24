@@ -134,6 +134,7 @@
     "cmd-repeat-song-looping": "Song is now repeating.",
     "cmd-repeat-song-not-looping": "Song is no longer repeating.",
     "cmd-repeat-invalid": "Invalid option, please run {}help repeat to a list of available options.",
+    "cmd-repeat-already-off": "The player is not currently looping.",
     "cmd-move-no-voice": "The bot is not in a voice channel. Use %ssummon to summon it to your voice channel.",
     "cmd-move-no-songs": "No songs are currently playing. Play something with {}play.",
     "cmd-move-indexes-not-intergers": "Song indexes must be integers.",
