@@ -194,7 +194,7 @@ class MusicPlayer(EventEmitter, Serializable):
             if self.is_stopped or _continue:
                 try:
                     entry = await self.playlist.get_next_entry()
-                except:
+                except IndexError:
                     log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
                     return
@@ -406,7 +406,7 @@ def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
 def check_stderr(data: bytes):
     try:
         data = data.decode("utf8")
-    except:
+    except UnicodeDecodeError:
         log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
         return True  # fuck it
 
