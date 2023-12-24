@@ -3,6 +3,7 @@ import sys
 import logging
 import aiohttp
 import inspect
+import typing
 
 from typing import Union
 from hashlib import md5
