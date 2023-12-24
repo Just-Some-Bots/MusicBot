@@ -1948,9 +1948,7 @@ class MusicBot(discord.Client):
             )
         return True
 
-    def _handle_guild_auto_pause(
-        self, player: MusicPlayer, voice_channel: discord.VoiceChannel = None
-    ):
+    def _handle_guild_auto_pause(self, player: MusicPlayer):
         """
         Unified function to handle guild activity and availability pausing and unpausing.
         """
@@ -1960,9 +1958,7 @@ class MusicBot(discord.Client):
         if not player.voice_client:
             return
 
-        channel = voice_channel
-        if not voice_channel:
-            channel = player.voice_client.channel
+        channel = player.voice_client.channel
 
         guild = channel.guild
         auto_paused = self.server_specific_data[guild.id]["auto_paused"]
@@ -5042,23 +5038,20 @@ class MusicBot(discord.Client):
                         )
                         event.set()
 
-        if before.channel:
-            channel = before.channel
-        elif after.channel:
-            channel = after.channel
-        else:
-            return
-
         if (
             member == self.user and not after.channel
         ):  # if bot was disconnected from channel
             await self.disconnect_voice_client(before.channel.guild)
             return
 
-        if after:
+        if before.channel:
+            player = self.get_player_in(before.channel.guild)
+            if player:
+                self._handle_guild_auto_pause(player)
+        if after.channel:
             player = self.get_player_in(after.channel.guild)
             if player:
-                self._handle_guild_auto_pause(player, after.channel)
+                self._handle_guild_auto_pause(player)
 
     async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
         if before.region != after.region:
