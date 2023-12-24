@@ -139,7 +139,7 @@ class Playlist(EventEmitter, Serializable):
             info.get("title", "Untitled"),
             info.get("duration", None) or None,
             self.downloader.ytdl.prepare_filename(info),
-            **meta
+            **meta,
         )
         self._add_entry(entry, head=head)
         return entry, (1 if head else len(self.entries))
@@ -251,7 +251,7 @@ class Playlist(EventEmitter, Serializable):
                         item.get("title", "Untitled"),
                         item.get("duration", 0) or 0,
                         self.downloader.ytdl.prepare_filename(item),
-                        **meta
+                        **meta,
                     )
 
                     self._add_entry(entry, head=head)
@@ -463,14 +463,14 @@ class Playlist(EventEmitter, Serializable):
         """
         (very) Roughly estimates the time till the queue will 'position'
         """
-        if any(e.duration == None for e in islice(self.entries, position - 1)):
+        if any(e.duration is None for e in islice(self.entries, position - 1)):
             raise InvalidDataError("no duration data")
         else:
             estimated_time = sum(e.duration for e in islice(self.entries, position - 1))
 
         # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped and player.current_entry:
-            if player.current_entry.duration == None:  # duration can be 0
+            if player.current_entry.duration is None:  # duration can be 0
                 raise InvalidDataError("no duration data in current entry")
             else:
                 estimated_time += player.current_entry.duration - player.progress

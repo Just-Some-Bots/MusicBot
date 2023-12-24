@@ -102,13 +102,12 @@ class PIP(object):
     @classmethod
     def works(cls):
         try:
-            import pip
+            import pip  # noqa: F401
 
             return True
         except ImportError:
             return False
 
-    # noinspection PyTypeChecker
     @classmethod
     def get_module_version(cls, mod):
         try:
