@@ -4,10 +4,12 @@ import logging
 import aiohttp
 import inspect
 
-from discord import VoiceChannel
 from typing import Union
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
+
+if typing.TYPE_CHECKING:
+    from discord import VoiceChannel
 
 log = logging.getLogger(__name__)
 
