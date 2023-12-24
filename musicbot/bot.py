@@ -3727,7 +3727,6 @@ class MusicBot(discord.Client):
                 and not permissions.skiplooped
                 and player.repeatsong
             ):
-                
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-force-noperms-looped-song",
