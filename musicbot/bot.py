@@ -18,8 +18,7 @@ from datetime import timedelta
 from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
-from typing import Optional
-from urllib.parse import quote_plus
+from typing import Optional, List
 
 import aiohttp
 import colorlog
@@ -100,7 +99,7 @@ class MusicBot(discord.Client):
         self.aiolocks = defaultdict(asyncio.Lock)
         self.filecache = AudioFileCache(self)
         self.downloader = downloader.Downloader(
-            download_folder=self.config.audio_cache_path
+            self, download_folder=self.config.audio_cache_path
         )
 
         log.info("Starting MusicBot {}".format(BOTVERSION))
@@ -2297,6 +2296,8 @@ class MusicBot(discord.Client):
 
         await channel.typing()
 
+        await self.downloader.get_playable_data(song_url, leftover_args)
+
         # TODO: song_url should be song_subject for clarity sake. 
         # or we should have a function that makes the distinction.
         song_url = song_url.strip("<>")
@@ -2308,7 +2309,7 @@ class MusicBot(discord.Client):
         # If the song_subject is not a url, make sure to url encode it for search.
         links_regex = r"(?:https?://|www\.)[a-zA-Z0-9/\.~]*"
         match_url = re.compile(links_regex).match(song_url)
-        song_url = quote_plus(song_url) if match_url is None else song_url
+        song_url = song_url.replace("/", "%2F") if match_url is None else song_url
 
         # Rewrite YouTube playlist URLs if the wrong URL type is given
         playlist_regex = r"watch\?v=.+&(list=[^&]+)"
@@ -3810,9 +3811,6 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        # TODO: ignore person if they're deaf or take them out of the list or something?
-        # Currently is recounted if they vote, deafen, then vote
-
         num_voice = sum(
             1
             for m in voice_channel.members
@@ -3821,7 +3819,13 @@ class MusicBot(discord.Client):
         if num_voice == 0:
             num_voice = 1  # incase all users are deafened, to avoid divison by zero
 
-        num_skips = player.skip_state.add_skipper(author.id, message)
+        player.skip_state.add_skipper(author.id, message)
+        num_skips = sum(
+            1
+            for m in voice_channel.members
+            if not (m.voice.deaf or m.voice.self_deaf or m == self.user) 
+            and m.id in player.skip_state.skippers
+        )
 
         skips_remaining = (
             min(

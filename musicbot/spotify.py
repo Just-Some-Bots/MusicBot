@@ -6,7 +6,7 @@ import logging
 import re
 import time
 
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union, Optional
 
 from .exceptions import SpotifyError
 
@@ -37,20 +37,36 @@ class SpotifyObject:
         return SpotifyObject.is_type(data, "album")
 
     @property
-    def spotify_id(self):
+    def spotify_type(self) -> Optional[str]:
+        """Returns the type string of the object as reported by the API data."""
+        return self.data.get("type", None)
+
+    @property
+    def spotify_id(self) -> Optional[str]:
+        """Returns the Spotify ID of the object, as reported by the API data."""
         return self.data.get("id", None)
 
     @property
-    def spotify_url(self):
+    def spotify_url(self) -> Optional[str]:
+        """Returns the spotify external url for this object, if it exists in the API data."""
         exurls = self.data.get("external_urls", None)
         if exurls:
             return exurls.get("spotify", None)
         return None
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         return self.data.get("name", None)
 
+    def to_ytdl_dict(self) -> Dict:
+        """Returns object data in a format similar to ytdl."""
+        ytdl_type = "url" if self.spotify_type == "track" else "playlist"
+        return {
+            "_type": ytdl_type,
+            "original_url": self.spotify_url,
+            "extractor": "mb:spotify",
+            "extractor_key": "MusicBotSpotify",
+        }
 
 class SpotifyTrack(SpotifyObject):
     def __init__(self, track_data: Dict):
@@ -77,16 +93,26 @@ class SpotifyTrack(SpotifyObject):
                 names.append(n)
         return names
 
-    def get_joined_artist_names(self, join_with: str = " & ") -> str:
+    def get_joined_artist_names(self, join_with: str = " ") -> str:
         """Gets all non-empty artist names joined together as a string."""
         return join_with.join(self.artist_names)
 
-    def get_track_search_string(self, format_str: str = "{0} {1}", join_artists_with: str = " & ") -> str:
+    def get_track_search_string(self, format_str: str = "{0} {1}", join_artists_with: str = " ") -> str:
         """Get track title with artist names for searching against"""
         return format_str.format(
             self.get_joined_artist_names(join_artists_with),
             self.name,
         )
+
+    def to_ytdl_dict(self) -> Dict:
+        return {
+            **super().to_ytdl_dict(),
+            "title": self.name,
+            "artists": self.artist_names,
+            "url": self.get_track_search_string("ytsearch:{0} {1}"),
+            "playlist_count": 1,
+        }
+
 
 
 class SpotifyPlaylist(SpotifyObject):
@@ -94,12 +120,51 @@ class SpotifyPlaylist(SpotifyObject):
         if not SpotifyObject.is_playlist_data(playlist_data):
             raise ValueError("Invalid playlist_data, must be of type 'playlist'")
         super().__init__(playlist_data)
+        self._track_objects = []
+        
+        self._create_track_objects()
+        
+    def _create_track_objects(self):
+        tracks_data = self.data.get("tracks", None)
+        if not tracks_data:
+            raise ValueError("Invalid playlist_data, missing tracks key")
+
+        items = tracks_data.get("items", None)
+        if not items:
+            raise ValueError("Invalid playlist_data, missing items key in tracks")
+
+        for item in items:
+            track_data = item.get("track", None)
+            if track_data:
+                self._track_objects.append(SpotifyTrack(track_data))
+            else:
+                raise ValueError("Invalid playlist_data, missing track key in items")
 
     @property
-    def total_tracks(self) -> int:
+    def track_objects(self) -> List[SpotifyTrack]:
+        """List of SpotifyTrack objects loaded with the playlist API data."""
+        return self._track_objects
+
+    @property
+    def track_urls(self) -> List[str]:
+        """List of spotify URLs for all tracks in ths playlist data."""
+        return [x.spotify_url for x in self.track_objects]
+
+    @property
+    def track_count(self) -> int:
         """Get number of total tracks in playlist, as reported by API"""
         tracks = self.data.get("tracks", {})
         return tracks.get("total", 0)
+    
+    def to_ytdl_dict(self) -> Dict:
+        return {
+            **super().to_ytdl_dict(),
+            "title": self.name,
+            "artists": self.artist_names,
+            "url": "",
+            "playlist_count": self.track_count,
+            "entries": [t.to_ytdl_dict() for t in self.track_objects],
+        }
 
 
 class Spotify:
@@ -143,47 +208,21 @@ class Spotify:
         else:
             return []
 
+    @staticmethod
+    def is_url_supported(url: str) -> bool:
+        parts = Spotify.url_to_parts(url)
+        if not parts:
+            return False
+        if parts and "spotify" != parts[0]:
+            return False
+        if parts[1] not in ["track", "album", "playlist"]:
+            return False
+        if len(parts) < 3:
+            return False
+        return True
+
     def api_safe_url(self, url: str) -> str:
         return url.replace(self.API_BASE, "")
-
-    async def get_all_tracks_in_playlist(self, playlist_id: str) -> List[str]:
-        """Fetch a playlist and return its tracks as a list of spotify URLs"""
-        track_urls = []
-        bad_entries = 0  # counter for items in playlist which aren't tracks.
-        start_time = time.time()
-        pldata = await self.get_playlist_tracks(playlist_id)
-        # pldata["tracks"]["items"] <- array of track/episode objects
-        # pldata["tracks"]["total"] <- total tracks in playlist.
-        # pldata["tracks"]["next"] <- next URL.
-        log.debug(f"Spotify Playlist total tacks: {pldata['total']}")
-        while True:
-            
-            for item in pldata["items"]:
-                track = item["track"]
-                if track["type"] == "track":
-                    track_urls.append(track["external_urls"]["spotify"])
-                else:
-                    bad_entries += 1
-
-            # TODO: if we have a next url to fetch, we should convert it to a playlist_tracks request to reduce overhead.
-            next_url = pldata["next"]
-            if next_url is not None:
-                log.debug(f"Playlist Next URL:  {next_url}")
-                pldata = await self.make_api_req(
-                    self.api_safe_url(next_url))
-                continue
-            else:
-                break
-
-        time_taken = time.time() - start_time
-        url_set = set(track_urls)
-        if len(track_urls) > len(url_set):
-            dupe_count = len(track_urls) - len(url_set)
-            track_urls = list(url_set)
-            log.debug(f"Spotify playlist tracks processing found {dupe_count} dupe(s)")
-        log.debug(f"Spofify playist tracks took {time_taken:.3f} seconds for {len(track_urls)} tracks and {bad_entries} bad tracks.")
-        return (track_urls, bad_entries, time_taken)
-
 
     async def get_all_tracks_in_album(self, album_id: str) -> List[str]:
         pass
@@ -234,37 +273,85 @@ class Spotify:
                         )
         """
 
-    async def get_search_string_from_track_id(self, track_id: str) -> str:
-        """jus liek cuzin okri"""
-        pass
+    async def get_spotify_ytdl_data(self, spotify_url: str, process: bool = False) -> Dict:
+        parts = Spotify.url_to_parts(spotify_url)
+        obj_type = parts[1]
+        spotify_id = parts[-1]
+        if obj_type == "track":
+            return self.get_track_object(spotify_id).to_ytdl_dict()
 
+        if obj_type == "album":
+            if process:
+                return self.get_album_object_complete(spotify_id).to_ytdl_dict()
+            return self.get_album_object(spotify_id).to_ytdl_dict()
 
-    async def get_track(self, track_id: str):
+        if obj_type == "playlist":
+            if process:
+                return self.get_playlist_object_complete(spotify_id).to_ytdl_dict()
+            return self.get_playlist_object(spotify_id).to_ytdl_dict()
+        return {}
+
+    async def get_track_object(self, track_id: str) -> SpotifyTrack:
+        """Lookup a spotify track by its ID and return a SpotifyTrack object"""
+        data = await self.get_track(track_id)
+        return SpotifyTrack(data)
+
+    async def get_track(self, track_id: str) -> Dict:
         """Get a track's info from its Spotify ID"""
         return await self.make_api_req(f"tracks/{track_id}")
 
-    async def get_album(self, album_id: str):
+    async def get_album(self, album_id: str) -> Dict:
         """Get an album's info from its Spotify ID"""
         return await self.make_api_req(f"albums/{album_id}")
 
-    async def get_album_tracks(self, album_id: str):
+    async def get_album_tracks(self, album_id: str) -> Dict:
         """Get an album's tracks info from its Spotify ID"""
         return await self.make_api_req(f"albums/{album_id}")
 
-    async def get_user_playlist(self, user_id: str, list_id: str):
-        """Get a user playlist info from its Spotify ID"""
-        return await self.make_api_req(f"users/{user_id}/playlists/{list_id}")
+    async def get_playlist_object_complete(self, list_id: str) -> SpotifyPlaylist:
+        """Fetch a playlist and all its tracks from Spotify API, returned as a SpotifyPlaylist object."""
+        pldata = await self.get_playlist(list_id)
+        #tracks_data = await self.get_playlist_tracks(list_id)
+        # pldata["tracks"]["items"] <- array of track/episode objects
+        total_tracks = pldata["tracks"]["total"]  # total tracks in playlist.
+        # pldata["tracks"]["next"] <- next URL.
+        log.debug(f"Spotify Playlist total tacks: {total_tracks}")
+        while True:
+            log.noise(f"Spotify Data:  {pldata}")
+            next_url = pldata["next"]
+            if next_url is not None:
+                log.debug(f"Playlist Next URL:  {next_url}")
+                pldata = await self.make_api_req(
+                    self.api_safe_url(next_url))
+                continue
+            else:
+                break
 
-    async def get_playlist(self, list_id: str) -> SpotifyPlaylist:
+        '''
+        time_taken = time.time() - start_time
+        url_set = set(track_urls)
+        if len(track_urls) > len(url_set):
+            dupe_count = len(track_urls) - len(url_set)
+            track_urls = list(url_set)
+            log.debug(f"Spotify playlist tracks processing found {dupe_count} dupe(s)")
+        log.debug(f"Spofify playist tracks took {time_taken:.3f} seconds for {len(track_urls)} tracks and {bad_entries} bad tracks.")
+        return (track_urls, bad_entries, time_taken)
+        '''
+
+    async def get_playlist_object(self, list_id: str) -> SpotifyPlaylist:
+        """Lookup a spotify playlist by its ID and return a SpotifyPlaylist object"""
+        data = await self.get_playlist(list_id)
+        return SpotifyPlaylist(data)
+
+    async def get_playlist(self, list_id: str) -> Dict:
         """Get a playlist's info from its Spotify ID"""
-        pldata = await self.make_api_req(f"playlists/{list_id}")
-        return SpotifyPlaylist(pldata)
+        return await self.make_api_req(f"playlists/{list_id}")
 
-    async def get_playlist_tracks(self, list_id: str):
+    async def get_playlist_tracks(self, list_id: str) -> Dict:
         """Get a list of a playlist's tracks from its Spotify ID"""
         return await self.make_api_req(f"playlists/{list_id}/tracks")
 
-    async def make_api_req(self, endpoint: str):
+    async def make_api_req(self, endpoint: str) -> Dict:
         """Proxy method for making a Spotify req using the correct Auth headers"""
         url = self.API_BASE + endpoint
         token = await self._get_token()
@@ -272,7 +359,7 @@ class Spotify:
             url, headers={"Authorization": f"Bearer {token}"}
         )
 
-    async def _make_get(self, url: str, headers=None):
+    async def _make_get(self, url: str, headers: Dict = None) -> Dict:
         """Makes a GET request and returns the results"""
         async with self.aiosession.get(url, headers=headers) as r:
             if r.status != 200:
@@ -283,7 +370,7 @@ class Spotify:
                 )
             return await r.json()
 
-    async def _make_post(self, url: str, payload, headers=None):
+    async def _make_post(self, url: str, payload, headers: Dict = None) -> Dict:
         """Makes a POST request and returns the results"""
         async with self.aiosession.post(url, data=payload, headers=headers) as r:
             if r.status != 200:
@@ -294,23 +381,23 @@ class Spotify:
                 )
             return await r.json()
 
-    def _make_token_auth(self, client_id, client_secret):
+    def _make_token_auth(self, client_id: str, client_secret: str) -> Dict:
         auth_header = base64.b64encode((client_id + ":" + client_secret).encode("ascii"))
         return {"Authorization": "Basic %s" % auth_header.decode("ascii")}
 
-    def _is_token_valid(self):
+    def _is_token_valid(self) -> bool:
         """Checks if the token is valid"""
         if not self._token:
             return False
         return self._token["expires_at"] - int(time.time()) > 60
 
-    async def has_token(self):
+    async def has_token(self) -> bool:
         """Attempt to get token and return True if successful."""
         if await self._get_token():
             return True
         return False
 
-    async def _get_token(self):
+    async def _get_token(self) -> str:
         """Gets the token or creates a new one if expired"""
         if self._is_token_valid():
             return self._token["access_token"]
@@ -340,7 +427,7 @@ class Spotify:
         )
         return self._token["access_token"]
 
-    async def _request_token(self):
+    async def _request_token(self) -> Dict:
         """Obtains a token from Spotify and returns it"""
         try:
             payload = {"grant_type": "client_credentials"}
@@ -356,7 +443,7 @@ class Spotify:
             self.max_token_tries -= 1
             return await self._request_token()
 
-    async def _request_guest_token(self):
+    async def _request_guest_token(self) -> Dict:
         """Obtains a web player token from Spotify and returns it"""
         try:
             async with self.aiosession.get(
