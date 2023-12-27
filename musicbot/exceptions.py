@@ -1,6 +1,6 @@
 import shutil
 import textwrap
-from enum import Enum
+
 
 # Base class for exceptions
 class MusicbotException(Exception):
@@ -50,13 +50,6 @@ class FFmpegError(MusicbotException):
 # FFmpeg complained about something but we don't care
 class FFmpegWarning(MusicbotException):
     pass
-
-
-# Codes to specify the kind of spotify failure.
-class SpotifyErrorCode(Enum):
-    UNPACK_TRACK_FAILED = 40
-    UNPACK_ALBUM_FAILED = 41
-    UNPACK_PLAYLIST_FAILED = 42
 
 
 # Some issue retrieving something from Spotify's API or processing it.

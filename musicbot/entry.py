@@ -440,7 +440,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         while retry:
             try:
                 result = await self.playlist.downloader.extract_info(
-                    self.playlist.loop, self.url, download=True
+                    self.url, download=True
                 )
                 break
             except ContentTooShortError as e:
@@ -559,7 +559,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
         try:
             result = await self.playlist.downloader.extract_info(
-                self.playlist.loop, url, download=False
+                url, download=False
             )
         except Exception as e:
             if not fallback and self.destination:

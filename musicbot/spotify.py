@@ -6,7 +6,8 @@ import logging
 import re
 import time
 
-from typing import List, Dict, Tuple, Union, Optional
+from typing import List, Dict, Optional, NoReturn
+from urllib.parse import urlparse
 
 from .exceptions import SpotifyError
 
@@ -14,9 +15,13 @@ log = logging.getLogger(__name__)
 
 
 class SpotifyObject:
-    """Base class for spotify response objects."""
-    def __init__(self, data: Dict):
+    """Base class for parsed spotify response objects."""
+    def __init__(self, data: Dict, origin_url: Optional[str] = None) -> NoReturn:
         self.data = data
+        if origin_url:
+            self.origin_url = origin_url
+        else:
+            self.origin_url = self.spotify_url
 
     @staticmethod
     def is_type(data: Dict, spotify_type: str) -> bool:
@@ -55,24 +60,35 @@ class SpotifyObject:
         return None
 
     @property
+    def spotify_uri(self) -> Optional[str]:
+        return self.data.get("uri", None)
+
+    @property
     def name(self) -> Optional[str]:
         return self.data.get("name", None)
 
+    @property
+    def ytdl_type(self) -> str:
+        return "url" if self.spotify_type == "track" else "playlist"
+
     def to_ytdl_dict(self) -> Dict:
         """Returns object data in a format similar to ytdl."""
-        ytdl_type = "url" if self.spotify_type == "track" else "playlist"
         return {
-            "_type": ytdl_type,
-            "original_url": self.spotify_url,
-            "extractor": "mb:spotify",
-            "extractor_key": "MusicBotSpotify",
+            "_type": self.ytdl_type,
+            "id": self.spotify_uri,
+            "original_url": self.origin_url,
+            "webpage_url": self.spotify_url,
+            "extractor": "spotify:musicbot",
+            "extractor_key": "SpotifyMusicBot",
         }
 
+
 class SpotifyTrack(SpotifyObject):
-    def __init__(self, track_data: Dict):
+    """Track data for an individual track, parsed from spotify API response data."""
+    def __init__(self, track_data: Dict, origin_url: Optional[str] = None) -> NoReturn:
         if not SpotifyObject.is_track_data(track_data):
             raise SpotifyError("Invalid track_data, must be of type 'track'")
-        super().__init__(track_data)
+        super().__init__(track_data, origin_url)
 
     @property
     def artist_name(self) -> str:
@@ -114,17 +130,67 @@ class SpotifyTrack(SpotifyObject):
         }
 
 
+class SpotifyAlbum(SpotifyObject):
+    """Album object with all or partial tracks, as parsed from spotify API response data."""
+    def __init__(self, album_data: Dict, origin_url: Optional[str] = None) -> NoReturn:
+        if not SpotifyObject.is_album_data(album_data):
+            raise ValueError("Invalid album_data, must be of type 'playlist'")
+        super().__init__(album_data, origin_url)
+        self._track_objects = []
+
+        self._create_track_objects()
+
+    def _create_track_objects(self) -> NoReturn:
+        tracks_data = self.data.get("tracks", None)
+        if not tracks_data:
+            raise ValueError("Invalid album_data, missing tracks key")
+
+        items = tracks_data.get("items", None)
+        if not items:
+            raise ValueError("Invalid album_data, missing items key in tracks")
+
+        # albums use a slightly different "SimplifiedTrackObject" without the album key.
+        # each item is a track, versus having a "track" key for TrackObject data, like Playlists do.
+        for item in items:
+            self._track_objects.append(SpotifyTrack(item))
+
+    @property
+    def track_objects(self) -> List[SpotifyTrack]:
+        """List of SpotifyTrack objects loaded with the playlist API data."""
+        return self._track_objects
+
+    @property
+    def track_urls(self) -> List[str]:
+        """List of spotify URLs for all tracks in ths playlist data."""
+        return [x.spotify_url for x in self.track_objects]
+
+    @property
+    def track_count(self) -> int:
+        """Get number of total tracks in playlist, as reported by API"""
+        tracks = self.data.get("tracks", {})
+        return tracks.get("total", 0)
+
+    def to_ytdl_dict(self) -> Dict:
+        return {
+            **super().to_ytdl_dict(),
+            "title": self.name,
+            "url": "",
+            "playlist_count": self.track_count,
+            "entries": [t.to_ytdl_dict() for t in self.track_objects],
+        }
+
 
 class SpotifyPlaylist(SpotifyObject):
-    def __init__(self, playlist_data: Dict):
+    """Playlist object with all or partial tracks, as parsed from spotify API response data."""
+    def __init__(self, playlist_data: Dict, origin_url: Optional[str] = None) -> NoReturn:
         if not SpotifyObject.is_playlist_data(playlist_data):
             raise ValueError("Invalid playlist_data, must be of type 'playlist'")
-        super().__init__(playlist_data)
+        super().__init__(playlist_data, origin_url)
         self._track_objects = []
-        
+
         self._create_track_objects()
-        
-    def _create_track_objects(self):
+
+    def _create_track_objects(self) -> NoReturn:
         tracks_data = self.data.get("tracks", None)
         if not tracks_data:
             raise ValueError("Invalid playlist_data, missing tracks key")
@@ -155,12 +221,11 @@ class SpotifyPlaylist(SpotifyObject):
         """Get number of total tracks in playlist, as reported by API"""
         tracks = self.data.get("tracks", {})
         return tracks.get("total", 0)
-    
+
     def to_ytdl_dict(self) -> Dict:
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
-            "artists": self.artist_names,
             "url": "",
             "playlist_count": self.track_count,
             "entries": [t.to_ytdl_dict() for t in self.track_objects],
@@ -170,9 +235,10 @@ class SpotifyPlaylist(SpotifyObject):
 class Spotify:
     OAUTH_TOKEN_URL = "https://accounts.spotify.com/api/token"
     API_BASE = "https://api.spotify.com/v1/"
+    # URL_REGEX allows missing protocol scheme intentionally.
     URL_REGEX = re.compile(r"(?:https?://)?open\.spotify\.com/")
 
-    def __init__(self, client_id: str, client_secret: str, aiosession: aiohttp.ClientSession, loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, client_id: str, client_secret: str, aiosession: aiohttp.ClientSession, loop: asyncio.AbstractEventLoop = None) -> NoReturn:
         self.client_id = client_id
         self.client_secret = client_secret
         self.guest_mode = client_id is None or client_secret is None
@@ -188,10 +254,12 @@ class Spotify:
     def url_to_uri(url: str) -> str:
         """
         Convert a spotify url to a spotify URI string.
-        If the URL is valid it will start with "spotify:"
+
+        Note: this function assumes `url` is already a valid URL.
+        See `downloader.get_url_or_none()` for validating input URLs.
         """
-        # strip away any query string data.
-        url = url.split("?")[0]
+        # strip away query strings and fragments.
+        url = urlparse(url)._replace(query="", fragment="").geturl()
         # replace protocol and FQDN with our local "scheme" and clean it up.
         return Spotify.URL_REGEX.sub("spotify:", url).replace("/", ":")
 
@@ -224,71 +292,33 @@ class Spotify:
     def api_safe_url(self, url: str) -> str:
         return url.replace(self.API_BASE, "")
 
-    async def get_all_tracks_in_album(self, album_id: str) -> List[str]:
-        pass
-        """
-                            elif "album" in parts:
-                        res = await self.spotify.get_album(parts[-1])
-
-                        await self._do_playlist_checks(
-                            permissions, player, author, res["tracks"]["items"]
-                        )
-                        procmesg = await self.safe_send_message(
-                            channel,
-                            self.str.get(
-                                "cmd-play-spotify-album-process",
-                                "Processing album `{0}` (`{1}`)",
-                            ).format(res["name"], song_url),
-                        )
-                        for i in res["tracks"]["items"]:
-                            if self.server_specific_data[channel.guild.id][
-                                "halt_playlist_unpack"
-                            ]:
-                                log.debug(
-                                    "Halting spotify album queuing due to clear command."
-                                )
-                                break
-                            song_url = i["name"] + " " + i["artists"][0]["name"]
-                            log.debug(
-                                "Processing spotify album track:  {0}".format(
-                                    song_url
-                                )
-                            )
-                            await self.cmd_play(
-                                message,
-                                player,
-                                channel,
-                                author,
-                                permissions,
-                                leftover_args,
-                                song_url,
-                            )
-
-                        await self.safe_delete_message(procmesg)
-                        return Response(
-                            self.str.get(
-                                "cmd-play-spotify-album-queued",
-                                "Enqueued `{0}` with **{1}** songs.",
-                            ).format(res["name"], len(res["tracks"]["items"]))
-                        )
-        """
-
     async def get_spotify_ytdl_data(self, spotify_url: str, process: bool = False) -> Dict:
         parts = Spotify.url_to_parts(spotify_url)
         obj_type = parts[1]
         spotify_id = parts[-1]
         if obj_type == "track":
-            return self.get_track_object(spotify_id).to_ytdl_dict()
+            data = await self.get_track_object(spotify_id)
+            data.origin_url = spotify_url
+            return data.to_ytdl_dict()
 
         if obj_type == "album":
             if process:
-                return self.get_album_object_complete(spotify_id).to_ytdl_dict()
-            return self.get_album_object(spotify_id).to_ytdl_dict()
+                data = await self.get_album_object_complete(spotify_id)
+                data.origin_url = spotify_url
+                return data.to_ytdl_dict()
+            data = await self.get_album_object(spotify_id)
+            data.origin_url = spotify_url
+            return data.to_ytdl_dict()
 
         if obj_type == "playlist":
             if process:
-                return self.get_playlist_object_complete(spotify_id).to_ytdl_dict()
-            return self.get_playlist_object(spotify_id).to_ytdl_dict()
+                data = await self.get_playlist_object_complete(spotify_id)
+                data.origin_url = spotify_url
+                return data.to_ytdl_dict()
+            data = await self.get_playlist_object(spotify_id)
+            data.origin_url = spotify_url
+            return data.to_ytdl_dict()
+
         return {}
 
     async def get_track_object(self, track_id: str) -> SpotifyTrack:
@@ -299,6 +329,40 @@ class Spotify:
     async def get_track(self, track_id: str) -> Dict:
         """Get a track's info from its Spotify ID"""
         return await self.make_api_req(f"tracks/{track_id}")
+
+    async def get_album_object_complete(self, album_id: str) -> SpotifyAlbum:
+        """Fetch a playlist and all its tracks from Spotify API, returned as a SpotifyAlbum object."""
+        aldata = await self.get_album(album_id)
+        tracks = aldata.get("tracks", {}).get("items", [])
+        next_url = aldata.get("tracks", {}).get("next", None)
+
+        total_tracks = aldata["tracks"]["total"]  # total tracks in playlist.
+        log.debug(f"Spotify Album total tacks: {total_tracks}  --  {next_url}")
+        while True:
+            if next_url:
+                log.debug(f"Getting Spofity Album Next URL:  {next_url}")
+                next_data = await self.make_api_req(
+                    self.api_safe_url(next_url)
+                )
+                next_tracks = next_data.get("items", None)
+                if next_tracks:
+                    tracks.extend(next_tracks)
+                next_url = next_data.get("next", None)
+                continue
+            else:
+                break
+
+        if total_tracks > len(tracks):
+            log.debug(f"Spotify Album Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}")
+
+        aldata["tracks"]["items"] = tracks
+
+        return SpotifyAlbum(aldata)
+
+    async def get_album_object(self, album_id: str) -> SpotifyAlbum:
+        """Lookup a spotify playlist by its ID and return a SpotifyAlbum object"""
+        data = await self.get_album(album_id)
+        return SpotifyAlbum(data)
 
     async def get_album(self, album_id: str) -> Dict:
         """Get an album's info from its Spotify ID"""
@@ -311,32 +375,31 @@ class Spotify:
     async def get_playlist_object_complete(self, list_id: str) -> SpotifyPlaylist:
         """Fetch a playlist and all its tracks from Spotify API, returned as a SpotifyPlaylist object."""
         pldata = await self.get_playlist(list_id)
-        #tracks_data = await self.get_playlist_tracks(list_id)
-        # pldata["tracks"]["items"] <- array of track/episode objects
+        tracks = pldata.get("tracks", {}).get("items", [])
+        next_url = pldata.get("tracks", {}).get("next", None)
+
         total_tracks = pldata["tracks"]["total"]  # total tracks in playlist.
-        # pldata["tracks"]["next"] <- next URL.
-        log.debug(f"Spotify Playlist total tacks: {total_tracks}")
+        log.debug(f"Spotify Playlist total tacks: {total_tracks}  --  {next_url}")
         while True:
-            log.noise(f"Spotify Data:  {pldata}")
-            next_url = pldata["next"]
-            if next_url is not None:
-                log.debug(f"Playlist Next URL:  {next_url}")
-                pldata = await self.make_api_req(
-                    self.api_safe_url(next_url))
+            if next_url:
+                log.debug(f"Getting Spofity Playlist Next URL:  {next_url}")
+                next_data = await self.make_api_req(
+                    self.api_safe_url(next_url)
+                )
+                next_tracks = next_data.get("items", None)
+                if next_tracks:
+                    tracks.extend(next_tracks)
+                next_url = next_data.get("next", None)
                 continue
             else:
                 break
 
-        '''
-        time_taken = time.time() - start_time
-        url_set = set(track_urls)
-        if len(track_urls) > len(url_set):
-            dupe_count = len(track_urls) - len(url_set)
-            track_urls = list(url_set)
-            log.debug(f"Spotify playlist tracks processing found {dupe_count} dupe(s)")
-        log.debug(f"Spofify playist tracks took {time_taken:.3f} seconds for {len(track_urls)} tracks and {bad_entries} bad tracks.")
-        return (track_urls, bad_entries, time_taken)
-        '''
+        if total_tracks > len(tracks):
+            log.debug(f"Spotify Playlist Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}")
+
+        pldata["tracks"]["items"] = tracks
+
+        return SpotifyPlaylist(pldata)
 
     async def get_playlist_object(self, list_id: str) -> SpotifyPlaylist:
         """Lookup a spotify playlist by its ID and return a SpotifyPlaylist object"""

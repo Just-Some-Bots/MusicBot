@@ -72,7 +72,7 @@ class Playlist(EventEmitter, Serializable):
 
         try:
             info = await self.downloader.extract_info(
-                self.loop, song_url, download=False
+                song_url, download=False
             )
         except Exception as e:
             raise ExtractionError(
@@ -150,7 +150,7 @@ class Playlist(EventEmitter, Serializable):
 
             try:
                 info = await self.downloader.extract_info(
-                    self.loop, song_url, download=False
+                    song_url, download=False
                 )
 
             except DownloadError as e:
@@ -220,7 +220,7 @@ class Playlist(EventEmitter, Serializable):
 
         try:
             info = await self.downloader.safe_extract_info(
-                self.loop, playlist_url, download=False
+                playlist_url, download=False
             )
         except Exception as e:
             raise ExtractionError(
@@ -280,7 +280,7 @@ class Playlist(EventEmitter, Serializable):
 
         try:
             info = await self.downloader.safe_extract_info(
-                self.loop, playlist_url, download=False, process=False
+                playlist_url, download=False, process=False
             )
         except Exception as e:
             raise ExtractionError(
@@ -335,7 +335,7 @@ class Playlist(EventEmitter, Serializable):
 
         try:
             info = await self.downloader.safe_extract_info(
-                self.loop, playlist_url, download=False, process=False
+                playlist_url, download=False, process=False
             )
         except Exception as e:
             raise ExtractionError(
