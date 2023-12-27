@@ -1079,13 +1079,11 @@ class MusicBot(discord.Client):
 
     def _get_guild_cmd_prefix(self, guild: discord.Guild):
         if self.config.enable_options_per_guild:
-            prefix = self.server_specific_data[guild.id]["command_prefix"]
-            if not prefix:
-                return self.config.command_prefix
-            else:
-                return prefix
-        else:
-            return self.config.command_prefix
+            if guild:
+                prefix = self.server_specific_data[guild.id]["command_prefix"]
+                if prefix:
+                    return prefix
+        return self.config.command_prefix
 
     #######################################################################################################################
 
@@ -3696,7 +3694,6 @@ class MusicBot(discord.Client):
                 and not permissions.skiplooped
                 and player.repeatsong
             ):
-                
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-force-noperms-looped-song",
@@ -3724,9 +3721,6 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        # TODO: ignore person if they're deaf or take them out of the list or something?
-        # Currently is recounted if they vote, deafen, then vote
-
         num_voice = sum(
             1
             for m in voice_channel.members
@@ -3735,7 +3729,13 @@ class MusicBot(discord.Client):
         if num_voice == 0:
             num_voice = 1  # incase all users are deafened, to avoid divison by zero
 
-        num_skips = player.skip_state.add_skipper(author.id, message)
+        player.skip_state.add_skipper(author.id, message)
+        num_skips = sum(
+            1
+            for m in voice_channel.members
+            if not (m.voice.deaf or m.voice.self_deaf or m == self.user)
+            and m.id in player.skip_state.skippers
+        )
 
         skips_remaining = (
             min(
