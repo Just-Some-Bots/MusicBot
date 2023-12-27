@@ -1079,13 +1079,11 @@ class MusicBot(discord.Client):
 
     def _get_guild_cmd_prefix(self, guild: discord.Guild):
         if self.config.enable_options_per_guild:
-            prefix = self.server_specific_data[guild.id]["command_prefix"]
-            if not prefix:
-                return self.config.command_prefix
-            else:
-                return prefix
-        else:
-            return self.config.command_prefix
+            if guild:
+                prefix = self.server_specific_data[guild.id]["command_prefix"]
+                if prefix:
+                    return prefix
+        return self.config.command_prefix
 
     #######################################################################################################################
 
