@@ -3694,7 +3694,6 @@ class MusicBot(discord.Client):
                 and not permissions.skiplooped
                 and player.repeatsong
             ):
-                
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-force-noperms-looped-song",
@@ -3733,7 +3732,13 @@ class MusicBot(discord.Client):
         if num_voice == 0:
             num_voice = 1  # incase all users are deafened, to avoid divison by zero
 
-        num_skips = player.skip_state.add_skipper(author.id, message)
+        player.skip_state.add_skipper(author.id, message)
+        num_skips = sum(
+            1
+            for m in voice_channel.members
+            if not (m.voice.deaf or m.voice.self_deaf or m == self.user)
+            and m.id in player.skip_state.skippers
+        )
 
         skips_remaining = (
             min(
