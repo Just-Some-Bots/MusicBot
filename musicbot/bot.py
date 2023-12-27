@@ -3721,9 +3721,6 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        # TODO: ignore person if they're deaf or take them out of the list or something?
-        # Currently is recounted if they vote, deafen, then vote
-
         num_voice = sum(
             1
             for m in voice_channel.members
