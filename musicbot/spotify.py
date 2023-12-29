@@ -120,12 +120,32 @@ class SpotifyTrack(SpotifyObject):
             self.name,
         )
 
+    @property
+    def duration(self) -> float:
+        """Calculate duration in seconds from track 'duration_ms' value."""
+        return self.data.get("duration_ms", 0) / 1000
+
+    @property
+    def thumbnail_url(self) -> str:
+        """
+        Get the largest available thumbnail URL for this track.
+        May return an empty string.
+        Note: this URL will expire in less than a day.
+        """
+        album = self.data.get("album", {})
+        imgs = album.get("images", None)
+        if imgs:
+            return imgs[0].get("url", "")
+        return ""
+
     def to_ytdl_dict(self) -> Dict:
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
             "artists": self.artist_names,
             "url": self.get_track_search_string("ytsearch:{0} {1}"),
+            "thumbnail": self.thumbnail_url,
+            "duration": self.duration,
             "playlist_count": 1,
         }
 
@@ -170,11 +190,24 @@ class SpotifyAlbum(SpotifyObject):
         tracks = self.data.get("tracks", {})
         return tracks.get("total", 0)
 
+    @property
+    def thumbnail_url(self) -> str:
+        """
+        Get the largest available thumbnail URL for this album.
+        May return an empty string.
+        Note: this URL will expire in less than a day.
+        """
+        imgs = self.data.get("images", None)
+        if imgs:
+            return imgs[0].get("url", "")
+        return ""
+
     def to_ytdl_dict(self) -> Dict:
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
             "url": "",
+            "thumbnail": self.thumbnail_url,
             "playlist_count": self.track_count,
             "entries": [t.to_ytdl_dict() for t in self.track_objects],
         }
@@ -222,11 +255,24 @@ class SpotifyPlaylist(SpotifyObject):
         tracks = self.data.get("tracks", {})
         return tracks.get("total", 0)
 
+    @property
+    def thumbnail_url(self) -> str:
+        """
+        Get the largest available thumbnail URL for this playlist.
+        May return an empty string.
+        Note: this URL will expire in less than a day.
+        """
+        imgs = self.data.get("images", None)
+        if imgs:
+            return imgs[0].get("url", "")
+        return ""
+
     def to_ytdl_dict(self) -> Dict:
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
             "url": "",
+            "thumbnail": self.thumbnail_url,
             "playlist_count": self.track_count,
             "entries": [t.to_ytdl_dict() for t in self.track_objects],
         }

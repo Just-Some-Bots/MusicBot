@@ -276,8 +276,8 @@ class MusicBot(discord.Client):
                 "WARNING": "yellow",
                 "ERROR": "red",
                 "CRITICAL": "bold_red",
-                "EVERYTHING": "white",
-                "NOISY": "white",
+                "EVERYTHING": "bold_cyan",
+                "NOISY": "bold_white",
                 "FFMPEG": "bold_purple",
                 "VOICEDEBUG": "purple",
             },
@@ -2255,6 +2255,21 @@ class MusicBot(discord.Client):
         song_url,
         head,
     ):
+        """
+        This function handles actually playing any given URL or song subject.
+
+        Tested against these URLs:
+        - https://www.youtube.com/playlist?list=PL80gRr4GwcsznLYH-G_FXnzkP5_cHl-KR
+        - https://www.youtube.com/watch?v=bm48ncbhU10&list=PL80gRr4GwcsznLYH-G_FXnzkP5_cHl-KR
+        - https://www.youtube.com/watch?v=bm48ncbhU10
+        - https://open.spotify.com/playlist/37i9dQZF1DXaImRpG7HXqp   <- Calming Accoustic playlist
+        - https://open.spotify.com/track/0YupMLYOYz6lZDbN3kRt7A?si=5b0eeb51b04c4af9   <- single track I'll be home
+        - https://open.spotify.com/album/1y8Yw0NDcP2qxbZufIXt7u   <-  1 item album Moonlight
+        - https://open.spotify.com/album/5LbHbwejgZXRZAgzVAjkhj   <-  multi-item album, alice in chains facelift
+        - https://soundcloud.com/neilcic/cabinet-man
+        - https://soundcloud.com/grweston/sets/mashups
+        - https://lemondemon.bandcamp.com/album/spirit-phone
+        """
         player = _player if _player else None
 
         if permissions.summonplay and not player:
@@ -2289,7 +2304,7 @@ class MusicBot(discord.Client):
 
         # Validate song_url is actually a URL, not a search string.
         valid_song_url = self.downloader.get_url_or_none(song_url)
-        if valid_song_url: 
+        if valid_song_url:
             song_url = valid_song_url
         if not valid_song_url and leftover_args:
             # treat all arguments as a search string.
@@ -2327,7 +2342,7 @@ class MusicBot(discord.Client):
             info = await self.downloader.extract_info(
                 song_url, download=False, process=False
             )
-            log.noise(f"get_info(1) returned:  {pformat(info)}")
+            log.noise("get_info(1) returned")  # :  {pformat(info)}")
             # If there is an exception arise when processing we go on and let extract_info down the line report it
             # because info might be a playlist and thing that's broke it might be individual entry
             try:
@@ -2335,7 +2350,7 @@ class MusicBot(discord.Client):
                     song_url, download=False
                 )
                 info_process_err = None
-                log.noise(f"get_info(2) returned:  {pformat(info_process)}")
+                log.noise("get_info(2) returned")  # :  {pformat(info_process)}")
             except Exception as e:
                 info_process = None
                 info_process_err = e
@@ -2445,13 +2460,14 @@ class MusicBot(discord.Client):
                         expire_in=30,
                     )
 
+                # Note: things have changed in ytdlp and how we use it.  this could be defunct.
                 song_url = info_process.get("webpage_url", None) or info_process.get(
                     "url", None
                 )
 
                 if "entries" in info:
                     # if entry is playlist then only get the first one
-                    song_url = info["entries"][0]["webpage_url"]
+                    song_url = info["entries"][0].get("url")
                     info = info["entries"][0]
 
             # If it's playlist
@@ -2678,6 +2694,9 @@ class MusicBot(discord.Client):
                     ).format(playlist_url),
                     expire_in=30,
                 )
+
+        # elif extractor_type == "spotify:musicbot":
+        #    pass
 
         elif extractor_type.lower() in ["soundcloud:set", "bandcamp:album"]:
             try:

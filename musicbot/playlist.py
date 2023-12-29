@@ -64,10 +64,11 @@ class Playlist(EventEmitter, Serializable):
         """
         Validates and adds a song_url to be played. This does not start the download of the song.
 
-        Returns the entry & the position it is in the queue.
-
         :param song_url: The song url to add to the playlist.
+        :param head: Add to front of queue instead.
         :param meta: Any additional metadata to add to the playlist entry.
+        :returns: the entry & the position it is in the queue.
+        :raises: ExtractionError, WrongEntryTypeError
         """
 
         try:
@@ -105,6 +106,11 @@ class Playlist(EventEmitter, Serializable):
                     "Failed to get content type for url {} ({})".format(song_url, e)
                 )
                 content_type = None
+
+            # Note for future reference:
+            # MIME types are just hints at the content, or what should handle it, and can't be trusted.
+            # I can send you text and call it audio/mp3, or vice versa if I want to.
+            # Checking MIMEs is almost pointless. 
 
             if content_type:
                 if content_type.startswith(("application/", "image/")):
@@ -233,10 +239,12 @@ class Playlist(EventEmitter, Serializable):
             )
 
         # Once again, the generic extractor fucks things up.
-        if info.get("extractor", None) == "generic":
-            url_field = "url"
-        else:
-            url_field = "webpage_url"
+        # ^ gonna test this since ytdlp is different.
+        #if info.get("extractor", None) == "generic":
+        #    url_field = "url"
+        #else:
+        #    url_field = "webpage_url"
+        url_field = "url"
 
         baditems = 0
         entries = list(info["entries"])
@@ -300,6 +308,7 @@ class Playlist(EventEmitter, Serializable):
             entries.reverse()
         for entry_data in info["entries"]:
             if entry_data:
+                # TODO: not sure why we do this bit but its fine for now.
                 baseurl = info["webpage_url"].split("playlist?list=")[0]
                 song_url = baseurl + "watch?v=%s" % entry_data["id"]
 
