@@ -1,5 +1,6 @@
 import asyncio
 import certifi
+import copy
 import inspect
 import json
 import logging
@@ -849,6 +850,9 @@ class MusicBot(discord.Client):
                     # TODO: Playlist expansion
 
                 # Do I check the initial conditions again?
+                # Good question. In flat mode, playlists of ~1400 entries process in a couple seconds.
+                # in the past the answer to this was definitely yes. Now, it still is kind of a yes.
+                # fail to a known condition is best practice.
                 # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
 
                 if self.config.auto_pause:
@@ -1924,13 +1928,11 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def _do_playlist_checks(self, permissions, player, author, testobj, total=0):
-        if total:
-            num_songs = total
-        else:
-            num_songs = sum(1 for _ in testobj)
+    async def _do_playlist_checks(self, permissions, player, author, result_info):
+        num_songs = result_info.playlist_count or result_info.entry_count
 
-        # I have to do exe extra checks anyways because you can request an arbitrary number of search results
+        # TODO: correct the language here, since this could be playlist or search results?
+        # I have to do extra checks anyways because you can request an arbitrary number of search results
         if not permissions.allow_playlists and num_songs > 1:
             raise exceptions.PermissionsError(
                 self.str.get(
@@ -2262,15 +2264,27 @@ class MusicBot(discord.Client):
         - https://www.youtube.com/playlist?list=PL80gRr4GwcsznLYH-G_FXnzkP5_cHl-KR
         - https://www.youtube.com/watch?v=bm48ncbhU10&list=PL80gRr4GwcsznLYH-G_FXnzkP5_cHl-KR
         - https://www.youtube.com/watch?v=bm48ncbhU10
-        - https://open.spotify.com/playlist/37i9dQZF1DXaImRpG7HXqp   <- Calming Accoustic playlist
-        - https://open.spotify.com/track/0YupMLYOYz6lZDbN3kRt7A?si=5b0eeb51b04c4af9   <- single track I'll be home
-        - https://open.spotify.com/album/1y8Yw0NDcP2qxbZufIXt7u   <-  1 item album Moonlight
-        - https://open.spotify.com/album/5LbHbwejgZXRZAgzVAjkhj   <-  multi-item album, alice in chains facelift
+        - https://youtu.be/L5uV3gmOH9g
+        - https://open.spotify.com/playlist/37i9dQZF1DXaImRpG7HXqp
+        - https://open.spotify.com/track/0YupMLYOYz6lZDbN3kRt7A?si=5b0eeb51b04c4af9
+        - https://open.spotify.com/album/1y8Yw0NDcP2qxbZufIXt7u   # 1 item album
+        - https://open.spotify.com/album/5LbHbwejgZXRZAgzVAjkhj   # multi-item album
         - https://soundcloud.com/neilcic/cabinet-man
         - https://soundcloud.com/grweston/sets/mashups
         - https://lemondemon.bandcamp.com/album/spirit-phone
+        - slippery people talking heads live 84
+        - https://cdn.discordapp.com/attachments/741945274901200897/875075008723046410/cheesed.mp4
+        
+        The goal of this rework is to reduce redundant calls and make
+        the queue do the remaining error checking. 
+        Shooting for 2 calls maximum, initial process extraction,
+        then the download and process call we do when finally playing.
+        When info is extracted it is moved along with its entry.
+        
         """
         player = _player if _player else None
+
+        await channel.typing()
 
         if permissions.summonplay and not player:
             voice_channel = author.voice.channel if author.voice else None
@@ -2300,9 +2314,7 @@ class MusicBot(discord.Client):
         if self.server_specific_data[channel.guild.id]["halt_playlist_unpack"]:
             self.server_specific_data[channel.guild.id]["halt_playlist_unpack"] = False
 
-        await channel.typing()
-
-        # Validate song_url is actually a URL, not a search string.
+        # Validate song_url is actually a URL, or otherwise a search string.
         valid_song_url = self.downloader.get_url_or_none(song_url)
         if valid_song_url:
             song_url = valid_song_url
@@ -2310,8 +2322,6 @@ class MusicBot(discord.Client):
             # treat all arguments as a search string.
             song_url = " ".join([song_url, *leftover_args])
             leftover_args = None  # prevent issues later.
-            # TODO: try some crazy search strings and see if quoting is still needed.
-            # from urllib.parse import quote_plus
 
         # TODO: test if this is really needed or make it some kind of option.
         # - like always q track 1 but ask if playlist should be q'd with reactions maybe.
@@ -2325,37 +2335,17 @@ class MusicBot(discord.Client):
             else song_url
         )
 
+        # Validate spotify links are supported before we try them.
         if "open.spotify.com" in song_url.lower():
             if self.config._spotify:
                 if not Spotify.is_url_supported(song_url):
                     raise exceptions.CommandError(
                         "Spotify URL is invalid or not currently supported."
                     )
-                # we print info from the Spotify API after extraction.
             else:
                 raise exceptions.CommandError(
                     "Detected a spotify URL, but spotify is not enabled."
                 )
-
-        async def get_info(song_url):
-            # TODO: Optimize this, save process for when we know we need it.
-            info = await self.downloader.extract_info(
-                song_url, download=False, process=False
-            )
-            log.noise("get_info(1) returned")  # :  {pformat(info)}")
-            # If there is an exception arise when processing we go on and let extract_info down the line report it
-            # because info might be a playlist and thing that's broke it might be individual entry
-            try:
-                info_process = await self.downloader.extract_info(
-                    song_url, download=False
-                )
-                info_process_err = None
-                log.noise("get_info(2) returned")  # :  {pformat(info_process)}")
-            except Exception as e:
-                info_process = None
-                info_process_err = e
-
-            return (info, info_process, info_process_err)
 
         # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
         async with self.aiolocks[_func_() + ":" + str(author.id)]:
@@ -2381,21 +2371,19 @@ class MusicBot(discord.Client):
                 )
 
             # Try to determine entry type, if _type is playlist then there should be entries
-            # TODO: test all the things and detemine if this loop needs to exist.
+            # TODO: test all the things and determine if this loop needs to exist.
+            """
             while True:
                 log.noise("Doing _cmd_play::while loop...")
                 try:
-                    info, info_process, info_process_err = await get_info(song_url)
+                    #info, info_process_err = await get_info(song_url)
                     if (
-                        info_process
-                        and info
-                        and info_process.get("_type", None) == "playlist"
-                        and "entries" not in info
-                        and not info.get("url", "").startswith("ytsearch")
+                        info
+                        and info.ytdl_type == "playlist"
+                        and not "entries" in info
+                        and not info.url.startswith("ytsearch")
                     ):
-                        use_url = info_process.get(
-                            "webpage_url", None
-                        ) or info_process.get("url", None)
+                        use_url = info.webpage_url or info.url
                         if use_url == song_url:
                             log.warning(
                                 "Determined incorrect entry type, but suggested url is the same.  Help."
@@ -2412,13 +2400,38 @@ class MusicBot(discord.Client):
                         break
 
                 except Exception as e:
+                    
                     if "unknown url type" in str(e):
+                        # TODO:  URL encode this bit instead.
                         song_url = song_url.replace(
                             ":", ""
                         )  # it's probably not actually an extractor
-                        info, info_process, info_process_err = await get_info(song_url)
+                        #info, info_process_err = await get_info(song_url)
                     else:
                         raise exceptions.CommandError(e, expire_in=30)
+            # """
+            
+            # might as well inform the user that something is being worked on.
+            await self.safe_send_message(
+                channel,
+                # TODO: i18n stuff
+                "Gathering info for `{user}` about:  `{query}`".format(
+                    user=author.name, query=song_url
+                ),
+                expire_in=30,
+            )
+            await channel.typing()
+
+            # Get processed info from ytdlp
+            info = None
+            try:
+                info = await self.downloader.extract_info(
+                    song_url, download=False, process=True
+                )
+            except Exception as e:
+                info = None
+                log.exception("Issue with extract_info(): ")
+                raise exceptions.CommandError(e)
 
             if not info:
                 raise exceptions.CommandError(
@@ -2429,8 +2442,9 @@ class MusicBot(discord.Client):
                     expire_in=30,
                 )
 
+            # ensure the extractor has been allowed via permissions.
             if (
-                info.get("extractor", "") not in permissions.extractors
+                info.extractor not in permissions.extractors
                 and permissions.extractors
             ):
                 raise exceptions.PermissionsError(
@@ -2441,57 +2455,33 @@ class MusicBot(discord.Client):
                     expire_in=30,
                 )
 
-            # abstract the search handling away from the user
-            # our ytdl options allow us to use search strings as input urls
-            if info.get("url", "").startswith("ytsearch"):
-                # print("[Command:play] Searching for \"%s\"" % song_url)
-                if info_process:
-                    info = info_process
-                else:
-                    await self.safe_send_message(
-                        channel, "```\n%s\n```" % info_process_err, expire_in=120
-                    )
-                    raise exceptions.CommandError(
-                        self.str.get(
-                            "cmd-play-nodata",
-                            "Error extracting info from search string, youtubedl returned no data. "
-                            "You may need to restart the bot if this continues to happen.",
-                        ),
-                        expire_in=30,
-                    )
-
-                # Note: things have changed in ytdlp and how we use it.  this could be defunct.
-                song_url = info_process.get("webpage_url", None) or info_process.get(
-                    "url", None
-                )
-
-                if "entries" in info:
-                    # if entry is playlist then only get the first one
-                    song_url = info["entries"][0].get("url")
-                    info = info["entries"][0]
-
-            # If it's playlist
-            if "entries" in info:
+            # TODO: make this branch set its own function, for re-use in auto-play.
+            # this will enable playlist expansion in auto-play as well as centralizing code.
+            # If the result has usable entries, we assume it is _type = playlist
+            if "entries" in info and (info.playlist_count or info.entry_count):
+                log.everything("Found entries in extracted info.")
                 await self._do_playlist_checks(
-                    permissions, player, author, info["entries"]
+                    permissions, player, author, info
                 )
 
-                num_songs = sum(1 for _ in info["entries"])
+                num_songs = info.playlist_count or info.entry_count
 
-                if info["extractor"].lower() in [
+                # OK What is all this?  extractor specific playlist handling, I hope is not required...
+                """
+                if info.extractor.lower() in [
                     "youtube:playlist",
                     "soundcloud:set",
                     "bandcamp:album",
                     "spotify:musicbot",
                 ]:
                     try:
-                        return await self._cmd_play_playlist_async(
+                        return await self._cmd_ play_playlist_async(
                             player,
                             channel,
                             author,
                             permissions,
                             song_url,
-                            info["extractor"],
+                            info.extractor,
                         )
                     except exceptions.CommandError:
                         raise
@@ -2504,7 +2494,7 @@ class MusicBot(discord.Client):
                             ).format(e),
                             expire_in=30,
                         )
-
+                """
                 t0 = time.time()
 
                 # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
@@ -2518,12 +2508,13 @@ class MusicBot(discord.Client):
                     channel,
                     self.str.get(
                         "cmd-play-playlist-gathering-1",
-                        "Gathering playlist information for {0} songs{1}",
+                        "Adding playlist information for {0} songs{1}",
                     ).format(
                         num_songs,
                         self.str.get(
-                            "cmd-play-playlist-gathering-2", ", ETA: {0} seconds"
-                        ).format(fixg(num_songs * wait_per_song))
+                            "cmd-play-playlist-gathering-2",
+                            ", ETA: {time:.2f} seconds",
+                        ).format(time=(num_songs * wait_per_song))
                         if num_songs >= 10
                         else ".",
                     ),
@@ -2535,9 +2526,9 @@ class MusicBot(discord.Client):
 
                 # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
                 # Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
-
-                entry_list, position = await player.playlist.import_from(
-                    song_url, channel=channel, author=author, head=False
+                # TODO: Change this so it uses info passed into it.
+                entry_list, position = await player.playlist.import_from_info(
+                    info, channel=channel, author=author, head=False
                 )
 
                 tnow = time.time()
@@ -2588,17 +2579,14 @@ class MusicBot(discord.Client):
 
             # If it's an entry
             else:
+                log.noise("Processing what looks like a single entry...")
                 # youtube:playlist extractor but it's actually an entry
-                if info.get("extractor", "").startswith("youtube:playlist"):
+                # ^ wish I had a URL for this one.
+                if info.get("extractor", "") == "youtube:playlist":
                     log.noise("Extracted an entry with youtube:playlist as extractor key")
-                    try:
-                        info = await self.downloader.extract_info(
-                            "https://www.youtube.com/watch?v=%s" % info.get("url", ""),
-                            download=False,
-                            process=False,
-                        )
-                    except Exception as e:
-                        raise exceptions.CommandError(e, expire_in=30)
+
+                if info.is_live:
+                    log.warning("ayo this shit is live!  Figure out what to do here...")
 
                 if (
                     permissions.max_song_length
@@ -2612,8 +2600,8 @@ class MusicBot(discord.Client):
                         expire_in=30,
                     )
 
-                entry, position = await player.playlist.add_entry(
-                    song_url, channel=channel, author=author, head=head
+                entry, position = await player.playlist.add_entry_from_info(
+                    info, channel=channel, author=author, head=head
                 )
 
                 reply_text = self.str.get(
@@ -2621,6 +2609,8 @@ class MusicBot(discord.Client):
                     "Enqueued `%s` to be played. Position in queue: %s",
                 )
                 btext = entry.title
+
+            # TODO: end of above to-do.
 
             if position == 1 and player.is_stopped:
                 position = self.str.get("cmd-play-next", "Up next!")
@@ -2644,14 +2634,20 @@ class MusicBot(discord.Client):
 
         return Response(reply_text, delete_after=30)
 
+    async def _cmd_play_from_info(self, info):
+        pass
+        # TODO: move the processing branch from _cmd_play to here.
+
+    # TODO: probably remove this.
     async def _cmd_play_playlist_async(
         self, player, channel, author, permissions, playlist_url, extractor_type
     ):
         """
         Secret handler to use the async wizardry to make playlist queuing non-"blocking"
         """
-
+        log.warning("doing async playlist play.")
         await channel.typing()
+        # TODO: remove this, pass the info in from previous extraction.
         info = await self.downloader.extract_info(
             playlist_url, download=False, process=False
         )
@@ -2665,7 +2661,7 @@ class MusicBot(discord.Client):
 
         num_songs = info.get("playlist_count", None)
         if not num_songs:
-            num_songs = sum(1 for _ in info["entries"])
+            num_songs = sum(1 for _ in info.get("entries", []))
         t0 = time.time()
 
         busymsg = await self.safe_send_message(
@@ -2695,8 +2691,8 @@ class MusicBot(discord.Client):
                     expire_in=30,
                 )
 
-        # elif extractor_type == "spotify:musicbot":
-        #    pass
+        elif extractor_type == "spotify:musicbot":
+            log.error("SPOTIFY NOT YET DONE!  ALL THIS PLAYLIST STUFF NEEDS LOOKING AT!!!")
 
         elif extractor_type.lower() in ["soundcloud:set", "bandcamp:album"]:
             try:
@@ -2978,6 +2974,7 @@ class MusicBot(discord.Client):
         await channel.typing()
 
         try:
+            # TODO: this call should be fine.  Test this command.
             info = await self.downloader.extract_info(
                 search_query, download=False, process=True
             )

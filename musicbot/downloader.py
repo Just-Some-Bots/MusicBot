@@ -1,13 +1,17 @@
 import os
 import asyncio
+import copy
 import logging
 import functools
 import inspect
 import yt_dlp as youtube_dl
 
+from yt_dlp.networking.exceptions import NoSupportingHandlers
+
+from collections import UserDict
 from concurrent.futures import ThreadPoolExecutor
 from types import MappingProxyType
-from typing import NoReturn, Optional, List, Dict
+from typing import NoReturn, Optional, List, Dict, Any
 from urllib.parse import urlparse
 from pprint import pformat
 
@@ -28,8 +32,8 @@ ytdl_format_options_immutable = MappingProxyType(
         "logtostderr": False,
         "quiet": True,
         "no_warnings": True,
-        # "geo_bypass": True,  #  this might be worth using.
-        "extract_flat": 'in_playlist',  # do not process playlist results, only list them.
+        # extract_flat speeds up extract_info by only listing playlist entries rather than extracting them as well.
+        "extract_flat": 'in_playlist',
         "default_search": "auto",
         "source_address": "0.0.0.0",
         "usenetrc": True,
@@ -80,25 +84,29 @@ class Downloader:
             url = url[1:-1]
         return youtube_dl.utils.url_or_none(url)
 
-    async def extract_info(
-        self, *args, on_error=None, retry_on_error=False, **kwargs
-    ):
+    async def extract_info(self, song_subject: str, *args, **kwargs):
+        """temporary function to handle logs for returned data"""
+        data = await self._extract_info(song_subject, *args, **kwargs)
+        self._experiment_with_data(data)
+        return YtdlpResponseDict(data)
+
+    async def _extract_info(self, song_subject: str, *args, **kwargs):
         """
-        Runs ytdl.extract_info within the threadpool. Returns a future that will fire when it's done.
-        If `on_error` is passed and an exception is raised, the exception will be caught and passed to
-        on_error as an argument.
+        Runs ytdlp.extract_info with all arguments passed to this function.
+        Resulting data is passed through ytdlp's sanitize_info and returned
+        inside of a YtdlpResponseDict.
         
-        Note: on_error seems to never be used in the code base.
+        :param: song_subject: a song_url or search subject.
+        :returns: YtdlpResponseDict containing sanitized extraction data.
+        :raises: YoutubeDLError as base exception.
         """
 
-        log.noise(f"Called extract_info with:  {args}, oe={on_error}, roe={retry_on_error}, {kwargs}")
+        log.noise(f"Called extract_info with:  '{song_subject}', {args}, {kwargs}")
 
-        # TODO:  clean up calls to this function, ensure on_error and retry are used at all.
-        # TODO:  if cleanup fails, make on_error work for spotify too.
         # handle extracting spotify links before ytdl get ahold of them.
-        if args and "open.spotify.com" in args[0].lower() and self.bot.config._spotify:
+        if "open.spotify.com" in song_subject.lower() and self.bot.config._spotify:
             log.noise("Handling spotify link...")
-            if not Spotify.is_url_supported(args[0]):
+            if not Spotify.is_url_supported(song_subject):
                 raise ExtractionError("Spotify URL is invalid or not supported.")
 
             process = kwargs.get("process", True)
@@ -107,55 +115,59 @@ class Downloader:
             # return only basic ytdl-flavored data from the Spotify API.
             # This call will not fetch all tracks in playlists or albums.
             if not process and not download:
-                data = await self.bot.spotify.get_spotify_ytdl_data(args[0])
+                data = await self.bot.spotify.get_spotify_ytdl_data(song_subject)
                 log.noise(f"Spotify YTDL data:  {pformat(data)}")
                 return data
 
             # modify args to have ytdl return search data, only for singular tracks.
             # for albums & playlists, we want to return full playlist data rather than partial as above.
             if process:
-                data = await self.bot.spotify.get_spotify_ytdl_data(args[0], process)
+                data = await self.bot.spotify.get_spotify_ytdl_data(song_subject, process)
                 log.noise(f"Spotify Process YTDL data:  {pformat(data)}")
                 if data["_type"] == "url":
-                    args = (data["url"],)
+                    song_subject = data["url"]
                 elif data["_type"] == "playlist":
                     return data
 
-        if callable(on_error):
-            try:
-                data = await self.bot.loop.run_in_executor(
-                    self.thread_pool,
-                    functools.partial(self.unsafe_ytdl.extract_info, *args, **kwargs),
-                )
-                self._experiment_with_data(data, "Callable Unsafe ")
-                return data
-
-            except Exception as e:
-                # (youtube_dl.utils.ExtractorError, youtube_dl.utils.DownloadError)
-                # I hope I don't have to deal with ContentTooShortError's
-                if asyncio.iscoroutinefunction(on_error):
-                    asyncio.ensure_future(on_error(e), loop=self.bot.loop)
-
-                elif asyncio.iscoroutine(on_error):
-                    asyncio.ensure_future(on_error, loop=self.bot.loop)
-
-                else:
-                    self.bot.loop.call_soon_threadsafe(on_error, e)
-
-                if retry_on_error:
-                    data = await self.safe_extract_info(*args, **kwargs)
-                    self._experiment_with_data(data, "Retry Safe ")
-                    return data
-        else:
+        # Actually call YoutubeDL extract_info, and deal with no-handler errors quietly.
+        try:
             data = await self.bot.loop.run_in_executor(
                 self.thread_pool,
-                functools.partial(self.unsafe_ytdl.extract_info, *args, **kwargs),
+                functools.partial(self.unsafe_ytdl.extract_info, song_subject, *args, **kwargs),
             )
-            self._experiment_with_data(data, "Unsafe ")
-            return data
+        except NoSupportingHandlers:
+            # due to how we allow search service strings we can't just encode this by default.
+            song_subject = song_subject.replace(":", " ")
+            data = await self.bot.loop.run_in_executor(
+                self.thread_pool,
+                functools.partial(self.unsafe_ytdl.extract_info, song_subject, *args, **kwargs),
+            )
+
+        # make sure the ytdlp data is serializable to make it more predictable.
+        data = self.ytdl.sanitize_info(data)
+
+        # Extractor youtube:search returns a playlist-like result, usually with one entry.
+        # Combine the entry dict with the info dict as if it was a top-level extraction.
+        # This prevents single-entry searches being processed like a playlist later.
+        if (
+            data.get("extractor", "") == "youtube:search"
+            and len(data.get("entries", [])) == 1
+            and type(data.get("entries", None)) is list
+            and data.get("playlist_count", 0) == 1
+        ):
+            log.noise("Extractor youtube:search returned single-entry result, replacing base info with entry info.")
+            entry_info = copy.deepcopy(data["entries"][0])
+            for key in entry_info:
+                if key in data:
+                    data[key] = entry_info[key]
+                else:
+                    data[key] = entry_info[key]
+            del data["entries"]
+
+        return data
 
     def _experiment_with_data(self, data, place=""):
-        d = YtdlpResponseObject(data)
+        d = YtdlpResponseDict(data)
         xd = "__REDACTED_FOR_CLARITY__"
         if "entries" in data:
             # cleaning up entry data to make it easier to parse in logs.
@@ -164,6 +176,10 @@ class Downloader:
                     data["entries"][i]["automatic_captions"] = xd
                 if "formats" in e:
                     data["entries"][i]["formats"] = xd
+                if "heatmap" in e and e["heatmap"]:
+                    data["entries"][i]["heatmap"] = xd
+                if "description" in e:
+                    data["entries"][i]["description"] = xd
 
         if "formats" in data:
             data["formats"] = xd
@@ -171,8 +187,14 @@ class Downloader:
         if "automatic_captions" in data:
             data["automatic_captions"] = xd
 
+        if "heatmap" in data and data["heatmap"]:
+            data["heatmap"] = xd
+
+        if "description" in data:
+            data["description"] = xd
+
         log.debug(f"{place}Extract needs process:  {d.needs_processing}")
-        log.noise(f"Serial-Safe Data:  {pformat(self.ytdl.sanitize_info(data))}")
+        log.noise(f"Serial-Safe Data:  {pformat(data)}")
 
     async def safe_extract_info(self, *args, **kwargs):
         log.noise(f"Called safe_extract_info with:  {args}, {kwargs}")
@@ -182,29 +204,76 @@ class Downloader:
         )
 
 
-class YtdlpResponseObject:
+class YtdlpResponseDict(UserDict):
     """Object with helpers to normalize YoutubeDL response data and make it easier to use."""
     def __init__(self, data: Dict) -> NoReturn:
-        self.data = data
+       super().__init__(data)
 
-    def get(self, key, default=None):
-        """Helper to access the data dict in this response object."""
-        return self.data.get(key, default)
-
-    def get_entries_dict(self) -> List[Dict]:
+    def get_entries_dicts(self) -> List[Dict]:
         """will return entries as-is from data or an empty list if no entries are set."""
         entries = self.data.get("entries", [])
         if type(entries) is List:
             return entries
         return []
 
-    def get_entries_object(self) -> List["YtdlpResponseObject"]:
-        """will iterate over entries and return list of YtdlResponseObjects"""
-        return [YtdlpResponseObject(e) for e in self.get_entries_dict]
+    def get_entries_objects(self) -> List["YtdlpResponseDict"]:
+        """will iterate over entries and return list of YtdlpResponseDicts"""
+        return [YtdlpResponseDict(e) for e in self.get_entries_dict]
+
+    def get_entry_dict_at(self, idx: int) -> Optional[Dict]:
+        """Get a dict from "entries" at the given index or None."""
+        entries = self.get_entries_dicts()
+        if entries:
+            try:
+                return entries[idx]
+            except IndexError:
+                pass
+        return None
+
+    def get_entry_object_at(self, idx: int) -> Optional["YtdlpResponseDict"]:
+        """Get a YtdlpResponseDict for given entry or None."""
+        e = self.get_entry_dict_at(idx)
+        if e:
+            return YtdlpResponseDict(e)
+        return None
+
+    def get_playable_url(self) -> str:
+        """
+        Get a playable URL for any given response type.
+        will try 'url', then 'webpage_url'
+        """
+        if self.ytdl_type == "video":
+            if not self.webpage_url:
+                return self.url
+            else:
+                return self.webpage_url
+        
+        if not self.url:
+            return self.webpage_url
+        else:
+            return self.url
+
+    @property
+    def entry_count(self) -> int:
+        """count of existing entries if available or 0"""
+        if self.has_entries:
+            return len(self.data["entries"])
+        return 0
+
+    @property
+    def has_entries(self) -> bool:
+        """bool status if iterable entries are present."""
+        if "entries" not in self.data:
+            return False
+        if type(self.data["entries"]) is not list:
+            return False
+        return bool(len(self.data["entries"]))
 
     @property
     def needs_processing(self) -> bool:
-        """Return true if this response needs extra processing to extract completely."""
+        """Return true if this response data needs extra processing to extract completely."""
+        return True
+
         # direct youtube watch links usually have this key set to None.
         if "__post_extractor" in self.data:
             if not self.data["__post_extractor"]:
@@ -218,42 +287,76 @@ class YtdlpResponseObject:
         # playlists often need processing for complete extraction.
         if self.ytdl_type == "playlist":
             # if we don't have entries or a playlist_count, its likely we need processing.
-            if "playlist_count" not in self.data or "entries" not in self.data:
-                return True
+            #if "playlist_count" not in self.data and "entries" not in self.data:
+            #    return True
+
+            # Bandcamp:album extractor only populates "playlist_count" after processing.
+            # seems nothing else useful is returned by processing, so we can probably skip it.
+            if self.extractor == "Bandcamp:album" and "entries" in self.data:
+                return False
 
             # youtube playlists always contain a playlist_count and entries keys
             # but entries can be an empty generator before processing.
             # if we use ytdl.sanitize_info() we need to check for a string rather than a generator.
             entries = self.data.get("entries", None)
             if (
-                inspect.isgeneratorfunction(entries)
+                not entries
+                or inspect.isgeneratorfunction(entries)
                 or inspect.isgenerator(entries)
                 or (type(entries) is str and entries.startswith("<generator"))
             ):
                 return True
 
-            # if we have a playlist_count and size of entries does not match it.
-            entry_count = sum(1 for _ in entries)
-            if entry_count != self.playlist_count:
-                return True
+            if "entries" in self.data and "playlist_count" in self.data:
+                # if we have a playlist_count and size of entries does not match it.
+                entry_count = sum(1 for _ in entries)
+                if entry_count != self.playlist_count:
+                    return True
 
         return False
 
     @property
     def thumbnail_url(self) -> str:
-        """return a sanitized thumbnail url if available, or create one if possible."""
+        """
+        Get a thumbnail url if available, or create one if possible, otherwise returns an empty string.
+        Note, the URLs returned from this function may be time-sensitive. 
+        In the case of spotify, URLs may not last longer than a day.
+        """
+        # TODO: IF time-sensitive URLs are a problem; might get away with downloading and sending as an attachment? 
         turl = self.data.get("thumbnail", None)
         # if we have a thumbnail url, clean it up if needed and return it.
         if turl:
-            if "i.ytimg.com" in turl:  # reduce youtube tracking
-                return urlparse(turl)._replace(params="", query="", fragment="").geturl()
             return turl
 
-        # TODO: maybe check in "thumbnails" key?  picking the right one could be interesting.
+        # Check if we have a thumbnails key and pick a thumb from it.
+        # TODO: maybe loop over these finding the largest / highest priority entry instead?.
+        thumbs = self.data.get("thumbnails", [])
+        if thumbs:
+            if self.extractor == "youtube":
+                # youtube seems to set the last list entry to the largest.
+                turl = thumbs[-1].get("url")
+
+            # spotify images are in size desending order. though we don't use them at the moment.
+            # elif self.extractor == "spotify:musicbot":
+                # turl = thumbs[0].get("url")
+            elif len(thumbs):
+                turl = thumbs[0].get("url")
+
+            if turl:
+                return turl
+
         # if all else fails, try to make a URL on our own.
         if self.extractor == "youtube":
             if self.video_id:
                 return f"https://i.ytimg.com/vi/{self.video_id}/maxresdefault.jpg"
+
+        # Extractor Bandcamp:album unfortunately does not give us thumbail(s)
+        # tracks do have thumbs, but process does not return them while "extract_flat" is enabled.
+        # we don't get enough data with albums to make a thumbnail URL either.
+        # really this is an upstream issue with ytdlp, and should be patched there.
+        # See: BandcampAlbumIE and add missing thumbnail: self._og_search_thumbnail(webpage)
+
+        return ""
 
     @property
     def ytdl_type(self) -> str:
@@ -296,9 +399,11 @@ class YtdlpResponseObject:
         return self.data.get("original_url", None)
 
     @property
-    def video_id(self) -> Optional[str]:
-        """returns the 'id' value if it is set or None"""
-        return self.data.get("id", None)
+    def title(self) -> str:
+        """returns title value if it exists, empty string otherwise."""
+        # Note: seemingly all processed data should have "title" key
+        # entries in data may also have "fulltitle" and "playlist_title" keys.
+        return self.data.get("title", "")
 
     @property
     def playlist_count(self) -> int:
@@ -307,8 +412,13 @@ class YtdlpResponseObject:
 
     @property
     def duration(self) -> float:
-        """returns duration data if available, or 0"""
+        """returns duration in seconds if available, or 0"""
         try:
             return float(self.data.get("duration", 0))
         except ValueError:
             return 0.0
+
+    @property
+    def is_live(self) -> bool:
+        """return is_live key status or False if not found."""
+        return self.data.get("is_live", False)

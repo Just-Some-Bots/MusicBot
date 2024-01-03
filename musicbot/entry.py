@@ -62,7 +62,8 @@ class BasePlaylistEntry(Serializable):
             self._waiting_futures.append(future)
             asyncio.ensure_future(self._download())
 
-        log.debug("Created future for {0}".format(self.filename))
+        name = self.filename or self.url or self.title
+        log.debug("Created future for {0}".format(name))
         return future
 
     def _for_each_future(self, cb):
@@ -122,14 +123,16 @@ def get(program):
 
 class URLPlaylistEntry(BasePlaylistEntry):
     def __init__(
-        self, playlist, url, title, duration=None, expected_filename=None, **meta
+        self, playlist, url, title, duration=None, expected_filename=None, thumb_url=None, **meta
     ):
         super().__init__()
 
+        # TODO: perhaps remove arguments here that are inside info dict, and just pass info dict.
         self.playlist = playlist
         self.url = url
         self.title = title
         self.duration = duration
+        self.thumbnail_url = thumb_url
         if duration is None:  # duration could be 0
             log.info(
                 "Cannot extract duration of the entry. This does not affect the ability of the bot. "
@@ -149,6 +152,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "version": 1,
                 "url": self.url,
                 "title": self.title,
+                "thumbnail_url": self.thumbnail_url,
                 "duration": self.duration,
                 "downloaded": self.is_downloaded,
                 "expected_filename": self.expected_filename,
@@ -211,7 +215,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         )
                         meta.pop("author")
 
-            entry = cls(playlist, url, title, duration, expected_filename, **meta)
+            thumbnail_url = data.get("thumbnail_url", None)
+            entry = cls(playlist, url, title, duration, expected_filename, thumb_url=thumbnail_url, **meta)
             entry.filename = filename
 
             return entry
@@ -245,7 +250,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     try:
                         rsize = int(
                             await get_header(
-                                self.playlist.bot.aiosession, self.url, "CONTENT-LENGTH"
+                                self.playlist.aiosession, self.url, "CONTENT-LENGTH"
                             )
                         )
                     except Exception:
@@ -488,13 +493,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, *, destination=None, **meta):
+    def __init__(self, playlist, url, title, *, destination=None, thumb_url=None, **meta):
         super().__init__()
 
         self.playlist = playlist
         self.url = url
         self.title = title
         self.destination = destination
+        self.thumbnail_url = thumb_url
         self.duration = None
         self.meta = meta
 
@@ -509,6 +515,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 "filename": self.filename,
                 "title": self.title,
                 "destination": self.destination,
+                "thumbnail_url": self.thumbnail_url,
                 "meta": {
                     name: {
                         "type": obj.__class__.__name__,
@@ -543,7 +550,8 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                     data["meta"]["author"]["id"]
                 )
 
-            entry = cls(playlist, url, title, destination=destination, **meta)
+            thumbnail_url = data.get("thumbnail_url", None)
+            entry = cls(playlist, url, title, destination=destination, thumb_url=thumbnail_url, **meta)
             if not destination and filename:
                 entry.filename = destination
 
@@ -556,8 +564,10 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self._is_downloading = True
 
         url = self.destination if fallback else self.url
+        log.noise(f"Trying to download info on URL:  {url}   Fallback: {fallback}")
 
         try:
+            # TODO: find out if we can avoid this since most commands will have extracted info.
             result = await self.playlist.downloader.extract_info(
                 url, download=False
             )

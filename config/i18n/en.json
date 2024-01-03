@@ -33,7 +33,7 @@
     "cmd-play-nodata": "Error extracting info from search string, youtubedl returned no data. You may need to restart the bot if this continues to happen.",
     "cmd-play-playlist-error": "Error queuing playlist:\n`{0}`",
     "cmd-play-playlist-gathering-1": "Gathering playlist information for {0} songs{1}",
-    "cmd-play-playlist-gathering-2": ", ETA: {0} seconds",
+    "cmd-play-playlist-gathering-2": ", ETA: {time:.2f} seconds",
     "cmd-play-playlist-maxduration": "No songs were added, all songs were over max duration (%ss)",
     "cmd-play-playlist-reply": "Enqueued **%s** songs to be played. Position in queue: %s",
     "cmd-play-playlist-invalid": "That playlist cannot be played.",

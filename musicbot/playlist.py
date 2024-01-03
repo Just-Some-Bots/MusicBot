@@ -28,6 +28,7 @@ class Playlist(EventEmitter, Serializable):
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
+        self.aiosession = bot.session
         self.downloader = bot.downloader
         self.entries = deque()
 
@@ -60,6 +61,149 @@ class Playlist(EventEmitter, Serializable):
         self.entries.appendleft(song)
         self.entries.rotate(index)
 
+    async def add_entry_from_info(self, info, *, head, **meta):
+        """
+        Validates and adds a song_url to be played. This does not start the download of the song.
+
+        :param song_url: The song url to add to the playlist.
+        :param head: Add to front of queue instead.
+        :param meta: Any additional metadata to add to the playlist entry.
+        :returns: the entry & the position it is in the queue.
+        :raises: ExtractionError, WrongEntryTypeError
+        """
+
+        if not info:
+            raise ExtractionError("Could not extract information")
+
+        # TODO: Sort out what happens next when this happens
+        if info.ytdl_type == "playlist":
+            raise WrongEntryTypeError(
+                "This is a playlist.",
+                True,
+                info.webpage_url or info.url,
+            )
+
+        if info.is_live:
+            log.debug("Entry info appears to be a stream?  trying it...")
+            return await self.add_stream_entry(info.url, info=info, **meta)
+
+        # TODO: Extract this to its own function
+        if info.extractor in ["generic", "Dropbox"]:
+            log.debug("Detected a generic extractor, or Dropbox")
+            try:
+                headers = await get_header(self.aiosession, info.url)
+                content_type = headers.get("CONTENT-TYPE")
+                log.debug("Got content type {}".format(content_type))
+            except Exception as e:
+                log.warning(
+                    "Failed to get content type for url {} ({})".format(info.url, e)
+                )
+                content_type = None
+
+            # Note for future reference:
+            # MIME types are just hints at the content, or what should handle it, and can't be trusted.
+            # I can send you text and call it audio/mp3, or vice versa if I want to.
+            # Checking MIMEs is almost pointless. 
+
+            if content_type:
+                if content_type.startswith(("application/", "image/")):
+                    if not any(x in content_type for x in ("/ogg", "/octet-stream")):
+                        # How does a server say `application/ogg` what the actual fuck
+                        raise ExtractionError(
+                            'Invalid content type "%s" for url %s'
+                            % (content_type, info.url)
+                        )
+
+                elif (
+                    content_type.startswith("text/html")
+                    and info.extractor == "generic"
+                ):
+                    log.warning(
+                        "Got text/html for content-type, this might be a stream."
+                    )
+                    return await self.add_stream_entry(
+                        info.url, info=info, **meta
+                    )  # TODO: Check for shoutcast/icecast
+
+                elif not content_type.startswith(("audio/", "video/")):
+                    log.warning(
+                        'Questionable content-type "{}" for url {}'.format(
+                            content_type, info.url
+                        )
+                    )
+
+        entry = URLPlaylistEntry(
+            self,
+            info.get_playable_url(),
+            info.title or "Untitled",
+            info.get("duration", None) or None,
+            self.downloader.ytdl.prepare_filename(info.data),
+            **meta,
+        )
+        self._add_entry(entry, head=head)
+        return entry, (1 if head else len(self.entries))
+
+    async def import_from_info(self, info, head, **meta):
+        """
+        Imports the songs from `info` and queues them to be played.
+
+        Returns a list of `entries` that have been enqueued.
+
+        :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+        :param meta: Any additional metadata to add to the playlist entry
+        """
+        position = 1 if head else len(self.entries) + 1
+        entry_list = []
+
+        if not info:
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
+
+        # Once again, the generic extractor fucks things up.
+        # ^ gonna test this since ytdlp is different.
+        #if info.get("extractor", None) == "generic":
+        #    url_field = "url"
+        #else:
+        #    url_field = "webpage_url"
+        url_field = "url"
+
+        baditems = 0
+        entries = list(info["entries"])
+        if head:
+            entries.reverse()
+        for item in info["entries"]:
+            if item:
+                if info.is_live:
+                    log.debug("Entry found with is_live, not queuing stream.")
+                    baditems += 1
+                    continue
+                try:
+                    entry = URLPlaylistEntry(
+                        self,
+                        item[url_field],
+                        item.get("title", "Untitled"),
+                        item.get("duration", 0) or 0,
+                        self.downloader.ytdl.prepare_filename(item),
+                        **meta,
+                    )
+
+                    self._add_entry(entry, head=head)
+                    entry_list.append(entry)
+                except Exception as e:
+                    baditems += 1
+                    log.warning("Could not add item", exc_info=e)
+                    log.debug("Item: {}".format(item), exc_info=True)
+            else:
+                baditems += 1
+
+        if baditems:
+            log.info("Skipped {} bad entries".format(baditems))
+
+        if head:
+            entry_list.reverse()
+        return entry_list, position
+
     async def add_entry(self, song_url, *, head, **meta):
         """
         Validates and adds a song_url to be played. This does not start the download of the song.
@@ -72,6 +216,8 @@ class Playlist(EventEmitter, Serializable):
         """
 
         try:
+            # TODO: remove this in favor of passing in info from previous extract call
+            # if `process` is required here we should keep this call.
             info = await self.downloader.extract_info(
                 song_url, download=False
             )
@@ -98,7 +244,7 @@ class Playlist(EventEmitter, Serializable):
         if info["extractor"] in ["generic", "Dropbox"]:
             log.debug("Detected a generic extractor, or Dropbox")
             try:
-                headers = await get_header(self.bot.aiosession, info["url"])
+                headers = await get_header(self.aiosession, info["url"])
                 content_type = headers.get("CONTENT-TYPE")
                 log.debug("Got content type {}".format(content_type))
             except Exception as e:
@@ -151,10 +297,12 @@ class Playlist(EventEmitter, Serializable):
         return entry, (1 if head else len(self.entries))
 
     async def add_stream_entry(self, song_url, info=None, **meta):
+        log.noise(f"Adding stream entry for URL:  {song_url}")
         if info is None:
             info = {"title": song_url, "extractor": None}
 
             try:
+                # TODO use info passed in from previous extract in command.
                 info = await self.downloader.extract_info(
                     song_url, download=False
                 )
@@ -225,6 +373,7 @@ class Playlist(EventEmitter, Serializable):
         entry_list = []
 
         try:
+            # TODO: import from existing info dict.
             info = await self.downloader.safe_extract_info(
                 playlist_url, download=False
             )
@@ -287,6 +436,7 @@ class Playlist(EventEmitter, Serializable):
         """
 
         try:
+            # TODO: import from existing info dict
             info = await self.downloader.safe_extract_info(
                 playlist_url, download=False, process=False
             )
@@ -343,6 +493,7 @@ class Playlist(EventEmitter, Serializable):
         """
 
         try:
+            # TODO: remove this call in favor of passed in info.
             info = await self.downloader.safe_extract_info(
                 playlist_url, download=False, process=False
             )
