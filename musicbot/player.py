@@ -71,6 +71,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._source = None
 
         self.playlist.on("entry-added", self.on_entry_added)
+        self.playlist.on("entry-failed", self.on_entry_failed)
 
     @property
     def volume(self):
@@ -87,6 +88,9 @@ class MusicPlayer(EventEmitter, Serializable):
             self.loop.call_later(2, self.play)
 
         self.emit("entry-added", player=self, playlist=playlist, entry=entry)
+
+    def on_entry_failed(self, entry, error):
+        self.emit("error", player=self, entry=entry, ex=error)
 
     def skip(self):
         self._kill_current_player()

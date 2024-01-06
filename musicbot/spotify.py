@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 class SpotifyObject:
     """Base class for parsed spotify response objects."""
-    def __init__(self, data: Dict, origin_url: Optional[str] = None) -> NoReturn:
+    def __init__(self, data: Dict, origin_url: Optional[str] = None) -> None:
         self.data = data
         if origin_url:
             self.origin_url = origin_url
@@ -85,7 +85,7 @@ class SpotifyObject:
 
 class SpotifyTrack(SpotifyObject):
     """Track data for an individual track, parsed from spotify API response data."""
-    def __init__(self, track_data: Dict, origin_url: Optional[str] = None) -> NoReturn:
+    def __init__(self, track_data: Dict, origin_url: Optional[str] = None) -> None:
         if not SpotifyObject.is_track_data(track_data):
             raise SpotifyError("Invalid track_data, must be of type 'track'")
         super().__init__(track_data, origin_url)
@@ -138,12 +138,17 @@ class SpotifyTrack(SpotifyObject):
             return imgs[0].get("url", "")
         return ""
 
-    def to_ytdl_dict(self) -> Dict:
+    def to_ytdl_dict(self, as_single: bool = True) -> Dict:
+        if as_single:
+            url = self.get_track_search_string("ytsearch:{0} {1}")
+        else:
+            url = self.spotify_url
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
             "artists": self.artist_names,
-            "url": self.get_track_search_string("ytsearch:{0} {1}"),
+            "url": url,
+            "search_terms": self.get_track_search_string(),
             "thumbnail": self.thumbnail_url,
             "duration": self.duration,
             "playlist_count": 1,
@@ -152,7 +157,7 @@ class SpotifyTrack(SpotifyObject):
 
 class SpotifyAlbum(SpotifyObject):
     """Album object with all or partial tracks, as parsed from spotify API response data."""
-    def __init__(self, album_data: Dict, origin_url: Optional[str] = None) -> NoReturn:
+    def __init__(self, album_data: Dict, origin_url: Optional[str] = None) -> None:
         if not SpotifyObject.is_album_data(album_data):
             raise ValueError("Invalid album_data, must be of type 'playlist'")
         super().__init__(album_data, origin_url)
@@ -209,7 +214,7 @@ class SpotifyAlbum(SpotifyObject):
             "url": "",
             "thumbnail": self.thumbnail_url,
             "playlist_count": self.track_count,
-            "entries": [t.to_ytdl_dict() for t in self.track_objects],
+            "entries": [t.to_ytdl_dict(False) for t in self.track_objects],
         }
 
 
@@ -274,7 +279,7 @@ class SpotifyPlaylist(SpotifyObject):
             "url": "",
             "thumbnail": self.thumbnail_url,
             "playlist_count": self.track_count,
-            "entries": [t.to_ytdl_dict() for t in self.track_objects],
+            "entries": [t.to_ytdl_dict(False) for t in self.track_objects],
         }
 
 
@@ -284,7 +289,7 @@ class Spotify:
     # URL_REGEX allows missing protocol scheme intentionally.
     URL_REGEX = re.compile(r"(?:https?://)?open\.spotify\.com/")
 
-    def __init__(self, client_id: str, client_secret: str, aiosession: aiohttp.ClientSession, loop: asyncio.AbstractEventLoop = None) -> NoReturn:
+    def __init__(self, client_id: str, client_secret: str, aiosession: aiohttp.ClientSession, loop: asyncio.AbstractEventLoop = None) -> None:
         self.client_id = client_id
         self.client_secret = client_secret
         self.guest_mode = client_id is None or client_secret is None

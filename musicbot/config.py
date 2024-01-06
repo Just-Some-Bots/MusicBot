@@ -397,6 +397,8 @@ class Config:
             except ValueError:
                 log.warning("BotExceptionIDs data is invalid, will ignore all bots")
                 self.bot_exception_ids = set()
+        else:
+            self.bot_exception_ids = set()
 
         if self.bound_channels:
             try:

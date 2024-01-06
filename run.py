@@ -146,6 +146,7 @@ log.addHandler(tfh)
 
 
 def finalize_logging():
+    # TODO:  include the discord.log file in this too.
     if os.path.isfile("logs/musicbot.log"):
         log.info("Moving old musicbot log")
         try:
@@ -196,7 +197,6 @@ def bugger_off(msg="Press enter to continue . . .", code=1):
     sys.exit(code)
 
 
-# TODO: all of this
 def sanity_checks(optional=True):
     log.info("Starting sanity checks")
     ## Required

@@ -62,7 +62,7 @@ class BasePlaylistEntry(Serializable):
             self._waiting_futures.append(future)
             asyncio.ensure_future(self._download())
 
-        name = self.filename or self.url or self.title
+        name = self.title or self.filename or self.url
         log.debug("Created future for {0}".format(name))
         return future
 
@@ -227,6 +227,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
     async def _download(self):
         if self._is_downloading:
             return
+        log.debug("is now checking download status.")
 
         self._is_downloading = True
         try:
@@ -444,6 +445,16 @@ class URLPlaylistEntry(BasePlaylistEntry):
         result = None
         while retry:
             try:
+                # handle some extraction here so we can allow spotify links in the queue.
+                if "open.spotify.com" in self.url.lower():
+                    info = await self.playlist.downloader.extract_info(
+                        self.url, download=False
+                    )
+                    if info.ytdl_type == "url":
+                        self.url = info.get("url", self.url)
+                    else:
+                        raise Exception("Cannot download spotify links, these should be extracted before now.")
+
                 result = await self.playlist.downloader.extract_info(
                     self.url, download=True
                 )
@@ -492,6 +503,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.downloaded_bytes = os.path.getsize(self.filename)
 
 
+# TODO: make this use info dict instead.
 class StreamPlaylistEntry(BasePlaylistEntry):
     def __init__(self, playlist, url, title, *, destination=None, thumb_url=None, **meta):
         super().__init__()

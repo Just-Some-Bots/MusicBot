@@ -3,6 +3,7 @@ import sys
 import logging
 import aiohttp
 import inspect
+import unicodedata
 
 from typing import Union
 from hashlib import md5
@@ -36,6 +37,21 @@ def write_file(filename, contents):
             f.write(str(item))
             f.write("\n")
 
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
@@ -64,9 +80,9 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     return chunks
 
 
-async def get_header(session, url, headerfield=None, *, timeout=5):
+async def get_header(session, url, headerfield=None, *, timeout=5, allow_redirects=True):
     req_timeout = aiohttp.ClientTimeout(total=timeout)
-    async with session.head(url, timeout=req_timeout) as response:
+    async with session.head(url, timeout=req_timeout, allow_redirects=allow_redirects) as response:
         if headerfield:
             return response.headers.get(headerfield)
         else:
