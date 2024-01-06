@@ -123,7 +123,14 @@ def get(program):
 
 class URLPlaylistEntry(BasePlaylistEntry):
     def __init__(
-        self, playlist, url, title, duration=None, expected_filename=None, thumb_url=None, **meta
+        self,
+        playlist,
+        url,
+        title,
+        duration=None,
+        expected_filename=None,
+        thumb_url=None,
+        **meta,
     ):
         super().__init__()
 
@@ -216,7 +223,15 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         meta.pop("author")
 
             thumbnail_url = data.get("thumbnail_url", None)
-            entry = cls(playlist, url, title, duration, expected_filename, thumb_url=thumbnail_url, **meta)
+            entry = cls(
+                playlist,
+                url,
+                title,
+                duration,
+                expected_filename,
+                thumb_url=thumbnail_url,
+                **meta,
+            )
             entry.filename = filename
 
             return entry
@@ -453,7 +468,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     if info.ytdl_type == "url":
                         self.url = info.get("url", self.url)
                     else:
-                        raise Exception("Cannot download spotify links, these should be extracted before now.")
+                        raise Exception(
+                            "Cannot download spotify links, these should be extracted before now."
+                        )
 
                 result = await self.playlist.downloader.extract_info(
                     self.url, download=True
@@ -505,7 +522,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 # TODO: make this use info dict instead.
 class StreamPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, *, destination=None, thumb_url=None, **meta):
+    def __init__(
+        self, playlist, url, title, *, destination=None, thumb_url=None, **meta
+    ):
         super().__init__()
 
         self.playlist = playlist
@@ -563,7 +582,14 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 )
 
             thumbnail_url = data.get("thumbnail_url", None)
-            entry = cls(playlist, url, title, destination=destination, thumb_url=thumbnail_url, **meta)
+            entry = cls(
+                playlist,
+                url,
+                title,
+                destination=destination,
+                thumb_url=thumbnail_url,
+                **meta,
+            )
             if not destination and filename:
                 entry.filename = destination
 
@@ -580,9 +606,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
         try:
             # TODO: find out if we can avoid this since most commands will have extracted info.
-            result = await self.playlist.downloader.extract_info(
-                url, download=False
-            )
+            result = await self.playlist.downloader.extract_info(url, download=False)
         except Exception as e:
             if not fallback and self.destination:
                 return await self._download(fallback=True)

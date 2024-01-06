@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 
 class SpotifyObject:
     """Base class for parsed spotify response objects."""
+
     def __init__(self, data: Dict, origin_url: Optional[str] = None) -> None:
         self.data = data
         if origin_url:
@@ -85,6 +86,7 @@ class SpotifyObject:
 
 class SpotifyTrack(SpotifyObject):
     """Track data for an individual track, parsed from spotify API response data."""
+
     def __init__(self, track_data: Dict, origin_url: Optional[str] = None) -> None:
         if not SpotifyObject.is_track_data(track_data):
             raise SpotifyError("Invalid track_data, must be of type 'track'")
@@ -113,7 +115,9 @@ class SpotifyTrack(SpotifyObject):
         """Gets all non-empty artist names joined together as a string."""
         return join_with.join(self.artist_names)
 
-    def get_track_search_string(self, format_str: str = "{0} {1}", join_artists_with: str = " ") -> str:
+    def get_track_search_string(
+        self, format_str: str = "{0} {1}", join_artists_with: str = " "
+    ) -> str:
         """Get track title with artist names for searching against"""
         return format_str.format(
             self.get_joined_artist_names(join_artists_with),
@@ -157,6 +161,7 @@ class SpotifyTrack(SpotifyObject):
 
 class SpotifyAlbum(SpotifyObject):
     """Album object with all or partial tracks, as parsed from spotify API response data."""
+
     def __init__(self, album_data: Dict, origin_url: Optional[str] = None) -> None:
         if not SpotifyObject.is_album_data(album_data):
             raise ValueError("Invalid album_data, must be of type 'playlist'")
@@ -220,7 +225,10 @@ class SpotifyAlbum(SpotifyObject):
 
 class SpotifyPlaylist(SpotifyObject):
     """Playlist object with all or partial tracks, as parsed from spotify API response data."""
-    def __init__(self, playlist_data: Dict, origin_url: Optional[str] = None) -> NoReturn:
+
+    def __init__(
+        self, playlist_data: Dict, origin_url: Optional[str] = None
+    ) -> NoReturn:
         if not SpotifyObject.is_playlist_data(playlist_data):
             raise ValueError("Invalid playlist_data, must be of type 'playlist'")
         super().__init__(playlist_data, origin_url)
@@ -289,7 +297,13 @@ class Spotify:
     # URL_REGEX allows missing protocol scheme intentionally.
     URL_REGEX = re.compile(r"(?:https?://)?open\.spotify\.com/")
 
-    def __init__(self, client_id: str, client_secret: str, aiosession: aiohttp.ClientSession, loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        aiosession: aiohttp.ClientSession,
+        loop: asyncio.AbstractEventLoop = None,
+    ) -> None:
         self.client_id = client_id
         self.client_secret = client_secret
         self.guest_mode = client_id is None or client_secret is None
@@ -343,7 +357,9 @@ class Spotify:
     def api_safe_url(self, url: str) -> str:
         return url.replace(self.API_BASE, "")
 
-    async def get_spotify_ytdl_data(self, spotify_url: str, process: bool = False) -> Dict:
+    async def get_spotify_ytdl_data(
+        self, spotify_url: str, process: bool = False
+    ) -> Dict:
         parts = Spotify.url_to_parts(spotify_url)
         obj_type = parts[1]
         spotify_id = parts[-1]
@@ -392,9 +408,7 @@ class Spotify:
         while True:
             if next_url:
                 log.debug(f"Getting Spofity Album Next URL:  {next_url}")
-                next_data = await self.make_api_req(
-                    self.api_safe_url(next_url)
-                )
+                next_data = await self.make_api_req(self.api_safe_url(next_url))
                 next_tracks = next_data.get("items", None)
                 if next_tracks:
                     tracks.extend(next_tracks)
@@ -404,7 +418,9 @@ class Spotify:
                 break
 
         if total_tracks > len(tracks):
-            log.debug(f"Spotify Album Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}")
+            log.debug(
+                f"Spotify Album Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}"
+            )
 
         aldata["tracks"]["items"] = tracks
 
@@ -434,9 +450,7 @@ class Spotify:
         while True:
             if next_url:
                 log.debug(f"Getting Spofity Playlist Next URL:  {next_url}")
-                next_data = await self.make_api_req(
-                    self.api_safe_url(next_url)
-                )
+                next_data = await self.make_api_req(self.api_safe_url(next_url))
                 next_tracks = next_data.get("items", None)
                 if next_tracks:
                     tracks.extend(next_tracks)
@@ -446,7 +460,9 @@ class Spotify:
                 break
 
         if total_tracks > len(tracks):
-            log.debug(f"Spotify Playlist Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}")
+            log.debug(
+                f"Spotify Playlist Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}"
+            )
 
         pldata["tracks"]["items"] = tracks
 
@@ -469,9 +485,7 @@ class Spotify:
         """Proxy method for making a Spotify req using the correct Auth headers"""
         url = self.API_BASE + endpoint
         token = await self._get_token()
-        return await self._make_get(
-            url, headers={"Authorization": f"Bearer {token}"}
-        )
+        return await self._make_get(url, headers={"Authorization": f"Bearer {token}"})
 
     async def _make_get(self, url: str, headers: Dict = None) -> Dict:
         """Makes a GET request and returns the results"""
@@ -496,7 +510,9 @@ class Spotify:
             return await r.json()
 
     def _make_token_auth(self, client_id: str, client_secret: str) -> Dict:
-        auth_header = base64.b64encode((client_id + ":" + client_secret).encode("ascii"))
+        auth_header = base64.b64encode(
+            (client_id + ":" + client_secret).encode("ascii")
+        )
         return {"Authorization": "Basic %s" % auth_header.decode("ascii")}
 
     def _is_token_valid(self) -> bool:

@@ -28,7 +28,11 @@ from . import downloader
 from . import exceptions
 from .aliases import Aliases, AliasesDefault
 from .config import Config, ConfigDefaults
-from .constants import DISCORD_MSG_CHAR_LIMIT, EMOJI_CHECK_MARK_BUTTON, EMOJI_CROSS_MARK_BUTTON
+from .constants import (
+    DISCORD_MSG_CHAR_LIMIT,
+    EMOJI_CHECK_MARK_BUTTON,
+    EMOJI_CROSS_MARK_BUTTON,
+)
 from .constants import VERSION as BOTVERSION
 from .constructs import SkipState, Response
 from .entry import StreamPlaylistEntry
@@ -417,7 +421,7 @@ class MusicBot(discord.Client):
         except Exception:
             log.exception("_wait_delete_msg sleep caught exception. bailing.")
             return
-        
+
         await self.safe_delete_message(message, quiet=True)
 
     async def _check_ignore_non_voice(self, msg):
@@ -883,7 +887,7 @@ class MusicBot(discord.Client):
                 # TODO: i18n / UI stuff
                 "Playback failed for song: `{}` due to error:\n```\n{}\n```".format(
                     song, ex
-                )
+                ),
             )
         else:
             log.exception("Player error", exc_info=ex)
@@ -1127,11 +1131,15 @@ class MusicBot(discord.Client):
                 except ValueError:
                     retry_after = None
                 if retry_after:
-                    log.warning(f"Rate limited send message, retrying in {retry_after} seconds.")
+                    log.warning(
+                        f"Rate limited send message, retrying in {retry_after} seconds."
+                    )
                     try:
                         await asyncio.sleep(retry_after)
                     except Exception:
-                        log.exception("Sleep in send message caught exception, bailing out.")
+                        log.exception(
+                            "Sleep in send message caught exception, bailing out."
+                        )
                         return msg
                     return await self.safe_send_message(dest, content, **kwargs)
                 else:
@@ -1187,16 +1195,16 @@ class MusicBot(discord.Client):
                 except ValueError:
                     retry_after = None
                 if retry_after:
-                    log.warning(f"Rate limited message delete, retrying in {retry_after} seconds.")
+                    log.warning(
+                        f"Rate limited message delete, retrying in {retry_after} seconds."
+                    )
                     asyncio.ensure_future(self._wait_delete_msg(message, retry_after))
                 else:
                     log.error("Rate limited message delete, but cannot retry!")
 
             else:
                 lfunc("Failed to delete message")
-                log.noise(
-                    "Got HTTPException trying to delete message to %s: %s", dest, content
-                )
+                log.noise("Got HTTPException trying to delete message: %s", message)
 
     async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
         lfunc = log.debug if quiet else log.warning
@@ -1224,11 +1232,15 @@ class MusicBot(discord.Client):
                 except ValueError:
                     retry_after = None
                 if retry_after:
-                    log.warning(f"Rate limited edit message, retrying in {retry_after} seconds.")
+                    log.warning(
+                        f"Rate limited edit message, retrying in {retry_after} seconds."
+                    )
                     try:
                         await asyncio.sleep(retry_after)
                     except Exception:
-                        log.exception("Sleep in edit message caught exception, bailing out.")
+                        log.exception(
+                            "Sleep in edit message caught exception, bailing out."
+                        )
                         return None
                     return await self.safe_edit_message(
                         message, new, send_if_fail=send_if_fail, quiet=quiet
@@ -1236,7 +1248,7 @@ class MusicBot(discord.Client):
             else:
                 lfunc("Failed to edit message")
                 log.noise(
-                    "Got HTTPException trying to edit message to %s: %s", dest, content
+                    "Got HTTPException trying to edit message %s to: %s", message, new
                 )
 
     async def restart(self):
@@ -2323,11 +2335,11 @@ class MusicBot(discord.Client):
         permissions,
         leftover_args,
         song_url,
-        head
+        head,
     ):
         """
         Helper function to check for playlist IDs embeded in video links.
-        If a "compound" URL is detected, ask the user if they want the 
+        If a "compound" URL is detected, ask the user if they want the
         associated playlist to be queued as well.
         """
         # TODO: maybe a bypass option for this check in config?
@@ -2339,10 +2351,12 @@ class MusicBot(discord.Client):
                 await msg.add_reaction(r)
 
             def _check_react(reaction, user):
-                return (msg == reaction.message and author == user)
+                return msg == reaction.message and author == user
 
             try:
-                reaction, user = await self.wait_for("reaction_add", timeout=60, check=_check_react)
+                reaction, user = await self.wait_for(
+                    "reaction_add", timeout=60, check=_check_react
+                )
                 if reaction.emoji == EMOJI_CHECK_MARK_BUTTON:
                     await self._cmd_play(
                         message,
@@ -2352,7 +2366,7 @@ class MusicBot(discord.Client):
                         permissions,
                         leftover_args,
                         next_url,
-                        head
+                        head,
                     )
                     await self.safe_delete_message(msg)
                 elif reaction.emoji == EMOJI_CROSS_MARK_BUTTON:
@@ -2368,7 +2382,7 @@ class MusicBot(discord.Client):
             asyncio.ensure_future(
                 _prompt_for_playing(
                     f"This link contains a Playlist ID:\n`{song_url}`\n\nDo you want to queue the playlist too?",
-                    pl_url
+                    pl_url,
                 )
             )
 
@@ -2449,7 +2463,7 @@ class MusicBot(discord.Client):
                 permissions,
                 leftover_args,
                 song_url,
-                head
+                head,
             )
 
         if not valid_song_url and leftover_args:
@@ -2513,10 +2527,7 @@ class MusicBot(discord.Client):
                 )
 
             # ensure the extractor has been allowed via permissions.
-            if (
-                info.extractor not in permissions.extractors
-                and permissions.extractors
-            ):
+            if info.extractor not in permissions.extractors and permissions.extractors:
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-play-badextractor",
@@ -2527,7 +2538,6 @@ class MusicBot(discord.Client):
 
             # If the result has usable entries, we assume it is _type = playlist
             if "entries" in info and (info.playlist_count or info.entry_count):
-
                 await self._do_playlist_checks(player, author, info)
 
                 num_songs = info.playlist_count or info.entry_count
@@ -2541,7 +2551,6 @@ class MusicBot(discord.Client):
 
                 time_taken = time.time() - start_time
                 listlen = len(entry_list)
-                drop_count = num_songs - listlen
 
                 log.info(
                     "Processed {} of {} songs in {:.3f} seconds at {:.2f}s/song".format(
@@ -2573,7 +2582,9 @@ class MusicBot(discord.Client):
                 # youtube:playlist extractor but it's actually an entry
                 # ^ wish I had a URL for this one.
                 if info.get("extractor", "") == "youtube:playlist":
-                    log.noise("Extracted an entry with youtube:playlist as extractor key")
+                    log.noise(
+                        "Extracted an entry with youtube:playlist as extractor key"
+                    )
 
                 if (
                     permissions.max_song_length
@@ -2687,15 +2698,15 @@ class MusicBot(discord.Client):
                 info = await self.downloader.extract_info(
                     song_url, download=False, process=True
                 )
-            except Exception:
+            except Exception as e:
                 log.exceptions(f"Failed to get info from stream link: {song_url}")
                 raise exceptions.CommandError(e)
-            
+
             if not info or not info.is_stream:
                 raise exceptions.CommandError(
                     "We couldn't tell if this link is a real stream."
                 )
-            
+
             await player.playlist.add_stream_from_info(
                 info, channel=channel, author=author, head=False
             )
@@ -3049,7 +3060,7 @@ class MusicBot(discord.Client):
                 if streaming
                 else self.str.get("cmd-np-action-playing", "Playing")
             )
-            
+
             entry = player.current_entry
             entry_author = player.current_entry.meta.get("author", None)
 
@@ -3087,12 +3098,12 @@ class MusicBot(discord.Client):
                         name="Added By:", value=entry_author.name, inline=False
                     )
                 content.add_field(
-                    name="Progress", value=f"{prog_str}\n{prog_bar_str}\n\n", inline=False
+                    name="Progress",
+                    value=f"{prog_str}\n{prog_bar_str}\n\n",
+                    inline=False,
                 )
                 if len(entry.url) <= 1024:
-                    content.add_field(
-                        name="URL:", value=entry.url, inline=False
-                    )
+                    content.add_field(name="URL:", value=entry.url, inline=False)
                 if entry.thumbnail_url:
                     content.set_image(url=entry.thumbnail_url)
                 else:
@@ -3984,7 +3995,7 @@ class MusicBot(discord.Client):
             fcontent.write(f"# Title:  {info.title}\n".encode("utf8"))
             fcontent.write(f"# Total:  {total}\n".encode("utf8"))
             fcontent.write(f"# Extractor:  {info.extractor}\n\n".encode("utf8"))
-            
+
             for item in info.get_entries_objects():
                 # TODO: maybe add track-name as a comment?
                 url = item.get_playable_url()

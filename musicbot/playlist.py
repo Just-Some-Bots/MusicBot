@@ -1,20 +1,13 @@
 import datetime
 import logging
-import os.path
 from collections import deque
 from itertools import islice
 from random import shuffle
-from urllib.error import URLError
-
-# For the time being, youtube_dl is often slow and inconsistent
-# With this in mind, lets stick to the fork until it gets a dev
-from yt_dlp.utils import DownloadError, UnsupportedError
 
 from .constructs import Serializable
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
 from .lib.event_emitter import EventEmitter
-from .utils import get_header
 
 log = logging.getLogger(__name__)
 
@@ -83,13 +76,20 @@ class Playlist(EventEmitter, Serializable):
         # TODO: A bit more validation, "~stream some_url" should not just say :ok_hand:
 
         log.noise(f"Adding stream entry for URL:  {song_url}")
-        entry = StreamPlaylistEntry(self, song_url, title, destination=dest_url, thumb_url=info.thumbnail_url, **meta)
+        entry = StreamPlaylistEntry(
+            self,
+            song_url,
+            title,
+            destination=dest_url,
+            thumb_url=info.thumbnail_url,
+            **meta,
+        )
         self._add_entry(entry, head=head)
         return entry, len(self.entries)
 
     async def add_entry_from_info(self, info, *, head, **meta):
         """
-        Validates extracted info and adds media to be played. 
+        Validates extracted info and adds media to be played.
         This does not start the download of the song.
 
         :param info: The extraction data of the song to add to the playlist.
@@ -129,13 +129,12 @@ class Playlist(EventEmitter, Serializable):
                         )
 
                 elif (
-                    content_type.startswith("text/html")
-                    and info.extractor == "generic"
+                    content_type.startswith("text/html") and info.extractor == "generic"
                 ):
                     log.warning(
                         "Got text/html for content-type, this might be a stream."
                     )
-                    return await self.add_stream_from_info(info, head=head, **meta)  
+                    return await self.add_stream_from_info(info, head=head, **meta)
                     # TODO: Check for shoutcast/icecast
 
                 elif not content_type.startswith(("audio/", "video/")):
@@ -177,7 +176,7 @@ class Playlist(EventEmitter, Serializable):
 
         if author:
             author_perms = self.bot.permissions.for_user(author)
-        
+
         if head:
             entries.reverse()
 
@@ -188,16 +187,14 @@ class Playlist(EventEmitter, Serializable):
                 and author_perms.max_song_length
                 and item.duration > author_perms.max_song_length
             ):
-                log.debug(f"Ignoring song in entries by '{author}', duration longer than permitted maximum.")
+                log.debug(
+                    f"Ignoring song in entries by '{author}', duration longer than permitted maximum."
+                )
                 baditems += 1
                 continue
 
             try:
-                entry, pos = await self.add_entry_from_info(
-                    item,
-                    head=head,
-                    **meta
-                )
+                entry, pos = await self.add_entry_from_info(item, head=head, **meta)
                 entry_list.append(entry)
             except Exception as e:
                 baditems += 1
@@ -283,13 +280,17 @@ class Playlist(EventEmitter, Serializable):
                 try:
                     next_entry.get_ready_future()
                 except ExtractionError as e:
-                    log.warning("Extraction failed during pre-download for a playlist entry.")
+                    log.warning(
+                        "Extraction failed during pre-download for a playlist entry."
+                    )
                     self.emit("entry-failed", entry=next_entry, error=e)
 
         try:
             return await entry.get_ready_future()
         except ExtractionError as e:
-            log.warning("Extraction failed for a playlist entry. Moving to the next entry...")
+            log.warning(
+                "Extraction failed for a playlist entry. Moving to the next entry..."
+            )
             self.emit("entry-failed", entry=entry, error=e)
             return await self.get_next_entry()
 

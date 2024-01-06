@@ -30,7 +30,7 @@ ytdl_format_options_immutable = MappingProxyType(
         "quiet": True,
         "no_warnings": True,
         # extract_flat speeds up extract_info by only listing playlist entries rather than extracting them as well.
-        "extract_flat": 'in_playlist',
+        "extract_flat": "in_playlist",
         "default_search": "auto",
         "source_address": "0.0.0.0",
         "usenetrc": True,
@@ -149,7 +149,7 @@ class Downloader:
                         headers[new_key] = values[0]
             except Exception:
                 log.warning(f"Failed HEAD request for:  {test_url}")
-        
+
         data = await self._filtered_extract_info(song_subject, *args, **kwargs)
         if not data:
             raise ExtractionError("Song info extraction returned no data.")
@@ -185,7 +185,9 @@ class Downloader:
             # modify args to have ytdl return search data, only for singular tracks.
             # for albums & playlists, we want to return full playlist data rather than partial as above.
             if process:
-                data = await self.bot.spotify.get_spotify_ytdl_data(song_subject, process)
+                data = await self.bot.spotify.get_spotify_ytdl_data(
+                    song_subject, process
+                )
                 if data["_type"] == "url":
                     song_subject = data["search_terms"]
                 elif data["_type"] == "playlist":
@@ -195,7 +197,9 @@ class Downloader:
         try:
             data = await self.bot.loop.run_in_executor(
                 self.thread_pool,
-                functools.partial(self.unsafe_ytdl.extract_info, song_subject, *args, **kwargs),
+                functools.partial(
+                    self.unsafe_ytdl.extract_info, song_subject, *args, **kwargs
+                ),
             )
         # TODO:  handle streaming cases:
         # - DownloadError / UnsupportedError = Assume direct stream?
@@ -205,11 +209,15 @@ class Downloader:
 
         except NoSupportingHandlers:
             # due to how we allow search service strings we can't just encode this by default.
-            log.noise("Caught NoSupportingHandlers, trying again after replacing colon with space.")
+            log.noise(
+                "Caught NoSupportingHandlers, trying again after replacing colon with space."
+            )
             song_subject = song_subject.replace(":", " ")
             data = await self.bot.loop.run_in_executor(
                 self.thread_pool,
-                functools.partial(self.unsafe_ytdl.extract_info, song_subject, *args, **kwargs),
+                functools.partial(
+                    self.unsafe_ytdl.extract_info, song_subject, *args, **kwargs
+                ),
             )
 
         # make sure the ytdlp data is serializable to make it more predictable.
@@ -224,7 +232,9 @@ class Downloader:
             and type(data.get("entries", None)) is list
             and data.get("playlist_count", 0) == 1
         ):
-            log.noise("Extractor youtube:search returned single-entry result, replacing base info with entry info.")
+            log.noise(
+                "Extractor youtube:search returned single-entry result, replacing base info with entry info."
+            )
             entry_info = copy.deepcopy(data["entries"][0])
             for key in entry_info:
                 data[key] = entry_info[key]
@@ -244,6 +254,7 @@ class YtdlpResponseDict(UserDict):
     """
     UserDict wrapper for ytdlp extraction data with helpers for easier data reuse.
     """
+
     def __init__(self, data: Dict) -> None:
         super().__init__(data)
         self._propagate_input_subject()
@@ -257,7 +268,9 @@ class YtdlpResponseDict(UserDict):
 
         entries = self.data.get("entires", [])
         if type(entries) is not list:
-            log.warning("Entries is not a list in YtdlpResponseDict, set process=True to avoid this.")
+            log.warning(
+                "Entries is not a list in YtdlpResponseDict, set process=True to avoid this."
+            )
             return
 
         for entry in self.data.get("entries", []):
@@ -357,7 +370,7 @@ class YtdlpResponseDict(UserDict):
 
             # spotify images are in size desending order. though we don't use them at the moment.
             # elif self.extractor == "spotify:musicbot":
-                # turl = thumbs[0].get("url")
+            # turl = thumbs[0].get("url")
             elif len(thumbs):
                 turl = thumbs[0].get("url")
 
@@ -469,4 +482,3 @@ class YtdlpResponseDict(UserDict):
             #    return True
 
         return False
-        
