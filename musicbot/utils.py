@@ -3,10 +3,14 @@ import sys
 import logging
 import aiohttp
 import inspect
+import typing
 
 from typing import Union
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
+
+if typing.TYPE_CHECKING:
+    from discord import VoiceChannel
 
 log = logging.getLogger(__name__)
 
@@ -171,6 +175,28 @@ def _get_variable(name):
                 del frame
     finally:
         del stack
+
+
+def is_empty_voice_channel(
+    voice_channel: "VoiceChannel", *, exclude_me: bool = True, exclude_deaf: bool = True
+) -> bool:
+    def _check(member):
+        if exclude_me and member == voice_channel.guild.me:
+            return False
+
+        if (
+            member.voice
+            and exclude_deaf
+            and any([member.voice.deaf, member.voice.self_deaf])
+        ):
+            return False
+
+        if member.bot:
+            return False
+
+        return True
+
+    return not sum(1 for m in voice_channel.members if _check(m))
 
 
 def format_song_duration(ftd):
