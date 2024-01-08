@@ -430,6 +430,13 @@ class MusicBot(discord.Client):
         else:
             vc = None
 
+        # Webhooks can't be voice members. discord.User has no .voice attribute.
+        if isinstance(msg.author, discord.User):
+            raise exceptions.CommandError(
+                "Member is not voice-enabled and cannot use this command.",
+                expire_in=30,
+            )
+
         # If we've connected to a voice chat and we're in the same voice channel
         if not vc or (msg.author.voice and vc == msg.author.voice.channel):
             return True
@@ -752,6 +759,7 @@ class MusicBot(discord.Client):
         log.debug("Running on_player_pause")
         await self.update_now_playing_status()
         self.loop.create_task(self.handle_player_inactivity(player))
+        # TODO: if we manage to add seek functionality this might be wise.
         # await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_stop(self, player, **_):
@@ -790,7 +798,11 @@ class MusicBot(discord.Client):
         ):
             if not player.autoplaylist:
                 if not self.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check
+                    # TODO: When I add playlist expansion, make sure that's not happening during this check.
+                    # @Fae: Could lock this but it probably isn't needed.
+                    # - if `self.autoplaylist` is already empty, and the last entry was a playlist URL
+                    # - then queued songs from that URL go into the `player.playlist`, not into `self.autoplaylist`.
+                    # So if it's empty, it will stay that way unless someone is actively adding URLs when this fires.
                     log.warning("No playable songs in the autoplaylist, disabling.")
                     self.config.auto_playlist = False
                 else:
@@ -1166,6 +1178,7 @@ class MusicBot(discord.Client):
         return msg
 
     async def safe_delete_message(self, message, *, quiet=False):
+        # TODO: this could use a queue and some other handling.
         lfunc = log.debug if quiet else log.warning
 
         try:
@@ -2342,8 +2355,8 @@ class MusicBot(discord.Client):
         If a "compound" URL is detected, ask the user if they want the
         associated playlist to be queued as well.
         """
-        # TODO: maybe a bypass option for this check in config?
-        # TODO: this currently will queue the original video twice...
+        # TODO: maybe add config to auto yes or no and bypass this.
+        # TODO: this currently will queue the original video twice.
 
         async def _prompt_for_playing(prompt: str, next_url: str):
             msg = await self.safe_send_message(channel, prompt)
@@ -2668,8 +2681,6 @@ class MusicBot(discord.Client):
                 % self._get_guild_cmd_prefix(channel.guild)
             )
 
-        song_url = song_url.strip("<>")
-
         if (
             permissions.max_songs
             and player.playlist.count_for_user(author) >= permissions.max_songs
@@ -2693,19 +2704,22 @@ class MusicBot(discord.Client):
 
         async with channel.typing():
             # TODO: find more streams to test.
-            # this was previously was just loaded directly into the playlist.
+            # NOTE: this WILL return a link if ytdlp does not support the service.
             try:
                 info = await self.downloader.extract_info(
-                    song_url, download=False, process=True
+                    song_url, download=False, process=True, as_stream=True
                 )
             except Exception as e:
-                log.exceptions(f"Failed to get info from stream link: {song_url}")
+                log.exceptions(
+                    f"Failed to get info from the stream request: {song_url}"
+                )
                 raise exceptions.CommandError(e)
 
-            if not info or not info.is_stream:
+            if info.has_entries and info.playlist_count:
                 raise exceptions.CommandError(
-                    "We couldn't tell if this link is a real stream."
+                    "Streaming playlists is not yet supported."
                 )
+                # TODO: could process these and force them to be stream entries...
 
             await player.playlist.add_stream_from_info(
                 info, channel=channel, author=author, head=False
@@ -2834,7 +2848,6 @@ class MusicBot(discord.Client):
         await channel.typing()
 
         try:
-            # TODO: this call should be fine.  Test this command.
             info = await self.downloader.extract_info(
                 search_query, download=False, process=True
             )
@@ -3440,11 +3453,13 @@ class MusicBot(discord.Client):
                 )
 
         current_entry = player.current_entry
+        entry_author = current_entry.meta.get("author", None)
+        entry_author_id = 0
+        if entry_author:
+            entry_author_id = entry_author.id
 
         permission_force_skip = permissions.instaskip or (
-            self.config.allow_author_skip
-            and author == current_entry.meta.get("author", None)
-            # TODO: Is there a case where this fails due to changes in author objects?
+            self.config.allow_author_skip and author.id == entry_author_id
         )
         force_skip = param.lower() in ["force", "f"]
 
@@ -4069,11 +4084,10 @@ class MusicBot(discord.Client):
             sdata.writelines(d.encode("utf8") + b"\n" for d in data)
             sdata.seek(0)
 
-            # TODO: Fix naming (Discord20API-ids.txt)
             await author.send(
                 file=discord.File(
                     sdata,
-                    filename="%s-ids-%s.txt" % (guild.name.replace(" ", "_"), cat),
+                    filename="%s-ids-%s.txt" % (slugify(guild.name), cat),
                 )
             )
 
@@ -4406,6 +4420,10 @@ class MusicBot(discord.Client):
             result = await result
 
         return Response(codeblock.format(result))
+
+    async def cmd_testready(self, message, channel):
+        # pointedly undocumented command that just echos text :)
+        await self.safe_send_message(channel, "!!RUN_TESTS!!", expire_in=30)
 
     async def on_message(self, message):
         await self.wait_until_ready()

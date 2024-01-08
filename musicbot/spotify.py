@@ -435,10 +435,6 @@ class Spotify:
         """Get an album's info from its Spotify ID"""
         return await self.make_api_req(f"albums/{album_id}")
 
-    async def get_album_tracks(self, album_id: str) -> Dict:
-        """Get an album's tracks info from its Spotify ID"""
-        return await self.make_api_req(f"albums/{album_id}")
-
     async def get_playlist_object_complete(self, list_id: str) -> SpotifyPlaylist:
         """Fetch a playlist and all its tracks from Spotify API, returned as a SpotifyPlaylist object."""
         pldata = await self.get_playlist(list_id)
@@ -476,10 +472,6 @@ class Spotify:
     async def get_playlist(self, list_id: str) -> Dict:
         """Get a playlist's info from its Spotify ID"""
         return await self.make_api_req(f"playlists/{list_id}")
-
-    async def get_playlist_tracks(self, list_id: str) -> Dict:
-        """Get a list of a playlist's tracks from its Spotify ID"""
-        return await self.make_api_req(f"playlists/{list_id}/tracks")
 
     async def make_api_req(self, endpoint: str) -> Dict:
         """Proxy method for making a Spotify req using the correct Auth headers"""

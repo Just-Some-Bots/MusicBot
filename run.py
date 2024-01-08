@@ -199,8 +199,7 @@ def bugger_off(msg="Press enter to continue . . .", code=1):
 
 def sanity_checks(optional=True):
     log.info("Starting sanity checks")
-    ## Required
-
+    """Required Checks"""
     # Make sure we're on Python 3.8+
     req_ensure_py3()
 
@@ -218,7 +217,7 @@ def sanity_checks(optional=True):
 
     log.info("Required checks passed.")
 
-    ## Optional
+    """Optional Checks"""
     if not optional:
         return
 

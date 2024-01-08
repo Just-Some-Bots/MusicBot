@@ -5,9 +5,10 @@ from itertools import islice
 from random import shuffle
 
 from .constructs import Serializable
-from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
 from .lib.event_emitter import EventEmitter
+
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +23,6 @@ class Playlist(EventEmitter, Serializable):
         self.bot = bot
         self.loop = bot.loop
         self.aiosession = bot.session
-        self.downloader = bot.downloader
         self.entries = deque()
 
     def __iter__(self):
@@ -55,33 +55,17 @@ class Playlist(EventEmitter, Serializable):
         self.entries.rotate(index)
 
     async def add_stream_from_info(self, info, *, head, **meta):
-        song_url = info.get("__input_subject", None)
-
         if (
             info.get("is_live") is None and info.get("extractor", None) != "generic"
         ):  # wew hacky
             raise ExtractionError("This is not a stream.")
 
-        dest_url = song_url
-        if info.get("extractor"):
-            dest_url = info.get("url")
-
-        if (
-            info.get("extractor", None) == "twitch:stream"
-        ):  # may need to add other twitch types
-            title = info.get("description")
-        else:
-            title = info.get("title", "Untitled")
-
         # TODO: A bit more validation, "~stream some_url" should not just say :ok_hand:
 
-        log.noise(f"Adding stream entry for URL:  {song_url}")
+        log.noise(f"Adding stream entry for URL:  {info.url}")
         entry = StreamPlaylistEntry(
             self,
-            song_url,
-            title,
-            destination=dest_url,
-            thumb_url=info.thumbnail_url,
+            info,
             **meta,
         )
         self._add_entry(entry, head=head)
@@ -146,15 +130,7 @@ class Playlist(EventEmitter, Serializable):
 
         log.noise(f"Adding URLPlaylistEntry for: {info.get('__input_subject')}")
         # TODO: push all the info into entry and leave it there...
-        entry = URLPlaylistEntry(
-            self,
-            info.get_playable_url(),
-            info.title or "Untitled",
-            info.get("duration", None) or None,
-            self.downloader.ytdl.prepare_filename(info.data),
-            info.thumbnail_url,
-            **meta,
-        )
+        entry = URLPlaylistEntry(self, info, **meta)
         self._add_entry(entry, head=head)
         return entry, (1 if head else len(self.entries))
 
@@ -180,6 +156,7 @@ class Playlist(EventEmitter, Serializable):
         if head:
             entries.reverse()
 
+        track_number = 1
         for item in entries:
             # Exclude entries over max permitted duration.
             if (
@@ -193,6 +170,11 @@ class Playlist(EventEmitter, Serializable):
                 baditems += 1
                 continue
 
+            # Soundcloud playlists don't get titles in flat extraction. A bug maybe?
+            # Anyway we make a temp title here, the real one is fetched at play.
+            if "title" in info and "title" not in item:
+                item["title"] = f"{info.title} - #{track_number}"
+
             try:
                 entry, pos = await self.add_entry_from_info(item, head=head, **meta)
                 entry_list.append(entry)
@@ -200,6 +182,7 @@ class Playlist(EventEmitter, Serializable):
                 baditems += 1
                 log.warning("Could not add item", exc_info=e)
                 log.debug("Item: {}".format(item), exc_info=True)
+            track_number += 1
 
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
@@ -262,6 +245,32 @@ class Playlist(EventEmitter, Serializable):
     def remove_entry(self, index):
         del self.entries[index]
 
+    async def _try_get_entry_future(self, entry, predownload=False):
+        """gracefully try to get the entry ready future, or start pre-downloading one."""
+        moving_on = " Moving to the next entry..."
+        if predownload:
+            moving_on = ""
+
+        try:
+            if predownload:
+                entry.get_ready_future()
+            else:
+                return await entry.get_ready_future()
+
+        except ExtractionError as e:
+            log.warning("Extraction failed for a playlist entry.{}".format(moving_on))
+            self.emit("entry-failed", entry=entry, error=e)
+            if not predownload:
+                return await self.get_next_entry()
+
+        except AttributeError as e:
+            log.warning(
+                "Deserialize probably failed for a playlist entry.{}".format(moving_on)
+            )
+            self.emit("entry-failed", entry=entry, error=e)
+            if not predownload:
+                return await self.get_next_entry()
+
     async def get_next_entry(self, predownload_next=True):
         """
         A coroutine which will return the next song or None if no songs left to play.
@@ -277,22 +286,9 @@ class Playlist(EventEmitter, Serializable):
         if predownload_next:
             next_entry = self.peek()
             if next_entry:
-                try:
-                    next_entry.get_ready_future()
-                except ExtractionError as e:
-                    log.warning(
-                        "Extraction failed during pre-download for a playlist entry."
-                    )
-                    self.emit("entry-failed", entry=next_entry, error=e)
+                await self._try_get_entry_future(next_entry, predownload_next)
 
-        try:
-            return await entry.get_ready_future()
-        except ExtractionError as e:
-            log.warning(
-                "Extraction failed for a playlist entry. Moving to the next entry..."
-            )
-            self.emit("entry-failed", entry=entry, error=e)
-            return await self.get_next_entry()
+        return await self._try_get_entry_future(entry)
 
     def peek(self):
         """
