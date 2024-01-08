@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-
 import asyncio
 import os
 import ssl
@@ -14,6 +12,13 @@ import subprocess
 
 from shutil import disk_usage, rmtree
 from base64 import b64decode
+
+from musicbot.exceptions import (
+    HelpfulError,
+    TerminateSignal,
+    RestartSignal,
+    ReloadSignal,
+)
 
 try:
     import aiohttp
@@ -489,25 +494,20 @@ async def main():
                 log.exception("Unknown ImportError, exiting.")
                 break
 
-        except Exception as e:
-            if hasattr(e, "__module__") and e.__module__ == "musicbot.exceptions":
-                if e.__class__.__name__ == "HelpfulError":
-                    log.info(e.message)
-                    break
+        except HelpfulError as e:
+            log.info(e.message)
+            break
 
-                elif e.__class__.__name__ == "TerminateSignal":
-                    exit_signal = e
-                    break
+        except (RestartSignal, TerminateSignal) as e:
+            exit_signal = e
+            break
 
-                elif e.__class__.__name__ == "RestartSignal":
-                    exit_signal = e
-                    break
+        except ReloadSignal:
+            loops = 0
+            pass
 
-                elif e.__class__.__name__ == "ReloadSignal":
-                    loops = 0
-                    pass
-            else:
-                log.exception("Error starting bot")
+        except Exception:
+            log.exception("Error starting bot")
 
         finally:
             if m and (m.session or m.http.connector):
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop_policy().get_event_loop()
     exit_sig = loop.run_until_complete(main())
     if exit_sig:
-        if exit_sig.__class__.__name__ == "RestartSignal":
+        if isinstance(exit_sig, RestartSignal):
             respawn_bot_process()
-        elif exit_sig.__class__.__name__ == "TerminateSignal":
+        elif isinstance(exit_sig, TerminateSignal):
             sys.exit(exit_sig.exit_code)
