@@ -1147,13 +1147,6 @@ class MusicBot(discord.Client):
                 lfunc("Sending message instead")
                 return await self.safe_send_message(message.channel, new)
 
-    async def restart(self):
-        self.exit_signal = exceptions.RestartSignal()
-        await self.close()
-
-    def restart_threadsafe(self):
-        asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
-
     async def _cleanup(self):
         try:  # make sure discord.Client is closed.
             await self.close()  # changed in d.py 2.0
@@ -1226,7 +1219,7 @@ class MusicBot(discord.Client):
             await self.logout()
 
         elif issubclass(ex_type, exceptions.Signal):
-            self.exit_signal = ex_type
+            self.exit_signal = ex
             await self.logout()
 
         else:
@@ -4572,18 +4565,21 @@ class MusicBot(discord.Client):
     async def cmd_restart(self, _player, channel, leftover_args, opt="soft"):
         """
         Usage:
-            {command_prefix}restart [soft|full]
+            {command_prefix}restart [soft|full|upgrade|upgit|uppip]
 
         Restarts the bot, uses soft restart by default.
-        soft option reloads config without reloading source or dependencies.
-        full option will reload source code and config from disk again.
+        `soft` reloads config without reloading bot code.
+        `full` restart reloading source code and configs.
+        `uppip` upgrade pip packages then fully restarts.
+        `upgit` upgrade bot with git then fully restarts.
+        `upgrade` upgrade bot and packages then restarts.
         """
         opt = opt.strip().lower()
-        if opt not in ["soft", "full"]:
+        if opt not in ["soft", "full", "upgrade", "uppip", "upgit"]:
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-restart-invalid-arg",
-                    "Invalid option given, use soft or full.",
+                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit",
                 ),
                 expire_in=30,
             )
@@ -4593,7 +4589,9 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-soft",
                     "{emoji} Restarting current instance...",
-                ).format(emoji="\N{WAVING HAND SIGN}"),
+                ).format(
+                    emoji="\u21A9\uFE0F",  # Right arrow curving left
+                ),
             )
         elif opt == "full":
             await self.safe_send_message(
@@ -4601,7 +4599,39 @@ class MusicBot(discord.Client):
                 self.str.get(
                     "cmd-restart-full",
                     "{emoji} Restarting bot process...",
-                ).format(emoji="\N{WAVING HAND SIGN}"),
+                ).format(
+                    emoji="\U0001F504",  # counterclockwise arrows
+                ),
+            )
+        elif opt == "uppip":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-uppip",
+                    "{emoji} Will try to upgrade required pip packages and restart the bot...",
+                ).format(
+                    emoji="\U0001F4E6",  # package / box
+                ),
+            )
+        elif opt == "upgit":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgit",
+                    "{emoji} Will try to update bot code with git and restart the bot...",
+                ).format(
+                    emoji="\U0001F5C3\uFE0F",  # card box
+                ),
+            )
+        elif opt == "upgrade":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgrade",
+                    "{emoji} Will try to upgrade everything and restart the bot...",
+                ).format(
+                    emoji="\U0001F310",  # globe with meridians
+                ),
             )
 
         if _player and _player.is_paused:
@@ -4609,9 +4639,21 @@ class MusicBot(discord.Client):
 
         await self.disconnect_all_voice_clients()
         if opt == "soft":
-            raise exceptions.ReloadSignal()
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_SOFT)
         elif opt == "full":
-            raise exceptions.RestartSignal()
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_FULL)
+        elif opt == "upgrade":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_ALL
+            )
+        elif opt == "uppip":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_PIP
+            )
+        elif opt == "upgit":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_GIT
+            )
 
     async def cmd_shutdown(self, channel):
         """

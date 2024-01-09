@@ -1,5 +1,6 @@
 import shutil
 import textwrap
+from enum import Enum
 
 
 # Base class for exceptions
@@ -122,22 +123,32 @@ class HelpfulWarning(HelpfulError):
     pass
 
 
+# Signal codes used in RestartSignal
+class RestartCode(Enum):
+    RESTART_SOFT = 0
+    RESTART_FULL = 1
+    RESTART_UPGRADE_ALL = 2
+    RESTART_UPGRADE_PIP = 3
+    RESTART_UPGRADE_GIT = 4
+
+
 # Base class for control signals
 class Signal(Exception):
     pass
 
 
-# signal to reload the bot
-class ReloadSignal(Signal):
-    pass
-
-
-# signal to restart the bot
+# signal to restart or reload the bot
 class RestartSignal(Signal):
-    pass
+    def __init__(self, code: RestartCode = RestartCode.RESTART_SOFT):
+        self.restart_code = code
+
+    def get_code(self) -> int:
+        return self.restart_code.value
+
+    def get_name(self) -> str:
+        return self.restart_code.name
 
 
 # signal to end the bot "gracefully"
 class TerminateSignal(Signal):
     exit_code: int = 0
-    pass
