@@ -2021,40 +2021,6 @@ class MusicBot(discord.Client):
             head=False,
         )
 
-    async def cmd_shuffleplay(
-        self, message, _player, channel, author, permissions, leftover_args, song_url
-    ):
-        """
-        Usage:
-            {command_prefix}shuffleplay playlist_link
-        Adds a playlist to be shhuffled then played. Shorthand for doing {command_prefix}play and then {command_prefix}shuffle
-        If nothing is playing, then the first few songs will be played in order while the rest of the playlist downloads.
-        """
-        await self._do_cmd_unpause_check(_player, channel)
-
-        # TO-DO, don't play the first few songs so the entire playlist can be shuffled
-        # In my test run it's only 2-3 songs that get played in the order this is because of how the _cmd_play works.
-        player = self.get_player_in(channel.guild)
-
-        await self._cmd_play(
-            message,
-            _player,
-            channel,
-            author,
-            permissions,
-            leftover_args,
-            song_url,
-            head=False,
-        )
-
-        player.playlist.shuffle()
-        return Response(
-            self.str.get("cmd-shuffleplay-shuffled", "Shuffled {0}'s playlist").format(
-                message.guild
-            ),
-            delete_after=30,
-        )
-
     async def cmd_playnext(
         self, message, _player, channel, author, permissions, leftover_args, song_url
     ):
