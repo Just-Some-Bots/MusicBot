@@ -51,17 +51,12 @@ from .utils import (
     format_size_from_bytes,
 )
 
-load_opus_lib()
-
 log = logging.getLogger(__name__)
-
-intents = discord.Intents.all()
-intents.typing = False
-intents.presences = False
 
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None, aliases_file=None):
+        load_opus_lib()
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
         except Exception:
@@ -136,6 +131,9 @@ class MusicBot(discord.Client):
         }
         self.server_specific_data = defaultdict(ssd_defaults.copy)
 
+        intents = discord.Intents.all()
+        intents.typing = False
+        intents.presences = False
         super().__init__(intents=intents)
 
     async def _doBotInit(self, use_certifi: bool = False):
@@ -405,7 +403,8 @@ class MusicBot(discord.Client):
 
     async def _wait_delete_msg(self, message, after):
         await asyncio.sleep(after)
-        await self.safe_delete_message(message, quiet=True)
+        if not self.is_closed():
+            await self.safe_delete_message(message, quiet=True)
 
     async def _check_ignore_non_voice(self, msg):
         if msg.guild.me.voice:
@@ -1148,28 +1147,36 @@ class MusicBot(discord.Client):
                 lfunc("Sending message instead")
                 return await self.safe_send_message(message.channel, new)
 
-    async def restart(self):
-        self.exit_signal = exceptions.RestartSignal()
-        await self.close()
-
-    def restart_threadsafe(self):
-        asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
-
     async def _cleanup(self):
-        try:
+        try:  # make sure discord.Client is closed.
             await self.close()  # changed in d.py 2.0
         except Exception:
-            log.exception("Issue while closing discord client connection.")
+            log.exception("Issue while closing discord client session.")
             pass
-        try:
+
+        try:  # make sure discord.http.connector is closed.
+            # This may be a bug in aiohttp or within discord.py handling of it.
+            # Have read aiohttp 4.x is supposed to fix this, but have not verified.
+            if self.http.connector:
+                await self.http.connector.close()
+        except Exception:
+            log.exception("Issue while closing discord aiohttp connector.")
+            pass
+
+        try:  # make sure our aiohttp session is closed.
             await self.session.close()
         except Exception:
-            log.exception("Issue while cleaning up aiohttp session.")
+            log.exception("Issue while closing our aiohttp session.")
             pass
 
-        pending = asyncio.all_tasks(loop=self.loop)
+        # now cancel all pending tasks, except for run.py::main()
+        for task in asyncio.all_tasks(loop=self.loop):
+            if (
+                task.get_coro().__name__ == "main"
+                and task.get_name().lower() == "task-1"
+            ):
+                continue
 
-        for task in pending:
             task.cancel()
             try:
                 await task
@@ -1212,7 +1219,7 @@ class MusicBot(discord.Client):
             await self.logout()
 
         elif issubclass(ex_type, exceptions.Signal):
-            self.exit_signal = ex_type
+            self.exit_signal = ex
             await self.logout()
 
         else:
@@ -4521,27 +4528,98 @@ class MusicBot(discord.Client):
         await self.disconnect_voice_client(guild)
         return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
 
-    async def cmd_restart(self, channel):
+    async def cmd_restart(self, _player, channel, leftover_args, opt="soft"):
         """
         Usage:
-            {command_prefix}restart
+            {command_prefix}restart [soft|full|upgrade|upgit|uppip]
 
-        Restarts the bot.
-        Will not properly load new dependencies or file updates unless fully shutdown
-        and restarted.
+        Restarts the bot, uses soft restart by default.
+        `soft` reloads config without reloading bot code.
+        `full` restart reloading source code and configs.
+        `uppip` upgrade pip packages then fully restarts.
+        `upgit` upgrade bot with git then fully restarts.
+        `upgrade` upgrade bot and packages then restarts.
         """
-        await self.safe_send_message(
-            channel,
-            "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
-            "or its dependencies, you need to restart the bot properly, rather than using this command.",
-        )
+        opt = opt.strip().lower()
+        if opt not in ["soft", "full", "upgrade", "uppip", "upgit"]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-restart-invalid-arg",
+                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit",
+                ),
+                expire_in=30,
+            )
+        elif opt == "soft":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-soft",
+                    "{emoji} Restarting current instance...",
+                ).format(
+                    emoji="\u21A9\uFE0F",  # Right arrow curving left
+                ),
+            )
+        elif opt == "full":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-full",
+                    "{emoji} Restarting bot process...",
+                ).format(
+                    emoji="\U0001F504",  # counterclockwise arrows
+                ),
+            )
+        elif opt == "uppip":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-uppip",
+                    "{emoji} Will try to upgrade required pip packages and restart the bot...",
+                ).format(
+                    emoji="\U0001F4E6",  # package / box
+                ),
+            )
+        elif opt == "upgit":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgit",
+                    "{emoji} Will try to update bot code with git and restart the bot...",
+                ).format(
+                    emoji="\U0001F5C3\uFE0F",  # card box
+                ),
+            )
+        elif opt == "upgrade":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgrade",
+                    "{emoji} Will try to upgrade everything and restart the bot...",
+                ).format(
+                    emoji="\U0001F310",  # globe with meridians
+                ),
+            )
 
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
+        if _player and _player.is_paused:
+            _player.resume()
 
         await self.disconnect_all_voice_clients()
-        raise exceptions.RestartSignal()
+        if opt == "soft":
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_SOFT)
+        elif opt == "full":
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_FULL)
+        elif opt == "upgrade":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_ALL
+            )
+        elif opt == "uppip":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_PIP
+            )
+        elif opt == "upgit":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_GIT
+            )
 
     async def cmd_shutdown(self, channel):
         """
