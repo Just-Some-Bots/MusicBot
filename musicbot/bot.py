@@ -104,9 +104,7 @@ class MusicBot(discord.Client):
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.filecache = AudioFileCache(self)
-        self.downloader = downloader.Downloader(
-            self, download_folder=self.config.audio_cache_path
-        )
+        self.downloader = downloader.Downloader(self)
 
         log.info("Starting MusicBot {}".format(BOTVERSION))
 
@@ -160,7 +158,7 @@ class MusicBot(discord.Client):
                 headers={"User-Agent": self.http.user_agent}
             )
 
-        self.spotify = None
+        self.spotify: Spotify
         if self.config._spotify:
             try:
                 self.spotify = Spotify(
@@ -2138,7 +2136,7 @@ class MusicBot(discord.Client):
             leftover_args,
             song_url,
             head=False,
-            shuffle_entries=True
+            shuffle_entries=True,
         )
 
         return Response(
@@ -2306,7 +2304,7 @@ class MusicBot(discord.Client):
 
         Swaps the location of a song within the playlist.
         """
-        # TODO: this command needs some tlc. args renamed, better checks.
+        # TODO: move command needs some tlc. args renamed, better checks.
         player = self.get_player_in(channel.guild)
         if not player:
             raise exceptions.CommandError(
@@ -2434,7 +2432,7 @@ class MusicBot(discord.Client):
         leftover_args,
         song_url,
         head,
-        shuffle_entries: bool = False
+        shuffle_entries: bool = False,
     ):
         """
         This function handles actually playing any given URL or song subject.
@@ -2575,7 +2573,7 @@ class MusicBot(discord.Client):
                     expire_in=30,
                 )
 
-            # If the result has usable entries, we assume it is _type = playlist
+            # If the result has usable entries, we assume it is a playlist
             if "entries" in info and (info.playlist_count or info.entry_count):
                 await self._do_playlist_checks(player, author, info)
 

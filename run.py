@@ -118,7 +118,10 @@ class PIP(object):
 
     @classmethod
     def get_requirements(cls, file="requirements.txt"):
-        from pip.req import parse_requirements
+        try:  # for pip >= 10
+            from pip._internal.req import parse_requirements
+        except ImportError:  # for pip <= 9.0.3
+            from pip.req import parse_requirements
 
         return list(parse_requirements(file))
 

@@ -6,7 +6,7 @@ import logging
 import re
 import time
 
-from typing import List, Dict, Optional, NoReturn
+from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 
 from .exceptions import SpotifyError
@@ -18,7 +18,10 @@ class SpotifyObject:
     """Base class for parsed spotify response objects."""
 
     def __init__(self, data: Dict, origin_url: Optional[str] = None) -> None:
-        self.data = data
+        self.origin_url: Optional[str]
+
+        self.data: Dict = data
+
         if origin_url:
             self.origin_url = origin_url
         else:
@@ -48,28 +51,31 @@ class SpotifyObject:
         return self.data.get("type", None)
 
     @property
-    def spotify_id(self) -> Optional[str]:
+    def spotify_id(self) -> str:
         """Returns the Spotify ID of the object, as reported by the API data."""
-        return self.data.get("id", None)
+        return self.data.get("id", "")
 
     @property
-    def spotify_url(self) -> Optional[str]:
+    def spotify_url(self) -> str:
         """Returns the spotify external url for this object, if it exists in the API data."""
-        exurls = self.data.get("external_urls", None)
+        exurls = self.data.get("external_urls", "")
         if exurls:
-            return exurls.get("spotify", None)
-        return None
+            return exurls.get("spotify", "")
+        return ""
 
     @property
-    def spotify_uri(self) -> Optional[str]:
-        return self.data.get("uri", None)
+    def spotify_uri(self) -> str:
+        """Returns the "Spotify URI" for this object if available."""
+        return self.data.get("uri", "")
 
     @property
-    def name(self) -> Optional[str]:
-        return self.data.get("name", None)
+    def name(self) -> str:
+        """Returns the track/playlist/album name given by spotify."""
+        return self.data.get("name", "")
 
     @property
     def ytdl_type(self) -> str:
+        """A suitable string for ytdlp _type field."""
         return "url" if self.spotify_type == "track" else "playlist"
 
     def to_ytdl_dict(self) -> Dict:
@@ -143,6 +149,7 @@ class SpotifyTrack(SpotifyObject):
         return ""
 
     def to_ytdl_dict(self, as_single: bool = True) -> Dict:
+        url: Optional[str]
         if as_single:
             url = self.get_track_search_string("ytsearch:{0} {1}")
         else:
@@ -166,11 +173,11 @@ class SpotifyAlbum(SpotifyObject):
         if not SpotifyObject.is_album_data(album_data):
             raise ValueError("Invalid album_data, must be of type 'playlist'")
         super().__init__(album_data, origin_url)
-        self._track_objects = []
+        self._track_objects: List[SpotifyTrack] = []
 
         self._create_track_objects()
 
-    def _create_track_objects(self) -> NoReturn:
+    def _create_track_objects(self) -> None:
         tracks_data = self.data.get("tracks", None)
         if not tracks_data:
             raise ValueError("Invalid album_data, missing tracks key")
@@ -226,17 +233,15 @@ class SpotifyAlbum(SpotifyObject):
 class SpotifyPlaylist(SpotifyObject):
     """Playlist object with all or partial tracks, as parsed from spotify API response data."""
 
-    def __init__(
-        self, playlist_data: Dict, origin_url: Optional[str] = None
-    ) -> NoReturn:
+    def __init__(self, playlist_data: Dict, origin_url: Optional[str] = None) -> None:
         if not SpotifyObject.is_playlist_data(playlist_data):
             raise ValueError("Invalid playlist_data, must be of type 'playlist'")
         super().__init__(playlist_data, origin_url)
-        self._track_objects = []
+        self._track_objects: List[SpotifyTrack] = []
 
         self._create_track_objects()
 
-    def _create_track_objects(self) -> NoReturn:
+    def _create_track_objects(self) -> None:
         tracks_data = self.data.get("tracks", None)
         if not tracks_data:
             raise ValueError("Invalid playlist_data, missing tracks key")
@@ -302,7 +307,7 @@ class Spotify:
         client_id: str,
         client_secret: str,
         aiosession: aiohttp.ClientSession,
-        loop: asyncio.AbstractEventLoop = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         self.client_id = client_id
         self.client_secret = client_secret
@@ -311,7 +316,7 @@ class Spotify:
         self.aiosession = aiosession
         self.loop = loop if loop else asyncio.get_event_loop()
 
-        self._token = None
+        self._token: Optional[Dict[str, Any]] = None
 
         self.max_token_tries = 2
 
@@ -360,6 +365,7 @@ class Spotify:
     async def get_spotify_ytdl_data(
         self, spotify_url: str, process: bool = False
     ) -> Dict:
+        data: SpotifyObject
         parts = Spotify.url_to_parts(spotify_url)
         obj_type = parts[1]
         spotify_id = parts[-1]
@@ -479,7 +485,9 @@ class Spotify:
         token = await self._get_token()
         return await self._make_get(url, headers={"Authorization": f"Bearer {token}"})
 
-    async def _make_get(self, url: str, headers: Dict = None) -> Dict:
+    async def _make_get(
+        self, url: str, headers: Optional[Dict[str, str]] = None
+    ) -> Dict:
         """Makes a GET request and returns the results"""
         async with self.aiosession.get(url, headers=headers) as r:
             if r.status != 200:
@@ -490,7 +498,9 @@ class Spotify:
                 )
             return await r.json()
 
-    async def _make_post(self, url: str, payload, headers: Dict = None) -> Dict:
+    async def _make_post(
+        self, url: str, payload, headers: Optional[Dict[str, str]] = None
+    ) -> Dict:
         """Makes a POST request and returns the results"""
         async with self.aiosession.post(url, data=payload, headers=headers) as r:
             if r.status != 200:
@@ -521,7 +531,7 @@ class Spotify:
 
     async def _get_token(self) -> str:
         """Gets the token or creates a new one if expired"""
-        if self._is_token_valid():
+        if self._is_token_valid() and self._token:
             return self._token["access_token"]
 
         if self.guest_mode:

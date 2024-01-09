@@ -2,19 +2,23 @@ import os
 import copy
 import logging
 import functools
-import yt_dlp as youtube_dl
+import yt_dlp as youtube_dl  # type: ignore
 
 from collections import UserDict
 from concurrent.futures import ThreadPoolExecutor
 from types import MappingProxyType
-from typing import NoReturn, Optional, Any, List, Dict
+from typing import TYPE_CHECKING, Optional, Any, List, Dict
 from pprint import pformat
-from yt_dlp.networking.exceptions import NoSupportingHandlers
-from yt_dlp.utils import UnsupportedError, DownloadError
+from yt_dlp.networking.exceptions import NoSupportingHandlers  # type: ignore
+from yt_dlp.utils import UnsupportedError, DownloadError  # type: ignore
 
 from .exceptions import ExtractionError
 from .spotify import Spotify
 from .utils import get_header
+
+if TYPE_CHECKING:
+    from .bot import MusicBot
+
 
 log = logging.getLogger(__name__)
 
@@ -53,18 +57,20 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 
 class Downloader:
-    def __init__(self, bot, download_folder=None):
-        self.bot = bot
+    def __init__(self, bot: "MusicBot"):
+        self.bot: "MusicBot" = bot
+        self.download_folder: str = bot.config.audio_cache_path
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
-        self.download_folder = download_folder
 
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
 
-        if download_folder:
+        if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
             otmpl = ytdl_format_options["outtmpl"]
-            ytdl_format_options["outtmpl"] = os.path.join(download_folder, otmpl)
+            ytdl_format_options["outtmpl"] = os.path.join(
+                self.download_folder, str(otmpl)
+            )
 
         self.unsafe_ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
         self.safe_ytdl = youtube_dl.YoutubeDL(
@@ -136,8 +142,8 @@ class Downloader:
             if field in data:
                 data[field] = redacted_str
 
-        if log.getEffectiveLevel() <= logging.NOISY:
-            log.noise(f"Sanitized YTDL Extraction Info:\n{pformat(data)}")
+        if log.getEffectiveLevel() <= logging.NOISY:  # type: ignore[attr-defined]
+            log.noise(f"Sanitized YTDL Extraction Info:\n{pformat(data)}")  # type: ignore[attr-defined]
         else:
             log.debug(f"Sanitized YTDL Extraction Info:  {data}")
 
@@ -194,7 +200,7 @@ class Downloader:
         :returns: YtdlpResponseDict containing sanitized extraction data.
         :raises: YoutubeDLError as base exception.
         """
-        log.noise(f"Called extract_info with:  '{song_subject}', {args}, {kwargs}")
+        log.noise(f"Called extract_info with:  '{song_subject}', {args}, {kwargs}")  # type: ignore[attr-defined]
         as_stream_url = kwargs.pop("as_stream", False)
 
         # handle extracting spotify links before ytdl get ahold of them.
@@ -251,7 +257,7 @@ class Downloader:
         except NoSupportingHandlers:
             # due to how we allow search service strings we can't just encode this by default.
             # on the other hand, this method prevents cmd_stream from taking search strings.
-            log.noise(
+            log.noise(  # type: ignore[attr-defined]
                 "Caught NoSupportingHandlers, trying again after replacing colon with space."
             )
             song_subject = song_subject.replace(":", " ")
@@ -274,7 +280,7 @@ class Downloader:
             and type(data.get("entries", None)) is list
             and data.get("playlist_count", 0) == 1
         ):
-            log.noise(
+            log.noise(  # type: ignore[attr-defined]
                 "Extractor youtube:search returned single-entry result, replacing base info with entry info."
             )
             entry_info = copy.deepcopy(data["entries"][0])
@@ -285,7 +291,7 @@ class Downloader:
         return data
 
     async def safe_extract_info(self, *args, **kwargs):
-        log.noise(f"Called safe_extract_info with:  {args}, {kwargs}")
+        log.noise(f"Called safe_extract_info with:  {args}, {kwargs}")  # type: ignore[attr-defined]
         return await self.bot.loop.run_in_executor(
             self.thread_pool,
             functools.partial(self.safe_ytdl.extract_info, *args, **kwargs),
@@ -304,7 +310,7 @@ class YtdlpResponseDict(UserDict):
         super().__init__(data)
         self._propagate_entry_data()
 
-    def _propagate_entry_data(self) -> NoReturn:
+    def _propagate_entry_data(self) -> None:
         """ensure the `__input_subject` key is set on all child entries."""
         subject = self.get("__input_subject", None)
         if not subject:
@@ -460,9 +466,9 @@ class YtdlpResponseDict(UserDict):
         return self.data.get("url", "")
 
     @property
-    def webpage_url(self) -> Optional[str]:
+    def webpage_url(self) -> str:
         """returns value for data key 'webpage_url' or None"""
-        return self.data.get("webpage_url", None)
+        return self.data.get("webpage_url", "")
 
     @property
     def webpage_basename(self) -> Optional[str]:
@@ -478,6 +484,11 @@ class YtdlpResponseDict(UserDict):
     def original_url(self) -> Optional[str]:
         """returns value for data key 'original_url' or None"""
         return self.data.get("original_url", None)
+
+    @property
+    def video_id(self) -> str:
+        """returns the id if it exists or empty string."""
+        return self.data.get("id", "")
 
     @property
     def title(self) -> str:

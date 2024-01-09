@@ -134,12 +134,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
     def __init__(
         self,
         playlist: "Playlist",
-        info: "YtdlpResponseDict",
+        info: YtdlpResponseDict,
         **meta,
     ) -> None:
         super().__init__()
 
-        # TODO: perhaps remove arguments here that are inside info dict, and just pass info dict.
         self.playlist = playlist
         self.downloader = playlist.bot.downloader
 
@@ -548,14 +547,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.downloaded_bytes = os.path.getsize(self.filename)
 
 
-# TODO: make this use info dict instead.
 class StreamPlaylistEntry(BasePlaylistEntry):
     SERIAL_VERSION = 2
 
     def __init__(
         self,
         playlist: "Playlist",
-        info: "YtdlpResponseDict",
+        info: YtdlpResponseDict,
         **meta,
     ):
         super().__init__()

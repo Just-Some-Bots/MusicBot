@@ -3,12 +3,16 @@ import logging
 from collections import deque
 from itertools import islice
 from random import shuffle
+from typing import TYPE_CHECKING, Union
 
 from .constructs import Serializable
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
 from .lib.event_emitter import EventEmitter
 
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
+
+if TYPE_CHECKING:
+    from .bot import MusicBot
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +22,7 @@ class Playlist(EventEmitter, Serializable):
     A playlist that manages the list of songs that will be played.
     """
 
-    def __init__(self, bot):
+    def __init__(self, bot: "MusicBot") -> None:
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
@@ -28,7 +32,7 @@ class Playlist(EventEmitter, Serializable):
     def __iter__(self):
         return iter(self.entries)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.entries)
 
     def shuffle(self):
