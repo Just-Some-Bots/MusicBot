@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-
 import asyncio
 import os
 import ssl
@@ -14,6 +12,12 @@ import subprocess
 
 from shutil import disk_usage, rmtree
 from base64 import b64decode
+
+from musicbot.exceptions import (
+    HelpfulError,
+    TerminateSignal,
+    RestartSignal,
+)
 
 try:
     import aiohttp
@@ -30,6 +34,16 @@ class GIT(object):
             return bool(subprocess.check_output("git --version", shell=True))
         except Exception:
             return False
+
+    @classmethod
+    def run_upgrade_pull(cls):
+        log.info("Attempting to upgrade with `git pull` on current path.")
+        try:
+            git_data = subprocess.check_output("git pull", shell=True)
+            git_data = git_data.decode("utf8").strip()
+            log.info(f"Result of git pull:  {git_data}")
+        except Exception:
+            log.exception("Upgrade failed, you need to run `git pull` manually.")
 
 
 class PIP(object):
@@ -124,6 +138,21 @@ class PIP(object):
             from pip.req import parse_requirements
 
         return list(parse_requirements(file))
+
+    @classmethod
+    def run_upgrade_requirements(cls):
+        log.info(
+            "Attempting to upgrade with `pip install --upgrade -r requirements.txt` on current path."
+        )
+        cmd = [sys.executable] + "-m pip install --upgrade -r requirements.txt".split()
+        try:
+            pip_data = subprocess.check_output(cmd)
+            pip_data = pip_data.decode("utf8").strip()
+            log.info(f"Result of pip upgrade:  {pip_data}")
+        except Exception:
+            log.exception(
+                "Upgrade failed, you need to run `pip install --upgrade -r requirements.txt` manually."
+            )
 
 
 # Setup initial loggers
@@ -256,9 +285,6 @@ def req_ensure_py3():
 
             if pycom:
                 log.info("Python 3 found.  Launching bot...")
-                pyexec(pycom, "run.py")
-
-                # I hope ^ works
                 os.system("start cmd /k %s run.py" % pycom)
                 sys.exit(0)
 
@@ -277,7 +303,7 @@ def req_ensure_py3():
                 log.info(
                     "\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom
                 )
-                pyexec(pycom, "run.py")
+                os.execlp(pycom, pycom, "run.py")
 
         log.critical(
             "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
@@ -378,9 +404,30 @@ def opt_check_disk_space(warnlimit_mb=200):
 #################################################
 
 
-def pyexec(pycom, *args, pycom2=None):
-    pycom2 = pycom2 or pycom
-    os.execlp(pycom, pycom2, *args)
+def respawn_bot_process(pybin=None):
+    if not pybin:
+        pybin = os.path.basename(sys.executable)
+    exec_args = [pybin] + sys.argv
+
+    sys.stdout.flush()
+    sys.stderr.flush()
+    logging.shutdown()
+
+    if os.name == "nt":
+        # On Windows, this creates a new process window that dies when the script exits.
+        # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
+        # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
+        # The moment we end this instance of the process, control is returned to the starting shell.
+        subprocess.Popen(
+            exec_args,
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
+        sys.exit(0)
+    else:
+        # On Unix/Linux/Mac this should immediately replace the current program.
+        # No new PID, and the babies all get thrown out with the bath.  Kinda dangerous...
+        # We need to make sure files and things are closed before we do this.
+        os.execlp(exec_args[0], *exec_args)
 
 
 async def main():
@@ -391,6 +438,7 @@ async def main():
 
     finalize_logging()
 
+    exit_signal = None
     tried_requirementstxt = False
     use_certifi = False
     tryagain = True
@@ -414,10 +462,6 @@ async def main():
             ssl.SSLCertVerificationError,
             aiohttp.client_exceptions.ClientConnectorCertificateError,
         ) as e:
-            if m and m.session:
-                # make sure we close the session(s)
-                await m._cleanup()
-
             if isinstance(
                 e, aiohttp.client_exceptions.ClientConnectorCertificateError
             ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
@@ -442,7 +486,7 @@ async def main():
                         "Could not get Issuer Certificate from default trust store, trying certifi instead."
                     )
                     use_certifi = True
-                    pass
+                    continue
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -476,22 +520,30 @@ async def main():
                 log.exception("Unknown ImportError, exiting.")
                 break
 
-        except Exception as e:
-            if hasattr(e, "__module__") and e.__module__ == "musicbot.exceptions":
-                if e.__class__.__name__ == "HelpfulError":
-                    log.info(e.message)
-                    break
+        except HelpfulError as e:
+            log.info(e.message)
+            break
 
-                elif e.__class__.__name__ == "TerminateSignal":
-                    break
+        except TerminateSignal as e:
+            exit_signal = e
+            break
 
-                elif e.__class__.__name__ == "RestartSignal":
-                    loops = 0
-                    pass
+        except RestartSignal as e:
+            if e.get_name() == "RESTART_SOFT":
+                loops = 0
             else:
-                log.exception("Error starting bot")
+                exit_signal = e
+                break
+
+        except Exception:
+            log.exception("Error starting bot")
 
         finally:
+            if m and (m.session or m.http.connector):
+                # in case we never made it to m.run(), ensure cleanup.
+                log.debug("Doing cleanup late.")
+                await m._cleanup()
+
             if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
@@ -502,15 +554,32 @@ async def main():
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops * 2))
+            log.info(f"Restarting in {sleeptime} seconds...")
             time.sleep(sleeptime)
 
     print()
     log.info("All done.")
+    return exit_signal
 
 
 if __name__ == "__main__":
     # py3.8 made ProactorEventLoop default on windows.
     # Now we need to make adjustments for a bug in aiohttp :)
     loop = asyncio.get_event_loop_policy().get_event_loop()
-    loop.run_until_complete(main())
+    exit_sig = loop.run_until_complete(main())
+    if exit_sig:
+        if isinstance(exit_sig, RestartSignal):
+            if exit_sig.get_name() == "RESTART_FULL":
+                respawn_bot_process()
+            elif exit_sig.get_name() == "RESTART_UPGRADE_ALL":
+                PIP.run_upgrade_requirements()
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+            elif exit_sig.get_name() == "RESTART_UPGRADE_PIP":
+                PIP.run_upgrade_requirements()
+                respawn_bot_process()
+            elif exit_sig.get_name() == "RESTART_UPGRADE_GIT":
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+        elif isinstance(exit_sig, TerminateSignal):
+            sys.exit(exit_sig.exit_code)
