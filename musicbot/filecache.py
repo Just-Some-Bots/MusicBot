@@ -1,17 +1,19 @@
 import asyncio
+import glob
 import json
 import logging
 import os
 import pathlib
 import shutil
 import time
-import typing
+
+from typing import TYPE_CHECKING, Union, Dict, Tuple
 
 from .utils import format_size_from_bytes
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from .bot import MusicBot
-    from .entry import BasePlaylistEntry
+    from .entry import BasePlaylistEntry, URLPlaylistEntry, StreamPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -26,24 +28,61 @@ class AudioFileCache:
         self.config = bot.config
         self.cache_path = pathlib.Path(bot.config.audio_cache_path)
 
-        self.size_bytes = 0
-        self.file_count = 0
+        self.size_bytes: int = 0
+        self.file_count: int = 0
 
         # Stores filenames without extension associated to a playlist URL.
-        self.auto_playlist_cachemap = {}
+        self.auto_playlist_cachemap: Dict[str, str] = {}
         self.cachemap_file_lock = asyncio.Lock()
+
+    @property
+    def folder(self) -> pathlib.Path:
+        """Get the configured cache path as a pathlib.Path"""
+        return self.cache_path
+
+    def get_if_cached(self, filename: str, ignore_ext: bool = True) -> str:
+        """
+        Check for an existing cache file by the given name, and return the matched path.
+        The `filename` will be reduced to its basename and joined with the current cache_path.
+        If `ignore_ext` is set, the filename will be matched without its last suffix / extension.
+        An exact match is prefered, but only the first of many possible matches will be returned.
+
+        :returns: a path string or empty string if not found.
+        """
+        file_path = pathlib.Path(filename)
+        filename = file_path.name
+        cache_file_path = self.cache_path.with_name(filename)
+
+        if ignore_ext:
+            if cache_file_path.is_file():
+                return str(cache_file_path)
+
+            safe_stem = glob.escape(pathlib.Path(filename).stem)
+            for item in self.cache_path.glob(f"{safe_stem}.*"):
+                if item.is_file():
+                    return str(item)
+
+        elif cache_file_path.is_file():
+            return str(file_path)
+
+        return ""
+
+    def ensure_cache_dir_exists(self) -> None:
+        """Check for and create the cache directory path or raise an error"""
+        if not self.cache_dir_exists():
+            self.cache_path.mkdir(parents=True)
 
     def cache_dir_exists(self) -> bool:
         """Wrapper for self.cache.is_dir() for external use."""
         return self.cache_path.is_dir()
 
-    def get_cache_size(self) -> typing.Tuple[int, int]:
+    def get_cache_size(self) -> Tuple[int, int]:
         """
         Returns AudioFileCache size as a two member tuple containing size_bytes and file_count.
         """
         return (self.size_bytes, self.file_count)
 
-    def scan_audio_cache(self) -> typing.Tuple[int, int]:
+    def scan_audio_cache(self) -> Tuple[int, int]:
         """
         Scan the audio cache directory and return a tuple with info.
         Returns (size_in_bytes:int, number_of_files:int)
@@ -88,6 +127,7 @@ class AudioFileCache:
                 return False
             try:
                 shutil.rmtree(new_path)
+                return True
             except Exception:
                 new_path.rename(self.cache_path)
                 log.debug("Audio cache directory could not be removed.")
@@ -205,14 +245,16 @@ class AudioFileCache:
 
         return True
 
-    def handle_new_cache_entry(self, entry: "BasePlaylistEntry") -> None:
+    def handle_new_cache_entry(
+        self, entry: Union["URLPlaylistEntry", "StreamPlaylistEntry"]
+    ) -> None:
         """1
         Test given entry for cachemap inclusion and run cache limit checks.
         """
         if entry.url in self.bot.autoplaylist:
             # ignore partial downloads
             if entry.cache_busted:
-                log.noise(
+                log.noise(  # type: ignore[attr-defined]
                     "Audio cache file is from autoplaylist but marked as busted, ignoring it."
                 )
             else:

@@ -17,10 +17,10 @@ log = logging.getLogger(__name__)
 class SpotifyObject:
     """Base class for parsed spotify response objects."""
 
-    def __init__(self, data: Dict, origin_url: Optional[str] = None) -> None:
+    def __init__(self, data: Dict[str, Any], origin_url: Optional[str] = None) -> None:
         self.origin_url: Optional[str]
 
-        self.data: Dict = data
+        self.data: Dict[str, Any] = data
 
         if origin_url:
             self.origin_url = origin_url
@@ -28,57 +28,57 @@ class SpotifyObject:
             self.origin_url = self.spotify_url
 
     @staticmethod
-    def is_type(data: Dict, spotify_type: str) -> bool:
+    def is_type(data: Dict[str, Any], spotify_type: str) -> bool:
         """Verify if data has a 'type' key matching spotify_type value"""
         type_str = data.get("type", None)
         return True if type_str == spotify_type else False
 
     @staticmethod
-    def is_track_data(data: Dict) -> bool:
+    def is_track_data(data: Dict[str, Any]) -> bool:
         return SpotifyObject.is_type(data, "track")
 
     @staticmethod
-    def is_playlist_data(data: Dict) -> bool:
+    def is_playlist_data(data: Dict[str, Any]) -> bool:
         return SpotifyObject.is_type(data, "playlist")
 
     @staticmethod
-    def is_album_data(data: Dict) -> bool:
+    def is_album_data(data: Dict[str, Any]) -> bool:
         return SpotifyObject.is_type(data, "album")
 
     @property
-    def spotify_type(self) -> Optional[str]:
+    def spotify_type(self) -> str:
         """Returns the type string of the object as reported by the API data."""
-        return self.data.get("type", None)
+        return str(self.data.get("type", ""))
 
     @property
     def spotify_id(self) -> str:
         """Returns the Spotify ID of the object, as reported by the API data."""
-        return self.data.get("id", "")
+        return str(self.data.get("id", ""))
 
     @property
     def spotify_url(self) -> str:
         """Returns the spotify external url for this object, if it exists in the API data."""
         exurls = self.data.get("external_urls", "")
         if exurls:
-            return exurls.get("spotify", "")
+            return str(exurls.get("spotify", ""))
         return ""
 
     @property
     def spotify_uri(self) -> str:
         """Returns the "Spotify URI" for this object if available."""
-        return self.data.get("uri", "")
+        return str(self.data.get("uri", ""))
 
     @property
     def name(self) -> str:
         """Returns the track/playlist/album name given by spotify."""
-        return self.data.get("name", "")
+        return str(self.data.get("name", ""))
 
     @property
     def ytdl_type(self) -> str:
         """A suitable string for ytdlp _type field."""
         return "url" if self.spotify_type == "track" else "playlist"
 
-    def to_ytdl_dict(self) -> Dict:
+    def to_ytdl_dict(self) -> Dict[str, Any]:
         """Returns object data in a format similar to ytdl."""
         return {
             "_type": self.ytdl_type,
@@ -93,7 +93,9 @@ class SpotifyObject:
 class SpotifyTrack(SpotifyObject):
     """Track data for an individual track, parsed from spotify API response data."""
 
-    def __init__(self, track_data: Dict, origin_url: Optional[str] = None) -> None:
+    def __init__(
+        self, track_data: Dict[str, Any], origin_url: Optional[str] = None
+    ) -> None:
         if not SpotifyObject.is_track_data(track_data):
             raise SpotifyError("Invalid track_data, must be of type 'track'")
         super().__init__(track_data, origin_url)
@@ -103,7 +105,7 @@ class SpotifyTrack(SpotifyObject):
         """Get the first artist name, if any, from track data. Can be empty string."""
         artists = self.data.get("artists", None)
         if artists:
-            return artists[0].get("name", "")
+            return str(artists[0].get("name", ""))
         return ""
 
     @property
@@ -133,7 +135,7 @@ class SpotifyTrack(SpotifyObject):
     @property
     def duration(self) -> float:
         """Calculate duration in seconds from track 'duration_ms' value."""
-        return self.data.get("duration_ms", 0) / 1000
+        return float(self.data.get("duration_ms", 0)) / 1000
 
     @property
     def thumbnail_url(self) -> str:
@@ -145,10 +147,10 @@ class SpotifyTrack(SpotifyObject):
         album = self.data.get("album", {})
         imgs = album.get("images", None)
         if imgs:
-            return imgs[0].get("url", "")
+            return str(imgs[0].get("url", ""))
         return ""
 
-    def to_ytdl_dict(self, as_single: bool = True) -> Dict:
+    def to_ytdl_dict(self, as_single: bool = True) -> Dict[str, Any]:
         url: Optional[str]
         if as_single:
             url = self.get_track_search_string("ytsearch:{0} {1}")
@@ -169,7 +171,9 @@ class SpotifyTrack(SpotifyObject):
 class SpotifyAlbum(SpotifyObject):
     """Album object with all or partial tracks, as parsed from spotify API response data."""
 
-    def __init__(self, album_data: Dict, origin_url: Optional[str] = None) -> None:
+    def __init__(
+        self, album_data: Dict[str, Any], origin_url: Optional[str] = None
+    ) -> None:
         if not SpotifyObject.is_album_data(album_data):
             raise ValueError("Invalid album_data, must be of type 'playlist'")
         super().__init__(album_data, origin_url)
@@ -205,7 +209,7 @@ class SpotifyAlbum(SpotifyObject):
     def track_count(self) -> int:
         """Get number of total tracks in playlist, as reported by API"""
         tracks = self.data.get("tracks", {})
-        return tracks.get("total", 0)
+        return int(tracks.get("total", 0))
 
     @property
     def thumbnail_url(self) -> str:
@@ -216,10 +220,10 @@ class SpotifyAlbum(SpotifyObject):
         """
         imgs = self.data.get("images", None)
         if imgs:
-            return imgs[0].get("url", "")
+            return str(imgs[0].get("url", ""))
         return ""
 
-    def to_ytdl_dict(self) -> Dict:
+    def to_ytdl_dict(self) -> Dict[str, Any]:
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
@@ -233,7 +237,9 @@ class SpotifyAlbum(SpotifyObject):
 class SpotifyPlaylist(SpotifyObject):
     """Playlist object with all or partial tracks, as parsed from spotify API response data."""
 
-    def __init__(self, playlist_data: Dict, origin_url: Optional[str] = None) -> None:
+    def __init__(
+        self, playlist_data: Dict[str, Any], origin_url: Optional[str] = None
+    ) -> None:
         if not SpotifyObject.is_playlist_data(playlist_data):
             raise ValueError("Invalid playlist_data, must be of type 'playlist'")
         super().__init__(playlist_data, origin_url)
@@ -271,7 +277,7 @@ class SpotifyPlaylist(SpotifyObject):
     def track_count(self) -> int:
         """Get number of total tracks in playlist, as reported by API"""
         tracks = self.data.get("tracks", {})
-        return tracks.get("total", 0)
+        return int(tracks.get("total", 0))
 
     @property
     def thumbnail_url(self) -> str:
@@ -282,10 +288,10 @@ class SpotifyPlaylist(SpotifyObject):
         """
         imgs = self.data.get("images", None)
         if imgs:
-            return imgs[0].get("url", "")
+            return str(imgs[0].get("url", ""))
         return ""
 
-    def to_ytdl_dict(self) -> Dict:
+    def to_ytdl_dict(self) -> Dict[str, Any]:
         return {
             **super().to_ytdl_dict(),
             "title": self.name,
@@ -364,7 +370,7 @@ class Spotify:
 
     async def get_spotify_ytdl_data(
         self, spotify_url: str, process: bool = False
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         data: SpotifyObject
         parts = Spotify.url_to_parts(spotify_url)
         obj_type = parts[1]
@@ -399,7 +405,7 @@ class Spotify:
         data = await self.get_track(track_id)
         return SpotifyTrack(data)
 
-    async def get_track(self, track_id: str) -> Dict:
+    async def get_track(self, track_id: str) -> Dict[str, Any]:
         """Get a track's info from its Spotify ID"""
         return await self.make_api_req(f"tracks/{track_id}")
 
@@ -437,7 +443,7 @@ class Spotify:
         data = await self.get_album(album_id)
         return SpotifyAlbum(data)
 
-    async def get_album(self, album_id: str) -> Dict:
+    async def get_album(self, album_id: str) -> Dict[str, Any]:
         """Get an album's info from its Spotify ID"""
         return await self.make_api_req(f"albums/{album_id}")
 
@@ -475,11 +481,11 @@ class Spotify:
         data = await self.get_playlist(list_id)
         return SpotifyPlaylist(data)
 
-    async def get_playlist(self, list_id: str) -> Dict:
+    async def get_playlist(self, list_id: str) -> Dict[str, Any]:
         """Get a playlist's info from its Spotify ID"""
         return await self.make_api_req(f"playlists/{list_id}")
 
-    async def make_api_req(self, endpoint: str) -> Dict:
+    async def make_api_req(self, endpoint: str) -> Dict[str, Any]:
         """Proxy method for making a Spotify req using the correct Auth headers"""
         url = self.API_BASE + endpoint
         token = await self._get_token()
@@ -487,31 +493,48 @@ class Spotify:
 
     async def _make_get(
         self, url: str, headers: Optional[Dict[str, str]] = None
-    ) -> Dict:
+    ) -> Dict[str, Any]:
         """Makes a GET request and returns the results"""
         async with self.aiosession.get(url, headers=headers) as r:
+            try:
+                data = await r.json()  # type: Dict[str, Any]
+                if type(data) is not dict:
+                    raise SpotifyError("Response JSON did not decode to a dict!")
+            except Exception:
+                data = {}
+
             if r.status != 200:
                 raise SpotifyError(
                     "Issue making GET request to {0}: [{1.status}] {2}".format(
-                        url, r, await r.json()
+                        url, r, data
                     )
                 )
-            return await r.json()
+            return data
 
     async def _make_post(
-        self, url: str, payload, headers: Optional[Dict[str, str]] = None
-    ) -> Dict:
+        self,
+        url: str,
+        payload: Dict[str, str],
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
         """Makes a POST request and returns the results"""
         async with self.aiosession.post(url, data=payload, headers=headers) as r:
+            try:
+                data = await r.json()  # type: Dict[str, Any]
+                if type(data) is not dict:
+                    raise SpotifyError("Response JSON did not decode to a dict!")
+            except Exception:
+                data = {}
+
             if r.status != 200:
                 raise SpotifyError(
                     "Issue making POST request to {0}: [{1.status}] {2}".format(
-                        url, r, await r.json()
+                        url, r, data
                     )
                 )
-            return await r.json()
+            return data
 
-    def _make_token_auth(self, client_id: str, client_secret: str) -> Dict:
+    def _make_token_auth(self, client_id: str, client_secret: str) -> Dict[str, Any]:
         auth_header = base64.b64encode(
             (client_id + ":" + client_secret).encode("ascii")
         )
@@ -521,7 +544,7 @@ class Spotify:
         """Checks if the token is valid"""
         if not self._token:
             return False
-        return self._token["expires_at"] - int(time.time()) > 60
+        return int(self._token["expires_at"]) - int(time.time()) > 60
 
     async def has_token(self) -> bool:
         """Attempt to get token and return True if successful."""
@@ -532,7 +555,7 @@ class Spotify:
     async def _get_token(self) -> str:
         """Gets the token or creates a new one if expired"""
         if self._is_token_valid() and self._token:
-            return self._token["access_token"]
+            return str(self._token["access_token"])
 
         if self.guest_mode:
             token = await self._request_guest_token()
@@ -557,9 +580,9 @@ class Spotify:
                 "guest " if self.guest_mode else "", self._token
             )
         )
-        return self._token["access_token"]
+        return str(self._token["access_token"])
 
-    async def _request_token(self) -> Dict:
+    async def _request_token(self) -> Dict[str, Any]:
         """Obtains a token from Spotify and returns it"""
         try:
             payload = {"grant_type": "client_credentials"}
@@ -575,17 +598,24 @@ class Spotify:
             self.max_token_tries -= 1
             return await self._request_token()
 
-    async def _request_guest_token(self) -> Dict:
+    async def _request_guest_token(self) -> Dict[str, Any]:
         """Obtains a web player token from Spotify and returns it"""
         try:
             async with self.aiosession.get(
                 "https://open.spotify.com/get_access_token?reason=transport&productType=web_player",
             ) as r:
+                try:
+                    data = await r.json()  # type: Dict[str, Any]
+                    if type(data) is not dict:
+                        raise SpotifyError("Response JSON did not decode to a dict!")
+                except Exception:
+                    data = {}
+
                 if r.status != 200:
                     try:
                         raise SpotifyError(
                             "Issue generating guest token: [{0.status}] {1}".format(
-                                r, await r.json()
+                                r, data
                             )
                         )
                     except aiohttp.ContentTypeError as e:
@@ -594,7 +624,7 @@ class Spotify:
                                 r, e
                             )
                         )
-                return await r.json()
+                return data
         except (
             asyncio.exceptions.CancelledError
         ) as e:  # fails to generate after a restart, but succeeds if you just try again

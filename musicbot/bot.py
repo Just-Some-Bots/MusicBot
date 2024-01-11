@@ -32,6 +32,7 @@ from .constants import (
     DISCORD_MSG_CHAR_LIMIT,
     EMOJI_CHECK_MARK_BUTTON,
     EMOJI_CROSS_MARK_BUTTON,
+    EMOJI_IDLE_ICON,
 )
 from .constants import VERSION as BOTVERSION
 from .constructs import SkipState, Response
@@ -881,38 +882,64 @@ class MusicBot(discord.Client):
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def update_now_playing_status(self):
-        game = None
+    async def update_now_playing_status(self) -> None:
+        """Inspects available players and ultimately fire change_presence()"""
+        activity = None  # type: Optional[discord.Activity]
+        status = discord.Status.online  # type: discord.Status
 
-        if not self.config.status_message:
-            entry = None
-            paused = False
-            activeplayers = [p for p in self.players.values() if p.is_playing]
-            if len(activeplayers) > 1:
-                game = discord.Game(type=0, name="music on %s guilds" % activeplayers)
+        playing = sum(1 for p in self.players.values() if p.is_playing)
+        paused = sum(1 for p in self.players.values() if p.is_paused)
+        total = len(self.players)
 
-            elif len(activeplayers) == 1:
-                player = activeplayers[0]
-                paused = player.is_paused
-                entry = player.current_entry
+        # multiple servers are playing or paused.
+        if total > 1:
+            if paused > playing:
+                status = discord.Status.idle
 
-            elif len(self.players):
-                player = list(self.players.values())[0]
-                paused = player.is_paused
-                entry = player.current_entry
+            activity = discord.Activity(
+                type=discord.ActivityType.playing,
+                name="music on {} guilds".format(total),
+            )
 
-            if entry:
-                prefix = "\u275A\u275A " if paused else ""
+        # only 1 server is playing.
+        elif playing:
+            player = list(self.players.values())[0]
+            activity = discord.Activity(
+                type=discord.ActivityType.streaming,
+                url=player.current_entry.url,
+                name=player.current_entry.title.strip()[:128],
+                # platform="" does not work.
+            )
 
-                name = "{}{}".format(prefix, entry.title)[:128]
-                game = discord.Game(type=0, name=name)
+        # only 1 server is paused.
+        elif paused:
+            player = list(self.players.values())[0]
+            status = discord.Status.idle
+            activity = discord.Activity(
+                type=discord.ActivityType.custom,
+                state=player.current_entry.title.strip()[:128],
+                name="Custom Status",  # seemingly required.
+                # TODO: emoji is broken in dpy lib. 2024-01-10
+                emoji={"name": ":pause_button:"},
+            )
+
+        # nothing going on.
         else:
-            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
+            status = discord.Status.idle
+            activity = discord.CustomActivity(
+                type=discord.ActivityType.custom,
+                state=f" ~ {EMOJI_IDLE_ICON} ~ ",
+                name="Custom Status",  # seems required to make idle status work.
+                # TODO: emoji is currently broken in discord.py lib. 2024-01-10
+                # emoji={"name": EMOJI_IDLE_ICON},
+                emoji="\N{POWER SLEEP SYMBOL}",
+            )
 
         async with self.aiolocks[_func_()]:
-            if game != self.last_status:
-                await self.change_presence(activity=game)
-                self.last_status = game
+            if activity != self.last_status:
+                log.noise(f"Update Bot Status:  {status} -- {repr(activity)}")
+                await self.change_presence(status=status, activity=activity)
+                self.last_status = activity
 
     async def update_now_playing_message(self, guild, message, *, channel=None):
         lnp = self.server_specific_data[guild.id]["last_np_msg"]
@@ -971,7 +998,7 @@ class MusicBot(discord.Client):
 
     async def deserialize_queue(
         self, guild, voice_client, playlist=None, *, directory=None
-    ) -> MusicPlayer:
+    ) -> Optional[MusicPlayer]:
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
         """
@@ -1315,6 +1342,8 @@ class MusicBot(discord.Client):
         log.info("\nReconnected to discord.\n")
 
     async def on_ready(self):
+        self.is_ready_done = False
+        log.debug("Fire on_ready")
         dlogger = logging.getLogger("discord")
         for h in dlogger.handlers:
             if getattr(h, "terminator", None) == "":
@@ -1589,6 +1618,8 @@ class MusicBot(discord.Client):
             print(flush=True)
 
         # t-t-th-th-that's all folks!
+        log.debug("Finish on_ready")
+        self.is_ready_done = True
 
     def _gen_embed(self):
         """Provides a basic template for embeds"""
@@ -1630,6 +1661,10 @@ class MusicBot(discord.Client):
         log.debug("Removed {} from autoplaylist".format(url))
 
     async def handle_vc_inactivity(self, guild: discord.Guild):
+        if not guild.me.voice:
+            log.warning("I HAVE NO MOUTH AND I MUST SCREAM!!!")
+            return
+
         event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
 
         if active:
@@ -2056,14 +2091,17 @@ class MusicBot(discord.Client):
         guild = channel.guild
         auto_paused = self.server_specific_data[guild.id]["auto_paused"]
 
-        if is_empty_voice_channel(channel) and not auto_paused and player.is_playing:
+        is_empty = is_empty_voice_channel(
+            channel, include_bots=self.config.bot_exception_ids
+        )
+        if is_empty and not auto_paused and player.is_playing:
             log.info(
                 f"Playing in an empty voice channel, running auto pause for guild: {guild}"
             )
             player.pause()
             self.server_specific_data[guild.id]["auto_paused"] = True
 
-        elif not is_empty_voice_channel(channel) and auto_paused and player.is_paused:
+        elif not is_empty and auto_paused and player.is_paused:
             log.info(f"Previously auto paused player is unpausing for guild: {guild}")
             player.resume()
             self.server_specific_data[guild.id]["auto_paused"] = False
@@ -2568,8 +2606,8 @@ class MusicBot(discord.Client):
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-play-badextractor",
-                        "You do not have permission to play media from this service.",
-                    ),
+                        "You do not have permission to play the requested media. Service `{}` is not permitted.",
+                    ).format(info.extractor),
                     expire_in=30,
                 )
 
@@ -4030,10 +4068,12 @@ class MusicBot(discord.Client):
                 "This does not seem to be a playlist.", expire_in=25
             )
 
+        sent_to_channel = None
         filename = "playlist.txt"
         if info.title:
             safe_title = slugify(info.title)
             filename = f"playlist_{safe_title}.txt"
+
         with BytesIO() as fcontent:
             total = info.playlist_count or info.entry_count
             fcontent.write(f"# Title:  {info.title}\n".encode("utf8"))
@@ -4047,12 +4087,24 @@ class MusicBot(discord.Client):
                 fcontent.write(line.encode("utf8"))
 
             fcontent.seek(0)
-            await author.send(
-                "Here's the playlist dump for <%s>" % song_url,
-                file=discord.File(fcontent, filename=filename),
-            )
+            msg_str = f"Here is the playlist dump for:  <{song_url}>"
+            datafile = discord.File(fcontent, filename=filename)
 
-        return Response("Sent a message with a playlist file.", delete_after=20)
+            try:
+                # try to DM. this could fail for users with strict privacy settings.
+                await author.send(
+                    msg_str,
+                    file=datafile,
+                )
+
+            except discord.errors.HTTPException as e:
+                if e.code == 50007:  # cannot send to this user.
+                    log.debug("DM failed, sending in channel instead.")
+                    sent_to_channel = await channel.send()
+                else:
+                    raise
+        if not sent_to_channel:
+            return Response("Sent a message with a playlist file.", delete_after=20)
 
     async def cmd_listids(self, guild, author, leftover_args, cat="all"):
         """
@@ -4801,7 +4853,12 @@ class MusicBot(discord.Client):
         after: discord.VoiceState,
     ):
         if not self.init_ok:
+            log.warning("before init_ok")  # TODO: remove after coverage testing
             return  # Ignore stuff before ready
+
+        if not self.is_ready():
+            # TODO: remove after coverage testing
+            log.warning("before is_ready")
 
         if self.config.leave_inactive_channel:
             guild = member.guild

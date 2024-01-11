@@ -6,13 +6,18 @@ import os
 import sys
 from enum import Enum
 from threading import Thread
+from typing import TYPE_CHECKING
 
-from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource
+from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource, VoiceClient
 
 from .constructs import Serializable, Serializer
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import FFmpegError, FFmpegWarning
 from .lib.event_emitter import EventEmitter
+
+if TYPE_CHECKING:
+    from .bot import MusicBot
+    from .playlist import Playlist
 
 log = logging.getLogger(__name__)
 
@@ -26,30 +31,39 @@ class MusicPlayerState(Enum):
     )
     DEAD = 4  # The player has been killed.
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
 class SourcePlaybackCounter(AudioSource):
-    def __init__(self, source, progress=0):
+    def __init__(
+        self,
+        source: PCMVolumeTransformer,
+        progress: int = 0,
+    ) -> None:
         self._source = source
         self.progress = progress
 
-    def read(self):
+    def read(self) -> bytes:
         res = self._source.read()
         if res:
             self.progress += 1
         return res
 
-    def get_progress(self):
+    def get_progress(self) -> float:
         return self.progress * 0.02
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         self._source.cleanup()
 
 
 class MusicPlayer(EventEmitter, Serializable):
-    def __init__(self, bot, voice_client, playlist):
+    def __init__(
+        self,
+        bot: "MusicBot",
+        voice_client: VoiceClient,
+        playlist: "Playlist",
+    ):
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
@@ -386,14 +400,18 @@ def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
     while True:
         data = stderr.readline()
         if data:
-            log.ffmpeg("Data from ffmpeg: {}".format(data))
+            log.ffmpeg(  # type: ignore[attr-defined]
+                "Data from ffmpeg: {0!r}".format(data)
+            )
             try:
                 if check_stderr(data):
                     sys.stderr.buffer.write(data)
                     sys.stderr.buffer.flush()
 
             except FFmpegError as e:
-                log.ffmpeg("Error from ffmpeg: %s", str(e).strip())
+                log.ffmpeg(  # type: ignore[attr-defined]
+                    "Error from ffmpeg: %s", str(e).strip()
+                )
                 last_ex = e
 
             except FFmpegWarning:
@@ -407,14 +425,17 @@ def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
         future.set_result(True)
 
 
-def check_stderr(data: bytes):
+def check_stderr(data: bytes) -> bool:
+    ddata = ""
     try:
-        data = data.decode("utf8")
+        ddata = data.decode("utf8")
     except UnicodeDecodeError:
-        log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
+        log.ffmpeg(  # type: ignore[attr-defined]
+            "Unknown error decoding message from ffmpeg", exc_info=True
+        )
         return True  # fuck it
 
-    # log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
+    # log.ffmpeg("Decoded data from ffmpeg: {}".format(ddata))
 
     # TODO: Regex
     warnings = [
@@ -430,11 +451,11 @@ def check_stderr(data: bytes):
         "Invalid data found when processing input",  # need to regex this properly, its both a warning and an error
     ]
 
-    if any(msg in data for msg in warnings):
-        raise FFmpegWarning(data)
+    if any(msg in ddata for msg in warnings):
+        raise FFmpegWarning(ddata)
 
-    if any(msg in data for msg in errors):
-        raise FFmpegError(data)
+    if any(msg in ddata for msg in errors):
+        raise FFmpegError(ddata)
 
     return True
 

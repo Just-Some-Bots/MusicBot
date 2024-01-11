@@ -1,20 +1,21 @@
 import shutil
 import textwrap
+from typing import Optional
 
 
 # Base class for exceptions
 class MusicbotException(Exception):
-    def __init__(self, message, *, expire_in=0):
+    def __init__(self, message: str, *, expire_in: int = 0) -> None:
         super().__init__(message)  # ???
         self._message = message
         self.expire_in = expire_in
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self._message
 
     @property
-    def message_no_format(self):
+    def message_no_format(self) -> str:
         return self._message
 
 
@@ -36,7 +37,7 @@ class InvalidDataError(MusicbotException):
 # The no processing entry type failed and an entry was a playlist/vice versa
 # TODO: Add typing options instead of is_playlist
 class WrongEntryTypeError(ExtractionError):
-    def __init__(self, message, is_playlist, use_url):
+    def __init__(self, message: str, is_playlist: bool, use_url: str) -> None:
         super().__init__(message)
         self.is_playlist = is_playlist
         self.use_url = use_url
@@ -60,7 +61,7 @@ class SpotifyError(MusicbotException):
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
     @property
-    def message(self):
+    def message(self) -> str:
         return (
             "You don't have permission to use that command.\nReason: " + self._message
         )
@@ -70,13 +71,13 @@ class PermissionsError(CommandError):
 class HelpfulError(MusicbotException):
     def __init__(
         self,
-        issue,
-        solution,
+        issue: str,
+        solution: str,
         *,
-        preface="An error has occured:",
-        footnote="",
-        expire_in=0,
-    ):
+        preface: str = "An error has occured:",
+        footnote: str = "",
+        expire_in: int = 0,
+    ) -> None:
         self.issue = issue
         self.solution = solution
         self.preface = preface
@@ -85,7 +86,7 @@ class HelpfulError(MusicbotException):
         self._message_fmt = "\n{preface}\n{problem}\n\n{solution}\n\n{footnote}"
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self._message_fmt.format(
             preface=self.preface,
             problem=self._pretty_wrap(self.issue, "  Problem:"),
@@ -94,7 +95,7 @@ class HelpfulError(MusicbotException):
         )
 
     @property
-    def message_no_format(self):
+    def message_no_format(self) -> str:
         return self._message_fmt.format(
             preface=self.preface,
             problem=self._pretty_wrap(self.issue, "  Problem:", width=0),
@@ -103,7 +104,7 @@ class HelpfulError(MusicbotException):
         )
 
     @staticmethod
-    def _pretty_wrap(text, pretext, *, width=-1):
+    def _pretty_wrap(text: str, pretext: str, *, width: Optional[int] = -1) -> str:
         if width is None:
             return "\n".join((pretext.strip(), text))
         elif width == -1:
@@ -111,9 +112,9 @@ class HelpfulError(MusicbotException):
             width = shutil.get_terminal_size().columns
 
         lines = textwrap.wrap(text, width=width - 5)
-        lines = (
+        lines = [
             ("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines
-        )
+        ]
 
         return pretext + "".join(lines).rstrip()
 

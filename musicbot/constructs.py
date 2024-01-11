@@ -2,6 +2,7 @@ import inspect
 import json
 import logging
 import pydoc
+from typing import Dict, Any, Optional, Type
 
 from .utils import _get_variable
 
@@ -63,7 +64,7 @@ class AnimatedResponse(Response):
 
 
 class Serializer(json.JSONEncoder):
-    def default(self, o):
+    def default(self, o) -> Dict[str, Any]:
         if hasattr(o, "__json__"):
             return o.__json__()
 
@@ -103,7 +104,7 @@ class Serializer(json.JSONEncoder):
 class Serializable:
     _class_signature = ("__class__", "__module__", "data")
 
-    def _enclose_json(self, data):
+    def _enclose_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "__class__": self.__class__.__qualname__,
             "__module__": self.__module__,
@@ -112,15 +113,15 @@ class Serializable:
 
     # Perhaps convert this into some sort of decorator
     @staticmethod
-    def _bad(arg):
+    def _bad(arg: str) -> None:
         raise TypeError('Argument "%s" must not be None' % arg)
 
-    def serialize(self, *, cls=Serializer, **kwargs):
+    def serialize(self, *, cls: Type[Serializer] = Serializer, **kwargs: Any) -> str:
         return json.dumps(self, cls=cls, **kwargs)
 
-    def __json__(self):
+    def __json__(self) -> Optional[Dict[str, Any]]:
         raise NotImplementedError
 
     @classmethod
-    def _deserialize(cls, raw_json, **kwargs):
+    def _deserialize(cls, raw_json: Dict[str, Any], **kwargs: Any) -> Any:
         raise NotImplementedError

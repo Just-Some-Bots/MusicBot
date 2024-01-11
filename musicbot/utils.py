@@ -4,13 +4,11 @@ import logging
 import aiohttp
 import inspect
 import unicodedata
-import typing
+from typing import TYPE_CHECKING, Union, List
 
-from typing import Union
-from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from discord import VoiceChannel
 
 log = logging.getLogger(__name__)
@@ -103,14 +101,6 @@ async def get_header(
             return response.headers
 
 
-def md5sum(filename, limit=0):
-    fhash = md5()
-    with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            fhash.update(chunk)
-    return fhash.hexdigest()[-limit:]
-
-
 def fixg(x, dp=2):
     return ("{:.%sf}" % dp).format(x).rstrip("0").rstrip(".")
 
@@ -195,8 +185,20 @@ def _get_variable(name):
 
 
 def is_empty_voice_channel(
-    voice_channel: "VoiceChannel", *, exclude_me: bool = True, exclude_deaf: bool = True
+    voice_channel: "VoiceChannel",
+    *,
+    exclude_me: bool = True,
+    exclude_deaf: bool = True,
+    include_bots: List[int] = [],
 ) -> bool:
+    """
+    Check if the given `voice_channel` is figuratively or literally empty.
+
+    :param: `exclude_me`: Exclude our bot instance, the default.
+    :param: `exclude_deaf`: Excludes members who are self-deaf or server-deaf.
+    :param: `include_bots`: A list of bot IDs to include if they are present.
+    """
+
     def _check(member):
         if exclude_me and member == voice_channel.guild.me:
             return False
@@ -208,7 +210,7 @@ def is_empty_voice_channel(
         ):
             return False
 
-        if member.bot:
+        if member.bot and member.bot.id not in include_bots:
             return False
 
         return True

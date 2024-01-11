@@ -5,12 +5,12 @@ import typing
 import re
 import sys
 
-from enum import Enum
-from typing import Dict, Optional
-from yt_dlp.utils import ContentTooShortError
+from discord.abc import GuildChannel
+from typing import Any, List, Dict, Optional, Callable
+from yt_dlp.utils import ContentTooShortError  # type: ignore
+
 from .constructs import Serializable
 from .exceptions import ExtractionError, InvalidDataError
-from .utils import md5sum
 from .spotify import Spotify
 from .downloader import YtdlpResponseDict
 
@@ -19,47 +19,46 @@ if typing.TYPE_CHECKING:
 
 # optionally using pymediainfo instead of ffprobe if presents
 try:
-    import pymediainfo
+    import pymediainfo  # type: ignore
 except ImportError:
     pymediainfo = None
 
 log = logging.getLogger(__name__)
 
 
-class EntryTypes(Enum):
-    URL = 1
-    STEAM = 2
-    FILE = 3
-
-    def __str__(self):
-        return self.name
-
-
 class BasePlaylistEntry(Serializable):
-    def __init__(self):
-        self.filename = None
-        self.downloaded_bytes = 0
-        self.cache_busted = False
-        self._is_downloading = False
-        self._waiting_futures = []
+    def __init__(self) -> None:
+        self.filename: str = ""
+        self.downloaded_bytes: int = 0
+        self.cache_busted: bool = False
+        self._is_downloading: bool = False
+        self._waiting_futures: List[asyncio.Future] = []
 
     @property
-    def is_downloaded(self):
+    def url(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def title(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def is_downloaded(self) -> bool:
         if self._is_downloading:
             return False
 
         return bool(self.filename)
 
-    async def _download(self):
+    async def _download(self) -> None:
         raise NotImplementedError
 
-    def get_ready_future(self):
+    def get_ready_future(self) -> asyncio.Future:
         """
         Returns a future that will fire when the song is ready to be played.
         The future will either fire with the result (being the entry) or an exception
         as to why the song download failed.
         """
-        future = asyncio.Future()
+        future = asyncio.Future()  # type: asyncio.Future
         if self.is_downloaded:
             # In the event that we're downloaded, we're already ready for playback.
             future.set_result(self)
@@ -73,7 +72,7 @@ class BasePlaylistEntry(Serializable):
         log.debug("Created future for {0}".format(name))
         return future
 
-    def _for_each_future(self, cb):
+    def _for_each_future(self, cb: Callable) -> None:
         """
         Calls `cb` for each future that is not cancelled. Absorbs and logs any errors that may have occurred.
         """
@@ -90,10 +89,10 @@ class BasePlaylistEntry(Serializable):
             except Exception:
                 log.exception("Unhandled exception in _for_each_future callback.")
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self is other
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
 
@@ -129,7 +128,7 @@ def get(program):
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    SERIAL_VERSION = 2  # version for serial data checks.
+    SERIAL_VERSION: int = 2  # version for serial data checks.
 
     def __init__(
         self,
@@ -141,6 +140,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         self.playlist = playlist
         self.downloader = playlist.bot.downloader
+        self.filecache = playlist.bot.filecache
 
         self.info = info
 
@@ -152,8 +152,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "entry name: {}".format(self.title)
             )
 
-        self.meta = meta
-        self.aoptions = "-vn"
+        self.meta: Dict[str, Any] = meta
+        self.aoptions: str = "-vn"
 
     @property
     def url(self) -> str:
@@ -186,11 +186,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
         """Get the expected filename from info if available or None"""
         return self.info.get("__expected_filename", None)
 
-    def __json__(self) -> str:
+    def __json__(self) -> Dict[str, Any]:
         """
         Handles representing this object as JSON.
         """
-        # WARNING:  if you change this function, you must increase SERIAL_VERSION.
+        # WARNING:  if you change data or keys here, you must increase SERIAL_VERSION.
         return self._enclose_json(
             {
                 "version": URLPlaylistEntry.SERIAL_VERSION,
@@ -211,50 +211,55 @@ class URLPlaylistEntry(BasePlaylistEntry):
         )
 
     @classmethod
-    def _deserialize(cls, data: Dict, playlist: "Playlist" = None):
+    def _deserialize(
+        cls, raw_json: Dict[str, Any], playlist: Optional["Playlist"] = None, **kwargs
+    ) -> Optional["URLPlaylistEntry"]:
         """
         Handles converting from JSON to URLPlaylistEntry.
         """
-        # WARNING:  if you change this function, you must increase SERIAL_VERSION.
+        # WARNING:  if you change data or keys here, you must increase SERIAL_VERSION.
 
+        # yes this is an Optional that is, in fact, not Optional. :)
         assert playlist is not None, cls._bad("playlist")
 
-        vernum = data.get("version", None)
+        vernum: Optional[int] = raw_json.get("version", None)
         if not vernum:
             raise InvalidDataError("Entry data is missing version number.")
         elif vernum != URLPlaylistEntry.SERIAL_VERSION:
             raise InvalidDataError("Entry data has the wrong version number.")
 
         try:
-            info = YtdlpResponseDict(data["info"])
+            info = YtdlpResponseDict(raw_json["info"])
             downloaded = (
-                data["downloaded"] if playlist.bot.config.save_videos else False
+                raw_json["downloaded"] if playlist.bot.config.save_videos else False
             )
-            filename = data["filename"] if downloaded else None
-            meta = {}
+            filename = raw_json["filename"] if downloaded else None
+            meta: Dict[str, Any] = {}
 
             # TODO: Better [name] fallbacks
-            if "channel" in data["meta"]:
+            if "channel" in raw_json["meta"]:
                 # int() it because persistent queue from pre-rewrite days saved ids as strings
                 meta["channel"] = playlist.bot.get_channel(
-                    int(data["meta"]["channel"]["id"])
+                    int(raw_json["meta"]["channel"]["id"])
                 )
                 if not meta["channel"]:
                     log.warning(
                         "Cannot find channel in an entry loaded from persistent queue. Chennel id: {}".format(
-                            data["meta"]["channel"]["id"]
+                            raw_json["meta"]["channel"]["id"]
                         )
                     )
                     meta.pop("channel")
-                elif "author" in data["meta"]:
+                elif "author" in raw_json["meta"] and isinstance(
+                    meta["channel"], GuildChannel
+                ):
                     # int() it because persistent queue from pre-rewrite days saved ids as strings
                     meta["author"] = meta["channel"].guild.get_member(
-                        int(data["meta"]["author"]["id"])
+                        int(raw_json["meta"]["author"]["id"])
                     )
                     if not meta["author"]:
                         log.warning(
                             "Cannot find author in an entry loaded from persistent queue. Author id: {}".format(
-                                data["meta"]["author"]["id"]
+                                raw_json["meta"]["author"]["id"]
                             )
                         )
                         meta.pop("author")
@@ -265,6 +270,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
             return entry
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
+
+        return None
 
     async def _ensure_entry_info(self) -> None:
         """helper to ensure this entry object has critical information"""
@@ -281,30 +288,56 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     "Cannot download spotify links, these should be extracted before now."
                 )
 
-        # if this isn't set we are probably a playlist entry and need more info.
+        # if this isn't set this entry is probably from a playlist and needs more info.
         if not self.expected_filename:
             new_info = await self.downloader.extract_info(self.url, download=False)
             self.info.data = {**self.info.data, **new_info.data}
 
-    # noinspection PyTypeChecker
-    async def _download(self):
+    async def _download(self) -> None:
         if self._is_downloading:
             return
         log.debug("URLPlaylistEntry is now checking download status.")
 
         self._is_downloading = True
         try:
+            # Ensure any late-extraction links, like Spotify tracks, get processed.
             await self._ensure_entry_info()
 
             # Ensure the folder that we're going to move into exists.
-            if not os.path.exists(self.downloader.download_folder):
-                os.makedirs(self.downloader.download_folder)
+            self.filecache.ensure_cache_dir_exists()
 
-            # self.expected_filename: audio_cache\youtube-9R8aSKwTEMg-NOMA_-_Brain_Power.m4a
-            extractor = os.path.basename(self.expected_filename).split("-")[0]
+            # check and see if the expected file already exists in cache.
+            if self.expected_filename:
+                # get an existing cache path if we have one.
+                file_cache_path = self.filecache.get_if_cached(self.expected_filename)
 
+                # win a cookie if cache worked but extension was different.
+                if file_cache_path and self.expected_filename != file_cache_path:
+                    log.warning("Download cached with different extension...")
+
+                # check if cache size matches remote, basic validation.
+                if file_cache_path:
+                    local_size = os.path.getsize(file_cache_path)
+                    remote_size = int(self.info.http_header("CONTENT-LENGTH", 0))
+
+                    if local_size != remote_size:
+                        log.debug(
+                            "Local size different from remote size. Re-downloading..."
+                        )
+                        await self._really_download()
+                    else:
+                        log.debug(f"Download already cached at:  {file_cache_path}")
+                        self.filename = file_cache_path
+
+                # nothing cached, time to download for real.
+                else:
+                    await self._really_download()
+
+            # else:  # this would be a problem.
+
+            """
             # the generic extractor requires special handling
-            if extractor == "generic":
+            if self.info.extractor == "generic":
                 flistdir = [
                     f.rsplit("-", 1)[0]
                     for f in os.listdir(self.downloader.download_folder)
@@ -368,6 +401,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     )
                 else:
                     await self._really_download()
+
+            """
 
             if self.duration is None:
                 if pymediainfo:
@@ -492,8 +527,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             IVAL, LRA, TP, thresh, offset
         )
 
-    # noinspection PyShadowingBuiltins
-    async def _really_download(self, *, hash=False):
+    async def _really_download(self):
         log.info("Download started: {}".format(self.url))
 
         retry = 2
@@ -525,22 +559,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
-        # TODO: remove this since we previously prepared the name.
-        # self.filename = unhashed_fname = self.downloader.ytdl.prepare_filename(result)
-        self.filename = unhashed_fname = info.expected_filename
-
-        if hash:
-            # insert the 8 last characters of the file hash to the file name to ensure uniqueness
-            self.filename = (
-                md5sum(unhashed_fname, 8).join("-.").join(unhashed_fname.rsplit(".", 1))
-            )
-
-            if os.path.isfile(self.filename):
-                # Oh bother it was actually there.
-                os.unlink(unhashed_fname)
-            else:
-                # Move the temporary file to it's final location.
-                os.rename(unhashed_fname, self.filename)
+        self.filename = info.expected_filename
 
         # It should be safe to get our newly downloaded file size now...
         # This should also leave self.downloaded_bytes set to 0 if the file is in cache already.
@@ -554,7 +573,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self,
         playlist: "Playlist",
         info: YtdlpResponseDict,
-        **meta,
+        **meta: Any,
     ):
         super().__init__()
 
@@ -565,16 +584,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self.filename = self.url
 
     @property
-    def url(self) -> Optional[str]:
+    def url(self) -> str:
         """get extracted url if available or otherwise return the input subject"""
         if self.info.extractor and self.info.url:
             return self.info.url
-        return self.info.get("__input_subject", None)
-
-    @property
-    def fallback_url(self) -> Optional[str]:
-        """returns the extracted URL from the entry data."""
-        return self.info.get("url", None)
+        return self.info.get("__input_subject", "")
 
     @property
     def title(self) -> str:

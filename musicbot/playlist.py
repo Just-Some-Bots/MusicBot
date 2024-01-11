@@ -3,7 +3,7 @@ import logging
 from collections import deque
 from itertools import islice
 from random import shuffle
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Deque, Union
 
 from .constructs import Serializable
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
@@ -13,6 +13,11 @@ from .entry import URLPlaylistEntry, StreamPlaylistEntry
 
 if TYPE_CHECKING:
     from .bot import MusicBot
+    import asyncio
+    import aiohttp
+
+# type aliases
+EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry]
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +29,10 @@ class Playlist(EventEmitter, Serializable):
 
     def __init__(self, bot: "MusicBot") -> None:
         super().__init__()
-        self.bot = bot
-        self.loop = bot.loop
-        self.aiosession = bot.session
-        self.entries = deque()
+        self.bot: "MusicBot" = bot
+        self.loop: "asyncio.AbstractEventLoop" = bot.loop
+        self.aiosession: "aiohttp.ClientSession" = bot.session
+        self.entries: Deque = deque()
 
     def __iter__(self):
         return iter(self.entries)
@@ -35,27 +40,27 @@ class Playlist(EventEmitter, Serializable):
     def __len__(self) -> int:
         return len(self.entries)
 
-    def shuffle(self):
+    def shuffle(self) -> None:
         shuffle(self.entries)
 
-    def clear(self):
+    def clear(self) -> None:
         self.entries.clear()
 
-    def get_entry_at_index(self, index):
+    def get_entry_at_index(self, index: int) -> EntryTypes:
         self.entries.rotate(-index)
         entry = self.entries[0]
         self.entries.rotate(index)
         return entry
 
-    def delete_entry_at_index(self, index):
+    def delete_entry_at_index(self, index: int) -> EntryTypes:
         self.entries.rotate(-index)
         entry = self.entries.popleft()
         self.entries.rotate(index)
         return entry
 
-    def insert_entry_at_index(self, index, song):
+    def insert_entry_at_index(self, index: int, entry: EntryTypes) -> None:
         self.entries.rotate(-index)
-        self.entries.appendleft(song)
+        self.entries.appendleft(entry)
         self.entries.rotate(index)
 
     async def add_stream_from_info(self, info, *, head, **meta):

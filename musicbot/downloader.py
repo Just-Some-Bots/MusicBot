@@ -1,5 +1,6 @@
 import os
 import copy
+import hashlib
 import logging
 import functools
 import yt_dlp as youtube_dl  # type: ignore
@@ -26,7 +27,7 @@ log = logging.getLogger(__name__)
 ytdl_format_options_immutable = MappingProxyType(
     {
         "format": "bestaudio/best",
-        "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
+        "outtmpl": "%(extractor)s-%(id)s-%(title)s-%(qhash)s.%(ext)s",
         "restrictfilenames": True,
         "noplaylist": True,
         "nocheckcertificate": True,
@@ -88,7 +89,7 @@ class Downloader:
             url = url[1:-1]
         return youtube_dl.utils.url_or_none(url)
 
-    async def get_url_headers(self, url: str) -> Dict:
+    async def get_url_headers(self, url: str) -> Dict[str, str]:
         """
         Make an HTTP HEAD request and return response headers.
         Header names are converted to upper case.
@@ -111,16 +112,16 @@ class Downloader:
             except Exception:
                 log.warning(f"Failed HEAD request for:  {test_url}")
                 log.exception("HEAD Request exception: ")
-                headers = {}
+                headers = {"X-HEAD-REQ-FAILED": "1"}
         else:
             headers = {"X-INVALID-URL": url}
         return headers
 
     def _sanitize_and_log(
         self,
-        data: Dict,
+        data: Dict[str, Any],
         redact_fields: List[str] = [],
-    ):
+    ) -> None:
         """
         Debug helper function.
         Copies data, removes some long-winded entires and logs the result data for inspection.
@@ -157,20 +158,32 @@ class Downloader:
         Links for spotify tracks, albums, and playlists also get special filters.
 
         :param: song_subject: a song url or search subject.
+        :kwparam: as_stream: If we should try to queue the URL anyway and let ffmpeg figure it out.
         :returns: YtdlpResponseDict containing sanitized extraction data.
         :raises: ExtractionError as well as YoutubeDLError based exceptions.
         """
+        # Hash the URL for use as a unique ID in file paths.
+        md5 = hashlib.md5()
+        md5.update(song_subject.encode("utf8"))
+        # we only use the last 8 characters of md5.  Its probably good enough.
+        song_subject_hash = md5.hexdigest()[-8:]
+
         # Use ytdl or one of our custom integrations to get info.
-        data = await self._filtered_extract_info(song_subject, *args, **kwargs)
+        data = await self._filtered_extract_info(
+            song_subject,
+            *args,
+            **kwargs,
+            # just (ab)use a ytdlp internal thing, a tiny bit...
+            extra_info={
+                "qhash": song_subject_hash,
+            },
+        )
+
         if not data:
             raise ExtractionError("Song info extraction returned no data.")
 
-        # Only get headers for a few extractors.
-        extractor = data.get("extractor")
-        if extractor in [None, "generic", "Dropbox"]:
-            headers = await self.get_url_headers(song_subject)
-        else:
-            headers = {"X-NOT-REQUESTED": "1"}
+        # always get headers for our downloadable.
+        headers = await self.get_url_headers(data.get("url", song_subject))
 
         # if we made it here, put our request data into the extraction.
         data["__input_subject"] = song_subject
