@@ -4525,8 +4525,22 @@ class MusicBot(discord.Client):
 
         Forces the bot leave the current voice channel.
         """
-        await self.disconnect_voice_client(guild)
-        return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
+        voice_client = self.get_player_in(guild)
+        if voice_client:
+            await self.disconnect_voice_client(guild)
+            return Response(
+                self.str.get(
+                    "cmd-disconnect-success", "Disconnected from `{0.name}`"
+                ).format(guild),
+                delete_after=20,
+            )
+        else:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-disconnect-no-voice", "Not currently connected to `{0.name}`"
+                ).format(guild),
+                expire_in=30,
+            )
 
     async def cmd_restart(self, _player, channel, leftover_args, opt="soft"):
         """
@@ -4545,7 +4559,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-restart-invalid-arg",
-                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit",
+                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit.",
                 ),
                 expire_in=30,
             )
