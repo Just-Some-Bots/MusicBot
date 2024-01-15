@@ -4951,7 +4951,9 @@ class MusicBot(discord.Client):
                     )
 
                 # elif not any(not user.bot for user in before.channel.members):
-                elif is_empty_voice_channel(before.channel, include_bots=self.config.bot_exception_ids):
+                elif is_empty_voice_channel(
+                    before.channel, include_bots=self.config.bot_exception_ids
+                ):
                     log.info(
                         f"{before.channel.name} has been detected as empty. Handling timeouts."
                     )
@@ -4969,8 +4971,10 @@ class MusicBot(discord.Client):
             if (
                 member == self.user and before.channel and after.channel
             ):  # bot got moved from channel to channel
-                #if not any(not user.bot for user in after.channel.members):
-                if is_empty_voice_channel(after.channel, include_bots=self.config.bot_exception_ids):
+                # if not any(not user.bot for user in after.channel.members):
+                if is_empty_voice_channel(
+                    after.channel, include_bots=self.config.bot_exception_ids
+                ):
                     log.info(
                         f"The bot got moved and the voice channel {after.channel.name} is empty. Handling timeouts."
                     )
