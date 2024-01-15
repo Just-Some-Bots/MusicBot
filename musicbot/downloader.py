@@ -532,8 +532,11 @@ class YtdlpResponseDict(UserDict):
         """returns duration in seconds if available, or 0"""
         try:
             return float(self.data.get("duration", 0))
-        except (ValueError, TypeError) as e:
-            log.noise(f"Warning, duration ValueEror/TypeError for: {self.original_url}")
+        except (ValueError, TypeError):
+            log.noise(
+                f"Warning, duration ValueEror/TypeError for: {self.original_url}",
+                exc_info=True,
+            )
             return 0.0
 
     @property
