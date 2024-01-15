@@ -14,6 +14,12 @@ from .exceptions import SpotifyError
 log = logging.getLogger(__name__)
 
 
+"""
+This is not the "right" way to do this.
+I -should- build an extractor to register with ytdlp instead.
+This will do for now though.
+"""
+
 class SpotifyObject:
     """Base class for parsed spotify response objects."""
 
@@ -175,7 +181,7 @@ class SpotifyAlbum(SpotifyObject):
         self, album_data: Dict[str, Any], origin_url: Optional[str] = None
     ) -> None:
         if not SpotifyObject.is_album_data(album_data):
-            raise ValueError("Invalid album_data, must be of type 'playlist'")
+            raise ValueError("Invalid album_data, must be of type 'album'")
         super().__init__(album_data, origin_url)
         self._track_objects: List[SpotifyTrack] = []
 
@@ -306,7 +312,7 @@ class Spotify:
     OAUTH_TOKEN_URL = "https://accounts.spotify.com/api/token"
     API_BASE = "https://api.spotify.com/v1/"
     # URL_REGEX allows missing protocol scheme intentionally.
-    URL_REGEX = re.compile(r"(?:https?://)?open\.spotify\.com/")
+    URL_REGEX = re.compile(r"(?:https?://)?open\.spotify\.com/", re.I)
 
     def __init__(
         self,
@@ -430,9 +436,11 @@ class Spotify:
                 break
 
         if total_tracks > len(tracks):
-            log.debug(
+            log.warning(
                 f"Spotify Album Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}"
             )
+        elif total_tracks < len(tracks):
+            log.warning("Spotify Album has more tracks than initial total.")
 
         aldata["tracks"]["items"] = tracks
 
@@ -468,9 +476,11 @@ class Spotify:
                 break
 
         if total_tracks > len(tracks):
-            log.debug(
+            log.warning(
                 f"Spotify Playlist Object may not be complete, expected {total_tracks} tracks but got {len(tracks)}"
             )
+        elif total_tracks < len(tracks):
+            log.warning("Spotify Playlist has more tracks than initial total.")
 
         pldata["tracks"]["items"] = tracks
 

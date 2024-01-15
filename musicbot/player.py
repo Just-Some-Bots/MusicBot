@@ -325,8 +325,12 @@ class MusicPlayer(EventEmitter, Serializable):
                     "entry": self.current_entry,
                     "progress": self.progress,
                     "progress_frames": self._current_player._player.loops
-                    if self.progress is not None
+                    if self.progress is not None and self._current_player
                     else None,
+                    # TODO: @Fae: Not sure if this just kicks the can or not.
+                    # I feel I need to read dpy guts to understand what this is supposed to do to start with.
+                    # At any rate, VoiceClient can be none here when:
+                    # auto-summon enabled, play command is used, deserialized queue has tracks already.
                 },
                 "entries": self.playlist,
             }
