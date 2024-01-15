@@ -97,11 +97,18 @@ class MusicPlayer(EventEmitter, Serializable):
         if self._source:
             self._source._source.volume = value
 
-    def on_entry_added(self, playlist, entry):
+    def on_entry_added(self, playlist, entry, defer_serialize: bool = False):
         if self.is_stopped:
+            log.noise("calling-later, self.play from player.")
             self.loop.call_later(2, self.play)
 
-        self.emit("entry-added", player=self, playlist=playlist, entry=entry)
+        self.emit(
+            "entry-added",
+            player=self,
+            playlist=playlist,
+            entry=entry,
+            defer_serialize=defer_serialize,
+        )
 
     def on_entry_failed(self, entry, error):
         self.emit("error", player=self, entry=entry, ex=error)

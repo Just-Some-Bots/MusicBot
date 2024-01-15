@@ -63,7 +63,9 @@ class Playlist(EventEmitter, Serializable):
         self.entries.appendleft(entry)
         self.entries.rotate(index)
 
-    async def add_stream_from_info(self, info, *, head, **meta):
+    async def add_stream_from_info(
+        self, info, *, head: bool = False, defer_serialize: bool = False, **meta
+    ):
         if (
             info.get("is_live") is None and info.get("extractor", None) != "generic"
         ):  # wew hacky
@@ -77,10 +79,12 @@ class Playlist(EventEmitter, Serializable):
             info,
             **meta,
         )
-        self._add_entry(entry, head=head)
+        self._add_entry(entry, head=head, defer_serialize=defer_serialize)
         return entry, len(self.entries)
 
-    async def add_entry_from_info(self, info, *, head, **meta):
+    async def add_entry_from_info(
+        self, info, *, head: bool = False, defer_serialize: bool = False, **meta
+    ):
         """
         Validates extracted info and adds media to be played.
         This does not start the download of the song.
@@ -140,7 +144,7 @@ class Playlist(EventEmitter, Serializable):
         log.noise(f"Adding URLPlaylistEntry for: {info.get('__input_subject')}")
         # TODO: push all the info into entry and leave it there...
         entry = URLPlaylistEntry(self, info, **meta)
-        self._add_entry(entry, head=head)
+        self._add_entry(entry, head=head, defer_serialize=defer_serialize)
         return entry, (1 if head else len(self.entries))
 
     async def import_from_info(self, info, head, **meta):
@@ -158,6 +162,7 @@ class Playlist(EventEmitter, Serializable):
         entries = info.get_entries_objects()
         author_perms = None
         author = meta.get("author", None)
+        defer_serialize = True
 
         if author:
             author_perms = self.bot.permissions.for_user(author)
@@ -165,8 +170,13 @@ class Playlist(EventEmitter, Serializable):
         if head:
             entries.reverse()
 
-        track_number = 1
+        track_number = 0
         for item in entries:
+            # count tracks regardless of conditions, used for missing track names
+            # and also defers serialization of the queue.
+            track_number += 1
+
+            # TODO: add permission check for max songs allowed.
             # Exclude entries over max permitted duration.
             if (
                 author_perms
@@ -179,19 +189,34 @@ class Playlist(EventEmitter, Serializable):
                 baditems += 1
                 continue
 
+            # Check youtube data to pre-emptively avoid adding Private or Deleted videos to the queue.
+            if info.extractor.startswith("youtube") and (
+                "[private video]" == item.get("title", "").lower()
+                or "[deleted video]" == item.get("title", "").lower()
+            ):
+                log.warning(
+                    f"Not adding youtube video because it is marked private or deleted:  {item.get_playable_url()}"
+                )
+                baditems += 1
+                continue
+
             # Soundcloud playlists don't get titles in flat extraction. A bug maybe?
             # Anyway we make a temp title here, the real one is fetched at play.
             if "title" in info and "title" not in item:
                 item["title"] = f"{info.title} - #{track_number}"
 
+            if track_number >= info.entry_count:
+                defer_serialize = False
+
             try:
-                entry, pos = await self.add_entry_from_info(item, head=head, **meta)
+                entry, pos = await self.add_entry_from_info(
+                    item, head=head, defer_serialize=defer_serialize, **meta
+                )
                 entry_list.append(entry)
             except Exception as e:
                 baditems += 1
                 log.warning("Could not add item", exc_info=e)
                 log.debug("Item: {}".format(item), exc_info=True)
-            track_number += 1
 
         if baditems:
             log.info("Skipped {} bad entries".format(baditems))
@@ -237,7 +262,7 @@ class Playlist(EventEmitter, Serializable):
 
         self.entries = new_queue
 
-    def _add_entry(self, entry, *, head=False):
+    def _add_entry(self, entry, *, head=False, defer_serialize: bool = False):
         if head:
             self.entries.appendleft(entry)
         else:
@@ -246,7 +271,9 @@ class Playlist(EventEmitter, Serializable):
         if self.bot.config.round_robin_queue:
             self.reorder_for_round_robin()
 
-        self.emit("entry-added", playlist=self, entry=entry)
+        self.emit(
+            "entry-added", playlist=self, entry=entry, defer_serialize=defer_serialize
+        )
 
         if self.peek() is entry:
             entry.get_ready_future()

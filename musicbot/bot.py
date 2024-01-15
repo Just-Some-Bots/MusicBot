@@ -861,9 +861,15 @@ class MusicBot(discord.Client):
         if not player.is_stopped and not player.is_dead:
             player.play(_continue=True)
 
-    async def on_player_entry_added(self, player, playlist, entry, **_):
+    async def on_player_entry_added(
+        self, player, playlist, entry, defer_serialize: bool = False, **_
+    ):
         log.debug("Running on_player_entry_added")
-        if entry.meta.get("author") and entry.meta.get("channel"):
+        if (
+            entry.meta.get("author")
+            and entry.meta.get("channel")
+            and not defer_serialize
+        ):
             await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_error(self, player, entry, ex, **_):
