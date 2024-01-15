@@ -68,7 +68,9 @@ class Downloader:
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
         # Copy request headers cofig to its own dict.
-        self.http_req_headers = {"User-Agent": ytdl_format_options["http_headers"]["User-Agent"]}
+        self.http_req_headers = {
+            "User-Agent": ytdl_format_options["http_headers"]["User-Agent"]
+        }
 
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
