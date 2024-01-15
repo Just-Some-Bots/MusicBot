@@ -41,8 +41,6 @@ ytdl_format_options_immutable = MappingProxyType(
         "source_address": "0.0.0.0",
         "usenetrc": True,
         "no_color": True,
-        # Get random UA from ytdlp early, so we can use it for HEAD requests.
-        "http_headers": {"User-Agent": youtube_dl.utils.networking.random_user_agent()},
     }
 )
 
@@ -65,12 +63,13 @@ class Downloader:
         self.download_folder: str = bot.config.audio_cache_path
         self.thread_pool = ThreadPoolExecutor(max_workers=2)
 
+        # force ytdlp and HEAD requests to use the same UA string.
+        self.http_req_headers = {
+            "User-Agent": youtube_dl.utils.networking.random_user_agent()
+        }
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
-        # Copy request headers cofig to its own dict.
-        self.http_req_headers = {
-            "User-Agent": ytdl_format_options["http_headers"]["User-Agent"]
-        }
+        ytdl_format_options["http_headers"] = self.http_req_headers
 
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
