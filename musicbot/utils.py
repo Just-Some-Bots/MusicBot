@@ -4,7 +4,7 @@ import logging
 import aiohttp
 import inspect
 import unicodedata
-from typing import TYPE_CHECKING, Union, List
+from typing import TYPE_CHECKING, Union, Optional, Any, List, Dict
 
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
@@ -89,11 +89,17 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
 
 
 async def get_header(
-    session, url, headerfield=None, *, timeout=5, allow_redirects=True
+    session: aiohttp.ClientSession,
+    url: str,
+    headerfield: Optional[str] = None,
+    *,
+    timeout: int = 5,
+    allow_redirects: bool = True,
+    req_headers: Dict[str, Any] = {},
 ):
     req_timeout = aiohttp.ClientTimeout(total=timeout)
     async with session.head(
-        url, timeout=req_timeout, allow_redirects=allow_redirects
+        url, timeout=req_timeout, allow_redirects=allow_redirects, headers=req_headers
     ) as response:
         if headerfield:
             return response.headers.get(headerfield)

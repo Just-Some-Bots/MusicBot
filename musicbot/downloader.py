@@ -41,6 +41,8 @@ ytdl_format_options_immutable = MappingProxyType(
         "source_address": "0.0.0.0",
         "usenetrc": True,
         "no_color": True,
+        # Get random UA from ytdlp early, so we can use it for HEAD requests.
+        "http_headers": {"User-Agent": youtube_dl.utils.networking.random_user_agent()},
     }
 )
 
@@ -65,6 +67,8 @@ class Downloader:
 
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
+        # Copy request headers cofig to its own dict.
+        self.http_req_headers = {"User-Agent": ytdl_format_options["http_headers"]["User-Agent"]}
 
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
@@ -100,7 +104,11 @@ class Downloader:
         # do a HEAD request and add the headers to extraction info.
         if test_url:
             try:
-                head_data = await get_header(self.bot.session, test_url)
+                head_data = await get_header(
+                    self.bot.session,
+                    test_url,
+                    req_headers=self.http_req_headers,
+                )
                 # convert multidict headers to a serializable dict.
                 for key in set(head_data.keys()):
                     new_key = key.upper()
