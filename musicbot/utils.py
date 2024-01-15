@@ -210,7 +210,7 @@ def is_empty_voice_channel(
         ):
             return False
 
-        if member.bot and member.bot.id not in include_bots:
+        if member.bot and member.id not in include_bots:
             return False
 
         return True

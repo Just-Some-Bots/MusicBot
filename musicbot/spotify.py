@@ -20,6 +20,7 @@ I -should- build an extractor to register with ytdlp instead.
 This will do for now though.
 """
 
+
 class SpotifyObject:
     """Base class for parsed spotify response objects."""
 

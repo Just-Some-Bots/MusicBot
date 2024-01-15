@@ -148,7 +148,9 @@ class Downloader:
         else:
             log.debug(f"Sanitized YTDL Extraction Info:  {data}")
 
-    async def extract_info(self, song_subject: str, *args, **kwargs) -> "YtdlpResponseDict":
+    async def extract_info(
+        self, song_subject: str, *args, **kwargs
+    ) -> "YtdlpResponseDict":
         """
         Runs ytdlp.extract_info with all arguments passed to this function.
         Resulting data is passed through ytdlp's sanitize_info and returned
@@ -205,7 +207,9 @@ class Downloader:
         )
         return YtdlpResponseDict(data)
 
-    async def _filtered_extract_info(self, song_subject: str, *args, **kwargs) -> Dict[str, Any]:
+    async def _filtered_extract_info(
+        self, song_subject: str, *args, **kwargs
+    ) -> Dict[str, Any]:
         """
         The real logic behind extract_info().
 
@@ -520,7 +524,8 @@ class YtdlpResponseDict(UserDict):
         """returns duration in seconds if available, or 0"""
         try:
             return float(self.data.get("duration", 0))
-        except ValueError:
+        except (ValueError, TypeError) as e:
+            log.noise(f"Warning, duration ValueEror/TypeError for: {self.original_url}")
             return 0.0
 
     @property
