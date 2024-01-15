@@ -3514,14 +3514,16 @@ class MusicBot(discord.Client):
                     )
 
                 elif player.playlist.peek().is_downloaded:
-                    print("The next song will be played shortly.  Please wait.")
+                    return Response(
+                        "The next song will be played shortly.  Please wait."
+                    )
                 else:
-                    print(
+                    return Response(
                         "Something odd is happening.  "
                         "You might want to restart the bot if it doesn't start working."
                     )
             else:
-                print(
+                return Response(
                     "Something strange is happening.  "
                     "You might want to restart the bot if it doesn't start working."
                 )
