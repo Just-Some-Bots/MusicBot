@@ -1,12 +1,11 @@
 import os
 import asyncio
 import logging
-import typing
 import re
 import sys
 
 from discord.abc import GuildChannel
-from typing import Any, List, Dict, Optional, Callable
+from typing import TYPE_CHECKING, Any, List, Dict, Optional, Callable
 from yt_dlp.utils import ContentTooShortError  # type: ignore
 
 from .constructs import Serializable
@@ -14,18 +13,19 @@ from .exceptions import ExtractionError, InvalidDataError
 from .spotify import Spotify
 from .downloader import YtdlpResponseDict
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from .playlist import Playlist
     from .filecache import AudioFileCache
     from .downloader import Downloader
+
+log = logging.getLogger(__name__)
 
 # optionally using pymediainfo instead of ffprobe if presents
 try:
     import pymediainfo  # type: ignore
 except ImportError:
+    log.debug("module 'pymediainfo' not found, will fall back to ffprobe.")
     pymediainfo = None
-
-log = logging.getLogger(__name__)
 
 
 class BasePlaylistEntry(Serializable):
@@ -170,7 +170,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         return self.info.title or "Unknown"
 
     @property
-    def duration(self) -> typing.Optional[float]:
+    def duration(self) -> Optional[float]:
         """Gets available duration data or None"""
         # duration can be 0, if so we make sure it returns None instead.
         return self.info.get("duration", None) or None
@@ -185,7 +185,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         return self.info.thumbnail_url
 
     @property
-    def expected_filename(self) -> typing.Optional[str]:
+    def expected_filename(self) -> Optional[str]:
         """Get the expected filename from info if available or None"""
         return self.info.get("__expected_filename", None)
 
@@ -538,7 +538,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         return self.info.title or "Unknown"
 
     @property
-    def duration(self) -> typing.Optional[float]:
+    def duration(self) -> Optional[float]:
         """Gets available duration data or None"""
         # duration can be 0, if so we make sure it returns None instead.
         return self.info.get("duration", None) or None
