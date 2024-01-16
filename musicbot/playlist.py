@@ -3,7 +3,17 @@ import logging
 from collections import deque
 from itertools import islice
 from random import shuffle
-from typing import TYPE_CHECKING, Union, Optional, Any, Iterator, Deque, Tuple, Dict, List
+from typing import (
+    TYPE_CHECKING,
+    Union,
+    Optional,
+    Any,
+    Iterator,
+    Deque,
+    Tuple,
+    Dict,
+    List,
+)
 
 from .constructs import Serializable
 from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
@@ -70,7 +80,12 @@ class Playlist(EventEmitter, Serializable):
         self.entries.rotate(index)
 
     async def add_stream_from_info(
-        self, info: "YtdlpResponseDict", *, head: bool = False, defer_serialize: bool = False, **meta
+        self,
+        info: "YtdlpResponseDict",
+        *,
+        head: bool = False,
+        defer_serialize: bool = False,
+        **meta,
     ) -> Tuple[StreamPlaylistEntry, int]:
         if (
             info.get("is_live") is None and info.get("extractor", None) != "generic"
@@ -89,7 +104,12 @@ class Playlist(EventEmitter, Serializable):
         return entry, len(self.entries)
 
     async def add_entry_from_info(
-        self, info: "YtdlpResponseDict", *, head: bool = False, defer_serialize: bool = False, **meta
+        self,
+        info: "YtdlpResponseDict",
+        *,
+        head: bool = False,
+        defer_serialize: bool = False,
+        **meta,
     ) -> Tuple[EntryTypes, int]:
         """
         Validates extracted info and adds media to be played.
@@ -153,7 +173,9 @@ class Playlist(EventEmitter, Serializable):
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
         return entry, (1 if head else len(self.entries))
 
-    async def import_from_info(self, info: "YtdlpResponseDict", head: bool, **meta) -> Tuple[List, int]:
+    async def import_from_info(
+        self, info: "YtdlpResponseDict", head: bool, **meta
+    ) -> Tuple[List, int]:
         """
         Imports the songs from `info` and queues them to be played.
 
@@ -268,7 +290,9 @@ class Playlist(EventEmitter, Serializable):
 
         self.entries = new_queue
 
-    def _add_entry(self, entry: EntryTypes, *, head: bool = False, defer_serialize: bool = False) -> None:
+    def _add_entry(
+        self, entry: EntryTypes, *, head: bool = False, defer_serialize: bool = False
+    ) -> None:
         if head:
             self.entries.appendleft(entry)
         else:
@@ -284,7 +308,9 @@ class Playlist(EventEmitter, Serializable):
         if self.peek() is entry:
             entry.get_ready_future()
 
-    async def _try_get_entry_future(self, entry: EntryTypes, predownload: bool = False) -> Optional["asyncio.Future"]:
+    async def _try_get_entry_future(
+        self, entry: EntryTypes, predownload: bool = False
+    ) -> Optional["asyncio.Future"]:
         """gracefully try to get the entry ready future, or start pre-downloading one."""
         moving_on = " Moving to the next entry..."
         if predownload:
@@ -312,7 +338,9 @@ class Playlist(EventEmitter, Serializable):
 
         return None
 
-    async def get_next_entry(self, predownload_next: bool = True) -> Optional["asyncio.Future"]:
+    async def get_next_entry(
+        self, predownload_next: bool = True
+    ) -> Optional["asyncio.Future"]:
         """
         A coroutine which will return the next song or None if no songs left to play.
 
@@ -339,7 +367,9 @@ class Playlist(EventEmitter, Serializable):
             return self.entries[0]
         return None
 
-    async def estimate_time_until(self, position: int, player: "MusicPlayer") -> datetime.timedelta:
+    async def estimate_time_until(
+        self, position: int, player: "MusicPlayer"
+    ) -> datetime.timedelta:
         """
         (very) Roughly estimates the time till the queue will 'position'
         """
@@ -364,7 +394,9 @@ class Playlist(EventEmitter, Serializable):
         return self._enclose_json({"entries": list(self.entries)})
 
     @classmethod
-    def _deserialize(cls, raw_json: Dict[str, Any], bot: Optional["MusicBot"] = None, **kwargs) -> "Playlist":
+    def _deserialize(
+        cls, raw_json: Dict[str, Any], bot: Optional["MusicBot"] = None, **kwargs
+    ) -> "Playlist":
         assert bot is not None, cls._bad("bot")
         # log.debug("Deserializing playlist")
         pl = cls(bot)
