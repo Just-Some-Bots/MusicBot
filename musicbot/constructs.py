@@ -123,5 +123,7 @@ class Serializable:
         raise NotImplementedError
 
     @classmethod
-    def _deserialize(cls, raw_json: Dict[str, Any], **kwargs: Any) -> Any:
+    def _deserialize(
+        cls: Type["Serializable"], raw_json: Dict[str, Any], **kwargs: Any
+    ) -> Any:
         raise NotImplementedError

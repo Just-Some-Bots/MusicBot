@@ -16,6 +16,8 @@ from .downloader import YtdlpResponseDict
 
 if typing.TYPE_CHECKING:
     from .playlist import Playlist
+    from .filecache import AudioFileCache
+    from .downloader import Downloader
 
 # optionally using pymediainfo instead of ffprobe if presents
 try:
@@ -97,7 +99,7 @@ class BasePlaylistEntry(Serializable):
         return id(self)
 
 
-async def run_command(cmd):
+async def run_command(cmd: str) -> bytes:
     p = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
@@ -106,7 +108,7 @@ async def run_command(cmd):
     return stdout + stderr
 
 
-def get(program):
+def get(program: str) -> Optional[str]:
     def is_exe(file_path):
         found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
         if not found and sys.platform == "win32":
@@ -135,15 +137,15 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self,
         playlist: "Playlist",
         info: YtdlpResponseDict,
-        **meta,
+        **meta: Dict[str, Any],
     ) -> None:
         super().__init__()
 
-        self.playlist = playlist
-        self.downloader = playlist.bot.downloader
-        self.filecache = playlist.bot.filecache
+        self.playlist: "Playlist" = playlist
+        self.downloader: "Downloader" = playlist.bot.downloader
+        self.filecache: "AudioFileCache" = playlist.bot.filecache
 
-        self.info = info
+        self.info: YtdlpResponseDict = info
 
         if self.duration is None:
             log.info(
@@ -335,77 +337,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 else:
                     await self._really_download()
 
-            # else:  # this would be a problem.
-
-            """
-            # the generic extractor requires special handling
-            if self.info.extractor == "generic":
-                flistdir = [
-                    f.rsplit("-", 1)[0]
-                    for f in os.listdir(self.downloader.download_folder)
-                ]
-                expected_fname_noex, fname_ex = os.path.basename(
-                    self.expected_filename
-                ).rsplit(".", 1)
-
-                if expected_fname_noex in flistdir:
-                    rsize = int(self.info.http_header("CONTENT-LENGTH", 0))
-
-                    lfile = os.path.join(
-                        self.downloader.download_folder,
-                        os.listdir(self.downloader.download_folder)[
-                            flistdir.index(expected_fname_noex)
-                        ],
-                    )
-
-                    # print("Resolved %s to %s" % (self.expected_filename, lfile))
-                    lsize = os.path.getsize(lfile)
-                    # print("Remote size: %s Local size: %s" % (rsize, lsize))
-
-                    if lsize != rsize:
-                        await self._really_download(hash=True)
-                    else:
-                        # print("[Download] Cached:", self.url)
-                        self.filename = lfile
-
-                else:
-                    # print("File not found in cache (%s)" % expected_fname_noex)
-                    await self._really_download(hash=True)
-
-            else:
-                ldir = os.listdir(self.downloader.download_folder)
-                flistdir = [f.rsplit(".", 1)[0] for f in ldir]
-                expected_fname_base = os.path.basename(self.expected_filename)
-                expected_fname_noex = expected_fname_base.rsplit(".", 1)[0]
-
-                # idk wtf this is but its probably legacy code
-                # or i have youtube to blame for changing shit again
-
-                if expected_fname_base in ldir:
-                    self.filename = os.path.join(
-                        self.downloader.download_folder, expected_fname_base
-                    )
-                    log.info("Download cached: {}".format(self.url))
-
-                elif expected_fname_noex in flistdir:
-                    log.info(
-                        "Download cached (different extension): {}".format(self.url)
-                    )
-                    self.filename = os.path.join(
-                        self.downloader.download_folder,
-                        ldir[flistdir.index(expected_fname_noex)],
-                    )
-                    log.debug(
-                        "Expected {}, got {}".format(
-                            self.expected_filename.rsplit(".", 1)[-1],
-                            self.filename.rsplit(".", 1)[-1],
-                        )
-                    )
-                else:
-                    await self._really_download()
-
-            """
-
             if self.duration is None:
                 if pymediainfo:
                     try:
@@ -427,8 +358,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         'csv="p=0"',
                     ]
 
-                    output = await run_command(" ".join(args))
-                    output = output.decode("utf-8")
+                    raw_output = await run_command(" ".join(args))
+                    output = raw_output.decode("utf-8")
 
                     try:
                         self.duration = float(output)
@@ -476,13 +407,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
         finally:
             self._is_downloading = False
 
-    async def get_mean_volume(self, input_file):
+    async def get_mean_volume(self, input_file: str) -> str:
         log.debug("Calculating mean volume of {0}".format(input_file))
         exe = get("ffmpeg")
         args = "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json -f null /dev/null"
 
-        output = await run_command(f'"{exe}" -i "{input_file}" {args}')
-        output = output.decode("utf-8")
+        raw_output = await run_command(f'"{exe}" -i "{input_file}" {args}')
+        output = raw_output.decode("utf-8")
         log.debug(f"Experimental Mean Volume Output:  {output}")
 
         i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -529,7 +460,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             IVAL, LRA, TP, thresh, offset
         )
 
-    async def _really_download(self):
+    async def _really_download(self) -> None:
         log.info("Download started: {}".format(self.url))
 
         retry = 2
@@ -552,7 +483,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     self.cache_busted = True
                     raise ExtractionError(e)
             except Exception as e:
-                raise ExtractionError(e)
+                raise ExtractionError(str(e)) from e
 
         log.info("Download complete: {}".format(self.url))
 
@@ -562,7 +493,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # What the fuck do I do now?
 
         self._is_downloaded = True
-        self.filename = info.expected_filename
+        self.filename = info.expected_filename or ""
 
         # It should be safe to get our newly downloaded file size now...
         # This should also leave self.downloaded_bytes set to 0 if the file is in cache already.
@@ -576,15 +507,15 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         self,
         playlist: "Playlist",
         info: YtdlpResponseDict,
-        **meta: Any,
-    ):
+        **meta: Dict[str, Any],
+    ) -> None:
         super().__init__()
 
-        self.playlist = playlist
-        self.info = info
-        self.meta = meta
+        self.playlist: "Playlist" = playlist
+        self.info: YtdlpResponseDict = info
+        self.meta: Dict[str, Any] = meta
 
-        self.filename = self.url
+        self.filename: str = self.url
 
     @property
     def url(self) -> str:
@@ -621,7 +552,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         """Get available thumbnail from info or an empty string"""
         return self.info.thumbnail_url
 
-    def __json__(self):
+    def __json__(self) -> Dict[str, Any]:
         return self._enclose_json(
             {
                 "version": StreamPlaylistEntry.SERIAL_VERSION,
@@ -640,29 +571,49 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         )
 
     @classmethod
-    def _deserialize(cls, data, playlist=None):
+    def _deserialize(
+        cls, raw_json: Dict[str, Any], playlist: Optional["Playlist"] = None, **kwargs
+    ) -> Optional["StreamPlaylistEntry"]:
         assert playlist is not None, cls._bad("playlist")
 
-        vernum = data.get("version", None)
+        vernum = raw_json.get("version", None)
         if not vernum:
             raise InvalidDataError("Entry data is missing version number.")
         elif vernum != URLPlaylistEntry.SERIAL_VERSION:
             raise InvalidDataError("Entry data has the wrong version number.")
 
         try:
-            info = YtdlpResponseDict(data["info"])
-            filename = data["filename"]
-            meta = {}
+            info = YtdlpResponseDict(raw_json["info"])
+            filename = raw_json["filename"]
+            meta: Dict[str, Any] = {}
 
             # TODO: Better [name] fallbacks
-            if "channel" in data["meta"]:
-                ch = playlist.bot.get_channel(data["meta"]["channel"]["id"])
-                meta["channel"] = ch or data["meta"]["channel"]["name"]
-
-            if "author" in data["meta"]:
-                meta["author"] = meta["channel"].guild.get_member(
-                    data["meta"]["author"]["id"]
+            if "channel" in raw_json["meta"]:
+                # int() it because persistent queue from pre-rewrite days saved ids as strings
+                meta["channel"] = playlist.bot.get_channel(
+                    int(raw_json["meta"]["channel"]["id"])
                 )
+                if not meta["channel"]:
+                    log.warning(
+                        "Cannot find channel in an entry loaded from persistent queue. Chennel id: {}".format(
+                            raw_json["meta"]["channel"]["id"]
+                        )
+                    )
+                    meta.pop("channel")
+                elif "author" in raw_json["meta"] and isinstance(
+                    meta["channel"], GuildChannel
+                ):
+                    # int() it because persistent queue from pre-rewrite days saved ids as strings
+                    meta["author"] = meta["channel"].guild.get_member(
+                        int(raw_json["meta"]["author"]["id"])
+                    )
+                    if not meta["author"]:
+                        log.warning(
+                            "Cannot find author in an entry loaded from persistent queue. Author id: {}".format(
+                                raw_json["meta"]["author"]["id"]
+                            )
+                        )
+                        meta.pop("author")
 
             entry = cls(playlist, info, **meta)
             entry.filename = filename
@@ -670,8 +621,9 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         except Exception as e:
             log.error("Could not load {}".format(cls.__name__), exc_info=e)
 
-    # noinspection PyMethodOverriding
-    async def _download(self):
+        return None
+
+    async def _download(self) -> None:
         self._is_downloading = True
         self._is_downloaded = True
         self.filename = self.url

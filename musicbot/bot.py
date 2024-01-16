@@ -59,6 +59,10 @@ from .utils import (
 
 log = logging.getLogger(__name__)
 
+# TODO: fix listids command to send in channel if DM fails.
+# TODO: fix perms command to send in channel if DM fails.
+# TODO: fix playlist/queue check for missing member so it does not download at all.
+
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None, aliases_file=None):
@@ -2628,7 +2632,9 @@ class MusicBot(discord.Client):
             if "entries" in info and not info.entry_count:
                 if info.extractor == "youtube:search":
                     # TOOD: UI, i18n stuff
-                    raise exceptions.CommandError(f"Youtube search returned no results for:  {song_url}")
+                    raise exceptions.CommandError(
+                        f"Youtube search returned no results for:  {song_url}"
+                    )
 
             # If the result has usable entries, we assume it is a playlist
             if "entries" in info and (info.playlist_count or info.entry_count):
