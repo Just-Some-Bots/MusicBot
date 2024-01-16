@@ -305,24 +305,6 @@ class MusicBot(discord.Client):
             )
             dlogger.addHandler(dhandler)
 
-    @staticmethod
-    def _check_if_empty(
-        vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False
-    ):
-        def check(member):
-            if excluding_me and member == vchannel.guild.me:
-                return False
-
-            if excluding_deaf and any([member.deaf, member.self_deaf]):
-                return False
-
-            if member.bot:
-                return False
-
-            return True
-
-        return not sum(1 for m in vchannel.members if check(m))
-
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
         channel_map = {c.guild: c for c in channels}
