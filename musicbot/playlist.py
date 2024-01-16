@@ -87,12 +87,10 @@ class Playlist(EventEmitter, Serializable):
         defer_serialize: bool = False,
         **meta,
     ) -> Tuple[StreamPlaylistEntry, int]:
-        if (
-            info.get("is_live") is None and info.get("extractor", None) != "generic"
-        ):  # wew hacky
-            raise ExtractionError("This is not a stream.")
-
         # TODO: A bit more validation, "~stream some_url" should not just say :ok_hand:
+        # @Fae: about as much validation we can do is making sure the URL is playable.
+        # Users are using stream to play without downloading, and enforcing a check
+        # for "streaming" media here would break that use case.
 
         log.noise(f"Adding stream entry for URL:  {info.url}")
         entry = StreamPlaylistEntry(
@@ -168,7 +166,6 @@ class Playlist(EventEmitter, Serializable):
                     )
 
         log.noise(f"Adding URLPlaylistEntry for: {info.get('__input_subject')}")
-        # TODO: push all the info into entry and leave it there...
         entry = URLPlaylistEntry(self, info, **meta)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
         return entry, (1 if head else len(self.entries))
@@ -201,10 +198,8 @@ class Playlist(EventEmitter, Serializable):
         track_number = 0
         for item in entries:
             # count tracks regardless of conditions, used for missing track names
-            # and also defers serialization of the queue.
+            # and also defers serialization of the queue for playlists.
             track_number += 1
-
-            # TODO: add permission check for max songs allowed.
             # Exclude entries over max permitted duration.
             if (
                 author_perms

@@ -876,7 +876,7 @@ class MusicBot(discord.Client):
                     )
                     continue
 
-                if info.get("entries", None):  # or .get('_type', '') == 'playlist'
+                if info.has_entries:
                     await player.playlist.import_from_info(
                         info, channel=None, author=None, head=False
                     )
@@ -2678,7 +2678,7 @@ class MusicBot(discord.Client):
                     )
 
             # If the result has usable entries, we assume it is a playlist
-            if "entries" in info and (info.playlist_count or info.entry_count):
+            if info.has_entries:
                 await self._do_playlist_checks(player, author, info)
 
                 num_songs = info.playlist_count or info.entry_count
@@ -2848,9 +2848,10 @@ class MusicBot(discord.Client):
                 )
                 raise exceptions.CommandError(e)
 
-            if info.has_entries and info.playlist_count:
+            if info.has_entries:
                 raise exceptions.CommandError(
-                    "Streaming playlists is not yet supported."
+                    "Streaming playlists is not yet supported.",
+                    expire_in=30,
                 )
                 # TODO: could process these and force them to be stream entries...
 
@@ -3058,7 +3059,7 @@ class MusicBot(discord.Client):
                     reply.channel.id == channel.id
                     and reply.author == message.author
                     and reply.content.isdigit()
-                    and -1 <= int(reply.content) - 1 <= len(info["entries"])
+                    and -1 <= int(reply.content) - 1 <= info.entry_count
                 )
 
             # Wait for a response from the author.
@@ -3111,7 +3112,7 @@ class MusicBot(discord.Client):
                     channel,
                     self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
                         info["entries"].index(e) + 1,
-                        len(info["entries"]),
+                        info.entry_count,
                         e["webpage_url"],
                     ),
                 )

@@ -269,17 +269,25 @@ class Downloader:
         # - Exception  = Could not extract information from {song_url} ({err}), falling back to direct
         except DownloadError as e:
             if not as_stream_url:
-                raise ExtractionError(e)
+                raise ExtractionError(str(e)) from e
 
             log.exception("Download Error with stream URL")
             if e.exc_info[0] == UnsupportedError:
                 # ytdl doesn't support it but it could be streamable...
-                log.debug("Assuming content is a direct stream")
                 song_url = self.get_url_or_none(song_subject)
-                data = {"title": song_subject, "extractor": None, "url": song_url}
+                if song_url:
+                    log.debug("Assuming content is a direct stream")
+                    data = {
+                        "title": song_subject,
+                        "extractor": None,
+                        "url": song_url,
+                        "__force_stream": True,
+                    }
+                else:
+                    raise ExtractionError("Cannot stream an invalid URL.") from e
 
             else:
-                raise ExtractionError("Invalid input: {0}".format(e))
+                raise ExtractionError("Invalid input: {0}".format(e)) from e
         except NoSupportingHandlers:
             # due to how we allow search service strings we can't just encode this by default.
             # on the other hand, this method prevents cmd_stream from taking search strings.
