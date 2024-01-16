@@ -32,6 +32,7 @@ class BasePlaylistEntry(Serializable):
         self.downloaded_bytes: int = 0
         self.cache_busted: bool = False
         self._is_downloading: bool = False
+        self._is_downloaded: bool = False
         self._waiting_futures: List[asyncio.Future] = []
 
     @property
@@ -47,7 +48,7 @@ class BasePlaylistEntry(Serializable):
         if self._is_downloading:
             return False
 
-        return bool(self.filename)
+        return bool(self.filename) and self._is_downloaded
 
     async def _download(self) -> None:
         raise NotImplementedError
@@ -328,6 +329,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     else:
                         log.debug(f"Download already cached at:  {file_cache_path}")
                         self.filename = file_cache_path
+                        self._is_downloaded = True
 
                 # nothing cached, time to download for real.
                 else:
@@ -559,6 +561,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
+        self._is_downloaded = True
         self.filename = info.expected_filename
 
         # It should be safe to get our newly downloaded file size now...
@@ -670,5 +673,6 @@ class StreamPlaylistEntry(BasePlaylistEntry):
     # noinspection PyMethodOverriding
     async def _download(self):
         self._is_downloading = True
+        self._is_downloaded = True
         self.filename = self.url
         self._is_downloading = False
