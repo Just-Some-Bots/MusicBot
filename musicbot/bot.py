@@ -4115,7 +4115,10 @@ class MusicBot(discord.Client):
             except discord.errors.HTTPException as e:
                 if e.code == 50007:  # cannot send to this user.
                     log.debug("DM failed, sending in channel instead.")
-                    sent_to_channel = await channel.send()
+                    sent_to_channel = await channel.send(
+                        msg_str,
+                        file=datafile,
+                    )
                 else:
                     raise
         if not sent_to_channel:
