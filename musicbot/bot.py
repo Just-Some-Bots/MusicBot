@@ -2864,8 +2864,14 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_search(
-        self, message, player, channel, author, permissions, leftover_args
-    ):
+        self,
+        message: discord.Message,
+        player: MusicPlayer,
+        channel: discord.abc.GuildChannel,
+        author: discord.abc.User,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}search [service] [number] query
@@ -2904,15 +2910,14 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        def argcheck():
+        def argcheck() -> None:
             if not leftover_args:
-                # noinspection PyUnresolvedReferences
                 raise exceptions.CommandError(
                     self.str.get(
                         "cmd-search-noquery", "Please specify a search query.\n%s"
                     )
                     % dedent(
-                        self.cmd_search.__doc__.format(
+                        self.cmd_search.__doc__.format(  # type: ignore
                             command_prefix=self._get_guild_cmd_prefix(channel.guild)
                         )
                     ),
@@ -2979,7 +2984,8 @@ class MusicBot(discord.Client):
         search_msg = await self.safe_send_message(
             channel, self.str.get("cmd-search-searching", "Searching for videos...")
         )
-        await channel.typing()
+        if isinstance(channel, discord.abc.Messageable):
+            await channel.typing()
 
         try:
             info = await self.downloader.extract_info(
@@ -2988,7 +2994,7 @@ class MusicBot(discord.Client):
 
         except Exception as e:
             await self.safe_edit_message(search_msg, str(e), send_if_fail=True)
-            return
+            return None
         else:
             await self.safe_delete_message(search_msg)
 
@@ -2996,6 +3002,8 @@ class MusicBot(discord.Client):
             return Response(
                 self.str.get("cmd-search-none", "No videos found."), delete_after=30
             )
+
+        entries = info.get_entries_objects()
 
         # Decide if the list approach or the reaction approach should be used
         if self.config.searchlist:
@@ -3013,7 +3021,7 @@ class MusicBot(discord.Client):
                 ).format(service.capitalize())
                 result_header += "\n\n"
 
-            for e in info["entries"]:
+            for entry in entries:
                 # This formats the results and adds it to an array
                 # format_song_duration removes the hour section
                 # if the song is shorter than an hour
@@ -3021,10 +3029,10 @@ class MusicBot(discord.Client):
                     self.str.get(
                         "cmd-search-list-entry", "**{0}**. **{1}** | {2}"
                     ).format(
-                        info["entries"].index(e) + 1,
-                        e["title"],
+                        entries.index(entry) + 1,
+                        entry["title"],
                         format_song_duration(
-                            ftimedelta(timedelta(seconds=e["duration"]))
+                            ftimedelta(timedelta(seconds=entry["duration"]))
                         ),
                     )
                 )
@@ -3067,7 +3075,7 @@ class MusicBot(discord.Client):
                 choice = await self.wait_for("message", timeout=30.0, check=check)
             except asyncio.TimeoutError:
                 await self.safe_delete_message(result_message)
-                return
+                return None
 
             if choice.content == "0":
                 # Choice 0 will cancel the search
@@ -3086,15 +3094,15 @@ class MusicBot(discord.Client):
                     author,
                     permissions,
                     [],
-                    info["entries"][int(choice.content) - 1]["webpage_url"],
+                    entries[int(choice.content) - 1]["url"],
                 )
                 if self.config.embeds:
                     return Response(
                         self.str.get(
                             "cmd-search-accept-list-embed", "[{0}]({1}) added to queue"
                         ).format(
-                            info["entries"][int(choice.content) - 1]["title"],
-                            info["entries"][int(choice.content) - 1]["webpage_url"],
+                            entries[int(choice.content) - 1]["title"],
+                            entries[int(choice.content) - 1]["url"],
                         ),
                         delete_after=30,
                     )
@@ -3102,22 +3110,22 @@ class MusicBot(discord.Client):
                     return Response(
                         self.str.get(
                             "cmd-search-accept-list-noembed", "{0} added to queue"
-                        ).format(info["entries"][int(choice.content) - 1]["title"]),
+                        ).format(entries[int(choice.content) - 1]["title"]),
                         delete_after=30,
                     )
         else:
             # Original code
-            for e in info["entries"]:
+            for entry in entries:
                 result_message = await self.safe_send_message(
                     channel,
                     self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
-                        info["entries"].index(e) + 1,
+                        entries.index(entry) + 1,
                         info.entry_count,
-                        e["webpage_url"],
+                        entry["url"],
                     ),
                 )
 
-                def check(reaction, user):
+                def check_react(reaction, user) -> bool:
                     return (
                         user == message.author
                         and reaction.message.id == result_message.id
@@ -3129,11 +3137,11 @@ class MusicBot(discord.Client):
 
                 try:
                     reaction, user = await self.wait_for(
-                        "reaction_add", timeout=30.0, check=check
+                        "reaction_add", timeout=30.0, check=check_react
                     )
                 except asyncio.TimeoutError:
                     await self.safe_delete_message(result_message)
-                    return
+                    return None
 
                 if str(reaction.emoji) == "\u2705":  # check
                     await self.safe_delete_message(result_message)
@@ -3144,7 +3152,7 @@ class MusicBot(discord.Client):
                         author,
                         permissions,
                         [],
-                        e["webpage_url"],
+                        entry["url"],
                     )
                     return Response(
                         self.str.get("cmd-search-accept", "Alright, coming right up!"),

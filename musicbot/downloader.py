@@ -305,14 +305,17 @@ class Downloader:
         # make sure the ytdlp data is serializable to make it more predictable.
         data = self.ytdl.sanitize_info(data)
 
-        # Extractor youtube:search returns a playlist-like result, usually with one entry.
+        # Extractor youtube:search returns a playlist-like result, usually with one entry
+        # when searching via a play command. 
         # Combine the entry dict with the info dict as if it was a top-level extraction.
         # This prevents single-entry searches being processed like a playlist later.
+        # However we must preserve the list behaviour when using cmd_search.
         if (
             data.get("extractor", "") == "youtube:search"
             and len(data.get("entries", [])) == 1
             and type(data.get("entries", None)) is list
             and data.get("playlist_count", 0) == 1
+            and not song_subject.startswith("ytsearch")
         ):
             log.noise(  # type: ignore[attr-defined]
                 "Extractor youtube:search returned single-entry result, replacing base info with entry info."
