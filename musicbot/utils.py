@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Union, Optional, Any, List, Dict
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
 if TYPE_CHECKING:
-    from discord import VoiceChannel
+    from discord import VoiceChannel, StageChannel
 
 log = logging.getLogger(__name__)
 
