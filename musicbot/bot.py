@@ -61,7 +61,6 @@ log = logging.getLogger(__name__)
 
 # TODO: fix listids command to send in channel if DM fails.
 # TODO: fix perms command to send in channel if DM fails.
-# TODO: fix playlist/queue check for missing member so it does not download at all.
 
 
 class MusicBot(discord.Client):
@@ -775,6 +774,48 @@ class MusicBot(discord.Client):
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
 
+        # avoid downloading the next entries if the user is absent and we are configured to skip.
+        notice_sent = False  # set a flag to avoid message spam.
+        while True:
+            try:
+                next_entry = player.playlist.peek()
+            except Exception:
+                break
+
+            if not next_entry:
+                break
+
+            channel = next_entry.meta.get("channel", None)
+            author = next_entry.meta.get("author", None)
+
+            if not channel or not author:
+                break
+
+            author_perms = self.permissions.for_user(author)
+            if (
+                author not in player.voice_client.channel.members
+                and author_perms.skip_when_absent
+            ):
+                if not notice_sent:
+                    await self.safe_send_message(
+                        channel,
+                        # TODO: i18n UI stuff.
+                        "Skipping songs added by {author} as they are not in voice!".format(
+                            author=author.name,
+                        ),
+                        expire_in=60,
+                    )
+                    notice_sent = True
+                deleted_entry = player.playlist.delete_entry_at_index(0)
+                log.noise(
+                    "Author `{}` absent, skipped (deleted) entry from queue:  {}".format(
+                        author.name, deleted_entry.title
+                    )
+                )
+            else:
+                break
+
+        # manage auto playlist playback.
         if (
             not player.playlist.entries
             and not player.current_entry
