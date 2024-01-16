@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from .bot import MusicBot
     from .player import MusicPlayer
     from .downloader import YtdlpResponseDict
-    from discord import Member
+    import discord
     import asyncio
     import aiohttp
 
@@ -248,7 +248,9 @@ class Playlist(EventEmitter, Serializable):
             entry_list.reverse()
         return entry_list, position
 
-    def get_next_song_from_author(self, author: "Member") -> Optional[EntryTypes]:
+    def get_next_song_from_author(
+        self, author: "discord.abc.User"
+    ) -> Optional[EntryTypes]:
         for entry in self.entries:
             if entry.meta.get("author", None) == author:
                 return entry
@@ -382,7 +384,7 @@ class Playlist(EventEmitter, Serializable):
 
         return datetime.timedelta(seconds=estimated_time)
 
-    def count_for_user(self, user: "Member") -> int:
+    def count_for_user(self, user: "discord.abc.User") -> int:
         return sum(1 for e in self.entries if e.meta.get("author", None) == user)
 
     def __json__(self) -> Dict[str, Any]:

@@ -1,5 +1,5 @@
 import asyncio
-import certifi
+import certifi  # type: ignore
 import inspect
 import json
 import logging
@@ -18,7 +18,7 @@ from datetime import timedelta
 from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
-from typing import Optional
+from typing import Optional, Union, List
 
 import aiohttp
 import colorlog
@@ -40,7 +40,7 @@ from .entry import StreamPlaylistEntry
 from .filecache import AudioFileCache
 from .json import Json
 from .opus_loader import load_opus_lib
-from .permissions import Permissions, PermissionsDefaults
+from .permissions import Permissions, PermissionsDefaults, PermissionGroup
 from .player import MusicPlayer
 from .playlist import Playlist
 from .spotify import Spotify
@@ -56,6 +56,17 @@ from .utils import (
     format_song_duration,
     format_size_from_bytes,
 )
+
+MessageableChannel = Union[
+    discord.TextChannel,
+    discord.StageChannel,
+    discord.VoiceChannel,
+    discord.Thread,
+    discord.DMChannel,
+    discord.GroupChannel,
+    discord.PartialMessageable,
+]
+CommandResponse = Union[Response, None]
 
 log = logging.getLogger(__name__)
 
@@ -916,7 +927,7 @@ class MusicBot(discord.Client):
 
     async def update_now_playing_status(self) -> None:
         """Inspects available players and ultimately fire change_presence()"""
-        activity = None  # type: Optional[discord.Activity]
+        activity = None  # type: Optional[discord.BaseActivity]
         status = discord.Status.online  # type: discord.Status
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
@@ -2147,8 +2158,8 @@ class MusicBot(discord.Client):
             self.server_specific_data[guild.id]["auto_paused"] = False
 
     async def _do_cmd_unpause_check(
-        self, player: MusicPlayer, channel: discord.abc.GuildChannel
-    ):
+        self, player: MusicPlayer, channel: MessageableChannel
+    ) -> None:
         """
         Checks for paused player and resumes it while sending a notice.
 
@@ -2442,15 +2453,15 @@ class MusicBot(discord.Client):
 
     async def _cmd_play_compound_link(
         self,
-        message,
-        player,
-        channel,
-        author,
-        permissions,
-        leftover_args,
-        song_url,
-        head,
-    ):
+        message: discord.Message,
+        player: MusicPlayer,
+        channel: MessageableChannel,
+        author: discord.abc.User,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+        head: bool,
+    ) -> None:
         """
         Helper function to check for playlist IDs embeded in video links.
         If a "compound" URL is detected, ask the user if they want the
@@ -2495,6 +2506,7 @@ class MusicBot(discord.Client):
             pl_url = "https://www.youtube.com/playlist?" + matches.group(1)
             asyncio.ensure_future(
                 _prompt_for_playing(
+                    # TODO: i18n / UI stuff
                     f"This link contains a Playlist ID:\n`{song_url}`\n\nDo you want to queue the playlist too?",
                     pl_url,
                 )
@@ -2502,16 +2514,16 @@ class MusicBot(discord.Client):
 
     async def _cmd_play(
         self,
-        message,
-        _player,
-        channel,
-        author,
-        permissions,
-        leftover_args,
-        song_url,
-        head,
+        message: discord.Message,
+        _player: MusicPlayer,
+        channel: MessageableChannel,
+        author: discord.abc.User,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+        head: bool,
         shuffle_entries: bool = False,
-    ):
+    ) -> CommandResponse:
         """
         This function handles actually playing any given URL or song subject.
 
@@ -2584,7 +2596,7 @@ class MusicBot(discord.Client):
         if not valid_song_url and leftover_args:
             # treat all arguments as a search string.
             song_url = " ".join([song_url, *leftover_args])
-            leftover_args = None  # prevent issues later.
+            leftover_args = []  # prevent issues later.
 
         # Validate spotify links are supported before we try them.
         if "open.spotify.com" in song_url.lower():
@@ -2756,7 +2768,14 @@ class MusicBot(discord.Client):
 
         return Response(reply_text, delete_after=30)
 
-    async def cmd_stream(self, _player, channel, author, permissions, song_url):
+    async def cmd_stream(
+        self,
+        _player: MusicPlayer,
+        channel: MessageableChannel,
+        author: discord.abc.User,
+        permissions: PermissionGroup,
+        song_url: str,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}stream song_link
@@ -2849,7 +2868,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         player: MusicPlayer,
-        channel: discord.abc.GuildChannel,
+        channel: MessageableChannel,
         author: discord.abc.User,
         permissions: PermissionGroup,
         leftover_args: List[str],
@@ -2966,8 +2985,7 @@ class MusicBot(discord.Client):
         search_msg = await self.safe_send_message(
             channel, self.str.get("cmd-search-searching", "Searching for videos...")
         )
-        if isinstance(channel, discord.abc.Messageable):
-            await channel.typing()
+        await channel.typing()
 
         try:
             info = await self.downloader.extract_info(

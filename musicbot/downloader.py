@@ -306,7 +306,7 @@ class Downloader:
         data = self.ytdl.sanitize_info(data)
 
         # Extractor youtube:search returns a playlist-like result, usually with one entry
-        # when searching via a play command. 
+        # when searching via a play command.
         # Combine the entry dict with the info dict as if it was a top-level extraction.
         # This prevents single-entry searches being processed like a playlist later.
         # However we must preserve the list behaviour when using cmd_search.

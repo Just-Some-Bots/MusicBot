@@ -317,14 +317,14 @@ class Spotify:
 
     def __init__(
         self,
-        client_id: str,
-        client_secret: str,
+        client_id: Optional[str],
+        client_secret: Optional[str],
         aiosession: aiohttp.ClientSession,
         loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.guest_mode = client_id is None or client_secret is None
+        self.client_id: str = client_id or ""
+        self.client_secret: str = client_secret or ""
+        self.guest_mode: bool = client_id is None or client_secret is None
 
         self.aiosession = aiosession
         self.loop = loop if loop else asyncio.get_event_loop()
