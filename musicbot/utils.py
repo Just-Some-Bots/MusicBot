@@ -191,7 +191,7 @@ def _get_variable(name):
 
 
 def is_empty_voice_channel(
-    voice_channel: "VoiceChannel",
+    voice_channel: Union["VoiceChannel", "StageChannel"],
     *,
     exclude_me: bool = True,
     exclude_deaf: bool = True,
