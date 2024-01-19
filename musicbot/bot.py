@@ -1635,6 +1635,24 @@ class MusicBot(discord.Client):
             self.str.get("cmd-resetplaylist-response", "\N{OK HAND SIGN}"),
             delete_after=15,
         )
+    
+    async def cmd_ping(self, message, channel):
+        """
+        Usage:
+            {command_prefix}ping
+            
+        Shows the latency between the bot and discord.
+        """
+        e = self._gen_embed()
+        e.title = "Ping"
+        e.add_field(name=f"Latency between {self.user.name} and Discord", value=round(self.latency * 1000, 2), inline=False)
+        if 0 <= round(self.latency * 1000, 2) < 30:
+            e.colour = discord.Colour.green()
+        elif 40 <= round(self.latency * 1000, 2) < 40:
+            e.colour = discord.Colour.yellow()
+        elif round(self.latency * 1000, 2) > 60:
+            e.colour = discord.Colour.red()
+        return Response(e, delete_after=45)
 
     async def cmd_help(self, message, channel, command=None):
         """
