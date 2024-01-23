@@ -146,7 +146,7 @@
     "cmd-restart-uppip": "{emoji} Will try to upgrade required pip packages and restart the bot...",
     "cmd-restart-upgit": "{emoji} Will try to update bot code with git and restart the bot...",
     "cmd-restart-upgrade": "{emoji} Will try to upgrade everything and restart the bot...",
-    "cmd-disconnect-success": "Disconnected from `{0.name}",
+    "cmd-disconnect-success": "Disconnected from `{0.name}`",
     "cmd-disconnect-no-voice":  "Not currently connected to `{0.name}`",
     "playlists-noperms": "You are not allowed to request playlists",
     "playlists-big": "Playlist has too many entries ({0} > {1})",
