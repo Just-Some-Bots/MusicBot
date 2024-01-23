@@ -1628,9 +1628,10 @@ class MusicBot(discord.Client):
                 "  Leave inactive VC: "
                 + ["Disabled", "Enabled"][self.config.leave_inactive_channel]
             )
-            log.info(
-                f"    Timeout: {self.config.leave_inactive_channel_timeout} seconds"
-            )
+            if self.config.leave_inactive_channel:
+                log.info(
+                    f"    Timeout: {self.config.leave_inactive_channel_timeout} seconds"
+                )
             log.info(
                 "  Leave at song end/empty queue: "
                 + ["Disabled", "Enabled"][self.config.leave_after_queue_empty]
@@ -1638,7 +1639,8 @@ class MusicBot(discord.Client):
             log.info(
                 f"  Leave when player idles: {'Disabled' if self.config.leave_player_inactive_for == 0 else 'Enabled'}"
             )
-            log.info(f"    Timeout: {self.config.leave_player_inactive_for} seconds")
+            if self.config.leave_player_inactive_for:
+                log.info(f"    Timeout: {self.config.leave_player_inactive_for} seconds")
             log.info(
                 "  Self Deafen: " + ["Disabled", "Enabled"][self.config.self_deafen]
             )
@@ -1646,6 +1648,7 @@ class MusicBot(discord.Client):
                 "  Per-server command prefix: "
                 + ["Disabled", "Enabled"][self.config.enable_options_per_guild]
             )
+            log.info("  Search List: " + ["Disabled", "Enabled"][self.config.searchlist])
 
         print(flush=True)
 
@@ -4435,8 +4438,22 @@ class MusicBot(discord.Client):
 
         Forces the bot leave the current voice channel.
         """
-        await self.disconnect_voice_client(guild)
-        return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
+        voice_client = self.get_player_in(guild)
+        if voice_client:
+            await self.disconnect_voice_client(guild)
+            return Response(
+                self.str.get(
+                    "cmd-disconnect-success", "Disconnected from `{0.name}`"
+                ).format(guild),
+                delete_after=20,
+            )
+        else:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-disconnect-no-voice", "Not currently connected to `{0.name}`"
+                ).format(guild),
+                expire_in=30,
+            )
 
     async def cmd_restart(self, _player, channel, leftover_args, opt="soft"):
         """
@@ -4455,7 +4472,7 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-restart-invalid-arg",
-                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit",
+                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit.",
                 ),
                 expire_in=30,
             )
