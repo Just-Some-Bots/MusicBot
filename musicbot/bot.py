@@ -8,7 +8,6 @@ import os
 import pathlib
 import random
 import re
-import shlex
 import ssl
 import sys
 import time
@@ -2926,16 +2925,6 @@ class MusicBot(discord.Client):
                 )
 
         argcheck()
-
-        try:
-            leftover_args = shlex.split(" ".join(leftover_args))
-        except ValueError:
-            raise exceptions.CommandError(
-                self.str.get(
-                    "cmd-search-noquote", "Please quote your search query properly."
-                ),
-                expire_in=30,
-            )
 
         service = "youtube"
         items_requested = self.config.defaultsearchresults
