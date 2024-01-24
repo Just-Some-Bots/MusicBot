@@ -19,5 +19,3 @@ config/blacklist.txt
 
 docker-compose.yml
 config/autoplaylist.cachemap.json
-test_cmds.py
-.coverage
