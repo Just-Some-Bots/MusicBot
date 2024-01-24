@@ -1640,7 +1640,9 @@ class MusicBot(discord.Client):
                 f"  Leave when player idles: {'Disabled' if self.config.leave_player_inactive_for == 0 else 'Enabled'}"
             )
             if self.config.leave_player_inactive_for:
-                log.info(f"    Timeout: {self.config.leave_player_inactive_for} seconds")
+                log.info(
+                    f"    Timeout: {self.config.leave_player_inactive_for} seconds"
+                )
             log.info(
                 "  Self Deafen: " + ["Disabled", "Enabled"][self.config.self_deafen]
             )
@@ -1648,7 +1650,9 @@ class MusicBot(discord.Client):
                 "  Per-server command prefix: "
                 + ["Disabled", "Enabled"][self.config.enable_options_per_guild]
             )
-            log.info("  Search List: " + ["Disabled", "Enabled"][self.config.searchlist])
+            log.info(
+                "  Search List: " + ["Disabled", "Enabled"][self.config.searchlist]
+            )
 
         print(flush=True)
 
