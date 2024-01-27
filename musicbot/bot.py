@@ -2732,13 +2732,13 @@ class MusicBot(discord.Client):
 
                 if (
                     permissions.max_song_length
-                    and info.get("duration", 0) > permissions.max_song_length
+                    and info.duration > permissions.max_song_length
                 ):
                     raise exceptions.PermissionsError(
                         self.str.get(
                             "cmd-play-song-limit",
                             "Song duration exceeds limit ({0} > {1})",
-                        ).format(info["duration"], permissions.max_song_length),
+                        ).format(info.duration, permissions.max_song_length),
                         expire_in=30,
                     )
 
@@ -3028,7 +3028,7 @@ class MusicBot(discord.Client):
                         entries.index(entry) + 1,
                         entry["title"],
                         format_song_duration(
-                            ftimedelta(timedelta(seconds=entry["duration"]))
+                            ftimedelta(timedelta(seconds=entry.duration))
                         ),
                     )
                 )
