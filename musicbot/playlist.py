@@ -171,7 +171,7 @@ class Playlist(EventEmitter, Serializable):
         return entry, (1 if head else len(self.entries))
 
     async def import_from_info(
-        self, info: "YtdlpResponseDict", head: bool, **meta
+        self, info: "YtdlpResponseDict", head: bool, ignore_video_id: str = "", **meta
     ) -> Tuple[List, int]:
         """
         Imports the songs from `info` and queues them to be played.
@@ -200,6 +200,16 @@ class Playlist(EventEmitter, Serializable):
             # count tracks regardless of conditions, used for missing track names
             # and also defers serialization of the queue for playlists.
             track_number += 1
+
+            # Ignore playlist entry when it comes from compound links.
+            if ignore_video_id and ignore_video_id == item.video_id:
+                log.debug(
+                    "Ignored video from compound playlist link with ID:  %s",
+                    item.video_id,
+                )
+                baditems += 1
+                continue
+
             # Exclude entries over max permitted duration.
             if (
                 author_perms
