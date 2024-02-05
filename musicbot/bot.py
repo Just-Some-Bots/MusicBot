@@ -125,7 +125,7 @@ class MusicBot(discord.Client):
                 False,  # event state tracking.
             ),
             "inactive_vc_timer": (
-                asyncio.Event(),
+                None,  # also a asyncio.Event(),
                 False,
             ),  # The boolean is going show if the timeout is active or not
         }
