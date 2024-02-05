@@ -121,11 +121,11 @@ class MusicBot(discord.Client):
             "auto_paused": False,
             "halt_playlist_unpack": False,
             "inactive_player_timer": (
-                asyncio.Event(),
+                None,  # will be an asyncio.Event()
                 False,  # event state tracking.
             ),
             "inactive_vc_timer": (
-                asyncio.Event(),
+                None,  # also a asyncio.Event(),
                 False,
             ),  # The boolean is going show if the timeout is active or not
         }
@@ -547,6 +547,10 @@ class MusicBot(discord.Client):
 
             if self.config.leave_inactive_channel:
                 event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
+                # TODO: do server specific defaults properly!
+                if event is None:
+                    event = asyncio.Event()
+
                 if active and not event.is_set():
                     event.set()
 
@@ -1553,6 +1557,10 @@ class MusicBot(discord.Client):
     async def handle_vc_inactivity(self, guild: discord.Guild):
         event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
 
+        # TODO: do server specific defaults properly!
+        if event is None:
+            event = asyncio.Event()
+
         if active:
             log.debug(f"Channel activity already waiting in guild: {guild}")
             return
@@ -1586,6 +1594,9 @@ class MusicBot(discord.Client):
         event, event_active = self.server_specific_data[guild.id][
             "inactive_player_timer"
         ]
+        # TODO: do server specific defaults properly!
+        if event is None:
+            event = asyncio.Event()
 
         if str(channel.id) in str(self.config.autojoin_channels):
             log.debug(
@@ -1626,6 +1637,9 @@ class MusicBot(discord.Client):
             return
         guild = player.voice_client.channel.guild
         event, active = self.server_specific_data[guild.id]["inactive_player_timer"]
+        # TODO: do server specific defaults properly!
+        if event is None:
+            event = asyncio.Event()
         if active and not event.is_set():
             event.set()
             log.debug("Player activity timer is being reset.")
@@ -5105,6 +5119,10 @@ class MusicBot(discord.Client):
         if self.config.leave_inactive_channel:
             guild = member.guild
             event, active = self.server_specific_data[guild.id]["inactive_vc_timer"]
+
+            # TODO: do server specific defaults properly!
+            if event is None:
+                event = asyncio.Event()
 
             if before.channel and self.user in before.channel.members:
                 if str(before.channel.id) in str(self.config.autojoin_channels):
