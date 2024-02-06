@@ -2188,11 +2188,13 @@ class MusicBot(discord.Client):
                         "Gathering playlist information for {0} songs{1}",
                     ).format(
                         num_songs,
-                        self.str.get(
-                            "cmd-play-playlist-gathering-2", ", ETA: {0} seconds"
-                        ).format(fixg(num_songs * wait_per_song))
-                        if num_songs >= 10
-                        else ".",
+                        (
+                            self.str.get(
+                                "cmd-play-playlist-gathering-2", ", ETA: {0} seconds"
+                            ).format(fixg(num_songs * wait_per_song))
+                            if num_songs >= 10
+                            else "."
+                        ),
                     ),
                 )
 
@@ -2228,9 +2230,11 @@ class MusicBot(discord.Client):
                         listlen,
                         fixg(ttime),
                         ttime / listlen if listlen else 0,
-                        ttime / listlen - wait_per_song
-                        if listlen - wait_per_song
-                        else 0,
+                        (
+                            ttime / listlen - wait_per_song
+                            if listlen - wait_per_song
+                            else 0
+                        ),
                         fixg(wait_per_song * num_songs),
                     )
                 )
@@ -2905,10 +2909,10 @@ class MusicBot(discord.Client):
                     url=f"https://i1.ytimg.com/vi/{videoID}/hqdefault.jpg"
                 )
 
-            self.server_specific_data[guild][
-                "last_np_msg"
-            ] = await self.safe_send_message(
-                channel, content if self.config.embeds else np_text, expire_in=30
+            self.server_specific_data[guild]["last_np_msg"] = (
+                await self.safe_send_message(
+                    channel, content if self.config.embeds else np_text, expire_in=30
+                )
             )
         else:
             return Response(
@@ -3314,9 +3318,13 @@ class MusicBot(discord.Client):
                     "Your skip for `{0}` was acknowledged.\nThe vote to skip has been passed.{1}",
                 ).format(
                     current_entry.title,
-                    self.str.get("cmd-skip-reply-skipped-2", " Next song coming up!")
-                    if player.playlist.peek()
-                    else "",
+                    (
+                        self.str.get(
+                            "cmd-skip-reply-skipped-2", " Next song coming up!"
+                        )
+                        if player.playlist.peek()
+                        else ""
+                    ),
                 ),
                 reply=True,
                 delete_after=20,
@@ -3341,9 +3349,11 @@ class MusicBot(discord.Client):
                     ).format(
                         current_entry.title,
                         skips_remaining,
-                        self.str.get("cmd-skip-reply-voted-2", "person is")
-                        if skips_remaining == 1
-                        else self.str.get("cmd-skip-reply-voted-3", "people are"),
+                        (
+                            self.str.get("cmd-skip-reply-voted-2", "person is")
+                            if skips_remaining == 1
+                            else self.str.get("cmd-skip-reply-voted-3", "people are")
+                        ),
                     ),
                     reply=True,
                     delete_after=20,
@@ -4286,9 +4296,9 @@ class MusicBot(discord.Client):
                 sentmsg = await self.safe_send_message(
                     message.channel,
                     content,
-                    expire_in=response.delete_after
-                    if self.config.delete_messages
-                    else 0,
+                    expire_in=(
+                        response.delete_after if self.config.delete_messages else 0
+                    ),
                     also_delete=message if self.config.delete_invoking else None,
                 )
 
