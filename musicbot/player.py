@@ -306,9 +306,11 @@ class MusicPlayer(EventEmitter, Serializable):
                 "current_entry": {
                     "entry": self.current_entry,
                     "progress": self.progress,
-                    "progress_frames": self._current_player._player.loops
-                    if self.progress is not None
-                    else None,
+                    "progress_frames": (
+                        self._current_player._player.loops
+                        if self.progress is not None
+                        else None
+                    ),
                 },
                 "entries": self.playlist,
             }
