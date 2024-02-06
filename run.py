@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-
 import asyncio
 import os
+import ssl
 import sys
 import time
 import logging
@@ -14,7 +13,14 @@ import subprocess
 from shutil import disk_usage, rmtree
 from base64 import b64decode
 
+from musicbot.exceptions import (
+    HelpfulError,
+    TerminateSignal,
+    RestartSignal,
+)
+
 try:
+    import aiohttp
     import pathlib
     import importlib.util
 except ImportError:
@@ -26,8 +32,18 @@ class GIT(object):
     def works(cls):
         try:
             return bool(subprocess.check_output("git --version", shell=True))
-        except:
+        except Exception:
             return False
+
+    @classmethod
+    def run_upgrade_pull(cls):
+        log.info("Attempting to upgrade with `git pull` on current path.")
+        try:
+            git_data = subprocess.check_output("git pull", shell=True)
+            git_data = git_data.decode("utf8").strip()
+            log.info(f"Result of git pull:  {git_data}")
+        except Exception:
+            log.exception("Upgrade failed, you need to run `git pull` manually.")
 
 
 class PIP(object):
@@ -40,7 +56,7 @@ class PIP(object):
             return PIP.run_python_m(*command.split(), check_output=check_output)
         except subprocess.CalledProcessError as e:
             return e.returncode
-        except:
+        except Exception:
             traceback.print_exc()
             print("Error using -m method")
 
@@ -65,7 +81,7 @@ class PIP(object):
 
             try:
                 pip.main(args)
-            except:
+            except Exception:
                 traceback.print_exc()
             finally:
                 sys.stdout = sys.__stdout__
@@ -90,13 +106,12 @@ class PIP(object):
     @classmethod
     def works(cls):
         try:
-            import pip
+            import pip  # noqa: F401
 
             return True
         except ImportError:
             return False
 
-    # noinspection PyTypeChecker
     @classmethod
     def get_module_version(cls, mod):
         try:
@@ -112,7 +127,7 @@ class PIP(object):
                 return expectedversion.split()[1]
             else:
                 return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
-        except:
+        except Exception:
             pass
 
     @classmethod
@@ -120,6 +135,21 @@ class PIP(object):
         from pip.req import parse_requirements
 
         return list(parse_requirements(file))
+
+    @classmethod
+    def run_upgrade_requirements(cls):
+        log.info(
+            "Attempting to upgrade with `pip install --upgrade -r requirements.txt` on current path."
+        )
+        cmd = [sys.executable] + "-m pip install --upgrade -r requirements.txt".split()
+        try:
+            pip_data = subprocess.check_output(cmd)
+            pip_data = pip_data.decode("utf8").strip()
+            log.info(f"Result of pip upgrade:  {pip_data}")
+        except Exception:
+            log.exception(
+                "Upgrade failed, you need to run `pip install --upgrade -r requirements.txt` manually."
+            )
 
 
 # Setup initial loggers
@@ -151,7 +181,7 @@ def finalize_logging():
             if os.path.isfile("logs/musicbot.log.last"):
                 os.unlink("logs/musicbot.log.last")
             os.rename("logs/musicbot.log", "logs/musicbot.log.last")
-        except:
+        except Exception:
             pass
 
     with open("logs/musicbot.log", "w", encoding="utf8") as f:
@@ -243,19 +273,16 @@ def req_ensure_py3():
             try:
                 subprocess.check_output('py -3.8 -c "exit()"', shell=True)
                 pycom = "py -3.8"
-            except:
+            except Exception:
                 log.info('Trying "python3"')
                 try:
                     subprocess.check_output('python3 -c "exit()"', shell=True)
                     pycom = "python3"
-                except:
+                except Exception:
                     pass
 
             if pycom:
                 log.info("Python 3 found.  Launching bot...")
-                pyexec(pycom, "run.py")
-
-                # I hope ^ works
                 os.system("start cmd /k %s run.py" % pycom)
                 sys.exit(0)
 
@@ -267,14 +294,14 @@ def req_ensure_py3():
                     .strip()
                     .decode()
                 )
-            except:
+            except Exception:
                 pass
 
             if pycom:
                 log.info(
                     "\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom
                 )
-                pyexec(pycom, "run.py")
+                os.execlp(pycom, pycom, "run.py")
 
         log.critical(
             "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
@@ -375,9 +402,30 @@ def opt_check_disk_space(warnlimit_mb=200):
 #################################################
 
 
-def pyexec(pycom, *args, pycom2=None):
-    pycom2 = pycom2 or pycom
-    os.execlp(pycom, pycom2, *args)
+def respawn_bot_process(pybin=None):
+    if not pybin:
+        pybin = os.path.basename(sys.executable)
+    exec_args = [pybin] + sys.argv
+
+    sys.stdout.flush()
+    sys.stderr.flush()
+    logging.shutdown()
+
+    if os.name == "nt":
+        # On Windows, this creates a new process window that dies when the script exits.
+        # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
+        # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
+        # The moment we end this instance of the process, control is returned to the starting shell.
+        subprocess.Popen(
+            exec_args,
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
+        sys.exit(0)
+    else:
+        # On Unix/Linux/Mac this should immediately replace the current program.
+        # No new PID, and the babies all get thrown out with the bath.  Kinda dangerous...
+        # We need to make sure files and things are closed before we do this.
+        os.execlp(exec_args[0], *exec_args)
 
 
 async def main():
@@ -388,13 +436,9 @@ async def main():
 
     finalize_logging()
 
-    import asyncio
-
-    if sys.platform == "win32":
-        loop = asyncio.ProactorEventLoop()  # needed for subprocesses
-        asyncio.set_event_loop(loop)
-
+    exit_signal = None
     tried_requirementstxt = False
+    use_certifi = False
     tryagain = True
 
     loops = 0
@@ -409,12 +453,38 @@ async def main():
             from musicbot import MusicBot
 
             m = MusicBot()
-            await m._doBotInit()
-
-            sh.terminator = ""
-            sh.terminator = "\n"
-
+            await m._doBotInit(use_certifi)
             await m.run()
+
+        except (
+            ssl.SSLCertVerificationError,
+            aiohttp.client_exceptions.ClientConnectorCertificateError,
+        ) as e:
+            if isinstance(
+                e, aiohttp.client_exceptions.ClientConnectorCertificateError
+            ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
+                e = e.__cause__
+            else:
+                log.critical(
+                    "Certificate error is not a verification error, not trying certifi and exiting."
+                )
+                break
+
+            # In case the local trust store does not have the cert locally, we can try certifi.
+            # We don't want to patch working systems with a third-party trust chain outright.
+            # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
+            if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+                if use_certifi:
+                    log.exception(
+                        "Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi "
+                    )
+                    break
+                else:
+                    log.warning(
+                        "Could not get Issuer Certificate from default trust store, trying certifi instead."
+                    )
+                    use_certifi = True
+                    continue
 
         except SyntaxError:
             log.exception("Syntax error (this is a bug, not your fault)")
@@ -431,12 +501,12 @@ async def main():
 
                 err = PIP.run_install("--upgrade -r requirements.txt")
 
-                if (
-                    err
-                ):  # TODO: add the specific error check back as not to always tell users to sudo it
+                if err:  # TODO: add the specific error check back.
+                    # The proper thing to do here is tell the user to fix their install, not help make it worse.
+                    # Comprehensive return codes aren't really a feature of pip, we'd need to read the log, and so does the user.
                     print()
                     log.critical(
-                        "You may need to %s to install dependencies."
+                        "This is not recommended! You can try to %s to install dependencies anyways."
                         % ["use sudo", "run as admin"][sys.platform.startswith("win")]
                     )
                     break
@@ -448,39 +518,66 @@ async def main():
                 log.exception("Unknown ImportError, exiting.")
                 break
 
-        except Exception as e:
-            if hasattr(e, "__module__") and e.__module__ == "musicbot.exceptions":
-                if e.__class__.__name__ == "HelpfulError":
-                    log.info(e.message)
-                    break
+        except HelpfulError as e:
+            log.info(e.message)
+            break
 
-                elif e.__class__.__name__ == "TerminateSignal":
-                    break
+        except TerminateSignal as e:
+            exit_signal = e
+            break
 
-                elif e.__class__.__name__ == "RestartSignal":
-                    loops = 0
-                    pass
+        except RestartSignal as e:
+            if e.get_name() == "RESTART_SOFT":
+                loops = 0
             else:
-                log.exception("Error starting bot")
+                exit_signal = e
+                break
+
+        except Exception:
+            log.exception("Error starting bot")
 
         finally:
-            if not m or not m.init_ok:
+            if m and (m.session or m.http.connector):
+                # in case we never made it to m.run(), ensure cleanup.
+                log.debug("Doing cleanup late.")
+                await m._cleanup()
+
+            if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
                     traceback.print_exc()
                 break
 
-            asyncio.set_event_loop(asyncio.new_event_loop())
             loops += 1
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info("Restarting in {} seconds...".format(loops * 2))
+            log.info(f"Restarting in {sleeptime} seconds...")
             time.sleep(sleeptime)
 
     print()
     log.info("All done.")
+    return exit_signal
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # py3.8 made ProactorEventLoop default on windows.
+    # Now we need to make adjustments for a bug in aiohttp :)
+    loop = asyncio.get_event_loop_policy().get_event_loop()
+    exit_sig = loop.run_until_complete(main())
+    if exit_sig:
+        if isinstance(exit_sig, RestartSignal):
+            if exit_sig.get_name() == "RESTART_FULL":
+                respawn_bot_process()
+            elif exit_sig.get_name() == "RESTART_UPGRADE_ALL":
+                PIP.run_upgrade_requirements()
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+            elif exit_sig.get_name() == "RESTART_UPGRADE_PIP":
+                PIP.run_upgrade_requirements()
+                respawn_bot_process()
+            elif exit_sig.get_name() == "RESTART_UPGRADE_GIT":
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+        elif isinstance(exit_sig, TerminateSignal):
+            sys.exit(exit_sig.exit_code)

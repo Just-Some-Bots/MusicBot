@@ -25,12 +25,12 @@ class Spotify:
     OAUTH_TOKEN_URL = "https://accounts.spotify.com/api/token"
     API_BASE = "https://api.spotify.com/v1/"
 
-    def __init__(self, client_id, client_secret, aiosession=None, loop=None):
+    def __init__(self, client_id, client_secret, aiosession, loop=None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.guest_mode = client_id is None or client_secret is None
 
-        self.aiosession = aiosession if aiosession else aiohttp.ClientSession()
+        self.aiosession = aiosession
         self.loop = loop if loop else asyncio.get_event_loop()
 
         self.token = None
@@ -136,7 +136,7 @@ class Spotify:
         """Obtains a web player token from Spotify and returns it"""
         try:
             async with self.aiosession.get(
-                "https://open.spotify.com/get_access_token?reason=transport&productType=web_player"
+                "https://open.spotify.com/get_access_token?reason=transport&productType=web_player",
             ) as r:
                 if r.status != 200:
                     try:

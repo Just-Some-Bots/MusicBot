@@ -1,18 +1,11 @@
-import sys
-import inspect
 import logging
+import pathlib
 from .bot import MusicBot
 from .constructs import BetterLogRecord
 
 __all__ = ["MusicBot"]
 
 logging.setLogRecordFactory(BetterLogRecord)
-
-_func_prototype = (
-    "def {logger_func_name}(self, message, *args, **kwargs):\n"
-    "    if self.isEnabledFor({levelname}):\n"
-    "        self._log({levelname}, message, args, **kwargs)"
-)
 
 
 def _add_logger_level(levelname, level, *, func_name=None):
@@ -25,6 +18,11 @@ def _add_logger_level(levelname, level, *, func_name=None):
     :type func_name: str
         The name of the logger function to log to a level, e.g. "info" for log.info(...)
     """
+    _func_prototype = (
+        "def {logger_func_name}(self, message, *args, **kwargs):\n"
+        "    if self.isEnabledFor({levelname}):\n"
+        "        self._log({levelname}, message, args, **kwargs)"
+    )
 
     func_name = func_name or levelname.lower()
 
@@ -47,7 +45,11 @@ _add_logger_level("VOICEDEBUG", 6)
 log = logging.getLogger(__name__)
 log.setLevel(logging.EVERYTHING)
 
-fhandler = logging.FileHandler(filename="logs/musicbot.log", encoding="utf-8", mode="a")
+log_file = pathlib.Path("logs/musicbot.log")
+if not log_file.parent.is_dir():
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+fhandler = logging.FileHandler(filename=log_file, encoding="utf-8", mode="w")
 fhandler.setFormatter(
     logging.Formatter(
         "[{relativeCreated:.16f}] {asctime} - {levelname} - {name} | "
@@ -57,6 +59,5 @@ fhandler.setFormatter(
 )
 log.addHandler(fhandler)
 
-del _func_prototype
 del _add_logger_level
 del fhandler

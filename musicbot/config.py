@@ -1,4 +1,5 @@
 import os
+import pathlib
 import sys
 import codecs
 import shutil
@@ -7,6 +8,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
+from .utils import format_size_to_bytes, format_time_to_seconds
 
 log = logging.getLogger(__name__)
 
@@ -116,6 +118,17 @@ class Config:
         self.save_videos = config.getboolean(
             "MusicBot", "SaveVideos", fallback=ConfigDefaults.save_videos
         )
+        self.storage_limit_bytes = config.get(
+            "MusicBot", "StorageLimitBytes", fallback=ConfigDefaults.storage_limit_bytes
+        )
+        self.storage_limit_days = config.getint(
+            "MusicBot", "StorageLimitDays", fallback=ConfigDefaults.storage_limit_days
+        )
+        self.storage_retain_autoplay = config.getboolean(
+            "MusicBot",
+            "StorageRetainAutoPlay",
+            fallback=ConfigDefaults.storage_retain_autoplay,
+        )
         self.now_playing_mentions = config.getboolean(
             "MusicBot",
             "NowPlayingMentions",
@@ -189,6 +202,26 @@ class Config:
         self.self_deafen = config.getboolean(
             "MusicBot", "SelfDeafen", fallback=ConfigDefaults.self_deafen
         )
+        self.leave_inactive_channel = config.getboolean(
+            "MusicBot",
+            "LeaveInactiveVC",
+            fallback=ConfigDefaults.leave_inactive_channel,
+        )
+        self.leave_inactive_channel_timeout = config.get(
+            "MusicBot",
+            "LeaveInactiveVCTimeOut",
+            fallback=ConfigDefaults.leave_inactive_channel_timeout,
+        )
+        self.leave_after_queue_empty = config.getboolean(
+            "MusicBot",
+            "LeaveAfterSong",
+            fallback=ConfigDefaults.leave_after_queue_empty,
+        )
+        self.leave_player_inactive_for = config.get(
+            "MusicBot",
+            "LeavePlayerInactiveFor",
+            fallback=ConfigDefaults.leave_player_inactive_for,
+        )
         self.searchlist = config.getboolean(
             "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
         )
@@ -196,6 +229,18 @@ class Config:
             "MusicBot",
             "DefaultSearchResults",
             fallback=ConfigDefaults.defaultsearchresults,
+        )
+
+        self.enable_options_per_guild = config.getboolean(
+            "MusicBot",
+            "EnablePrefixPerGuild",
+            fallback=ConfigDefaults.enable_options_per_guild,
+        )
+
+        self.round_robin_queue = config.getboolean(
+            "MusicBot",
+            "RoundRobinQueue",
+            fallback=ConfigDefaults.defaultround_robin_queue,
         )
 
         self.debug_level = config.get(
@@ -213,7 +258,11 @@ class Config:
         self.i18n_file = config.get(
             "Files", "i18nFile", fallback=ConfigDefaults.i18n_file
         )
+        self.audio_cache_path = config.get(
+            "Files", "AudioCachePath", fallback=ConfigDefaults.audio_cache_path
+        )
         self.auto_playlist_removed_file = None
+        self.auto_playlist_cachemap_file = None
 
         self._spotify = False
 
@@ -260,6 +309,41 @@ class Config:
             )
 
         log.info("Using i18n: {0}".format(self.i18n_file))
+
+        self.audio_cache_path = self.audio_cache_path.strip()
+        if self.audio_cache_path:
+            try:
+                acpath = pathlib.Path(self.audio_cache_path)
+                if acpath.is_file():
+                    raise HelpfulError(
+                        "AudioCachePath config option is a file path.",
+                        "Change it to a directory / folder path instead.",
+                        preface=self._confpreface2,
+                    )
+                # Might as well test for multiple issues here since we can give feedback.
+                if not acpath.is_dir():
+                    acpath.mkdir(parents=True, exist_ok=True)
+                actest = acpath.joinpath(".bot-test-write")
+                actest.touch(exist_ok=True)
+                actest.unlink(missing_ok=True)
+            except PermissionError:
+                raise HelpfulError(
+                    "AudioCachePath config option cannot be used due to invalid permissions.",
+                    "Check that directory permissions and ownership are correct.",
+                    preface=self._confpreface2,
+                )
+            except Exception:
+                raise HelpfulError(
+                    "AudioCachePath config option could not be set due to some exception we did not expect.",
+                    "Double check the setting and maybe report an issue.",
+                    preface=self._confpreface2,
+                )
+                log.exception(
+                    "Some other exception was thrown while validating AudioCachePath."
+                )
+        else:
+            self.audio_cache_path = ConfigDefaults.audio_cache_path
+        log.info(f"Audio Cache will be stored in:  {self.audio_cache_path}")
 
         if not self._login_token:
             # Attempt to fallback to an environment variable.
@@ -310,7 +394,7 @@ class Config:
                 self.bot_exception_ids = set(
                     int(x) for x in self.bot_exception_ids.replace(",", " ").split()
                 )
-            except:
+            except ValueError:
                 log.warning("BotExceptionIDs data is invalid, will ignore all bots")
                 self.bot_exception_ids = set()
 
@@ -319,7 +403,7 @@ class Config:
                 self.bound_channels = set(
                     int(x) for x in self.bound_channels.replace(",", " ").split() if x
                 )
-            except:
+            except ValueError:
                 log.warning(
                     "BindToChannels data is invalid, will not bind to any channels"
                 )
@@ -332,7 +416,7 @@ class Config:
                     for x in self.autojoin_channels.replace(",", " ").split()
                     if x
                 )
-            except:
+            except ValueError:
                 log.warning(
                     "AutojoinChannels data is invalid, will not autojoin any channels"
                 )
@@ -345,7 +429,7 @@ class Config:
                     for x in self.nowplaying_channels.replace(",", " ").split()
                     if x
                 )
-            except:
+            except ValueError:
                 log.warning(
                     "NowPlayingChannels data is invalid, will use the default behavior for all servers"
                 )
@@ -360,6 +444,9 @@ class Config:
         apn_name, apn_ext = os.path.splitext(ap_name)
         self.auto_playlist_removed_file = os.path.join(
             ap_path, apn_name + "_removed" + apn_ext
+        )
+        self.auto_playlist_cachemap_file = os.path.join(
+            ap_path, f"{apn_name}.cachemap.json"
         )
 
         if hasattr(logging, self.debug_level.upper()):
@@ -380,6 +467,29 @@ class Config:
 
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
+
+        if self.storage_limit_bytes:
+            try:
+                self.storage_limit_bytes = format_size_to_bytes(
+                    self.storage_limit_bytes
+                )
+            except ValueError:
+                log.exception(
+                    "StorageLimitBytes has invalid config value '{}' using default instead.".format(
+                        self.storage_limit_bytes,
+                    ),
+                )
+                self.storage_limit_bytes = ConfigDefaults.storage_limit_bytes
+
+        if self.leave_inactive_channel_timeout:
+            self.leave_inactive_channel_timeout = format_time_to_seconds(
+                self.leave_inactive_channel_timeout
+            )
+
+        if self.leave_player_inactive_for:
+            self.leave_player_inactive_for = format_time_to_seconds(
+                self.leave_player_inactive_for
+            )
 
     # TODO: Add save function for future editing of options with commands
     #       Maybe add warnings about fields missing from the config file
@@ -498,6 +608,9 @@ class ConfigDefaults:
     skips_required = 4
     skip_ratio_required = 0.5
     save_videos = True
+    storage_retain_autoplay = True
+    storage_limit_bytes = 0
+    storage_limit_days = 0
     now_playing_mentions = False
     auto_summon = True
     auto_playlist = True
@@ -520,8 +633,14 @@ class ConfigDefaults:
     usealias = True
     searchlist = False
     self_deafen = True
+    leave_inactive_channel = False
+    leave_inactive_channel_timeout = 300
+    leave_after_queue_empty = False
+    leave_player_inactive_for = 0
     defaultsearchresults = 3
+    enable_options_per_guild = False
     footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
+    defaultround_robin_queue = False
 
     options_file = "config/options.ini"
     blacklist_file = "config/blacklist.txt"
@@ -529,6 +648,7 @@ class ConfigDefaults:
         "config/autoplaylist.txt"  # this will change when I add playlists
     )
     i18n_file = "config/i18n/en.json"
+    audio_cache_path = os.path.join(os.getcwd(), "audio_cache")
 
 
 setattr(
