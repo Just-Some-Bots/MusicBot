@@ -6,6 +6,7 @@ import re
 import sys
 
 from enum import Enum
+from yt_dlp.utils import ContentTooShortError
 from .constructs import Serializable
 from .exceptions import ExtractionError
 from .utils import get_header, md5sum
@@ -31,6 +32,8 @@ class EntryTypes(Enum):
 class BasePlaylistEntry(Serializable):
     def __init__(self):
         self.filename = None
+        self.downloaded_bytes = 0
+        self.cache_busted = False
         self._is_downloading = False
         self._waiting_futures = []
 
@@ -76,8 +79,8 @@ class BasePlaylistEntry(Serializable):
             try:
                 cb(future)
 
-            except:
-                traceback.print_exc()
+            except Exception:
+                log.exception("Unhandled exception in _for_each_future callback.")
 
     def __eq__(self, other):
         return self is other
@@ -245,7 +248,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                                 self.playlist.bot.aiosession, self.url, "CONTENT-LENGTH"
                             )
                         )
-                    except:
+                    except Exception:
                         rsize = 0
 
                     lfile = os.path.join(
@@ -305,7 +308,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     try:
                         mediainfo = pymediainfo.MediaInfo.parse(self.filename)
                         self.duration = mediainfo.tracks[0].duration / 1000
-                    except:
+                    except Exception:
                         self.duration = None
 
                 else:
@@ -348,7 +351,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
                     aoptions = await self.get_mean_volume(self.filename)
-                except Exception as e:
+                except Exception:
                     log.error(
                         "There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. "
                         "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised."
@@ -362,9 +365,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
 
-        except Exception as e:
+        # Flake8 thinks 'e' is never used, and later undefined. Maybe the lambda is too much.
+        except Exception as e:  # noqa: F841
             traceback.print_exc()
-            self._for_each_future(lambda future: future.set_exception(e))
+            self._for_each_future(lambda future: future.set_exception(e))  # noqa: F821
 
         finally:
             self._is_downloading = False
@@ -386,10 +390,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
         i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
         if i_matches:
             log.debug("i_matches={}".format(i_matches[0][0]))
-            I = float(i_matches[0][0])
+            IVAL = float(i_matches[0][0])
         else:
             log.debug("Could not parse I in normalise json.")
-            I = float(0)
+            IVAL = float(0)
 
         lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
         if lra_matches:
@@ -424,14 +428,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
             offset = float(0)
 
         return "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:measured_I={}:measured_LRA={}:measured_TP={}:measured_thresh={}:offset={}".format(
-            I, LRA, TP, thresh, offset
+            IVAL, LRA, TP, thresh, offset
         )
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
         log.info("Download started: {}".format(self.url))
 
-        retry = True
+        retry = 4
         result = None
         while retry:
             try:
@@ -439,6 +443,18 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     self.playlist.loop, self.url, download=True
                 )
                 break
+            except ContentTooShortError as e:
+                # this typically means connection was interupted, any download is probably partial.
+                # we should definitely do something about it to prevent broken cached files.
+                if retry > 0:
+                    log.warning(f"Download may have failed, retrying.  Reason: {e}")
+                    retry -= 1
+                    continue
+                else:
+                    # Mark the file I guess, and maintain the default of raising ExtractionError.
+                    log.error(f"Download failed, not retrying! Reason: {e}")
+                    self.cache_busted = True
+                    raise ExtractionError(e)
             except Exception as e:
                 raise ExtractionError(e)
 
@@ -465,6 +481,10 @@ class URLPlaylistEntry(BasePlaylistEntry):
             else:
                 # Move the temporary file to it's final location.
                 os.rename(unhashed_fname, self.filename)
+
+        # It should be safe to get our newly downloaded file size now...
+        # This should also leave self.downloaded_bytes set to 0 if the file is in cache already.
+        self.downloaded_bytes = os.path.getsize(self.filename)
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):

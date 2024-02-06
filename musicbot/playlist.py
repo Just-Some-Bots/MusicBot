@@ -1,404 +1,411 @@
-import asyncio
 import datetime
 import logging
+import os.path
 from collections import deque
 from itertools import islice
 from random import shuffle
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Deque,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from urllib.error import URLError
 
-import discord
+# For the time being, youtube_dl is often slow and inconsistent
+# With this in mind, lets stick to the fork until it gets a dev
+from yt_dlp.utils import DownloadError, UnsupportedError
 
-from .constants import DEFAULT_PRE_DOWNLOAD_DELAY
 from .constructs import Serializable
-from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
-from .exceptions import ExtractionError, InvalidDataError, WrongEntryTypeError
+from .entry import URLPlaylistEntry, StreamPlaylistEntry
+from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
 from .lib.event_emitter import EventEmitter
-
-if TYPE_CHECKING:
-    from .bot import MusicBot
-    from .downloader import YtdlpResponseDict
-    from .player import MusicPlayer
-
-# type aliases
-EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry, LocalFilePlaylistEntry]
-
-GuildMessageableChannels = Union[
-    discord.VoiceChannel,
-    discord.StageChannel,
-    discord.Thread,
-    discord.TextChannel,
-]
+from .utils import get_header
 
 log = logging.getLogger(__name__)
 
 
 class Playlist(EventEmitter, Serializable):
     """
-    A playlist that manages the queue of songs that will be played.
+    A playlist that manages the list of songs that will be played.
     """
 
-    def __init__(self, bot: "MusicBot") -> None:
-        """
-        Manage a serializable, event-capable playlist of entries made up
-        of validated extraction information.
-        """
+    def __init__(self, bot):
         super().__init__()
-        self.bot: "MusicBot" = bot
-        self.loop: asyncio.AbstractEventLoop = bot.loop
-        self.entries: Deque[EntryTypes] = deque()
+        self.bot = bot
+        self.loop = bot.loop
+        self.downloader = bot.downloader
+        self.entries = deque()
 
-    def __iter__(self) -> Iterator[EntryTypes]:
+    def __iter__(self):
         return iter(self.entries)
 
-    def __len__(self) -> int:
+    def __len__(self):
         return len(self.entries)
 
-    def shuffle(self) -> None:
-        """Shuffle the deque of entries, in place."""
+    def shuffle(self):
         shuffle(self.entries)
 
-    def clear(self) -> None:
-        """Clears the deque of entries."""
+    def clear(self):
         self.entries.clear()
 
-    def get_entry_at_index(self, index: int) -> EntryTypes:
-        """
-        Uses deque rotate to seek to the given `index` and reference the
-        entry at that position.
-        """
+    def get_entry_at_index(self, index):
         self.entries.rotate(-index)
         entry = self.entries[0]
         self.entries.rotate(index)
         return entry
 
-    def delete_entry_at_index(self, index: int) -> EntryTypes:
-        """Remove and return the entry at the given index."""
+    def delete_entry_at_index(self, index):
         self.entries.rotate(-index)
         entry = self.entries.popleft()
         self.entries.rotate(index)
         return entry
 
-    def insert_entry_at_index(self, index: int, entry: EntryTypes) -> None:
-        """Add entry to the queue at the given index."""
+    def insert_entry_at_index(self, index, song):
         self.entries.rotate(-index)
-        self.entries.appendleft(entry)
+        self.entries.appendleft(song)
         self.entries.rotate(index)
 
-    async def add_stream_from_info(
-        self,
-        info: "YtdlpResponseDict",
-        *,
-        author: Optional["discord.Member"] = None,
-        channel: Optional[GuildMessageableChannels] = None,
-        head: bool = False,
-        defer_serialize: bool = False,
-    ) -> Tuple[StreamPlaylistEntry, int]:
+    async def add_entry(self, song_url, *, head, **meta):
         """
-        Use the given `info` to create a StreamPlaylistEntry and add it
-        to the queue.
-        If the entry is the first in the queue, it will be called to ready
-        for playback.
+        Validates and adds a song_url to be played. This does not start the download of the song.
 
-        :param: info:  Extracted info for this entry, even fudged.
-        :param: head:  Toggle adding to the front of the queue.
-        :param: defer_serialize:  Signal to defer serialization steps.
-            Useful if many entries are added at once
+        Returns the entry & the position it is in the queue.
 
-        :returns:  A tuple with the entry object, and its position in the queue.
+        :param song_url: The song url to add to the playlist.
+        :param meta: Any additional metadata to add to the playlist entry.
         """
 
-        log.noise(  # type: ignore[attr-defined]
-            f"Adding stream entry for URL:  {info.url}"
-        )
-        entry = StreamPlaylistEntry(
-            self,
-            info,
-            author=author,
-            channel=channel,
-        )
-        self._add_entry(entry, head=head, defer_serialize=defer_serialize)
-        return entry, len(self.entries)
-
-    async def add_entry_from_info(
-        self,
-        info: "YtdlpResponseDict",
-        *,
-        author: Optional["discord.Member"] = None,
-        channel: Optional[GuildMessageableChannels] = None,
-        head: bool = False,
-        defer_serialize: bool = False,
-    ) -> Tuple[EntryTypes, int]:
-        """
-        Checks given `info` to determine if media is streaming or has a
-        stream-able content type, then adds the resulting entry to the queue.
-        If the entry is the first entry in the queue, it will be called
-        to ready for playback.
-
-        :param info: The extraction data of the song to add to the playlist.
-        :param head: Add to front of queue instead of the end.
-        :param defer_serialize:  Signal that serialization steps should be deferred.
-
-        :returns: the entry & it's position in the queue.
-
-        :raises: ExtractionError  If data is missing or the content type is invalid.
-        :raises: WrongEntryTypeError  If the info is identified as a playlist.
-        """
+        try:
+            info = await self.downloader.extract_info(
+                self.loop, song_url, download=False
+            )
+        except Exception as e:
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(song_url, e)
+            )
 
         if not info:
-            raise ExtractionError("Could not extract information")
+            raise ExtractionError("Could not extract information from %s" % song_url)
 
-        # this should, in theory, never happen.
-        if info.ytdl_type == "playlist":
+        # TODO: Sort out what happens next when this happens
+        if info.get("_type", None) == "playlist":
             raise WrongEntryTypeError(
                 "This is a playlist.",
                 True,
-                info.webpage_url or info.url,
+                info.get("webpage_url", None) or info.get("url", None),
             )
 
-        # check if this is a local file entry.
-        if info.ytdl_type == "local":
-            return await self.add_local_file_entry(
-                info,
-                author=author,
-                channel=channel,
-                head=head,
-                defer_serialize=defer_serialize,
-            )
-
-        # check if this is a stream, just in case.
-        if info.is_stream:
-            log.debug("Entry info appears to be a stream, adding stream entry...")
-            return await self.add_stream_from_info(
-                info,
-                author=author,
-                channel=channel,
-                head=head,
-                defer_serialize=defer_serialize,
-            )
+        if info.get("is_live", False):
+            return await self.add_stream_entry(song_url, info=info, **meta)
 
         # TODO: Extract this to its own function
-        if any(info.extractor.startswith(x) for x in ["generic", "Dropbox"]):
-            content_type = info.http_header("content-type", None)
+        if info["extractor"] in ["generic", "Dropbox"]:
+            log.debug("Detected a generic extractor, or Dropbox")
+            try:
+                headers = await get_header(self.bot.aiosession, info["url"])
+                content_type = headers.get("CONTENT-TYPE")
+                log.debug("Got content type {}".format(content_type))
+            except Exception as e:
+                log.warning(
+                    "Failed to get content type for url {} ({})".format(song_url, e)
+                )
+                content_type = None
 
             if content_type:
                 if content_type.startswith(("application/", "image/")):
                     if not any(x in content_type for x in ("/ogg", "/octet-stream")):
                         # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError(
-                            f'Invalid content type "{content_type}" for url: {info.url}'
+                            'Invalid content type "%s" for url %s'
+                            % (content_type, song_url)
                         )
 
                 elif (
-                    content_type.startswith("text/html") and info.extractor == "generic"
+                    content_type.startswith("text/html")
+                    and info["extractor"] == "generic"
                 ):
                     log.warning(
                         "Got text/html for content-type, this might be a stream."
                     )
-                    return await self.add_stream_from_info(info, head=head)
-                    # TODO: Check for shoutcast/icecast
+                    return await self.add_stream_entry(
+                        song_url, info=info, **meta
+                    )  # TODO: Check for shoutcast/icecast
 
                 elif not content_type.startswith(("audio/", "video/")):
                     log.warning(
-                        'Questionable content-type "%s" for url:  %s',
-                        content_type,
-                        info.url,
+                        'Questionable content-type "{}" for url {}'.format(
+                            content_type, song_url
+                        )
                     )
 
-        log.noise(  # type: ignore[attr-defined]
-            f"Adding URLPlaylistEntry for: {info.input_subject}"
+        entry = URLPlaylistEntry(
+            self,
+            song_url,
+            info.get("title", "Untitled"),
+            info.get("duration", None) or None,
+            self.downloader.ytdl.prepare_filename(info),
+            **meta,
         )
-        entry = URLPlaylistEntry(self, info, author=author, channel=channel)
-        self._add_entry(entry, head=head, defer_serialize=defer_serialize)
+        self._add_entry(entry, head=head)
         return entry, (1 if head else len(self.entries))
 
-    async def add_local_file_entry(
-        self,
-        info: "YtdlpResponseDict",
-        *,
-        author: Optional["discord.Member"] = None,
-        channel: Optional[GuildMessageableChannels] = None,
-        head: bool = False,
-        defer_serialize: bool = False,
-    ) -> Tuple[LocalFilePlaylistEntry, int]:
-        """
-        Adds a local media file entry to the playlist.
-        """
-        log.noise(  # type: ignore[attr-defined]
-            f"Adding LocalFilePlaylistEntry for: {info.input_subject}"
-        )
-        entry = LocalFilePlaylistEntry(self, info, author=author, channel=channel)
-        self._add_entry(entry, head=head, defer_serialize=defer_serialize)
-        return entry, (1 if head else len(self.entries))
+    async def add_stream_entry(self, song_url, info=None, **meta):
+        if info is None:
+            info = {"title": song_url, "extractor": None}
 
-    async def import_from_info(
-        self,
-        info: "YtdlpResponseDict",
-        head: bool,
-        ignore_video_id: str = "",
-        author: Optional["discord.Member"] = None,
-        channel: Optional[GuildMessageableChannels] = None,
-    ) -> Tuple[List[EntryTypes], int]:
+            try:
+                info = await self.downloader.extract_info(
+                    self.loop, song_url, download=False
+                )
+
+            except DownloadError as e:
+                if (
+                    e.exc_info[0] == UnsupportedError
+                ):  # ytdl doesn't like it but its probably a stream
+                    log.debug("Assuming content is a direct stream")
+
+                elif e.exc_info[0] == URLError:
+                    if os.path.exists(os.path.abspath(song_url)):
+                        raise ExtractionError(
+                            "This is not a stream, this is a file path."
+                        )
+
+                    else:  # it might be a file path that just doesn't exist
+                        raise ExtractionError(
+                            "Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(
+                                e
+                            )
+                        )
+
+                else:
+                    # traceback.print_exc()
+                    raise ExtractionError("Unknown error: {}".format(e))
+
+            except Exception as e:
+                log.error(
+                    "Could not extract information from {} ({}), falling back to direct".format(
+                        song_url, e
+                    ),
+                    exc_info=True,
+                )
+
+        if (
+            info.get("is_live") is None and info.get("extractor", None) != "generic"
+        ):  # wew hacky
+            raise ExtractionError("This is not a stream.")
+
+        dest_url = song_url
+        if info.get("extractor"):
+            dest_url = info.get("url")
+
+        if (
+            info.get("extractor", None) == "twitch:stream"
+        ):  # may need to add other twitch types
+            title = info.get("description")
+        else:
+            title = info.get("title", "Untitled")
+
+        # TODO: A bit more validation, "~stream some_url" should not just say :ok_hand:
+
+        entry = StreamPlaylistEntry(self, song_url, title, destination=dest_url, **meta)
+        self._add_entry(entry)
+        return entry, len(self.entries)
+
+    async def import_from(self, playlist_url, head, **meta):
         """
-        Validates the songs from `info` and queues them to be played.
+        Imports the songs from `playlist_url` and queues them to be played.
 
-        Returns a list of entries that have been queued, and the queue
-        position where the first entry was added.
+        Returns a list of `entries` that have been enqueued.
 
-        :param: info:  YoutubeDL extraction data containing multiple entries.
-        :param: head:  Toggle adding the entries to the front of the queue.
+        :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+        :param meta: Any additional metadata to add to the playlist entry
         """
         position = 1 if head else len(self.entries) + 1
         entry_list = []
+
+        try:
+            info = await self.downloader.safe_extract_info(
+                self.loop, playlist_url, download=False
+            )
+        except Exception as e:
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+            )
+
+        if not info:
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
+
+        # Once again, the generic extractor fucks things up.
+        if info.get("extractor", None) == "generic":
+            url_field = "url"
+        else:
+            url_field = "webpage_url"
+
         baditems = 0
-        entries = info.get_entries_objects()
-        author_perms = None
-        defer_serialize = True
-
-        if author:
-            author_perms = self.bot.permissions.for_user(author)
-
+        entries = list(info["entries"])
         if head:
             entries.reverse()
+        for item in info["entries"]:
+            if item:
+                try:
+                    entry = URLPlaylistEntry(
+                        self,
+                        item[url_field],
+                        item.get("title", "Untitled"),
+                        item.get("duration", 0) or 0,
+                        self.downloader.ytdl.prepare_filename(item),
+                        **meta,
+                    )
 
-        track_number = 0
-        for item in entries:
-            # count tracks regardless of conditions, used for missing track names
-            # and also defers serialization of the queue for playlists.
-            track_number += 1
-            # Ignore playlist entry when it comes from compound links.
-            if ignore_video_id and ignore_video_id == item.video_id:
-                log.debug(
-                    "Ignored video from compound playlist link with ID:  %s",
-                    item.video_id,
-                )
+                    self._add_entry(entry, head=head)
+                    entry_list.append(entry)
+                except Exception as e:
+                    baditems += 1
+                    log.warning("Could not add item", exc_info=e)
+                    log.debug("Item: {}".format(item), exc_info=True)
+            else:
                 baditems += 1
-                continue
-
-            # Check if the item is in the song block list.
-            if self.bot.config.song_blocklist_enabled and (
-                self.bot.config.song_blocklist.is_blocked(item.url)
-                or self.bot.config.song_blocklist.is_blocked(item.title)
-            ):
-                log.info(
-                    "Not allowing entry that is in song block list:  %s  URL: %s",
-                    item.title,
-                    item.url,
-                )
-                baditems += 1
-                continue
-
-            # Exclude entries over max permitted duration.
-            if (
-                author_perms
-                and author_perms.max_song_length
-                and item.duration > author_perms.max_song_length
-            ):
-                log.debug(
-                    "Ignoring song in entries by '%s', duration longer than permitted maximum.",
-                    author,
-                )
-                baditems += 1
-                continue
-
-            # Check youtube data to preemptively avoid adding Private or Deleted videos to the queue.
-            if info.extractor.startswith("youtube") and (
-                "[private video]" == item.get("title", "").lower()
-                or "[deleted video]" == item.get("title", "").lower()
-            ):
-                log.warning(
-                    "Not adding youtube video because it is marked private or deleted:  %s",
-                    item.get_playable_url(),
-                )
-                baditems += 1
-                continue
-
-            # Soundcloud playlists don't get titles in flat extraction. A bug maybe?
-            # Anyway we make a temp title here, the real one is fetched at play.
-            if "title" in info and "title" not in item:
-                item["title"] = f"{info.title} - #{track_number}"
-
-            if track_number >= info.entry_count:
-                defer_serialize = False
-
-            try:
-                entry, _pos = await self.add_entry_from_info(
-                    item,
-                    head=head,
-                    defer_serialize=defer_serialize,
-                    author=author,
-                    channel=channel,
-                )
-                entry_list.append(entry)
-            except (WrongEntryTypeError, ExtractionError):
-                baditems += 1
-                log.warning("Could not add item")
-                log.debug("Item: %s", item, exc_info=True)
 
         if baditems:
-            log.info("Skipped %s bad entries", baditems)
+            log.info("Skipped {} bad entries".format(baditems))
 
         if head:
             entry_list.reverse()
         return entry_list, position
 
-    def get_next_song_from_author(
-        self, author: "discord.abc.User"
-    ) -> Optional[EntryTypes]:
+    async def async_process_youtube_playlist(self, playlist_url, *, head, **meta):
         """
-        Get the next song in the queue that was added by the given `author`
+        Processes youtube playlists links from `playlist_url` in a questionable, async fashion.
+
+        :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+        :param meta: Any additional metadata to add to the playlist entry
         """
+
+        try:
+            info = await self.downloader.safe_extract_info(
+                self.loop, playlist_url, download=False, process=False
+            )
+        except Exception as e:
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+            )
+
+        if not info:
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
+
+        gooditems = []
+        baditems = 0
+
+        entries = list(info["entries"])
+        if head:
+            entries.reverse()
+        for entry_data in info["entries"]:
+            if entry_data:
+                baseurl = info["webpage_url"].split("playlist?list=")[0]
+                song_url = baseurl + "watch?v=%s" % entry_data["id"]
+
+                try:
+                    entry, elen = await self.add_entry(song_url, head=head, **meta)
+                    gooditems.append(entry)
+
+                except ExtractionError:
+                    baditems += 1
+
+                except Exception as e:
+                    baditems += 1
+                    log.error(
+                        "Error adding entry {}".format(entry_data["id"]), exc_info=e
+                    )
+            else:
+                baditems += 1
+
+        if baditems:
+            log.info("Skipped {} bad entries".format(baditems))
+
+        if head:
+            gooditems.reverse()
+        return gooditems
+
+    async def async_process_sc_bc_playlist(self, playlist_url, *, head=False, **meta):
+        """
+        Processes soundcloud set and bancdamp album links from `playlist_url` in a questionable, async fashion.
+
+        :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
+        :param meta: Any additional metadata to add to the playlist entry
+        """
+
+        try:
+            info = await self.downloader.safe_extract_info(
+                self.loop, playlist_url, download=False, process=False
+            )
+        except Exception as e:
+            raise ExtractionError(
+                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+            )
+
+        if not info:
+            raise ExtractionError(
+                "Could not extract information from %s" % playlist_url
+            )
+
+        gooditems = []
+        baditems = 0
+
+        entries = list(info["entries"])
+        if head:
+            entries.reverse()
+        for entry_data in info["entries"]:
+            if entry_data:
+                song_url = entry_data["url"]
+
+                try:
+                    entry, elen = await self.add_entry(song_url, head=head, **meta)
+                    gooditems.append(entry)
+
+                except ExtractionError:
+                    baditems += 1
+
+                except Exception as e:
+                    baditems += 1
+                    log.error(
+                        "Error adding entry {}".format(entry_data["id"]), exc_info=e
+                    )
+            else:
+                baditems += 1
+
+        if baditems:
+            log.info("Skipped {} bad entries".format(baditems))
+
+        if head:
+            gooditems.reverse()
+        return gooditems
+
+    def get_next_song_from_author(self, author):
         for entry in self.entries:
-            if entry.author == author:
+            if entry.meta.get("author", None) == author:
                 return entry
 
         return None
 
-    def reorder_for_round_robin(self) -> None:
+    def reorder_for_round_robin(self):
         """
-        Reorders the current queue for round-robin, one song per author.
-        Entries added by the auto playlist will be removed.
+        Reorders the queue for round-robin
         """
-        new_queue: Deque[EntryTypes] = deque()
-        all_authors: List["discord.abc.User"] = []
+        new_queue = deque()
 
-        # Make a list of unique authors from the current queue.
-        for entry in self.entries:
-            if entry.author and entry.author not in all_authors:
-                all_authors.append(entry.author)
+        all_authors = []
 
-        # If all queue entries have no author, do nothing.
-        if len(all_authors) == 0:
-            return
+        for song in self.entries:
+            author = song.meta.get("author", None)
+            if author not in all_authors:
+                all_authors.append(author)
 
-        # Loop over the queue and organize it by requesting author.
-        # This will remove entries which are added by the auto-playlist.
         request_counter = 0
-        song: Optional[EntryTypes] = None
         while self.entries:
-            log.everything(  # type: ignore[attr-defined]
-                "Reorder looping over entries."
-            )
-            # Do not continue if we have no more authors.
-            if len(all_authors) == 0:
-                break
-
-            # Reset the requesting author if needed.
-            if request_counter >= len(all_authors):
+            if request_counter == len(all_authors):
                 request_counter = 0
 
             song = self.get_next_song_from_author(all_authors[request_counter])
 
-            # Remove the authors with no further songs.
             if song is None:
                 all_authors.pop(request_counter)
                 continue
@@ -409,29 +416,24 @@ class Playlist(EventEmitter, Serializable):
 
         self.entries = new_queue
 
-    def _add_entry(
-        self, entry: EntryTypes, *, head: bool = False, defer_serialize: bool = False
-    ) -> None:
-        """
-        Handle appending the `entry` to the queue. If the entry is he first,
-        the entry will create a future to download itself.
-
-        :param: head:  Toggle adding to the front of the queue.
-        :param: defer_serialize:  Signal to events that serialization should be deferred.
-        """
+    def _add_entry(self, entry, *, head=False):
         if head:
             self.entries.appendleft(entry)
         else:
             self.entries.append(entry)
 
-        if self.bot.config.round_robin_queue and not entry.from_auto_playlist:
+        if self.bot.config.round_robin_queue:
             self.reorder_for_round_robin()
 
-        self.emit(
-            "entry-added", playlist=self, entry=entry, defer_serialize=defer_serialize
-        )
+        self.emit("entry-added", playlist=self, entry=entry)
 
-    async def get_next_entry(self) -> Any:
+        if self.peek() is entry:
+            entry.get_ready_future()
+
+    def remove_entry(self, index):
+        del self.entries[index]
+
+    async def get_next_entry(self, predownload_next=True):
         """
         A coroutine which will return the next song or None if no songs left to play.
 
@@ -442,85 +444,47 @@ class Playlist(EventEmitter, Serializable):
             return None
 
         entry = self.entries.popleft()
-        self.bot.create_task(
-            self._pre_download_entry_after_next(entry),
-            name="MB_PreDownloadNextUp",
-        )
+
+        if predownload_next:
+            next_entry = self.peek()
+            if next_entry:
+                next_entry.get_ready_future()
 
         return await entry.get_ready_future()
 
-    async def _pre_download_entry_after_next(self, last_entry: EntryTypes) -> None:
-        """
-        Enforces a delay before doing pre-download of the "next" song.
-        Should only be called from get_next_entry() after pop.
-        """
-        if not self.bot.config.pre_download_next_song:
-            return
-
-        if not self.entries:
-            return
-
-        # get the next entry to pre-download before we wait.
-        next_entry = self.peek()
-
-        await asyncio.sleep(DEFAULT_PRE_DOWNLOAD_DELAY)
-
-        if next_entry and next_entry != last_entry:
-            log.everything(  # type: ignore[attr-defined]
-                "Pre-downloading next track:  %r", next_entry
-            )
-            next_entry.get_ready_future()
-
-    def peek(self) -> Optional[EntryTypes]:
+    def peek(self):
         """
         Returns the next entry that should be scheduled to be played.
         """
         if self.entries:
             return self.entries[0]
-        return None
 
-    async def estimate_time_until(
-        self, position: int, player: "MusicPlayer"
-    ) -> datetime.timedelta:
+    async def estimate_time_until(self, position, player):
         """
-        (very) Roughly estimates the time till the queue will reach given `position`.
-
-        :param: position:  The index in the queue to reach.
-        :param: player:  MusicPlayer instance this playlist should belong to.
-
-        :returns: A datetime.timedelta object with the estimated time.
-
-        :raises: musicbot.exceptions.InvalidDataError  if duration data cannot be calculated.
+        (very) Roughly estimates the time till the queue will 'position'
         """
         if any(e.duration is None for e in islice(self.entries, position - 1)):
             raise InvalidDataError("no duration data")
-
-        estimated_time = sum(
-            e.duration_td.total_seconds() for e in islice(self.entries, position - 1)
-        )
+        else:
+            estimated_time = sum(e.duration for e in islice(self.entries, position - 1))
 
         # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped and player.current_entry:
-            if player.current_entry.duration is None:
+            if player.current_entry.duration is None:  # duration can be 0
                 raise InvalidDataError("no duration data in current entry")
-
-            estimated_time += (
-                player.current_entry.duration_td.total_seconds() - player.progress
-            )
+            else:
+                estimated_time += player.current_entry.duration - player.progress
 
         return datetime.timedelta(seconds=estimated_time)
 
-    def count_for_user(self, user: "discord.abc.User") -> int:
-        """Get a sum of entries added to the playlist by the given `user`"""
-        return sum(1 for e in self.entries if e.author == user)
+    def count_for_user(self, user):
+        return sum(1 for e in self.entries if e.meta.get("author", None) == user)
 
-    def __json__(self) -> Dict[str, Any]:
+    def __json__(self):
         return self._enclose_json({"entries": list(self.entries)})
 
     @classmethod
-    def _deserialize(
-        cls, raw_json: Dict[str, Any], bot: Optional["MusicBot"] = None, **kwargs: Any
-    ) -> "Playlist":
+    def _deserialize(cls, raw_json, bot=None):
         assert bot is not None, cls._bad("bot")
         # log.debug("Deserializing playlist")
         pl = cls(bot)

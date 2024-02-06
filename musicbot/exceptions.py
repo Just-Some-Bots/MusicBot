@@ -5,19 +5,17 @@ from enum import Enum
 
 # Base class for exceptions
 class MusicbotException(Exception):
-    def __init__(self, message: str, *, expire_in: int = 0) -> None:
+    def __init__(self, message, *, expire_in=0):
         super().__init__(message)  # ???
         self._message = message
         self.expire_in = expire_in
 
     @property
-    def message(self) -> str:
-        """Get message text with additional formatting as needed."""
+    def message(self):
         return self._message
 
     @property
-    def message_no_format(self) -> str:
-        """Get raw message text with no formatting."""
+    def message_no_format(self):
         return self._message
 
 
@@ -37,8 +35,9 @@ class InvalidDataError(MusicbotException):
 
 
 # The no processing entry type failed and an entry was a playlist/vice versa
+# TODO: Add typing options instead of is_playlist
 class WrongEntryTypeError(ExtractionError):
-    def __init__(self, message: str, is_playlist: bool, use_url: str) -> None:
+    def __init__(self, message, is_playlist, use_url):
         super().__init__(message)
         self.is_playlist = is_playlist
         self.use_url = use_url
@@ -54,18 +53,15 @@ class FFmpegWarning(MusicbotException):
     pass
 
 
-# Some issue retrieving something from Spotify's API or processing it.
-class SpotifyError(ExtractionError):
+# Some issue retrieving something from Spotify's API
+class SpotifyError(MusicbotException):
     pass
 
 
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
-    def __init__(self, msg: str, expire_in: int = 0) -> None:
-        super().__init__(msg, expire_in=expire_in)
-
     @property
-    def message(self) -> str:
+    def message(self):
         return (
             "You don't have permission to use that command.\nReason: " + self._message
         )
@@ -75,23 +71,22 @@ class PermissionsError(CommandError):
 class HelpfulError(MusicbotException):
     def __init__(
         self,
-        issue: str,
-        solution: str,
+        issue,
+        solution,
         *,
-        preface: str = "An error has occured:",
-        footnote: str = "",
-        expire_in: int = 0,
-    ) -> None:
+        preface="An error has occured:",
+        footnote="",
+        expire_in=0,
+    ):
         self.issue = issue
         self.solution = solution
         self.preface = preface
         self.footnote = footnote
+        self.expire_in = expire_in
         self._message_fmt = "\n{preface}\n{problem}\n\n{solution}\n\n{footnote}"
 
-        super().__init__(self.message_no_format, expire_in=expire_in)
-
     @property
-    def message(self) -> str:
+    def message(self):
         return self._message_fmt.format(
             preface=self.preface,
             problem=self._pretty_wrap(self.issue, "  Problem:"),
@@ -100,35 +95,26 @@ class HelpfulError(MusicbotException):
         )
 
     @property
-    def message_no_format(self) -> str:
+    def message_no_format(self):
         return self._message_fmt.format(
             preface=self.preface,
-            problem=self._pretty_wrap(self.issue, "  Problem:", width=-1),
-            solution=self._pretty_wrap(self.solution, "  Solution:", width=-1),
+            problem=self._pretty_wrap(self.issue, "  Problem:", width=0),
+            solution=self._pretty_wrap(self.solution, "  Solution:", width=0),
             footnote=self.footnote,
         )
 
     @staticmethod
-    def _pretty_wrap(text: str, pretext: str, *, width: int = -1) -> str:
-        """
-        Format given `text` and `pretext` using an optional `width` to
-        constrain the text and indent it for better readability.
-        If `width` is not set, or set -1, the current size of the terminal
-        in columns will be used as a default.
-        """
+    def _pretty_wrap(text, pretext, *, width=-1):
         if width is None:
             return "\n".join((pretext.strip(), text))
-
-        if width == -1:
+        elif width == -1:
             pretext = pretext.rstrip() + "\n"
             width = shutil.get_terminal_size().columns
 
-        lines = []
-        for line in text.split("\n"):
-            lines += textwrap.wrap(line, width=width - 5)
-        lines = [
+        lines = textwrap.wrap(text, width=width - 5)
+        lines = (
             ("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines
-        ]
+        )
 
         return pretext + "".join(lines).rstrip()
 
@@ -157,15 +143,12 @@ class RestartSignal(Signal):
         self.restart_code = code
 
     def get_code(self) -> int:
-        """Get the int value of the code contained in this signal"""
         return self.restart_code.value
 
     def get_name(self) -> str:
-        """Get the name of the restart code contained in this signal"""
         return self.restart_code.name
 
 
 # signal to end the bot "gracefully"
 class TerminateSignal(Signal):
-    def __init__(self, exit_code: int = 0):
-        self.exit_code: int = exit_code
+    exit_code: int = 0

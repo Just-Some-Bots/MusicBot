@@ -1,14 +1,10 @@
 import asyncio
-import audioop
+import io
 import json
 import logging
 import os
-import subprocess
 import sys
-from array import array
-from collections import deque
 from enum import Enum
-from shutil import get_terminal_size
 from threading import Thread
 
 from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource
@@ -17,72 +13,8 @@ from .constructs import Serializable, Serializer
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import FFmpegError, FFmpegWarning
 from .lib.event_emitter import EventEmitter
-from .utils import avg
 
 log = logging.getLogger(__name__)
-
-
-class PatchedBuff:
-    """
-    PatchedBuff monkey patches a readable object, allowing you to vary what the volume is as the song is playing.
-    """
-
-    def __init__(self, buff, *, draw=False):
-        self.buff = buff
-        self.frame_count = 0
-        self.volume = 1.0
-
-        self.draw = draw
-        self.use_audioop = True
-        self.frame_skip = 2
-        self.rmss = deque([2048], maxlen=90)
-
-    def __del__(self):
-        if self.draw:
-            print(" " * (get_terminal_size().columns - 1), end="\r")
-
-    def read(self, frame_size):
-        self.frame_count += 1
-
-        frame = self.buff.read(frame_size)
-
-        if self.volume != 1:
-            frame = self._frame_vol(frame, self.volume, maxv=2)
-
-        if self.draw and not self.frame_count % self.frame_skip:
-            # these should be processed for every frame, but "overhead"
-            rms = audioop.rms(frame, 2)
-            self.rmss.append(rms)
-
-            max_rms = sorted(self.rmss)[-1]
-            meter_text = "avg rms: {:.2f}, max rms: {:.2f} ".format(
-                avg(self.rmss), max_rms
-            )
-            self._pprint_meter(rms / max(1, max_rms), text=meter_text, shift=True)
-
-        return frame
-
-    def _frame_vol(self, frame, mult, *, maxv=2, use_audioop=True):
-        if use_audioop:
-            return audioop.mul(frame, 2, min(mult, maxv))
-        else:
-            # ffmpeg returns s16le pcm frames.
-            frame_array = array("h", frame)
-
-            for i in range(len(frame_array)):
-                frame_array[i] = int(frame_array[i] * min(mult, min(1, maxv)))
-
-            return frame_array.tobytes()
-
-    def _pprint_meter(self, perc, *, char="#", text="", shift=True):
-        tx, ty = get_terminal_size()
-
-        if shift:
-            outstr = text + "{}".format(char * (int((tx - len(text)) * perc) - 1))
-        else:
-            outstr = text + "{}".format(char * (int(tx * perc) - 1))[len(text) :]
-
-        print(outstr.ljust(tx - 1), end="\r")
 
 
 class MusicPlayerState(Enum):
@@ -230,51 +162,7 @@ class MusicPlayer(EventEmitter, Serializable):
             return
 
         if not self.bot.config.save_videos and entry:
-            if not isinstance(entry, StreamPlaylistEntry):
-                if any([entry.filename == e.filename for e in self.playlist.entries]):
-                    log.debug(
-                        'Skipping deletion of "{}", found song in queue'.format(
-                            entry.filename
-                        )
-                    )
-
-                else:
-                    log.debug(
-                        "Deleting file: {}".format(os.path.relpath(entry.filename))
-                    )
-                    filename = entry.filename
-                    for x in range(30):
-                        try:
-                            os.unlink(filename)
-                            log.debug("File deleted: {0}".format(filename))
-                            break
-                        except PermissionError as e:
-                            if e.winerror == 32:  # File is in use
-                                log.error(
-                                    "Can't delete file, it is currently in use: {0}".format(
-                                        filename
-                                    )
-                                )
-                        except FileNotFoundError:
-                            log.debug(
-                                "Could not find delete {} as it was not found. Skipping.".format(
-                                    filename
-                                ),
-                                exc_info=True,
-                            )
-                            break
-                        except Exception:
-                            log.error(
-                                "Error trying to delete {}".format(filename),
-                                exc_info=True,
-                            )
-                            break
-                    else:
-                        print(
-                            "[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
-                                os.path.relpath(filename)
-                            )
-                        )
+            self.loop.create_task(self._handle_file_cleanup(entry))
 
         self.emit("finished-playing", player=self, entry=entry)
 
@@ -306,7 +194,7 @@ class MusicPlayer(EventEmitter, Serializable):
             if self.is_stopped or _continue:
                 try:
                     entry = await self.playlist.get_next_entry()
-                except:
+                except IndexError:
                     log.warning("Failed to get entry, retrying", exc_info=True)
                     self.loop.call_later(0.1, self.play)
                     return
@@ -332,13 +220,15 @@ class MusicPlayer(EventEmitter, Serializable):
                     )
                 )
 
+                stderr_io = io.BytesIO()
+
                 self._source = SourcePlaybackCounter(
                     PCMVolumeTransformer(
                         FFmpegPCMAudio(
                             entry.filename,
                             before_options=boptions,
                             options=aoptions,
-                            stderr=subprocess.PIPE,
+                            stderr=stderr_io,
                         ),
                         self.volume,
                     )
@@ -358,13 +248,57 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 stderr_thread = Thread(
                     target=filter_stderr,
-                    args=(self._source._source.original._process, self._stderr_future),
+                    args=(stderr_io, self._stderr_future),
                     name="stderr reader",
                 )
 
                 stderr_thread.start()
 
                 self.emit("play", player=self, entry=entry)
+
+    async def _handle_file_cleanup(self, entry):
+        if not isinstance(entry, StreamPlaylistEntry):
+            if any([entry.filename == e.filename for e in self.playlist.entries]):
+                log.debug(
+                    'Skipping deletion of "{}", found song in queue'.format(
+                        entry.filename
+                    )
+                )
+            else:
+                log.debug("Deleting file: {}".format(os.path.relpath(entry.filename)))
+                filename = entry.filename
+                for x in range(30):
+                    try:
+                        os.unlink(filename)
+                        log.debug("File deleted: {0}".format(filename))
+                        break
+                    except PermissionError as e:
+                        if e.winerror == 32:  # File is in use
+                            log.error(
+                                "Can't delete file, it is currently in use: {0}".format(
+                                    filename
+                                )
+                            )
+                    except FileNotFoundError:
+                        log.debug(
+                            "Could not find delete {} as it was not found. Skipping.".format(
+                                filename
+                            ),
+                            exc_info=True,
+                        )
+                        break
+                    except Exception:
+                        log.error(
+                            "Error trying to delete {}".format(filename),
+                            exc_info=True,
+                        )
+                        break
+                else:
+                    print(
+                        "[Config:SaveVideos] Could not delete file {}, giving up and moving on".format(
+                            os.path.relpath(filename)
+                        )
+                    )
 
     def __json__(self):
         return self._enclose_json(
@@ -444,11 +378,11 @@ class MusicPlayer(EventEmitter, Serializable):
 # TODO: I need to add a check for if the eventloop is closed
 
 
-def filter_stderr(popen: subprocess.Popen, future: asyncio.Future):
+def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
     last_ex = None
 
     while True:
-        data = popen.stderr.readline()
+        data = stderr.readline()
         if data:
             log.ffmpeg("Data from ffmpeg: {}".format(data))
             try:
@@ -474,7 +408,7 @@ def filter_stderr(popen: subprocess.Popen, future: asyncio.Future):
 def check_stderr(data: bytes):
     try:
         data = data.decode("utf8")
-    except:
+    except UnicodeDecodeError:
         log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
         return True  # fuck it
 
