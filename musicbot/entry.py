@@ -150,9 +150,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "downloaded": self.is_downloaded,
                 "expected_filename": self.expected_filename,
                 "filename": self.filename,
-                "full_filename": os.path.abspath(self.filename)
-                if self.filename
-                else self.filename,
+                "full_filename": (
+                    os.path.abspath(self.filename) if self.filename else self.filename
+                ),
                 "meta": {
                     name: {
                         "type": obj.__class__.__name__,
