@@ -374,25 +374,49 @@ class Playlist(EventEmitter, Serializable):
             return self.entries[0]
         return None
 
-    async def estimate_time_until(
-        self, position: int, player: "MusicPlayer"
-    ) -> datetime.timedelta:
+    async def estimate_time_until(self, position: int, player: "MusicPlayer") -> str:
         """
-        (very) Roughly estimates the time till the queue will 'position'
+        (very) Roughly estimates the time till the queue will reach given `position`.
+
+        :param: position:  The index in the queue to reach.
+        :param: player:  MusicPlayer instance this playlist should belong to.
+
+        :returns: A string with the estimated time rounded to the second decimal place.
+
+        :raises: musicbot.exceptions.InvalidDataError  if duration data cannot be calculated.
         """
         if any(e.duration is None for e in islice(self.entries, position - 1)):
             raise InvalidDataError("no duration data")
-        else:
-            estimated_time = sum(e.duration for e in islice(self.entries, position - 1))
+
+        estimated_time = sum(
+            e.duration_td.total_seconds() for e in islice(self.entries, position - 1)
+        )
 
         # When the player plays a song, it eats the first playlist item, so we just have to add the time back
         if not player.is_stopped and player.current_entry:
             if player.current_entry.duration is None:  # duration can be 0
                 raise InvalidDataError("no duration data in current entry")
-            else:
-                estimated_time += player.current_entry.duration - player.progress
 
-        return datetime.timedelta(seconds=estimated_time)
+            estimated_time += player.current_entry.duration - player.progress
+
+        # Create timedelta object with rounded seconds
+        rounded_timedelta = datetime.timedelta(seconds=round(estimated_time, 2))
+
+        # Convert timedelta object to string with the desired format
+        time_string = str(rounded_timedelta)
+
+        # Splitting the string to separate hours, minutes, and seconds
+        hours, remainder = time_string.split(":", maxsplit=1)[0], ":".join(
+            time_string.split(":", maxsplit=1)[1:]
+        )
+        minutes, seconds = remainder.split(":", maxsplit=1)[0], ":".join(
+            remainder.split(":", maxsplit=1)[1:]
+        )
+
+        # Construct the string representation with rounded seconds
+        rounded_time_string = f"{hours}:{minutes}:{seconds[:5]}"  # Retaining only two decimal places for seconds
+
+        return rounded_time_string
 
     def count_for_user(self, user: "discord.abc.User") -> int:
         return sum(1 for e in self.entries if e.meta.get("author", None) == user)
