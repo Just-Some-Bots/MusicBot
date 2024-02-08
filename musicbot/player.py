@@ -6,13 +6,18 @@ import os
 import sys
 from enum import Enum
 from threading import Thread
+from typing import TYPE_CHECKING
 
-from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource
+from discord import FFmpegPCMAudio, PCMVolumeTransformer, AudioSource, VoiceClient
 
 from .constructs import Serializable, Serializer
 from .entry import URLPlaylistEntry, StreamPlaylistEntry
 from .exceptions import FFmpegError, FFmpegWarning
 from .lib.event_emitter import EventEmitter
+
+if TYPE_CHECKING:
+    from .bot import MusicBot
+    from .playlist import Playlist
 
 log = logging.getLogger(__name__)
 
@@ -26,30 +31,39 @@ class MusicPlayerState(Enum):
     )
     DEAD = 4  # The player has been killed.
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
 class SourcePlaybackCounter(AudioSource):
-    def __init__(self, source, progress=0):
+    def __init__(
+        self,
+        source: PCMVolumeTransformer,
+        progress: int = 0,
+    ) -> None:
         self._source = source
         self.progress = progress
 
-    def read(self):
+    def read(self) -> bytes:
         res = self._source.read()
         if res:
             self.progress += 1
         return res
 
-    def get_progress(self):
+    def get_progress(self) -> float:
         return self.progress * 0.02
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         self._source.cleanup()
 
 
 class MusicPlayer(EventEmitter, Serializable):
-    def __init__(self, bot, voice_client, playlist):
+    def __init__(
+        self,
+        bot: "MusicBot",
+        voice_client: VoiceClient,
+        playlist: "Playlist",
+    ):
         super().__init__()
         self.bot = bot
         self.loop = bot.loop
@@ -71,6 +85,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._source = None
 
         self.playlist.on("entry-added", self.on_entry_added)
+        self.playlist.on("entry-failed", self.on_entry_failed)
 
     @property
     def volume(self):
@@ -82,11 +97,21 @@ class MusicPlayer(EventEmitter, Serializable):
         if self._source:
             self._source._source.volume = value
 
-    def on_entry_added(self, playlist, entry):
+    def on_entry_added(self, playlist, entry, defer_serialize: bool = False):
         if self.is_stopped:
+            log.noise("calling-later, self.play from player.")
             self.loop.call_later(2, self.play)
 
-        self.emit("entry-added", player=self, playlist=playlist, entry=entry)
+        self.emit(
+            "entry-added",
+            player=self,
+            playlist=playlist,
+            entry=entry,
+            defer_serialize=defer_serialize,
+        )
+
+    def on_entry_failed(self, entry, error):
+        self.emit("error", player=self, entry=entry, ex=error)
 
     def skip(self):
         self._kill_current_player()
@@ -308,9 +333,13 @@ class MusicPlayer(EventEmitter, Serializable):
                     "progress": self.progress,
                     "progress_frames": (
                         self._current_player._player.loops
-                        if self.progress is not None
+                        if self.progress is not None and self._current_player
                         else None
                     ),
+                    # TODO: @Fae: Not sure if this just kicks the can or not.
+                    # I feel I need to read dpy guts to understand what this is supposed to do to start with.
+                    # At any rate, VoiceClient can be none here when:
+                    # auto-summon enabled, play command is used, deserialized queue has tracks already.
                 },
                 "entries": self.playlist,
             }
@@ -384,14 +413,18 @@ def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
     while True:
         data = stderr.readline()
         if data:
-            log.ffmpeg("Data from ffmpeg: {}".format(data))
+            log.ffmpeg(  # type: ignore[attr-defined]
+                "Data from ffmpeg: {0!r}".format(data)
+            )
             try:
                 if check_stderr(data):
                     sys.stderr.buffer.write(data)
                     sys.stderr.buffer.flush()
 
             except FFmpegError as e:
-                log.ffmpeg("Error from ffmpeg: %s", str(e).strip())
+                log.ffmpeg(  # type: ignore[attr-defined]
+                    "Error from ffmpeg: %s", str(e).strip()
+                )
                 last_ex = e
 
             except FFmpegWarning:
@@ -405,14 +438,17 @@ def filter_stderr(stderr: io.BytesIO, future: asyncio.Future):
         future.set_result(True)
 
 
-def check_stderr(data: bytes):
+def check_stderr(data: bytes) -> bool:
+    ddata = ""
     try:
-        data = data.decode("utf8")
+        ddata = data.decode("utf8")
     except UnicodeDecodeError:
-        log.ffmpeg("Unknown error decoding message from ffmpeg", exc_info=True)
+        log.ffmpeg(  # type: ignore[attr-defined]
+            "Unknown error decoding message from ffmpeg", exc_info=True
+        )
         return True  # fuck it
 
-    # log.ffmpeg("Decoded data from ffmpeg: {}".format(data))
+    # log.ffmpeg("Decoded data from ffmpeg: {}".format(ddata))
 
     # TODO: Regex
     warnings = [
@@ -428,11 +464,11 @@ def check_stderr(data: bytes):
         "Invalid data found when processing input",  # need to regex this properly, its both a warning and an error
     ]
 
-    if any(msg in data for msg in warnings):
-        raise FFmpegWarning(data)
+    if any(msg in ddata for msg in warnings):
+        raise FFmpegWarning(ddata)
 
-    if any(msg in data for msg in errors):
-        raise FFmpegError(data)
+    if any(msg in ddata for msg in errors):
+        raise FFmpegError(ddata)
 
     return True
 

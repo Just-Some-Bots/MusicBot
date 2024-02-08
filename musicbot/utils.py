@@ -3,14 +3,13 @@ import sys
 import logging
 import aiohttp
 import inspect
-import typing
+import unicodedata
+from typing import TYPE_CHECKING, Union, Optional, Any, List, Dict
 
-from typing import Union
-from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
-if typing.TYPE_CHECKING:
-    from discord import VoiceChannel
+if TYPE_CHECKING:
+    from discord import VoiceChannel, StageChannel
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +40,27 @@ def write_file(filename, contents):
             f.write("\n")
 
 
+def slugify(value, allow_unicode=False):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize("NFKC", value)
+    else:
+        value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+    value = re.sub(r"[^\w\s-]", "", value.lower())
+    return re.sub(r"[-\s]+", "-", value).strip("-_")
+
+
 def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     """
     Split up a large string or list of strings into chunks for sending to discord.
@@ -68,21 +88,23 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     return chunks
 
 
-async def get_header(session, url, headerfield=None, *, timeout=5):
+async def get_header(
+    session: aiohttp.ClientSession,
+    url: str,
+    headerfield: Optional[str] = None,
+    *,
+    timeout: int = 5,
+    allow_redirects: bool = True,
+    req_headers: Dict[str, Any] = {},
+):
     req_timeout = aiohttp.ClientTimeout(total=timeout)
-    async with session.head(url, timeout=req_timeout) as response:
+    async with session.head(
+        url, timeout=req_timeout, allow_redirects=allow_redirects, headers=req_headers
+    ) as response:
         if headerfield:
             return response.headers.get(headerfield)
         else:
             return response.headers
-
-
-def md5sum(filename, limit=0):
-    fhash = md5()
-    with open(filename, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            fhash.update(chunk)
-    return fhash.hexdigest()[-limit:]
 
 
 def fixg(x, dp=2):
@@ -114,7 +136,6 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
             attrdir = lambda x: getattr(x, "__dict__")  # noqa: E731
 
         else:
-            # log.everything("{}{} or {} has no slots or dict".format('-' * (depth+1), repr(obj1), repr(obj2)))
             attrdir = dir
 
     elif isinstance(access_attr, str):
@@ -123,31 +144,23 @@ def objdiff(obj1, obj2, *, access_attr=None, depth=0):
     else:
         attrdir = dir
 
-    # log.everything("Diffing {o1} and {o2} with {attr}".format(o1=obj1, o2=obj2, attr=access_attr))
-
     for item in set(attrdir(obj1) + attrdir(obj2)):
         try:
             iobj1 = getattr(obj1, item, AttributeError("No such attr " + item))
             iobj2 = getattr(obj2, item, AttributeError("No such attr " + item))
 
-            # log.everything("Checking {o1}.{attr} and {o2}.{attr}".format(attr=item, o1=repr(obj1), o2=repr(obj2)))
-
             if depth:
-                # log.everything("Inspecting level {}".format(depth))
                 idiff = objdiff(iobj1, iobj2, access_attr="auto", depth=depth - 1)
                 if idiff:
                     changes[item] = idiff
 
             elif iobj1 is not iobj2:
                 changes[item] = (iobj1, iobj2)
-                # log.everything("{1}.{0} ({3}) is not {2}.{0} ({4}) ".format(item, repr(obj1), repr(obj2), iobj1, iobj2))
 
             else:
                 pass
-                # log.everything("{obj1}.{item} is {obj2}.{item} ({val1} and {val2})".format(obj1=obj1, obj2=obj2, item=item, val1=iobj1, val2=iobj2))
 
         except Exception:
-            # log.everything("Error checking {o1}/{o2}.{item}".format(o1=obj1, o2=obj2, item=item), exc_info=e)
             continue
 
     return changes
@@ -178,8 +191,20 @@ def _get_variable(name):
 
 
 def is_empty_voice_channel(
-    voice_channel: "VoiceChannel", *, exclude_me: bool = True, exclude_deaf: bool = True
+    voice_channel: Union["VoiceChannel", "StageChannel"],
+    *,
+    exclude_me: bool = True,
+    exclude_deaf: bool = True,
+    include_bots: List[int] = [],
 ) -> bool:
+    """
+    Check if the given `voice_channel` is figuratively or literally empty.
+
+    :param: `exclude_me`: Exclude our bot instance, the default.
+    :param: `exclude_deaf`: Excludes members who are self-deaf or server-deaf.
+    :param: `include_bots`: A list of bot IDs to include if they are present.
+    """
+
     def _check(member):
         if exclude_me and member == voice_channel.guild.me:
             return False
@@ -191,7 +216,7 @@ def is_empty_voice_channel(
         ):
             return False
 
-        if member.bot:
+        if member.bot and member.id not in include_bots:
             return False
 
         return True

@@ -10,3 +10,9 @@ except Exception:
     VERSION = "version_unknown"
 
 DISCORD_MSG_CHAR_LIMIT = 2000
+
+EMOJI_CHECK_MARK_BUTTON = "\u2705"
+EMOJI_CROSS_MARK_BUTTON = "\u274E"
+EMOJI_IDLE_ICON = "\U0001f634"  # same as \N{SLEEPING FACE}
+EMOJI_PLAY_ICON = "\u25B6"  # add \uFE0F to make button
+EMOJI_PAUSE_ICON = "\u23F8\uFE0F"  # add \uFE0F to make button
