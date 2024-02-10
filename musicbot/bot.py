@@ -728,12 +728,12 @@ class MusicBot(discord.Client):
                 content.title = newmsg
 
         # send it in specified channel
-        self.server_specific_data[guild.id]["last_np_msg"] = (
-            await self.safe_send_message(
-                channel,
-                content if self.config.embeds else newmsg,
-                expire_in=30 if self.config.delete_nowplaying else 0,
-            )
+        self.server_specific_data[guild.id][
+            "last_np_msg"
+        ] = await self.safe_send_message(
+            channel,
+            content if self.config.embeds else newmsg,
+            expire_in=30 if self.config.delete_nowplaying else 0,
         )
 
         # TODO: Check channel voice state?
@@ -3290,10 +3290,10 @@ class MusicBot(discord.Client):
                 else:
                     log.warning(f"No thumbnail set for entry with url: {entry.url}")
 
-            self.server_specific_data[guild.id]["last_np_msg"] = (
-                await self.safe_send_message(
-                    channel, content if self.config.embeds else np_text, expire_in=30
-                )
+            self.server_specific_data[guild.id][
+                "last_np_msg"
+            ] = await self.safe_send_message(
+                channel, content if self.config.embeds else np_text, expire_in=30
             )
         else:
             return Response(
