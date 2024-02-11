@@ -5,3 +5,5 @@ yt-dlp
 colorlog
 cffi --only-binary all; sys_platform == 'win32'
 certifi
+black
+pre-commit
