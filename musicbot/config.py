@@ -8,7 +8,7 @@ import configparser
 
 from .exceptions import HelpfulError
 from .constants import VERSION as BOTVERSION
-from .utils import format_size_to_bytes, format_time_to_seconds
+from .utils import format_size_to_bytes, format_time_to_seconds, set_logging_level
 
 log = logging.getLogger(__name__)
 
@@ -465,6 +465,7 @@ class Config:
             )
             self.debug_level = logging.INFO
             self.debug_level_str = "INFO"
+        set_logging_level(self.debug_level)
 
         self.debug_mode = self.debug_level <= logging.DEBUG
 

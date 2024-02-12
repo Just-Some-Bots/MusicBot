@@ -1,263 +1,364 @@
 #!/usr/bin/env python3
 
+import argparse
 import asyncio
-import os
-import ssl
-import sys
-import time
+import importlib.util
+import json
 import logging
-import tempfile
-import traceback
+import os
+import pathlib
+import shutil
+import ssl
 import subprocess
-
-from shutil import disk_usage, rmtree
+import sys
+import textwrap
+import time
+import traceback
 from base64 import b64decode
+from typing import List, Tuple, Union
 
-from musicbot.exceptions import (
-    HelpfulError,
-    TerminateSignal,
-    RestartSignal,
+from musicbot.constants import (
+    DEFAULT_LOGS_KEPT,
+    DEFAULT_LOGS_ROTATE_FORMAT,
+    MAXIMUM_LOGS_LIMIT,
+)
+from musicbot.constants import VERSION as BOTVERSION
+from musicbot.exceptions import HelpfulError, RestartSignal, TerminateSignal
+from musicbot.utils import (
+    rotate_log_files,
+    set_logging_level,
+    set_logging_max_kept_logs,
+    set_logging_rotate_date_format,
+    setup_loggers,
+    shutdown_loggers,
 )
 
+# protect dependency import from stopping the launcher
 try:
     import aiohttp
-    import pathlib
-    import importlib.util
 except ImportError:
     pass
 
+log = logging.getLogger("musicbot.launcher")
 
-class GIT(object):
+
+class GIT:
     @classmethod
-    def works(cls):
+    def works(cls, raise_instead: bool = False) -> bool:
+        """
+        Checks for output from git --version to verify git can be run.
+
+        :param: raise_instead:  Return True on success but raise Runtime error otherwise.
+
+        :raises:  RuntimeError  if `raise_instead` is set True.
+        """
         try:
-            return bool(subprocess.check_output("git --version", shell=True))
-        except Exception:
+            git_bin = shutil.which("git")
+            if not git_bin:
+                if raise_instead:
+                    raise RuntimeError(
+                        "Cannot locate `git` executable in environment path."
+                    )
+                return False
+            return bool(subprocess.check_output([git_bin, "--version"]))
+        except (
+            OSError,
+            ValueError,
+            PermissionError,
+            FileNotFoundError,
+            subprocess.CalledProcessError,
+        ) as e:
+            if raise_instead:
+                raise RuntimeError(
+                    f"Cannot execute `git` commands due to an error:  {str(e)}"
+                ) from e
             return False
 
     @classmethod
-    def run_upgrade_pull(cls):
+    def show_branch(cls) -> str:
+        """
+        Runs `git rev-parse --abbrev-ref HEAD` to get the current branch name.
+        Will return an empty string if running the command fails.
+        """
+        try:
+            git_bin = shutil.which("git")
+            if not git_bin:
+                log.warning("Could not find git executable.")
+                return ""
+
+            gitbytes = subprocess.check_output(
+                [git_bin, "rev-parse", "--abbrev-ref", "HEAD"],
+                stderr=subprocess.STDOUT,
+            )
+            branch = gitbytes.decode("utf8").strip()
+
+            return branch
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            return ""
+
+    @classmethod
+    def check_updates(cls) -> Tuple[str, str]:
+        """
+        Runs `git fetch --dry-run` and extracts the commit IDs.
+        If the command fails or no commit IDs are found, this
+        will return empty strings rather than raise errors.
+        """
+        branch = cls.show_branch()
+        if not branch:
+            return ("", "")
+
+        try:
+            commit_at = ""
+            commit_to = ""
+            git_bin = shutil.which("git")
+            if not git_bin:
+                return ("", "")
+
+            gitbytes = subprocess.check_output([git_bin, "fetch", "--dry-run"])
+            lines = gitbytes.decode("utf8").split("\n")
+            for line in lines:
+                parts = line.split()
+                if branch in parts:
+                    commits = line.strip().split(" ", maxsplit=1)[0]
+                    commit_at, commit_to = commits.split("..")
+                    break
+
+            return (commit_at, commit_to)
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            return ("", "")
+
+    @classmethod
+    def run_upgrade_pull(cls) -> None:
+        """Runs `git pull` in the current working directory."""
+        cls.works(raise_instead=True)
+
         log.info("Attempting to upgrade with `git pull` on current path.")
         try:
-            git_data = subprocess.check_output("git pull", shell=True)
-            git_data = git_data.decode("utf8").strip()
-            log.info(f"Result of git pull:  {git_data}")
-        except Exception:
+            git_bin = shutil.which("git")
+            if not git_bin:
+                raise FileNotFoundError("Could not locate `git` executable on path.")
+            raw_data = subprocess.check_output([git_bin, "pull"])
+            git_data = raw_data.decode("utf8").strip()
+            log.info("Result of git pull:  %s", git_data)
+        except (
+            OSError,
+            UnicodeError,
+            PermissionError,
+            FileNotFoundError,
+            subprocess.CalledProcessError,
+        ):
             log.exception("Upgrade failed, you need to run `git pull` manually.")
 
 
-class PIP(object):
+class PIP:
     @classmethod
-    def run(cls, command, check_output=False):
+    def run(cls, command: str, check_output: bool = False) -> Union[bytes, int]:
+        """Runs a pip command using `sys.exectutable -m pip` through subprocess.
+        Given `command` is split before it is passed, so quoted items will not work.
+        """
         if not cls.works():
-            raise RuntimeError("Could not import pip.")
+            raise RuntimeError("Cannot execute pip.")
 
         try:
-            return PIP.run_python_m(*command.split(), check_output=check_output)
+            return cls.run_python_m(command.split(), check_output=check_output)
         except subprocess.CalledProcessError as e:
             return e.returncode
-        except Exception:
-            traceback.print_exc()
-            print("Error using -m method")
+        except (OSError, PermissionError, FileNotFoundError):
+            log.exception("Error using -m method")
+        return 0
 
     @classmethod
-    def run_python_m(cls, *args, **kwargs):
-        check_output = kwargs.pop("check_output", False)
-        check = subprocess.check_output if check_output else subprocess.check_call
-        return check([sys.executable, "-m", "pip"] + list(args))
+    def run_python_m(
+        cls, args: List[str], check_output: bool = False
+    ) -> Union[bytes, int]:
+        """
+        Use subprocess check_call or check_output to run a pip module
+        command using the `args` as additional arguments to pip.
+        The returned value of the call is returned from this method.
 
-    @classmethod
-    def run_pip_main(cls, *args, **kwargs):
-        import pip
-
-        args = list(args)
-        check_output = kwargs.pop("check_output", False)
-
+        :param: check_output:  Use check_output rather than check_call.
+        """
         if check_output:
-            from io import StringIO
-
-            out = StringIO()
-            sys.stdout = out
-
-            try:
-                pip.main(args)
-            except Exception:
-                traceback.print_exc()
-            finally:
-                sys.stdout = sys.__stdout__
-
-                out.seek(0)
-                pipdata = out.read()
-                out.close()
-
-                print(pipdata)
-                return pipdata
-        else:
-            return pip.main(args)
+            return subprocess.check_output(
+                [sys.executable, "-m", "pip"] + args,
+                stderr=subprocess.DEVNULL,
+            )
+        return subprocess.check_call(
+            [sys.executable, "-m", "pip"] + args,
+            stdout=subprocess.DEVNULL,
+        )
 
     @classmethod
-    def run_install(cls, cmd, quiet=False, check_output=False):
-        return cls.run("install %s%s" % ("-q " if quiet else "", cmd), check_output)
+    def run_install(
+        cls, cmd: str, quiet: bool = False, check_output: bool = False
+    ) -> Union[bytes, int]:
+        """
+        Runs pip install command and returns the command exist status.
+
+        :param: cmd:  a string of arguments passed to `pip install`.
+        :param: quiet:  attempt to silence output using -q command flag.
+        :param: check_output:  return command output instead of exit code.
+        """
+        q_flag = "-q " if quiet else ""
+        return cls.run(f"install {q_flag}{cmd}", check_output)
 
     @classmethod
-    def run_show(cls, cmd, check_output=False):
-        return cls.run("show %s" % cmd, check_output)
-
-    @classmethod
-    def works(cls):
+    def works(cls) -> bool:
+        """Checks for output from pip --version to verify pip can be run."""
         try:
-            import pip  # noqa: F401
-
-            return True
-        except ImportError:
+            rcode = cls.run_python_m(["--version"])
+            if rcode == 0:
+                return True
+            return False
+        except subprocess.CalledProcessError:
+            log.exception("PIP failed while calling sub-process.")
+            return False
+        except PermissionError:
+            log.exception("PIP failed due to Permissions Error.")
+            return False
+        except FileNotFoundError:
+            log.exception(
+                "PIP failed due to missing Python executable?  (%s)",
+                sys.executable,
+            )
+            return False
+        except OSError:
+            log.exception("PIP failed due to OSError.")
             return False
 
     @classmethod
-    def get_module_version(cls, mod):
-        try:
-            out = cls.run_show(mod, check_output=True)
-
-            if isinstance(out, bytes):
-                out = out.decode()
-
-            datas = out.replace("\r\n", "\n").split("\n")
-            expectedversion = datas[3]
-
-            if expectedversion.startswith("Version: "):
-                return expectedversion.split()[1]
-            else:
-                return [x.split()[1] for x in datas if x.startswith("Version: ")][0]
-        except Exception:
-            pass
-
-    @classmethod
-    def get_requirements(cls, file="requirements.txt"):
-        from pip.req import parse_requirements
-
-        return list(parse_requirements(file))
-
-    @classmethod
-    def run_upgrade_requirements(cls):
-        log.info(
-            "Attempting to upgrade with `pip install --upgrade -r requirements.txt` on current path."
+    def check_updates(cls) -> int:
+        """
+        Runs `pip install -U -r ./requirements.txt --quiet --dry-run --report -`
+        and returns the number of packages that could be updated.
+        """
+        updata = cls.run_install(
+            "-U -r ./requirements.txt --quiet --dry-run --report -",
+            check_output=True,
         )
-        cmd = [sys.executable] + "-m pip install --upgrade -r requirements.txt".split()
         try:
-            pip_data = subprocess.check_output(cmd)
-            pip_data = pip_data.decode("utf8").strip()
-            log.info(f"Result of pip upgrade:  {pip_data}")
-        except Exception:
+            if isinstance(updata, bytes):
+                pip_data = json.loads(updata)
+                return len(pip_data.get("install", []))
+        except json.JSONDecodeError:
+            log.warning("Could not decode pip update report JSON.")
+
+        return 0
+
+    @classmethod
+    def run_upgrade_requirements(cls, get_output: bool = False) -> Union[str, int]:
+        """
+        Uses a subprocess call to run python using sys.executable.
+        Runs `pip install --no-warn-script-location --no-input -U -r ./requirements.txt`
+        This method attempts to catch all exceptions and ensure a return value.
+
+        :param: get_output:  Return the process output rather than its exit code.
+            If set True, and an exception is caught, this will return the string "[[ProcessException]]"
+            If set False and an exception is caught, this will return int -255
+
+        :returns:  process exit code, where 0 is assumed success.
+        """
+        if not cls.works():
+            raise RuntimeError("Cannot locate or execute python -m pip")
+
+        log.info(
+            "Attempting to upgrade with `pip install --upgrade -r requirements.txt` on current path..."
+        )
+        try:
+            raw_data = cls.run_python_m(
+                [
+                    "install",
+                    "--no-warn-script-location",
+                    "--no-input",
+                    "-U",
+                    "-r",
+                    "requirements.txt",
+                ],
+                check_output=get_output,
+            )
+            if isinstance(raw_data, bytes):
+                pip_data = raw_data.decode("utf8").strip()
+                log.info("Result of pip upgrade:\n%s", pip_data)
+                if get_output:
+                    return pip_data
+
+            if isinstance(raw_data, int):
+                log.info("Result exit code from pip upgrade: %s", raw_data)
+                return raw_data
+
+            # if somehow raw_data is not int or bytes.
+            if get_output:
+                return "[[OutputTypeException]]"
+            return -255
+        except (
+            PermissionError,
+            FileNotFoundError,
+            OSError,
+            UnicodeError,
+            subprocess.CalledProcessError,
+        ):
             log.exception(
-                "Upgrade failed, you need to run `pip install --upgrade -r requirements.txt` manually."
+                "Upgrade failed to execute or we could not understand the output"
+            )
+            log.warning(
+                "You may need to run `pip install --upgrade -r requirements.txt` manually."
             )
 
-
-# Setup initial loggers
-
-tmpfile = tempfile.TemporaryFile("w+", encoding="utf8")
-log = logging.getLogger("launcher")
-log.setLevel(logging.DEBUG)
-
-sh = logging.StreamHandler(stream=sys.stdout)
-sh.setFormatter(logging.Formatter(fmt="[%(levelname)s] %(name)s: %(message)s"))
-
-sh.setLevel(logging.INFO)
-log.addHandler(sh)
-
-tfh = logging.StreamHandler(stream=tmpfile)
-tfh.setFormatter(
-    logging.Formatter(
-        fmt="[%(relativeCreated).9f] %(asctime)s - %(levelname)s - %(name)s: %(message)s"
-    )
-)
-tfh.setLevel(logging.DEBUG)
-log.addHandler(tfh)
+            if get_output:
+                return "[[ProcessException]]"
+            return -255
 
 
-def finalize_logging():
-    if os.path.isfile("logs/musicbot.log"):
-        log.info("Moving old musicbot log")
-        try:
-            if os.path.isfile("logs/musicbot.log.last"):
-                os.unlink("logs/musicbot.log.last")
-            os.rename("logs/musicbot.log", "logs/musicbot.log.last")
-        except Exception:
-            pass
-
-    with open("logs/musicbot.log", "w", encoding="utf8") as f:
-        tmpfile.seek(0)
-        f.write(tmpfile.read())
-        tmpfile.close()
-
-        f.write("\n")
-        f.write(" PRE-RUN SANITY CHECKS PASSED ".center(80, "#"))
-        f.write("\n\n")
-
-    global tfh
-    log.removeHandler(tfh)
-    del tfh
-
-    fh = logging.FileHandler("logs/musicbot.log", mode="a")
-    fh.setFormatter(
-        logging.Formatter(
-            fmt="[%(relativeCreated).9f] %(name)s-%(levelname)s: %(message)s"
-        )
-    )
-    fh.setLevel(logging.DEBUG)
-    log.addHandler(fh)
-
-    sh.setLevel(logging.INFO)
-
-    dlog = logging.getLogger("discord")
-    dlh = logging.StreamHandler(stream=sys.stdout)
-    dlh.terminator = ""
-    try:
-        dlh.setFormatter(logging.Formatter("."))
-    except ValueError:
-        dlh.setFormatter(
-            logging.Formatter(".", validate=False)
-        )  # pylint: disable=unexpected-keyword-arg
-    dlog.addHandler(dlh)
-
-
-def bugger_off(msg="Press enter to continue . . .", code=1):
+def bugger_off(msg: str = "Press enter to continue . . .", code: int = 1) -> None:
+    """Make the console wait for the user to press enter/return."""
     input(msg)
     sys.exit(code)
 
 
-# TODO: all of this
-def sanity_checks(optional=True):
-    log.info("Starting sanity checks")
-    ## Required
+def sanity_checks(args: argparse.Namespace, optional: bool = True) -> None:
+    """
+    Run a collection of pre-startup checks to either automatically correct
+    issues or inform the user of how to correct them.
 
+    :param: optional:  Toggle optional start up checks.
+    """
+    log.info("Starting sanity checks")
+    """Required Checks"""
     # Make sure we're on Python 3.8+
     req_ensure_py3()
 
-    # Fix windows encoding fuckery
-    req_ensure_encoding()
-
-    # Make sure we're in a writeable env
+    # Make sure we're in a writable env
     req_ensure_env()
 
     # Make our folders if needed
-    req_ensure_folders()
+    pathlib.Path("data").mkdir(exist_ok=True)
 
     # For rewrite only
     req_check_deps()
 
     log.info("Required checks passed.")
 
-    ## Optional
+    """Optional Checks"""
     if not optional:
         return
 
     # Check disk usage
     opt_check_disk_space()
 
+    # Display an update check, if enabled.
+    if not args.no_update_check:
+        opt_check_updates()
+    else:
+        log.info("Skipped checking for updates.")
+
     log.info("Optional checks passed.")
 
 
-def req_ensure_py3():
+def req_ensure_py3() -> None:
+    """
+    Verify the current running version of Python and attempt to find a
+    suitable minimum version in the system if the running version is too old.
+    """
     log.info("Checking for Python 3.8+")
 
     if sys.version_info < (3, 8):
@@ -265,41 +366,51 @@ def req_ensure_py3():
             "Python 3.8+ is required. This version is %s", sys.version.split()[0]
         )
         log.warning("Attempting to locate Python 3.8...")
+        # Should we look for other versions than min-ver?
 
         pycom = None
 
         if sys.platform.startswith("win"):
-            log.info('Trying "py -3.8"')
+            pycom = shutil.which("py.exe")
+            if not pycom:
+                log.warning("Could not locate py.exe")
+
             try:
-                subprocess.check_output('py -3.8 -c "exit()"', shell=True)
-                pycom = "py -3.8"
-            except Exception:
-                log.info('Trying "python3"')
-                try:
-                    subprocess.check_output('python3 -c "exit()"', shell=True)
-                    pycom = "python3"
-                except Exception:
-                    pass
+                subprocess.check_output([pycom, "-3.8", '-c "exit()"'])
+                pycom = f"{pycom} -3.8"
+            except (
+                OSError,
+                PermissionError,
+                FileNotFoundError,
+                subprocess.CalledProcessError,
+            ):
+                log.warning("Could not execute `py.exe -3.8` ")
+                pycom = None
 
             if pycom:
                 log.info("Python 3 found.  Launching bot...")
-                os.system("start cmd /k %s run.py" % pycom)
+                os.system(f"start cmd /k {pycom} run.py")
                 sys.exit(0)
 
         else:
             log.info('Trying "python3.8"')
+            pycom = shutil.which("python3.8")
+            if not pycom:
+                log.warning("Could not locate python3.8 on path.")
+
             try:
-                pycom = (
-                    subprocess.check_output('python3.8 -c "exit()"'.split())
-                    .strip()
-                    .decode()
-                )
-            except Exception:
-                pass
+                subprocess.check_output([pycom, '-c "exit()"'])
+            except (
+                OSError,
+                PermissionError,
+                FileNotFoundError,
+                subprocess.CalledProcessError,
+            ):
+                pycom = None
 
             if pycom:
                 log.info(
-                    "\nPython 3 found.  Re-launching bot using: %s run.py\n", pycom
+                    "\nPython 3.8 found.  Re-launching bot using: %s run.py\n", pycom
                 )
                 os.execlp(pycom, pycom, "run.py")
 
@@ -309,15 +420,18 @@ def req_ensure_py3():
         bugger_off()
 
 
-def req_check_deps():
+def req_check_deps() -> None:
+    """
+    Check that we have the required dependency modules at the right versions.
+    """
     try:
-        import discord
+        import discord  # pylint: disable=import-outside-toplevel
 
-        if discord.version_info.major < 1:
+        if discord.version_info.major < 2:
             log.critical(
-                "This version of MusicBot requires a newer version of discord.py. Your version is {0}. Try running update.py.".format(
-                    discord.__version__
-                )
+                "This version of MusicBot requires a newer version of discord.py. "
+                "Your version is %s. Try running update.py.",
+                discord.__version__,
             )
             bugger_off()
     except ImportError:
@@ -325,29 +439,10 @@ def req_check_deps():
         pass
 
 
-def req_ensure_encoding():
-    log.info("Checking console encoding")
-
-    if (
-        sys.platform.startswith("win")
-        or sys.stdout.encoding.replace("-", "").lower() != "utf8"
-    ):
-        log.info("Setting console encoding to UTF-8")
-
-        import io
-
-        sys.stdout = io.TextIOWrapper(
-            sys.stdout.detach(), encoding="utf8", line_buffering=True
-        )
-        # only slightly evil
-        sys.__stdout__ = sh.stream = sys.stdout
-
-        if os.environ.get("PYCHARM_HOSTED", None) not in (None, "0"):
-            log.info("Enabling colors in pycharm pseudoconsole")
-            sys.stdout.isatty = lambda: True
-
-
-def req_ensure_env():
+def req_ensure_env() -> None:
+    """
+    Inspect the environment variables, validating and updating values where needed.
+    """
     log.info("Ensuring we're in the right environment")
 
     if os.environ.get("APP_ENV") != "docker" and not os.path.isdir(
@@ -361,25 +456,34 @@ def req_ensure_env():
         bugger_off()
 
     try:
-        assert os.path.isdir("config"), 'folder "config" not found'
-        assert os.path.isdir("musicbot"), 'folder "musicbot" not found'
-        assert os.path.isfile(
-            "musicbot/__init__.py"
-        ), "musicbot folder is not a Python module"
+        if not os.path.isdir("config"):
+            raise RuntimeError('folder "config" not found')
 
-        assert importlib.util.find_spec("musicbot"), "musicbot module is not importable"
-    except AssertionError as e:
+        if not os.path.isdir("musicbot"):
+            raise RuntimeError('folder "musicbot" not found')
+
+        if not os.path.isfile("musicbot/__init__.py"):
+            raise RuntimeError("musicbot folder is not a Python module")
+
+        if not importlib.util.find_spec("musicbot"):
+            raise RuntimeError("musicbot module is not importable")
+    except RuntimeError as e:
         log.critical("Failed environment check, %s", e)
         bugger_off()
 
     try:
         os.mkdir("musicbot-test-folder")
-    except Exception:
+    except (
+        OSError,
+        FileExistsError,
+        PermissionError,
+        IsADirectoryError,
+    ):
         log.critical("Current working directory does not seem to be writable")
         log.critical("Please move the bot to a folder that is writable")
         bugger_off()
     finally:
-        rmtree("musicbot-test-folder", True)
+        shutil.rmtree("musicbot-test-folder", True)
 
     if sys.platform.startswith("win"):
         log.info("Adding local bins/ folder to path")
@@ -387,25 +491,228 @@ def req_ensure_env():
         sys.path.append(os.path.abspath("bin/"))  # might as well
 
 
-def req_ensure_folders():
-    pathlib.Path("logs").mkdir(exist_ok=True)
-    pathlib.Path("data").mkdir(exist_ok=True)
-
-
-def opt_check_disk_space(warnlimit_mb=200):
-    if disk_usage(".").free < warnlimit_mb * 1024 * 2:
+def opt_check_disk_space(warnlimit_mb: int = 200) -> None:
+    """
+    Performs and optional check of system disk storage space to warn the
+    user if the bot might gobble that remaining space with downloads later.
+    """
+    if shutil.disk_usage(".").free < warnlimit_mb * 1024 * 2:
         log.warning(
-            "Less than %sMB of free space remains on this device" % warnlimit_mb
+            "Less than %sMB of free space remains on this device",
+            warnlimit_mb,
         )
 
 
-#################################################
+def opt_check_updates() -> None:
+    """
+    Runs a collection of git and pip commands and logs if updates are available.
+    """
+    log.info("\nChecking for updates to MusicBot or dependencies...")
+    needs_update = False
+    if GIT.works():
+        git_branch = GIT.show_branch()
+        commit_at, commit_to = GIT.check_updates()
+        if commit_at and commit_to:
+            log.warning(
+                "MusicBot updates are available through `git` command.\n"
+                "Your current branch is:  %s\n"
+                "The latest commit ID is:  %s",
+                git_branch,
+                commit_to,
+            )
+            needs_update = True
+        else:
+            log.info("No MusicBot updates available via `git` command.")
+    else:
+        log.warning(
+            "Could not check for updates using `git` commands.  You should check manually."
+        )
+
+    if PIP.works():
+        # TODO: should probably list / prioritize packages.
+        package_count = PIP.check_updates()
+        if package_count:
+            log.warning(
+                "There may be updates for dependency packages. "
+                "PIP reports %s package(s) could be installed.",
+                package_count,
+            )
+            needs_update = True
+        else:
+            log.info("No dependency updates available via `pip` command.")
+    else:
+        log.warning(
+            "Could not check for updates using `pip` commands.  You should check manually."
+        )
+    if needs_update:
+        log.info(
+            "You can run a guided update by using the command:\n    %s ./update.py",
+            sys.executable,
+        )
 
 
-def respawn_bot_process(pybin=None):
+def parse_cli_args() -> argparse.Namespace:
+    """
+    Parse command line arguments and do reasonable checks and assignments.
+
+    :returns:  Command line arguments parsed via argparse.
+    """
+
+    # define a few custom arg validators.
+    def kept_logs_int(value: str) -> int:
+        """Validator for log rotation limits."""
+        try:
+            val = int(value)
+            if val > MAXIMUM_LOGS_LIMIT:
+                raise ValueError("Value is above the maximum limit.")
+            if val <= -1:
+                raise ValueError("Value must not be negative.")
+            return val
+        except (TypeError, ValueError) as e:
+            raise argparse.ArgumentTypeError(
+                f"Value for Max Logs Kept must be a number from 0 to {MAXIMUM_LOGS_LIMIT}",
+            ) from e
+
+    def log_levels_int(level_name: str) -> int:
+        """Validator for log level name to existing level int."""
+        level_name = level_name.upper()
+        try:
+            val = getattr(logging, level_name, None)
+            if not isinstance(val, int):
+                raise TypeError(f"Log level '{level_name}' is not available.")
+            return val
+        except (TypeError, ValueError) as e:
+            raise argparse.ArgumentTypeError(
+                "Log Level must be one of:  CRITICAL, ERROR, WARNING, INFO, DEBUG, "
+                "VOICEDEBUG, FFMPEG, NOISY, or EVERYTHING",
+            ) from e
+
+    ap = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=textwrap.dedent(
+            """\
+        Launch a music playing discord bot built using discord.py, youtubeDL, and ffmpeg.
+        Available via Github:
+          https://github.com/Just-Some-Bots/MusicBot
+        """
+        ),
+        epilog=textwrap.dedent(
+            """\
+        For more help and support with this bot, join our discord:
+          https://discord.gg/bots
+
+        This software is provided under the MIT License.
+        See the `LICENSE` text file for complete details.
+        """
+        ),
+    )
+
+    # Show Version and exit option.
+    ap.add_argument(
+        "-V",
+        "--version",
+        dest="show_version",
+        action="store_true",
+        help="Print the MusicBot version information and exit.",
+    )
+
+    # No Startup Checks option.
+    ap.add_argument(
+        "--no-checks",
+        dest="do_start_checks",
+        action="store_false",
+        help="Skip all startup checks, including the update check.",
+    )
+
+    # Skip update checks option.
+    ap.add_argument(
+        "--no-update-check",
+        dest="no_update_check",
+        action="store_true",
+        help="Skip only the update check at startup.",
+    )
+
+    # Disable dependency install on error option.
+    ap.add_argument(
+        "--no-install-deps",
+        dest="no_install_deps",
+        action="store_true",
+        help="Disable MusicBot from trying to install dependencies when it cannot import them.",
+    )
+
+    # Log related options.
+    ap.add_argument(
+        "--logs-kept",
+        dest="keep_n_logs",
+        default=DEFAULT_LOGS_KEPT,
+        type=kept_logs_int,
+        help=f"Specify how many log files to keep, between 0 and {MAXIMUM_LOGS_LIMIT} inclusive."
+        f" (Default: {DEFAULT_LOGS_KEPT})",
+    )
+    ap.add_argument(
+        "--log-level",
+        dest="log_level",
+        default="NOTSET",
+        type=log_levels_int,
+        help="Override the log level settings set in config. Must be one of: "
+        "CRITICAL, ERROR, WARNING, INFO, DEBUG, VOICEDEBUG, FFMPEG, "
+        "NOISY, or EVERYTHING   (Default: NOTSET)",
+    )
+    ap.add_argument(
+        "--log-rotate-fmt",
+        dest="old_log_fmt",
+        default=DEFAULT_LOGS_ROTATE_FORMAT,
+        type=str,
+        help="Override the default date format used when rotating log files. "
+        "This should contain values compatible with strftime().  "
+        f"(Default:  '{DEFAULT_LOGS_ROTATE_FORMAT.replace('%', '%%')}')",
+    )
+
+    # TODO: maybe more arguments for other things:
+    # --config-dir      force this directory for config data (all files)
+    # --config-file     load config from this file, but default for other configs.
+
+    args = ap.parse_args()
+
+    # Show version and exit.
+    if args.show_version:
+        print(f"Just-Some-Bots/MusicBot\nVersion:  {BOTVERSION}\n")
+        sys.exit(0)
+
+    if -1 < args.keep_n_logs <= MAXIMUM_LOGS_LIMIT:
+        set_logging_max_kept_logs(args.keep_n_logs)
+
+    if args.log_level != logging.NOTSET:
+        set_logging_level(args.log_level, override=True)
+
+    if args.old_log_fmt != DEFAULT_LOGS_ROTATE_FORMAT:
+        set_logging_rotate_date_format(args.old_log_fmt)
+
+    return args
+
+
+def respawn_bot_process(pybin: str = "") -> None:
+    """
+    Use a platform dependent method to restart the bot process, without
+    an external process/service manager.
+    This uses either the given `pybin` executable path or sys.executable
+    to run the bot using the arguments currently in sys.argv
+
+    This function attempts to make sure all buffers are flushed and logging
+    is shut down before restarting the new process.
+
+    On Linux/Unix-style OS this will use sys.execlp to replace the process
+    while keeping the existing PID.
+
+    On Windows OS this will use subprocess.Popen to create a new console
+    where the new bot is started, with a new PID, and exit this instance.
+    """
     if not pybin:
-        pybin = os.path.basename(sys.executable)
+        pybin = sys.executable
     exec_args = [pybin] + sys.argv
+
+    shutdown_loggers()
+    rotate_log_files()
 
     sys.stdout.flush()
     sys.stderr.flush()
@@ -415,11 +722,12 @@ def respawn_bot_process(pybin=None):
         # On Windows, this creates a new process window that dies when the script exits.
         # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
         # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
-        # The moment we end this instance of the process, control is returned to the starting shell.
-        subprocess.Popen(
+        # The moment we end our existing instance, control is returned to the starting shell.
+        with subprocess.Popen(
             exec_args,
-            creationflags=subprocess.CREATE_NEW_CONSOLE,
-        )
+            creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
+        ):
+            log.debug("Opened new MusicBot instance.  This terminal can now be closed!")
         sys.exit(0)
     else:
         # On Unix/Linux/Mac this should immediately replace the current program.
@@ -428,15 +736,25 @@ def respawn_bot_process(pybin=None):
         os.execlp(exec_args[0], *exec_args)
 
 
-async def main():
-    # TODO: *actual* argparsing
+async def main(
+    args: argparse.Namespace,
+) -> Union[RestartSignal, TerminateSignal, None]:
+    """
+    All of the MusicBot starts here.
 
-    if "--no-checks" not in sys.argv:
-        sanity_checks()
+    :param: args:  some arguments parsed from the command line.
 
-    finalize_logging()
+    :returns:  Oddly, returns rather than raises a *Signal or nothing.
+    """
+    # TODO: this function may not need to be async.
 
-    exit_signal = None
+    # Handle startup checks, if they haven't been skipped.
+    if args.do_start_checks:
+        sanity_checks(args)
+    else:
+        log.info("Skipped startup checks.")
+
+    exit_signal: Union[RestartSignal, TerminateSignal, None] = None
     tried_requirementstxt = False
     use_certifi = False
     tryagain = True
@@ -450,10 +768,9 @@ async def main():
 
         m = None
         try:
-            from musicbot import MusicBot
+            from musicbot import MusicBot  # pylint: disable=import-outside-toplevel
 
-            m = MusicBot()
-            await m._doBotInit(use_certifi)
+            m = MusicBot(use_certifi=use_certifi)
             await m.run()
 
         except (
@@ -476,46 +793,77 @@ async def main():
             if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
                 if use_certifi:
                     log.exception(
-                        "Could not get Issuer Cert even with certifi.  Try: pip install --upgrade certifi "
+                        "Could not get Issuer Certificate even with certifi!\n"
+                        "Try running:  %s -m pip install --upgrade certifi ",
+                        sys.executable,
+                    )
+                    log.warning(
+                        "To easily add a certificate to Windows trust store, \n"
+                        "you can open the failing site in Microsoft Edge or IE...\n"
                     )
                     break
-                else:
-                    log.warning(
-                        "Could not get Issuer Certificate from default trust store, trying certifi instead."
-                    )
-                    use_certifi = True
-                    continue
+
+                log.warning(
+                    "Could not get Issuer Certificate from default trust store, trying certifi instead."
+                )
+                use_certifi = True
+                continue
 
         except SyntaxError:
-            log.exception("Syntax error (this is a bug, not your fault)")
+            if "-dirty" in BOTVERSION:
+                log.exception("Syntax error (version is dirty, did you edit the code?)")
+            else:
+                log.exception("Syntax error (this is a bug, not your fault)")
             break
 
         except ImportError:
-            # TODO: if error module is in pip or dpy requirements...
+            if args.no_install_deps:
+                log.error(
+                    "Error importing MusicBot or it's dependency packages.\n"
+                    "The `--no-install-deps` option is set, so MusicBot will exit now."
+                )
+                log.exception("This is the exception which caused the above error: ")
+                break
+
+            if not PIP.works():
+                log.critical(
+                    "MusicBot could not import dependency modules and we cannot run `pip` automatically!\n"
+                    "You will need to manually install `pip` package for your version of python.\n"
+                )
+                log.warning(
+                    "If you already installed `pip` but still get this error:\n"
+                    " - Check that you installed it for this python version: %s\n"
+                    " - Check installed packages are accessible to the user running MusicBot",
+                    sys.version.split(maxsplit=1)[0],
+                )
+                break
 
             if not tried_requirementstxt:
                 tried_requirementstxt = True
 
-                log.exception("Error starting bot")
-                log.info("Attempting to install dependencies...")
-
-                err = PIP.run_install("--upgrade -r requirements.txt")
+                log.exception("Error importing dependencies while starting bot.")
+                err = PIP.run_upgrade_requirements(get_output=True)
 
                 if err:  # TODO: add the specific error check back.
-                    # The proper thing to do here is tell the user to fix their install, not help make it worse.
-                    # Comprehensive return codes aren't really a feature of pip, we'd need to read the log, and so does the user.
+                    # The proper thing to do here is tell the user to fix
+                    # their install, not help make it worse or insecure.
+                    # Comprehensive return codes aren't really a feature of pip,
+                    # If we need to read the log, then so does the user.
                     print()
                     log.critical(
-                        "This is not recommended! You can try to %s to install dependencies anyways."
-                        % ["use sudo", "run as admin"][sys.platform.startswith("win")]
+                        "This is not recommended! You can try to %s to install dependencies anyways.",
+                        ["use sudo", "run as admin"][sys.platform.startswith("win")],
                     )
                     break
-                else:
-                    print()
-                    log.info("Ok lets hope it worked")
-                    print()
+
+                print()
+                log.info("Ok lets hope it worked")
+                print()
             else:
-                log.exception("Unknown ImportError, exiting.")
+                log.error(
+                    "MusicBot got an ImportError after trying to install packages. MusicBot must exit..."
+                )
+                log.exception("The exception which caused the above error: ")
                 break
 
         except HelpfulError as e:
@@ -533,26 +881,32 @@ async def main():
                 exit_signal = e
                 break
 
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             log.exception("Error starting bot")
 
         finally:
             if m and (m.session or m.http.connector):
                 # in case we never made it to m.run(), ensure cleanup.
                 log.debug("Doing cleanup late.")
-                await m._cleanup()
+                await m.shutdown_cleanup()
 
             if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
-                    traceback.print_exc()
-                break
+                    log.warning(
+                        "There are some exceptions that may not have been handled..."
+                    )
+                    log.debug(
+                        "Traceback output:\n%s",
+                        "".join(traceback.format_exc()),
+                    )
+                tryagain = False
 
             loops += 1
 
         sleeptime = min(loops * 2, max_wait_time)
         if sleeptime:
-            log.info(f"Restarting in {sleeptime} seconds...")
+            log.info("Restarting in %s seconds...", sleeptime)
             time.sleep(sleeptime)
 
     print()
@@ -561,10 +915,52 @@ async def main():
 
 
 if __name__ == "__main__":
+    # take care of loggers right away
+    setup_loggers()
+
+    # parse arguments before any logs, so --help does not make an empty log.
+    cli_args = parse_cli_args()
+
+    # Log file creation is deferred until this first write.
+    log.info("Loading MusicBot version:  %s", BOTVERSION)
+    log.info("Log opened:  %s", time.ctime())
+
+    # Check if run.py is in the current working directory.
+    run_py_dir = os.path.dirname(os.path.realpath(__file__))
+    if run_py_dir != os.getcwd():
+        # if not, verify musicbot and .git folders exists and change directory.
+        run_mb_dir = pathlib.Path(run_py_dir).joinpath("musicbot")
+        run_git_dir = pathlib.Path(run_py_dir).joinpath(".git")
+        if run_mb_dir.is_dir() and run_git_dir.is_dir():
+            log.warning("Changing working directory to:  %s", run_py_dir)
+            os.chdir(run_py_dir)
+        else:
+            log.critical(
+                "Cannot start the bot!  You started `run.py` in the wrong directory"
+                " and we could not locate `musicbot` and `.git` folders to verify"
+                " a new directory location."
+            )
+            log.error(
+                "For best results, start `run.py` from the same folder you cloned MusicBot into.\n"
+                "If you did not use git to clone the repository, you are strongly urged to."
+            )
+            time.sleep(3)  # make sure they see the message.
+            sys.exit(127)
+
     # py3.8 made ProactorEventLoop default on windows.
-    # Now we need to make adjustments for a bug in aiohttp :)
-    loop = asyncio.get_event_loop_policy().get_event_loop()
-    exit_sig = loop.run_until_complete(main())
+    # py3.12 deprecated using get_event_loop(), we need new_event_loop().
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        exit_sig = loop.run_until_complete(main(cli_args))
+    except KeyboardInterrupt:
+        # TODO: later this will probably get more cleanup so we can
+        # close other things more proper like too.
+        log.info("\nCaught a keyboard interrupt signal.")
+        shutdown_loggers()
+        rotate_log_files()
+        raise
+
     if exit_sig:
         if isinstance(exit_sig, RestartSignal):
             if exit_sig.get_name() == "RESTART_FULL":
@@ -580,4 +976,6 @@ if __name__ == "__main__":
                 GIT.run_upgrade_pull()
                 respawn_bot_process()
         elif isinstance(exit_sig, TerminateSignal):
+            shutdown_loggers()
+            rotate_log_files()
             sys.exit(exit_sig.exit_code)
