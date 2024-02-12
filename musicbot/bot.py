@@ -932,6 +932,12 @@ class MusicBot(discord.Client):
         """Inspects available players and ultimately fire change_presence()"""
         activity = None  # type: Optional[discord.BaseActivity]
         status = discord.Status.online  # type: discord.Status
+        # NOTE:  Bots can only set: name, type, state, and url fields of activity.
+        # Even though Custom type is available, we cannot use emoji field with bots.
+        # So Custom Activity is effectively useless at time of writing.
+        # Streaming Activity is a coin toss at best. Usually status changes correctly.
+        # However all other details in the client might be wrong or missing.
+        # Example:  Youtube url shows "Twitch" in client profile info.
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
         paused = sum(1 for p in self.players.values() if p.is_paused)
@@ -942,83 +948,64 @@ class MusicBot(discord.Client):
             if paused > playing:
                 status = discord.Status.idle
 
+            text = f"music on {total} servers"
+            if self.config.status_message:
+                text = self.config.status_message
+
             activity = discord.Activity(
                 type=discord.ActivityType.playing,
-                name="music on {} guilds".format(total),
+                name=text,
             )
 
         # only 1 server is playing.
         elif playing:
             player = list(self.players.values())[0]
-            activity = discord.Activity(
-                type=discord.ActivityType.streaming,
-                url=player.current_entry.url,
-                name=player.current_entry.title.strip()[:128],
-                # platform="" does not work.
-            )
+            if player.current_entry:
+                text = player.current_entry.title.strip()[:128]
+                if self.config.status_message:
+                    text = self.config.status_message
+
+                activity = discord.Activity(
+                    type=discord.ActivityType.streaming,
+                    url=player.current_entry.url,
+                    name=text,
+                )
 
         # only 1 server is paused.
         elif paused:
             player = list(self.players.values())[0]
-            status = discord.Status.idle
-            activity = discord.Activity(
-                type=discord.ActivityType.custom,
-                state=player.current_entry.title.strip()[:128],
-                name="Custom Status",  # seemingly required.
-                # TODO: emoji is broken in dpy lib. 2024-01-10
-                emoji={"name": ":pause_button:"},
-            )
+            if player.current_entry:
+                text = player.current_entry.title.strip()[:128]
+                if self.config.status_message:
+                    text = self.config.status_message
+
+                status = discord.Status.idle
+                activity = discord.Activity(
+                    type=discord.ActivityType.custom,
+                    state=text,
+                    name="Custom Status",  # seemingly required.
+                )
 
         # nothing going on.
         else:
+            text = f" ~ {EMOJI_IDLE_ICON} ~ "
+            if self.config.status_message:
+                text = self.config.status_message
+
             status = discord.Status.idle
             activity = discord.CustomActivity(
                 type=discord.ActivityType.custom,
-                state=f" ~ {EMOJI_IDLE_ICON} ~ ",
+                state=text,
                 name="Custom Status",  # seems required to make idle status work.
-                # TODO: emoji is currently broken in discord.py lib. 2024-01-10
-                # emoji={"name": EMOJI_IDLE_ICON},
-                emoji="\N{POWER SLEEP SYMBOL}",
             )
 
         async with self.aiolocks[_func_()]:
             if activity != self.last_status:
-                log.noise(f"Update Bot Status:  {status} -- {repr(activity)}")
+                log.noise(  # type: ignore[attr-defined]
+                    f"Update Bot Status:  {status} -- {repr(activity)}"
+                )
                 await self.change_presence(status=status, activity=activity)
                 self.last_status = activity
-
-    async def update_now_playing_message(self, guild, message, *, channel=None):
-        lnp = self.server_specific_data[guild.id]["last_np_msg"]
-        m = None
-
-        if message is None and lnp:
-            await self.safe_delete_message(lnp, quiet=True)
-
-        elif lnp:  # If there was a previous lp message
-            oldchannel = lnp.channel
-
-            if lnp.channel == oldchannel:  # If we have a channel to update it in
-                async for lmsg in lnp.channel.history(limit=1):
-                    if lmsg != lnp and lnp:  # If we need to resend it
-                        await self.safe_delete_message(lnp, quiet=True)
-                        m = await self.safe_send_message(channel, message, quiet=True)
-                    else:
-                        m = await self.safe_edit_message(
-                            lnp, message, send_if_fail=True, quiet=False
-                        )
-
-            elif channel:  # If we have a new channel to send it to
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(channel, message, quiet=True)
-
-            else:  # we just resend it in the old channel
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(oldchannel, message, quiet=True)
-
-        elif channel:  # No previous message
-            m = await self.safe_send_message(channel, message, quiet=True)
-
-        self.server_specific_data[guild.id]["last_np_msg"] = m
 
     async def serialize_queue(self, guild, *, dir=None):
         """
