@@ -17,7 +17,7 @@ from datetime import timedelta
 from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Any
 
 import aiohttp
 import colorlog
@@ -54,6 +54,8 @@ from .utils import (
     is_empty_voice_channel,
     format_song_duration,
     format_size_from_bytes,
+    muffle_discord_console_log,
+    mute_discord_console_log,
 )
 
 MessageableChannel = Union[
@@ -74,7 +76,13 @@ log = logging.getLogger(__name__)
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=None, perms_file=None, aliases_file=None):
+    def __init__(
+        self,
+        config_file=None,
+        perms_file=None,
+        aliases_file=None,
+        use_certifi: bool = False,
+    ):
         load_opus_lib()
         try:
             sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
@@ -92,6 +100,7 @@ class MusicBot(discord.Client):
         if aliases_file is None:
             aliases_file = AliasesDefault.aliases_file
 
+        self.use_certifi = use_certifi
         self.players = {}
         self.exit_signal = None
         self.init_ok = False
@@ -99,8 +108,6 @@ class MusicBot(discord.Client):
         self.last_status = None
 
         self.config = Config(config_file)
-
-        self._setup_logging()
 
         self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
         self.str = Json(self.config.i18n_file)
@@ -152,9 +159,10 @@ class MusicBot(discord.Client):
         intents.presences = False
         super().__init__(intents=intents)
 
-    async def _doBotInit(self, use_certifi: bool = False):
-        self.http.user_agent = "MusicBot/%s" % BOTVERSION
-        if use_certifi:
+    async def setup_hook(self) -> None:
+        """async init phase that is called by d.py before login."""
+        self.http.user_agent = f"MusicBot/{BOTVERSION}"
+        if self.use_certifi:
             ssl_ctx = ssl.create_default_context(cafile=certifi.where())
             tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
 
@@ -170,7 +178,6 @@ class MusicBot(discord.Client):
                 headers={"User-Agent": self.http.user_agent}
             )
 
-        self.spotify: Spotify
         if self.config._spotify:
             try:
                 self.spotify = Spotify(
@@ -188,9 +195,8 @@ class MusicBot(discord.Client):
                     )
             except exceptions.SpotifyError as e:
                 log.warning(
-                    "There was a problem initialising the connection to Spotify. Is your client ID and secret correct? Details: {0}. Continuing anyway in 5 seconds...".format(
-                        e
-                    )
+                    "Could not start Spotify client. Is your client ID and secret correct? Details: %s. Continuing anyway in 5 seconds...",
+                    e,
                 )
                 self.config._spotify = False
                 time.sleep(5)  # make sure they see the problem
@@ -212,11 +218,13 @@ class MusicBot(discord.Client):
                     self.config._spotify = True
             except exceptions.SpotifyError as e:
                 log.warning(
-                    "There was a problem initialising the connection to Spotify using guest mode. Details: {0}.".format(
-                        e
-                    )
+                    "Could not start Spotify client using guest mode. Details: %s.", e
                 )
                 self.config._spotify = False
+
+        log.info("Initialized, now connecting to discord.")
+        # this creates an output similar to a progress indicator.
+        muffle_discord_console_log()
 
     # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
     def owner_only(func):
@@ -265,55 +273,6 @@ class MusicBot(discord.Client):
             lambda m: m.id == self.config.owner_id and (m.voice if voice else True),
             server.members if server else self.get_all_members(),
         )
-
-    def _setup_logging(self):
-        if len(logging.getLogger(__package__).handlers) > 1:
-            log.debug("Skipping logger setup, already set up")
-            return
-
-        shandler = logging.StreamHandler(stream=sys.stdout)
-        sformatter = colorlog.LevelFormatter(
-            fmt={
-                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
-                "INFO": "{log_color}{message}",
-                "WARNING": "{log_color}{levelname}: {message}",
-                "ERROR": "{log_color}[{levelname}:{module}] {message}",
-                "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
-                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
-                "NOISY": "{log_color}[{levelname}:{module}] {message}",
-                "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-                "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-            },
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "white",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "bold_red",
-                "EVERYTHING": "bold_cyan",
-                "NOISY": "bold_white",
-                "FFMPEG": "bold_purple",
-                "VOICEDEBUG": "purple",
-            },
-            style="{",
-            datefmt="",
-        )
-        shandler.setFormatter(sformatter)
-        shandler.setLevel(self.config.debug_level)
-        logging.getLogger(__package__).addHandler(shandler)
-
-        log.debug("Set logging level to {}".format(self.config.debug_level_str))
-
-        if self.config.debug_mode:
-            dlogger = logging.getLogger("discord")
-            dlogger.setLevel(logging.DEBUG)
-            dhandler = logging.FileHandler(
-                filename="logs/discord.log", encoding="utf-8", mode="w"
-            )
-            dhandler.setFormatter(
-                logging.Formatter("{asctime}:{levelname}:{name}: {message}", style="{")
-            )
-            dlogger.addHandler(dhandler)
 
     async def _join_startup_channels(self, channels, *, autosummon=True):
         joined_servers = set()
@@ -1301,32 +1260,39 @@ class MusicBot(discord.Client):
                     "Got HTTPException trying to edit message %s to: %s", message, new
                 )
 
-    async def _cleanup(self):
+    async def shutdown_cleanup(self) -> None:
+        """
+        Function which forces closure on connections and pending tasks.
+        Much scrutiny required herein.
+        Probably due for further refactoring.
+        """
         try:  # make sure discord.Client is closed.
             await self.close()  # changed in d.py 2.0
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             log.exception("Issue while closing discord client session.")
-            pass
 
         try:  # make sure discord.http.connector is closed.
             # This may be a bug in aiohttp or within discord.py handling of it.
             # Have read aiohttp 4.x is supposed to fix this, but have not verified.
             if self.http.connector:
                 await self.http.connector.close()
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             log.exception("Issue while closing discord aiohttp connector.")
-            pass
 
         try:  # make sure our aiohttp session is closed.
-            await self.session.close()
-        except Exception:
+            if self.session:
+                await self.session.close()
+        except Exception:  # pylint: disable=broad-exception-caught
             log.exception("Issue while closing our aiohttp session.")
-            pass
 
+        # TODO: clean this up when run.py::main() is no longer async.
         # now cancel all pending tasks, except for run.py::main()
         for task in asyncio.all_tasks(loop=self.loop):
+            coro = task.get_coro()
+
             if (
-                task.get_coro().__name__ == "main"
+                hasattr(coro, "__name__")
+                and coro.__name__ == "main"
                 and task.get_name().lower() == "task-1"
             ):
                 continue
@@ -1337,60 +1303,60 @@ class MusicBot(discord.Client):
             except asyncio.CancelledError:
                 pass
 
-    # noinspection PyMethodOverriding
-    async def run(self):
+    # TODO:  rename this instead of overriding client run maybe.
+    async def run(self) -> None:  # type: ignore[override]
         try:
             await self.start(*self.config.auth)
 
-        except discord.errors.LoginFailure:
-            # Add if token, else
+        except discord.errors.LoginFailure as e:
+            # TODO: this message might be misleading, add token check.
             raise exceptions.HelpfulError(
                 "Bot cannot login, bad credentials.",
                 "Fix your token in the options file.  "
                 "Remember that each field should be on their own line.",
-            )  # ^^^^ In theory self.config.auth should never have no items
+            ) from e
 
         finally:
             try:
-                await self._cleanup()
-            except Exception:
+                await self.shutdown_cleanup()
+            except Exception:  # pylint: disable=broad-exception-caught
                 log.error("Error in cleanup", exc_info=True)
 
             if self.exit_signal:
-                raise self.exit_signal  # pylint: disable=E0702
+                raise self.exit_signal
 
-    async def logout(self):
+    async def logout(self) -> None:
+        """
+        Disconnect all voice clients and signal MusicBot to close it's connections to discord.
+        """
         await self.disconnect_all_voice_clients()
         return await super().close()
 
-    async def on_error(self, event, *args, **kwargs):
-        ex_type, ex, stack = sys.exc_info()
+    async def on_error(self, event: str, /, *_args: Any, **_kwargs: Any) -> None:
+        _ex_type, ex, _stack = sys.exc_info()
 
-        if ex_type == exceptions.HelpfulError:
-            log.error("Exception in {}:\n{}".format(event, ex.message))
+        if isinstance(ex, exceptions.HelpfulError):
+            log.error("Exception in %s:\n%s", event, ex.message)
 
-            await asyncio.sleep(2)  # don't ask
+            await asyncio.sleep(2)  # makes extra sure this gets seen(?)
+
             await self.logout()
 
-        elif issubclass(ex_type, exceptions.Signal):
+        elif isinstance(ex, (exceptions.RestartSignal, exceptions.TerminateSignal)):
             self.exit_signal = ex
             await self.logout()
 
         else:
-            log.error("Exception in {}".format(event), exc_info=True)
-
-    async def on_resumed(self):
-        log.info("\nReconnected to discord.\n")
+            log.error("Exception in %s", event, exc_info=True)
 
     async def on_ready(self):
-        self.is_ready_done = False
-        log.debug("Fire on_ready")
-        dlogger = logging.getLogger("discord")
-        for h in dlogger.handlers:
-            if getattr(h, "terminator", None) == "":
-                dlogger.removeHandler(h)
-                print()
-
+        """
+        Event called by discord.py typically when MusicBot has finished login.
+        May be called multiple times, and may not be the first event dispatched!
+        See documentations for specifics:
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_ready
+        """
+        mute_discord_console_log()
         log.debug("Connection established, ready to go.")
 
         self.ws._keep_alive.name = "Gateway Keepalive"
