@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
     AsyncFuture = asyncio.Future[Any]
 else:
-    AysncFuture = asyncio.Future
+    AsyncFuture = asyncio.Future
 
 # Type alias
 EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry]
