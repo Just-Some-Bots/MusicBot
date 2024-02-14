@@ -86,7 +86,7 @@ class Config:
             "Permissions",
             "Chat",
             "MusicBot",
-            "Files"
+            "Files",
         }.difference(config.sections())
         if confsections:
             sections_str = ", ".join([f"[{s}]" for s in confsections])
