@@ -81,9 +81,13 @@ class Config:
         config = ExtendedConfigParser(interpolation=None)
         config.read(config_file, encoding="utf-8")
 
-        confsections = {"Credentials", "Permissions", "Chat", "MusicBot"}.difference(
-            config.sections()
-        )
+        confsections = {
+            "Credentials",
+            "Permissions",
+            "Chat",
+            "MusicBot",
+            "Files"
+        }.difference(config.sections())
         if confsections:
             sections_str = ", ".join([f"[{s}]" for s in confsections])
             raise HelpfulError(
