@@ -1,4 +1,3 @@
-import aiohttp
 import datetime
 import glob
 import inspect
@@ -9,18 +8,7 @@ import re
 import sys
 import unicodedata
 from functools import wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Set,
-    Tuple,
-    Union,
-    Optional,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple, Union
 
 # protected imports to keep run.py from breaking on missing packages.
 try:
@@ -355,7 +343,14 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
                 path.unlink()
 
 
-def load_file(filename, skip_commented_lines=True, comment_char="#"):
+def load_file(
+    filename: pathlib.Path, skip_commented_lines: bool = True, comment_char: str = "#"
+) -> List[str]:
+    """
+    Read `filename` into list of strings but ignore lines starting
+    with the given `comment_char` character.
+    Default comment character is #
+    """
     try:
         with open(filename, encoding="utf8") as f:
             results = []
@@ -374,20 +369,25 @@ def load_file(filename, skip_commented_lines=True, comment_char="#"):
         return []
 
 
-def write_file(filename, contents):
+def write_file(filename: pathlib.Path, contents: Iterable[str]) -> None:
+    """
+    Open the given `filename` for writing in utf8 and write each item in
+    `contents` to the file as a single line.
+    Shorthand function that is now outmoded by pathlib, and could/should be replaced.
+    """
     with open(filename, "w", encoding="utf8") as f:
         for item in contents:
             f.write(str(item))
             f.write("\n")
 
 
-def slugify(value, allow_unicode=False):
+def slugify(value: str, allow_unicode: bool = False) -> str:
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
     Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
-    dashes to single dashes. Remove characters that aren't alphanumerics,
+    dashes to single dashes. Remove characters that aren't letters, numbers,
     underscores, or hyphens. Convert to lowercase. Also strip leading and
-    trailing whitespace, dashes, and underscores.
+    trailing spaces, dashes, and underscores.
     """
     value = str(value)
     if allow_unicode:
@@ -402,7 +402,12 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
+def paginate(
+    content: Union[str, List[str]],
+    *,
+    length: int = DISCORD_MSG_CHAR_LIMIT,
+    reserve: int = 0,
+) -> List[str]:
     """
     Split up a large string or list of strings into chunks for sending to discord.
     """
@@ -411,7 +416,7 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     elif isinstance(content, list):
         contentlist = content
     else:
-        raise ValueError("Content must be str or list, not %s" % type(content))
+        raise ValueError(f"Content must be str or list, not {type(content)}")
 
     chunks = []
     currentchunk = ""
@@ -429,94 +434,58 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     return chunks
 
 
-async def get_header(
-    session: aiohttp.ClientSession,
-    url: str,
-    headerfield: Optional[str] = None,
-    *,
-    timeout: int = 5,
-    allow_redirects: bool = True,
-    req_headers: Dict[str, Any] = {},
-):
-    req_timeout = aiohttp.ClientTimeout(total=timeout)
-    async with session.head(
-        url, timeout=req_timeout, allow_redirects=allow_redirects, headers=req_headers
-    ) as response:
-        if headerfield:
-            return response.headers.get(headerfield)
-        else:
-            return response.headers
+def instance_diff(obj1: Any, obj2: Any) -> Dict[str, Tuple[Any, Any]]:
+    """
+    Compute a dict showing which attributes have changed between two given objects.
+    Objects must be of the same type and have __slots__ or __dict__.
+    """
+    if type(obj1) is not type(obj2):
+        raise ValueError("Objects must be of the same type to get differences.")
 
-
-def fixg(x, dp=2):
-    return ("{:.%sf}" % dp).format(x).rstrip("0").rstrip(".")
-
-
-def ftimedelta(td):
-    p1, p2 = str(td).rsplit(":", 1)
-    return ":".join([p1, "{:02d}".format(int(float(p2)))])
-
-
-def safe_print(content, *, end="\n", flush=True):
-    sys.stdout.buffer.write((content + end).encode("utf-8", "replace"))
-    if flush:
-        sys.stdout.flush()
-
-
-def objdiff(obj1, obj2, *, access_attr=None, depth=0):
-    changes = {}
-
-    if access_attr is None:
-        attrdir = lambda x: x  # noqa: E731
-
-    elif access_attr == "auto":
-        if hasattr(obj1, "__slots__") and hasattr(obj2, "__slots__"):
-            attrdir = lambda x: getattr(x, "__slots__")  # noqa: E731
-
-        elif hasattr(obj1, "__dict__") and hasattr(obj2, "__dict__"):
-            attrdir = lambda x: getattr(x, "__dict__")  # noqa: E731
-
-        else:
-            attrdir = dir
-
-    elif isinstance(access_attr, str):
-        attrdir = lambda x: list(getattr(x, access_attr))  # noqa: E731
-
+    changes: Dict[str, Tuple[Any, Any]] = {}
+    keys = set()
+    if hasattr(obj1, "__slots__") and hasattr(obj2, "__slots__"):
+        vars1 = getattr(obj1, "__slots__", [])
+        vars2 = getattr(obj2, "__slots__", [])
+        if isinstance(vars1, list) and isinstance(vars2, list):
+            keys = set(vars1 + vars2)
+    elif hasattr(obj1, "__dict__") and hasattr(obj2, "__dict__"):
+        vars1 = getattr(obj1, "__dict__", {})
+        vars2 = getattr(obj2, "__dict__", {})
+        if isinstance(vars1, dict) and isinstance(vars2, dict):
+            keys = set(list(vars1.keys()) + list(vars2.keys()))
     else:
-        attrdir = dir
+        raise ValueError(
+            f"Objects don't have __slots__ or __dict__ attribute: ({type(obj1)}, {type(obj2)})"
+        )
 
-    for item in set(attrdir(obj1) + attrdir(obj2)):
-        try:
-            iobj1 = getattr(obj1, item, AttributeError("No such attr " + item))
-            iobj2 = getattr(obj2, item, AttributeError("No such attr " + item))
-
-            if depth:
-                idiff = objdiff(iobj1, iobj2, access_attr="auto", depth=depth - 1)
-                if idiff:
-                    changes[item] = idiff
-
-            elif iobj1 is not iobj2:
-                changes[item] = (iobj1, iobj2)
-
-            else:
-                pass
-
-        except Exception:
-            continue
-
+    for key in keys:
+        val1 = getattr(obj1, key, None)
+        val2 = getattr(obj2, key, None)
+        if val1 != val2:
+            changes[key] = (val1, val2)
     return changes
 
 
-def color_supported():
-    return hasattr(sys.stderr, "isatty") and sys.stderr.isatty()
+def _func_() -> str:
+    """
+    Gets the name of the calling frame code object.
+    Emulates __func__ from C++
+    """
+    frame = inspect.currentframe()
+    if not frame or not frame.f_back:
+        raise RuntimeError(
+            "Call to _func_() failed, may not be available in this context."
+        )
+
+    return frame.f_back.f_code.co_name
 
 
-def _func_():
-    # emulate __func__ from C++
-    return inspect.currentframe().f_back.f_code.co_name
-
-
-def _get_variable(name):
+def _get_variable(name: str) -> Any:
+    """
+    Inspect each frame in the call stack for local variables with the
+    `name` given then return that variable's value or None if not found.
+    """
     stack = inspect.stack()
     try:
         for frames in stack:
@@ -530,13 +499,55 @@ def _get_variable(name):
     finally:
         del stack
 
+    return None
 
-def is_empty_voice_channel(
-    voice_channel: Union["VoiceChannel", "StageChannel"],
+
+# TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
+def owner_only(func: Callable[..., Any]) -> Any:
+    """
+    Decorator function that checks the invoking message author ID matches
+    the Owner ID which MusicBot has determined either via Config or
+    Discord AppInfo.
+    """
+
+    @wraps(func)
+    async def wrapper(self: "MusicBot", *args: Any, **kwargs: Any) -> Any:
+        # Only allow the owner to use these commands
+        orig_msg = _get_variable("message")
+
+        if not orig_msg or orig_msg.author.id == self.config.owner_id:
+            return await func(self, *args, **kwargs)
+        raise PermissionsError("Only the owner can use this command.", expire_in=30)
+
+    return wrapper
+
+
+def dev_only(func: Callable[..., Any]) -> Any:
+    """
+    Decorator function that sets `dev_cmd` as an attribute to the function
+    it decorates.
+    This is then checked in MusicBot.on_message to ensure the protected
+    commands are not executed by non "dev" users.
+    """
+
+    @wraps(func)
+    async def wrapper(self: "MusicBot", *args: Any, **kwargs: Any) -> Any:
+        orig_msg = _get_variable("message")
+
+        if orig_msg.author.id in self.config.dev_ids:
+            return await func(self, *args, **kwargs)
+        raise PermissionsError("Only dev users can use this command.", expire_in=30)
+
+    setattr(wrapper, "dev_cmd", True)
+    return wrapper
+
+
+def is_empty_voice_channel(  # pylint: disable=dangerous-default-value
+    voice_channel: Union["VoiceChannel", "StageChannel", None],
     *,
     exclude_me: bool = True,
     exclude_deaf: bool = True,
-    include_bots: List[int] = [],
+    include_bots: Set[int] = set(),
 ) -> bool:
     """
     Check if the given `voice_channel` is figuratively or literally empty.
@@ -545,8 +556,11 @@ def is_empty_voice_channel(
     :param: `exclude_deaf`: Excludes members who are self-deaf or server-deaf.
     :param: `include_bots`: A list of bot IDs to include if they are present.
     """
+    if not voice_channel:
+        log.debug("Cannot count members when voice_channel is None.")
+        return True
 
-    def _check(member):
+    def _check(member: "Member") -> bool:
         if exclude_me and member == voice_channel.guild.me:
             return False
 
@@ -565,18 +579,86 @@ def is_empty_voice_channel(
     return not sum(1 for m in voice_channel.members if _check(m))
 
 
-def format_song_duration(ftd):
-    duration_array = ftd.split(":")
-    return (
-        ftd
-        if int(duration_array[0]) > 0
-        else "{0}:{1}".format(duration_array[1], duration_array[2])
-    )
+def count_members_in_voice(  # pylint: disable=dangerous-default-value
+    voice_channel: Union["VoiceChannel", "StageChannel", None],
+    include_only: Iterable[int] = [],
+    include_bots: Iterable[int] = [],
+    exclude_ids: Iterable[int] = [],
+    exclude_me: bool = True,
+    exclude_deaf: bool = True,
+) -> int:
+    """
+    Counts the number of members in given voice channel.
+    By default it excludes all deaf users, all bots, and the MusicBot client itself.
+
+    :param: voice_channel:  A VoiceChannel to inspect.
+    :param: include_only:  A list of Member IDs to check for, only members in this list are counted if present.
+    :param: include_bots:  A list of Bot Member IDs to include.  By default all bots are excluded.
+    :param: exclude_ids:  A list of Member IDs to exclude from the count.
+    :param: exclude_me:  A switch to, by default, exclude the bot ClientUser.
+    :param: exclude_deaf:  A switch to, by default, exclude members who are deaf.
+    """
+    if not voice_channel:
+        log.debug("Cannot count members when voice_channel is None.")
+        return 0
+
+    num_voice = 0
+    for member in voice_channel.members:
+        if not member:
+            continue
+
+        if member.bot and member.id not in include_bots:
+            continue
+
+        if exclude_me and member == voice_channel.guild.me:
+            continue
+
+        if exclude_ids and member.id in exclude_ids:
+            continue
+
+        voice = member.voice
+        if not voice:
+            continue
+
+        if exclude_deaf and (voice.deaf or voice.self_deaf):
+            continue
+
+        if include_only and member.id not in include_only:
+            continue
+
+        num_voice += 1
+    return num_voice
 
 
-def format_size_from_bytes(size: int):
+def format_song_duration(seconds: Union[int, float, datetime.timedelta]) -> str:
+    """
+    Take in the given `seconds` and format it as a compact timedelta string.
+    If input `seconds` is an int or float, it will be converted to a timedelta.
+    If the input has partial seconds, those are quietly removed without rounding.
+    """
+    if isinstance(seconds, (int, float)):
+        seconds = datetime.timedelta(seconds=seconds)
+
+    if not isinstance(seconds, datetime.timedelta):
+        raise TypeError(
+            "Can only format a duration that is int, float, or timedelta object."
+        )
+
+    # Simply remove any microseconds from the delta.
+    time_delta = str(seconds).split(".", maxsplit=1)[0]
+
+    # Check the hours portion for empty 0 and remove it.
+    duration_array = time_delta.split(":")
+    return time_delta if int(duration_array[0]) > 0 else ":".join(duration_array[1:])
+
+
+def format_size_from_bytes(size_bytes: int) -> str:
+    """
+    Format a given `size_bytes` into an approximate short-hand notation.
+    """
     suffix = {0: "", 1: "Ki", 2: "Mi", 3: "Gi", 4: "Ti"}
     power = 1024
+    size = float(size_bytes)
     i = 0
     while size > power:
         size /= power
@@ -584,11 +666,13 @@ def format_size_from_bytes(size: int):
     return f"{size:.3f} {suffix[i]}B"
 
 
-def format_size_to_bytes(size_str: str, strict_si=False) -> int:
-    """Convert human-friendly *bytes notation into integer.
+def format_size_to_bytes(size_str: str, strict_si: bool = False) -> int:
+    """
+    Convert human-friendly data-size notation into integer.
     Note: this function is not intended to convert Bits notation.
 
-    Option `strict_si` will use 1000 rather than 1024 for SI suffixes.
+    :param: size_str:  A size notation like: 20MB or "12.3 kb"
+    :param: strict_si:  Toggles use of 1000 rather than 1024 for SI suffixes.
     """
     si_units = 1024
     if strict_si:
@@ -628,20 +712,22 @@ def format_size_to_bytes(size_str: str, strict_si=False) -> int:
         "yib": 1024**8,
     }
     size_str = size_str.lower().strip().strip("s")
-    for suffix in suffix_list:
+    for suffix, conversion in suffix_list.items():
         if size_str.endswith(suffix):
-            return int(float(size_str[0 : -len(suffix)]) * suffix_list[suffix])
-    else:
-        if size_str.endswith("b"):
-            size_str = size_str[0:-1]
-        elif size_str.endswith("byte"):
-            size_str = size_str[0:-4]
+            return int(float(size_str[0 : -len(suffix)]) * conversion)
+
+    if size_str.endswith("b"):
+        size_str = size_str[0:-1]
+    elif size_str.endswith("byte"):
+        size_str = size_str[0:-4]
+
     return int(size_str)
 
 
 def format_time_to_seconds(time_str: Union[str, int]) -> int:
-    """Convert a phrase containing time duration(s) to seconds as int
-    This function allows for intresting/sloppy time notations like:
+    """
+    Convert a phrase containing time duration(s) to seconds as int
+    This function allows for interesting/sloppy time notations like:
     - 1yearand2seconds  = 31556954
     - 8s 1d             = 86408
     - .5 hours          = 1800
@@ -649,8 +735,9 @@ def format_time_to_seconds(time_str: Union[str, int]) -> int:
     - 3600              = 3600
     Only partial seconds are not supported, thus ".5s + 1.5s" will be 1 not 2.
 
-    Param `time_str` is assumed to contain a time duration as str or int.
-    Returns 0 if no time value is recognised, rather than raise a ValueError.
+    :param: time_str:  is assumed to contain a time duration as str or int.
+
+    :returns:  0 if no time value is recognized, rather than raise a ValueError.
     """
     if isinstance(time_str, int):
         return time_str
