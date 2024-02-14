@@ -250,7 +250,10 @@ class MusicBot(discord.Client):
             server.members if server else self.get_all_members(),
         )
         log.noise(  # type: ignore[attr-defined]
-            "Looking for owner (voice:%s) and got:  %s", voice, owner
+            "Looking for owner (in guild: %s) (required voice: %s) and got:  %s",
+            server,
+            voice,
+            owner,
         )
         return owner
 
@@ -260,28 +263,49 @@ class MusicBot(discord.Client):
         Also checks for existing voice sessions and attempts to resume
         connection and playback.
         """
+        log.info("Now joining startup channels...")
         joined_servers = set()
         channel_map = {c.guild: c for c in channels}
 
+        resuming = False
         for guild in self.guilds:
-            if guild.unavailable or guild in channel_map:
+            if guild.unavailable:
+                log.warning("Guild not available, cannot join:  %s/%s", guild.id, guild.name)
                 continue
 
             if guild.me.voice and guild.me.voice.channel:
                 log.info(
-                    "Found resumable voice channel %s/%s",
-                    guild.name,
+                    "Found resumable voice channel:  %s  in guild:  %s",
                     guild.me.voice.channel.name,
+                    guild.name,
                 )
+                if guild in channel_map:
+                    log.info(
+                        "Will try resuming voice session instead of Auto-Joining channel:  %s",
+                        channel_map[guild].name,
+                    )
                 channel_map[guild] = guild.me.voice.channel
+                resuming = True
 
             if self.config.auto_summon:
                 owner = self._get_owner(server=guild, voice=True)
                 if owner and owner.voice and owner.voice.channel:
-                    log.info('Found owner in "%s"', owner.voice.channel.name)
+                    log.info("Found owner in voice channel:  %s", owner.voice.channel.name)
+                    if guild in channel_map:
+                        if resuming:
+                            log.info(
+                                "Ignoring resumable channel, AutoSummon to owner in channel:  %s",
+                                owner.voice.channel.name,
+                            )
+                        else:
+                            log.info(
+                                "Ignoring Auto-Join channel, AutoSummon to owner in channel:  %s",
+                                owner.voice.channel.name,
+                            )
                     channel_map[guild] = owner.voice.channel
 
         for guild, channel in channel_map.items():
+            log.everything("AutoJoin Channel Map Item:\n  %s\n  %s", repr(guild), repr(channel))
             if guild in joined_servers:
                 log.info(
                     'Already joined a channel in "%s", skipping',
@@ -327,10 +351,12 @@ class MusicBot(discord.Client):
                     )
 
                     if player.is_stopped:
+                        log.noise("starting stopped player in startup")
                         player.play()
 
                     if self.config.auto_playlist:
                         if not player.playlist.entries:
+                            log.noise("Auto playlist enabled, so running on-player-finished manually...")
                             await self.on_player_finished_playing(player)
 
                 # TODO: drill down through the above code and find what exceptions
@@ -585,7 +611,9 @@ class MusicBot(discord.Client):
 
     def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
         """Get a MusicPlayer in the given guild, but do not create a new player."""
-        return self.players.get(guild.id)
+        p = self.players.get(guild.id)
+        log.everything("Guild (%s) wants a player, optional:  %s", guild, repr(p))
+        return p
 
     async def get_player(
         self,
@@ -596,6 +624,14 @@ class MusicBot(discord.Client):
     ) -> MusicPlayer:
         """Get a MusicPlayer in the given guild, creating one if needed."""
         guild = channel.guild
+
+        log.everything(
+            "Getting a MusicPlayer for guild:  %s  In Channel:  %s  Will Create:  %s  Deserialize:  %s", 
+            guild,
+            channel,
+            create,
+            deserialize,
+        )
 
         async with self.aiolocks[_func_() + ":" + str(guild.id)]:
             if deserialize:
@@ -620,6 +656,7 @@ class MusicBot(discord.Client):
                     )
 
                 voice_client = await self.get_voice_client(channel)
+                log.everything("Made a VoiceClient:  %s", repr(voice_client))
 
                 if isinstance(voice_client, discord.VoiceClient):
                     playlist = Playlist(self)
