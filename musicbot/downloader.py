@@ -1,6 +1,7 @@
 import os
 import copy
 import hashlib
+import pathlib
 import logging
 import functools
 import yt_dlp as youtube_dl  # type: ignore
@@ -13,6 +14,7 @@ from pprint import pformat
 from yt_dlp.networking.exceptions import NoSupportingHandlers  # type: ignore
 from yt_dlp.utils import UnsupportedError, DownloadError  # type: ignore
 
+from .constants import DEFAULT_MAX_INFO_DL_THREADS
 from .exceptions import ExtractionError
 from .spotify import Spotify
 from .utils import get_header
@@ -58,10 +60,15 @@ youtube_dl.utils.bug_reports_message = lambda: ""
 
 
 class Downloader:
-    def __init__(self, bot: "MusicBot"):
+    def __init__(self, bot: "MusicBot") -> None:
+        """
+        Set up YoutubeDL and related config as well as a thread pool executor
+        to run concurrent extractions.
+        """
         self.bot: "MusicBot" = bot
-        self.download_folder: str = bot.config.audio_cache_path
-        self.thread_pool = ThreadPoolExecutor(max_workers=2)
+        self.download_folder: pathlib.Path = bot.config.audio_cache_path
+        # NOTE: this executor may not be good for long-running downloads...
+        self.thread_pool = ThreadPoolExecutor(max_workers=DEFAULT_MAX_INFO_DL_THREADS)
 
         # force ytdlp and HEAD requests to use the same UA string.
         self.http_req_headers = {
@@ -230,7 +237,10 @@ class Downloader:
         as_stream_url = kwargs.pop("as_stream", False)
 
         # handle extracting spotify links before ytdl get ahold of them.
-        if "open.spotify.com" in song_subject.lower() and self.bot.config._spotify:
+        if (
+            "open.spotify.com" in song_subject.lower()
+            and self.bot.config.spotify_enabled
+        ):
             if not Spotify.is_url_supported(song_subject):
                 raise ExtractionError("Spotify URL is invalid or not supported.")
 
