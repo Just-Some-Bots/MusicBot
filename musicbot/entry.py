@@ -284,9 +284,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         vernum: Optional[int] = raw_json.get("version", None)
         if not vernum:
-            raise InvalidDataError("Entry data is missing version number.")
+            log.error("Entry data is missing version number, cannot deserialize.")
+            return None
         if vernum != URLPlaylistEntry.SERIAL_VERSION:
-            raise InvalidDataError("Entry data has the wrong version number.")
+            log.error("Entry data has the wrong version number, cannot deserialize.")
+            return None
 
         try:
             info = YtdlpResponseDict(raw_json["info"])
@@ -720,9 +722,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
         vernum = raw_json.get("version", None)
         if not vernum:
-            raise InvalidDataError("Entry data is missing version number.")
+            log.error("Entry data is missing version number, cannot deserialize.")
+            return None
         if vernum != URLPlaylistEntry.SERIAL_VERSION:
-            raise InvalidDataError("Entry data has the wrong version number.")
+            log.error("Entry data has the wrong version number, cannot deserialize.")
+            return None
 
         try:
             info = YtdlpResponseDict(raw_json["info"])

@@ -19,6 +19,10 @@ if TYPE_CHECKING:
     from .bot import MusicBot
     from .playlist import Playlist
 
+    AsyncFuture = asyncio.Future[Any]
+else:
+    AsyncFuture = asyncio.Future
+
 # Type alias
 EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry]
 
@@ -95,7 +99,7 @@ class MusicPlayer(EventEmitter, Serializable):
         self._play_lock = asyncio.Lock()
         self._current_player: Optional[VoiceClient] = None
         self._current_entry: Optional[EntryTypes] = None
-        self._stderr_future: Optional[asyncio.Future[Any]] = None
+        self._stderr_future: Optional[AsyncFuture] = None
 
         self._source: Optional[SourcePlaybackCounter] = None
 
@@ -524,7 +528,7 @@ class MusicPlayer(EventEmitter, Serializable):
 # TODO: I need to add a check if the event loop is closed?
 
 
-def filter_stderr(stderr: io.BytesIO, future: asyncio.Future[Any]) -> None:
+def filter_stderr(stderr: io.BytesIO, future: AsyncFuture) -> None:
     """
     Consume a `stderr` bytes stream and check it for errors or warnings.
     Set the given `future` with either an error found in the stream or
