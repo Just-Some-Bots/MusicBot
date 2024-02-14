@@ -19,6 +19,10 @@ if TYPE_CHECKING:
     from .bot import MusicBot
     from .playlist import Playlist
 
+    AsyncFuture=asyncio.Future[Any]
+else:
+    AysncFuture=asyncio.Future
+
 # Type alias
 EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry]
 
