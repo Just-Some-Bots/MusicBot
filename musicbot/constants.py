@@ -11,6 +11,29 @@ except (subprocess.SubprocessError, OSError, ValueError) as e:
     print(f"Failed setting version constant, reason:  {str(e)}")
     VERSION = "version_unknown"
 
+# constant string exempt from i18n
+DEFAULT_FOOTER_TEXT: str = f"Just-Some-Bots/MusicBot ({VERSION})"
+DEFAULT_BOT_NAME: str = "MusicBot"
+DEFAULT_BOT_ICON: str = "https://i.imgur.com/gFHBoZA.png"
+
+
+# File path constants
+DEFAULT_OPTIONS_FILE: str = "config/options.ini"
+DEFAULT_PERMS_FILE: str = "config/permissions.ini"
+DEFAULT_I18N_FILE: str = "config/i18n/en.json"
+DEFAULT_COMMAND_ALIAS_FILE: str = "config/aliases.json"
+DEFAULT_USER_BLOCKLIST_FILE: str = "config/blocklist_users.txt"
+DEFAULT_SONG_BLOCKLIST_FILE: str = "config/blocklist_songs.txt"
+DEPRECATED_USER_BLACKLIST: str = "config/blacklist.txt"
+DEFAULT_AUTOPLAYLIST_FILE: str = "config/autoplaylist.txt"
+BUNDLED_AUTOPLAYLIST_FILE: str = "config/_autoplaylist.txt"
+DEFAULT_AUDIO_CACHE_PATH: str = "audio_cache"
+
+EXAMPLE_OPTIONS_FILE: str = "config/example_options.ini"
+EXAMPLE_PERMS_FILE: str = "config/example_permissions.ini"
+EXAMPLE_COMMAND_ALIAS_FILE: str = "config/example_aliases.json"
+
+
 # Logging related constants
 DEFAULT_MUSICBOT_LOG_FILE: str = "logs/musicbot.log"
 DEFAULT_DISCORD_LOG_FILE: str = "logs/discord.log"
@@ -25,6 +48,9 @@ DEFAULT_LOGS_ROTATE_FORMAT: str = ".ended-%Y-%j-%H%m%S"
 DEFAULT_LOG_LEVEL: str = "INFO"
 
 
+DEFAULT_MAX_INFO_DL_THREADS: int = 2
+DEFAULT_MAX_INFO_REQUEST_TIMEOUT: int = 10
+
 # Discord and other API constants
 DISCORD_MSG_CHAR_LIMIT: int = 2000
 
@@ -34,3 +60,7 @@ EMOJI_CROSS_MARK_BUTTON: str = "\u274E"
 EMOJI_IDLE_ICON: str = "\U0001f634"  # same as \N{SLEEPING FACE}
 EMOJI_PLAY_ICON: str = "\u25B6"  # add \uFE0F to make button
 EMOJI_PAUSE_ICON: str = "\u23F8\uFE0F"  # add \uFE0F to make button
+EMOJI_LAST_ICON: str = "\u23ED\uFE0F"  # next track button
+EMOJI_FIRST_ICON: str = "\u23EE\uFE0F"  # last track button
+EMOJI_NEXT_ICON: str = "\u23E9"  # fast-forward button
+EMOJI_PREV_ICON: str = "\u23EA"  # rewind button

@@ -1,85 +1,116 @@
-import shutil
-import logging
-import traceback
 import configparser
+import logging
+import pathlib
+import shutil
+from typing import TYPE_CHECKING, Any, Dict, List, Set, Union
 
 import discord
 
+from .config import ExtendedConfigParser
+from .constants import DEFAULT_PERMS_FILE, EXAMPLE_PERMS_FILE
+
+if TYPE_CHECKING:
+    from .bot import MusicBot
+
 log = logging.getLogger(__name__)
 
-# PermissionDefaults class define the strictest value of each permissions
 # Permissive class define the permissive value of each permissions
 
 
 class PermissionsDefaults:
-    perms_file = "config/permissions.ini"
-    # now it's unpermissive by default for most
-    CommandWhiteList = set()
-    CommandBlackList = set()
-    IgnoreNonVoice = set()
-    GrantToRoles = set()
-    UserList = set()
+    """
+    Permissions system and PermissionGroup default values.
+    Most values restrict access by default.
+    """
 
-    MaxSongs = 8
-    MaxSongLength = 210
-    MaxPlaylistLength = 0
-    MaxSearchItems = 10
+    perms_file: pathlib.Path = pathlib.Path(DEFAULT_PERMS_FILE)
+    example_perms_file: pathlib.Path = pathlib.Path(EXAMPLE_PERMS_FILE)
 
-    AllowPlaylists = True
-    InstaSkip = False
-    SkipLooped = False
-    Remove = False
-    SkipWhenAbsent = True
-    BypassKaraokeMode = False
+    CommandWhiteList: Set[str] = set()
+    CommandBlackList: Set[str] = set()
+    IgnoreNonVoice: Set[str] = set()
+    GrantToRoles: Set[int] = set()
+    UserList: Set[int] = set()
 
-    SummonNoVoice = False
+    MaxSongs: int = 8
+    MaxSongLength: int = 210
+    MaxPlaylistLength: int = 0
+    MaxSearchItems: int = 10
 
-    Extractors = "generic youtube youtube:playlist"
+    AllowPlaylists: bool = True
+    InstaSkip: bool = False
+    SkipLooped: bool = False
+    Remove: bool = False
+    SkipWhenAbsent: bool = True
+    BypassKaraokeMode: bool = False
+
+    SummonNoVoice: bool = False
+
+    # allow at least the extractors that the bot normally needs.
+    # an empty set here allows all.
+    Extractors: Set[str] = {
+        "generic",
+        "youtube",
+        "youtube:tab",
+        "youtube:search",
+        "youtube:playlist",
+        "spotify:musicbot",
+    }
 
 
 class Permissive:
-    CommandWhiteList = set()
-    CommandBlackList = set()
-    IgnoreNonVoice = set()
-    GrantToRoles = set()
-    UserList = set()
+    CommandWhiteList: Set[str] = set()
+    CommandBlackList: Set[str] = set()
+    IgnoreNonVoice: Set[str] = set()
+    GrantToRoles: Set[int] = set()
+    UserList: Set[int] = set()
 
-    MaxSongs = 0
-    MaxSongLength = 0
-    MaxPlaylistLength = 0
-    MaxSearchItems = 10
+    MaxSongs: int = 0
+    MaxSongLength: int = 0
+    MaxPlaylistLength: int = 0
+    MaxSearchItems: int = 10
 
-    AllowPlaylists = True
-    InstaSkip = True
-    SkipLooped = True
-    Remove = True
-    SkipWhenAbsent = False
-    BypassKaraokeMode = True
+    AllowPlaylists: bool = True
+    InstaSkip: bool = True
+    SkipLooped: bool = True
+    Remove: bool = True
+    SkipWhenAbsent: bool = False
+    BypassKaraokeMode: bool = True
 
-    SummonNoVoice = True
+    SummonNoVoice: bool = True
 
-    Extractors = ""
+    Extractors: Set[str] = set()
 
 
 class Permissions:
-    def __init__(self, config_file, grant_all=None):
-        self.config_file = config_file
-        self.config = configparser.ConfigParser(interpolation=None)
+    def __init__(self, perms_file: pathlib.Path, grant_all: List[int]) -> None:
+        """
+        Handles locating, initializing defaults, loading, and validating
+        permissions config from the given `perms_file` path.
 
-        if not self.config.read(config_file, encoding="utf-8"):
-            log.info("Permissions file not found, copying example_permissions.ini")
+        :param: grant_all:  a list of discord User IDs to grant permissive defaults.
+        """
+        self.perms_file = perms_file
+        self.config = ExtendedConfigParser(interpolation=None)
+
+        if not self.config.read(self.perms_file, encoding="utf-8"):
+            example_file = PermissionsDefaults.example_perms_file
+            log.info(
+                "Permissions file not found, copying from:  %s",
+                example_file,
+            )
 
             try:
-                shutil.copy("config/example_permissions.ini", config_file)
-                self.config.read(config_file, encoding="utf-8")
+                shutil.copy(example_file, self.perms_file)
+                self.config.read(self.perms_file, encoding="utf-8")
 
             except Exception as e:
-                traceback.print_exc()
-                raise RuntimeError(
-                    "Unable to copy config/example_permissions.ini to {}: {}".format(
-                        config_file, e
-                    )
+                log.exception(
+                    "Error copying example permissions file:  %s", example_file
                 )
+                raise RuntimeError(
+                    f"Unable to copy {example_file} to {self.perms_file}:  {str(e)}"
+                ) from e
 
         self.default_group = PermissionGroup("Default", self.config["Default"])
         self.groups = set()
@@ -98,7 +129,6 @@ class Permissions:
                 "[Owner (auto)] section not found, falling back to permissive default"
             )
             # Create a fake section to fallback onto the default permissive values to grant to the owner
-            # noinspection PyTypeChecker
             owner_group = PermissionGroup(
                 "Owner (auto)",
                 configparser.SectionProxy(self.config, "Owner (auto)"),
@@ -110,19 +140,29 @@ class Permissions:
 
         self.groups.add(owner_group)
 
-    async def async_validate(self, bot):
+    async def async_validate(self, bot: "MusicBot") -> None:
+        """
+        Handle validation of permissions data that depends on async services.
+        """
         log.debug("Validating permissions...")
 
         og = discord.utils.get(self.groups, name="Owner (auto)")
-        if "auto" in og.user_list:
+        if not og:
+            raise RuntimeError("Owner permissions group is missing!")
+
+        if 0 in og.user_list:
             log.debug("Fixing automatic owner group")
             og.user_list = {bot.config.owner_id}
 
-    def save(self):
-        with open(self.config_file, "w") as f:
+    def save(self) -> None:
+        """
+        Currently unused function intended to write permissions back to
+        its configuration file.
+        """
+        with open(self.perms_file, "w", encoding="utf8") as f:
             self.config.write(f)
 
-    def for_user(self, user):
+    def for_user(self, user: Union[discord.Member, discord.User]) -> "PermissionGroup":
         """
         Returns the first PermissionGroup a user belongs to
         :param user: A discord User or Member object
@@ -144,38 +184,54 @@ class Permissions:
 
         return self.default_group
 
-    def create_group(self, name, **kwargs):
+    def create_group(self, name: str, **kwargs: Dict[str, Any]) -> None:
+        """
+        Currently unused, intended to create a permission group that could
+        then be saved back to the permissions config file.
+        """
+        # TODO: Test this.  and implement the rest of permissions editing...
         self.config.read_dict({name: kwargs})
         self.groups.add(PermissionGroup(name, self.config[name]))
-        # TODO: Test this
 
 
 class PermissionGroup:
-    def __init__(self, name, section_data, fallback=PermissionsDefaults):
+    def __init__(
+        self,
+        name: str,
+        section_data: configparser.SectionProxy,
+        fallback: Any = PermissionsDefaults,
+    ) -> None:
+        """
+        Create a PermissionGroup object from a ConfigParser section.
+
+        :param: name:  the name of the group
+        :param: section_data:  a config SectionProxy that describes a group
+        :param: fallback:  Typically a PermissionsDefaults class
+        """
         self.name = name
 
-        self.command_whitelist = section_data.get(
+        self.command_whitelist = section_data.getstrset(
             "CommandWhiteList", fallback=fallback.CommandWhiteList
         )
-        self.command_blacklist = section_data.get(
+        self.command_blacklist = section_data.getstrset(
             "CommandBlackList", fallback=fallback.CommandBlackList
         )
-        self.ignore_non_voice = section_data.get(
+        self.ignore_non_voice = section_data.getstrset(
             "IgnoreNonVoice", fallback=fallback.IgnoreNonVoice
         )
-        self.granted_to_roles = section_data.get(
+        self.granted_to_roles = section_data.getidset(
             "GrantToRoles", fallback=fallback.GrantToRoles
         )
-        self.user_list = section_data.get("UserList", fallback=fallback.UserList)
+        self.user_list = section_data.getidset("UserList", fallback=fallback.UserList)
 
-        self.max_songs = section_data.get("MaxSongs", fallback=fallback.MaxSongs)
-        self.max_song_length = section_data.get(
+        self.max_songs = section_data.getint("MaxSongs", fallback=fallback.MaxSongs)
+        self.max_song_length = section_data.getint(
             "MaxSongLength", fallback=fallback.MaxSongLength
         )
-        self.max_playlist_length = section_data.get(
+        self.max_playlist_length = section_data.getint(
             "MaxPlaylistLength", fallback=fallback.MaxPlaylistLength
         )
-        self.max_search_items = section_data.get(
+        self.max_search_items = section_data.getint(
             "MaxSearchItems", fallback=fallback.MaxSearchItems
         )
 
@@ -200,81 +256,29 @@ class PermissionGroup:
             "SummonNoVoice", fallback=fallback.SummonNoVoice
         )
 
-        self.extractors = section_data.get("Extractors", fallback=fallback.Extractors)
+        self.extractors = section_data.getstrset(
+            "Extractors", fallback=fallback.Extractors
+        )
 
         self.validate()
 
-    def validate(self):
-        if self.command_whitelist:
-            self.command_whitelist = set(self.command_whitelist.lower().split())
-
-        if self.command_blacklist:
-            self.command_blacklist = set(self.command_blacklist.lower().split())
-
-        if self.ignore_non_voice:
-            self.ignore_non_voice = set(self.ignore_non_voice.lower().split())
-
-        if self.granted_to_roles or self.granted_to_roles == "":
-            self.granted_to_roles = set([int(x) for x in self.granted_to_roles.split()])
-
-        if self.user_list or self.user_list == "":
-            self.user_list = set([int(x) for x in self.user_list.split()])
-
-        if self.extractors:
-            self.extractors = set(self.extractors.split())
-
-        try:
-            self.max_songs = max(0, int(self.max_songs))
-        except ValueError:
-            self.max_songs = PermissionsDefaults.MaxSongs
-
-        try:
-            self.max_song_length = max(0, int(self.max_song_length))
-        except ValueError:
-            self.max_song_length = PermissionsDefaults.MaxSongLength
-
-        try:
-            self.max_playlist_length = max(0, int(self.max_playlist_length))
-        except ValueError:
-            self.max_playlist_length = PermissionsDefaults.MaxPlaylistLength
-
-        try:
-            self.max_search_items = max(0, int(self.max_search_items))
-        except ValueError:
-            self.max_search_items = PermissionsDefaults.MaxSearchItems
-
-        if int(self.max_search_items) > 100:
+    def validate(self) -> None:
+        """Validate permission values are within acceptable limits"""
+        if self.max_search_items > 100:
             log.warning("Max search items can't be larger than 100. Setting to 100.")
             self.max_search_items = 100
 
-    @staticmethod
-    def _process_list(
-        seq, *, split=" ", lower=True, strip=", ", coerce=str, rcoerce=list
-    ):
-        lower = str.lower if lower else None
-        _strip = (lambda x: x.strip(strip)) if strip else None
-        coerce = coerce if callable(coerce) else None
-        rcoerce = rcoerce if callable(rcoerce) else None
-
-        for ch in strip:
-            seq = seq.replace(ch, split)
-
-        values = [i for i in seq.split(split) if i]
-        for fn in (_strip, lower, coerce):
-            if fn:
-                values = map(fn, values)
-
-        return rcoerce(values)
-
-    def add_user(self, uid):
+    def add_user(self, uid: int) -> None:
+        """Add given discord User ID to the user list."""
         self.user_list.add(uid)
 
-    def remove_user(self, uid):
+    def remove_user(self, uid: int) -> None:
+        """Remove given discord User ID from the user list."""
         if uid in self.user_list:
             self.user_list.remove(uid)
 
-    def __repr__(self):
-        return "<PermissionGroup: %s>" % self.name
+    def __repr__(self) -> str:
+        return f"<PermissionGroup: {self.name}>"
 
-    def __str__(self):
-        return "<PermissionGroup: %s: %s>" % (self.name, self.__dict__)
+    def __str__(self) -> str:
+        return f"<PermissionGroup: {self.name}: {self.__dict__}>"
