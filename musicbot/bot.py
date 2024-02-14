@@ -270,7 +270,9 @@ class MusicBot(discord.Client):
         resuming = False
         for guild in self.guilds:
             if guild.unavailable:
-                log.warning("Guild not available, cannot join:  %s/%s", guild.id, guild.name)
+                log.warning(
+                    "Guild not available, cannot join:  %s/%s", guild.id, guild.name
+                )
                 continue
 
             if guild.me.voice and guild.me.voice.channel:
@@ -290,7 +292,9 @@ class MusicBot(discord.Client):
             if self.config.auto_summon:
                 owner = self._get_owner(server=guild, voice=True)
                 if owner and owner.voice and owner.voice.channel:
-                    log.info("Found owner in voice channel:  %s", owner.voice.channel.name)
+                    log.info(
+                        "Found owner in voice channel:  %s", owner.voice.channel.name
+                    )
                     if guild in channel_map:
                         if resuming:
                             log.info(
@@ -305,7 +309,9 @@ class MusicBot(discord.Client):
                     channel_map[guild] = owner.voice.channel
 
         for guild, channel in channel_map.items():
-            log.everything("AutoJoin Channel Map Item:\n  %s\n  %s", repr(guild), repr(channel))
+            log.everything(
+                "AutoJoin Channel Map Item:\n  %s\n  %s", repr(guild), repr(channel)
+            )
             if guild in joined_servers:
                 log.info(
                     'Already joined a channel in "%s", skipping',
@@ -356,7 +362,9 @@ class MusicBot(discord.Client):
 
                     if self.config.auto_playlist:
                         if not player.playlist.entries:
-                            log.noise("Auto playlist enabled, so running on-player-finished manually...")
+                            log.noise(
+                                "Auto playlist enabled, so running on-player-finished manually..."
+                            )
                             await self.on_player_finished_playing(player)
 
                 # TODO: drill down through the above code and find what exceptions
@@ -626,7 +634,7 @@ class MusicBot(discord.Client):
         guild = channel.guild
 
         log.everything(
-            "Getting a MusicPlayer for guild:  %s  In Channel:  %s  Will Create:  %s  Deserialize:  %s", 
+            "Getting a MusicPlayer for guild:  %s  In Channel:  %s  Will Create:  %s  Deserialize:  %s",
             guild,
             channel,
             create,
@@ -1766,119 +1774,27 @@ class MusicBot(discord.Client):
         else:
             log.info("Not autojoining any voice channels")
 
+        # Display and log the config settings.
         if self.config.show_config_at_start:
-            print(flush=True)
-            log.info("Options:")
+            self._log_configs()
 
-            log.info("  Command prefix: %s", self.config.command_prefix)
-            log.info("  Default volume: %d%%", int(self.config.default_volume * 100))
-            log.info(
-                "  Skip threshold: %d votes or %.0f%%",
-                self.config.skips_required,
-                (self.config.skip_ratio_required * 100),
+        # we do this after the config stuff because it's a lot easier to notice here
+        if self.config.missing_keys:
+            conf_warn = exceptions.HelpfulError(
+                preface="Detected missing config options!",
+                issue="Your options.ini file is missing some options. Defaults will be used for this session.\n"
+                f"Here is a list of options we think are missing:\n    {', '.join(self.config.missing_keys)}",
+                solution="Check the example_options.ini file for newly added options and copy them to your config.",
+                footnote="The bot will continue executing in 3 seconds.",
             )
-            log.info(
-                "  Now Playing @mentions: %s",
-                ["Disabled", "Enabled"][self.config.now_playing_mentions],
-            )
-            log.info(
-                "  Auto-Summon: %s", ["Disabled", "Enabled"][self.config.auto_summon]
-            )
-            log.info(
-                "  Auto-Playlist: %s (order: %s)",
-                ["Disabled", "Enabled"][self.config.auto_playlist],
-                ["sequential", "random"][self.config.auto_playlist_random],
-            )
-            log.info(
-                "  Auto-Pause: %s", ["Disabled", "Enabled"][self.config.auto_pause]
-            )
-            log.info(
-                "  Delete Messages: %s",
-                ["Disabled", "Enabled"][self.config.delete_messages],
-            )
-            if self.config.delete_messages:
-                log.info(
-                    "    Delete Invoking: %s",
-                    ["Disabled", "Enabled"][self.config.delete_invoking],
-                )
-                log.info(
-                    "    Delete Nowplaying: %s",
-                    ["Disabled", "Enabled"][self.config.delete_nowplaying],
-                )
-            log.info(
-                "  Debug Mode: %s", ["Disabled", "Enabled"][self.config.debug_mode]
-            )
-            log.info(
-                "  Downloaded songs will be %s",
-                ["deleted", "saved"][self.config.save_videos],
-            )
-            if self.config.save_videos and self.config.storage_limit_days:
-                log.info(
-                    "    Delete if unused for %d days", self.config.storage_limit_days
-                )
-            if self.config.save_videos and self.config.storage_limit_bytes:
-                size = format_size_from_bytes(self.config.storage_limit_bytes)
-                log.info("    Delete if size exceeds %s", size)
+            log.warning(str(conf_warn)[1:])
+            await asyncio.sleep(3)
 
-            if self.config.status_message:
-                log.info("  Status message: %s", self.config.status_message)
-            log.info(
-                "  Write current songs to file: %s",
-                ["Disabled", "Enabled"][self.config.write_current_song],
-            )
-            log.info(
-                "  Author insta-skip: %s",
-                ["Disabled", "Enabled"][self.config.allow_author_skip],
-            )
-            log.info("  Embeds: %s", ["Disabled", "Enabled"][self.config.embeds])
-            log.info(
-                "  Spotify integration: %s",
-                ["Disabled", "Enabled"][self.config.spotify_enabled],
-            )
-            log.info(
-                "  Legacy skip: %s", ["Disabled", "Enabled"][self.config.legacy_skip]
-            )
-            log.info(
-                "  Leave non owners: %s",
-                ["Disabled", "Enabled"][self.config.leavenonowners],
-            )
-            log.info(
-                "  Leave inactive VC: %s",
-                ["Disabled", "Enabled"][self.config.leave_inactive_channel],
-            )
-            if self.config.leave_inactive_channel:
-                log.info(
-                    "    Timeout: %s seconds",
-                    self.config.leave_inactive_channel_timeout,
-                )
-            log.info(
-                "  Leave at song end/empty queue: %s",
-                ["Disabled", "Enabled"][self.config.leave_after_queue_empty],
-            )
-            log.info(
-                "  Leave when player idles: %s",
-                "Disabled" if self.config.leave_player_inactive_for == 0 else "Enabled",
-            )
-            if self.config.leave_player_inactive_for:
-                log.info(
-                    "    Timeout: %d seconds", self.config.leave_player_inactive_for
-                )
-            log.info(
-                "  Self Deafen: %s", ["Disabled", "Enabled"][self.config.self_deafen]
-            )
-            log.info(
-                "  Per-server command prefix: %s",
-                ["Disabled", "Enabled"][self.config.enable_options_per_guild],
-            )
-            log.info(
-                "  Search List: %s", ["Disabled", "Enabled"][self.config.searchlist]
-            )
-            log.info(
-                "  Round Robin Queue: %s",
-                ["Disabled", "Enabled"][self.config.round_robin_queue],
-            )
-
-        print(flush=True)
+            #    "Your config file is missing some options. If you have recently updated, "
+            #    "check the example_options.ini file to see if there are new options available to you. "
+            #    "The options missing are: %s",
+            #    self.config.missing_keys,
+            # )
 
         await self.update_now_playing_status()
 
@@ -1887,18 +1803,110 @@ class MusicBot(discord.Client):
 
         await self._join_startup_channels(self.autojoin_channels)
 
-        # we do this after the config stuff because it's a lot easier to notice here
-        if self.config.missing_keys:
-            log.warning(
-                "Your config file is missing some options. If you have recently updated, "
-                "check the example_options.ini file to see if there are new options available to you. "
-                "The options missing are: %s",
-                self.config.missing_keys,
-            )
-            print(flush=True)
-
         log.debug("Finish on_ready")
         self.is_ready_done = True
+
+    def _log_configs(self) -> None:
+        """
+        Shows information about configs, including missing keys.
+        No validation is done in this method, only display/logs.
+        """
+
+        print(flush=True)
+        log.info("Options:")
+
+        log.info("  Command prefix: %s", self.config.command_prefix)
+        log.info("  Default volume: %d%%", int(self.config.default_volume * 100))
+        log.info(
+            "  Skip threshold: %d votes or %.0f%%",
+            self.config.skips_required,
+            (self.config.skip_ratio_required * 100),
+        )
+        log.info(
+            "  Now Playing @mentions: %s",
+            ["Disabled", "Enabled"][self.config.now_playing_mentions],
+        )
+        log.info("  Auto-Summon: %s", ["Disabled", "Enabled"][self.config.auto_summon])
+        log.info(
+            "  Auto-Playlist: %s (order: %s)",
+            ["Disabled", "Enabled"][self.config.auto_playlist],
+            ["sequential", "random"][self.config.auto_playlist_random],
+        )
+        log.info("  Auto-Pause: %s", ["Disabled", "Enabled"][self.config.auto_pause])
+        log.info(
+            "  Delete Messages: %s",
+            ["Disabled", "Enabled"][self.config.delete_messages],
+        )
+        if self.config.delete_messages:
+            log.info(
+                "    Delete Invoking: %s",
+                ["Disabled", "Enabled"][self.config.delete_invoking],
+            )
+            log.info(
+                "    Delete Nowplaying: %s",
+                ["Disabled", "Enabled"][self.config.delete_nowplaying],
+            )
+        log.info("  Debug Mode: %s", ["Disabled", "Enabled"][self.config.debug_mode])
+        log.info(
+            "  Downloaded songs will be %s",
+            ["deleted", "saved"][self.config.save_videos],
+        )
+        if self.config.save_videos and self.config.storage_limit_days:
+            log.info("    Delete if unused for %d days", self.config.storage_limit_days)
+        if self.config.save_videos and self.config.storage_limit_bytes:
+            size = format_size_from_bytes(self.config.storage_limit_bytes)
+            log.info("    Delete if size exceeds %s", size)
+
+        if self.config.status_message:
+            log.info("  Status message: %s", self.config.status_message)
+        log.info(
+            "  Write current songs to file: %s",
+            ["Disabled", "Enabled"][self.config.write_current_song],
+        )
+        log.info(
+            "  Author insta-skip: %s",
+            ["Disabled", "Enabled"][self.config.allow_author_skip],
+        )
+        log.info("  Embeds: %s", ["Disabled", "Enabled"][self.config.embeds])
+        log.info(
+            "  Spotify integration: %s",
+            ["Disabled", "Enabled"][self.config.spotify_enabled],
+        )
+        log.info("  Legacy skip: %s", ["Disabled", "Enabled"][self.config.legacy_skip])
+        log.info(
+            "  Leave non owners: %s",
+            ["Disabled", "Enabled"][self.config.leavenonowners],
+        )
+        log.info(
+            "  Leave inactive VC: %s",
+            ["Disabled", "Enabled"][self.config.leave_inactive_channel],
+        )
+        if self.config.leave_inactive_channel:
+            log.info(
+                "    Timeout: %s seconds",
+                self.config.leave_inactive_channel_timeout,
+            )
+        log.info(
+            "  Leave at song end/empty queue: %s",
+            ["Disabled", "Enabled"][self.config.leave_after_queue_empty],
+        )
+        log.info(
+            "  Leave when player idles: %s",
+            "Disabled" if self.config.leave_player_inactive_for == 0 else "Enabled",
+        )
+        if self.config.leave_player_inactive_for:
+            log.info("    Timeout: %d seconds", self.config.leave_player_inactive_for)
+        log.info("  Self Deafen: %s", ["Disabled", "Enabled"][self.config.self_deafen])
+        log.info(
+            "  Per-server command prefix: %s",
+            ["Disabled", "Enabled"][self.config.enable_options_per_guild],
+        )
+        log.info("  Search List: %s", ["Disabled", "Enabled"][self.config.searchlist])
+        log.info(
+            "  Round Robin Queue: %s",
+            ["Disabled", "Enabled"][self.config.round_robin_queue],
+        )
+        print(flush=True)
 
     def _gen_embed(self) -> discord.Embed:
         """Provides a basic template for embeds"""

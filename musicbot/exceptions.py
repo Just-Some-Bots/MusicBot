@@ -124,7 +124,9 @@ class HelpfulError(MusicbotException):
             pretext = pretext.rstrip() + "\n"
             width = shutil.get_terminal_size().columns
 
-        lines = textwrap.wrap(text, width=width - 5)
+        lines = []
+        for line in text.split("\n"):
+            lines += textwrap.wrap(line, width=width - 5)
         lines = [
             ("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines
         ]
