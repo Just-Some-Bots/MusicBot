@@ -5,29 +5,29 @@ from itertools import islice
 from random import shuffle
 from typing import (
     TYPE_CHECKING,
-    Union,
-    Optional,
     Any,
-    Iterator,
     Deque,
-    Tuple,
     Dict,
+    Iterator,
     List,
+    Optional,
+    Tuple,
+    Union,
 )
 
 from .constructs import Serializable
-from .exceptions import ExtractionError, WrongEntryTypeError, InvalidDataError
+from .entry import StreamPlaylistEntry, URLPlaylistEntry
+from .exceptions import ExtractionError, InvalidDataError, WrongEntryTypeError
 from .lib.event_emitter import EventEmitter
 
-from .entry import URLPlaylistEntry, StreamPlaylistEntry
-
 if TYPE_CHECKING:
-    from .bot import MusicBot
-    from .player import MusicPlayer
-    from .downloader import YtdlpResponseDict
-    import discord
     import asyncio
-    import aiohttp
+
+    import discord
+
+    from .bot import MusicBot
+    from .downloader import YtdlpResponseDict
+    from .player import MusicPlayer
 
 # type aliases
 EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry]
@@ -41,11 +41,14 @@ class Playlist(EventEmitter, Serializable):
     """
 
     def __init__(self, bot: "MusicBot") -> None:
+        """
+        Manage a serializable, event-capable playlist of entries made up
+        of validated extraction information.
+        """
         super().__init__()
         self.bot: "MusicBot" = bot
         self.loop: "asyncio.AbstractEventLoop" = bot.loop
-        self.aiosession: "aiohttp.ClientSession" = bot.session
-        self.entries: Deque = deque()
+        self.entries: Deque[EntryTypes] = deque()
 
     def __iter__(self) -> Iterator[EntryTypes]:
         return iter(self.entries)
@@ -54,12 +57,18 @@ class Playlist(EventEmitter, Serializable):
         return len(self.entries)
 
     def shuffle(self) -> None:
+        """Shuffle the deque of entries, in place."""
         shuffle(self.entries)
 
     def clear(self) -> None:
+        """Clears the deque of entries."""
         self.entries.clear()
 
     def get_entry_at_index(self, index: int) -> EntryTypes:
+        """
+        Uses deque rotate to seek to the given `index` and reference the
+        entry at that position.
+        """
         self.entries.rotate(-index)
         entry = self.entries[0]
         self.entries.rotate(index)
@@ -67,7 +76,6 @@ class Playlist(EventEmitter, Serializable):
 
     def delete_entry_at_index(self, index: int) -> EntryTypes:
         """Remove and return the entry at the given index."""
-        # TODO: maybe lock all queue management?
         self.entries.rotate(-index)
         entry = self.entries.popleft()
         self.entries.rotate(index)
@@ -85,17 +93,31 @@ class Playlist(EventEmitter, Serializable):
         *,
         head: bool = False,
         defer_serialize: bool = False,
-        **meta,
+        is_autoplaylist: bool = False,
+        **meta: Any,
     ) -> Tuple[StreamPlaylistEntry, int]:
-        # TODO: A bit more validation, "~stream some_url" should not just say :ok_hand:
-        # @Fae: about as much validation we can do is making sure the URL is playable.
-        # Users are using stream to play without downloading, and enforcing a check
-        # for "streaming" media here would break that use case.
+        """
+        Use the given `info` to create a StreamPlaylistEntry and add it
+        to the queue.
+        If the entry is the first in the queue, it will be called to ready
+        for playback.
 
-        log.noise(f"Adding stream entry for URL:  {info.url}")
+        :param: info:  Extracted info for this entry, even fudged.
+        :param: head:  Toggle adding to the front of the queue.
+        :param: defer_serialize:  Signal to defer serialization steps.
+            Useful if many entries are added at once
+        :param: meta:  Any additional info to add to the entry.
+
+        :returns:  A tuple with the entry object, and its position in the queue.
+        """
+
+        log.noise(  # type: ignore[attr-defined]
+            f"Adding stream entry for URL:  {info.url}"
+        )
         entry = StreamPlaylistEntry(
             self,
             info,
+            from_apl=is_autoplaylist,
             **meta,
         )
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -107,23 +129,30 @@ class Playlist(EventEmitter, Serializable):
         *,
         head: bool = False,
         defer_serialize: bool = False,
-        **meta,
+        is_autoplaylist: bool = False,
+        **meta: Any,
     ) -> Tuple[EntryTypes, int]:
         """
-        Validates extracted info and adds media to be played.
-        This does not start the download of the song.
+        Checks given `info` to determine if media is streaming or has a
+        stream-able content type, then adds the resulting entry to the queue.
+        If the entry is the first entry in the queue, it will be called
+        to ready for playback.
 
         :param info: The extraction data of the song to add to the playlist.
-        :param head: Add to front of queue instead.
+        :param head: Add to front of queue instead of the end.
+        :param defer_serialize:  Signal that serialization steps should be deferred.
         :param meta: Any additional metadata to add to the playlist entry.
-        :returns: the entry & the position it is in the queue.
-        :raises: ExtractionError, WrongEntryTypeError
+
+        :returns: the entry & it's position in the queue.
+
+        :raises: ExtractionError  If data is missing or the content type is invalid.
+        :raises: WrongEntryTypeError  If the info is identified as a playlist.
         """
 
         if not info:
             raise ExtractionError("Could not extract information")
 
-        # TODO: Sort out what happens next when this happens
+        # this should, in theory, never happen.
         if info.ytdl_type == "playlist":
             raise WrongEntryTypeError(
                 "This is a playlist.",
@@ -145,8 +174,7 @@ class Playlist(EventEmitter, Serializable):
                     if not any(x in content_type for x in ("/ogg", "/octet-stream")):
                         # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError(
-                            'Invalid content type "%s" for url %s'
-                            % (content_type, info.url)
+                            f'Invalid content type "{content_type}" for url: {info.url}'
                         )
 
                 elif (
@@ -160,26 +188,35 @@ class Playlist(EventEmitter, Serializable):
 
                 elif not content_type.startswith(("audio/", "video/")):
                     log.warning(
-                        'Questionable content-type "{}" for url {}'.format(
-                            content_type, info.url
-                        )
+                        'Questionable content-type "%s" for url:  %s',
+                        content_type,
+                        info.url,
                     )
 
-        log.noise(f"Adding URLPlaylistEntry for: {info.get('__input_subject')}")
-        entry = URLPlaylistEntry(self, info, **meta)
+        log.noise(  # type: ignore[attr-defined]
+            f"Adding URLPlaylistEntry for: {info.get('__input_subject')}"
+        )
+        entry = URLPlaylistEntry(self, info, from_apl=is_autoplaylist, **meta)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
         return entry, (1 if head else len(self.entries))
 
     async def import_from_info(
-        self, info: "YtdlpResponseDict", head: bool, ignore_video_id: str = "", **meta
-    ) -> Tuple[List, int]:
+        self,
+        info: "YtdlpResponseDict",
+        head: bool,
+        ignore_video_id: str = "",
+        is_autoplaylist: bool = False,
+        **meta: Any,
+    ) -> Tuple[List[EntryTypes], int]:
         """
-        Imports the songs from `info` and queues them to be played.
+        Validates the songs from `info` and queues them to be played.
 
-        Returns a list of `entries` that have been enqueued.
+        Returns a list of entries that have been queued, and the queue
+        position where the first entry was added.
 
-        :param playlist_url: The playlist url to be cut into individual urls and added to the playlist
-        :param meta: Any additional metadata to add to the playlist entry
+        :param: info:  YoutubeDL extraction data containing multiple entries.
+        :param: head:  Toggle adding the entries to the front of the queue.
+        :param: meta:  Any additional metadata to add to the playlist entries.
         """
         position = 1 if head else len(self.entries) + 1
         entry_list = []
@@ -200,12 +237,24 @@ class Playlist(EventEmitter, Serializable):
             # count tracks regardless of conditions, used for missing track names
             # and also defers serialization of the queue for playlists.
             track_number += 1
-
             # Ignore playlist entry when it comes from compound links.
             if ignore_video_id and ignore_video_id == item.video_id:
                 log.debug(
                     "Ignored video from compound playlist link with ID:  %s",
                     item.video_id,
+                )
+                baditems += 1
+                continue
+
+            # Check if the item is in the song block list.
+            if self.bot.config.song_blocklist_enabled and (
+                self.bot.config.song_blocklist.is_blocked(item.url)
+                or self.bot.config.song_blocklist.is_blocked(item.title)
+            ):
+                log.info(
+                    "Not allowing entry that is in song block list:  %s  URL: %s",
+                    item.title,
+                    item.url,
                 )
                 baditems += 1
                 continue
@@ -217,18 +266,20 @@ class Playlist(EventEmitter, Serializable):
                 and item.duration > author_perms.max_song_length
             ):
                 log.debug(
-                    f"Ignoring song in entries by '{author}', duration longer than permitted maximum."
+                    "Ignoring song in entries by '%s', duration longer than permitted maximum.",
+                    author,
                 )
                 baditems += 1
                 continue
 
-            # Check youtube data to pre-emptively avoid adding Private or Deleted videos to the queue.
+            # Check youtube data to preemptively avoid adding Private or Deleted videos to the queue.
             if info.extractor.startswith("youtube") and (
                 "[private video]" == item.get("title", "").lower()
                 or "[deleted video]" == item.get("title", "").lower()
             ):
                 log.warning(
-                    f"Not adding youtube video because it is marked private or deleted:  {item.get_playable_url()}"
+                    "Not adding youtube video because it is marked private or deleted:  %s",
+                    item.get_playable_url(),
                 )
                 baditems += 1
                 continue
@@ -242,17 +293,21 @@ class Playlist(EventEmitter, Serializable):
                 defer_serialize = False
 
             try:
-                entry, pos = await self.add_entry_from_info(
-                    item, head=head, defer_serialize=defer_serialize, **meta
+                entry, _pos = await self.add_entry_from_info(
+                    item,
+                    head=head,
+                    defer_serialize=defer_serialize,
+                    is_autoplaylist=is_autoplaylist,
+                    **meta,
                 )
                 entry_list.append(entry)
-            except Exception as e:
+            except (WrongEntryTypeError, ExtractionError):
                 baditems += 1
-                log.warning("Could not add item", exc_info=e)
-                log.debug("Item: {}".format(item), exc_info=True)
+                log.warning("Could not add item")
+                log.debug("Item: %s", item, exc_info=True)
 
         if baditems:
-            log.info("Skipped {} bad entries".format(baditems))
+            log.info("Skipped %s bad entries", baditems)
 
         if head:
             entry_list.reverse()
@@ -261,6 +316,9 @@ class Playlist(EventEmitter, Serializable):
     def get_next_song_from_author(
         self, author: "discord.abc.User"
     ) -> Optional[EntryTypes]:
+        """
+        Get the next song in the queue that was added by the given `author`
+        """
         for entry in self.entries:
             if entry.meta.get("author", None) == author:
                 return entry
@@ -271,16 +329,16 @@ class Playlist(EventEmitter, Serializable):
         """
         Reorders the queue for round-robin
         """
-        new_queue: Deque = deque()
+        new_queue: Deque[EntryTypes] = deque()
+        all_authors: List["discord.User"] = []
 
-        all_authors = []
-
-        for song in self.entries:
-            author = song.meta.get("author", None)
-            if author not in all_authors:
+        for entry in self.entries:
+            author = entry.meta.get("author", None)
+            if author and author not in all_authors:
                 all_authors.append(author)
 
         request_counter = 0
+        song: Optional[EntryTypes] = None
         while self.entries:
             if request_counter == len(all_authors):
                 request_counter = 0
@@ -300,12 +358,19 @@ class Playlist(EventEmitter, Serializable):
     def _add_entry(
         self, entry: EntryTypes, *, head: bool = False, defer_serialize: bool = False
     ) -> None:
+        """
+        Handle appending the `entry` to the queue. If the entry is he first,
+        the entry will create a future to download itself.
+
+        :param: head:  Toggle adding to the front of the queue.
+        :param: defer_serialize:  Signal to events that serialization should be deferred.
+        """
         if head:
             self.entries.appendleft(entry)
         else:
             self.entries.append(entry)
 
-        if self.bot.config.round_robin_queue:
+        if self.bot.config.round_robin_queue and not entry.from_auto_playlist:
             self.reorder_for_round_robin()
 
         self.emit(
@@ -317,7 +382,7 @@ class Playlist(EventEmitter, Serializable):
 
     async def _try_get_entry_future(
         self, entry: EntryTypes, predownload: bool = False
-    ) -> Optional["asyncio.Future"]:
+    ) -> Any:
         """gracefully try to get the entry ready future, or start pre-downloading one."""
         moving_on = " Moving to the next entry..."
         if predownload:
@@ -330,14 +395,15 @@ class Playlist(EventEmitter, Serializable):
                 return await entry.get_ready_future()
 
         except ExtractionError as e:
-            log.warning("Extraction failed for a playlist entry.{}".format(moving_on))
+            log.warning("Extraction failed for a playlist entry.%s", moving_on)
             self.emit("entry-failed", entry=entry, error=e)
             if not predownload:
                 return await self.get_next_entry()
 
         except AttributeError as e:
             log.warning(
-                "Deserialize probably failed for a playlist entry.{}".format(moving_on)
+                "Deserialize probably failed for a playlist entry.%s",
+                moving_on,
             )
             self.emit("entry-failed", entry=entry, error=e)
             if not predownload:
@@ -345,9 +411,7 @@ class Playlist(EventEmitter, Serializable):
 
         return None
 
-    async def get_next_entry(
-        self, predownload_next: bool = True
-    ) -> Optional["asyncio.Future"]:
+    async def get_next_entry(self, predownload_next: bool = True) -> Any:
         """
         A coroutine which will return the next song or None if no songs left to play.
 
@@ -374,14 +438,16 @@ class Playlist(EventEmitter, Serializable):
             return self.entries[0]
         return None
 
-    async def estimate_time_until(self, position: int, player: "MusicPlayer") -> str:
+    async def estimate_time_until(
+        self, position: int, player: "MusicPlayer"
+    ) -> datetime.timedelta:
         """
         (very) Roughly estimates the time till the queue will reach given `position`.
 
         :param: position:  The index in the queue to reach.
         :param: player:  MusicPlayer instance this playlist should belong to.
 
-        :returns: A string with the estimated time rounded to the second decimal place.
+        :returns: A datetime.timedelta object with the estimated time.
 
         :raises: musicbot.exceptions.InvalidDataError  if duration data cannot be calculated.
         """
@@ -399,26 +465,10 @@ class Playlist(EventEmitter, Serializable):
 
             estimated_time += player.current_entry.duration - player.progress
 
-        # Create timedelta object with rounded seconds
-        rounded_timedelta = datetime.timedelta(seconds=round(estimated_time, 2))
-
-        # Convert timedelta object to string with the desired format
-        time_string = str(rounded_timedelta)
-
-        # Splitting the string to separate hours, minutes, and seconds
-        hours, remainder = time_string.split(":", maxsplit=1)[0], ":".join(
-            time_string.split(":", maxsplit=1)[1:]
-        )
-        minutes, seconds = remainder.split(":", maxsplit=1)[0], ":".join(
-            remainder.split(":", maxsplit=1)[1:]
-        )
-
-        # Construct the string representation with rounded seconds
-        rounded_time_string = f"{hours}:{minutes}:{seconds[:5]}"  # Retaining only two decimal places for seconds
-
-        return rounded_time_string
+        return datetime.timedelta(seconds=estimated_time)
 
     def count_for_user(self, user: "discord.abc.User") -> int:
+        """Get a sum of entries added to the playlist by the given `user`"""
         return sum(1 for e in self.entries if e.meta.get("author", None) == user)
 
     def __json__(self) -> Dict[str, Any]:
@@ -426,7 +476,7 @@ class Playlist(EventEmitter, Serializable):
 
     @classmethod
     def _deserialize(
-        cls, raw_json: Dict[str, Any], bot: Optional["MusicBot"] = None, **kwargs
+        cls, raw_json: Dict[str, Any], bot: Optional["MusicBot"] = None, **kwargs: Any
     ) -> "Playlist":
         assert bot is not None, cls._bad("bot")
         # log.debug("Deserializing playlist")
