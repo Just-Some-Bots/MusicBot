@@ -554,15 +554,42 @@ class MusicBot(discord.Client):
         if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
             raise TypeError("Channel passed must be a voice channel")
 
-        # TODO: await for ready here?
-
         # check for and return bots VoiceClient if we already have one.
         vc = channel.guild.voice_client
         if vc and isinstance(vc, discord.VoiceClient):
             return vc
 
-        # otherwise we need to connect to the given channel.
-        client: discord.VoiceClient = await channel.connect(timeout=30, reconnect=True)
+        # Otherwise we need to connect to the given channel.
+        # Now, sometimes this fails and discord does not send the state.
+        # Retrying quickly, wait longer each try, but fail after a point.
+        base_timeout = 5
+        max_timeout = 20
+        attempts = 0
+        while True:
+            attempts += 1
+            timeout = attempts * base_timeout
+            if timeout > max_timeout:
+                log.critical(
+                    "MusicBot is unable to connect to the channel right now:  %s",
+                    channel,
+                )
+                raise exceptions.HelpfulError(
+                    preface="MusicBot cannot play music without a VoiceClient!",
+                    issue="We tried to connect to the channel, but we failed too many times.",
+                    solution="Wait a little bit? Check your network. Check discord API status.",
+                    # I don't really know what to do here.
+                )
+
+            try:
+                client: discord.VoiceClient = await channel.connect(timeout=timeout, reconnect=True)
+                break
+            except asyncio.exceptions.TimeoutError:
+                log.warning(
+                    "Retrying connection after a timeout error (%s) while trying to connect to:  %s",
+                    attempts,
+                    channel,
+                )
+
         if isinstance(channel, discord.StageChannel):
             try:
                 await channel.guild.me.edit(suppress=False)
@@ -1536,9 +1563,9 @@ class MusicBot(discord.Client):
 
                 tname = task.get_name()
                 coro = task.get_coro()
-                coro_name = ""
-                if coro:
-                    coro_name = coro.__qualname__
+                coro_name = "[unknown]"
+                if coro and hasattr(coro, "__qualname__"):
+                    coro_name = getattr(coro, "__qualname__", "[unknown]")
 
                 if (
                     tname.startswith("Signal_SIG")

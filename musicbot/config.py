@@ -678,9 +678,14 @@ class ExtendedConfigParser(configparser.ConfigParser):
     def __init__(self) -> None:
         super().__init__(interpolation=None)
 
-        # Some cursed hidden sauce, setting this changes how keys are stored.
-        # by default ConfigParser uses str.lower() we use str() to keep Case.
-        self.optionxform = str
+
+
+    def optionxform(self, opt: str) -> str:
+        """
+        This is an override for ConfigParser key parsing.
+        by default ConfigParser uses str.lower() we just return to keep the case.
+        """
+        return opt
 
     def fetch_all_keys(self) -> List[str]:
         """

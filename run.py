@@ -170,7 +170,7 @@ class PIP:
 
     @classmethod
     def run_python_m(
-        cls, args: List[str], check_output: bool = False
+        cls, args: List[str], check_output: bool = False, quiet: bool = True
     ) -> Union[bytes, int]:
         """
         Use subprocess check_call or check_output to run a pip module
@@ -182,11 +182,11 @@ class PIP:
         if check_output:
             return subprocess.check_output(
                 [sys.executable, "-m", "pip"] + args,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL if quiet else subprocess.PIPE,
             )
         return subprocess.check_call(
             [sys.executable, "-m", "pip"] + args,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL if quiet else subprocess.PIPE,
         )
 
     @classmethod
@@ -247,7 +247,11 @@ class PIP:
         return 0
 
     @classmethod
-    def run_upgrade_requirements(cls, get_output: bool = False) -> Union[str, int]:
+    def run_upgrade_requirements(
+        cls,
+        get_output: bool = False,
+        quiet: bool = True,
+    ) -> Union[str, int]:
         """
         Uses a subprocess call to run python using sys.executable.
         Runs `pip install --no-warn-script-location --no-input -U -r ./requirements.txt`
@@ -276,6 +280,7 @@ class PIP:
                     "requirements.txt",
                 ],
                 check_output=get_output,
+                quiet=quiet,
             )
             if isinstance(raw_data, bytes):
                 pip_data = raw_data.decode("utf8").strip()
@@ -694,12 +699,15 @@ def parse_cli_args() -> argparse.Namespace:
 
 def setup_signal_handlers(
     loop: asyncio.AbstractEventLoop,
-    callback: Callable[[signal.Signals, asyncio.AbstractEventLoop], Coroutine[Any, Any, None]],
+    callback: Callable[
+        [signal.Signals, asyncio.AbstractEventLoop], Coroutine[Any, Any, None]
+    ],
 ) -> None:
     """
     This function registers signal handlers with the event loop to help it close
     with more grace when various OS signals are sent to this process.
     """
+
     def handle_signal(sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> None:
         """Creates and asyncio task to handle the signal on the event loop."""
         asyncio.create_task(callback(sig, loop), name=f"Signal_{sig.name}")
@@ -825,7 +833,9 @@ def main() -> None:
         try:
             # Prevent re-import of MusicBot
             if "MusicBot" not in dir():
-                from musicbot import MusicBot  # pylint: disable=import-outside-toplevel
+                from musicbot.bot import (
+                    MusicBot,
+                )  # pylint: disable=import-outside-toplevel
 
             # py3.8 made ProactorEventLoop default on windows.
             # py3.12 deprecated using get_event_loop(), we need new_event_loop().
@@ -925,23 +935,29 @@ def main() -> None:
             if not tried_requirementstxt:
                 tried_requirementstxt = True
 
-                log.exception("Error importing dependencies while starting bot.")
-                err = PIP.run_upgrade_requirements(get_output=True)
+                log.info(
+                    "\nAttempting to install MusicBot dependency packages automatically...\n"
+                )
+                pip_exit_code = PIP.run_upgrade_requirements(quiet=False)
 
-                if err:  # TODO: add the specific error check back.
-                    # The proper thing to do here is tell the user to fix
-                    # their install, not help make it worse or insecure.
-                    # Comprehensive return codes aren't really a feature of pip,
-                    # If we need to read the log, then so does the user.
+                # If pip ran without issue, it should return 0 status code.
+                if pip_exit_code:
                     print()
-                    log.critical(
-                        "This is not recommended! You can try to %s to install dependencies anyways.",
-                        ["use sudo", "run as admin"][sys.platform.startswith("win")],
+                    dep_error = HelpfulError(
+                        preface="MusicBot dependencies may not be installed!",
+                        issue="We didn't get a clean exit code from `pip` install.",
+                        solution=(
+                            "You will need to manually install dependency packages.\n"
+                            "MusicBot tries to use the following command, so modify as needed:\n"
+                            "  pip install -U -r ./requirements.txt"
+                        ),
+                        footnote="You can also ask for help in MusicBot support server:  https://discord.gg/bots",
                     )
+                    log.critical(str(dep_error))
                     break
 
                 print()
-                log.info("Ok lets hope it worked")
+                log.info("OK, lets hope that worked!")
                 print()
             else:
                 log.error(
@@ -996,7 +1012,7 @@ def main() -> None:
 
     shutdown_loggers()
     rotate_log_files()
-    
+
     print()
 
     if exit_signal:
