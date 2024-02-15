@@ -402,7 +402,7 @@ class MusicBot(discord.Client):
         try:
             await asyncio.sleep(after)
         except asyncio.CancelledError:
-            log.exception("_wait_delete_msg sleep caught exception. bailing.")
+            log.warning("Cancelled delete for message (ID: %s):  %s", message.id, message.content)
             return
 
         if not self.is_closed():
@@ -1345,9 +1345,7 @@ class MusicBot(discord.Client):
                     try:
                         await asyncio.sleep(retry_after)
                     except asyncio.CancelledError:
-                        log.exception(
-                            "Sleep in send message caught exception, bailing out."
-                        )
+                        log.warning("Cancelled message retry for:  %s", content)
                         return msg
                     return await self.safe_send_message(dest, content, **kwargs)
 
@@ -1479,9 +1477,7 @@ class MusicBot(discord.Client):
                     try:
                         await asyncio.sleep(retry_after)
                     except asyncio.CancelledError:
-                        log.exception(
-                            "Sleep in edit message caught exception, bailing out."
-                        )
+                        log.warning("Cancelled message edit for:  %s", message)
                         return None
                     return await self.safe_edit_message(
                         message, new, send_if_fail=send_if_fail, quiet=quiet
@@ -1587,7 +1583,7 @@ class MusicBot(discord.Client):
         Event called by discord.py when the client resumed an existing session.
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_resume
         """
-        log.info("\nReconnected to discord.\n")
+        log.info("MusicBot resumed a session with discord.")
 
     async def on_ready(self) -> None:
         """
@@ -1789,12 +1785,6 @@ class MusicBot(discord.Client):
             )
             log.warning(str(conf_warn)[1:])
             await asyncio.sleep(3)
-
-            #    "Your config file is missing some options. If you have recently updated, "
-            #    "check the example_options.ini file to see if there are new options available to you. "
-            #    "The options missing are: %s",
-            #    self.config.missing_keys,
-            # )
 
         await self.update_now_playing_status()
 
