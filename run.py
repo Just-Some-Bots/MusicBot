@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import pathlib
+import signal
 import shutil
 import ssl
 import subprocess
@@ -15,7 +16,7 @@ import textwrap
 import time
 import traceback
 from base64 import b64decode
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional, Callable, Coroutine, Any
 
 from musicbot.constants import (
     DEFAULT_LOGS_KEPT,
@@ -691,6 +692,34 @@ def parse_cli_args() -> argparse.Namespace:
     return args
 
 
+def setup_signal_handlers(
+    loop: asyncio.AbstractEventLoop,
+    callback: Callable[[signal.Signals, asyncio.AbstractEventLoop], Coroutine[Any, Any, None]],
+) -> None:
+    """
+    This function registers signal handlers with the event loop to help it close
+    with more grace when various OS signals are sent to this process.
+    """
+    def handle_signal(sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> None:
+        """Creates and asyncio task to handle the signal on the event loop."""
+        asyncio.create_task(callback(sig, loop), name=f"Signal_{sig.name}")
+
+    # Signals may not be available in all platforms!
+    # Windows signals
+    if os.name == "nt":
+        sigs = [signal.SIGTERM, signal.SIGINT]
+
+    # Linux/Unix signals
+    else:
+        sigs = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP]
+
+    for sig in sigs:
+        loop.add_signal_handler(sig, handle_signal, sig, loop)
+
+    # set a flag to prevent adding more of the same handlers on soft restart.
+    setattr(loop, "_sig_handler_set", True)
+
+
 def respawn_bot_process(pybin: str = "") -> None:
     """
     Use a platform dependent method to restart the bot process, without
@@ -736,31 +765,57 @@ def respawn_bot_process(pybin: str = "") -> None:
         os.execlp(exec_args[0], *exec_args)
 
 
-async def main(
-    args: argparse.Namespace,
-) -> Union[RestartSignal, TerminateSignal, None]:
+def main() -> None:
     """
     All of the MusicBot starts here.
 
-    :param: args:  some arguments parsed from the command line.
-
     :returns:  Oddly, returns rather than raises a *Signal or nothing.
     """
-    # TODO: this function may not need to be async.
+    # take care of loggers right away
+    setup_loggers()
+
+    # parse arguments before any logs, so --help does not make an empty log.
+    cli_args = parse_cli_args()
+
+    # Log file creation is deferred until this first write.
+    log.info("Loading MusicBot version:  %s", BOTVERSION)
+    log.info("Log opened:  %s", time.ctime())
+
+    # Check if run.py is in the current working directory.
+    run_py_dir = os.path.dirname(os.path.realpath(__file__))
+    if run_py_dir != os.getcwd():
+        # if not, verify musicbot and .git folders exists and change directory.
+        run_mb_dir = pathlib.Path(run_py_dir).joinpath("musicbot")
+        run_git_dir = pathlib.Path(run_py_dir).joinpath(".git")
+        if run_mb_dir.is_dir() and run_git_dir.is_dir():
+            log.warning("Changing working directory to:  %s", run_py_dir)
+            os.chdir(run_py_dir)
+        else:
+            log.critical(
+                "Cannot start the bot!  You started `run.py` in the wrong directory"
+                " and we could not locate `musicbot` and `.git` folders to verify"
+                " a new directory location."
+            )
+            log.error(
+                "For best results, start `run.py` from the same folder you cloned MusicBot into.\n"
+                "If you did not use git to clone the repository, you are strongly urged to."
+            )
+            time.sleep(3)  # make sure they see the message.
+            sys.exit(127)
 
     # Handle startup checks, if they haven't been skipped.
-    if args.do_start_checks:
-        sanity_checks(args)
+    if cli_args.do_start_checks:
+        sanity_checks(cli_args)
     else:
         log.info("Skipped startup checks.")
 
     exit_signal: Union[RestartSignal, TerminateSignal, None] = None
-    tried_requirementstxt = False
-    use_certifi = False
-    tryagain = True
-
-    loops = 0
-    max_wait_time = 60
+    event_loop: Optional[asyncio.AbstractEventLoop] = None
+    tried_requirementstxt: bool = False
+    use_certifi: bool = False
+    tryagain: bool = True
+    retries: int = 0
+    max_wait_time: int = 60
 
     while tryagain:
         # Maybe I need to try to import stuff first, then actually import stuff
@@ -768,10 +823,25 @@ async def main(
 
         m = None
         try:
-            from musicbot import MusicBot  # pylint: disable=import-outside-toplevel
+            # Prevent re-import of MusicBot
+            if "MusicBot" not in dir():
+                from musicbot import MusicBot  # pylint: disable=import-outside-toplevel
 
+            # py3.8 made ProactorEventLoop default on windows.
+            # py3.12 deprecated using get_event_loop(), we need new_event_loop().
+            event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(event_loop)
+
+            # init some of bot, but don't run it yet.
             m = MusicBot(use_certifi=use_certifi)
-            await m.run()
+
+            # register system signal handlers with the event loop.
+            if not getattr(event_loop, "_sig_handler_set", False):
+                setup_signal_handlers(event_loop, m.on_os_signal)
+
+            event_loop.run_until_complete(m.run_musicbot())
+
+            del m
 
         except (
             ssl.SSLCertVerificationError,
@@ -816,13 +886,27 @@ async def main(
                 log.exception("Syntax error (this is a bug, not your fault)")
             break
 
-        except ImportError:
-            if args.no_install_deps:
+        except ImportError as e:
+            if cli_args.no_install_deps:
+                helpfulerr = HelpfulError(
+                    preface="Cannot start MusicBot due to an error!",
+                    issue=(
+                        f"Error: {str(e)}\n"
+                        "This is an error importing MusicBot or a dependency package."
+                    ),
+                    solution=(
+                        "You need to manually install dependency packages via pip.\n"
+                        "Or launch without `--no-install-deps` and MusicBot will try to install them for you."
+                    ),
+                    footnote=(
+                        "You have the `--no-install-deps` option set."
+                        "Normally MusicBot attempts "
+                    ),
+                )
                 log.error(
                     "Error importing MusicBot or it's dependency packages.\n"
                     "The `--no-install-deps` option is set, so MusicBot will exit now."
                 )
-                log.exception("This is the exception which caused the above error: ")
                 break
 
             if not PIP.works():
@@ -876,7 +960,7 @@ async def main(
 
         except RestartSignal as e:
             if e.get_name() == "RESTART_SOFT":
-                loops = 0
+                retries = 0
             else:
                 exit_signal = e
                 break
@@ -885,11 +969,6 @@ async def main(
             log.exception("Error starting bot")
 
         finally:
-            if m and (m.session or m.http.connector):
-                # in case we never made it to m.run(), ensure cleanup.
-                log.debug("Doing cleanup late.")
-                await m.shutdown_cleanup()
-
             if (not m or not m.init_ok) and not use_certifi:
                 if any(sys.exc_info()):
                     # How to log this without redundant messages...
@@ -902,80 +981,46 @@ async def main(
                     )
                 tryagain = False
 
-            loops += 1
+            retries += 1
+            if event_loop:
+                log.debug("Closing event loop...")
+                event_loop.close()
 
-        sleeptime = min(loops * 2, max_wait_time)
+        sleeptime = min(retries * 2, max_wait_time)
         if sleeptime:
             log.info("Restarting in %s seconds...", sleeptime)
             time.sleep(sleeptime)
 
     print()
     log.info("All done.")
-    return exit_signal
+
+    shutdown_loggers()
+    rotate_log_files()
+    
+    print()
+
+    if exit_signal:
+        if isinstance(exit_signal, RestartSignal):
+            if exit_signal.get_name() == "RESTART_FULL":
+                respawn_bot_process()
+            elif exit_signal.get_name() == "RESTART_UPGRADE_ALL":
+                PIP.run_upgrade_requirements()
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+            elif exit_signal.get_name() == "RESTART_UPGRADE_PIP":
+                PIP.run_upgrade_requirements()
+                respawn_bot_process()
+            elif exit_signal.get_name() == "RESTART_UPGRADE_GIT":
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+        elif isinstance(exit_signal, TerminateSignal):
+            sys.exit(exit_signal.exit_code)
 
 
 if __name__ == "__main__":
-    # take care of loggers right away
-    setup_loggers()
-
-    # parse arguments before any logs, so --help does not make an empty log.
-    cli_args = parse_cli_args()
-
-    # Log file creation is deferred until this first write.
-    log.info("Loading MusicBot version:  %s", BOTVERSION)
-    log.info("Log opened:  %s", time.ctime())
-
-    # Check if run.py is in the current working directory.
-    run_py_dir = os.path.dirname(os.path.realpath(__file__))
-    if run_py_dir != os.getcwd():
-        # if not, verify musicbot and .git folders exists and change directory.
-        run_mb_dir = pathlib.Path(run_py_dir).joinpath("musicbot")
-        run_git_dir = pathlib.Path(run_py_dir).joinpath(".git")
-        if run_mb_dir.is_dir() and run_git_dir.is_dir():
-            log.warning("Changing working directory to:  %s", run_py_dir)
-            os.chdir(run_py_dir)
-        else:
-            log.critical(
-                "Cannot start the bot!  You started `run.py` in the wrong directory"
-                " and we could not locate `musicbot` and `.git` folders to verify"
-                " a new directory location."
-            )
-            log.error(
-                "For best results, start `run.py` from the same folder you cloned MusicBot into.\n"
-                "If you did not use git to clone the repository, you are strongly urged to."
-            )
-            time.sleep(3)  # make sure they see the message.
-            sys.exit(127)
-
-    # py3.8 made ProactorEventLoop default on windows.
-    # py3.12 deprecated using get_event_loop(), we need new_event_loop().
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
-        exit_sig = loop.run_until_complete(main(cli_args))
+        main()
     except KeyboardInterrupt:
-        # TODO: later this will probably get more cleanup so we can
-        # close other things more proper like too.
-        log.info("\nCaught a keyboard interrupt signal.")
-        shutdown_loggers()
-        rotate_log_files()
-        raise
+        print("shit")
 
-    if exit_sig:
-        if isinstance(exit_sig, RestartSignal):
-            if exit_sig.get_name() == "RESTART_FULL":
-                respawn_bot_process()
-            elif exit_sig.get_name() == "RESTART_UPGRADE_ALL":
-                PIP.run_upgrade_requirements()
-                GIT.run_upgrade_pull()
-                respawn_bot_process()
-            elif exit_sig.get_name() == "RESTART_UPGRADE_PIP":
-                PIP.run_upgrade_requirements()
-                respawn_bot_process()
-            elif exit_sig.get_name() == "RESTART_UPGRADE_GIT":
-                GIT.run_upgrade_pull()
-                respawn_bot_process()
-        elif isinstance(exit_sig, TerminateSignal):
-            shutdown_loggers()
-            rotate_log_files()
-            sys.exit(exit_sig.exit_code)
+    sys.exit(0)

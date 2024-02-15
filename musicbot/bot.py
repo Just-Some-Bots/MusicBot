@@ -8,6 +8,7 @@ import pathlib
 import random
 import re
 import shutil
+import signal
 import ssl
 import sys
 import time
@@ -124,6 +125,7 @@ class MusicBot(discord.Client):
         self.players: Dict[int, MusicPlayer] = {}
         self.exit_signal: ExitSignals = None
         self.init_ok: bool = False
+        self.logout_called: bool = False
         self.cached_app_info: Optional[discord.AppInfo] = None
         self.last_status: Optional[discord.BaseActivity] = None
         self.autojoin_channels: Set[VoiceableChannel] = set()
@@ -1490,67 +1492,83 @@ class MusicBot(discord.Client):
 
         return None
 
-    async def shutdown_cleanup(self) -> None:
+
+    async def on_os_signal(self, sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> None:
         """
-        Function which forces closure on connections and pending tasks.
-        Much scrutiny required herein.
-        Probably due for further refactoring.
+        This function is called by event loop signal handling when any 
+        registered OS signal is caught.
+
+        It essentially just calls logout, and the rest of MusicBot tear-down is
+        finished up in `MusicBot.run_musicbot()` instead.
+
+        Signals handled here are registered with the event loop in run.py.
         """
-        try:  # make sure discord.Client is closed.
-            await self.close()  # changed in d.py 2.0
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Issue while closing discord client session.")
+        # This print facilitates putting '^C' on its own line in the terminal.
+        print()
+        log.warning("Caught a signal from the OS: %s", sig.name)
+        
+        if self and not self.logout_called:
+            log.info("Disconnecting and closing down MusicBot...")
+            await self.logout()
 
-        try:  # make sure discord.http.connector is closed.
-            # This may be a bug in aiohttp or within discord.py handling of it.
-            # Have read aiohttp 4.x is supposed to fix this, but have not verified.
-            if self.http.connector:
-                await self.http.connector.close()
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Issue while closing discord aiohttp connector.")
-
-        try:  # make sure our aiohttp session is closed.
-            if self.session:
-                await self.session.close()
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Issue while closing our aiohttp session.")
-
-        # now cancel all pending tasks, except for run.py::main()
-        for task in asyncio.all_tasks(loop=self.loop):
-            coro = task.get_coro()
-
-            if (
-                hasattr(coro, "__name__")
-                and coro.__name__ == "main"
-                and task.get_name().lower() == "task-1"
-            ):
-                continue
-
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-    # TODO:  rename this instead of overriding client run maybe.
-    async def run(self) -> None:  # type: ignore[override]
+    async def run_musicbot(self) -> None:  # type: ignore[override]
         try:
             await self.start(*self.config.auth)
+            log.info("MusicBot is now doing shutdown steps...")
+            self.exit_signal = exceptions.TerminateSignal()
 
         except discord.errors.LoginFailure as e:
-            # TODO: this message might be misleading, add token check.
             raise exceptions.HelpfulError(
-                "Bot cannot login, bad credentials.",
-                "Fix your token in the options file.  "
+                preface="Failed login to discord API!",
+                issue="MusicBot cannot login to discord, is your token correct?",
+                solution="Fix your token in the options.ini config file.\n"
                 "Remember that each field should be on their own line.",
+                footnote="Note: If you are certain your token is correct, this may be due to a Discord API outage.",
             ) from e
 
         finally:
-            try:
-                await self.shutdown_cleanup()
-            except Exception:  # pylint: disable=broad-exception-caught
-                log.error("Error in cleanup", exc_info=True)
+            # Inspect all waiting tasks and either cancel them or let them finish.
+            pending_tasks = []
+            for task in asyncio.all_tasks(loop=self.loop): 
+                # Don't cancel run_musicbot task, we need it to finish cleaning.
+                if task == asyncio.current_task():
+                    continue
 
+                tname = task.get_name()
+                coro = task.get_coro()
+                coro_name = ""
+                if coro:
+                    coro_name = coro.__qualname__
+
+                if (
+                    tname.startswith("Signal_SIG")
+                    or coro_name == "URLPlaylistEntry._download"
+                ):
+                    log.debug("Will wait for task:  %s  (%s)", tname, coro_name)
+                    pending_tasks.append(task)
+
+                else:
+                    log.debug("Will try to cancel task:  %s  (%s)", tname, coro_name)
+                    task.cancel()
+                    pending_tasks.append(task)
+
+            # wait on any pending tasks.
+            if pending_tasks:
+                log.debug("Awaiting pending tasks...")
+                await asyncio.gather(*pending_tasks, return_exceptions=True)
+
+            # ensure connector is closed.
+            if self.http.connector:
+                log.debug("Closing HTTP Connector.")
+                await self.http.connector.close()
+            
+            # ensure the session is closed.
+            if self.session:
+                log.debug("Closing aiohttp session.")
+                await self.session.close()
+            
+
+            # if anything set an exit signal, we should raise it here.
             if self.exit_signal:
                 raise self.exit_signal
 
@@ -1558,6 +1576,7 @@ class MusicBot(discord.Client):
         """
         Disconnect all voice clients and signal MusicBot to close it's connections to discord.
         """
+        self.logout_called = True
         await self.disconnect_all_voice_clients()
         return await super().close()
 
