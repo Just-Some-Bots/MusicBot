@@ -1548,7 +1548,7 @@ class MusicBot(discord.Client):
         # register interrupt signal Ctrl+C to be trapped.
         signal.signal(signal.SIGINT, set_windows_signal)
         # and start the signal checking loop.
-        self.loop.create_task(check_windows_signal())
+        asyncio.create_task(check_windows_signal())
 
     async def on_os_signal(
         self, sig: signal.Signals, _loop: asyncio.AbstractEventLoop
