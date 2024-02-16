@@ -1540,7 +1540,10 @@ class MusicBot(discord.Client):
         async def check_windows_signal() -> None:
             while True:
                 if self._os_signal is None:
-                    await asyncio.sleep(1)
+                    try:
+                        await asyncio.sleep(1)
+                    except asyncio.CancelledError:
+                        break
                 else:
                     await self.on_os_signal(self._os_signal, self.loop)
                     self._os_signal = None
@@ -1586,7 +1589,8 @@ class MusicBot(discord.Client):
         try:
             await self.start(*self.config.auth)
             log.info("MusicBot is now doing shutdown steps...")
-            self.exit_signal = exceptions.TerminateSignal()
+            if self.exit_signal:
+                self.exit_signal = exceptions.TerminateSignal()
 
         except discord.errors.LoginFailure as e:
             raise exceptions.HelpfulError(

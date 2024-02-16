@@ -722,12 +722,11 @@ def setup_signal_handlers(
     setattr(loop, "_sig_handler_set", True)
 
 
-def respawn_bot_process(pybin: str = "") -> None:
+def respawn_bot_process() -> None:
     """
     Use a platform dependent method to restart the bot process, without
     an external process/service manager.
-    This uses either the given `pybin` executable path or sys.executable
-    to run the bot using the arguments currently in sys.argv
+    This uses the sys.executable and sys.argv to restart the bot.
 
     This function attempts to make sure all buffers are flushed and logging
     is shut down before restarting the new process.
@@ -738,9 +737,7 @@ def respawn_bot_process(pybin: str = "") -> None:
     On Windows OS this will use subprocess.Popen to create a new console
     where the new bot is started, with a new PID, and exit this instance.
     """
-    if not pybin:
-        pybin = sys.executable
-    exec_args = [pybin] + sys.argv
+    exec_args = [sys.executable] + sys.argv
 
     shutdown_loggers()
     rotate_log_files()
@@ -754,11 +751,11 @@ def respawn_bot_process(pybin: str = "") -> None:
         # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
         # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
         # The moment we end our existing instance, control is returned to the starting shell.
-        with subprocess.Popen(
+        subprocess.Popen(
             exec_args,
             creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
-        ):
-            log.debug("Opened new MusicBot instance.  This terminal can now be closed!")
+        )
+        print("Opened a new MusicBot instance. This terminal can be safely closed!")
         sys.exit(0)
     else:
         # On Unix/Linux/Mac this should immediately replace the current program.
