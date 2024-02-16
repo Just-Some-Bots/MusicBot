@@ -7,8 +7,8 @@ import json
 import logging
 import os
 import pathlib
-import signal
 import shutil
+import signal
 import ssl
 import subprocess
 import sys
@@ -16,7 +16,7 @@ import textwrap
 import time
 import traceback
 from base64 import b64decode
-from typing import List, Tuple, Union, Optional, Callable, Coroutine, Any
+from typing import Any, Callable, Coroutine, List, Optional, Tuple, Union
 
 from musicbot.constants import (
     DEFAULT_LOGS_KEPT,
@@ -36,7 +36,7 @@ from musicbot.utils import (
 
 # protect dependency import from stopping the launcher
 try:
-    import aiohttp
+    from aiohttp.client_exceptions import ClientConnectorCertificateError
 except ImportError:
     pass
 
@@ -707,19 +707,15 @@ def setup_signal_handlers(
     This function registers signal handlers with the event loop to help it close
     with more grace when various OS signals are sent to this process.
     """
+    if os.name == "nt":
+        return
 
     def handle_signal(sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> None:
         """Creates and asyncio task to handle the signal on the event loop."""
         asyncio.create_task(callback(sig, loop), name=f"Signal_{sig.name}")
 
-    # Signals may not be available in all platforms!
-    # Windows signals
-    if os.name == "nt":
-        sigs = [signal.SIGTERM, signal.SIGINT]
-
-    # Linux/Unix signals
-    else:
-        sigs = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP]
+    # Linux/Unix signals we should clean up for.
+    sigs = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP]
 
     for sig in sigs:
         loop.add_signal_handler(sig, handle_signal, sig, loop)
@@ -779,6 +775,12 @@ def main() -> None:
 
     :returns:  Oddly, returns rather than raises a *Signal or nothing.
     """
+    # Update the console title, ignore if it fails.
+    try:
+        sys.stdout.write(f"\x1b]2;MusicBot {BOTVERSION}\x07")
+    except (TypeError, OSError):
+        pass
+
     # take care of loggers right away
     setup_loggers()
 
@@ -833,9 +835,9 @@ def main() -> None:
         try:
             # Prevent re-import of MusicBot
             if "MusicBot" not in dir():
-                from musicbot.bot import (
+                from musicbot.bot import (  # pylint: disable=import-outside-toplevel
                     MusicBot,
-                )  # pylint: disable=import-outside-toplevel
+                )
 
             # py3.8 made ProactorEventLoop default on windows.
             # py3.12 deprecated using get_event_loop(), we need new_event_loop().
@@ -855,23 +857,25 @@ def main() -> None:
 
         except (
             ssl.SSLCertVerificationError,
-            aiohttp.client_exceptions.ClientConnectorCertificateError,
+            ClientConnectorCertificateError,
         ) as e:
-            if isinstance(
-                e, aiohttp.client_exceptions.ClientConnectorCertificateError
-            ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
+            # For aiohttp, we need to look at the cause.
+            if isinstance(e, ClientConnectorCertificateError) and isinstance(
+                e.__cause__, ssl.SSLCertVerificationError
+            ):
                 e = e.__cause__
             else:
                 log.critical(
                     "Certificate error is not a verification error, not trying certifi and exiting."
                 )
+                log.exception("Here is the exact error, it could be a bug.")
                 break
 
             # In case the local trust store does not have the cert locally, we can try certifi.
             # We don't want to patch working systems with a third-party trust chain outright.
             # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
             if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
-                if use_certifi:
+                if use_certifi:  # already tried it.
                     log.exception(
                         "Could not get Issuer Certificate even with certifi!\n"
                         "Try running:  %s -m pip install --upgrade certifi ",
@@ -913,10 +917,10 @@ def main() -> None:
                         "Normally MusicBot attempts "
                     ),
                 )
-                log.error(
-                    "Error importing MusicBot or it's dependency packages.\n"
-                    "The `--no-install-deps` option is set, so MusicBot will exit now."
-                )
+                log.error(str(helpfulerr))
+                # "Error importing MusicBot or it's dependency packages.\n"
+                # "The `--no-install-deps` option is set, so MusicBot will exit now."
+                # )
                 break
 
             if not PIP.works():
@@ -959,12 +963,13 @@ def main() -> None:
                 print()
                 log.info("OK, lets hope that worked!")
                 print()
-            else:
-                log.error(
-                    "MusicBot got an ImportError after trying to install packages. MusicBot must exit..."
-                )
-                log.exception("The exception which caused the above error: ")
-                break
+                continue
+
+            log.error(
+                "MusicBot got an ImportError after trying to install packages. MusicBot must exit..."
+            )
+            log.exception("The exception which caused the above error: ")
+            break
 
         except HelpfulError as e:
             log.info(e.message)
@@ -977,12 +982,14 @@ def main() -> None:
         except RestartSignal as e:
             if e.get_name() == "RESTART_SOFT":
                 retries = 0
-            else:
-                exit_signal = e
-                break
+                continue
+
+            exit_signal = e
+            break
 
         except Exception:  # pylint: disable=broad-exception-caught
             log.exception("Error starting bot")
+            break
 
         finally:
             if (not m or not m.init_ok) and not use_certifi:
@@ -1037,6 +1044,8 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("shit")
+        print("OK, we're closing!")
+        shutdown_loggers()
+        rotate_log_files()
 
     sys.exit(0)

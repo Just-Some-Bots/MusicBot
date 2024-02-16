@@ -182,6 +182,9 @@ def setup_loggers() -> None:
     # initially set discord logging to debug, it will be changed when config is loaded.
     dlogger.setLevel(logging.DEBUG)
 
+    # Set a flag to indicate our logs are open.
+    setattr(logging, "_mb_logs_open", True)
+
 
 def muffle_discord_console_log() -> None:
     """
@@ -254,8 +257,13 @@ def set_logging_rotate_date_format(sftime: str) -> None:
 
 def shutdown_loggers() -> None:
     """Removes all musicbot and discord log handlers"""
+    if not hasattr(logging, "_mb_logs_open"):
+        return
+
     # This is the last log line of the logger session.
     log.info("MusicBot loggers have been called to shutdown.")
+
+    setattr(logging, "_mb_logs_open", False)
 
     logger = logging.getLogger("musicbot")
     for handler in logger.handlers:
@@ -286,6 +294,9 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
     :param: max_kept:  number of old logs to keep.
     :param: date_fmt:  format compatible with datetime.strftime() for rotated filename.
     """
+    if hasattr(logging, "_mb_logs_rotated"):
+        return
+
     # Use the input arguments or fall back to settings or defaults.
     if max_kept <= -1:
         max_kept = getattr(logging, "mb_max_logs_kept", DEFAULT_LOGS_KEPT)
@@ -341,6 +352,8 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
         for path in logglob[max_kept:]:
             if path.is_file():
                 path.unlink()
+
+    setattr(logging, "_mb_logs_rotated", True)
 
 
 def load_file(

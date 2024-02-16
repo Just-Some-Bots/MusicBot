@@ -102,15 +102,8 @@ class MusicBot(discord.Client):
         aliases_file: Optional[pathlib.Path] = None,
         use_certifi: bool = False,
     ) -> None:
+        log.info("Initializing MusicBot %s", BOTVERSION)
         load_opus_lib()
-        try:
-            sys.stdout.write(f"\x1b]2;MusicBot {BOTVERSION}\x07")
-        except (TypeError, OSError):
-            log.warning(
-                "Failed to set terminal Title via escape sequences.", exc_info=True
-            )
-
-        print()
 
         if config_file is None:
             config_file = ConfigDefaults.options_file
@@ -143,8 +136,6 @@ class MusicBot(discord.Client):
         self.aiolocks: DefaultDict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self.filecache = AudioFileCache(self)
         self.downloader = downloader.Downloader(self)
-
-        log.info("Starting MusicBot %s", BOTVERSION)
 
         if not self.autoplaylist:
             log.warning("Autoplaylist is empty, disabling.")
@@ -404,7 +395,11 @@ class MusicBot(discord.Client):
         try:
             await asyncio.sleep(after)
         except asyncio.CancelledError:
-            log.warning("Cancelled delete for message (ID: %s):  %s", message.id, message.content)
+            log.warning(
+                "Cancelled delete for message (ID: %s):  %s",
+                message.id,
+                message.content,
+            )
             return
 
         if not self.is_closed():
@@ -581,7 +576,9 @@ class MusicBot(discord.Client):
                 )
 
             try:
-                client: discord.VoiceClient = await channel.connect(timeout=timeout, reconnect=True)
+                client: discord.VoiceClient = await channel.connect(
+                    timeout=timeout, reconnect=True
+                )
                 break
             except asyncio.exceptions.TimeoutError:
                 log.warning(
@@ -1519,10 +1516,11 @@ class MusicBot(discord.Client):
 
         return None
 
-
-    async def on_os_signal(self, sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> None:
+    async def on_os_signal(
+        self, sig: signal.Signals, _loop: asyncio.AbstractEventLoop
+    ) -> None:
         """
-        This function is called by event loop signal handling when any 
+        This function is called by event loop signal handling when any
         registered OS signal is caught.
 
         It essentially just calls logout, and the rest of MusicBot tear-down is
@@ -1533,12 +1531,16 @@ class MusicBot(discord.Client):
         # This print facilitates putting '^C' on its own line in the terminal.
         print()
         log.warning("Caught a signal from the OS: %s", sig.name)
-        
+
         if self and not self.logout_called:
             log.info("Disconnecting and closing down MusicBot...")
             await self.logout()
 
-    async def run_musicbot(self) -> None:  # type: ignore[override]
+    async def run_musicbot(self) -> None:
+        """
+        This method is to be used in an event loop to start the MusicBot.
+        It handles cleanup of bot session, while the event loop is closed separately.
+        """
         try:
             await self.start(*self.config.auth)
             log.info("MusicBot is now doing shutdown steps...")
@@ -1556,7 +1558,7 @@ class MusicBot(discord.Client):
         finally:
             # Inspect all waiting tasks and either cancel them or let them finish.
             pending_tasks = []
-            for task in asyncio.all_tasks(loop=self.loop): 
+            for task in asyncio.all_tasks(loop=self.loop):
                 # Don't cancel run_musicbot task, we need it to finish cleaning.
                 if task == asyncio.current_task():
                     continue
@@ -1588,12 +1590,11 @@ class MusicBot(discord.Client):
             if self.http.connector:
                 log.debug("Closing HTTP Connector.")
                 await self.http.connector.close()
-            
+
             # ensure the session is closed.
             if self.session:
                 log.debug("Closing aiohttp session.")
                 await self.session.close()
-            
 
             # if anything set an exit signal, we should raise it here.
             if self.exit_signal:

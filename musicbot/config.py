@@ -678,14 +678,12 @@ class ExtendedConfigParser(configparser.ConfigParser):
     def __init__(self) -> None:
         super().__init__(interpolation=None)
 
-
-
-    def optionxform(self, opt: str) -> str:
+    def optionxform(self, optionstr: str) -> str:
         """
         This is an override for ConfigParser key parsing.
         by default ConfigParser uses str.lower() we just return to keep the case.
         """
-        return opt
+        return optionstr
 
     def fetch_all_keys(self) -> List[str]:
         """
