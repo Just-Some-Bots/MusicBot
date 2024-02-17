@@ -4711,7 +4711,7 @@ class MusicBot(discord.Client):
 
         try:
             float(search_range_str)  # lazy check
-            search_range = min(int(search_range_str), 100)
+            search_range = min(int(search_range_str), 1000)
         except ValueError:
             return Response(
                 self.str.get(
