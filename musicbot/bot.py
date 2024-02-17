@@ -117,6 +117,7 @@ class MusicBot(discord.Client):
         self.use_certifi: bool = use_certifi
         self.players: Dict[int, MusicPlayer] = {}
         self.exit_signal: ExitSignals = None
+        self._os_signal: Optional[signal.Signals] = None
         self.init_ok: bool = False
         self.logout_called: bool = False
         self.cached_app_info: Optional[discord.AppInfo] = None
@@ -302,7 +303,7 @@ class MusicBot(discord.Client):
                     channel_map[guild] = owner.voice.channel
 
         for guild, channel in channel_map.items():
-            log.everything(
+            log.everything(  # type: ignore[attr-defined]
                 "AutoJoin Channel Map Item:\n  %s\n  %s", repr(guild), repr(channel)
             )
             if guild in joined_servers:
@@ -350,12 +351,14 @@ class MusicBot(discord.Client):
                     )
 
                     if player.is_stopped:
-                        log.noise("starting stopped player in startup")
+                        log.noise(  # type: ignore[attr-defined]
+                            "Starting stopped player in startup"
+                        )
                         player.play()
 
                     if self.config.auto_playlist:
                         if not player.playlist.entries:
-                            log.noise(
+                            log.noise(  # type: ignore[attr-defined]
                                 "Auto playlist enabled, so running on-player-finished manually..."
                             )
                             await self.on_player_finished_playing(player)
@@ -646,7 +649,9 @@ class MusicBot(discord.Client):
     def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
         """Get a MusicPlayer in the given guild, but do not create a new player."""
         p = self.players.get(guild.id)
-        log.everything("Guild (%s) wants a player, optional:  %s", guild, repr(p))
+        log.everything(  # type: ignore[attr-defined]
+            "Guild (%s) wants a player, optional:  %s", guild, repr(p)
+        )
         return p
 
     async def get_player(
@@ -659,7 +664,7 @@ class MusicBot(discord.Client):
         """Get a MusicPlayer in the given guild, creating one if needed."""
         guild = channel.guild
 
-        log.everything(
+        log.everything(  # type: ignore[attr-defined]
             "Getting a MusicPlayer for guild:  %s  In Channel:  %s  Will Create:  %s  Deserialize:  %s",
             guild,
             channel,
@@ -690,7 +695,9 @@ class MusicBot(discord.Client):
                     )
 
                 voice_client = await self.get_voice_client(channel)
-                log.everything("Made a VoiceClient:  %s", repr(voice_client))
+                log.everything(  # type: ignore[attr-defined]
+                    "Made a VoiceClient:  %s", repr(voice_client)
+                )
 
                 if isinstance(voice_client, discord.VoiceClient):
                     playlist = Playlist(self)
@@ -1516,12 +1523,43 @@ class MusicBot(discord.Client):
 
         return None
 
+    def _setup_windows_signal_handler(self) -> None:
+        """
+        Windows needs special handling for Ctrl+C signals to play nice with asyncio
+        so this method sets up signals with access to bot event loop.
+        This enables capturing KeyboardInterrupt and using it to cleanly shut down.
+        """
+        if os.name != "nt":
+            return
+
+        # method used to set the above member.
+        def set_windows_signal(sig: int, _frame: Any) -> None:
+            self._os_signal = signal.Signals(sig)
+
+        # method used to periodically check for a signal, and process it.
+        async def check_windows_signal() -> None:
+            while True:
+                if self._os_signal is None:
+                    await asyncio.sleep(1)
+                else:
+                    await self.on_os_signal(self._os_signal, self.loop)
+                    self._os_signal = None
+
+        # register interrupt signal Ctrl+C to be trapped.
+        signal.signal(signal.SIGINT, set_windows_signal)
+        # and start the signal checking loop.
+        self.loop.create_task(check_windows_signal())
+
     async def on_os_signal(
         self, sig: signal.Signals, _loop: asyncio.AbstractEventLoop
     ) -> None:
         """
-        This function is called by event loop signal handling when any
-        registered OS signal is caught.
+        On Unix-like/Linux OS, this method is called automatically on the event
+        loop for signals registered in run.py.
+        On Windows, this method is called by custom signal handling set up at
+        the start of run_musicbot().
+        This allows MusicBot to handle external signals and triggering a clean
+        shutdown of MusicBot in response to them.
 
         It essentially just calls logout, and the rest of MusicBot tear-down is
         finished up in `MusicBot.run_musicbot()` instead.
@@ -1541,6 +1579,10 @@ class MusicBot(discord.Client):
         This method is to be used in an event loop to start the MusicBot.
         It handles cleanup of bot session, while the event loop is closed separately.
         """
+        # Windows specifically needs some help with signals.
+        self._setup_windows_signal_handler()
+
+        # handle start up and teardown.
         try:
             await self.start(*self.config.auth)
             log.info("MusicBot is now doing shutdown steps...")
@@ -1585,16 +1627,19 @@ class MusicBot(discord.Client):
             if pending_tasks:
                 log.debug("Awaiting pending tasks...")
                 await asyncio.gather(*pending_tasks, return_exceptions=True)
+                await asyncio.sleep(0.5)
 
             # ensure connector is closed.
             if self.http.connector:
                 log.debug("Closing HTTP Connector.")
                 await self.http.connector.close()
+                await asyncio.sleep(0.5)
 
             # ensure the session is closed.
             if self.session:
                 log.debug("Closing aiohttp session.")
                 await self.session.close()
+                await asyncio.sleep(0.5)
 
             # if anything set an exit signal, we should raise it here.
             if self.exit_signal:

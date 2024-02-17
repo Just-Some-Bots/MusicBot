@@ -14,7 +14,6 @@ import subprocess
 import sys
 import textwrap
 import time
-import traceback
 from base64 import b64decode
 from typing import Any, Callable, Coroutine, List, Optional, Tuple, Union
 
@@ -179,15 +178,14 @@ class PIP:
 
         :param: check_output:  Use check_output rather than check_call.
         """
+        cmd_args = [sys.executable, "-m", "pip"] + args
         if check_output:
-            return subprocess.check_output(
-                [sys.executable, "-m", "pip"] + args,
-                stderr=subprocess.DEVNULL if quiet else subprocess.PIPE,
-            )
-        return subprocess.check_call(
-            [sys.executable, "-m", "pip"] + args,
-            stdout=subprocess.DEVNULL if quiet else subprocess.PIPE,
-        )
+            if quiet:
+                return subprocess.check_output(cmd_args, stderr=subprocess.DEVNULL)
+            return subprocess.check_output(cmd_args)
+        if quiet:
+            return subprocess.check_call(cmd_args, stdout=subprocess.DEVNULL)
+        return subprocess.check_call(cmd_args)
 
     @classmethod
     def run_install(
@@ -769,17 +767,59 @@ def respawn_bot_process(pybin: str = "") -> None:
         os.execlp(exec_args[0], *exec_args)
 
 
-def main() -> None:
+def set_console_title() -> None:
     """
-    All of the MusicBot starts here.
+    Attempts to set the console window title using the current version string.
+    On windows, this method will try to enable ANSI Escape codes by enabling
+    virtual terminal processing or by calling an empty sub-shell.
+    """
+    # On windows, if colorlog isn't loaded already, ANSI escape codes probably
+    # wont work like we expect them to.
+    # This code attempts to solve that using ctypes and cursed windows-isms.
+    # or if that fails (it shouldn't) it falls back to another cursed trick.
+    if os.name == "nt":
+        try:
+            # if colorama fails to import we can assume setup_logs didn't load it.
+            import colorama  # type: ignore[import-untyped]
 
-    :returns:  Oddly, returns rather than raises a *Signal or nothing.
-    """
+            # if it works, then great, one less thing to worry about right???
+            colorama.just_fix_windows_console()
+        except ImportError:
+            # This might only work for Win 10+
+            from ctypes import windll  # type: ignore[attr-defined]
+
+            k32 = windll.kernel32
+            # For info on SetConsoleMode, see:
+            #   https://learn.microsoft.com/en-us/windows/console/setconsolemode
+            # For info on GetStdHandle, see:
+            #   https://learn.microsoft.com/en-us/windows/console/getstdhandle
+            try:
+                k32.SetConsoleMode(k32.GetStdHandle(-11), 7)
+            except Exception:  # pylint: disable=broad-exception-caught
+                # If it didn't work, fall back to this cursed trick...
+                # Since console -does- support ANSI escapes, but turns them off,
+                # This sort of beats the current console buffer over the head with
+                # the sub-shell's and then cannot disable the mode in parent shell.
+                try:
+                    # No version info for this, testing needed.
+                    os.system("")
+                except Exception:  # pylint: disable=broad-exception-caught
+                    # if this failed too, we're just out of luck.
+                    pass
+
     # Update the console title, ignore if it fails.
     try:
         sys.stdout.write(f"\x1b]2;MusicBot {BOTVERSION}\x07")
     except (TypeError, OSError):
         pass
+
+
+def main() -> None:
+    """
+    All of the MusicBot starts here.
+    """
+    # Attempt to set console title.
+    set_console_title()
 
     # take care of loggers right away
     setup_loggers()
@@ -823,11 +863,10 @@ def main() -> None:
     event_loop: Optional[asyncio.AbstractEventLoop] = None
     tried_requirementstxt: bool = False
     use_certifi: bool = False
-    tryagain: bool = True
     retries: int = 0
     max_wait_time: int = 60
 
-    while tryagain:
+    while True:
         # Maybe I need to try to import stuff first, then actually import stuff
         # It'd save me a lot of pain with all that awful exception type checking
 
@@ -851,14 +890,10 @@ def main() -> None:
             if not getattr(event_loop, "_sig_handler_set", False):
                 setup_signal_handlers(event_loop, m.on_os_signal)
 
+            # let the MusicBot run free!
             event_loop.run_until_complete(m.run_musicbot())
 
-            del m
-
-        except (
-            ssl.SSLCertVerificationError,
-            ClientConnectorCertificateError,
-        ) as e:
+        except (ssl.SSLCertVerificationError, ClientConnectorCertificateError) as e:
             # For aiohttp, we need to look at the cause.
             if isinstance(e, ClientConnectorCertificateError) and isinstance(
                 e.__cause__, ssl.SSLCertVerificationError
@@ -918,9 +953,6 @@ def main() -> None:
                     ),
                 )
                 log.error(str(helpfulerr))
-                # "Error importing MusicBot or it's dependency packages.\n"
-                # "The `--no-install-deps` option is set, so MusicBot will exit now."
-                # )
                 break
 
             if not PIP.works():
@@ -940,7 +972,7 @@ def main() -> None:
                 tried_requirementstxt = True
 
                 log.info(
-                    "\nAttempting to install MusicBot dependency packages automatically...\n"
+                    "Attempting to install MusicBot dependency packages automatically...\n"
                 )
                 pip_exit_code = PIP.run_upgrade_requirements(quiet=False)
 
@@ -963,6 +995,9 @@ def main() -> None:
                 print()
                 log.info("OK, lets hope that worked!")
                 print()
+                shutdown_loggers()
+                rotate_log_files()
+                setup_loggers()
                 continue
 
             log.error(
@@ -992,18 +1027,6 @@ def main() -> None:
             break
 
         finally:
-            if (not m or not m.init_ok) and not use_certifi:
-                if any(sys.exc_info()):
-                    # How to log this without redundant messages...
-                    log.warning(
-                        "There are some exceptions that may not have been handled..."
-                    )
-                    log.debug(
-                        "Traceback output:\n%s",
-                        "".join(traceback.format_exc()),
-                    )
-                tryagain = False
-
             retries += 1
             if event_loop:
                 log.debug("Closing event loop...")
