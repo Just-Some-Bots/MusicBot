@@ -1539,6 +1539,9 @@ class MusicBot(discord.Client):
         # method used to periodically check for a signal, and process it.
         async def check_windows_signal() -> None:
             while True:
+                if self.logout_called:
+                    break
+
                 if self._os_signal is None:
                     try:
                         await asyncio.sleep(1)
@@ -1589,7 +1592,7 @@ class MusicBot(discord.Client):
         try:
             await self.start(*self.config.auth)
             log.info("MusicBot is now doing shutdown steps...")
-            if self.exit_signal:
+            if self.exit_signal is None:
                 self.exit_signal = exceptions.TerminateSignal()
 
         except discord.errors.LoginFailure as e:
