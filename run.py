@@ -751,7 +751,7 @@ def respawn_bot_process() -> None:
         # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
         # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
         # The moment we end our existing instance, control is returned to the starting shell.
-        subprocess.Popen(
+        subprocess.Popen(  # pylint: disable=consider-using-with
             exec_args,
             creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
         )
