@@ -118,6 +118,7 @@ class MusicBot(discord.Client):
         self.players: Dict[int, MusicPlayer] = {}
         self.exit_signal: ExitSignals = None
         self._os_signal: Optional[signal.Signals] = None
+        self.on_ready_count: int = 0
         self.init_ok: bool = False
         self.logout_called: bool = False
         self.cached_app_info: Optional[discord.AppInfo] = None
@@ -229,7 +230,7 @@ class MusicBot(discord.Client):
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()
 
-    def _get_owner(
+    def _get_owner_member(
         self, *, server: Optional[discord.Guild] = None, voice: bool = False
     ) -> Optional[discord.Member]:
         """
@@ -284,7 +285,7 @@ class MusicBot(discord.Client):
                 resuming = True
 
             if self.config.auto_summon:
-                owner = self._get_owner(server=guild, voice=True)
+                owner = self._get_owner_member(server=guild, voice=True)
                 if owner and owner.voice and owner.voice.channel:
                     log.info(
                         "Found owner in voice channel:  %s", owner.voice.channel.name
@@ -350,6 +351,10 @@ class MusicBot(discord.Client):
                         channel.name,
                     )
 
+                    # This starts the player initially, which depending on settings
+                    # just puts itself into pause automatically.
+                    # something about this in particular feels wrong... idk y tho.
+                    # remove it and bot wont play music when members join...
                     if player.is_stopped:
                         log.noise(  # type: ignore[attr-defined]
                             "Starting stopped player in startup"
@@ -1251,50 +1256,6 @@ class MusicBot(discord.Client):
             with open(path, "w", encoding="utf8") as f:
                 f.write(entry.title)
 
-    async def _on_ready_sanity_checks(self) -> None:
-        """
-        Run all sanity checks that should be run in/just after on_ready event.
-        """
-        # Ensure AppInfo is loaded.
-        if not self.cached_app_info:
-            log.debug("Getting application info.")
-            self.cached_app_info = await self.application_info()
-
-        # Ensure folders exist
-        await self._scheck_ensure_env()
-
-        # TODO: Server permissions check
-        # TODO: pre-expand playlists in autoplaylist?
-
-        # config/permissions async validate?
-        await self._scheck_configs()
-
-    async def _scheck_ensure_env(self) -> None:
-        """
-        Startup check to make sure guild/server specific directories are
-        available in the data directory.
-        Additionally populate a text file to map guild ID to their names.
-        """
-        log.debug("Ensuring data folders exist")
-        for guild in self.guilds:
-            pathlib.Path(f"data/{guild.id}/").mkdir(exist_ok=True)
-
-        with open("data/server_names.txt", "w", encoding="utf8") as f:
-            for guild in sorted(self.guilds, key=lambda s: int(s.id)):
-                f.write(f"{guild.id}: {guild.name}\n")
-
-        self.filecache.delete_old_audiocache(remove_dir=True)
-
-    async def _scheck_configs(self) -> None:
-        """
-        Startup check to handle late validation of config and permissions.
-        """
-        log.debug("Validating config")
-        await self.config.async_validate(self)
-
-        log.debug("Validating permissions config")
-        await self.permissions.async_validate(self)
-
     #######################################################################################################################
 
     async def safe_send_message(
@@ -1691,41 +1652,39 @@ class MusicBot(discord.Client):
         See documentations for specifics:
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_ready
         """
+        if self.on_ready_count == 0:
+            await self._on_ready_once()
+            self.init_ok = True
+        
+        await self._on_ready_always()
+        self.on_ready_count += 1
+
+        log.debug("Finish on_ready")
+
+    async def _on_ready_once(self) -> None:
+        """
+        A version of on_ready that will only ever be called once, at first login.
+        """
         mute_discord_console_log()
-        log.debug("Connection established, ready to go.")
-
-        # Set the handler name if we have it.  I don't know why, but we do.
-        if self.ws._keep_alive:  # pylint: disable=protected-access
-            self.ws._keep_alive.name = (  # pylint: disable=protected-access
-                "Gateway Keepalive"
-            )
-        else:
-            log.error(
-                "Failed to set WebSocket KeepAlive handler name, handler not available."
-            )
-
-        if self.init_ok:
-            log.debug("Received additional READY event, may have failed to resume")
-            return
-
-        await self._on_ready_sanity_checks()
+        log.debug("Logged in, now getting MusicBot ready...")
 
         if not self.user:
             log.critical("ClientUser is somehow none, we gotta bail...")
-            return
+            self.exit_signal = TerminateSignal()
+            raise self.exit_signal
 
-        self.init_ok = True
-
-        ################################
+        # Start the environment checks. Generate folders/files dependent on Discord data.
+        # Also takes care of app-info and auto OwnerID updates.
+        await self._on_ready_sanity_checks()
 
         log.info(
-            "Connected: %s/%s#%s",
+            "MusicBot:  %s/%s#%s",
             self.user.id,
             self.user.name,
             self.user.discriminator,
         )
 
-        owner = self._get_owner(voice=True) or self._get_owner()
+        owner = self._get_owner_member()
         if owner and self.guilds:
             log.info(
                 "Owner:     %s/%s#%s\n",
@@ -1785,6 +1744,7 @@ class MusicBot(discord.Client):
         #    for s in self.guilds:
         #        await self._load_guild_options(s)
 
+        # validate bound channels and log them.
         if self.config.bound_channels:
             # Get bound channels by ID, and validate that we can use them.
             text_chlist: Set[MessageableChannel] = set()
@@ -1815,7 +1775,7 @@ class MusicBot(discord.Client):
                 log.info("Bound to text channels:")
                 for valid_ch in text_chlist:
                     guild_name = "PrivateChannel"
-                    ch_name = type(valid_ch).__name__
+                    ch_name = valid_ch.name
                     if valid_ch.guild:
                         guild_name = valid_ch.guild.name
                     log.info(" - %s/%s", guild_name, ch_name)
@@ -1824,6 +1784,9 @@ class MusicBot(discord.Client):
         else:
             log.info("Not bound to any text channels")
 
+        print(flush=True)  # new line in console.
+
+        # validate and display auto-join channels.
         if self.config.autojoin_channels:
             vc_chlist: Set[VoiceableChannel] = set()
             invalids: Set[int] = set()
@@ -1871,31 +1834,79 @@ class MusicBot(discord.Client):
 
         # Display and log the config settings.
         if self.config.show_config_at_start:
-            self._log_configs()
+            self._on_ready_log_configs()
 
-        # we do this after the config stuff because it's a lot easier to notice here
+        # we do this after the config list because it's a lot easier to notice here
         if self.config.missing_keys:
             conf_warn = exceptions.HelpfulError(
                 preface="Detected missing config options!",
                 issue="Your options.ini file is missing some options. Defaults will be used for this session.\n"
                 f"Here is a list of options we think are missing:\n    {', '.join(self.config.missing_keys)}",
                 solution="Check the example_options.ini file for newly added options and copy them to your config.",
-                footnote="The bot will continue executing in 3 seconds.",
             )
             log.warning(str(conf_warn)[1:])
-            await asyncio.sleep(3)
+        
+        self.loop.create_task(self._on_ready_once_call_later())
 
+    async def _on_ready_always(self) -> None:
+        """
+        A version of on_ready that will be called on every event.
+        """
+        if self.on_ready_count > 0:
+            log.debug("Event on_ready has fired again...")
+
+    async def _on_ready_once_call_later(self) -> None:
+        """
+        A collection of calls scheduled for execution by _on_ready_once
+        """
         await self.update_now_playing_status()
-
-        # maybe option to leave the ownerid blank and generate a random command for the owner to use
-        # wait_for_message is pretty neato
-
         await self._join_startup_channels(self.autojoin_channels)
 
-        log.debug("Finish on_ready")
-        self.is_ready_done = True
+    async def _on_ready_sanity_checks(self) -> None:
+        """
+        Run all sanity checks that should be run in/just after on_ready event.
+        """
+        # Ensure AppInfo is loaded.
+        if not self.cached_app_info:
+            log.debug("Getting application info.")
+            self.cached_app_info = await self.application_info()
 
-    def _log_configs(self) -> None:
+        # Ensure folders exist
+        await self._on_ready_ensure_env()
+
+        # TODO: Server permissions check
+        # TODO: pre-expand playlists in autoplaylist?
+        
+        # Ensure configs are valid / auto OwnerID is updated.
+        await self._on_ready_validate_configs()
+
+    async def _on_ready_ensure_env(self) -> None:
+        """
+        Startup check to make sure guild/server specific directories are
+        available in the data directory.
+        Additionally populate a text file to map guild ID to their names.
+        """
+        log.debug("Ensuring data folders exist")
+        for guild in self.guilds:
+            pathlib.Path(f"data/{guild.id}/").mkdir(exist_ok=True)
+
+        with open("data/server_names.txt", "w", encoding="utf8") as f:
+            for guild in sorted(self.guilds, key=lambda s: int(s.id)):
+                f.write(f"{guild.id}: {guild.name}\n")
+
+        self.filecache.delete_old_audiocache(remove_dir=True)
+
+    async def _on_ready_validate_configs(self) -> None:
+        """
+        Startup check to handle late validation of config and permissions.
+        """
+        log.debug("Validating config")
+        await self.config.async_validate(self)
+
+        log.debug("Validating permissions config")
+        await self.permissions.async_validate(self)
+
+    def _on_ready_log_configs(self) -> None:
         """
         Shows information about configs, including missing keys.
         No validation is done in this method, only display/logs.
@@ -6179,7 +6190,7 @@ class MusicBot(discord.Client):
         # Leave guilds if the owner is not a member and configured to do so.
         if self.config.leavenonowners:
             # Get the owner so we can notify them of the leave via DM.
-            owner = self._get_owner(voice=True) or self._get_owner()
+            owner = self._get_owner_member()
             if owner:
                 # check for the owner in the guild.
                 check = guild.get_member(owner.id)
