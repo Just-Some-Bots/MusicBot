@@ -1655,7 +1655,7 @@ class MusicBot(discord.Client):
         if self.on_ready_count == 0:
             await self._on_ready_once()
             self.init_ok = True
-        
+
         await self._on_ready_always()
         self.on_ready_count += 1
 
@@ -1670,7 +1670,7 @@ class MusicBot(discord.Client):
 
         if not self.user:
             log.critical("ClientUser is somehow none, we gotta bail...")
-            self.exit_signal = TerminateSignal()
+            self.exit_signal = exceptions.TerminateSignal()
             raise self.exit_signal
 
         # Start the environment checks. Generate folders/files dependent on Discord data.
@@ -1775,7 +1775,14 @@ class MusicBot(discord.Client):
                 log.info("Bound to text channels:")
                 for valid_ch in text_chlist:
                     guild_name = "PrivateChannel"
-                    ch_name = valid_ch.name
+                    if isinstance(valid_ch, discord.DMChannel):
+                        ch_name = "Unknown User DM"
+                        if valid_ch.recipient:
+                            ch_name = f"DM: {valid_ch.recipient.name}"
+                    elif isinstance(valid_ch, discord.PartialMessageable):
+                        ch_name = "Unknown Partial Channel"
+                    else:
+                        ch_name = valid_ch.name or f"Unnamed Channel: {valid_ch.id}"
                     if valid_ch.guild:
                         guild_name = valid_ch.guild.name
                     log.info(" - %s/%s", guild_name, ch_name)
@@ -1845,7 +1852,7 @@ class MusicBot(discord.Client):
                 solution="Check the example_options.ini file for newly added options and copy them to your config.",
             )
             log.warning(str(conf_warn)[1:])
-        
+
         self.loop.create_task(self._on_ready_once_call_later())
 
     async def _on_ready_always(self) -> None:
@@ -1876,7 +1883,7 @@ class MusicBot(discord.Client):
 
         # TODO: Server permissions check
         # TODO: pre-expand playlists in autoplaylist?
-        
+
         # Ensure configs are valid / auto OwnerID is updated.
         await self._on_ready_validate_configs()
 
