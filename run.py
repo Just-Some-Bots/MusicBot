@@ -319,7 +319,7 @@ def bugger_off(msg: str = "Press enter to continue . . .", code: int = 1) -> Non
     sys.exit(code)
 
 
-def sanity_checks(args: argparse.Namespace, optional: bool = True) -> None:
+def sanity_checks(args: argparse.Namespace) -> None:
     """
     Run a collection of pre-startup checks to either automatically correct
     issues or inform the user of how to correct them.
@@ -343,7 +343,7 @@ def sanity_checks(args: argparse.Namespace, optional: bool = True) -> None:
     log.info("Required checks passed.")
 
     """Optional Checks"""
-    if not optional:
+    if not args.do_start_checks:
         return
 
     # Check disk usage
@@ -422,6 +422,8 @@ def req_ensure_py3() -> None:
             "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
         )
         bugger_off()
+    else:
+        log.info("Python version:  %s", sys.version)
 
 
 def req_check_deps() -> None:
@@ -625,7 +627,15 @@ def parse_cli_args() -> argparse.Namespace:
         "--no-checks",
         dest="do_start_checks",
         action="store_false",
-        help="Skip all startup checks, including the update check.",
+        help="Skip all optional startup checks, including the update check.",
+    )
+
+    # Skip update checks option.
+    ap.add_argument(
+        "--no-disk-check",
+        dest="no_disk_check",
+        action="store_true",
+        help="Skip only the disk space check at startup.",
     )
 
     # Skip update checks option.
@@ -851,10 +861,7 @@ def main() -> None:
             sys.exit(127)
 
     # Handle startup checks, if they haven't been skipped.
-    if cli_args.do_start_checks:
-        sanity_checks(cli_args)
-    else:
-        log.info("Skipped startup checks.")
+    sanity_checks(cli_args)
 
     exit_signal: Union[RestartSignal, TerminateSignal, None] = None
     event_loop: Optional[asyncio.AbstractEventLoop] = None
