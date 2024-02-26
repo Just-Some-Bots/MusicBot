@@ -1041,28 +1041,25 @@ class MusicBot(discord.Client):
                         head=False,
                         is_autoplaylist=True,
                     )
-
-                # Do I check the initial conditions again?
-                # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
-
-                try:
-                    await player.playlist.add_entry_from_info(
-                        info,
-                        channel=None,
-                        author=None,
-                        head=False,
-                        is_autoplaylist=True,
-                    )
-                except (
-                    exceptions.ExtractionError,
-                    exceptions.WrongEntryTypeError,
-                ) as e:
-                    log.error(
-                        "Error adding song from autoplaylist: %s",
-                        str(e),
-                    )
-                    log.debug("", exc_info=True)
-                    continue
+                else:
+                    try:
+                        await player.playlist.add_entry_from_info(
+                            info,
+                            channel=None,
+                            author=None,
+                            head=False,
+                            is_autoplaylist=True,
+                        )
+                    except (
+                        exceptions.ExtractionError,
+                        exceptions.WrongEntryTypeError,
+                    ) as e:
+                        log.error(
+                            "Error adding song from autoplaylist: %s",
+                            str(e),
+                        )
+                        log.debug("", exc_info=True)
+                        continue
 
                 break
 
