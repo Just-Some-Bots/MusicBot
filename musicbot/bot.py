@@ -903,6 +903,14 @@ class MusicBot(discord.Client):
         Event called by MusicPlayer when playback has finished without error.
         """
         log.debug("Running on_player_finished_playing")
+        if not self.loop or (self.loop and self.loop.is_closed()):
+            log.debug("Event loop is closed, nothing else to do here.")
+            return
+
+        if self.logout_called:
+            log.debug("Logout under way, ignoring this event.")
+            return
+
         if self.config.leave_after_queue_empty:
             guild = player.voice_client.guild
             if len(player.playlist.entries) == 0:
@@ -985,23 +993,25 @@ class MusicBot(discord.Client):
                     info = await self.downloader.extract_info(
                         song_url, download=False, process=True
                     )
-                except youtube_dl.utils.DownloadError as e:
-                    if "YouTube said:" in e.args[0]:
-                        # url is bork, remove from list and put in removed list
-                        log.error("Error processing youtube url:\n%s", e.args[0])
 
-                    else:
-                        # Probably an error from a different extractor, but I've only seen youtube's
-                        log.error('Error processing "%s": %s', song_url, e)
+                except youtube_dl.utils.DownloadError as e:
+                    log.error(
+                        'Error while downloading song "%s":  %s',
+                        song_url,
+                        e,
+                    )
 
                     await self.remove_url_from_autoplaylist(
                         song_url, ex=e, delete_from_ap=self.config.remove_ap
                     )
                     continue
 
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                except (
+                    exceptions.ExtractionError,
+                    youtube_dl.utils.YoutubeDLError,
+                ) as e:
                     log.error(
-                        'Error processing "%s": %s',
+                        'Error extracting song "%s": %s',
                         song_url,
                         e,
                         exc_info=True,
@@ -1011,6 +1021,17 @@ class MusicBot(discord.Client):
                         song_url, ex=e, delete_from_ap=self.config.remove_ap
                     )
                     continue
+
+                except exceptions.MusicbotException:
+                    log.exception(
+                        "MusicBot needs to stop the autoplaylist extraction and bail."
+                    )
+                    return
+                except Exception:
+                    log.exception(
+                        "MusicBot got an unhandled exception in player finished event."
+                    )
+                    return
 
                 if info.has_entries:
                     await player.playlist.import_from_info(
@@ -1119,6 +1140,11 @@ class MusicBot(discord.Client):
         # Streaming Activity is a coin toss at best. Usually status changes correctly.
         # However all other details in the client might be wrong or missing.
         # Example:  Youtube url shows "Twitch" in client profile info.
+
+        if self.logout_called:
+            # cannot set ourselves offline unless we do that before logout.
+            log.debug("Logout under way, ignoring status update event.")
+            return
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
         paused = sum(1 for p in self.players.values() if p.is_paused)

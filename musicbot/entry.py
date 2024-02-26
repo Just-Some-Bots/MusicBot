@@ -7,11 +7,14 @@ import shutil
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from discord.abc import GuildChannel
-from yt_dlp.utils import ContentTooShortError  # type: ignore[import-untyped]
+from yt_dlp.utils import (  # type: ignore[import-untyped]
+    ContentTooShortError,
+    YoutubeDLError,
+)
 
 from .constructs import Serializable
 from .downloader import YtdlpResponseDict
-from .exceptions import ExtractionError, InvalidDataError
+from .exceptions import ExtractionError, InvalidDataError, MusicbotException
 from .spotify import Spotify
 
 if TYPE_CHECKING:
@@ -602,8 +605,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 log.error("Download failed, not retrying! Reason:  %s", str(e))
                 self.cache_busted = True
                 raise ExtractionError(str(e)) from e
-            except Exception as e:
+            except YoutubeDLError as e:
+                # as a base exception for any exceptions raised by yt_dlp.
                 raise ExtractionError(str(e)) from e
+
+            except Exception as e:
+                log.exception("Extraction encountered an unhandled exception.")
+                raise MusicbotException(str(e)) from e
 
         log.info("Download complete:  %s", self.url)
 

@@ -56,7 +56,7 @@ class FFmpegWarning(MusicbotException):
 
 
 # Some issue retrieving something from Spotify's API or processing it.
-class SpotifyError(MusicbotException):
+class SpotifyError(ExtractionError):
     pass
 
 
