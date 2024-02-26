@@ -487,13 +487,21 @@ class MusicBot(discord.Client):
 
             if delete_from_ap:
                 log.info("Updating autoplaylist file...")
+
+                def _filter_replace(line: str, url: str) -> str:
+                    target = line.strip()
+                    if target == url:
+                        return f"# Removed # {url}"
+                    return line
+
                 # read the original file in and remove lines with the URL.
                 # this is done to preserve the comments and formatting.
                 try:
                     apl = pathlib.Path(self.config.auto_playlist_file)
-                    data = apl.read_text(encoding="utf8")
-                    data = data.replace(song_url, f"#Removed# {song_url}")
-                    apl.write_text(data, encoding="utf8")
+                    data = apl.read_text(encoding="utf8").split("\n")
+                    data = [_filter_replace(x, song_url) for x in data]
+                    text = "\n".join(data)
+                    apl.write_text(text, encoding="utf8")
                 except (OSError, PermissionError, FileNotFoundError):
                     log.exception("Failed to save autoplaylist file.")
                 self.filecache.remove_autoplay_cachemap_entry_by_url(song_url)
