@@ -1,46 +1,47 @@
 #!/bin/bash
 
-# Ensure we're in the MusicBot directory
+# Assuming no files have been moved, 
+# make sure we're in MusicBot directory...
 cd "$(dirname "$BASH_SOURCE")"
 
-# Set variables for python versions. Could probably be done cleaner, but this works.
-declare -A python=(["0"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))' || { echo "no py"; }) ["1"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py"; }) ["2"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py"; }))
-declare -A python3=(["0"]=$(python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py3"; }) ["1"]=$(python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py3"; }))
-PYTHON38_VERSION=$(python3.8 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py38"; })
-PYTHON39_VERSION=$(python3.9 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py39"; })
+# get python version as an array, check first for python3 bin.
+PY_BIN="python3"
+PY_VER=($(python3 -c "import sys; print('%s %s %s' % sys.version_info[:3])" || { echo "0 0 0"; }))
+if [[ "${PY_VER[0]}" == "0" ]]; then
+    PY_VER=($(python -c "import sys; print('%s %s %s' % sys.version_info[:3])" || { echo "0 0 0"; }))
+    PY_BIN="python"
+fi
+PY_VER_MAJOR=$((${PY_VER[0]}))
+PY_VER_MINOR=$((${PY_VER[1]}))
+PY_VER_PATCH=$((${PY_VER[2]}))
+VER_GOOD=0
 
-if [ "${python[0]}" -eq "3" ]; then         # Python = 3
-    if [ "${python[1]}" -eq "8" ]; then     # Python = 3.8
-        if [ "${python[2]}" -ge "7" ]; then # Python = 3.8.7
-            python run.py
-            exit
+# echo "run.sh detected $PY_BIN version: $PY_VER_MAJOR.$PY_VER_MINOR.$PY_VER_PATCH"
+
+# Major version must be 3+
+if [[ $PY_VER_MAJOR -ge 3 ]]; then
+    # If 3, minor version minimum is 3.8
+    if [[ $PY_VER_MINOR -eq 8 ]]; then
+        # if 3.8, patch version minimum is 3.8.7
+        if [[ $PY_VER_PATCH -ge 7 ]]; then
+            VER_GOOD=1
         fi
-    elif [ "${python[1]}" -ge "9" ]; then # Python >= 3.9
-        python run.py
-        exit
+    fi
+    # if 3.9+ it should work.
+    if [[ $PY_VER_MINOR -ge 9 ]]; then
+        VER_GOOD=1
     fi
 fi
 
-if [ "${python3[0]}" -eq "8" ]; then     # Python3 = 3.8
-    if [ "${python3[1]}" -ge "7" ]; then # Python3 >= 3.8.7
-        python3 run.py
-        exit
-    fi
+# if we don't have a good version for python, bail.
+if [[ "$VER_GOOD" == "0" ]]; then
+    echo "Python 3.8.7 or higher is required to run MusicBot."
+    exit 1
 fi
 
-if [ "${python3[0]}" -ge "9" ]; then # Python3 >= 3.9
-    python3 run.py
-    exit
-fi
+# Run python using the bin name we determined via version fetch.
+# We also pass all arguments from this script into python.
+$PY_BIN run.py "$@"
 
-if [ "$PYTHON38_VERSION" -eq "8" ]; then # Python3.8 = 3.8
-    python3.8 run.py
-    exit
-fi
-
-if [ "$PYTHON39_VERSION" -eq "9" ]; then # Python3.9 = 3.9
-    python3.9 run.py
-    exit
-fi
-echo "You are running an unsupported Python version."
-echo "Please use a version of Python above 3.8.7."
+# exit using the code that python exited with.
+exit $?
