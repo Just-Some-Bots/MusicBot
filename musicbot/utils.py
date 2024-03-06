@@ -49,6 +49,8 @@ def _add_logger_level(levelname: str, level: int, *, func_name: str = "") -> Non
     _func_prototype = (
         "def {logger_func_name}(self, message, *args, **kwargs):\n"
         "    if self.isEnabledFor({levelname}):\n"
+        "        if os.name == 'nt':\n"
+        "            kwargs.setdefault('stacklevel', 2)\n"
         "        self._log({levelname}, message, args, **kwargs)"
     )
 
@@ -132,26 +134,27 @@ def setup_loggers() -> None:
     if COLORLOG_LOADED:
         sformatter = colorlog.LevelFormatter(
             fmt={
-                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
-                "INFO": "{log_color}{message}",
-                "WARNING": "{log_color}{levelname}: {message}",
-                "ERROR": "{log_color}[{levelname}:{module}] {message}",
+                # Organized by level number in descending order.
                 "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
-                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
-                "NOISY": "{log_color}[{levelname}:{module}] {message}",
+                "ERROR": "{log_color}[{levelname}:{module}] {message}",
+                "WARNING": "{log_color}{levelname}: {message}",
+                "INFO": "{log_color}{message}",
+                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
                 "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
                 "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
+                "NOISY": "{log_color}[{levelname}:{module}] {message}",
+                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
             },
             log_colors={
-                "DEBUG": "cyan",
-                "INFO": "white",
-                "WARNING": "yellow",
-                "ERROR": "red",
                 "CRITICAL": "bold_red",
-                "EVERYTHING": "bold_cyan",
-                "NOISY": "bold_white",
-                "FFMPEG": "bold_purple",
+                "ERROR": "red",
+                "WARNING": "yellow",
+                "INFO": "white",
+                "DEBUG": "cyan",
                 "VOICEDEBUG": "purple",
+                "FFMPEG": "bold_purple",
+                "NOISY": "bold_white",
+                "EVERYTHING": "bold_cyan",
             },
             style="{",
             datefmt="",
