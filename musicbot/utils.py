@@ -50,7 +50,7 @@ def _add_logger_level(levelname: str, level: int, *, func_name: str = "") -> Non
         "def {logger_func_name}(self, message, *args, **kwargs):\n"
         "    if self.isEnabledFor({levelname}):\n"
         "        if os.name == 'nt':\n"
-        "            kwargs.setdefault('stacklevel', 2)\n"
+        "            kwargs.setdefault('stacklevel', 1)\n"
         "        self._log({levelname}, message, args, **kwargs)"
     )
 
