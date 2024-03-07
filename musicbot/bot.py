@@ -474,6 +474,9 @@ class MusicBot(discord.Client):
 
                         if player.is_stopped:
                             player.play()
+
+                        if self.config.auto_playlist:
+                            await self.on_player_finished_playing(player)
                     except (TypeError, exceptions.PermissionsError):
                         continue
 
@@ -487,6 +490,9 @@ class MusicBot(discord.Client):
 
                         if player.is_stopped:
                             player.play()
+
+                        if self.config.auto_playlist:
+                            await self.on_player_finished_playing(player)
                     except (TypeError, exceptions.PermissionsError):
                         continue
 
