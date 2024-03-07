@@ -306,32 +306,35 @@ class MusicBot(discord.Client):
         Event called by MusicBot when it detects network returned from outage.
         """
         log.info("MusicBot detected network is available again.")
-        for gid, p in self.players.items():
-            if p.is_paused:
-                if not p.voice_client.is_connected():
+        for gid, player in self.players.items():
+            if player.is_paused:
+                if not player.voice_client.is_connected():
                     log.warning(
                         "VoiceClient is not connected, waiting to resume MusicPlayer..."
                     )
                     # self.server_data[gid].availability_paused = True
                     continue
-                log.info("Resuming playback of player:  (%s) %s", gid, repr(p))
-                self.server_data[gid].availability_paused = False
-                p.resume()
+                log.info(
+                    "Resuming playback of player:  (%s) %s", gid, repr(player)
+                )
+                player.guild_or_net_unavailable = False
+                player.resume()
+            player.guild_or_net_unavailable = False
 
     def on_network_down(self) -> None:
         """
         Event called by MusicBot when it detects network outage.
         """
         log.info("MusicBot detected a network outage.")
-        for gid, p in self.players.items():
-            if p.is_playing:
+        for gid, player in self.players.items():
+            if player.is_playing:
                 log.info(
                     "Pausing MusicPlayer due to network availability:  (%s) %s",
                     gid,
-                    repr(p),
+                    repr(player),
                 )
-                self.server_data[gid].availability_paused = True
-                p.pause()
+                player.pause()
+            player.guild_or_net_unavailable = True
 
     def _get_owner_member(
         self, *, server: Optional[discord.Guild] = None, voice: bool = False
@@ -470,9 +473,10 @@ class MusicBot(discord.Client):
                                 guild,
                             )
                             self.server_data[guild.id].availability_paused = False
-                        #"""
+
                         if self.server_data[guild.id].auto_paused:
                             self.server_data[guild.id].auto_paused = False
+                        #"""
 
                         if player.is_stopped:
                             player.play()
@@ -488,9 +492,6 @@ class MusicBot(discord.Client):
                         player = await self.get_player(
                             channel, create=True, deserialize=True
                         )
-
-                        if self.server_data[guild.id].auto_paused:
-                            self.server_data[guild.id].auto_paused = False
 
                         if player.is_stopped:
                             player.play()
@@ -2937,7 +2938,8 @@ class MusicBot(discord.Client):
         when Discord has outages.
         """
         if not self.config.auto_pause:
-            log.debug("Config auto_pause bailed out")
+            if player.paused_auto:
+                player.paused_auto = False
             return
 
         if not player.voice_client.is_connected():
@@ -2947,25 +2949,23 @@ class MusicBot(discord.Client):
             return
 
         channel = player.voice_client.channel
-
         guild = channel.guild
-        auto_paused = self.server_data[guild.id].auto_paused
 
         is_empty = is_empty_voice_channel(
             channel, include_bots=self.config.bot_exception_ids
         )
-        if is_empty and not auto_paused and player.is_playing:
+        if is_empty and not player.paused_auto and player.is_playing:
             log.info(
                 "Playing in an empty voice channel, running auto pause for guild: %s",
                 guild,
             )
             player.pause()
-            self.server_data[guild.id].auto_paused = True
+            player.paused_auto = True
 
-        elif not is_empty and auto_paused and player.is_paused:
+        elif not is_empty and player.paused_auto and player.is_paused:
             log.info("Previously auto paused player is unpausing for guild: %s", guild)
+            player.paused_auto = False
             player.resume()
-            self.server_data[guild.id].auto_paused = False
 
     async def _do_cmd_unpause_check(
         self, player: Optional[MusicPlayer], channel: MessageableChannel
@@ -6566,14 +6566,16 @@ class MusicBot(discord.Client):
             return
         #"""
 
-        if player and player.is_paused:
-            if self.server_data[guild.id].availability_paused:
-                log.debug(
-                    'Resuming player in "%s" due to availability.',
-                    guild.name,
-                )
-                self.server_data[guild.id].availability_paused = False
-                player.resume()
+        if player and player.is_paused and player.guild_or_net_unavailable:
+            log.debug(
+                'Resuming player in "%s" due to availability.',
+                guild.name,
+            )
+            player.guild_or_net_unavailable = False
+            player.resume()
+
+        if player:
+            player.guild_or_net_unavailable = False
 
     async def on_guild_unavailable(self, guild: discord.Guild) -> None:
         """
@@ -6592,8 +6594,10 @@ class MusicBot(discord.Client):
                 'Pausing player in "%s" due to unavailability.',
                 guild.name,
             )
-            self.server_data[guild.id].availability_paused = True
             player.pause()
+
+        if player:
+            player.guild_or_net_unavailable = True
 
     async def on_guild_update(
         self, before: discord.Guild, after: discord.Guild

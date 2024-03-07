@@ -80,8 +80,6 @@ class GuildSpecificData:
 
         # Members below are available for public use.
         self.last_np_msg: Optional["discord.Message"] = None
-        self.availability_paused: bool = False
-        self.auto_paused: bool = False
 
         # create a task to load any persistent guild options.
         # in theory, this should work out fine.
