@@ -4332,7 +4332,7 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_summon(
-        self, guild: discord.Guild, author: discord.Member
+        self, guild: discord.Guild, author: discord.Member, message: discord.Message
     ) -> CommandResponse:
         """
         Usage:
@@ -4369,6 +4369,8 @@ class MusicBot(discord.Client):
             author.voice.channel.guild.name,
             author.voice.channel.name,
         )
+
+        self.server_data[guild.id].last_np_msg = message
 
         return Response(
             self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
