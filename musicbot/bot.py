@@ -458,12 +458,9 @@ class MusicBot(discord.Client):
                     # TODO: Get serialization of last playback position working.
                     log.info("Discarding MusicPlayer and making a new one...")
                     await self.disconnect_voice_client(guild)
-                    await asyncio.sleep(
-                        3
-                    )  # maybe this will help... TDOD: remove if not
 
                     try:
-                        player = await self.get_player(channel, deserialize=True)
+                        player = await self.get_player(channel, create=True, deserialize=True)
                         """
                         if self.server_data[guild.id].availability_paused:
                             log.debug(
@@ -483,7 +480,7 @@ class MusicBot(discord.Client):
                 else:
                     log.debug("MusicBot will make a new MusicPlayer now...")
                     try:
-                        player = await self.get_player(channel, deserialize=True)
+                        player = await self.get_player(channel, create=True, deserialize=True)
 
                         if self.server_data[guild.id].auto_paused:
                             self.server_data[guild.id].auto_paused = False
