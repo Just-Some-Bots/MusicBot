@@ -6410,7 +6410,7 @@ class MusicBot(discord.Client):
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_voice_state_update
         """
         if not self.init_ok:
-            log.warning("before init_ok")  # TODO: remove after coverage testing
+            log.warning("VoiceState updated before on_ready finished")  # TODO: remove after coverage testing
             return  # Ignore stuff before ready
 
         if self.config.leave_inactive_channel:
