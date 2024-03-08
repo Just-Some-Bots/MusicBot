@@ -1817,9 +1817,13 @@ class MusicBot(discord.Client):
         print()
         log.warning("Caught a signal from the OS: %s", sig.name)
 
-        if self and not self.logout_called:
-            log.info("Disconnecting and closing down MusicBot...")
-            await self.logout()
+        try:
+            if self and not self.logout_called:
+                log.info("Disconnecting and closing down MusicBot...")
+                await self.logout()
+        except Exception as e:
+            log.exception("Exception thrown while handling interrupt signal!")
+            raise KeyboardInterrupt() from e
 
     async def run_musicbot(self) -> None:
         """
