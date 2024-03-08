@@ -316,7 +316,9 @@ class MusicPlayer(EventEmitter, Serializable):
         Plays the next entry from the playlist, or resumes playback of the current entry if paused.
         """
         if self.is_dead:
-            log.voicedebug("MusicPlayer is dead, cannot play.")
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer is dead, cannot play."
+            )
             return
 
         if self.guild_or_net_unavailable:
@@ -324,7 +326,9 @@ class MusicPlayer(EventEmitter, Serializable):
             return
 
         if self.is_paused and self._current_player:
-            log.voicedebug("MusicPlayer was previously paused, resuming current player.")
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer was previously paused, resuming current player."
+            )
             return self.resume()
 
         async with self._play_lock:
@@ -371,7 +375,7 @@ class MusicPlayer(EventEmitter, Serializable):
                         self.volume,
                     )
                 )
-                log.debug(
+                log.voicedebug(  # type: ignore[attr-defined]
                     "Playing %r using %r", self._source, self.voice_client
                 )
                 self.voice_client.play(self._source, after=self._playback_finished)
