@@ -982,7 +982,7 @@ class MusicBot(discord.Client):
         Event called by MusicPlayer when playback of an entry is started.
         """
         log.debug("Running on_player_play")
-        self._handle_guild_auto_pause(player)
+        await self._handle_guild_auto_pause(player)
         await self.reset_player_inactivity(player)
         await self.update_now_playing_status()
         # manage the cache since we may have downloaded something.
@@ -2949,7 +2949,7 @@ class MusicBot(discord.Client):
             )
         return True
 
-    def _handle_guild_auto_pause(self, player: MusicPlayer) -> None:
+    await def _handle_guild_auto_pause(self, player: MusicPlayer) -> None:
         """
         Check the current voice client channel for members and determine
         if the player should be paused automatically.
@@ -2962,9 +2962,11 @@ class MusicBot(discord.Client):
             return
 
         if not player.voice_client.is_connected():
-            log.noise(  # type: ignore[attr-defined]
-                "Ignored auto-pause due to VoiceClient says it is not connected..."
-            )
+            if self.loop:
+                log.noise(  # type: ignore[attr-defined]
+                    "Waiting to handle auto-pause due to VoiceClient says it is not connected..."
+                )
+                self.loop.call_later(2, self._handle_guild_auto_pause(player))
             return
 
         channel = player.voice_client.channel
@@ -2973,7 +2975,7 @@ class MusicBot(discord.Client):
         is_empty = is_empty_voice_channel(
             channel, include_bots=self.config.bot_exception_ids
         )
-        if is_empty and not player.paused_auto and player.is_playing:
+        if is_empty and player.is_playing:
             log.info(
                 "Playing in an empty voice channel, running auto pause for guild: %s",
                 guild,
@@ -2981,10 +2983,11 @@ class MusicBot(discord.Client):
             player.pause()
             player.paused_auto = True
 
-        elif not is_empty and player.paused_auto and player.is_paused:
+        elif not is_empty and player.paused_auto:
             log.info("Previously auto paused player is unpausing for guild: %s", guild)
             player.paused_auto = False
-            player.resume()
+            if player.is_paused:
+                player.resume()
 
     async def _do_cmd_unpause_check(
         self, player: Optional[MusicPlayer], channel: MessageableChannel
@@ -6517,11 +6520,11 @@ class MusicBot(discord.Client):
         if before.channel:
             player = self.get_player_in(before.channel.guild)
             if player:
-                self._handle_guild_auto_pause(player)
+                await self._handle_guild_auto_pause(player)
         if after.channel:
             player = self.get_player_in(after.channel.guild)
             if player:
-                self._handle_guild_auto_pause(player)
+                await self._handle_guild_auto_pause(player)
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """
