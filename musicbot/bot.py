@@ -314,9 +314,7 @@ class MusicBot(discord.Client):
                     )
                     # self.server_data[gid].availability_paused = True
                     continue
-                log.info(
-                    "Resuming playback of player:  (%s) %s", gid, repr(player)
-                )
+                log.info("Resuming playback of player:  (%s) %s", gid, repr(player))
                 player.guild_or_net_unavailable = False
                 player.resume()
             player.guild_or_net_unavailable = False
@@ -837,6 +835,8 @@ class MusicBot(discord.Client):
                 ):
                     if self.config.debug_mode:
                         log.warning("The disconnect failed or was cancelled.")
+
+        await self.update_now_playing_status()
 
     async def disconnect_all_voice_clients(self) -> None:
         """
@@ -1371,7 +1371,7 @@ class MusicBot(discord.Client):
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def update_now_playing_status(self) -> None:
+    async def update_now_playing_status(self, set_offline: bool = False) -> None:
         """Inspects available players and ultimately fire change_presence()"""
         activity = None  # type: Optional[discord.BaseActivity]
         status = discord.Status.online  # type: discord.Status
@@ -1382,8 +1382,21 @@ class MusicBot(discord.Client):
         # However all other details in the client might be wrong or missing.
         # Example:  Youtube url shows "Twitch" in client profile info.
 
+        # if requested, try to set the bot offline.
+        if set_offline:
+            activity = discord.Activity(
+                type=discord.ActivityType.custom,
+                state="",
+                name="Custom Status",  # seemingly required.
+            )
+            await self.change_presence(
+                status=discord.Status.invisible, activity=activity
+            )
+            self.last_status = activity
+            return
+
+        # We ignore player related status when logout is called.
         if self.logout_called:
-            # cannot set ourselves offline unless we do that before logout.
             log.debug("Logout under way, ignoring status update event.")
             return
 
@@ -1885,6 +1898,8 @@ class MusicBot(discord.Client):
         Disconnect all voice clients and signal MusicBot to close it's connections to discord.
         """
         log.noise("Logout has been called.")  # type: ignore[attr-defined]
+        await self.update_now_playing_status(set_offline=True)
+
         self.logout_called = True
         await self.disconnect_all_voice_clients()
         return await super().close()
