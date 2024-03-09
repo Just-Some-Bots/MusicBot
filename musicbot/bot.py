@@ -9,6 +9,7 @@ import random
 import re
 import shutil
 import signal
+import socket
 import ssl
 import sys
 import time
@@ -27,14 +28,15 @@ from . import downloader, exceptions
 from .aliases import Aliases, AliasesDefault
 from .config import Config, ConfigDefaults
 from .constants import (
+    DEFAULT_PING_SLEEP,
+    DEFAULT_PING_TARGET,
+    DEFAULT_PING_TIMEOUT,
     DISCORD_MSG_CHAR_LIMIT,
     EMOJI_CHECK_MARK_BUTTON,
     EMOJI_CROSS_MARK_BUTTON,
     EMOJI_IDLE_ICON,
     EMOJI_NEXT_ICON,
     EMOJI_PREV_ICON,
-    PING_RESOLVE_TIMEOUT,
-    PING_TEST_TIMEOUT,
 )
 from .constants import VERSION as BOTVERSION
 from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
@@ -238,63 +240,59 @@ class MusicBot(discord.Client):
 
     async def _test_network(self) -> None:
         """
-        A looping method that tests network connectivity, roughly every second.
-        The method stores a resolved IP for discord.com in self._ping_peer_addr.
-        It uses http and only does HEAD request after the name is resolved.
+        A self looping method that tests network connectivity.
+        This will call to the systems ping command and use its return status.
         """
         if self.logout_called:
-            log.noise("Network tester is closing down.")  # type: ignore[attr-defined]
+            log.noise("Network ping test is closing down.")  # type: ignore[attr-defined]
             return
 
-        # This should be impossible, but covering mypy ass here.
-        if not self.session:
-            return
-
-        # Resolve the domain once so look up wont block when net is down, also faster.
+        # Resolve the given target to speed up pings.
+        ping_target = self._ping_peer_addr
         if not self._ping_peer_addr:
             try:
-                async with self.session.get(
-                    "http://discord.com", timeout=PING_RESOLVE_TIMEOUT
-                ) as r:
-                    if r.connection and r.connection.transport:
-                        peername = r.connection.transport.get_extra_info("peername")
-                        if peername is not None:
-                            self._ping_peer_addr = peername[0]
-                            self.network_outage = False
-                        log.everything(  # type: ignore[attr-defined]
-                            "Ping Target:  %s", self._ping_peer_addr
-                        )
-                    else:
-                        log.warning(
-                            "Could not get IP for discord.com, aiohttp failed, this could be a bug."
-                        )
-            except (
-                aiohttp.ClientError,
-                asyncio.exceptions.TimeoutError,
-                OSError,
-            ):
-                log.exception("Could not resolve discord.com to an IP!")
+                ai = socket.getaddrinfo(DEFAULT_PING_TARGET, 80)
+                self._ping_peer_addr = ai[0][4][0]
+                ping_target = self._ping_peer_addr
+            except OSError:
+                log.warning("Could not resolve ping target.")
+                ping_target = DEFAULT_PING_TARGET
+
+        # Make a ping call based on OS.
+        if os.name == "nt":
+            # Windows ping -w uses milliseconds.
+            t = 1000 * DEFAULT_PING_TIMEOUT
+            ping_cmd = ["ping", "-n", "1", "-w", str(t), ping_target]
         else:
-            # actual "ping" test with the IP we resolved.
-            try:
-                ping_host = f"http://{self._ping_peer_addr}"
-                async with self.session.head(ping_host, timeout=PING_TEST_TIMEOUT) as r:
-                    if self.network_outage:
-                        self.on_network_up()
+            t = DEFAULT_PING_TIMEOUT
+            ping_cmd = ["ping", "-c", "1", "-w", str(t), ping_target]
 
-                    self.network_outage = False
-            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError, OSError):
-                if not self.network_outage:
-                    self.on_network_down()
-                self.network_outage = True
+        # execute the ping command.
+        p = await asyncio.create_subprocess_exec(
+            ping_cmd[0],
+            *ping_cmd[1:],
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        ping_status = await p.wait()
 
-        # Just sleep for a second
+        # Ping success, network up.
+        if ping_status == 0:
+            if self.network_outage:
+                self.on_network_up()
+            self.network_outage = False
+
+        # Ping failed, network down.
+        else:
+            if not self.network_outage:
+                self.on_network_down()
+            self.network_outage = True
+
+        # Sleep before next ping.
         try:
-            await asyncio.sleep(1)
+            await asyncio.sleep(DEFAULT_PING_SLEEP)
         except asyncio.exceptions.CancelledError:
-            log.noise(  # type: ignore[attr-defined]
-                "Network tester sleep was cancelled, closing down test process."
-            )
+            log.noise("Network ping test cancelled.")  # type: ignore[attr-defined]
             return
 
         # set up the next ping task if possible.
@@ -2949,7 +2947,7 @@ class MusicBot(discord.Client):
             )
         return True
 
-    await def _handle_guild_auto_pause(self, player: MusicPlayer) -> None:
+    async def _handle_guild_auto_pause(self, player: MusicPlayer) -> None:
         """
         Check the current voice client channel for members and determine
         if the player should be paused automatically.
@@ -2966,7 +2964,8 @@ class MusicBot(discord.Client):
                 log.noise(  # type: ignore[attr-defined]
                     "Waiting to handle auto-pause due to VoiceClient says it is not connected..."
                 )
-                self.loop.call_later(2, self._handle_guild_auto_pause(player))
+                await asyncio.sleep(0.8)
+                self.loop.create_task(self._handle_guild_auto_pause(player))
             return
 
         channel = player.voice_client.channel
