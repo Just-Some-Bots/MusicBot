@@ -260,6 +260,11 @@ class MusicBot(discord.Client):
 
         # Make a ping call based on OS.
         ping_path = shutil.which("ping")
+        if not ping_path:
+            log.warning("Could not locate path to `ping` system executable.")
+            ping_path = "ping"
+
+        ping_cmd: List[str] = []
         if os.name == "nt":
             # Windows ping -w uses milliseconds.
             t = 1000 * DEFAULT_PING_TIMEOUT
@@ -279,7 +284,7 @@ class MusicBot(discord.Client):
             ping_status = await p.wait()
         except OSError:
             log.error(
-                "Your environment may not allow the `ping` system command.  Network outage detection will not function.",
+                "Your environment may not allow the `ping` system command.  Early network outage detection will not function.",
                 exc_info=self.config.debug_mode,
             )
             return
