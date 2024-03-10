@@ -704,7 +704,8 @@ class MusicBot(discord.Client):
                 channel.name,
             )
             raise exceptions.PermissionsError(
-                f"MusicBot does not have permission to Connect in channel:  `{channel.name}`"
+                f"MusicBot does not have permission to Connect in channel:  `{channel.name}`",
+                expire_in=30,
             )
         if not chperms.speak:
             log.error(
@@ -712,7 +713,8 @@ class MusicBot(discord.Client):
                 channel.name,
             )
             raise exceptions.PermissionsError(
-                f"MusicBot does not have permission to Speak in channel:  `{channel.name}`"
+                f"MusicBot does not have permission to Speak in channel:  `{channel.name}`",
+                expire_in=30,
             )
 
         # check for and return bots VoiceClient if we already have one.
@@ -785,14 +787,10 @@ class MusicBot(discord.Client):
 
     async def disconnect_voice_client(self, guild: discord.Guild) -> None:
         """
-        Check for a client in the given `guild` and disconnect it gracefully.
-        The player will be removed to MusicBot.players list, and associated
-        event timers will be reset.
+        Check for a MusicPlayer in the given `guild` and close it's VoiceClient
+        gracefully then remove the MusicPlayer instance and reset any timers on
+        the guild for player/channel inactivity.
         """
-        vc = self.voice_client_in(guild)
-        if not vc:
-            return
-
         if guild.id in self.players:
             log.info("Disconnecting a MusicPlayer in guild:  %s", guild)
             player = self.players.pop(guild.id)
@@ -871,7 +869,9 @@ class MusicBot(discord.Client):
                     log.warning("The disconnect failed or was cancelled.")
             else:
                 log.warning(
-                    "Hmm, our voice_clients list contains a non-VoiceClient object?"
+                    "MusicBot.voice_clients list contains a non-VoiceClient object?\n"
+                    "The object is actually of type:  %s",
+                    type(vc),
                 )
 
         # Triple check we don't have rogue players.  This would be a bug.
@@ -884,7 +884,10 @@ class MusicBot(discord.Client):
             del self.players[gid]
 
     def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
-        """Get a MusicPlayer in the given guild, but do not create a new player."""
+        """
+        Get a MusicPlayer in the given guild, but do not create a new player.
+        MusicPlayer returned from this method may not be connected to a voice channel!
+        """
         p = self.players.get(guild.id)
         if log.getEffectiveLevel() <= logging.EVERYTHING:  # type: ignore[attr-defined]
             log.voicedebug(  # type: ignore[attr-defined]
@@ -4280,39 +4283,10 @@ class MusicBot(discord.Client):
                 )
             )
 
-        voice_client = self.voice_client_in(guild)
-        if voice_client and guild == author.voice.channel.guild:
-            await voice_client.move_to(author.voice.channel)
+        player = self.get_player_in(guild)
+        if player and player.voice_client and guild == author.voice.channel.guild:
+            await player.voice_client.move_to(author.voice.channel)
         else:
-            # move to _verify_vc_perms?
-            chperms = author.voice.channel.permissions_for(guild.me)
-
-            if not chperms.connect:
-                log.warning(
-                    "Cannot join channel '%s', no permission.",
-                    author.voice.channel.name,
-                )
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-summon-noperms-connect",
-                        "Cannot join channel `{0}`, no permission to connect.",
-                    ).format(author.voice.channel.name),
-                    expire_in=25,
-                )
-
-            if not chperms.speak:
-                log.warning(
-                    "Cannot join channel '%s', no permission to speak.",
-                    author.voice.channel.name,
-                )
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-summon-noperms-speak",
-                        "Cannot join channel `{0}`, no permission to speak.",
-                    ).format(author.voice.channel.name),
-                    expire_in=25,
-                )
-
             player = await self.get_player(
                 author.voice.channel,
                 create=True,
@@ -6684,12 +6658,3 @@ class MusicBot(discord.Client):
                 log.everything(  # type: ignore[attr-defined]
                     f"Channel attribute {name} is now: {a_val}  -- Was: {b_val}"
                 )
-
-    def voice_client_in(self, guild: discord.Guild) -> Optional[discord.VoiceClient]:
-        """
-        Check for and return discord.VoiceClient object if one exists for the given `guild`.
-        """
-        for vc in self.voice_clients:
-            if isinstance(vc, discord.VoiceClient) and vc.guild == guild:
-                return vc
-        return None
