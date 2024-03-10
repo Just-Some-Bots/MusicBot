@@ -259,22 +259,30 @@ class MusicBot(discord.Client):
                 ping_target = DEFAULT_PING_TARGET
 
         # Make a ping call based on OS.
+        ping_path = shutil.which("ping")
         if os.name == "nt":
             # Windows ping -w uses milliseconds.
             t = 1000 * DEFAULT_PING_TIMEOUT
-            ping_cmd = ["ping", "-n", "1", "-w", str(t), ping_target]
+            ping_cmd = [ping_path, "-n", "1", "-w", str(t), ping_target]
         else:
             t = DEFAULT_PING_TIMEOUT
-            ping_cmd = ["ping", "-c", "1", "-w", str(t), ping_target]
+            ping_cmd = [ping_path, "-c", "1", "-w", str(t), ping_target]
 
         # execute the ping command.
-        p = await asyncio.create_subprocess_exec(
-            ping_cmd[0],
-            *ping_cmd[1:],
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        ping_status = await p.wait()
+        try:
+            p = await asyncio.create_subprocess_exec(
+                ping_cmd[0],
+                *ping_cmd[1:],
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            ping_status = await p.wait()
+        except OSError:
+            log.error(
+                "Your environment may not allow the `ping` system command.  Network outage detection will not function.",
+                exc_info=self.config.debug_mode,
+            )
+            return
 
         # Ping success, network up.
         if ping_status == 0:
