@@ -6530,53 +6530,7 @@ class MusicBot(discord.Client):
         if member == self.user:
             # check if bot was disconnected from a voice channel
             if not after.channel and before.channel and not self.network_outage:
-                o_guild = self.get_guild(before.channel.guild.id)
-                # These conditions are usually met when a user disconnects bot via menus.
-                if (
-                    o_guild is not None
-                    and o_guild.id in self.players
-                    and isinstance(o_guild.voice_client, discord.VoiceClient)
-                    and not o_guild.voice_client.is_connected()
-                ):
-                    log.info(
-                        "MusicBot was disconnected from the voice channel, likely by a user."
-                    )
-                    await self.disconnect_voice_client(o_guild)
-                    return
-
-                # These conditions are met when API terminates a voice client.
-                if (
-                    o_guild is not None
-                    and o_guild.id in self.players
-                    and o_guild.voice_client is None
-                ):
-                    log.info(
-                        "MusicBot was disconnected from the voice channel, likely by Discord API."
-                    )
-                    await self.disconnect_voice_client(o_guild)
-
-                    # check if the channel is an auto-joined channel, reconnect if so.
-                    if before.channel in self.autojoinable_channels:
-                        log.info(
-                            "Reconnecting to auto-joined channel:  %s",
-                            before.channel,
-                        )
-                        try:
-                            r_player = await self.get_player(
-                                before.channel, create=True, deserialize=True
-                            )
-
-                            if r_player.is_stopped:
-                                r_player.play()
-
-                            if self.config.auto_playlist:
-                                await self.on_player_finished_playing(r_player)
-                        except (TypeError, exceptions.PermissionsError):
-                            log.warning(
-                                "Cannot auto join channel:  %s",
-                                before.channel,
-                                exc_info=True,
-                            )
+                if await self._handle_api_disconnect(before):
                     return
 
         if before.channel:
@@ -6587,6 +6541,95 @@ class MusicBot(discord.Client):
             player = self.get_player_in(after.channel.guild)
             if player:
                 await self._handle_guild_auto_pause(player)
+
+    async def _handle_api_disconnect(self, before: discord.VoiceState) -> bool:
+        """
+        Method called from on_voice_state_update when MusicBot is disconnected from voice.
+        """
+        if not before.channel:
+            log.debug("VoiceState disconnect before.channel is None.")
+            return False
+
+        o_guild = self.get_guild(before.channel.guild.id)
+        # These conditions are usually met when a user disconnects bot via menus.
+        if (
+            o_guild is not None
+            and o_guild.id in self.players
+            and isinstance(o_guild.voice_client, discord.VoiceClient)
+            and not o_guild.voice_client.is_connected()
+        ):
+            log.info(
+                "MusicBot was disconnected from the voice channel, likely by a user."
+            )
+            await self.disconnect_voice_client(o_guild)
+            return True
+
+        # These conditions are met when API terminates a voice client.
+        if (
+            o_guild is not None
+            and o_guild.id in self.players
+            and o_guild.voice_client is None
+        ):
+            log.info(
+                "MusicBot was disconnected from the voice channel, likely by Discord API."
+            )
+            await self.disconnect_voice_client(o_guild)
+
+            # reconnect if the guild is configured to auto-join.
+            bcgid = before.channel.guild.id
+            if any(bcgid == ch.guild.id for ch in self.autojoinable_channels):
+                # Look for the last channel we were in.
+                target_channel = self.get_channel(before.channel.id)
+                if not target_channel:
+                    # fall back to the configured channel.
+                    target_channel = discord.utils.find(
+                        lambda c: c.guild.id == bcgid,
+                        self.autojoinable_channels,
+                    )
+
+                if not isinstance(
+                    target_channel, (discord.VoiceChannel, discord.StageChannel)
+                ):
+                    log.error(
+                        "Cannot use auto-join channel with type: %s  in guild:  %s",
+                        type(target_channel),
+                        before.channel.guild,
+                    )
+                    return True
+
+                if not target_channel:
+                    log.error(
+                        "Cannot find the auto-joined channel, was it deleted?  Guild:  %s",
+                        before.channel.guild,
+                    )
+                    return True
+
+                log.info(
+                    "Reconnecting to auto-joined guild on channel:  %s",
+                    target_channel,
+                )
+                try:
+                    r_player = await self.get_player(
+                        target_channel, create=True, deserialize=True
+                    )
+
+                    if r_player.is_stopped:
+                        r_player.play()
+
+                    if self.config.auto_playlist:
+                        await self.on_player_finished_playing(r_player)
+                except (TypeError, exceptions.PermissionsError):
+                    log.warning(
+                        "Cannot auto join channel:  %s",
+                        before.channel,
+                        exc_info=True,
+                    )
+            return True
+
+        # TODO: If bot has left a server but still had a client, we should kill it.
+        # if o_guild is None and before.channel.guild.id in self.players:
+
+        return False
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """
