@@ -367,7 +367,10 @@ class MusicBot(discord.Client):
         )
         return owner
 
-    async def _auto_join_channels(self, from_resume: bool = False) -> None:
+    async def _auto_join_channels(
+        self,
+        from_resume: bool = False,
+    ) -> None:
         """
         Attempt to join voice channels that have been configured in options.
         Also checks for existing voice sessions and attempts to resume them.
@@ -431,7 +434,7 @@ class MusicBot(discord.Client):
 
         for guild, channel in channel_map.items():
             log.everything(  # type: ignore[attr-defined]
-                "AutoJoin Channel Map Item:\n  %s\n  %s", repr(guild), repr(channel)
+                "AutoJoin Channel Map Item:\n  %r\n  %r", guild, channel
             )
             if guild in joined_servers:
                 log.info(
@@ -2963,25 +2966,44 @@ class MusicBot(discord.Client):
             )
         return True
 
-    async def _handle_guild_auto_pause(self, player: MusicPlayer) -> None:
+    async def _handle_guild_auto_pause(self, player: MusicPlayer, _lc: int = 0) -> None:
         """
         Check the current voice client channel for members and determine
         if the player should be paused automatically.
         This is distinct from Guild availability pausing, which happens
-        when Discord has outages.
+        when Discord or the network has outages.
         """
         if not self.config.auto_pause:
             if player.paused_auto:
                 player.paused_auto = False
             return
 
+        if not self.network_outage:
+            log.debug("Ignoring auto-pause due to network outage.")
+            return
+
+        if not player.voice_client:
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer has no VoiceClient, cannot process auto-pause."
+            )
+            if player.paused_auto:
+                player.paused_auto = False
+            return
+
         if not player.voice_client.is_connected():
             if self.loop:
-                log.noise(  # type: ignore[attr-defined]
-                    "Waiting to handle auto-pause due to VoiceClient says it is not connected..."
+                log.warning(
+                    "%sVoiceClient not connected, waiting to handle auto-pause in guild:  %s",
+                    "[Bug] " if _lc > 3 else "",
+                    player.voice_client.guild,
                 )
-                await asyncio.sleep(0.8)
-                self.loop.create_task(self._handle_guild_auto_pause(player))
+                await asyncio.sleep(2)
+                _lc += 1
+                f_player = self.get_player_in(player.voice_client.guild)
+                if f_player is not None:
+                    self.loop.create_task(
+                        self._handle_guild_auto_pause(f_player, _lc=_lc)
+                    )
             return
 
         channel = player.voice_client.channel
@@ -6491,6 +6513,7 @@ class MusicBot(discord.Client):
             # check if bot was disconnected from a voice channel
             if not after.channel and before.channel and not self.network_outage:
                 o_guild = self.get_guild(before.channel.guild.id)
+                # These conditions are usually met when a user disconnects bot via menus.
                 if (
                     o_guild is not None
                     and o_guild.id in self.players
@@ -6498,9 +6521,44 @@ class MusicBot(discord.Client):
                     and not o_guild.voice_client.is_connected()
                 ):
                     log.info(
-                        "MusicBot was disconnected from the voice channel by a user or Discord API."
+                        "MusicBot was disconnected from the voice channel, likely by a user."
                     )
                     await self.disconnect_voice_client(o_guild)
+                    return
+
+                # These conditions are met when API terminates a voice client.
+                if (
+                    o_guild is not None
+                    and o_guild.id in self.players
+                    and o_guild.voice_client is None
+                ):
+                    log.info(
+                        "MusicBot was disconnected from the voice channel, likely by Discord API."
+                    )
+                    await self.disconnect_voice_client(o_guild)
+
+                    # check if the channel is an auto-joined channel, reconnect if so.
+                    if before.channel in self.autojoinable_channels:
+                        log.info(
+                            "Reconnecting to auto-joined channel:  %s",
+                            before.channel,
+                        )
+                        try:
+                            r_player = await self.get_player(
+                                before.channel, create=True, deserialize=True
+                            )
+
+                            if r_player.is_stopped:
+                                r_player.play()
+
+                            if self.config.auto_playlist:
+                                await self.on_player_finished_playing(r_player)
+                        except (TypeError, exceptions.PermissionsError):
+                            log.warning(
+                                "Cannot auto join channel:  %s",
+                                before.channel,
+                                exc_info=True,
+                            )
                     return
 
         if before.channel:
