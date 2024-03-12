@@ -3034,6 +3034,7 @@ class MusicBot(discord.Client):
         This function should not be called from _cmd_play().
         """
         if player and player.is_paused:
+            player.resume()
             await self.safe_send_message(
                 channel,
                 self.str.get(
@@ -3042,7 +3043,6 @@ class MusicBot(discord.Client):
                 ),
                 expire_in=30,
             )
-            player.resume()
 
     async def cmd_play(
         self,
