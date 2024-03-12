@@ -318,12 +318,11 @@ class MusicBot(discord.Client):
         """
         log.info("MusicBot detected network is available again.")
         for gid, player in self.players.items():
-            if player.is_paused:
+            if player.is_paused and not player.paused_auto:
                 if not player.voice_client.is_connected():
                     log.warning(
                         "VoiceClient is not connected, waiting to resume MusicPlayer..."
                     )
-                    # self.server_data[gid].availability_paused = True
                     continue
                 log.info("Resuming playback of player:  (%s) %s", gid, repr(player))
                 player.guild_or_net_unavailable = False
