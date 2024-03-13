@@ -132,7 +132,7 @@ class MusicPlayer(EventEmitter, Serializable):
         """
         Event dispatched by Playlist when an entry is added to the queue.
         """
-        if self.is_stopped and not self.guild_or_net_unavailable:
+        if self.is_stopped:
             log.noise("calling-later, self.play from player.")  # type: ignore[attr-defined]
             self.loop.call_later(2, self.play)
 
