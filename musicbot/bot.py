@@ -2978,32 +2978,51 @@ class MusicBot(discord.Client):
             log.debug("Ignoring auto-pause due to network outage.")
             return
 
-        if not player.voice_client:
+        if not player.voice_client or not player.voice_client.channel:
             log.voicedebug(  # type: ignore[attr-defined]
-                "MusicPlayer has no VoiceClient, cannot process auto-pause."
+                "MusicPlayer has no VoiceClient or has no channel data, cannot process auto-pause."
             )
             if player.paused_auto:
                 player.paused_auto = False
             return
 
-        if not player.voice_client.is_connected():
-            if self.loop:
-                log.warning(
-                    "%sVoiceClient not connected, waiting to handle auto-pause in guild:  %s",
-                    "[Bug] " if _lc > 3 else "",
-                    player.voice_client.guild,
-                )
-                await asyncio.sleep(2)
-                _lc += 1
-                f_player = self.get_player_in(player.voice_client.guild)
-                if f_player is not None:
-                    self.loop.create_task(
-                        self._handle_guild_auto_pause(f_player, _lc=_lc)
-                    )
-            return
-
         channel = player.voice_client.channel
         guild = channel.guild
+
+        lock = self.aiolocks[f"auto_pause:{guild.id}"]
+        if lock.locked():
+            log.debug("Already processing auto-pause, ignoring this event.")
+            return
+
+        async with lock:
+            if not player.voice_client.is_connected():
+                if self.loop:
+                    naptime = 3 * (1 + _lc)
+                    log.warning(
+                        "%sVoiceClient not connected, waiting %s seconds to handle auto-pause in guild:  %s",
+                        "[Bug] " if _lc > 12 else "",
+                        naptime,
+                        player.voice_client.guild,
+                    )
+                    try:
+                        await asyncio.sleep(naptime)
+                    except asyncio.CancelledError:
+                        log.debug("Auto-pause waiting was cancelled.")
+                        return
+
+                    _lc += 1
+                    f_player = self.get_player_in(player.voice_client.guild)
+                    if player != f_player:
+                        log.info(
+                            "A new MusicPlayer is being connected, ignoring old auto-pause event."
+                        )
+                        return
+
+                    if f_player is not None:
+                        self.loop.create_task(
+                            self._handle_guild_auto_pause(f_player, _lc=_lc)
+                        )
+                return
 
         is_empty = is_empty_voice_channel(
             channel, include_bots=self.config.bot_exception_ids
