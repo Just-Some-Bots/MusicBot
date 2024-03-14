@@ -287,7 +287,9 @@ class Downloader:
         data["__header_data"] = headers or None
         data["__expected_filename"] = self.ytdl.prepare_filename(data)
 
-        # log data only for debug and higher verbosity levels.
+        """
+        # disabled since it is only needed for working on extractions.
+        # logs data only for debug and higher verbosity levels.
         self._sanitize_and_log(
             data,
             # these fields are here because they are often very lengthy.
@@ -295,6 +297,7 @@ class Downloader:
             # as needed, but maybe not commit these changes
             redact_fields=["automatic_captions", "formats", "heatmap"],
         )
+        """
         return YtdlpResponseDict(data)
 
     async def _filtered_extract_info(
