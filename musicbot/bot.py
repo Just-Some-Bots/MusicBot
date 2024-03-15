@@ -498,8 +498,6 @@ class MusicBot(discord.Client):
                         if player.is_stopped:
                             player.play()
 
-                        if self.config.auto_playlist:
-                            await self.on_player_finished_playing(player)
                     except (TypeError, exceptions.PermissionsError):
                         continue
 
@@ -513,8 +511,6 @@ class MusicBot(discord.Client):
                         if player.is_stopped:
                             player.play()
 
-                        if self.config.auto_playlist:
-                            await self.on_player_finished_playing(player)
                     except (TypeError, exceptions.PermissionsError):
                         continue
 
@@ -4337,9 +4333,6 @@ class MusicBot(discord.Client):
             if player.is_stopped:
                 player.play()
 
-            if self.config.auto_playlist:
-                await self.on_player_finished_playing(player)
-
         log.info(
             "Joining %s/%s",
             author.voice.channel.guild.name,
@@ -6616,8 +6609,6 @@ class MusicBot(discord.Client):
                     if r_player.is_stopped:
                         r_player.play()
 
-                    if self.config.auto_playlist:
-                        await self.on_player_finished_playing(r_player)
                 except (TypeError, exceptions.PermissionsError):
                     log.warning(
                         "Cannot auto join channel:  %s",
