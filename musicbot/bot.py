@@ -879,7 +879,9 @@ class MusicBot(discord.Client):
                 )
 
         # Triple check we don't have rogue players.  This would be a bug.
-        for gid, player in self.players.items():
+        player_gids = list(self.players.keys())
+        for gid in player_gids:
+            player = self.players[gid]
             log.warning(
                 "We still have a MusicPlayer ref in guild (%s):  %s",
                 gid,
