@@ -1058,6 +1058,8 @@ class MusicBot(discord.Client):
                 "Now playing automatically added entry {title} in {channel}!",
             ).format(title=entry.title, channel=player.voice_client.channel.name)
 
+        guild = player.voice_client.guild
+        last_np_msg = self.server_data[guild.id].last_np_msg
         np_channel: Optional[MessageableChannel] = None
         if newmsg:
             if self.config.dm_nowplaying and entry.author:
@@ -1066,9 +1068,6 @@ class MusicBot(discord.Client):
 
             if self.config.no_nowplaying_auto and entry.from_auto_playlist:
                 return
-
-            guild = player.voice_client.guild
-            last_np_msg = self.server_data[guild.id].last_np_msg
 
             if self.config.nowplaying_channels:
                 for potential_channel_id in self.config.nowplaying_channels:
@@ -1086,9 +1085,8 @@ class MusicBot(discord.Client):
             if not np_channel and last_np_msg:
                 np_channel = last_np_msg.channel
 
+        content = self._gen_embed()
         if self.config.embeds:
-            content = self._gen_embed()
-
             if entry.thumbnail_url:
                 content.set_image(url=entry.thumbnail_url)
             else:
@@ -1106,6 +1104,14 @@ class MusicBot(discord.Client):
         # send it in specified channel
         if not np_channel:
             log.debug("no channel to put now playing message into")
+            return
+
+        # Don't send the same now-playing message more than once.
+        # This prevents repeated messages when players reconnect.
+        if last_np_msg is not None and (
+            last_np_msg.content == newmsg or last_np_msg.embeds[0] == content
+        ):
+            log.debug("ignored now-playing message as it was already posted.")
             return
 
         self.server_data[guild.id].last_np_msg = await self.safe_send_message(
