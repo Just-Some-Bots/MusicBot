@@ -1362,6 +1362,7 @@ class MusicBot(discord.Client):
             and not entry.from_auto_playlist
             # TODO:  and self.config.autoplaylist_autoskip
         ):
+            log.debug("Automatically skipping auto-playlist entry for queued entry.")
             player.skip()
 
         # Only serialize the queue for user-added tracks, unless deferred
@@ -3046,13 +3047,34 @@ class MusicBot(discord.Client):
                 player.resume()
 
     async def _do_cmd_unpause_check(
-        self, player: Optional[MusicPlayer], channel: MessageableChannel
+        self,
+        player: Optional[MusicPlayer],
+        channel: MessageableChannel,
+        author: discord.Member,
+        message: discord.Message,
     ) -> None:
         """
         Checks for paused player and resumes it while sending a notice.
 
         This function should not be called from _cmd_play().
         """
+        if not player or not player.voice_client or not player.voice_client.channel:
+            return
+
+        if not author.voice or not author.voice.channel:
+            return
+
+        if player and player.voice_client and player.voice_client.channel:
+            pvc = player.voice_client.channel
+            avc = author.voice.channel
+            perms = self.permissions.for_user(author)
+            if pvc != avc and perms.summonplay:
+                await self.cmd_summon(author.guild, author, message)
+                return
+
+            if pvc != avc and not perms.summonplay:
+                return
+
         if player and player.is_paused:
             player.resume()
             await self.safe_send_message(
@@ -3088,7 +3110,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         return await self._cmd_play(
             message,
@@ -3119,7 +3141,7 @@ class MusicBot(discord.Client):
 
         Like play command but explicitly shuffles entries before adding them to the queue.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         await self._cmd_play(
             message,
@@ -3165,7 +3187,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         return await self._cmd_play(
             message,
@@ -3203,7 +3225,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         # attempt to queue the song, but used the front of the queue and skip current playback.
         return await self._cmd_play(
@@ -3788,7 +3810,7 @@ class MusicBot(discord.Client):
         streams, especially on poor connections.  You have been warned.
         """
 
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         if _player:
             player = _player
