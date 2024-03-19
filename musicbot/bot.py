@@ -1109,7 +1109,8 @@ class MusicBot(discord.Client):
         # Don't send the same now-playing message more than once.
         # This prevents repeated messages when players reconnect.
         if last_np_msg is not None and (
-            last_np_msg.content == newmsg or content in last_np_msg.embeds
+            last_np_msg.content == newmsg
+            or any(content == e for e in last_np_msg.embeds)
         ):
             log.debug("ignored now-playing message as it was already posted.")
             return
