@@ -1119,7 +1119,9 @@ class MusicBot(discord.Client):
             return
 
         if player.current_entry:
-            self.server_data[guild.id].last_played_song_subject = player.current_entry.url
+            self.server_data[guild.id].last_played_song_subject = (
+                player.current_entry.url
+            )
 
         self.server_data[guild.id].last_np_msg = await self.safe_send_message(
             np_channel,
