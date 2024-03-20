@@ -80,6 +80,7 @@ class GuildSpecificData:
 
         # Members below are available for public use.
         self.last_np_msg: Optional["discord.Message"] = None
+        self.last_played_song_subject: str = ""
 
         # create a task to load any persistent guild options.
         # in theory, this should work out fine.

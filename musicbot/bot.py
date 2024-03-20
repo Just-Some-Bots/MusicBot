@@ -1108,12 +1108,18 @@ class MusicBot(discord.Client):
 
         # Don't send the same now-playing message more than once.
         # This prevents repeated messages when players reconnect.
-        if last_np_msg is not None and (
-            last_np_msg.content == newmsg
-            or any(content == e for e in last_np_msg.embeds)
+        last_subject = self.server_data[guild.id].last_played_song_subject
+        if (
+            last_np_msg is not None
+            and player.current_entry is not None
+            and last_subject
+            and last_subject == player.current_entry.url
         ):
             log.debug("ignored now-playing message as it was already posted.")
             return
+
+        if player.current_entry:
+            self.server_data[guild.id].last_played_song_subject = player.current_entry.url
 
         self.server_data[guild.id].last_np_msg = await self.safe_send_message(
             np_channel,
