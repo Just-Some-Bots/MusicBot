@@ -20,7 +20,7 @@ from yt_dlp.utils import DownloadError  # type: ignore[import-untyped]
 from yt_dlp.utils import UnsupportedError
 
 from .constants import DEFAULT_MAX_INFO_DL_THREADS, DEFAULT_MAX_INFO_REQUEST_TIMEOUT
-from .exceptions import ExtractionError
+from .exceptions import ExtractionError, MusicbotException
 from .spotify import Spotify
 
 if TYPE_CHECKING:
@@ -239,6 +239,9 @@ class Downloader:
 
         :returns: YtdlpResponseDict object containing sanitized extraction data.
 
+        :raises: musicbot.exceptions.MusicbotError
+            if event loop is closed and cannot be used for extraction.
+
         :raises: musicbot.exceptions.ExtractionError
             for errors in MusicBot's internal filtering and pre-processing of extraction queries.
 
@@ -284,7 +287,9 @@ class Downloader:
         data["__header_data"] = headers or None
         data["__expected_filename"] = self.ytdl.prepare_filename(data)
 
-        # log data only for debug and higher verbosity levels.
+        """
+        # disabled since it is only needed for working on extractions.
+        # logs data only for debug and higher verbosity levels.
         self._sanitize_and_log(
             data,
             # these fields are here because they are often very lengthy.
@@ -292,6 +297,7 @@ class Downloader:
             # as needed, but maybe not commit these changes
             redact_fields=["automatic_captions", "formats", "heatmap"],
         )
+        """
         return YtdlpResponseDict(data)
 
     async def _filtered_extract_info(
@@ -308,6 +314,9 @@ class Downloader:
         :returns: Dictionary of data returned from extract_info() or other
             integration. Serialization ready.
 
+        :raises: musicbot.exceptions.MusicbotError
+            if event loop is closed and cannot be used for extraction.
+
         :raises: musicbot.exceptions.ExtractionError
             for errors in MusicBot's internal filtering and pre-processing of extraction queries.
 
@@ -322,6 +331,13 @@ class Downloader:
         """
         log.noise(f"Called extract_info with:  '{song_subject}', {args}, {kwargs}")  # type: ignore[attr-defined]
         as_stream_url = kwargs.pop("as_stream", False)
+
+        # check if loop is closed and exit.
+        if (self.bot.loop and self.bot.loop.is_closed()) or not self.bot.loop:
+            log.warning(
+                "Cannot run extraction, loop is closed. (This is normal on shutdowns.)"
+            )
+            raise MusicbotException("Cannot continue extraction, event loop is closed.")
 
         # handle extracting spotify links before ytdl get a hold of them.
         if (

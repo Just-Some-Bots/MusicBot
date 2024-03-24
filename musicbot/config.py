@@ -30,23 +30,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def get_all_keys(
-    conf: Union["ExtendedConfigParser", configparser.ConfigParser]
-) -> List[str]:
-    """
-    Gather all config keys for all sections of a ConfigParser into a list.
-    This -will- return duplicate keys if they happen to exist in config.
-
-    :param: conf:  A loaded config parser object.
-    """
-    sects = dict(conf.items())
-    keys = []
-    for k in sects:
-        s = sects[k]
-        keys += list(s.keys())
-    return keys
-
-
 def create_file_ifnoexist(
     path: pathlib.Path, content: Optional[Union[str, List[str]]]
 ) -> None:
@@ -78,7 +61,7 @@ class Config:
         self.config_file = config_file
         self.find_config()
 
-        config = ExtendedConfigParser(interpolation=None)
+        config = ExtendedConfigParser()
         config.read(config_file, encoding="utf-8")
 
         confsections = {
@@ -351,11 +334,14 @@ class Config:
         """
         exfile = pathlib.Path(EXAMPLE_OPTIONS_FILE)
         if exfile.is_file():
-            usr_keys = get_all_keys(conf)
-            exconf = configparser.ConfigParser(interpolation=None)
+            usr_keys = conf.fetch_all_keys()
+            exconf = ExtendedConfigParser()
             if not exconf.read(exfile, encoding="utf-8"):
+                log.error(
+                    "Cannot detect changes in config, example options file is missing."
+                )
                 return
-            ex_keys = get_all_keys(exconf)
+            ex_keys = exconf.fetch_all_keys()
             if set(usr_keys) != set(ex_keys):
                 self.missing_keys = set(ex_keys) - set(
                     usr_keys
@@ -688,6 +674,28 @@ class ExtendedConfigParser(configparser.ConfigParser):
     These methods are also responsible for validation and raising HelpfulErrors
     for issues detected with the values.
     """
+
+    def __init__(self) -> None:
+        super().__init__(interpolation=None)
+
+    def optionxform(self, optionstr: str) -> str:
+        """
+        This is an override for ConfigParser key parsing.
+        by default ConfigParser uses str.lower() we just return to keep the case.
+        """
+        return optionstr
+
+    def fetch_all_keys(self) -> List[str]:
+        """
+        Gather all config keys for all sections of this config into a list.
+        This -will- return duplicate keys if they happen to exist in config.
+        """
+        sects = dict(self.items())
+        keys = []
+        for k in sects:
+            s = sects[k]
+            keys += list(s.keys())
+        return keys
 
     def getownerid(
         self,

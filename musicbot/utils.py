@@ -49,6 +49,8 @@ def _add_logger_level(levelname: str, level: int, *, func_name: str = "") -> Non
     _func_prototype = (
         "def {logger_func_name}(self, message, *args, **kwargs):\n"
         "    if self.isEnabledFor({levelname}):\n"
+        "        if os.name == 'nt':\n"
+        "            kwargs.setdefault('stacklevel', 1)\n"
         "        self._log({levelname}, message, args, **kwargs)"
     )
 
@@ -132,26 +134,27 @@ def setup_loggers() -> None:
     if COLORLOG_LOADED:
         sformatter = colorlog.LevelFormatter(
             fmt={
-                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
-                "INFO": "{log_color}{message}",
-                "WARNING": "{log_color}{levelname}: {message}",
-                "ERROR": "{log_color}[{levelname}:{module}] {message}",
+                # Organized by level number in descending order.
                 "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
-                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
-                "NOISY": "{log_color}[{levelname}:{module}] {message}",
+                "ERROR": "{log_color}[{levelname}:{module}] {message}",
+                "WARNING": "{log_color}{levelname}: {message}",
+                "INFO": "{log_color}{message}",
+                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
                 "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
                 "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
+                "NOISY": "{log_color}[{levelname}:{module}] {message}",
+                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
             },
             log_colors={
-                "DEBUG": "cyan",
-                "INFO": "white",
-                "WARNING": "yellow",
-                "ERROR": "red",
                 "CRITICAL": "bold_red",
-                "EVERYTHING": "bold_cyan",
-                "NOISY": "bold_white",
-                "FFMPEG": "bold_purple",
+                "ERROR": "red",
+                "WARNING": "yellow",
+                "INFO": "white",
+                "DEBUG": "cyan",
                 "VOICEDEBUG": "purple",
+                "FFMPEG": "bold_purple",
+                "NOISY": "bold_white",
+                "EVERYTHING": "bold_cyan",
             },
             style="{",
             datefmt="",
@@ -182,6 +185,9 @@ def setup_loggers() -> None:
     # initially set discord logging to debug, it will be changed when config is loaded.
     dlogger.setLevel(logging.DEBUG)
 
+    # Set a flag to indicate our logs are open.
+    setattr(logging, "_mb_logs_open", True)
+
 
 def muffle_discord_console_log() -> None:
     """
@@ -206,7 +212,8 @@ def mute_discord_console_log() -> None:
     for h in dlogger.handlers:
         if getattr(h, "terminator", None) == "":
             dlogger.removeHandler(h)
-            print()
+    # for console output cariage return post muffled log string.
+    print()
 
 
 def set_logging_level(level: int, override: bool = False) -> None:
@@ -254,8 +261,13 @@ def set_logging_rotate_date_format(sftime: str) -> None:
 
 def shutdown_loggers() -> None:
     """Removes all musicbot and discord log handlers"""
+    if not hasattr(logging, "_mb_logs_open"):
+        return
+
     # This is the last log line of the logger session.
     log.info("MusicBot loggers have been called to shutdown.")
+
+    setattr(logging, "_mb_logs_open", False)
 
     logger = logging.getLogger("musicbot")
     for handler in logger.handlers:
@@ -286,6 +298,9 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
     :param: max_kept:  number of old logs to keep.
     :param: date_fmt:  format compatible with datetime.strftime() for rotated filename.
     """
+    if hasattr(logging, "_mb_logs_rotated"):
+        return
+
     # Use the input arguments or fall back to settings or defaults.
     if max_kept <= -1:
         max_kept = getattr(logging, "mb_max_logs_kept", DEFAULT_LOGS_KEPT)
@@ -341,6 +356,8 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
         for path in logglob[max_kept:]:
             if path.is_file():
                 path.unlink()
+
+    setattr(logging, "_mb_logs_rotated", True)
 
 
 def load_file(

@@ -91,7 +91,7 @@ class Permissions:
         :param: grant_all:  a list of discord User IDs to grant permissive defaults.
         """
         self.perms_file = perms_file
-        self.config = ExtendedConfigParser(interpolation=None)
+        self.config = ExtendedConfigParser()
 
         if not self.config.read(self.perms_file, encoding="utf-8"):
             example_file = PermissionsDefaults.example_perms_file
