@@ -47,8 +47,23 @@ DEFAULT_LOGS_ROTATE_FORMAT: str = ".ended-%Y-%j-%H%m%S"
 # VOICEDEBUG, FFMPEG, NOISY, or EVERYTHING
 DEFAULT_LOG_LEVEL: str = "INFO"
 
+# Default target FQDN or IP to ping with network tester.
+DEFAULT_PING_TARGET: str = "discord.com"
+# Max time in seconds that ping should wait for response.
+DEFAULT_PING_TIMEOUT: int = 2
+# Time in seconds to wait between pings.
+DEFAULT_PING_SLEEP: float = 0.8
 
+
+# Minimum number of seconds to wait for a VoiceClient to connect.
+VOICE_CLIENT_RECONNECT_TIMEOUT: int = 5
+# Maximum number of retry attempts to make for VoiceClient connection.
+# Each retry increases the timeout by multiplying attempts by the above timeout.
+VOICE_CLIENT_MAX_RETRY_CONNECT: int = 5
+
+# Maximum number of threads MusicBot will use for downloading and extracting info.
 DEFAULT_MAX_INFO_DL_THREADS: int = 2
+# Maximum number of seconds to wait for HEAD request on media files.
 DEFAULT_MAX_INFO_REQUEST_TIMEOUT: int = 10
 
 # Discord and other API constants

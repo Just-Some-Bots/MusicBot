@@ -4,14 +4,17 @@ import logging
 import os
 import re
 import shutil
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
-from discord.abc import GuildChannel
-from yt_dlp.utils import ContentTooShortError  # type: ignore[import-untyped]
+import discord
+from yt_dlp.utils import (  # type: ignore[import-untyped]
+    ContentTooShortError,
+    YoutubeDLError,
+)
 
 from .constructs import Serializable
 from .downloader import YtdlpResponseDict
-from .exceptions import ExtractionError, InvalidDataError
+from .exceptions import ExtractionError, InvalidDataError, MusicbotException
 from .spotify import Spotify
 
 if TYPE_CHECKING:
@@ -24,6 +27,12 @@ if TYPE_CHECKING:
 else:
     AsyncFuture = asyncio.Future
 
+GuildMessageableChannels = Union[
+    discord.Thread,
+    discord.TextChannel,
+    discord.VoiceChannel,
+    discord.StageChannel,
+]
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +53,6 @@ class BasePlaylistEntry(Serializable):
         self.filename: str = ""
         self.downloaded_bytes: int = 0
         self.cache_busted: bool = False
-        self.from_auto_playlist: bool = False
         self._is_downloading: bool = False
         self._is_downloaded: bool = False
         self._waiting_futures: List[AsyncFuture] = []
@@ -166,14 +174,14 @@ async def run_command(command: List[str]) -> bytes:
 
 
 class URLPlaylistEntry(BasePlaylistEntry):
-    SERIAL_VERSION: int = 2  # version for serial data checks.
+    SERIAL_VERSION: int = 3  # version for serial data checks.
 
     def __init__(
         self,
         playlist: "Playlist",
         info: YtdlpResponseDict,
-        from_apl: bool = False,
-        **meta: Dict[str, Any],
+        author: Optional["discord.Member"] = None,
+        channel: Optional[GuildMessageableChannels] = None,
     ) -> None:
         """
         Create URL Playlist entry that will be downloaded for playback.
@@ -190,7 +198,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.filecache: "AudioFileCache" = playlist.bot.filecache
 
         self.info: YtdlpResponseDict = info
-        self.from_auto_playlist = from_apl
 
         if self.duration is None:
             log.info(
@@ -200,8 +207,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 self.title,
             )
 
-        self.meta: Dict[str, Any] = meta
+        self.author: Optional["discord.Member"] = author
+        self.channel: Optional[GuildMessageableChannels] = channel
+
         self.aoptions: str = "-vn"
+
+    @property
+    def from_auto_playlist(self) -> bool:
+        """Returns true if the entry has an author or a channel."""
+        if self.author is not None or self.channel is not None:
+            return False
+        return True
 
     @property
     def url(self) -> str:
@@ -254,15 +270,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "info": self.info.data,
                 "downloaded": self.is_downloaded,
                 "filename": self.filename,
-                "meta": {
-                    name: {
-                        "type": obj.__class__.__name__,
-                        "id": obj.id,
-                        "name": obj.name,
-                    }
-                    for name, obj in self.meta.items()
-                    if obj
-                },
+                "author_id": self.author.id if self.author else None,
+                "channel_id": self.channel.id if self.channel else None,
                 "aoptions": self.aoptions,
             }
         )
@@ -296,35 +305,63 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 raw_json["downloaded"] if playlist.bot.config.save_videos else False
             )
             filename = raw_json["filename"] if downloaded else None
-            meta: Dict[str, Any] = {}
 
-            # TODO: Better [name] fallbacks
-            if "channel" in raw_json["meta"]:
-                # int() it because persistent queue from pre-rewrite days saved ids as strings
-                meta["channel"] = playlist.bot.get_channel(
-                    int(raw_json["meta"]["channel"]["id"])
-                )
-                if not meta["channel"]:
+            channel_id = raw_json.get("channel_id", None)
+            if channel_id:
+                o_channel = playlist.bot.get_channel(int(channel_id))
+
+                if not o_channel:
                     log.warning(
-                        "Deserialized URLPlaylistEntry Cannot find channel with id: %s",
-                        raw_json["meta"]["channel"]["id"],
+                        "Deserialized URLPlaylistEntry cannot find channel with id:  %s",
+                        raw_json["channel_id"],
                     )
-                    meta.pop("channel")
-                elif "author" in raw_json["meta"] and isinstance(
-                    meta["channel"], GuildChannel
-                ):
-                    # int() it because persistent queue from pre-rewrite days saved ids as strings
-                    meta["author"] = meta["channel"].guild.get_member(
-                        int(raw_json["meta"]["author"]["id"])
-                    )
-                    if not meta["author"]:
-                        log.warning(
-                            "Deserialized URLPlaylistEntry Cannot find author with id: %s",
-                            raw_json["meta"]["author"]["id"],
-                        )
-                        meta.pop("author")
 
-            entry = cls(playlist, info, **meta)
+                if isinstance(
+                    o_channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    channel = o_channel
+                else:
+                    log.warning(
+                        "Deserialized URLPlaylistEntry has the wrong channel type:  %s",
+                        type(o_channel),
+                    )
+                    channel = None
+            else:
+                channel = None
+
+            author_id = raw_json.get("author_id", None)
+            if author_id:
+                if isinstance(
+                    channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    author = channel.guild.get_member(int(author_id))
+
+                    if not author:
+                        log.warning(
+                            "Deserialized URLPlaylistEntry cannot find author with id:  %s",
+                            raw_json["author_id"],
+                        )
+                else:
+                    author = None
+                    log.warning(
+                        "Deserialized URLPlaylistEntry has an author ID but no channel for lookup!",
+                    )
+            else:
+                author = None
+
+            entry = cls(playlist, info, author=author, channel=channel)
             entry.filename = filename
 
             return entry
@@ -604,8 +641,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 log.error("Download failed, not retrying! Reason:  %s", str(e))
                 self.cache_busted = True
                 raise ExtractionError(str(e)) from e
-            except Exception as e:
+            except YoutubeDLError as e:
+                # as a base exception for any exceptions raised by yt_dlp.
                 raise ExtractionError(str(e)) from e
+
+            except Exception as e:
+                log.exception("Extraction encountered an unhandled exception.")
+                raise MusicbotException(str(e)) from e
 
         log.info("Download complete:  %s", self.url)
 
@@ -623,14 +665,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):
-    SERIAL_VERSION = 2
+    SERIAL_VERSION = 3
 
     def __init__(
         self,
         playlist: "Playlist",
         info: YtdlpResponseDict,
-        from_apl: bool = False,
-        **meta: Dict[str, Any],
+        author: Optional["discord.Member"] = None,
+        channel: Optional[GuildMessageableChannels] = None,
     ) -> None:
         """
         Create Stream Playlist entry that will be sent directly to ffmpeg for playback.
@@ -644,10 +686,18 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
         self.playlist: "Playlist" = playlist
         self.info: YtdlpResponseDict = info
-        self.from_auto_playlist = from_apl
-        self.meta: Dict[str, Any] = meta
+
+        self.author: Optional["discord.Member"] = author
+        self.channel: Optional[GuildMessageableChannels] = channel
 
         self.filename: str = self.url
+
+    @property
+    def from_auto_playlist(self) -> bool:
+        """Returns true if the entry has an author or a channel."""
+        if self.author is not None or self.channel is not None:
+            return False
+        return True
 
     @property
     def url(self) -> str:
@@ -699,15 +749,8 @@ class StreamPlaylistEntry(BasePlaylistEntry):
                 "version": StreamPlaylistEntry.SERIAL_VERSION,
                 "info": self.info.data,
                 "filename": self.filename,
-                "meta": {
-                    name: {
-                        "type": obj.__class__.__name__,
-                        "id": obj.id,
-                        "name": obj.name,
-                    }
-                    for name, obj in self.meta.items()
-                    if obj
-                },
+                "author_id": self.author.id if self.author else None,
+                "channel_id": self.channel.id if self.channel else None,
             }
         )
 
@@ -731,35 +774,63 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         try:
             info = YtdlpResponseDict(raw_json["info"])
             filename = raw_json["filename"]
-            meta: Dict[str, Any] = {}
 
-            # TODO: Better [name] fallbacks
-            if "channel" in raw_json["meta"]:
-                # int() it because persistent queue from pre-rewrite days saved ids as strings
-                meta["channel"] = playlist.bot.get_channel(
-                    int(raw_json["meta"]["channel"]["id"])
-                )
-                if not meta["channel"]:
+            channel_id = raw_json.get("channel_id", None)
+            if channel_id:
+                o_channel = playlist.bot.get_channel(int(channel_id))
+
+                if not o_channel:
                     log.warning(
-                        "Deserialized StreamPlaylistEntry Cannot find channel with id: %s",
-                        raw_json["meta"]["channel"]["id"],
+                        "Deserialized StreamPlaylistEntry cannot find channel with id:  %s",
+                        raw_json["channel_id"],
                     )
-                    meta.pop("channel")
-                elif "author" in raw_json["meta"] and isinstance(
-                    meta["channel"], GuildChannel
-                ):
-                    # int() it because persistent queue from pre-rewrite days saved ids as strings
-                    meta["author"] = meta["channel"].guild.get_member(
-                        int(raw_json["meta"]["author"]["id"])
-                    )
-                    if not meta["author"]:
-                        log.warning(
-                            "Deserialized StreamPlaylistEntry Cannot find author with id: %s",
-                            raw_json["meta"]["author"]["id"],
-                        )
-                        meta.pop("author")
 
-            entry = cls(playlist, info, **meta)
+                if isinstance(
+                    o_channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    channel = o_channel
+                else:
+                    log.warning(
+                        "Deserialized StreamPlaylistEntry has the wrong channel type:  %s",
+                        type(o_channel),
+                    )
+                    channel = None
+            else:
+                channel = None
+
+            author_id = raw_json.get("author_id", None)
+            if author_id:
+                if isinstance(
+                    channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    author = channel.guild.get_member(int(author_id))
+
+                    if not author:
+                        log.warning(
+                            "Deserialized StreamPlaylistEntry cannot find author with id:  %s",
+                            raw_json["author_id"],
+                        )
+                else:
+                    author = None
+                    log.warning(
+                        "Deserialized StreamPlaylistEntry has an author ID but no channel for lookup!",
+                    )
+            else:
+                author = None
+
+            entry = cls(playlist, info, author=author, channel=channel)
             entry.filename = filename
             return entry
         except (ValueError, KeyError, TypeError) as e:
