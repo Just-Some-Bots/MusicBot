@@ -66,6 +66,9 @@ class SourcePlaybackCounter(AudioSource):
         return self.progress * 0.02
 
     def cleanup(self) -> None:
+        log.noise(  # type: ignore[attr-defined]
+            "Cleanup got called on the audio source:  %s", repr(self)
+        )
         self._source.cleanup()
 
 
@@ -94,6 +97,8 @@ class MusicPlayer(EventEmitter, Serializable):
         self.state: MusicPlayerState = MusicPlayerState.STOPPED
         self.skip_state: SkipState = SkipState()
         self.karaoke_mode: bool = False
+        self.guild_or_net_unavailable: bool = False
+        self.paused_auto: bool = False
 
         self._volume = bot.config.default_volume
         self._play_lock = asyncio.Lock()
@@ -147,6 +152,9 @@ class MusicPlayer(EventEmitter, Serializable):
 
     def skip(self) -> None:
         """Skip the current playing entry but just killing playback."""
+        log.noise(  # type: ignore[attr-defined]
+            "MusicPlayer.skip() is called:  %s", repr(self)
+        )
         self._kill_current_player()
 
     def stop(self) -> None:
@@ -154,6 +162,9 @@ class MusicPlayer(EventEmitter, Serializable):
         Immediately halt playback, killing current player source, setting
         state to stopped and emitting an event.
         """
+        log.noise(  # type: ignore[attr-defined]
+            "MusicPlayer.stop() is called:  %s", repr(self)
+        )
         self.state = MusicPlayerState.STOPPED
         self._kill_current_player()
 
@@ -166,6 +177,13 @@ class MusicPlayer(EventEmitter, Serializable):
         If MusicPlayer was paused but the VoiceClient player is missing,
         do something odd and set state to playing but kill the player...
         """
+        if self.guild_or_net_unavailable:
+            log.warning("Guild or network unavailable, cannot resume playback.")
+            return
+
+        log.noise(  # type: ignore[attr-defined]
+            "MusicPlayer.resume() is called:  %s", repr(self)
+        )
         if self.is_paused and self._current_player:
             self._current_player.resume()
             self.state = MusicPlayerState.PLAYING
@@ -183,6 +201,9 @@ class MusicPlayer(EventEmitter, Serializable):
         """
         Suspend player audio playback and emit an event, if the player was playing.
         """
+        log.noise(  # type: ignore[attr-defined]
+            "MusicPlayer.pause() is called:  %s", repr(self)
+        )
         if self.is_playing:
             self.state = MusicPlayerState.PAUSED
 
@@ -202,6 +223,9 @@ class MusicPlayer(EventEmitter, Serializable):
         Set the state of the bot to Dead, clear all events and playlists,
         then kill the current VoiceClient source player.
         """
+        log.noise(  # type: ignore[attr-defined]
+            "MusicPlayer.kill() is called:  %s", repr(self)
+        )
         self.state = MusicPlayerState.DEAD
         self.playlist.clear()
         self._events.clear()
@@ -286,17 +310,30 @@ class MusicPlayer(EventEmitter, Serializable):
         :param: _continue:  Force a player that is not dead or stopped to
             start a new playback source anyway.
         """
+        log.noise(  # type: ignore[attr-defined]
+            "MusicPlayer.play() is called:  %s", repr(self)
+        )
         self.loop.create_task(self._play(_continue=_continue))
 
     async def _play(self, _continue: bool = False) -> None:
         """
         Plays the next entry from the playlist, or resumes playback of the current entry if paused.
         """
-        if self.is_paused and self._current_player:
-            return self.resume()
-
         if self.is_dead:
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer is dead, cannot play."
+            )
             return
+
+        if self.guild_or_net_unavailable:
+            log.warning("Guild or network unavailable, cannot start playback.")
+            return
+
+        if self.is_paused and self._current_player:
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer was previously paused, resuming current player."
+            )
+            return self.resume()
 
         async with self._play_lock:
             if self.is_stopped or _continue:
@@ -342,8 +379,8 @@ class MusicPlayer(EventEmitter, Serializable):
                         self.volume,
                     )
                 )
-                log.debug(
-                    "Playing %s using %s", repr(self._source), repr(self.voice_client)
+                log.voicedebug(  # type: ignore[attr-defined]
+                    "Playing %r using %r", self._source, self.voice_client
                 )
                 self.voice_client.play(self._source, after=self._playback_finished)
 

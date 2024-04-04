@@ -8,6 +8,8 @@ import pathlib
 import random
 import re
 import shutil
+import signal
+import socket
 import ssl
 import sys
 import time
@@ -26,6 +28,9 @@ from . import downloader, exceptions
 from .aliases import Aliases, AliasesDefault
 from .config import Config, ConfigDefaults
 from .constants import (
+    DEFAULT_PING_SLEEP,
+    DEFAULT_PING_TARGET,
+    DEFAULT_PING_TIMEOUT,
     DISCORD_MSG_CHAR_LIMIT,
     EMOJI_CHECK_MARK_BUTTON,
     EMOJI_CROSS_MARK_BUTTON,
@@ -34,6 +39,7 @@ from .constants import (
     EMOJI_PREV_ICON,
 )
 from .constants import VERSION as BOTVERSION
+from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
 from .constructs import GuildSpecificData, Response
 from .entry import StreamPlaylistEntry, URLPlaylistEntry
 from .filecache import AudioFileCache
@@ -77,6 +83,12 @@ MessageableChannel = Union[
     discord.GroupChannel,
     discord.PartialMessageable,
 ]
+GuildMessageableChannels = Union[
+    discord.TextChannel,
+    discord.Thread,
+    discord.VoiceChannel,
+    discord.StageChannel,
+]
 # Voice Channels that MusicBot Can connect to.
 VoiceableChannel = Union[
     discord.VoiceChannel,
@@ -101,15 +113,8 @@ class MusicBot(discord.Client):
         aliases_file: Optional[pathlib.Path] = None,
         use_certifi: bool = False,
     ) -> None:
+        log.info("Initializing MusicBot %s", BOTVERSION)
         load_opus_lib()
-        try:
-            sys.stdout.write(f"\x1b]2;MusicBot {BOTVERSION}\x07")
-        except (TypeError, OSError):
-            log.warning(
-                "Failed to set terminal Title via escape sequences.", exc_info=True
-            )
-
-        print()
 
         if config_file is None:
             config_file = ConfigDefaults.options_file
@@ -121,12 +126,17 @@ class MusicBot(discord.Client):
             aliases_file = AliasesDefault.aliases_file
 
         self.use_certifi: bool = use_certifi
-        self.players: Dict[int, MusicPlayer] = {}
         self.exit_signal: ExitSignals = None
+        self._os_signal: Optional[signal.Signals] = None
+        self._ping_peer_addr: str = ""
+        self.network_outage: bool = False
+        self.on_ready_count: int = 0
         self.init_ok: bool = False
+        self.logout_called: bool = False
         self.cached_app_info: Optional[discord.AppInfo] = None
         self.last_status: Optional[discord.BaseActivity] = None
-        self.autojoin_channels: Set[VoiceableChannel] = set()
+        self.players: Dict[int, MusicPlayer] = {}
+        self.autojoinable_channels: Set[VoiceableChannel] = set()
 
         self.config = Config(config_file)
 
@@ -141,8 +151,6 @@ class MusicBot(discord.Client):
         self.aiolocks: DefaultDict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self.filecache = AudioFileCache(self)
         self.downloader = downloader.Downloader(self)
-
-        log.info("Starting MusicBot %s", BOTVERSION)
 
         if not self.autoplaylist:
             log.warning("Autoplaylist is empty, disabling.")
@@ -234,8 +242,115 @@ class MusicBot(discord.Client):
         log.info("Initialized, now connecting to discord.")
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()
+        self.loop.create_task(self._test_network())
 
-    def _get_owner(
+    async def _test_network(self) -> None:
+        """
+        A self looping method that tests network connectivity.
+        This will call to the systems ping command and use its return status.
+        """
+        if self.logout_called:
+            log.noise("Network ping test is closing down.")  # type: ignore[attr-defined]
+            return
+
+        # Resolve the given target to speed up pings.
+        ping_target = self._ping_peer_addr
+        if not self._ping_peer_addr:
+            try:
+                ai = socket.getaddrinfo(DEFAULT_PING_TARGET, 80)
+                self._ping_peer_addr = ai[0][4][0]
+                ping_target = self._ping_peer_addr
+            except OSError:
+                log.warning("Could not resolve ping target.")
+                ping_target = DEFAULT_PING_TARGET
+
+        # Make a ping call based on OS.
+        ping_path = shutil.which("ping")
+        if not ping_path:
+            log.warning("Could not locate path to `ping` system executable.")
+            ping_path = "ping"
+
+        ping_cmd: List[str] = []
+        if os.name == "nt":
+            # Windows ping -w uses milliseconds.
+            t = 1000 * DEFAULT_PING_TIMEOUT
+            ping_cmd = [ping_path, "-n", "1", "-w", str(t), ping_target]
+        else:
+            t = DEFAULT_PING_TIMEOUT
+            ping_cmd = [ping_path, "-c", "1", "-w", str(t), ping_target]
+
+        # execute the ping command.
+        try:
+            p = await asyncio.create_subprocess_exec(
+                ping_cmd[0],
+                *ping_cmd[1:],
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            ping_status = await p.wait()
+        except OSError:
+            log.error(
+                "Your environment may not allow the `ping` system command.  Early network outage detection will not function.",
+                exc_info=self.config.debug_mode,
+            )
+            return
+
+        # Ping success, network up.
+        if ping_status == 0:
+            if self.network_outage:
+                self.on_network_up()
+            self.network_outage = False
+
+        # Ping failed, network down.
+        else:
+            if not self.network_outage:
+                self.on_network_down()
+            self.network_outage = True
+
+        # Sleep before next ping.
+        try:
+            await asyncio.sleep(DEFAULT_PING_SLEEP)
+        except asyncio.exceptions.CancelledError:
+            log.noise("Network ping test cancelled.")  # type: ignore[attr-defined]
+            return
+
+        # set up the next ping task if possible.
+        if self.loop and not self.logout_called:
+            self.loop.create_task(self._test_network(), name="MB_PingTest")
+
+    def on_network_up(self) -> None:
+        """
+        Event called by MusicBot when it detects network returned from outage.
+        """
+        log.info("MusicBot detected network is available again.")
+        for gid, player in self.players.items():
+            if player.is_paused and not player.paused_auto:
+                if not player.voice_client.is_connected():
+                    log.warning(
+                        "VoiceClient is not connected, waiting to resume MusicPlayer..."
+                    )
+                    continue
+                log.info("Resuming playback of player:  (%s) %s", gid, repr(player))
+                player.guild_or_net_unavailable = False
+                player.resume()
+            player.guild_or_net_unavailable = False
+
+    def on_network_down(self) -> None:
+        """
+        Event called by MusicBot when it detects network outage.
+        """
+        log.info("MusicBot detected a network outage.")
+        for gid, player in self.players.items():
+            if player.is_playing:
+                log.info(
+                    "Pausing MusicPlayer due to network availability:  (%s) %s",
+                    gid,
+                    repr(player),
+                )
+                player.pause()
+            player.guild_or_net_unavailable = True
+
+    def _get_owner_member(
         self, *, server: Optional[discord.Guild] = None, voice: bool = False
     ) -> Optional[discord.Member]:
         """
@@ -250,41 +365,99 @@ class MusicBot(discord.Client):
             server.members if server else self.get_all_members(),
         )
         log.noise(  # type: ignore[attr-defined]
-            "Looking for owner (voice:%s) and got:  %s", voice, owner
+            "Looking for owner (in guild: %s) (required voice: %s) and got:  %s",
+            server,
+            voice,
+            owner,
         )
         return owner
 
-    async def _join_startup_channels(self, channels: Set[VoiceableChannel]) -> None:
+    async def _auto_join_channels(
+        self,
+        from_resume: bool = False,
+    ) -> None:
         """
         Attempt to join voice channels that have been configured in options.
-        Also checks for existing voice sessions and attempts to resume
-        connection and playback.
+        Also checks for existing voice sessions and attempts to resume them.
+        If self.on_ready_count is 0, it will also run owner auto-summon logic.
         """
-        joined_servers = set()
-        channel_map = {c.guild: c for c in channels}
+        log.info("Checking for channels to auto-join or resume...")
 
+        joined_servers: Set[discord.Guild] = set()
+        channel_map = {c.guild: c for c in self.autojoinable_channels}
+
+        # Check guilds for a resumable channel, conditionally override with owner summon.
+        resuming = False
         for guild in self.guilds:
-            if guild.unavailable or guild in channel_map:
+            # TODO:  test that this, guild_unavailable hasn't fired in testing yet
+            # but that don't mean this wont break due to fragile API out-of-order packets...
+            if guild.unavailable:
+                log.warning(
+                    "Guild not available, cannot join:  %s/%s", guild.id, guild.name
+                )
                 continue
 
+            # Check for a resumable channel.
             if guild.me.voice and guild.me.voice.channel:
                 log.info(
-                    "Found resumable voice channel %s/%s",
-                    guild.name,
+                    "Found resumable voice channel:  %s  in guild:  %s",
                     guild.me.voice.channel.name,
+                    guild.name,
                 )
-                channel_map[guild] = guild.me.voice.channel
 
-            if self.config.auto_summon:
-                owner = self._get_owner(server=guild, voice=True)
+                # override an existing auto-join if bot was previously in a different channel.
+                if (
+                    guild in channel_map
+                    and guild.me.voice.channel != channel_map[guild]
+                ):
+                    log.info(
+                        "Will try resuming voice session instead of Auto-Joining channel:  %s",
+                        channel_map[guild].name,
+                    )
+                channel_map[guild] = guild.me.voice.channel
+                resuming = True
+
+            # Check if we should auto-summon to the owner, but only on startup.
+            if self.config.auto_summon and not from_resume:
+                owner = self._get_owner_member(server=guild, voice=True)
                 if owner and owner.voice and owner.voice.channel:
-                    log.info('Found owner in "%s"', owner.voice.channel.name)
+                    log.info(
+                        "Found owner in voice channel:  %s", owner.voice.channel.name
+                    )
+                    if guild in channel_map:
+                        if resuming:
+                            log.info(
+                                "Ignoring resumable channel, AutoSummon to owner in channel:  %s",
+                                owner.voice.channel.name,
+                            )
+                        else:
+                            log.info(
+                                "Ignoring Auto-Join channel, AutoSummon to owner in channel:  %s",
+                                owner.voice.channel.name,
+                            )
                     channel_map[guild] = owner.voice.channel
 
         for guild, channel in channel_map.items():
+            log.everything(  # type: ignore[attr-defined]
+                "AutoJoin Channel Map Item:\n  %r\n  %r", guild, channel
+            )
             if guild in joined_servers:
                 log.info(
-                    'Already joined a channel in "%s", skipping',
+                    'Already joined a channel in "%s", skipping channel:  %s',
+                    guild.name,
+                    channel.name,
+                )
+                continue
+
+            if (
+                isinstance(
+                    guild.voice_client, (discord.VoiceClient, discord.StageChannel)
+                )
+                and guild.voice_client.is_connected()
+            ):
+                log.info(
+                    "Already connected to channel:  %s  in guild:  %s",
+                    guild.voice_client.channel.name,
                     guild.name,
                 )
                 continue
@@ -293,60 +466,63 @@ class MusicBot(discord.Client):
                 channel, (discord.VoiceChannel, discord.StageChannel)
             ):
                 log.info(
-                    "Attempting to join %s/%s",
+                    "Attempting to join channel:  %s/%s  in guild:  %s",
                     channel.guild.name,
                     channel.name,
+                    channel.guild,
                 )
 
-                chperms = channel.permissions_for(guild.me)
+                player = self.get_player_in(guild)
 
-                if not chperms.connect:
-                    log.info(
-                        'Cannot join channel "%s", no permission.',
-                        channel.name,
-                    )
-                    continue
+                if player:
+                    # TODO: Get serialization of last playback position working.
+                    log.info("Discarding MusicPlayer and making a new one...")
+                    await self.disconnect_voice_client(guild)
 
-                if not chperms.speak:
-                    log.info(
-                        'Will not join channel "%s", no permission to speak.',
-                        channel.name,
-                    )
-                    continue
+                    try:
+                        player = await self.get_player(
+                            channel,
+                            create=True,
+                            deserialize=self.config.persistent_queue,
+                        )
+                        """
+                        if self.server_data[guild.id].availability_paused:
+                            log.debug(
+                                "Setting availability of player in guild:  %s",
+                                guild,
+                            )
+                            self.server_data[guild.id].availability_paused = False
 
-                try:
-                    player = await self.get_player(
-                        channel, create=True, deserialize=self.config.persistent_queue
-                    )
-                    joined_servers.add(guild)
+                        if self.server_data[guild.id].auto_paused:
+                            self.server_data[guild.id].auto_paused = False
+                        #"""
 
-                    log.info(
-                        "Joined %s/%s",
-                        channel.guild.name,
-                        channel.name,
-                    )
+                        if player.is_stopped and len(player.playlist) > 0:
+                            player.play()
 
-                    if player.is_stopped:
-                        player.play()
-
-                    if self.config.auto_playlist:
-                        if not player.playlist.entries:
+                        if self.config.auto_playlist and len(player.playlist) == 0:
                             await self.on_player_finished_playing(player)
 
-                # TODO: drill down through the above code and find what exceptions
-                # we actually want to be handling here.
-                except Exception:  # pylint: disable=broad-exception-caught
-                    log.debug(
-                        "Error joining %s/%s",
-                        channel.guild.name,
-                        channel.name,
-                        exc_info=True,
-                    )
-                    log.error(
-                        "Failed to join %s/%s",
-                        channel.guild.name,
-                        channel.name,
-                    )
+                    except (TypeError, exceptions.PermissionsError):
+                        continue
+
+                else:
+                    log.debug("MusicBot will make a new MusicPlayer now...")
+                    try:
+                        player = await self.get_player(
+                            channel,
+                            create=True,
+                            deserialize=self.config.persistent_queue,
+                        )
+
+                        if player.is_stopped and len(player.playlist) > 0:
+                            player.play()
+
+                        if self.config.auto_playlist and len(player.playlist) == 0:
+                            await self.on_player_finished_playing(player)
+
+                    except (TypeError, exceptions.PermissionsError):
+                        continue
 
             if channel and not isinstance(
                 channel, (discord.VoiceChannel, discord.StageChannel)
@@ -368,10 +544,15 @@ class MusicBot(discord.Client):
         try:
             await asyncio.sleep(after)
         except asyncio.CancelledError:
-            log.exception("_wait_delete_msg sleep caught exception. bailing.")
+            log.warning(
+                "Cancelled delete for message (ID: %s):  %s",
+                message.id,
+                message.content,
+            )
             return
 
         if not self.is_closed():
+
             await self.safe_delete_message(message, quiet=True)
 
     async def _check_ignore_non_voice(self, msg: discord.Message) -> bool:
@@ -448,13 +629,21 @@ class MusicBot(discord.Client):
 
             if delete_from_ap:
                 log.info("Updating autoplaylist file...")
+
+                def _filter_replace(line: str, url: str) -> str:
+                    target = line.strip()
+                    if target == url:
+                        return f"# Removed # {url}"
+                    return line
+
                 # read the original file in and remove lines with the URL.
                 # this is done to preserve the comments and formatting.
                 try:
                     apl = pathlib.Path(self.config.auto_playlist_file)
-                    data = apl.read_text(encoding="utf8")
-                    data = data.replace(song_url, f"#Removed# {song_url}")
-                    apl.write_text(data, encoding="utf8")
+                    data = apl.read_text(encoding="utf8").split("\n")
+                    data = [_filter_replace(x, song_url) for x in data]
+                    text = "\n".join(data)
+                    apl.write_text(text, encoding="utf8")
                 except (OSError, PermissionError, FileNotFoundError):
                     log.exception("Failed to save autoplaylist file.")
                 self.filecache.remove_autoplay_cachemap_entry_by_url(song_url)
@@ -514,78 +703,225 @@ class MusicBot(discord.Client):
 
         :raises: TypeError
             If `channel` is not a discord.VoiceChannel or discord.StageChannel
+
+        :raises: musicbot.exceptions.PermissionsError
+            If MusicBot does not have permissions required to join or speak in the `channel`.
         """
         if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
             raise TypeError("Channel passed must be a voice channel")
 
-        # TODO: await for ready here?
+        # Check if MusicBot has required permissions to join in channel.
+        chperms = channel.permissions_for(channel.guild.me)
+        if not chperms.connect:
+            log.error(
+                "MusicBot does not have permission to Connect in channel:  %s",
+                channel.name,
+            )
+            raise exceptions.PermissionsError(
+                f"MusicBot does not have permission to Connect in channel:  `{channel.name}`",
+                expire_in=30,
+            )
+        if not chperms.speak:
+            log.error(
+                "MusicBot does not have permission to Speak in channel:  %s",
+                channel.name,
+            )
+            raise exceptions.PermissionsError(
+                f"MusicBot does not have permission to Speak in channel:  `{channel.name}`",
+                expire_in=30,
+            )
 
         # check for and return bots VoiceClient if we already have one.
         vc = channel.guild.voice_client
-        if vc and isinstance(vc, discord.VoiceClient):
-            return vc
+        if vc and isinstance(vc, (discord.VoiceClient, discord.StageChannel)):
+            # make sure it is usable
+            if vc.is_connected():
+                log.voicedebug(  # type: ignore[attr-defined]
+                    "Reusing bots VoiceClient from guild:  %s", channel.guild
+                )
+                return vc
+            # or otherwise we kill it and start fresh.
+            log.voicedebug(  # type: ignore[attr-defined]
+                "Forcing disconnect on stale VoiceClient in guild:  %s", channel.guild
+            )
+            try:
+                # TODO: do we need disconnect(force=True)
+                await vc.disconnect()
+            except (asyncio.exceptions.CancelledError, asyncio.exceptions.TimeoutError):
+                if self.config.debug_mode:
+                    log.warning("Disconnect failed or was cancelled?")
 
-        # otherwise we need to connect to the given channel.
-        client: discord.VoiceClient = await channel.connect(timeout=30, reconnect=True)
+        # Otherwise we need to connect to the given channel.
+        max_timeout = VOICE_CLIENT_RECONNECT_TIMEOUT * VOICE_CLIENT_MAX_RETRY_CONNECT
+        attempts = 0
+        while True:
+            attempts += 1
+            timeout = attempts * VOICE_CLIENT_RECONNECT_TIMEOUT
+            if timeout > max_timeout:
+                log.critical(
+                    "MusicBot is unable to connect to the channel right now:  %s",
+                    channel,
+                )
+                raise exceptions.CommandError(
+                    "MusicBot could not connect to the channel. Try again later, or restart the bot if this continues."
+                )
+
+            try:
+                client: discord.VoiceClient = await channel.connect(
+                    timeout=timeout,
+                    reconnect=True,
+                    self_deaf=self.config.self_deafen,
+                )
+                log.voicedebug(  # type: ignore[attr-defined]
+                    "MusicBot has a VoiceClient now..."
+                )
+                break
+            except asyncio.exceptions.TimeoutError:
+                log.warning(
+                    "Retrying connection after a timeout error (%s) while trying to connect to:  %s",
+                    attempts,
+                    channel,
+                )
+            except asyncio.exceptions.CancelledError as e:
+                log.exception(
+                    "MusicBot VoiceClient connection attempt was cancelled. No retry."
+                )
+                raise exceptions.CommandError(
+                    "MusicBot connection to voice was cancelled. This is odd. Maybe restart?"
+                ) from e
+
+        # TODO: look into Stage channel handling and test this at some point.
         if isinstance(channel, discord.StageChannel):
             try:
                 await channel.guild.me.edit(suppress=False)
-                await channel.guild.change_voice_state(
-                    channel=channel,
-                    self_mute=False,
-                    self_deaf=self.config.self_deafen,
-                )
             except (discord.Forbidden, discord.HTTPException):
                 log.exception("Something broke in StageChannel handling.")
-        else:
-            await channel.guild.change_voice_state(
-                channel=channel,
-                self_mute=False,
-                self_deaf=self.config.self_deafen,
-            )
+
         return client
 
     async def disconnect_voice_client(self, guild: discord.Guild) -> None:
         """
-        Check for a client in the given `guild` and disconnect it gracefully.
-        The player will be removed to MusicBot.players list, and associated
-        event timers will be reset.
+        Check for a MusicPlayer in the given `guild` and close it's VoiceClient
+        gracefully then remove the MusicPlayer instance and reset any timers on
+        the guild for player/channel inactivity.
         """
-        vc = self.voice_client_in(guild)
-        if not vc:
-            return
-
         if guild.id in self.players:
+            log.info("Disconnecting a MusicPlayer in guild:  %s", guild)
             player = self.players.pop(guild.id)
 
             await self.reset_player_inactivity(player)
 
+            # reset channel inactivity.
             if self.config.leave_inactive_channel:
                 event = self.server_data[guild.id].get_event("inactive_vc_timer")
                 if event.is_active() and not event.is_set():
                     event.set()
 
+            if player.voice_client:
+                log.debug("Disconnecting VoiceClient before we kill the MusicPlayer.")
+                try:
+                    await player.voice_client.disconnect()
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    if self.config.debug_mode:
+                        log.warning("The disconnect failed or was cancelledd.")
+
+            # ensure the player is dead and gone.
             player.kill()
+            del player
+
+        # Double check for voice objects.
+        for vc in self.voice_clients:
+            if not isinstance(vc, discord.VoiceClient):
+                log.debug(
+                    "MusicBot has a VoiceProtocol that is not a VoiceClient. Disconnecting anyway..."
+                )
+                try:
+                    await vc.disconnect(force=True)
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    if self.config.debug_mode:
+                        log.warning("The disconnect failed or was cancelled.")
+                continue
+
+            if vc.guild and vc.guild == guild:
+                log.debug("Disconnecting a rogue VoiceClient in guild:  %s", guild)
+                try:
+                    await vc.disconnect()
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    if self.config.debug_mode:
+                        log.warning("The disconnect failed or was cancelled.")
 
         await self.update_now_playing_status()
-        await vc.disconnect()
 
     async def disconnect_all_voice_clients(self) -> None:
         """
-        Loop over all available self.voice_clients and use their guild id
-        to disconnect their VoiceClient...
+        Loop over all references that may have a VoiceClient and ensure they are
+        closed and disposed of in the case of MusicPlayer.
         """
+        # Disconnect from all guilds.
+        for guild in self.guilds:
+            await self.disconnect_voice_client(guild)
+
+        # Double check for detached voice clients.
         for vc in self.voice_clients:
             if isinstance(vc, discord.VoiceClient):
-                await self.disconnect_voice_client(vc.guild)
+                log.warning("Disconnecting a non-guild VoiceClient...")
+                try:
+                    await vc.disconnect()
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    log.warning("The disconnect failed or was cancelled.")
             else:
                 log.warning(
-                    "Hmm, our voice_clients list contains a non-VoiceClient object?"
+                    "MusicBot.voice_clients list contains a non-VoiceClient object?\n"
+                    "The object is actually of type:  %s",
+                    type(vc),
                 )
 
+        # Triple check we don't have rogue players.  This would be a bug.
+        player_gids = list(self.players.keys())
+        for gid in player_gids:
+            player = self.players[gid]
+            log.warning(
+                "We still have a MusicPlayer ref in guild (%s):  %s",
+                gid,
+                repr(player),
+            )
+            del self.players[gid]
+
     def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
-        """Get a MusicPlayer in the given guild, but do not create a new player."""
-        return self.players.get(guild.id)
+        """
+        Get a MusicPlayer in the given guild, but do not create a new player.
+        MusicPlayer returned from this method may not be connected to a voice channel!
+        """
+        p = self.players.get(guild.id)
+        if log.getEffectiveLevel() <= logging.EVERYTHING:  # type: ignore[attr-defined]
+            log.voicedebug(  # type: ignore[attr-defined]
+                "Guild (%s) wants a player, optional:  %s", guild, repr(p)
+            )
+
+        if log.getEffectiveLevel() <= logging.VOICEDEBUG:  # type: ignore[attr-defined]
+            if p and not p.voice_client:
+                log.error(
+                    "[BUG] MusicPlayer is missing a VoiceClient some how.  You should probably restart the bot."
+                )
+            if p and p.voice_client and not p.voice_client.is_connected():
+                # This is normal if the bot is still connecting to voice, or
+                # if the player has been pointedly disconnected.
+                log.warning("MusicPlayer has a VoiceClient that is not connected.")
+                log.noise("MusicPlayer obj:  %r", p)  # type: ignore[attr-defined]
+                log.noise("VoiceClient obj:  %r", p.voice_client)  # type: ignore[attr-defined]
+        return p
 
     async def get_player(
         self,
@@ -594,8 +930,23 @@ class MusicBot(discord.Client):
         *,
         deserialize: bool = False,
     ) -> MusicPlayer:
-        """Get a MusicPlayer in the given guild, creating one if needed."""
+        """
+        Get a MusicPlayer in the given guild, creating or deserializing one if needed.
+
+        :raises:  TypeError
+            If given `channel` is not a discord.VoiceChannel or discord.StageChannel
+        :raises:  musicbot.exceptions.PermissionsError
+            If MusicBot is not permitted to join the given `channel`.
+        """
         guild = channel.guild
+
+        log.voicedebug(  # type: ignore[attr-defined]
+            "Getting a MusicPlayer for guild:  %s  In Channel:  %s  Will Create:  %s  Deserialize:  %s",
+            guild,
+            channel,
+            create,
+            deserialize,
+        )
 
         async with self.aiolocks[_func_() + ":" + str(guild.id)]:
             if deserialize:
@@ -603,7 +954,7 @@ class MusicBot(discord.Client):
                 player = await self.deserialize_queue(guild, voice_client)
 
                 if player:
-                    log.debug(
+                    log.voicedebug(  # type: ignore[attr-defined]
                         "Created player via deserialization for guild %s with %s entries",
                         guild.id,
                         len(player.playlist),
@@ -661,7 +1012,7 @@ class MusicBot(discord.Client):
         Event called by MusicPlayer when playback of an entry is started.
         """
         log.debug("Running on_player_play")
-        self._handle_guild_auto_pause(player)
+        await self._handle_guild_auto_pause(player)
         await self.reset_player_inactivity(player)
         await self.update_now_playing_status()
         # manage the cache since we may have downloaded something.
@@ -675,14 +1026,11 @@ class MusicBot(discord.Client):
         if self.config.write_current_song:
             await self.write_current_song(player.voice_client.channel.guild, entry)
 
-        channel = entry.meta.get("channel", None)
-        author = entry.meta.get("author", None)
-
-        if channel and author:
-            author_perms = self.permissions.for_user(author)
+        if entry.channel and entry.author:
+            author_perms = self.permissions.for_user(entry.author)
 
             if (
-                author not in player.voice_client.channel.members
+                entry.author not in player.voice_client.channel.members
                 and author_perms.skip_when_absent
             ):
                 newmsg = self.str.get(
@@ -691,7 +1039,7 @@ class MusicBot(discord.Client):
                 ).format(
                     channel=player.voice_client.channel.name,
                     title=entry.title,
-                    author=entry.meta["author"].name,
+                    author=entry.author.name,
                 )
                 player.skip()
             elif self.config.now_playing_mentions:
@@ -699,7 +1047,7 @@ class MusicBot(discord.Client):
                     "on_player_play-onChannel_playingMention",
                     "{author} - your song {title} is now playing in {channel}!",
                 ).format(
-                    author=entry.meta["author"].mention,
+                    author=entry.author.mention,
                     title=entry.title,
                     channel=player.voice_client.channel.name,
                 )
@@ -710,7 +1058,7 @@ class MusicBot(discord.Client):
                 ).format(
                     channel=player.voice_client.channel.name,
                     title=entry.title,
-                    author=entry.meta["author"].name,
+                    author=entry.author.name,
                 )
 
         else:
@@ -720,16 +1068,16 @@ class MusicBot(discord.Client):
                 "Now playing automatically added entry {title} in {channel}!",
             ).format(title=entry.title, channel=player.voice_client.channel.name)
 
+        guild = player.voice_client.guild
+        last_np_msg = self.server_data[guild.id].last_np_msg
+        np_channel: Optional[MessageableChannel] = None
         if newmsg:
-            if self.config.dm_nowplaying and author:
-                await self.safe_send_message(author, newmsg)
+            if self.config.dm_nowplaying and entry.author:
+                await self.safe_send_message(entry.author, newmsg)
                 return
 
-            if self.config.no_nowplaying_auto and not author:
+            if self.config.no_nowplaying_auto and entry.from_auto_playlist:
                 return
-
-            guild = player.voice_client.guild
-            last_np_msg = self.server_data[guild.id].last_np_msg
 
             if self.config.nowplaying_channels:
                 for potential_channel_id in self.config.nowplaying_channels:
@@ -741,20 +1089,14 @@ class MusicBot(discord.Client):
                         continue
 
                     if potential_channel and potential_channel.guild == guild:
-                        channel = potential_channel
+                        np_channel = potential_channel
                         break
 
-            if channel:
-                pass
-            elif not channel and last_np_msg:
-                channel = last_np_msg.channel
-            else:
-                log.debug("no channel to put now playing message into")
-                return
+            if not np_channel and last_np_msg:
+                np_channel = last_np_msg.channel
 
+        content = self._gen_embed()
         if self.config.embeds:
-            content = self._gen_embed()
-
             if entry.thumbnail_url:
                 content.set_image(url=entry.thumbnail_url)
             else:
@@ -770,8 +1112,29 @@ class MusicBot(discord.Client):
                 content.title = newmsg
 
         # send it in specified channel
+        if not np_channel:
+            log.debug("no channel to put now playing message into")
+            return
+
+        # Don't send the same now-playing message more than once.
+        # This prevents repeated messages when players reconnect.
+        last_subject = self.server_data[guild.id].last_played_song_subject
+        if (
+            last_np_msg is not None
+            and player.current_entry is not None
+            and last_subject
+            and last_subject == player.current_entry.url
+        ):
+            log.debug("ignored now-playing message as it was already posted.")
+            return
+
+        if player.current_entry:
+            self.server_data[guild.id].last_played_song_subject = (
+                player.current_entry.url
+            )
+
         self.server_data[guild.id].last_np_msg = await self.safe_send_message(
-            channel,
+            np_channel,
             content if self.config.embeds else newmsg,
             expire_in=30 if self.config.delete_nowplaying else 0,
         )
@@ -820,6 +1183,20 @@ class MusicBot(discord.Client):
         Event called by MusicPlayer when playback has finished without error.
         """
         log.debug("Running on_player_finished_playing")
+        if not self.loop or (self.loop and self.loop.is_closed()):
+            log.debug("Event loop is closed, nothing else to do here.")
+            return
+
+        if self.logout_called:
+            log.debug("Logout under way, ignoring this event.")
+            return
+
+        if not player.voice_client.is_connected():
+            log.debug(
+                "VoiceClient says it is not connected, nothing else we can do here."
+            )
+            return
+
         if self.config.leave_after_queue_empty:
             guild = player.voice_client.guild
             if len(player.playlist.entries) == 0:
@@ -841,8 +1218,8 @@ class MusicBot(discord.Client):
             if not next_entry:
                 break
 
-            channel = next_entry.meta.get("channel", None)
-            author = next_entry.meta.get("author", None)
+            channel = next_entry.channel
+            author = next_entry.author
 
             if not channel or not author:
                 break
@@ -875,13 +1252,12 @@ class MusicBot(discord.Client):
             and not player.current_entry
             and self.config.auto_playlist
         ):
+            # NOTE:  self.autoplaylist will only contain links loaded from the file.
+            #  while player.autoplaylist may contain links expanded from playlists.
+            #  the only issue is that links from a playlist might fail and fire
+            #  remove event, but no link will be removed since none will match.
             if not player.autoplaylist:
                 if not self.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check.
-                    # @Fae: Could lock this but it probably isn't needed.
-                    # - if `self.autoplaylist` is already empty, and the last entry was a playlist URL
-                    # - then queued songs from that URL go into the `player.playlist`, not into `self.autoplaylist`.
-                    # So if it's empty, it will stay that way unless someone is actively adding URLs when this fires.
                     log.warning("No playable songs in the autoplaylist, disabling.")
                     self.config.auto_playlist = False
                 else:
@@ -902,23 +1278,25 @@ class MusicBot(discord.Client):
                     info = await self.downloader.extract_info(
                         song_url, download=False, process=True
                     )
-                except youtube_dl.utils.DownloadError as e:
-                    if "YouTube said:" in e.args[0]:
-                        # url is bork, remove from list and put in removed list
-                        log.error("Error processing youtube url:\n%s", e.args[0])
 
-                    else:
-                        # Probably an error from a different extractor, but I've only seen youtube's
-                        log.error('Error processing "%s": %s', song_url, e)
+                except youtube_dl.utils.DownloadError as e:
+                    log.error(
+                        'Error while downloading song "%s":  %s',
+                        song_url,
+                        e,
+                    )
 
                     await self.remove_url_from_autoplaylist(
                         song_url, ex=e, delete_from_ap=self.config.remove_ap
                     )
                     continue
 
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                except (
+                    exceptions.ExtractionError,
+                    youtube_dl.utils.YoutubeDLError,
+                ) as e:
                     log.error(
-                        'Error processing "%s": %s',
+                        'Error extracting song "%s": %s',
                         song_url,
                         e,
                         exc_info=True,
@@ -929,17 +1307,29 @@ class MusicBot(discord.Client):
                     )
                     continue
 
-                if info.has_entries:
-                    await player.playlist.import_from_info(
-                        info,
-                        channel=None,
-                        author=None,
-                        head=False,
-                        is_autoplaylist=True,
+                except exceptions.MusicbotException:
+                    log.exception(
+                        "MusicBot needs to stop the autoplaylist extraction and bail."
                     )
+                    return
+                except Exception:
+                    log.exception(
+                        "MusicBot got an unhandled exception in player finished event."
+                    )
+                    break
 
-                # Do I check the initial conditions again?
-                # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+                if info.has_entries:
+                    log.info(
+                        "Expanding auto playlist with entries extracted from:  %s",
+                        info.url,
+                    )
+                    entries = info.get_entries_objects()
+                    pl_urls: List[str] = []
+                    for entry in entries:
+                        pl_urls.append(entry.url)
+
+                    player.autoplaylist = pl_urls + player.autoplaylist
+                    continue
 
                 try:
                     await player.playlist.add_entry_from_info(
@@ -947,7 +1337,6 @@ class MusicBot(discord.Client):
                         channel=None,
                         author=None,
                         head=False,
-                        is_autoplaylist=True,
                     )
                 except (
                     exceptions.ExtractionError,
@@ -957,13 +1346,11 @@ class MusicBot(discord.Client):
                         "Error adding song from autoplaylist: %s",
                         str(e),
                     )
-                    log.debug("", exc_info=True)
+                    log.debug("Exception data for above error:", exc_info=True)
                     continue
-
                 break
 
             if not self.autoplaylist:
-                # TODO: When I add playlist expansion, make sure that's not happening during this check
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
@@ -994,39 +1381,34 @@ class MusicBot(discord.Client):
             and not entry.from_auto_playlist
             # TODO:  and self.config.autoplaylist_autoskip
         ):
+            log.debug("Automatically skipping auto-playlist entry for queued entry.")
             player.skip()
 
         # Only serialize the queue for user-added tracks, unless deferred
-        if (
-            entry.meta.get("author")
-            and entry.meta.get("channel")
-            and not defer_serialize
-        ):
+        if entry.author and entry.channel and not defer_serialize:
             await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_error(
         self,
         player: MusicPlayer,  # pylint: disable=unused-argument
-        entry: EntryTypes,
+        entry: Optional[EntryTypes],
         ex: Optional[Exception],
         **_: Any,
     ) -> None:
         """
         Event called by MusicPlayer when an entry throws an error.
         """
-        author = entry.meta.get("author", None)
-        channel = entry.meta.get("channel", None)
-        if channel and author:
+        if entry and entry.channel:
             song = entry.title or entry.url
             await self.safe_send_message(
-                channel,
+                entry.channel,
                 # TODO: i18n / UI stuff
                 f"Playback failed for song: `{song}` due to error:\n```\n{ex}\n```",
             )
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def update_now_playing_status(self) -> None:
+    async def update_now_playing_status(self, set_offline: bool = False) -> None:
         """Inspects available players and ultimately fire change_presence()"""
         activity = None  # type: Optional[discord.BaseActivity]
         status = discord.Status.online  # type: discord.Status
@@ -1036,6 +1418,24 @@ class MusicBot(discord.Client):
         # Streaming Activity is a coin toss at best. Usually status changes correctly.
         # However all other details in the client might be wrong or missing.
         # Example:  Youtube url shows "Twitch" in client profile info.
+
+        # if requested, try to set the bot offline.
+        if set_offline:
+            activity = discord.Activity(
+                type=discord.ActivityType.custom,
+                state="",
+                name="Custom Status",  # seemingly required.
+            )
+            await self.change_presence(
+                status=discord.Status.invisible, activity=activity
+            )
+            self.last_status = activity
+            return
+
+        # We ignore player related status when logout is called.
+        if self.logout_called:
+            log.debug("Logout under way, ignoring status update event.")
+            return
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
         paused = sum(1 for p in self.players.values() if p.is_paused)
@@ -1111,6 +1511,8 @@ class MusicBot(discord.Client):
         """
         Serialize the current queue for a server's player to json.
         """
+        if not self.config.persistent_queue:
+            return
 
         player = self.get_player_in(guild)
         if not player:
@@ -1136,6 +1538,8 @@ class MusicBot(discord.Client):
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
         """
+        if not self.config.persistent_queue:
+            return None
 
         if playlist is None:
             playlist = Playlist(self)
@@ -1172,50 +1576,6 @@ class MusicBot(discord.Client):
 
             with open(path, "w", encoding="utf8") as f:
                 f.write(entry.title)
-
-    async def _on_ready_sanity_checks(self) -> None:
-        """
-        Run all sanity checks that should be run in/just after on_ready event.
-        """
-        # Ensure AppInfo is loaded.
-        if not self.cached_app_info:
-            log.debug("Getting application info.")
-            self.cached_app_info = await self.application_info()
-
-        # Ensure folders exist
-        await self._scheck_ensure_env()
-
-        # TODO: Server permissions check
-        # TODO: pre-expand playlists in autoplaylist?
-
-        # config/permissions async validate?
-        await self._scheck_configs()
-
-    async def _scheck_ensure_env(self) -> None:
-        """
-        Startup check to make sure guild/server specific directories are
-        available in the data directory.
-        Additionally populate a text file to map guild ID to their names.
-        """
-        log.debug("Ensuring data folders exist")
-        for guild in self.guilds:
-            pathlib.Path(f"data/{guild.id}/").mkdir(exist_ok=True)
-
-        with open("data/server_names.txt", "w", encoding="utf8") as f:
-            for guild in sorted(self.guilds, key=lambda s: int(s.id)):
-                f.write(f"{guild.id}: {guild.name}\n")
-
-        self.filecache.delete_old_audiocache(remove_dir=True)
-
-    async def _scheck_configs(self) -> None:
-        """
-        Startup check to handle late validation of config and permissions.
-        """
-        log.debug("Validating config")
-        await self.config.async_validate(self)
-
-        log.debug("Validating permissions config")
-        await self.permissions.async_validate(self)
 
     #######################################################################################################################
 
@@ -1300,9 +1660,7 @@ class MusicBot(discord.Client):
                     try:
                         await asyncio.sleep(retry_after)
                     except asyncio.CancelledError:
-                        log.exception(
-                            "Sleep in send message caught exception, bailing out."
-                        )
+                        log.warning("Cancelled message retry for:  %s", content)
                         return msg
                     return await self.safe_send_message(dest, content, **kwargs)
 
@@ -1434,9 +1792,7 @@ class MusicBot(discord.Client):
                     try:
                         await asyncio.sleep(retry_after)
                     except asyncio.CancelledError:
-                        log.exception(
-                            "Sleep in edit message caught exception, bailing out."
-                        )
+                        log.warning("Cancelled message edit for:  %s", message)
                         return None
                     return await self.safe_edit_message(
                         message, new, send_if_fail=send_if_fail, quiet=quiet
@@ -1449,67 +1805,136 @@ class MusicBot(discord.Client):
 
         return None
 
-    async def shutdown_cleanup(self) -> None:
+    def _setup_windows_signal_handler(self) -> None:
         """
-        Function which forces closure on connections and pending tasks.
-        Much scrutiny required herein.
-        Probably due for further refactoring.
+        Windows needs special handling for Ctrl+C signals to play nice with asyncio
+        so this method sets up signals with access to bot event loop.
+        This enables capturing KeyboardInterrupt and using it to cleanly shut down.
         """
-        try:  # make sure discord.Client is closed.
-            await self.close()  # changed in d.py 2.0
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Issue while closing discord client session.")
+        if os.name != "nt":
+            return
 
-        try:  # make sure discord.http.connector is closed.
-            # This may be a bug in aiohttp or within discord.py handling of it.
-            # Have read aiohttp 4.x is supposed to fix this, but have not verified.
-            if self.http.connector:
-                await self.http.connector.close()
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Issue while closing discord aiohttp connector.")
+        # method used to set the above member.
+        def set_windows_signal(sig: int, _frame: Any) -> None:
+            self._os_signal = signal.Signals(sig)
 
-        try:  # make sure our aiohttp session is closed.
-            if self.session:
-                await self.session.close()
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Issue while closing our aiohttp session.")
+        # method used to periodically check for a signal, and process it.
+        async def check_windows_signal() -> None:
+            while True:
+                if self.logout_called:
+                    break
 
-        # now cancel all pending tasks, except for run.py::main()
-        for task in asyncio.all_tasks(loop=self.loop):
-            coro = task.get_coro()
+                if self._os_signal is None:
+                    try:
+                        await asyncio.sleep(1)
+                    except asyncio.CancelledError:
+                        break
+                else:
+                    await self.on_os_signal(self._os_signal, self.loop)
+                    self._os_signal = None
 
-            if (
-                hasattr(coro, "__name__")
-                and coro.__name__ == "main"
-                and task.get_name().lower() == "task-1"
-            ):
-                continue
+        # register interrupt signal Ctrl+C to be trapped.
+        signal.signal(signal.SIGINT, set_windows_signal)
+        # and start the signal checking loop.
+        asyncio.create_task(check_windows_signal())
 
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+    async def on_os_signal(
+        self, sig: signal.Signals, _loop: asyncio.AbstractEventLoop
+    ) -> None:
+        """
+        On Unix-like/Linux OS, this method is called automatically on the event
+        loop for signals registered in run.py.
+        On Windows, this method is called by custom signal handling set up at
+        the start of run_musicbot().
+        This allows MusicBot to handle external signals and triggering a clean
+        shutdown of MusicBot in response to them.
 
-    # TODO:  rename this instead of overriding client run maybe.
-    async def run(self) -> None:  # type: ignore[override]
+        It essentially just calls logout, and the rest of MusicBot tear-down is
+        finished up in `MusicBot.run_musicbot()` instead.
+
+        Signals handled here are registered with the event loop in run.py.
+        """
+        # This print facilitates putting '^C' on its own line in the terminal.
+        print()
+        log.warning("Caught a signal from the OS: %s", sig.name)
+
+        try:
+            if self and not self.logout_called:
+                log.info("Disconnecting and closing down MusicBot...")
+                await self.logout()
+        except Exception as e:
+            log.exception("Exception thrown while handling interrupt signal!")
+            raise KeyboardInterrupt() from e
+
+    async def run_musicbot(self) -> None:
+        """
+        This method is to be used in an event loop to start the MusicBot.
+        It handles cleanup of bot session, while the event loop is closed separately.
+        """
+        # Windows specifically needs some help with signals.
+        self._setup_windows_signal_handler()
+
+        # handle start up and teardown.
         try:
             await self.start(*self.config.auth)
+            log.info("MusicBot is now doing shutdown steps...")
+            if self.exit_signal is None:
+                self.exit_signal = exceptions.TerminateSignal()
 
         except discord.errors.LoginFailure as e:
-            # TODO: this message might be misleading, add token check.
             raise exceptions.HelpfulError(
-                "Bot cannot login, bad credentials.",
-                "Fix your token in the options file.  "
+                preface="Failed login to discord API!",
+                issue="MusicBot cannot login to discord, is your token correct?",
+                solution="Fix your token in the options.ini config file.\n"
                 "Remember that each field should be on their own line.",
+                footnote="Note: If you are certain your token is correct, this may be due to a Discord API outage.",
             ) from e
 
         finally:
-            try:
-                await self.shutdown_cleanup()
-            except Exception:  # pylint: disable=broad-exception-caught
-                log.error("Error in cleanup", exc_info=True)
+            # Inspect all waiting tasks and either cancel them or let them finish.
+            pending_tasks = []
+            for task in asyncio.all_tasks(loop=self.loop):
+                # Don't cancel run_musicbot task, we need it to finish cleaning.
+                if task == asyncio.current_task():
+                    continue
 
+                tname = task.get_name()
+                coro = task.get_coro()
+                coro_name = "[unknown]"
+                if coro and hasattr(coro, "__qualname__"):
+                    coro_name = getattr(coro, "__qualname__", "[unknown]")
+
+                if (
+                    tname.startswith("Signal_SIG")
+                    or coro_name == "URLPlaylistEntry._download"
+                ):
+                    log.debug("Will wait for task:  %s  (%s)", tname, coro_name)
+                    pending_tasks.append(task)
+
+                else:
+                    log.debug("Will try to cancel task:  %s  (%s)", tname, coro_name)
+                    task.cancel()
+                    pending_tasks.append(task)
+
+            # wait on any pending tasks.
+            if pending_tasks:
+                log.debug("Awaiting pending tasks...")
+                await asyncio.gather(*pending_tasks, return_exceptions=True)
+                await asyncio.sleep(0.5)
+
+            # ensure connector is closed.
+            if self.http.connector:
+                log.debug("Closing HTTP Connector.")
+                await self.http.connector.close()
+                await asyncio.sleep(0.5)
+
+            # ensure the session is closed.
+            if self.session:
+                log.debug("Closing aiohttp session.")
+                await self.session.close()
+                await asyncio.sleep(0.5)
+
+            # if anything set an exit signal, we should raise it here.
             if self.exit_signal:
                 raise self.exit_signal
 
@@ -1517,6 +1942,10 @@ class MusicBot(discord.Client):
         """
         Disconnect all voice clients and signal MusicBot to close it's connections to discord.
         """
+        log.noise("Logout has been called.")  # type: ignore[attr-defined]
+        await self.update_now_playing_status(set_offline=True)
+
+        self.logout_called = True
         await self.disconnect_all_voice_clients()
         return await super().close()
 
@@ -1542,7 +1971,8 @@ class MusicBot(discord.Client):
         Event called by discord.py when the client resumed an existing session.
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_resume
         """
-        log.info("\nReconnected to discord.\n")
+        log.info("MusicBot resumed a session with discord.")
+        await self._auto_join_channels(from_resume=True)
 
     async def on_ready(self) -> None:
         """
@@ -1551,41 +1981,39 @@ class MusicBot(discord.Client):
         See documentations for specifics:
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_ready
         """
+        if self.on_ready_count == 0:
+            await self._on_ready_once()
+            self.init_ok = True
+
+        await self._on_ready_always()
+        self.on_ready_count += 1
+
+        log.debug("Finish on_ready")
+
+    async def _on_ready_once(self) -> None:
+        """
+        A version of on_ready that will only ever be called once, at first login.
+        """
         mute_discord_console_log()
-        log.debug("Connection established, ready to go.")
-
-        # Set the handler name if we have it.  I don't know why, but we do.
-        if self.ws._keep_alive:  # pylint: disable=protected-access
-            self.ws._keep_alive.name = (  # pylint: disable=protected-access
-                "Gateway Keepalive"
-            )
-        else:
-            log.error(
-                "Failed to set WebSocket KeepAlive handler name, handler not available."
-            )
-
-        if self.init_ok:
-            log.debug("Received additional READY event, may have failed to resume")
-            return
-
-        await self._on_ready_sanity_checks()
+        log.debug("Logged in, now getting MusicBot ready...")
 
         if not self.user:
             log.critical("ClientUser is somehow none, we gotta bail...")
-            return
+            self.exit_signal = exceptions.TerminateSignal()
+            raise self.exit_signal
 
-        self.init_ok = True
-
-        ################################
+        # Start the environment checks. Generate folders/files dependent on Discord data.
+        # Also takes care of app-info and auto OwnerID updates.
+        await self._on_ready_sanity_checks()
 
         log.info(
-            "Connected: %s/%s#%s",
+            "MusicBot:  %s/%s#%s",
             self.user.id,
             self.user.name,
             self.user.discriminator,
         )
 
-        owner = self._get_owner(voice=True) or self._get_owner()
+        owner = self._get_owner_member()
         if owner and self.guilds:
             log.info(
                 "Owner:     %s/%s#%s\n",
@@ -1645,6 +2073,7 @@ class MusicBot(discord.Client):
         #    for s in self.guilds:
         #        await self._load_guild_options(s)
 
+        # validate bound channels and log them.
         if self.config.bound_channels:
             # Get bound channels by ID, and validate that we can use them.
             text_chlist: Set[MessageableChannel] = set()
@@ -1675,7 +2104,14 @@ class MusicBot(discord.Client):
                 log.info("Bound to text channels:")
                 for valid_ch in text_chlist:
                     guild_name = "PrivateChannel"
-                    ch_name = type(valid_ch).__name__
+                    if isinstance(valid_ch, discord.DMChannel):
+                        ch_name = "Unknown User DM"
+                        if valid_ch.recipient:
+                            ch_name = f"DM: {valid_ch.recipient.name}"
+                    elif isinstance(valid_ch, discord.PartialMessageable):
+                        ch_name = "Unknown Partial Channel"
+                    else:
+                        ch_name = valid_ch.name or f"Unnamed Channel: {valid_ch.id}"
                     if valid_ch.guild:
                         guild_name = valid_ch.guild.name
                     log.info(" - %s/%s", guild_name, ch_name)
@@ -1684,6 +2120,9 @@ class MusicBot(discord.Client):
         else:
             log.info("Not bound to any text channels")
 
+        print(flush=True)  # new line in console.
+
+        # validate and display auto-join channels.
         if self.config.autojoin_channels:
             vc_chlist: Set[VoiceableChannel] = set()
             invalids: Set[int] = set()
@@ -1715,7 +2154,7 @@ class MusicBot(discord.Client):
             # Update config data to be reliable later.
             self.config.autojoin_channels.difference_update(invalids)
             # Store the channel objects for later use.
-            self.autojoin_channels = vc_chlist
+            self.autojoinable_channels = vc_chlist
 
             # log what we're connecting to.
             if vc_chlist:
@@ -1729,139 +2168,182 @@ class MusicBot(discord.Client):
         else:
             log.info("Not autojoining any voice channels")
 
+        # Display and log the config settings.
         if self.config.show_config_at_start:
-            print(flush=True)
-            log.info("Options:")
+            self._on_ready_log_configs()
 
-            log.info("  Command prefix: %s", self.config.command_prefix)
-            log.info("  Default volume: %d%%", int(self.config.default_volume * 100))
-            log.info(
-                "  Skip threshold: %d votes or %.0f%%",
-                self.config.skips_required,
-                (self.config.skip_ratio_required * 100),
+        # we do this after the config list because it's a lot easier to notice here
+        if self.config.missing_keys:
+            conf_warn = exceptions.HelpfulError(
+                preface="Detected missing config options!",
+                issue="Your options.ini file is missing some options. Defaults will be used for this session.\n"
+                f"Here is a list of options we think are missing:\n    {', '.join(self.config.missing_keys)}",
+                solution="Check the example_options.ini file for newly added options and copy them to your config.",
             )
-            log.info(
-                "  Now Playing @mentions: %s",
-                ["Disabled", "Enabled"][self.config.now_playing_mentions],
-            )
-            log.info(
-                "  Auto-Summon: %s", ["Disabled", "Enabled"][self.config.auto_summon]
-            )
-            log.info(
-                "  Auto-Playlist: %s (order: %s)",
-                ["Disabled", "Enabled"][self.config.auto_playlist],
-                ["sequential", "random"][self.config.auto_playlist_random],
-            )
-            log.info(
-                "  Auto-Pause: %s", ["Disabled", "Enabled"][self.config.auto_pause]
-            )
-            log.info(
-                "  Delete Messages: %s",
-                ["Disabled", "Enabled"][self.config.delete_messages],
-            )
-            if self.config.delete_messages:
-                log.info(
-                    "    Delete Invoking: %s",
-                    ["Disabled", "Enabled"][self.config.delete_invoking],
-                )
-                log.info(
-                    "    Delete Nowplaying: %s",
-                    ["Disabled", "Enabled"][self.config.delete_nowplaying],
-                )
-            log.info(
-                "  Debug Mode: %s", ["Disabled", "Enabled"][self.config.debug_mode]
-            )
-            log.info(
-                "  Downloaded songs will be %s",
-                ["deleted", "saved"][self.config.save_videos],
-            )
-            if self.config.save_videos and self.config.storage_limit_days:
-                log.info(
-                    "    Delete if unused for %d days", self.config.storage_limit_days
-                )
-            if self.config.save_videos and self.config.storage_limit_bytes:
-                size = format_size_from_bytes(self.config.storage_limit_bytes)
-                log.info("    Delete if size exceeds %s", size)
+            log.warning(str(conf_warn)[1:])
 
-            if self.config.status_message:
-                log.info("  Status message: %s", self.config.status_message)
-            log.info(
-                "  Write current songs to file: %s",
-                ["Disabled", "Enabled"][self.config.write_current_song],
-            )
-            log.info(
-                "  Author insta-skip: %s",
-                ["Disabled", "Enabled"][self.config.allow_author_skip],
-            )
-            log.info("  Embeds: %s", ["Disabled", "Enabled"][self.config.embeds])
-            log.info(
-                "  Spotify integration: %s",
-                ["Disabled", "Enabled"][self.config.spotify_enabled],
-            )
-            log.info(
-                "  Legacy skip: %s", ["Disabled", "Enabled"][self.config.legacy_skip]
-            )
-            log.info(
-                "  Leave non owners: %s",
-                ["Disabled", "Enabled"][self.config.leavenonowners],
-            )
-            log.info(
-                "  Leave inactive VC: %s",
-                ["Disabled", "Enabled"][self.config.leave_inactive_channel],
-            )
-            if self.config.leave_inactive_channel:
-                log.info(
-                    "    Timeout: %s seconds",
-                    self.config.leave_inactive_channel_timeout,
-                )
-            log.info(
-                "  Leave at song end/empty queue: %s",
-                ["Disabled", "Enabled"][self.config.leave_after_queue_empty],
-            )
-            log.info(
-                "  Leave when player idles: %s",
-                "Disabled" if self.config.leave_player_inactive_for == 0 else "Enabled",
-            )
-            if self.config.leave_player_inactive_for:
-                log.info(
-                    "    Timeout: %d seconds", self.config.leave_player_inactive_for
-                )
-            log.info(
-                "  Self Deafen: %s", ["Disabled", "Enabled"][self.config.self_deafen]
-            )
-            log.info(
-                "  Per-server command prefix: %s",
-                ["Disabled", "Enabled"][self.config.enable_options_per_guild],
-            )
-            log.info(
-                "  Search List: %s", ["Disabled", "Enabled"][self.config.searchlist]
-            )
-            log.info(
-                "  Round Robin Queue: %s",
-                ["Disabled", "Enabled"][self.config.round_robin_queue],
-            )
+        # self.loop.create_task(self._on_ready_call_later())
+
+    async def _on_ready_always(self) -> None:
+        """
+        A version of on_ready that will be called on every event.
+        """
+        if self.on_ready_count > 0:
+            log.debug("Event on_ready has fired %s times", self.on_ready_count)
+        self.loop.create_task(self._on_ready_call_later())
+
+    async def _on_ready_call_later(self) -> None:
+        """
+        A collection of calls scheduled for execution by _on_ready_once
+        """
+        await self.update_now_playing_status()
+        await self._auto_join_channels()
+
+    async def _on_ready_sanity_checks(self) -> None:
+        """
+        Run all sanity checks that should be run in/just after on_ready event.
+        """
+        # Ensure AppInfo is loaded.
+        if not self.cached_app_info:
+            log.debug("Getting application info.")
+            self.cached_app_info = await self.application_info()
+
+        # Ensure folders exist
+        await self._on_ready_ensure_env()
+
+        # TODO: Server permissions check
+        # TODO: pre-expand playlists in autoplaylist?
+
+        # Ensure configs are valid / auto OwnerID is updated.
+        await self._on_ready_validate_configs()
+
+    async def _on_ready_ensure_env(self) -> None:
+        """
+        Startup check to make sure guild/server specific directories are
+        available in the data directory.
+        Additionally populate a text file to map guild ID to their names.
+        """
+        log.debug("Ensuring data folders exist")
+        for guild in self.guilds:
+            pathlib.Path(f"data/{guild.id}/").mkdir(exist_ok=True)
+
+        with open("data/server_names.txt", "w", encoding="utf8") as f:
+            for guild in sorted(self.guilds, key=lambda s: int(s.id)):
+                f.write(f"{guild.id}: {guild.name}\n")
+
+        self.filecache.delete_old_audiocache(remove_dir=True)
+
+    async def _on_ready_validate_configs(self) -> None:
+        """
+        Startup check to handle late validation of config and permissions.
+        """
+        log.debug("Validating config")
+        await self.config.async_validate(self)
+
+        log.debug("Validating permissions config")
+        await self.permissions.async_validate(self)
+
+    def _on_ready_log_configs(self) -> None:
+        """
+        Shows information about configs, including missing keys.
+        No validation is done in this method, only display/logs.
+        """
 
         print(flush=True)
+        log.info("Options:")
 
-        await self.update_now_playing_status()
-
-        # maybe option to leave the ownerid blank and generate a random command for the owner to use
-        # wait_for_message is pretty neato
-
-        await self._join_startup_channels(self.autojoin_channels)
-
-        # we do this after the config stuff because it's a lot easier to notice here
-        if self.config.missing_keys:
-            log.warning(
-                "Your config file is missing some options. If you have recently updated, "
-                "check the example_options.ini file to see if there are new options available to you. "
-                "The options missing are: %s",
-                self.config.missing_keys,
+        log.info("  Command prefix: %s", self.config.command_prefix)
+        log.info("  Default volume: %d%%", int(self.config.default_volume * 100))
+        log.info(
+            "  Skip threshold: %d votes or %.0f%%",
+            self.config.skips_required,
+            (self.config.skip_ratio_required * 100),
+        )
+        log.info(
+            "  Now Playing @mentions: %s",
+            ["Disabled", "Enabled"][self.config.now_playing_mentions],
+        )
+        log.info("  Auto-Summon: %s", ["Disabled", "Enabled"][self.config.auto_summon])
+        log.info(
+            "  Auto-Playlist: %s (order: %s)",
+            ["Disabled", "Enabled"][self.config.auto_playlist],
+            ["sequential", "random"][self.config.auto_playlist_random],
+        )
+        log.info("  Auto-Pause: %s", ["Disabled", "Enabled"][self.config.auto_pause])
+        log.info(
+            "  Delete Messages: %s",
+            ["Disabled", "Enabled"][self.config.delete_messages],
+        )
+        if self.config.delete_messages:
+            log.info(
+                "    Delete Invoking: %s",
+                ["Disabled", "Enabled"][self.config.delete_invoking],
             )
-            print(flush=True)
+            log.info(
+                "    Delete Nowplaying: %s",
+                ["Disabled", "Enabled"][self.config.delete_nowplaying],
+            )
+        log.info("  Debug Mode: %s", ["Disabled", "Enabled"][self.config.debug_mode])
+        log.info(
+            "  Downloaded songs will be %s",
+            ["deleted", "saved"][self.config.save_videos],
+        )
+        if self.config.save_videos and self.config.storage_limit_days:
+            log.info("    Delete if unused for %d days", self.config.storage_limit_days)
+        if self.config.save_videos and self.config.storage_limit_bytes:
+            size = format_size_from_bytes(self.config.storage_limit_bytes)
+            log.info("    Delete if size exceeds %s", size)
 
-        log.debug("Finish on_ready")
-        self.is_ready_done = True
+        if self.config.status_message:
+            log.info("  Status message: %s", self.config.status_message)
+        log.info(
+            "  Write current songs to file: %s",
+            ["Disabled", "Enabled"][self.config.write_current_song],
+        )
+        log.info(
+            "  Author insta-skip: %s",
+            ["Disabled", "Enabled"][self.config.allow_author_skip],
+        )
+        log.info("  Embeds: %s", ["Disabled", "Enabled"][self.config.embeds])
+        log.info(
+            "  Spotify integration: %s",
+            ["Disabled", "Enabled"][self.config.spotify_enabled],
+        )
+        log.info("  Legacy skip: %s", ["Disabled", "Enabled"][self.config.legacy_skip])
+        log.info(
+            "  Leave non owners: %s",
+            ["Disabled", "Enabled"][self.config.leavenonowners],
+        )
+        log.info(
+            "  Leave inactive VC: %s",
+            ["Disabled", "Enabled"][self.config.leave_inactive_channel],
+        )
+        if self.config.leave_inactive_channel:
+            log.info(
+                "    Timeout: %s seconds",
+                self.config.leave_inactive_channel_timeout,
+            )
+        log.info(
+            "  Leave at song end/empty queue: %s",
+            ["Disabled", "Enabled"][self.config.leave_after_queue_empty],
+        )
+        log.info(
+            "  Leave when player idles: %s",
+            "Disabled" if self.config.leave_player_inactive_for == 0 else "Enabled",
+        )
+        if self.config.leave_player_inactive_for:
+            log.info("    Timeout: %d seconds", self.config.leave_player_inactive_for)
+        log.info("  Self Deafen: %s", ["Disabled", "Enabled"][self.config.self_deafen])
+        log.info(
+            "  Per-server command prefix: %s",
+            ["Disabled", "Enabled"][self.config.enable_options_per_guild],
+        )
+        log.info("  Search List: %s", ["Disabled", "Enabled"][self.config.searchlist])
+        log.info(
+            "  Round Robin Queue: %s",
+            ["Disabled", "Enabled"][self.config.round_robin_queue],
+        )
+        print(flush=True)
 
     def _gen_embed(self) -> discord.Embed:
         """Provides a basic template for embeds"""
@@ -2508,49 +2990,116 @@ class MusicBot(discord.Client):
             )
         return True
 
-    def _handle_guild_auto_pause(self, player: MusicPlayer) -> None:
+    async def _handle_guild_auto_pause(self, player: MusicPlayer, _lc: int = 0) -> None:
         """
         Check the current voice client channel for members and determine
         if the player should be paused automatically.
         This is distinct from Guild availability pausing, which happens
-        when Discord has outages.
+        when Discord or the network has outages.
         """
         if not self.config.auto_pause:
+            if player.paused_auto:
+                player.paused_auto = False
             return
 
-        if not player.voice_client:
+        if self.network_outage:
+            log.debug("Ignoring auto-pause due to network outage.")
+            return
+
+        if not player.voice_client or not player.voice_client.channel:
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer has no VoiceClient or has no channel data, cannot process auto-pause."
+            )
+            if player.paused_auto:
+                player.paused_auto = False
             return
 
         channel = player.voice_client.channel
-
         guild = channel.guild
-        auto_paused = self.server_data[guild.id].auto_paused
+
+        lock = self.aiolocks[f"auto_pause:{guild.id}"]
+        if lock.locked():
+            log.debug("Already processing auto-pause, ignoring this event.")
+            return
+
+        async with lock:
+            if not player.voice_client.is_connected():
+                if self.loop:
+                    naptime = 3 * (1 + _lc)
+                    log.warning(
+                        "%sVoiceClient not connected, waiting %s seconds to handle auto-pause in guild:  %s",
+                        "[Bug] " if _lc > 12 else "",
+                        naptime,
+                        player.voice_client.guild,
+                    )
+                    try:
+                        await asyncio.sleep(naptime)
+                    except asyncio.CancelledError:
+                        log.debug("Auto-pause waiting was cancelled.")
+                        return
+
+                    _lc += 1
+                    f_player = self.get_player_in(player.voice_client.guild)
+                    if player != f_player:
+                        log.info(
+                            "A new MusicPlayer is being connected, ignoring old auto-pause event."
+                        )
+                        return
+
+                    if f_player is not None:
+                        self.loop.create_task(
+                            self._handle_guild_auto_pause(f_player, _lc=_lc)
+                        )
+                return
 
         is_empty = is_empty_voice_channel(
             channel, include_bots=self.config.bot_exception_ids
         )
-        if is_empty and not auto_paused and player.is_playing:
+        if is_empty and player.is_playing:
             log.info(
                 "Playing in an empty voice channel, running auto pause for guild: %s",
                 guild,
             )
             player.pause()
-            self.server_data[guild.id].auto_paused = True
+            player.paused_auto = True
 
-        elif not is_empty and auto_paused and player.is_paused:
+        elif not is_empty and player.paused_auto:
             log.info("Previously auto paused player is unpausing for guild: %s", guild)
-            player.resume()
-            self.server_data[guild.id].auto_paused = False
+            player.paused_auto = False
+            if player.is_paused:
+                player.resume()
 
     async def _do_cmd_unpause_check(
-        self, player: Optional[MusicPlayer], channel: MessageableChannel
+        self,
+        player: Optional[MusicPlayer],
+        channel: MessageableChannel,
+        author: discord.Member,
+        message: discord.Message,
     ) -> None:
         """
         Checks for paused player and resumes it while sending a notice.
 
         This function should not be called from _cmd_play().
         """
+        if not player or not player.voice_client or not player.voice_client.channel:
+            return
+
+        if not author.voice or not author.voice.channel:
+            return
+
+        if player and player.voice_client and player.voice_client.channel:
+            pvc = player.voice_client.channel
+            avc = author.voice.channel
+            perms = self.permissions.for_user(author)
+            if pvc != avc and perms.summonplay:
+                await self.cmd_summon(author.guild, author, message)
+                return
+
+            if pvc != avc and not perms.summonplay:
+                return
+
         if player and player.is_paused:
+            player.resume()
             await self.safe_send_message(
                 channel,
                 self.str.get(
@@ -2559,13 +3108,12 @@ class MusicBot(discord.Client):
                 ),
                 expire_in=30,
             )
-            player.resume()
 
     async def cmd_play(
         self,
         message: discord.Message,
         _player: Optional[MusicPlayer],
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -2585,7 +3133,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         return await self._cmd_play(
             message,
@@ -2603,7 +3151,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         _player: Optional[MusicPlayer],
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -2616,7 +3164,7 @@ class MusicBot(discord.Client):
 
         Like play command but explicitly shuffles entries before adding them to the queue.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         await self._cmd_play(
             message,
@@ -2642,7 +3190,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         _player: Optional[MusicPlayer],
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -2662,7 +3210,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         return await self._cmd_play(
             message,
@@ -2680,7 +3228,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         _player: Optional[MusicPlayer],
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -2700,7 +3248,7 @@ class MusicBot(discord.Client):
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         # attempt to queue the song, but used the front of the queue and skip current playback.
         return await self._cmd_play(
@@ -2918,7 +3466,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         player: MusicPlayer,
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -2996,7 +3544,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         _player: Optional[MusicPlayer],
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -3269,7 +3817,7 @@ class MusicBot(discord.Client):
     async def cmd_stream(
         self,
         _player: Optional[MusicPlayer],
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -3286,7 +3834,7 @@ class MusicBot(discord.Client):
         streams, especially on poor connections.  You have been warned.
         """
 
-        await self._do_cmd_unpause_check(_player, channel)
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         if _player:
             player = _player
@@ -3381,7 +3929,7 @@ class MusicBot(discord.Client):
         self,
         message: discord.Message,
         player: MusicPlayer,
-        channel: MessageableChannel,
+        channel: GuildMessageableChannels,
         guild: discord.Guild,
         author: discord.Member,
         permissions: PermissionGroup,
@@ -3741,7 +4289,7 @@ class MusicBot(discord.Client):
             )
 
             entry = player.current_entry
-            entry_author = player.current_entry.meta.get("author", None)
+            entry_author = player.current_entry.author
 
             if entry_author:
                 np_text = self.str.get(
@@ -3766,6 +4314,10 @@ class MusicBot(discord.Client):
                     progress=prog_str,
                     url=entry.url,
                 )
+
+                # TODO: i18n
+                if entry.from_auto_playlist:
+                    np_text += "\n`via autoplaylist`"
 
             if self.config.embeds:
                 content = self._gen_embed()
@@ -3822,39 +4374,10 @@ class MusicBot(discord.Client):
                 )
             )
 
-        voice_client = self.voice_client_in(guild)
-        if voice_client and guild == author.voice.channel.guild:
-            await voice_client.move_to(author.voice.channel)
+        player = self.get_player_in(guild)
+        if player and player.voice_client and guild == author.voice.channel.guild:
+            await player.voice_client.move_to(author.voice.channel)
         else:
-            # move to _verify_vc_perms?
-            chperms = author.voice.channel.permissions_for(guild.me)
-
-            if not chperms.connect:
-                log.warning(
-                    "Cannot join channel '%s', no permission.",
-                    author.voice.channel.name,
-                )
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-summon-noperms-connect",
-                        "Cannot join channel `{0}`, no permission to connect.",
-                    ).format(author.voice.channel.name),
-                    expire_in=25,
-                )
-
-            if not chperms.speak:
-                log.warning(
-                    "Cannot join channel '%s', no permission to speak.",
-                    author.voice.channel.name,
-                )
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-summon-noperms-speak",
-                        "Cannot join channel `{0}`, no permission to speak.",
-                    ).format(author.voice.channel.name),
-                    expire_in=25,
-                )
-
             player = await self.get_player(
                 author.voice.channel,
                 create=True,
@@ -3863,9 +4386,6 @@ class MusicBot(discord.Client):
 
             if player.is_stopped:
                 player.play()
-
-            if self.config.auto_playlist:
-                await self.on_player_finished_playing(player)
 
         log.info(
             "Joining %s/%s",
@@ -4011,9 +4531,7 @@ class MusicBot(discord.Client):
                 if permissions.remove or author == user:
                     try:
                         entry_indexes = [
-                            e
-                            for e in player.playlist.entries
-                            if e.meta.get("author", None) == user
+                            e for e in player.playlist.entries if e.author == user
                         ]
                         for entry in entry_indexes:
                             player.playlist.entries.remove(entry)
@@ -4069,16 +4587,17 @@ class MusicBot(discord.Client):
                 expire_in=20,
             )
 
-        if permissions.remove or author == player.playlist.get_entry_at_index(
-            idx - 1
-        ).meta.get("author", None):
+        if (
+            permissions.remove
+            or author == player.playlist.get_entry_at_index(idx - 1).author
+        ):
             entry = player.playlist.delete_entry_at_index((idx - 1))
-            if entry.meta.get("channel", False) and entry.meta.get("author", False):
+            if entry.channel and entry.author:
                 return Response(
                     self.str.get(
                         "cmd-remove-reply-author", "Removed entry `{0}` added by `{1}`"
                     )
-                    .format(entry.title, entry.meta["author"].name)
+                    .format(entry.title, entry.author.name)
                     .strip()
                 )
 
@@ -4146,7 +4665,7 @@ class MusicBot(discord.Client):
             )
 
         current_entry = player.current_entry
-        entry_author = current_entry.meta.get("author", None)
+        entry_author = current_entry.author
         entry_author_id = 0
         if entry_author:
             entry_author_id = entry_author.id
@@ -4586,8 +5105,8 @@ class MusicBot(discord.Client):
             prog_str = f"`[{song_progress}/{song_total}]`"
 
             # TODO: Honestly the meta info could use a typed interface too.
-            cur_entry_channel = player.current_entry.meta.get("channel", None)
-            cur_entry_author = player.current_entry.meta.get("author", None)
+            cur_entry_channel = player.current_entry.channel
+            cur_entry_author = player.current_entry.author
             if cur_entry_channel and cur_entry_author:
                 current_progress = self.str.get(
                     "cmd-queue-playing-author",
@@ -4603,6 +5122,8 @@ class MusicBot(discord.Client):
                     "cmd-queue-playing-noauthor",
                     "Currently playing: `{0}`\nProgress: {1}\n",
                 ).format(player.current_entry.title, prog_str)
+                # TODO: i18n
+                current_progress += "`via autoplaylist`\n"
 
         # calculate start and stop slice indices
         start_index = limit_per_page * page_number
@@ -4625,12 +5146,10 @@ class MusicBot(discord.Client):
                 log.debug("Skipped the current playlist entry.")
                 continue
 
-            item_channel = item.meta.get("channel", None)
-            item_author = item.meta.get("author", None)
-            if item_channel and item_author:
+            if item.channel and item.author:
                 embed.add_field(
                     name=f"Entry #{idx}",
-                    value=f"Title: `{item.title}`\nAdded by: `{item_author.name}`",
+                    value=f"Title: `{item.title}`\nAdded by: `{item.author.name}`",
                     inline=False,
                 )
             else:
@@ -5147,6 +5666,22 @@ class MusicBot(discord.Client):
                 delete_after=20,
             )
 
+        # check for a raw voice client instead.
+        for vc in self.voice_clients:
+            if not hasattr(vc.channel, "guild"):
+                log.warning(
+                    "MusicBot found a %s with no guild!  This could be a problem.",
+                    type(vc),
+                )
+                continue
+
+            if vc.channel.guild and vc.channel.guild == guild:
+                await self.disconnect_voice_client(guild)
+                return Response(
+                    "Disconnected a playerless voice client? [BUG]",
+                    delete_after=30,
+                )
+
         raise exceptions.CommandError(
             self.str.get(
                 "cmd-disconnect-no-voice", "Not currently connected to `{0.name}`"
@@ -5333,7 +5868,10 @@ class MusicBot(discord.Client):
 
     @dev_only
     async def cmd_objgraph(
-        self, channel: MessageableChannel, func: str = "most_common_types()"
+        self,
+        message: discord.Message,  # pylint: disable=unused-argument
+        channel: MessageableChannel,
+        func: str = "most_common_types()",
     ) -> CommandResponse:
         """
         Interact with objgraph to make it spill the beans.
@@ -5955,6 +6493,21 @@ class MusicBot(discord.Client):
             )
             await self.disconnect_voice_client(guild)
 
+    async def on_connect(self) -> None:
+        """Event called by discord.py when the Client has connected to the API."""
+        if self.init_ok:
+            log.info("MusicBot has become connected.")
+
+    async def on_disconnect(self) -> None:
+        """Event called by discord.py any time bot is disconnected, or fails to connect."""
+        log.info("MusicBot has become disconnected.")
+
+    async def on_socket_event_type(self, event_type: str) -> None:
+        """Event called by discord.py on any socket event."""
+        log.everything(  # type: ignore[attr-defined]
+            "Got a Socket Event:  %s", event_type
+        )
+
     async def on_voice_state_update(
         self,
         member: discord.Member,
@@ -5966,12 +6519,11 @@ class MusicBot(discord.Client):
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_voice_state_update
         """
         if not self.init_ok:
-            log.warning("before init_ok")  # TODO: remove after coverage testing
+            if self.config.debug_mode:
+                log.warning(
+                    "VoiceState updated before on_ready finished"
+                )  # TODO: remove after coverage testing
             return  # Ignore stuff before ready
-
-        if not self.is_ready():
-            # TODO: remove after coverage testing
-            log.warning("before is_ready")
 
         if self.config.leave_inactive_channel:
             guild = member.guild
@@ -6023,20 +6575,108 @@ class MusicBot(discord.Client):
                         )
                         event.set()
 
-        if (
-            member == self.user and not after.channel and before.channel
-        ):  # if bot was disconnected from channel
-            await self.disconnect_voice_client(before.channel.guild)
-            return
+        # Voice stat updates for bot itself.
+        if member == self.user:
+            # check if bot was disconnected from a voice channel
+            if not after.channel and before.channel and not self.network_outage:
+                if await self._handle_api_disconnect(before):
+                    return
 
         if before.channel:
             player = self.get_player_in(before.channel.guild)
             if player:
-                self._handle_guild_auto_pause(player)
+                await self._handle_guild_auto_pause(player)
         if after.channel:
             player = self.get_player_in(after.channel.guild)
             if player:
-                self._handle_guild_auto_pause(player)
+                await self._handle_guild_auto_pause(player)
+
+    async def _handle_api_disconnect(self, before: discord.VoiceState) -> bool:
+        """
+        Method called from on_voice_state_update when MusicBot is disconnected from voice.
+        """
+        if not before.channel:
+            log.debug("VoiceState disconnect before.channel is None.")
+            return False
+
+        o_guild = self.get_guild(before.channel.guild.id)
+        # These conditions are usually met when a user disconnects bot via menus.
+        if (
+            o_guild is not None
+            and o_guild.id in self.players
+            and isinstance(o_guild.voice_client, discord.VoiceClient)
+            and not o_guild.voice_client.is_connected()
+        ):
+            log.info(
+                "MusicBot was disconnected from the voice channel, likely by a user."
+            )
+            await self.disconnect_voice_client(o_guild)
+            return True
+
+        # These conditions are met when API terminates a voice client.
+        if (
+            o_guild is not None
+            and o_guild.id in self.players
+            and o_guild.voice_client is None
+        ):
+            log.info(
+                "MusicBot was disconnected from the voice channel, likely by Discord API."
+            )
+            await self.disconnect_voice_client(o_guild)
+
+            # reconnect if the guild is configured to auto-join.
+            bcgid = before.channel.guild.id
+            if any(bcgid == ch.guild.id for ch in self.autojoinable_channels):
+                # Look for the last channel we were in.
+                target_channel = self.get_channel(before.channel.id)
+                if not target_channel:
+                    # fall back to the configured channel.
+                    target_channel = discord.utils.find(
+                        lambda c: c.guild.id == bcgid,
+                        self.autojoinable_channels,
+                    )
+
+                if not isinstance(
+                    target_channel, (discord.VoiceChannel, discord.StageChannel)
+                ):
+                    log.error(
+                        "Cannot use auto-join channel with type: %s  in guild:  %s",
+                        type(target_channel),
+                        before.channel.guild,
+                    )
+                    return True
+
+                if not target_channel:
+                    log.error(
+                        "Cannot find the auto-joined channel, was it deleted?  Guild:  %s",
+                        before.channel.guild,
+                    )
+                    return True
+
+                log.info(
+                    "Reconnecting to auto-joined guild on channel:  %s",
+                    target_channel,
+                )
+                try:
+                    r_player = await self.get_player(
+                        target_channel, create=True, deserialize=True
+                    )
+
+                    if r_player.is_stopped:
+                        r_player.play()
+
+                except (TypeError, exceptions.PermissionsError):
+                    log.warning(
+                        "Cannot auto join channel:  %s",
+                        before.channel,
+                        exc_info=True,
+                    )
+            return True
+
+        # TODO: If bot has left a server but still had a client, we should kill it.
+        # if o_guild is None and before.channel.guild.id in self.players:
+
+        return False
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """
@@ -6048,7 +6688,7 @@ class MusicBot(discord.Client):
         # Leave guilds if the owner is not a member and configured to do so.
         if self.config.leavenonowners:
             # Get the owner so we can notify them of the leave via DM.
-            owner = self._get_owner(voice=True) or self._get_owner()
+            owner = self._get_owner_member()
             if owner:
                 # check for the owner in the guild.
                 check = guild.get_member(owner.id)
@@ -6089,30 +6729,37 @@ class MusicBot(discord.Client):
         if not self.init_ok:
             return  # Ignore pre-ready events
 
-        log.debug('Guild "%s" has become available.', guild.name)
+        log.info('Guild "%s" has become available.', guild.name)
 
         player = self.get_player_in(guild)
 
-        if player and player.is_paused:
-            av_paused = self.server_data[guild.id].availability_paused
+        """
+        if player and player.voice_client and not player.voice_client.is_connected():
+            # TODO: really test this, I hope and pray I need not bother here...
+            log.warning("MusicBot has a MusicPlayer with no VoiceClient!")
+            return
+        #"""
 
-            if av_paused:
-                log.debug(
-                    'Resuming player in "%s" due to availability.',
-                    guild.name,
-                )
-                self.server_data[guild.id].availability_paused = False
-                player.resume()
+        if player and player.is_paused and player.guild_or_net_unavailable:
+            log.debug(
+                'Resuming player in "%s" due to availability.',
+                guild.name,
+            )
+            player.guild_or_net_unavailable = False
+            player.resume()
+
+        if player:
+            player.guild_or_net_unavailable = False
 
     async def on_guild_unavailable(self, guild: discord.Guild) -> None:
         """
-        Event called by discord.py when a guild becomes unavailable.
+        Event called by discord.py when Discord API says a guild is unavailable.
         https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_unavailable
         """
         if not self.init_ok:
             return  # Ignore pre-ready events.
 
-        log.debug('Guild "%s" has become unavailable.', guild.name)
+        log.info('Guild "%s" has become unavailable.', guild.name)
 
         player = self.get_player_in(guild)
 
@@ -6121,8 +6768,10 @@ class MusicBot(discord.Client):
                 'Pausing player in "%s" due to unavailability.',
                 guild.name,
             )
-            self.server_data[guild.id].availability_paused = True
             player.pause()
+
+        if player:
+            player.guild_or_net_unavailable = True
 
     async def on_guild_update(
         self, before: discord.Guild, after: discord.Guild
@@ -6175,12 +6824,3 @@ class MusicBot(discord.Client):
                 log.everything(  # type: ignore[attr-defined]
                     f"Channel attribute {name} is now: {a_val}  -- Was: {b_val}"
                 )
-
-    def voice_client_in(self, guild: discord.Guild) -> Optional[discord.VoiceClient]:
-        """
-        Check for and return discord.VoiceClient object if one exists for the given `guild`.
-        """
-        for vc in self.voice_clients:
-            if isinstance(vc, discord.VoiceClient) and vc.guild == guild:
-                return vc
-        return None

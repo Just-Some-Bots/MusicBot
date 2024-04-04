@@ -1,3 +1,1 @@
-from .bot import MusicBot
-
-__all__ = ["MusicBot"]
+# Just empty for now...

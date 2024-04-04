@@ -8,14 +8,14 @@ import logging
 import os
 import pathlib
 import shutil
+import signal
 import ssl
 import subprocess
 import sys
 import textwrap
 import time
-import traceback
 from base64 import b64decode
-from typing import List, Tuple, Union
+from typing import Any, Callable, Coroutine, List, Optional, Tuple, Union
 
 from musicbot.constants import (
     DEFAULT_LOGS_KEPT,
@@ -35,7 +35,7 @@ from musicbot.utils import (
 
 # protect dependency import from stopping the launcher
 try:
-    import aiohttp
+    from aiohttp.client_exceptions import ClientConnectorCertificateError
 except ImportError:
     pass
 
@@ -169,7 +169,7 @@ class PIP:
 
     @classmethod
     def run_python_m(
-        cls, args: List[str], check_output: bool = False
+        cls, args: List[str], check_output: bool = False, quiet: bool = True
     ) -> Union[bytes, int]:
         """
         Use subprocess check_call or check_output to run a pip module
@@ -178,15 +178,14 @@ class PIP:
 
         :param: check_output:  Use check_output rather than check_call.
         """
+        cmd_args = [sys.executable, "-m", "pip"] + args
         if check_output:
-            return subprocess.check_output(
-                [sys.executable, "-m", "pip"] + args,
-                stderr=subprocess.DEVNULL,
-            )
-        return subprocess.check_call(
-            [sys.executable, "-m", "pip"] + args,
-            stdout=subprocess.DEVNULL,
-        )
+            if quiet:
+                return subprocess.check_output(cmd_args, stderr=subprocess.DEVNULL)
+            return subprocess.check_output(cmd_args)
+        if quiet:
+            return subprocess.check_call(cmd_args, stdout=subprocess.DEVNULL)
+        return subprocess.check_call(cmd_args)
 
     @classmethod
     def run_install(
@@ -246,7 +245,11 @@ class PIP:
         return 0
 
     @classmethod
-    def run_upgrade_requirements(cls, get_output: bool = False) -> Union[str, int]:
+    def run_upgrade_requirements(
+        cls,
+        get_output: bool = False,
+        quiet: bool = True,
+    ) -> Union[str, int]:
         """
         Uses a subprocess call to run python using sys.executable.
         Runs `pip install --no-warn-script-location --no-input -U -r ./requirements.txt`
@@ -275,6 +278,7 @@ class PIP:
                     "requirements.txt",
                 ],
                 check_output=get_output,
+                quiet=quiet,
             )
             if isinstance(raw_data, bytes):
                 pip_data = raw_data.decode("utf8").strip()
@@ -315,7 +319,7 @@ def bugger_off(msg: str = "Press enter to continue . . .", code: int = 1) -> Non
     sys.exit(code)
 
 
-def sanity_checks(args: argparse.Namespace, optional: bool = True) -> None:
+def sanity_checks(args: argparse.Namespace) -> None:
     """
     Run a collection of pre-startup checks to either automatically correct
     issues or inform the user of how to correct them.
@@ -339,7 +343,7 @@ def sanity_checks(args: argparse.Namespace, optional: bool = True) -> None:
     log.info("Required checks passed.")
 
     """Optional Checks"""
-    if not optional:
+    if not args.do_start_checks:
         return
 
     # Check disk usage
@@ -418,6 +422,8 @@ def req_ensure_py3() -> None:
             "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
         )
         bugger_off()
+    else:
+        log.info("Python version:  %s", sys.version)
 
 
 def req_check_deps() -> None:
@@ -621,7 +627,15 @@ def parse_cli_args() -> argparse.Namespace:
         "--no-checks",
         dest="do_start_checks",
         action="store_false",
-        help="Skip all startup checks, including the update check.",
+        help="Skip all optional startup checks, including the update check.",
+    )
+
+    # Skip update checks option.
+    ap.add_argument(
+        "--no-disk-check",
+        dest="no_disk_check",
+        action="store_true",
+        help="Skip only the disk space check at startup.",
     )
 
     # Skip update checks option.
@@ -691,12 +705,38 @@ def parse_cli_args() -> argparse.Namespace:
     return args
 
 
-def respawn_bot_process(pybin: str = "") -> None:
+def setup_signal_handlers(
+    loop: asyncio.AbstractEventLoop,
+    callback: Callable[
+        [signal.Signals, asyncio.AbstractEventLoop], Coroutine[Any, Any, None]
+    ],
+) -> None:
+    """
+    This function registers signal handlers with the event loop to help it close
+    with more grace when various OS signals are sent to this process.
+    """
+    if os.name == "nt":
+        return
+
+    def handle_signal(sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> None:
+        """Creates and asyncio task to handle the signal on the event loop."""
+        asyncio.create_task(callback(sig, loop), name=f"Signal_{sig.name}")
+
+    # Linux/Unix signals we should clean up for.
+    sigs = [signal.SIGTERM, signal.SIGINT, signal.SIGHUP]
+
+    for sig in sigs:
+        loop.add_signal_handler(sig, handle_signal, sig, loop)
+
+    # set a flag to prevent adding more of the same handlers on soft restart.
+    setattr(loop, "_sig_handler_set", True)
+
+
+def respawn_bot_process() -> None:
     """
     Use a platform dependent method to restart the bot process, without
     an external process/service manager.
-    This uses either the given `pybin` executable path or sys.executable
-    to run the bot using the arguments currently in sys.argv
+    This uses the sys.executable and sys.argv to restart the bot.
 
     This function attempts to make sure all buffers are flushed and logging
     is shut down before restarting the new process.
@@ -707,9 +747,7 @@ def respawn_bot_process(pybin: str = "") -> None:
     On Windows OS this will use subprocess.Popen to create a new console
     where the new bot is started, with a new PID, and exit this instance.
     """
-    if not pybin:
-        pybin = sys.executable
-    exec_args = [pybin] + sys.argv
+    exec_args = [sys.executable] + sys.argv
 
     shutdown_loggers()
     rotate_log_files()
@@ -723,11 +761,11 @@ def respawn_bot_process(pybin: str = "") -> None:
         # Seemed like the best way to avoid a pile of processes While keeping clean output in the shell.
         # There is seemingly no way to get the same effect as os.exec* on unix here in windows land.
         # The moment we end our existing instance, control is returned to the starting shell.
-        with subprocess.Popen(
+        subprocess.Popen(  # pylint: disable=consider-using-with
             exec_args,
             creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
-        ):
-            log.debug("Opened new MusicBot instance.  This terminal can now be closed!")
+        )
+        print("Opened a new MusicBot instance. This terminal can be safely closed!")
         sys.exit(0)
     else:
         # On Unix/Linux/Mac this should immediately replace the current program.
@@ -736,185 +774,60 @@ def respawn_bot_process(pybin: str = "") -> None:
         os.execlp(exec_args[0], *exec_args)
 
 
-async def main(
-    args: argparse.Namespace,
-) -> Union[RestartSignal, TerminateSignal, None]:
+def set_console_title() -> None:
+    """
+    Attempts to set the console window title using the current version string.
+    On windows, this method will try to enable ANSI Escape codes by enabling
+    virtual terminal processing or by calling an empty sub-shell.
+    """
+    # On windows, if colorlog isn't loaded already, ANSI escape codes probably
+    # wont work like we expect them to.
+    # This code attempts to solve that using ctypes and cursed windows-isms.
+    # or if that fails (it shouldn't) it falls back to another cursed trick.
+    if os.name == "nt":
+        try:
+            # if colorama fails to import we can assume setup_logs didn't load it.
+            import colorama  # type: ignore[import-untyped]
+
+            # if it works, then great, one less thing to worry about right???
+            colorama.just_fix_windows_console()
+        except ImportError:
+            # This might only work for Win 10+
+            from ctypes import windll  # type: ignore[attr-defined]
+
+            k32 = windll.kernel32
+            # For info on SetConsoleMode, see:
+            #   https://learn.microsoft.com/en-us/windows/console/setconsolemode
+            # For info on GetStdHandle, see:
+            #   https://learn.microsoft.com/en-us/windows/console/getstdhandle
+            try:
+                k32.SetConsoleMode(k32.GetStdHandle(-11), 7)
+            except Exception:  # pylint: disable=broad-exception-caught
+                # If it didn't work, fall back to this cursed trick...
+                # Since console -does- support ANSI escapes, but turns them off,
+                # This sort of beats the current console buffer over the head with
+                # the sub-shell's and then cannot disable the mode in parent shell.
+                try:
+                    # No version info for this, testing needed.
+                    os.system("")
+                except Exception:  # pylint: disable=broad-exception-caught
+                    # if this failed too, we're just out of luck.
+                    pass
+
+    # Update the console title, ignore if it fails.
+    try:
+        sys.stdout.write(f"\x1b]2;MusicBot {BOTVERSION}\x07")
+    except (TypeError, OSError):
+        pass
+
+
+def main() -> None:
     """
     All of the MusicBot starts here.
-
-    :param: args:  some arguments parsed from the command line.
-
-    :returns:  Oddly, returns rather than raises a *Signal or nothing.
     """
-    # TODO: this function may not need to be async.
+    # Attempt to set console title.
+    set_console_title()
 
-    # Handle startup checks, if they haven't been skipped.
-    if args.do_start_checks:
-        sanity_checks(args)
-    else:
-        log.info("Skipped startup checks.")
-
-    exit_signal: Union[RestartSignal, TerminateSignal, None] = None
-    tried_requirementstxt = False
-    use_certifi = False
-    tryagain = True
-
-    loops = 0
-    max_wait_time = 60
-
-    while tryagain:
-        # Maybe I need to try to import stuff first, then actually import stuff
-        # It'd save me a lot of pain with all that awful exception type checking
-
-        m = None
-        try:
-            from musicbot import MusicBot  # pylint: disable=import-outside-toplevel
-
-            m = MusicBot(use_certifi=use_certifi)
-            await m.run()
-
-        except (
-            ssl.SSLCertVerificationError,
-            aiohttp.client_exceptions.ClientConnectorCertificateError,
-        ) as e:
-            if isinstance(
-                e, aiohttp.client_exceptions.ClientConnectorCertificateError
-            ) and isinstance(e.__cause__, ssl.SSLCertVerificationError):
-                e = e.__cause__
-            else:
-                log.critical(
-                    "Certificate error is not a verification error, not trying certifi and exiting."
-                )
-                break
-
-            # In case the local trust store does not have the cert locally, we can try certifi.
-            # We don't want to patch working systems with a third-party trust chain outright.
-            # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
-            if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
-                if use_certifi:
-                    log.exception(
-                        "Could not get Issuer Certificate even with certifi!\n"
-                        "Try running:  %s -m pip install --upgrade certifi ",
-                        sys.executable,
-                    )
-                    log.warning(
-                        "To easily add a certificate to Windows trust store, \n"
-                        "you can open the failing site in Microsoft Edge or IE...\n"
-                    )
-                    break
-
-                log.warning(
-                    "Could not get Issuer Certificate from default trust store, trying certifi instead."
-                )
-                use_certifi = True
-                continue
-
-        except SyntaxError:
-            if "-dirty" in BOTVERSION:
-                log.exception("Syntax error (version is dirty, did you edit the code?)")
-            else:
-                log.exception("Syntax error (this is a bug, not your fault)")
-            break
-
-        except ImportError:
-            if args.no_install_deps:
-                log.error(
-                    "Error importing MusicBot or it's dependency packages.\n"
-                    "The `--no-install-deps` option is set, so MusicBot will exit now."
-                )
-                log.exception("This is the exception which caused the above error: ")
-                break
-
-            if not PIP.works():
-                log.critical(
-                    "MusicBot could not import dependency modules and we cannot run `pip` automatically!\n"
-                    "You will need to manually install `pip` package for your version of python.\n"
-                )
-                log.warning(
-                    "If you already installed `pip` but still get this error:\n"
-                    " - Check that you installed it for this python version: %s\n"
-                    " - Check installed packages are accessible to the user running MusicBot",
-                    sys.version.split(maxsplit=1)[0],
-                )
-                break
-
-            if not tried_requirementstxt:
-                tried_requirementstxt = True
-
-                log.exception("Error importing dependencies while starting bot.")
-                err = PIP.run_upgrade_requirements(get_output=True)
-
-                if err:  # TODO: add the specific error check back.
-                    # The proper thing to do here is tell the user to fix
-                    # their install, not help make it worse or insecure.
-                    # Comprehensive return codes aren't really a feature of pip,
-                    # If we need to read the log, then so does the user.
-                    print()
-                    log.critical(
-                        "This is not recommended! You can try to %s to install dependencies anyways.",
-                        ["use sudo", "run as admin"][sys.platform.startswith("win")],
-                    )
-                    break
-
-                print()
-                log.info("Ok lets hope it worked")
-                print()
-            else:
-                log.error(
-                    "MusicBot got an ImportError after trying to install packages. MusicBot must exit..."
-                )
-                log.exception("The exception which caused the above error: ")
-                break
-
-        except HelpfulError as e:
-            log.info(e.message)
-            break
-
-        except TerminateSignal as e:
-            exit_signal = e
-            break
-
-        except RestartSignal as e:
-            if e.get_name() == "RESTART_SOFT":
-                loops = 0
-            else:
-                exit_signal = e
-                break
-
-        except Exception:  # pylint: disable=broad-exception-caught
-            log.exception("Error starting bot")
-
-        finally:
-            if m and (m.session or m.http.connector):
-                # in case we never made it to m.run(), ensure cleanup.
-                log.debug("Doing cleanup late.")
-                await m.shutdown_cleanup()
-
-            if (not m or not m.init_ok) and not use_certifi:
-                if any(sys.exc_info()):
-                    # How to log this without redundant messages...
-                    log.warning(
-                        "There are some exceptions that may not have been handled..."
-                    )
-                    log.debug(
-                        "Traceback output:\n%s",
-                        "".join(traceback.format_exc()),
-                    )
-                tryagain = False
-
-            loops += 1
-
-        sleeptime = min(loops * 2, max_wait_time)
-        if sleeptime:
-            log.info("Restarting in %s seconds...", sleeptime)
-            time.sleep(sleeptime)
-
-    print()
-    log.info("All done.")
-    return exit_signal
-
-
-if __name__ == "__main__":
     # take care of loggers right away
     setup_loggers()
 
@@ -947,35 +860,225 @@ if __name__ == "__main__":
             time.sleep(3)  # make sure they see the message.
             sys.exit(127)
 
-    # py3.8 made ProactorEventLoop default on windows.
-    # py3.12 deprecated using get_event_loop(), we need new_event_loop().
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Handle startup checks, if they haven't been skipped.
+    sanity_checks(cli_args)
+
+    exit_signal: Union[RestartSignal, TerminateSignal, None] = None
+    event_loop: Optional[asyncio.AbstractEventLoop] = None
+    tried_requirementstxt: bool = False
+    use_certifi: bool = False
+    retries: int = 0
+    max_wait_time: int = 60
+
+    while True:
+        # Maybe I need to try to import stuff first, then actually import stuff
+        # It'd save me a lot of pain with all that awful exception type checking
+
+        m = None
+        try:
+            # Prevent re-import of MusicBot
+            if "MusicBot" not in dir():
+                from musicbot.bot import (  # pylint: disable=import-outside-toplevel
+                    MusicBot,
+                )
+
+            # py3.8 made ProactorEventLoop default on windows.
+            # py3.12 deprecated using get_event_loop(), we need new_event_loop().
+            event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(event_loop)
+
+            # init some of bot, but don't run it yet.
+            m = MusicBot(use_certifi=use_certifi)
+
+            # register system signal handlers with the event loop.
+            if not getattr(event_loop, "_sig_handler_set", False):
+                setup_signal_handlers(event_loop, m.on_os_signal)
+
+            # let the MusicBot run free!
+            event_loop.run_until_complete(m.run_musicbot())
+            retries = 0
+
+        except (ssl.SSLCertVerificationError, ClientConnectorCertificateError) as e:
+            # For aiohttp, we need to look at the cause.
+            if isinstance(e, ClientConnectorCertificateError) and isinstance(
+                e.__cause__, ssl.SSLCertVerificationError
+            ):
+                e = e.__cause__
+            else:
+                log.critical(
+                    "Certificate error is not a verification error, not trying certifi and exiting."
+                )
+                log.exception("Here is the exact error, it could be a bug.")
+                break
+
+            # In case the local trust store does not have the cert locally, we can try certifi.
+            # We don't want to patch working systems with a third-party trust chain outright.
+            # These verify_code values come from OpenSSL:  https://www.openssl.org/docs/man1.0.2/man1/verify.html
+            if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+                if use_certifi:  # already tried it.
+                    log.exception(
+                        "Could not get Issuer Certificate even with certifi!\n"
+                        "Try running:  %s -m pip install --upgrade certifi ",
+                        sys.executable,
+                    )
+                    log.warning(
+                        "To easily add a certificate to Windows trust store, \n"
+                        "you can open the failing site in Microsoft Edge or IE...\n"
+                    )
+                    break
+
+                log.warning(
+                    "Could not get Issuer Certificate from default trust store, trying certifi instead."
+                )
+                use_certifi = True
+                retries += 1
+                continue
+
+        except SyntaxError:
+            if "-dirty" in BOTVERSION:
+                log.exception("Syntax error (version is dirty, did you edit the code?)")
+            else:
+                log.exception("Syntax error (this is a bug, not your fault)")
+            break
+
+        except ImportError as e:
+            if cli_args.no_install_deps:
+                helpfulerr = HelpfulError(
+                    preface="Cannot start MusicBot due to an error!",
+                    issue=(
+                        f"Error: {str(e)}\n"
+                        "This is an error importing MusicBot or a dependency package."
+                    ),
+                    solution=(
+                        "You need to manually install dependency packages via pip.\n"
+                        "Or launch without `--no-install-deps` and MusicBot will try to install them for you."
+                    ),
+                    footnote=(
+                        "You have the `--no-install-deps` option set."
+                        "Normally MusicBot attempts "
+                    ),
+                )
+                log.error(str(helpfulerr))
+                break
+
+            if not PIP.works():
+                log.critical(
+                    "MusicBot could not import dependency modules and we cannot run `pip` automatically!\n"
+                    "You will need to manually install `pip` package for your version of python.\n"
+                )
+                log.warning(
+                    "If you already installed `pip` but still get this error:\n"
+                    " - Check that you installed it for this python version: %s\n"
+                    " - Check installed packages are accessible to the user running MusicBot",
+                    sys.version.split(maxsplit=1)[0],
+                )
+                break
+
+            if not tried_requirementstxt:
+                tried_requirementstxt = True
+
+                log.info(
+                    "Attempting to install MusicBot dependency packages automatically...\n"
+                )
+                pip_exit_code = PIP.run_upgrade_requirements(quiet=False)
+
+                # If pip ran without issue, it should return 0 status code.
+                if pip_exit_code:
+                    print()
+                    dep_error = HelpfulError(
+                        preface="MusicBot dependencies may not be installed!",
+                        issue="We didn't get a clean exit code from `pip` install.",
+                        solution=(
+                            "You will need to manually install dependency packages.\n"
+                            "MusicBot tries to use the following command, so modify as needed:\n"
+                            "  pip install -U -r ./requirements.txt"
+                        ),
+                        footnote="You can also ask for help in MusicBot support server:  https://discord.gg/bots",
+                    )
+                    log.critical(str(dep_error))
+                    break
+
+                print()
+                log.info("OK, lets hope that worked!")
+                print()
+                shutdown_loggers()
+                rotate_log_files()
+                setup_loggers()
+                retries += 1
+                continue
+
+            log.error(
+                "MusicBot got an ImportError after trying to install packages. MusicBot must exit..."
+            )
+            log.exception("The exception which caused the above error: ")
+            break
+
+        except HelpfulError as e:
+            log.info(e.message)
+            break
+
+        except TerminateSignal as e:
+            exit_signal = e
+            retries = 0
+            break
+
+        except RestartSignal as e:
+            if e.get_name() == "RESTART_SOFT":
+                log.info("MusicBot is doing a soft restart...")
+                retries = 1
+                continue
+
+            log.info("MusicBot is doing a full process restart...")
+            exit_signal = e
+            retries = 1
+            break
+
+        except Exception:  # pylint: disable=broad-exception-caught
+            log.exception("Error starting bot")
+            break
+
+        finally:
+            if event_loop:
+                log.debug("Closing event loop.")
+                event_loop.close()
+
+            sleeptime = min(retries * 2, max_wait_time)
+            if sleeptime:
+                log.info("Restarting in %s seconds...", sleeptime)
+                time.sleep(sleeptime)
+
+    print()
+    log.info("All done.")
+
+    shutdown_loggers()
+    rotate_log_files()
+
+    print()
+
+    if exit_signal:
+        if isinstance(exit_signal, RestartSignal):
+            if exit_signal.get_name() == "RESTART_FULL":
+                respawn_bot_process()
+            elif exit_signal.get_name() == "RESTART_UPGRADE_ALL":
+                PIP.run_upgrade_requirements()
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+            elif exit_signal.get_name() == "RESTART_UPGRADE_PIP":
+                PIP.run_upgrade_requirements()
+                respawn_bot_process()
+            elif exit_signal.get_name() == "RESTART_UPGRADE_GIT":
+                GIT.run_upgrade_pull()
+                respawn_bot_process()
+        elif isinstance(exit_signal, TerminateSignal):
+            sys.exit(exit_signal.exit_code)
+
+
+if __name__ == "__main__":
     try:
-        exit_sig = loop.run_until_complete(main(cli_args))
+        main()
     except KeyboardInterrupt:
-        # TODO: later this will probably get more cleanup so we can
-        # close other things more proper like too.
-        log.info("\nCaught a keyboard interrupt signal.")
+        print("OK, we're closing!")
         shutdown_loggers()
         rotate_log_files()
-        raise
 
-    if exit_sig:
-        if isinstance(exit_sig, RestartSignal):
-            if exit_sig.get_name() == "RESTART_FULL":
-                respawn_bot_process()
-            elif exit_sig.get_name() == "RESTART_UPGRADE_ALL":
-                PIP.run_upgrade_requirements()
-                GIT.run_upgrade_pull()
-                respawn_bot_process()
-            elif exit_sig.get_name() == "RESTART_UPGRADE_PIP":
-                PIP.run_upgrade_requirements()
-                respawn_bot_process()
-            elif exit_sig.get_name() == "RESTART_UPGRADE_GIT":
-                GIT.run_upgrade_pull()
-                respawn_bot_process()
-        elif isinstance(exit_sig, TerminateSignal):
-            shutdown_loggers()
-            rotate_log_files()
-            sys.exit(exit_sig.exit_code)
+    sys.exit(0)
