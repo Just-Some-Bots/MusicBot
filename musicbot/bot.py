@@ -5798,25 +5798,25 @@ class MusicBot(discord.Client):
                 show loaded groups and list permission options.
 
             {command_prefix}setperms reload
-                reloads permissions from the permissions.ini file
+                reloads permissions from the permissions.ini file.
 
             {command_prefix}setperms add [GroupName]
-                add new group with defaults
+                add new group with defaults.
 
             {command_prefix}setperms remove [GroupName]
-                remove existing group
+                remove existing group.
 
             {command_prefix}setperms help [PermName]
                 show help text for the permission option.
 
-            {command_prefix}setperms show [GroupName]
-                show permission value
+            {command_prefix}setperms show [GroupName] [PermName]
+                show permission value for given group and permission.
 
             {command_prefix}setperms save [GroupName]
                 save permissions group to file.
 
             {command_prefix}setperms set [GroupName] [PermName] [Value]
-                set permission value
+                set permission value for the group.
         """
         if user_mentions:
             raise exceptions.CommandError(
@@ -5908,6 +5908,11 @@ class MusicBot(discord.Client):
         else:
             group_arg = leftover_args.pop(0)
         if option in ["set", "show"]:
+            if not leftover_args:
+                raise exceptions.CommandError(
+                    f"The {option} sub-command requires a group and permission name.",
+                    expire_in=30,
+                )
             option_arg = leftover_args.pop(0)
 
         if user_mentions:
@@ -5928,7 +5933,7 @@ class MusicBot(discord.Client):
             if p_opt is None:
                 option_arg = f"[{group_arg}] > {option_arg}"
                 raise exceptions.CommandError(
-                    f"The option `{option_arg}` is not available.",
+                    f"The permission `{option_arg}` is not available.",
                     expire_in=30,
                 )
             opt = p_opt
@@ -5957,7 +5962,9 @@ class MusicBot(discord.Client):
                 self.permissions.add_group(group_arg)
 
             return Response(
-                f"Successfully added new group:  `{group_arg}`",
+                f"Successfully added new group:  `{group_arg}`\n"
+                f"You can now customizse the permissions with:  `setperms set {group_arg}`\n"
+                f"Make sure to save the new group with:  `setperms save {group_arg}`",
                 delete_after=30,
             )
 
@@ -5971,7 +5978,8 @@ class MusicBot(discord.Client):
                 self.permissions.remove_group(group_arg)
 
             return Response(
-                f"Successfully removed group:  `{group_arg}`",
+                f"Successfully removed group:  `{group_arg}`"
+                f"Make sure to save this change with:  `setperms save {group_arg}`",
                 delete_after=30,
             )
 
@@ -6032,7 +6040,7 @@ class MusicBot(discord.Client):
                 )
             return Response(
                 f"Permission `{opt}` was updated for this session.\n"
-                f"To save the change use `perms save {opt.section} {opt.option}`",
+                f"To save the change use `setperms save {opt.section} {opt.option}`",
                 delete_after=30,
             )
 

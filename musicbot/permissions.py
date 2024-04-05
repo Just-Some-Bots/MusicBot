@@ -623,7 +623,7 @@ class PermissionOptionRegistry(ConfigOptionRegistry):
         parser_value = parser_get(opt.section, opt.option, fallback=opt.default)
 
         display_config_value = ""
-        if not display_config_value and opt.empty_display_val:
+        if not config_value and opt.empty_display_val:
             display_config_value = opt.empty_display_val
 
         return (config_value, parser_value, display_config_value)
