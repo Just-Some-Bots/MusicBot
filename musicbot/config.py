@@ -1,31 +1,63 @@
 import configparser
+import datetime
 import logging
 import os
 import pathlib
 import shutil
 import sys
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    overload,
+)
+
+import configupdater
 
 from .constants import (
     BUNDLED_AUTOPLAYLIST_FILE,
     DEFAULT_AUDIO_CACHE_PATH,
     DEFAULT_AUTOPLAYLIST_FILE,
+    DEFAULT_DATA_NAME_SERVERS,
+    DEFAULT_DATA_PATH,
     DEFAULT_FOOTER_TEXT,
     DEFAULT_I18N_FILE,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_LOGS_KEPT,
+    DEFAULT_LOGS_ROTATE_FORMAT,
     DEFAULT_OPTIONS_FILE,
     DEFAULT_SONG_BLOCKLIST_FILE,
     DEFAULT_USER_BLOCKLIST_FILE,
     DEPRECATED_USER_BLACKLIST,
     EXAMPLE_OPTIONS_FILE,
+    MAXIMUM_LOGS_LIMIT,
 )
 from .exceptions import HelpfulError
-from .utils import format_size_to_bytes, format_time_to_seconds, set_logging_level
+from .utils import (
+    format_size_from_bytes,
+    format_size_to_bytes,
+    format_time_to_seconds,
+    set_logging_level,
+    set_logging_max_kept_logs,
+    set_logging_rotate_date_format,
+)
 
 if TYPE_CHECKING:
     import discord
 
     from .bot import MusicBot
+    from .permissions import Permissions
+
+# Type for ConfigParser.get(... vars) argument
+ConfVars = Optional[Dict[str, str]]
+# Types considered valid for config options.
+DebugLevel = Tuple[str, int]
+RegTypes = Union[str, int, bool, float, Set[int], Set[str], DebugLevel, pathlib.Path]
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +79,13 @@ def create_file_ifnoexist(
 
 
 class Config:
+    """
+    This object is responsible for loading and validating config, using default
+    values where needed. It provides interfaces to read and set the state of
+    config values, and finally a method to update the config file with values
+    from this instance of config.
+    """
+
     def __init__(self, config_file: pathlib.Path) -> None:
         """
         Handles locating, initializing, loading, and validating config data.
@@ -61,18 +100,604 @@ class Config:
         self.config_file = config_file
         self.find_config()
 
+        # TODO: maybe some mechanism to handle config renames?
         config = ExtendedConfigParser()
         config.read(config_file, encoding="utf-8")
+        self.register = ConfigOptionRegistry(self, config)
 
-        confsections = {
-            "Credentials",
-            "Permissions",
-            "Chat",
-            "MusicBot",
-            "Files",
-        }.difference(config.sections())
-        if confsections:
-            sections_str = ", ".join([f"[{s}]" for s in confsections])
+        self._confpreface = "An error has occured reading the config:\n"
+        self._confpreface2 = "An error has occured validating the config:\n"
+
+        # DebugLevel is important for feedback, so we load it first.
+        self._debug_level: DebugLevel = self.register.init_option(
+            section="MusicBot",
+            option="DebugLevel",
+            dest="_debug_level",
+            default=ConfigDefaults._debug_level(),
+            getter="getdebuglevel",
+            comment=(
+                "Set the log verbosity of MusicBot. Normally this should be set to INFO.\n"
+                "It can be set to one of the following:\n"
+                " CRITICAL, ERROR, WARNING, INFO, DEBUG, VOICEDEBUG, FFMPEG, NOISY, or EVERYTHING"
+            ),
+            editable=False,
+        )
+        self.debug_level_str: str = self._debug_level[0]
+        self.debug_level: int = self._debug_level[1]
+        self.debug_mode: bool = self.debug_level <= logging.DEBUG
+        set_logging_level(self.debug_level)
+
+        # This gets filled in later while checking for token in the environment vars.
+        self.auth: Tuple[str] = ("",)
+        self._login_token: str = self.register.init_option(
+            section="Credentials",
+            option="Token",
+            dest="_login_token",
+            getter="get",
+            default=ConfigDefaults.token,
+            comment="Discord bot authentication token for your Bot. Visit Discord Developer Portal to create a bot App and generate your Token. Never publish your bot token!",
+            editable=False,
+        )
+
+        self.spotify_clientid = self.register.init_option(
+            section="Credentials",
+            option="Spotify_ClientID",
+            dest="spotify_clientid",
+            default=ConfigDefaults.spotify_clientid,
+            comment="Provide an optional Spotify Client ID to enable MusicBot to interact with Spotify API.",
+            editable=False,
+        )
+        self.spotify_clientsecret = self.register.init_option(
+            section="Credentials",
+            option="Spotify_ClientSecret",
+            dest="spotify_clientsecret",
+            default=ConfigDefaults.spotify_clientsecret,
+            comment="Provide an optional Spotify Client Secret to enable MusicBot to interact with Spotify API.",
+            editable=False,
+        )
+
+        self.owner_id: int = self.register.init_option(
+            section="Permissions",
+            option="OwnerID",
+            dest="owner_id",
+            default=ConfigDefaults.owner_id,
+            comment="Provide a Discord User ID number or the word 'auto' to set the owner of this bot.",
+            getter="getownerid",
+            editable=False,
+        )
+        self.dev_ids: Set[int] = self.register.init_option(
+            section="Permissions",
+            option="DevIDs",
+            dest="dev_ids",
+            default=ConfigDefaults.dev_ids,
+            comment=(
+                "A list of Discord User ID numbers who can remotely execute code using MusicBot dev-only commands. "
+                "Warning, you should only set this if you plan to do development of MusicBot!"
+            ),
+            getter="getidset",
+            editable=False,
+        )
+
+        self.bot_exception_ids: Set[int] = self.register.init_option(
+            section="Permissions",
+            option="BotExceptionIDs",
+            dest="bot_exception_ids",
+            getter="getidset",
+            default=ConfigDefaults.bot_exception_ids,
+            comment="Discord Member IDs for other bots that MusicBot should not ignore.  All bots are ignored by default.",
+        )
+
+        self.command_prefix: str = self.register.init_option(
+            section="Chat",
+            option="CommandPrefix",
+            dest="command_prefix",
+            default=ConfigDefaults.command_prefix,
+            comment="Command prefix is how all MusicBot commands must be started",
+        )
+        self.bound_channels: Set[int] = self.register.init_option(
+            section="Chat",
+            option="BindToChannels",
+            dest="bound_channels",
+            default=ConfigDefaults.bound_channels,
+            getter="getidset",
+            comment=(
+                "ID numbers for text channels that MusicBot should exclusively use for commands."
+                " All channels are used if this is not set."
+            ),
+        )
+        self.unbound_servers: bool = self.register.init_option(
+            section="Chat",
+            option="AllowUnboundServers",
+            dest="unbound_servers",
+            default=ConfigDefaults.unbound_servers,
+            getter="getboolean",
+            comment="Allow MusicBot to respond in all text channels of a server, when no channels are set in BindToChannels option.",
+        )
+        self.autojoin_channels: Set[int] = self.register.init_option(
+            section="Chat",
+            option="AutojoinChannels",
+            dest="autojoin_channels",
+            default=ConfigDefaults.autojoin_channels,
+            getter="getidset",
+            comment="A list of Voice Channel IDs that MusicBot should automatically join on start up.",
+        )
+        self.dm_nowplaying: bool = self.register.init_option(
+            section="Chat",
+            option="DMNowPlaying",
+            dest="dm_nowplaying",
+            default=ConfigDefaults.dm_nowplaying,
+            getter="getboolean",
+            comment="MusicBot will try to send Now Playing notices directly to the member who requested the song instead of posting in server channel.",
+        )
+        self.no_nowplaying_auto: bool = self.register.init_option(
+            section="Chat",
+            option="DisableNowPlayingAutomatic",
+            dest="no_nowplaying_auto",
+            default=ConfigDefaults.no_nowplaying_auto,
+            getter="getboolean",
+            comment="Disable now playing messages for songs played via auto playlist.",
+        )
+        self.nowplaying_channels: Set[int] = self.register.init_option(
+            section="Chat",
+            option="NowPlayingChannels",
+            dest="nowplaying_channels",
+            default=ConfigDefaults.nowplaying_channels,
+            getter="getidset",
+            comment="Forces MusicBot to use a specific channel to send now playing messages. One text channel ID per server.",
+        )
+        self.delete_nowplaying: bool = self.register.init_option(
+            section="Chat",
+            option="DeleteNowPlaying",
+            dest="delete_nowplaying",
+            default=ConfigDefaults.delete_nowplaying,
+            getter="getboolean",
+            comment="MusicBot will automatically delete Now Playing messages.",
+        )
+
+        self.default_volume: float = self.register.init_option(
+            section="MusicBot",
+            option="DefaultVolume",
+            dest="default_volume",
+            default=ConfigDefaults.default_volume,
+            getter="getpercent",
+            comment=(
+                "Sets the default volume level MusicBot will play songs at. "
+                "Must be a value from 0 to 1 inclusive."
+            ),
+        )
+        self.skips_required: int = self.register.init_option(
+            section="MusicBot",
+            option="SkipsRequired",
+            dest="skips_required",
+            default=ConfigDefaults.skips_required,
+            getter="getint",
+            comment=(
+                "Number of members required to skip a song. "
+                "Acts as a minimum when SkipRatio would require more votes."
+            ),
+        )
+        self.skip_ratio_required: float = self.register.init_option(
+            section="MusicBot",
+            option="SkipRatio",
+            dest="skip_ratio_required",
+            default=ConfigDefaults.skip_ratio_required,
+            getter="getpercent",
+            comment="This percent of listeners must vote for skip. If SkipsRequired is lower it will be used instead.",
+        )
+        self.save_videos: bool = self.register.init_option(
+            section="MusicBot",
+            option="SaveVideos",
+            dest="save_videos",
+            default=ConfigDefaults.save_videos,
+            getter="getboolean",
+            comment="Allow MusicBot to keep downloaded media, or delete it right away.",
+        )
+        self.storage_limit_bytes: int = self.register.init_option(
+            section="MusicBot",
+            option="StorageLimitBytes",
+            dest="storage_limit_bytes",
+            default=ConfigDefaults.storage_limit_bytes,
+            getter="getdatasize",
+            comment="If SaveVideos is enabled, set a limit on how much storage space should be used.",
+        )
+        self.storage_limit_days: int = self.register.init_option(
+            section="MusicBot",
+            option="StorageLimitDays",
+            dest="storage_limit_days",
+            default=ConfigDefaults.storage_limit_days,
+            getter="getint",
+            comment="If SaveVideos is enabled, set a limit on how long files should be kept.",
+        )
+        self.storage_retain_autoplay: bool = self.register.init_option(
+            section="MusicBot",
+            option="StorageRetainAutoPlay",
+            dest="storage_retain_autoplay",
+            default=ConfigDefaults.storage_retain_autoplay,
+            getter="getboolean",
+            comment="If SaveVideos is enabled, never purge auto playlist songs from the cache.",
+        )
+        self.now_playing_mentions: bool = self.register.init_option(
+            section="MusicBot",
+            option="NowPlayingMentions",
+            dest="now_playing_mentions",
+            default=ConfigDefaults.now_playing_mentions,
+            getter="getboolean",
+            comment="Mention the user who added the song when it is played.",
+        )
+        self.auto_summon: bool = self.register.init_option(
+            section="MusicBot",
+            option="AutoSummon",
+            dest="auto_summon",
+            default=ConfigDefaults.auto_summon,
+            getter="getboolean",
+            comment="Automatically join the owner if they are in an accessible voice channel when bot starts.",
+        )
+        self.auto_playlist: bool = self.register.init_option(
+            section="MusicBot",
+            option="UseAutoPlaylist",
+            dest="auto_playlist",
+            default=ConfigDefaults.auto_playlist,
+            getter="getboolean",
+            comment="Enable MusicBot to automatically play music from the autoplaylist.txt",
+        )
+        self.auto_playlist_random: bool = self.register.init_option(
+            section="MusicBot",
+            option="AutoPlaylistRandom",
+            dest="auto_playlist_random",
+            default=ConfigDefaults.auto_playlist_random,
+            getter="getboolean",
+            comment="Shuffles the autoplaylist tracks before playing them.",
+        )
+        self.auto_playlist_autoskip: bool = self.register.init_option(
+            section="MusicBot",
+            option="AutoPlaylistAutoSkip",
+            dest="auto_playlist_autoskip",
+            default=ConfigDefaults.auto_playlist_autoskip,
+            getter="getboolean",
+            comment=(
+                "Enable automatic skip of auto-playlist songs when a user plays a new song.\n"
+                "This only applies to the current playing song if it was added by the auto-playlist."
+            ),
+        )
+        # TODO:  this option needs more implementation to ensure blocked tracks are removed.
+        self.auto_playlist_remove_on_block: bool = self.register.init_option(
+            section="MusicBot",
+            option="AutoPlaylistRemoveBlocked",
+            dest="auto_playlist_remove_on_block",
+            default=ConfigDefaults.auto_playlist_remove_on_block,
+            getter="getboolean",
+            comment="Remove songs from the auto-playlist if they are found in the song blocklist.",
+        )
+        self.auto_pause: bool = self.register.init_option(
+            section="MusicBot",
+            option="AutoPause",
+            dest="auto_pause",
+            default=ConfigDefaults.auto_pause,
+            getter="getboolean",
+            comment="MusicBot will automatically pause playback when no users are listening.",
+        )
+        self.delete_messages: bool = self.register.init_option(
+            section="MusicBot",
+            option="DeleteMessages",
+            dest="delete_messages",
+            default=ConfigDefaults.delete_messages,
+            getter="getboolean",
+            comment="Allow MusicBot to automatically delete messages it sends, after a short delay.",
+        )
+        self.delete_invoking: bool = self.register.init_option(
+            section="MusicBot",
+            option="DeleteInvoking",
+            dest="delete_invoking",
+            default=ConfigDefaults.delete_invoking,
+            getter="getboolean",
+            comment="Auto delete valid commands after a short delay.",
+        )
+        self.persistent_queue: bool = self.register.init_option(
+            section="MusicBot",
+            option="PersistentQueue",
+            dest="persistent_queue",
+            default=ConfigDefaults.persistent_queue,
+            getter="getboolean",
+            comment="Allow MusicBot to save the song queue, so they will survive restarts.",
+        )
+        self.status_message: str = self.register.init_option(
+            section="MusicBot",
+            option="StatusMessage",
+            dest="status_message",
+            default=ConfigDefaults.status_message,
+            comment="Set a custom status text instead of showing dynamic info about what is playing in bot's activity status.",
+        )
+        self.write_current_song: bool = self.register.init_option(
+            section="MusicBot",
+            option="WriteCurrentSong",
+            dest="write_current_song",
+            default=ConfigDefaults.write_current_song,
+            getter="getboolean",
+            comment="If enabled, MusicBot will save the track title to:  data/{server_ID}/current.txt",
+        )
+        self.allow_author_skip: bool = self.register.init_option(
+            section="MusicBot",
+            option="AllowAuthorSkip",
+            dest="allow_author_skip",
+            default=ConfigDefaults.allow_author_skip,
+            getter="getboolean",
+            comment="Allow the member who requested the song to skip it, bypassing votes.",
+        )
+        self.use_experimental_equalization: bool = self.register.init_option(
+            section="MusicBot",
+            option="UseExperimentalEqualization",
+            dest="use_experimental_equalization",
+            default=ConfigDefaults.use_experimental_equalization,
+            getter="getboolean",
+            comment="Tries to use ffmpeg to get volume normalizing options for use in playback.",
+        )
+        self.embeds: bool = self.register.init_option(
+            section="MusicBot",
+            option="UseEmbeds",
+            dest="embeds",
+            default=ConfigDefaults.embeds,
+            getter="getboolean",
+            comment="Allow MusicBot to format it's messages as embeds.",
+        )
+        self.queue_length: int = self.register.init_option(
+            section="MusicBot",
+            option="QueueLength",
+            dest="queue_length",
+            default=ConfigDefaults.queue_length,
+            getter="getint",
+            comment="The number of entries to show per-page when using q command to list the queue.",
+        )
+        self.remove_ap: bool = self.register.init_option(
+            section="MusicBot",
+            option="RemoveFromAPOnError",
+            dest="remove_ap",
+            default=ConfigDefaults.remove_ap,
+            getter="getboolean",
+            comment="Enable MusicBot to automatically remove unplayable entries from tha auto playlist.",
+        )
+        self.show_config_at_start: bool = self.register.init_option(
+            section="MusicBot",
+            option="ShowConfigOnLaunch",
+            dest="show_config_at_start",
+            default=ConfigDefaults.show_config_at_start,
+            getter="getboolean",
+            comment="Display MusicBot config settings in the logs at startup.",
+        )
+        self.legacy_skip: bool = self.register.init_option(
+            section="MusicBot",
+            option="LegacySkip",
+            dest="legacy_skip",
+            default=ConfigDefaults.legacy_skip,
+            getter="getboolean",
+            comment="Enable users with the InstaSkip permission to bypass skip voting and force skips.",
+        )
+        self.leavenonowners: bool = self.register.init_option(
+            section="MusicBot",
+            option="LeaveServersWithoutOwner",
+            dest="leavenonowners",
+            default=ConfigDefaults.leavenonowners,
+            getter="getboolean",
+            comment="If enabled, MusicBot will leave servers if the owner is not in their member list.",
+        )
+        self.usealias: bool = self.register.init_option(
+            section="MusicBot",
+            option="UseAlias",
+            dest="usealias",
+            default=ConfigDefaults.usealias,
+            getter="getboolean",
+            comment="If enabled, MusicBot will allow commands to have multiple names using data in:  config/aliases.json",
+        )
+        self.footer_text: str = self.register.init_option(
+            section="MusicBot",
+            option="CustomEmbedFooter",
+            dest="footer_text",
+            default=ConfigDefaults.footer_text,
+            comment="Replace MusicBot name/version in embed footer with custom text. Only applied when UseEmbeds is enabled and it is not blank.",
+        )
+        self.self_deafen: bool = self.register.init_option(
+            section="MusicBot",
+            option="SelfDeafen",
+            dest="self_deafen",
+            default=ConfigDefaults.self_deafen,
+            getter="getboolean",
+            comment="MusicBot will automatically deafen itself when entering a voice channel.",
+        )
+        self.leave_inactive_channel: bool = self.register.init_option(
+            section="MusicBot",
+            option="LeaveInactiveVC",
+            dest="leave_inactive_channel",
+            default=ConfigDefaults.leave_inactive_channel,
+            getter="getboolean",
+            comment="If enabled, MusicBot will leave a voice channel when no users are listening, after waiting for a period set in LeaveInactiveVCTimeOut.",
+        )
+        self.leave_inactive_channel_timeout: float = self.register.init_option(
+            section="MusicBot",
+            option="LeaveInactiveVCTimeOut",
+            dest="leave_inactive_channel_timeout",
+            default=ConfigDefaults.leave_inactive_channel_timeout,
+            getter="getduration",
+            comment=(
+                "Set a period of time to wait before leaving an inactive voice channel. "
+                "You can set this to a number of seconds or phrase like:  4 hours"
+            ),
+        )
+        self.leave_after_queue_empty: bool = self.register.init_option(
+            section="MusicBot",
+            option="LeaveAfterQueueEmpty",
+            dest="leave_after_queue_empty",
+            default=ConfigDefaults.leave_after_queue_empty,
+            getter="getboolean",
+            comment="If enabled, MusicBot will leave the channel immediately when the song queue is empty.",
+        )
+        self.leave_player_inactive_for: float = self.register.init_option(
+            section="MusicBot",
+            option="LeavePlayerInactiveFor",
+            dest="leave_player_inactive_for",
+            default=ConfigDefaults.leave_player_inactive_for,
+            getter="getduration",
+            comment="MusicBot will wait for this period of time before leaving voice channel when player is not playing or is paused. Set to 0 to disable.",
+        )
+        self.searchlist: bool = self.register.init_option(
+            section="MusicBot",
+            option="SearchList",
+            dest="searchlist",
+            default=ConfigDefaults.searchlist,
+            getter="getboolean",
+            comment="If enabled, users must indicate search result choices by sending a message instead of using reactions.",
+        )
+        self.defaultsearchresults: int = self.register.init_option(
+            section="MusicBot",
+            option="DefaultSearchResults",
+            dest="defaultsearchresults",
+            default=ConfigDefaults.defaultsearchresults,
+            getter="getint",
+            comment="Sets the default number of search results to fetch when using search command without a specific number.",
+        )
+
+        self.enable_options_per_guild: bool = self.register.init_option(
+            section="MusicBot",
+            option="EnablePrefixPerGuild",
+            dest="enable_options_per_guild",
+            default=ConfigDefaults.enable_options_per_guild,
+            getter="getboolean",
+            comment="Allow MusicBot to save a per-server command prefix, and enables setprefix command.",
+        )
+
+        self.round_robin_queue: bool = self.register.init_option(
+            section="MusicBot",
+            option="RoundRobinQueue",
+            dest="round_robin_queue",
+            default=ConfigDefaults.defaultround_robin_queue,
+            getter="getboolean",
+            comment="If enabled and multiple members are adding songs, MusicBot will organize playback for one song per member.",
+        )
+
+        self.enable_network_checker: bool = self.register.init_option(
+            section="MusicBot",
+            option="EnableNetworkChecker",
+            dest="enable_network_checker",
+            default=ConfigDefaults.enable_network_checker,
+            getter="getboolean",
+            comment=(
+                "Allow MusicBot to use system ping command to detect network outage and availability.\n"
+                "This is useful if you keep the bot joined to a channel or playing music 24/7.\n"
+                "MusicBot must be restarted to enable network testing.\n"
+                "By default this is disabled."
+            ),
+        )
+
+        self.user_blocklist_enabled: bool = self.register.init_option(
+            section="MusicBot",
+            option="EnableUserBlocklist",
+            dest="user_blocklist_enabled",
+            default=ConfigDefaults.user_blocklist_enabled,
+            getter="getboolean",
+            comment="Enable the user block list feature, without emptying the block list.",
+        )
+        self.user_blocklist_file: pathlib.Path = self.register.init_option(
+            section="Files",
+            option="UserBlocklistFile",
+            dest="user_blocklist_file",
+            default=ConfigDefaults.user_blocklist_file,
+            getter="getpathlike",
+            comment="An optional file path to a text file listing Discord User IDs, one per line.",
+        )
+        self.user_blocklist: "UserBlocklist" = UserBlocklist(self.user_blocklist_file)
+
+        self.song_blocklist_enabled: bool = self.register.init_option(
+            section="MusicBot",
+            option="EnableSongBlocklist",
+            dest="song_blocklist_enabled",
+            default=ConfigDefaults.song_blocklist_enabled,
+            getter="getboolean",
+            comment="Enable the song block list feature, without emptying the block list.",
+        )
+        self.song_blocklist_file: pathlib.Path = self.register.init_option(
+            section="Files",
+            option="SongBlocklistFile",
+            dest="song_blocklist_file",
+            default=ConfigDefaults.song_blocklist_file,
+            getter="getpathlike",
+            comment=(
+                "An optional file path to a text file that lists URLs, words, or phrases one per line.\n"
+                "Any song title or URL that contains any line in the list will be blocked."
+            ),
+        )
+        self.song_blocklist: "SongBlocklist" = SongBlocklist(self.song_blocklist_file)
+
+        self.auto_playlist_file: pathlib.Path = self.register.init_option(
+            section="Files",
+            option="AutoPlaylistFile",
+            dest="auto_playlist_file",
+            default=ConfigDefaults.auto_playlist_file,
+            getter="getpathlike",
+            comment=(
+                "An optional file path to an auto playlist text file.\n"
+                "Each line of the file will be treated similarly to using the play command."
+            ),
+        )
+        self.i18n_file: pathlib.Path = self.register.init_option(
+            section="Files",
+            option="i18nFile",
+            dest="i18n_file",
+            default=ConfigDefaults.i18n_file,
+            getter="getpathlike",
+            comment=(
+                "An optional file path to an i18n language file.\n"
+                "This option may be removed or replaced in the future!"
+                # TODO: i18n stuff when I get around to gettext.
+            ),
+        )
+        self.audio_cache_path: pathlib.Path = self.register.init_option(
+            section="Files",
+            option="AudioCachePath",
+            dest="audio_cache_path",
+            default=ConfigDefaults.audio_cache_path,
+            getter="getpathlike",
+            comment="An optional directory path where MusicBot will store long and short-term cache for playback.",
+        )
+
+        self.logs_max_kept: int = self.register.init_option(
+            section="Files",
+            option="LogsMaxKept",
+            dest="logs_max_kept",
+            default=ConfigDefaults.logs_max_kept,
+            getter="getint",
+            comment=(
+                "Configure automatic log file rotation at restart, and limit the number of files kept.\n"
+                "When disabled, only one log is kept and its contents are replaced each run.\n"
+                f"Default is 0, or disabled.  Maximum allowed number is {MAXIMUM_LOGS_LIMIT}."
+            ),
+        )
+
+        self.logs_date_format: str = self.register.init_option(
+            section="Files",
+            option="LogsDateFormat",
+            dest="logs_date_format",
+            default=ConfigDefaults.logs_date_format,
+            comment=(
+                "Configure the log file date format used when LogsMaxKept is enabled.\n"
+                "If left blank, a warning is logged and the default will be used instead.\n"
+                "Learn more about time format codes from the tables and data here:\n"
+                "    https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior\n"
+                f"Default value is:  {DEFAULT_LOGS_ROTATE_FORMAT}"
+            ),
+        )
+
+        # Convert all path constants into config as pathlib.Path objects.
+        self.data_path = pathlib.Path(DEFAULT_DATA_PATH).resolve()
+        self.server_names_path = self.data_path.joinpath(DEFAULT_DATA_NAME_SERVERS)
+
+        # Validate the config settings match destination values.
+        self.register.validate_register_destinations()
+
+        # Make the registry check for missing data in the INI file.
+        self.register.update_missing_config()
+
+        if self.register.ini_missing_sections:
+            sections_str = ", ".join(
+                [f"[{s}]" for s in self.register.ini_missing_sections]
+            )
             raise HelpfulError(
                 "One or more required config sections are missing.",
                 "Fix your config.  Each [Section] should be on its own line with "
@@ -80,272 +705,12 @@ class Config:
                 preface="An error has occured parsing the config:\n",
             )
 
-        self._confpreface = "An error has occured reading the config:\n"
-        self._confpreface2 = "An error has occured validating the config:\n"
-
-        self._login_token: str = config.get(
-            "Credentials", "Token", fallback=ConfigDefaults.token
-        )
-
-        self.auth: Tuple[str] = ("",)
-
-        self.spotify_clientid = config.get(
-            "Credentials", "Spotify_ClientID", fallback=ConfigDefaults.spotify_clientid
-        )
-        self.spotify_clientsecret = config.get(
-            "Credentials",
-            "Spotify_ClientSecret",
-            fallback=ConfigDefaults.spotify_clientsecret,
-        )
-
-        self.owner_id: int = config.getownerid(
-            "Permissions", "OwnerID", fallback=ConfigDefaults.owner_id
-        )
-        self.dev_ids: Set[int] = config.getidset(
-            "Permissions", "DevIDs", fallback=ConfigDefaults.dev_ids
-        )
-        self.bot_exception_ids = config.getidset(
-            "Permissions", "BotExceptionIDs", fallback=ConfigDefaults.bot_exception_ids
-        )
-
-        self.command_prefix = config.get(
-            "Chat", "CommandPrefix", fallback=ConfigDefaults.command_prefix
-        )
-        self.bound_channels = config.getidset(
-            "Chat", "BindToChannels", fallback=ConfigDefaults.bound_channels
-        )
-        self.unbound_servers = config.getboolean(
-            "Chat", "AllowUnboundServers", fallback=ConfigDefaults.unbound_servers
-        )
-        self.autojoin_channels = config.getidset(
-            "Chat", "AutojoinChannels", fallback=ConfigDefaults.autojoin_channels
-        )
-        self.dm_nowplaying = config.getboolean(
-            "Chat", "DMNowPlaying", fallback=ConfigDefaults.dm_nowplaying
-        )
-        self.no_nowplaying_auto = config.getboolean(
-            "Chat",
-            "DisableNowPlayingAutomatic",
-            fallback=ConfigDefaults.no_nowplaying_auto,
-        )
-        self.nowplaying_channels = config.getidset(
-            "Chat", "NowPlayingChannels", fallback=ConfigDefaults.nowplaying_channels
-        )
-        self.delete_nowplaying = config.getboolean(
-            "Chat", "DeleteNowPlaying", fallback=ConfigDefaults.delete_nowplaying
-        )
-
-        self.default_volume = config.getfloat(
-            "MusicBot", "DefaultVolume", fallback=ConfigDefaults.default_volume
-        )
-        self.skips_required = config.getint(
-            "MusicBot", "SkipsRequired", fallback=ConfigDefaults.skips_required
-        )
-        self.skip_ratio_required = config.getfloat(
-            "MusicBot", "SkipRatio", fallback=ConfigDefaults.skip_ratio_required
-        )
-        self.save_videos = config.getboolean(
-            "MusicBot", "SaveVideos", fallback=ConfigDefaults.save_videos
-        )
-        self.storage_limit_bytes = config.getdatasize(
-            "MusicBot", "StorageLimitBytes", fallback=ConfigDefaults.storage_limit_bytes
-        )
-        self.storage_limit_days = config.getint(
-            "MusicBot", "StorageLimitDays", fallback=ConfigDefaults.storage_limit_days
-        )
-        self.storage_retain_autoplay = config.getboolean(
-            "MusicBot",
-            "StorageRetainAutoPlay",
-            fallback=ConfigDefaults.storage_retain_autoplay,
-        )
-        self.now_playing_mentions = config.getboolean(
-            "MusicBot",
-            "NowPlayingMentions",
-            fallback=ConfigDefaults.now_playing_mentions,
-        )
-        self.auto_summon = config.getboolean(
-            "MusicBot", "AutoSummon", fallback=ConfigDefaults.auto_summon
-        )
-        self.auto_playlist = config.getboolean(
-            "MusicBot", "UseAutoPlaylist", fallback=ConfigDefaults.auto_playlist
-        )
-        self.auto_playlist_random = config.getboolean(
-            "MusicBot",
-            "AutoPlaylistRandom",
-            fallback=ConfigDefaults.auto_playlist_random,
-        )
-        self.auto_pause = config.getboolean(
-            "MusicBot", "AutoPause", fallback=ConfigDefaults.auto_pause
-        )
-        self.delete_messages = config.getboolean(
-            "MusicBot", "DeleteMessages", fallback=ConfigDefaults.delete_messages
-        )
-        self.delete_invoking = config.getboolean(
-            "MusicBot", "DeleteInvoking", fallback=ConfigDefaults.delete_invoking
-        )
-        self.persistent_queue = config.getboolean(
-            "MusicBot", "PersistentQueue", fallback=ConfigDefaults.persistent_queue
-        )
-        self.status_message = config.get(
-            "MusicBot", "StatusMessage", fallback=ConfigDefaults.status_message
-        )
-        self.write_current_song = config.getboolean(
-            "MusicBot", "WriteCurrentSong", fallback=ConfigDefaults.write_current_song
-        )
-        self.allow_author_skip = config.getboolean(
-            "MusicBot", "AllowAuthorSkip", fallback=ConfigDefaults.allow_author_skip
-        )
-        self.use_experimental_equalization = config.getboolean(
-            "MusicBot",
-            "UseExperimentalEqualization",
-            fallback=ConfigDefaults.use_experimental_equalization,
-        )
-        self.embeds = config.getboolean(
-            "MusicBot", "UseEmbeds", fallback=ConfigDefaults.embeds
-        )
-        self.queue_length = config.getint(
-            "MusicBot", "QueueLength", fallback=ConfigDefaults.queue_length
-        )
-        self.remove_ap = config.getboolean(
-            "MusicBot", "RemoveFromAPOnError", fallback=ConfigDefaults.remove_ap
-        )
-        self.show_config_at_start = config.getboolean(
-            "MusicBot",
-            "ShowConfigOnLaunch",
-            fallback=ConfigDefaults.show_config_at_start,
-        )
-        self.legacy_skip = config.getboolean(
-            "MusicBot", "LegacySkip", fallback=ConfigDefaults.legacy_skip
-        )
-        self.leavenonowners = config.getboolean(
-            "MusicBot",
-            "LeaveServersWithoutOwner",
-            fallback=ConfigDefaults.leavenonowners,
-        )
-        self.usealias = config.getboolean(
-            "MusicBot", "UseAlias", fallback=ConfigDefaults.usealias
-        )
-        self.footer_text = config.get(
-            "MusicBot", "CustomEmbedFooter", fallback=ConfigDefaults.footer_text
-        )
-        self.self_deafen = config.getboolean(
-            "MusicBot", "SelfDeafen", fallback=ConfigDefaults.self_deafen
-        )
-        self.leave_inactive_channel = config.getboolean(
-            "MusicBot",
-            "LeaveInactiveVC",
-            fallback=ConfigDefaults.leave_inactive_channel,
-        )
-        self.leave_inactive_channel_timeout = config.getduration(
-            "MusicBot",
-            "LeaveInactiveVCTimeOut",
-            fallback=ConfigDefaults.leave_inactive_channel_timeout,
-        )
-        self.leave_after_queue_empty = config.getboolean(
-            "MusicBot",
-            "LeaveAfterSong",
-            fallback=ConfigDefaults.leave_after_queue_empty,
-        )
-        self.leave_player_inactive_for = config.getduration(
-            "MusicBot",
-            "LeavePlayerInactiveFor",
-            fallback=ConfigDefaults.leave_player_inactive_for,
-        )
-        self.searchlist = config.getboolean(
-            "MusicBot", "SearchList", fallback=ConfigDefaults.searchlist
-        )
-        self.defaultsearchresults = config.getint(
-            "MusicBot",
-            "DefaultSearchResults",
-            fallback=ConfigDefaults.defaultsearchresults,
-        )
-
-        self.enable_options_per_guild = config.getboolean(
-            "MusicBot",
-            "EnablePrefixPerGuild",
-            fallback=ConfigDefaults.enable_options_per_guild,
-        )
-
-        self.round_robin_queue = config.getboolean(
-            "MusicBot",
-            "RoundRobinQueue",
-            fallback=ConfigDefaults.defaultround_robin_queue,
-        )
-
-        dbg_str, dbg_int = config.getdebuglevel(
-            "MusicBot", "DebugLevel", fallback=ConfigDefaults.debug_level_str
-        )
-        self.debug_level_str: str = dbg_str
-        self.debug_level: int = dbg_int
-        self.debug_mode: bool = self.debug_level <= logging.DEBUG
-        set_logging_level(self.debug_level)
-
-        self.user_blocklist_enabled = config.getboolean(
-            "MusicBot",
-            "EnableUserBlocklist",
-            fallback=ConfigDefaults.user_blocklist_enabled,
-        )
-        self.user_blocklist_file = config.getpathlike(
-            "Files", "UserBlocklistFile", fallback=ConfigDefaults.user_blocklist_file
-        )
-        self.user_blocklist: "UserBlocklist" = UserBlocklist(self.user_blocklist_file)
-
-        self.song_blocklist_enabled = config.getboolean(
-            "MusicBot",
-            "EnableSongBlocklist",
-            fallback=ConfigDefaults.song_blocklist_enabled,
-        )
-        self.song_blocklist_file = config.getpathlike(
-            "Files", "SongBlocklistFile", fallback=ConfigDefaults.song_blocklist_file
-        )
-        self.song_blocklist: "SongBlocklist" = SongBlocklist(self.song_blocklist_file)
-
-        self.auto_playlist_file = config.getpathlike(
-            "Files", "AutoPlaylistFile", fallback=ConfigDefaults.auto_playlist_file
-        )
-        self.i18n_file = config.getpathlike(
-            "Files", "i18nFile", fallback=ConfigDefaults.i18n_file
-        )
-        self.audio_cache_path = config.getpathlike(
-            "Files", "AudioCachePath", fallback=ConfigDefaults.audio_cache_path
-        )
-
         # This value gets set dynamically, based on success with API authentication.
         self.spotify_enabled = False
 
         self.run_checks()
 
-        self.missing_keys: Set[str] = set()
-        self.check_changes(config)
-
         self.setup_autoplaylist()
-
-    def check_changes(self, conf: "ExtendedConfigParser") -> None:
-        """
-        Load the example options file and use it to detect missing config.
-        The results are stored in self.missing_keys as a set difference.
-
-        Note that keys from all sections are stored in one list, which is
-        then reduced to a set.  If sections contain overlapping key names,
-        this logic will not detect a key missing from one section that was
-        present in another.
-
-        :param: conf:  the currently loaded config file parser object.
-        """
-        exfile = pathlib.Path(EXAMPLE_OPTIONS_FILE)
-        if exfile.is_file():
-            usr_keys = conf.fetch_all_keys()
-            exconf = ExtendedConfigParser()
-            if not exconf.read(exfile, encoding="utf-8"):
-                log.error(
-                    "Cannot detect changes in config, example options file is missing."
-                )
-                return
-            ex_keys = exconf.fetch_all_keys()
-            if set(usr_keys) != set(ex_keys):
-                self.missing_keys = set(ex_keys) - set(
-                    usr_keys
-                )  # to raise this as an issue in bot.py later
 
     def run_checks(self) -> None:
         """
@@ -354,6 +719,21 @@ class Config:
         :raises: musicbot.exceptions.HelpfulError
             if some validation failed that the user needs to correct.
         """
+        if self.logs_max_kept > MAXIMUM_LOGS_LIMIT:
+            log.warning(
+                "Cannot store more than %s log files. Option LogsMaxKept will be limited instead.",
+                MAXIMUM_LOGS_LIMIT,
+            )
+            self.logs_max_kept = MAXIMUM_LOGS_LIMIT
+        set_logging_max_kept_logs(self.logs_max_kept)
+
+        if not self.logs_date_format and self.logs_max_kept > 0:
+            log.warning(
+                "Config option LogsDateFormat is empty and this will break log file rotation. Using default instead."
+            )
+            self.logs_date_format = DEFAULT_LOGS_ROTATE_FORMAT
+        set_logging_rotate_date_format(self.logs_date_format)
+
         if self.i18n_file != ConfigDefaults.i18n_file and not os.path.isfile(
             self.i18n_file
         ):
@@ -436,9 +816,6 @@ class Config:
 
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
-
-    # TODO: Add save function for future editing of options with commands
-    #       Maybe add warnings about fields missing from the config file
 
     async def async_validate(self, bot: "MusicBot") -> None:
         """
@@ -548,7 +925,7 @@ class Config:
                         "Please configure settings in '%s' and re-run the bot.",
                         DEFAULT_OPTIONS_FILE,
                     )
-                    sys.exit(1)
+                    raise RuntimeError("MusicBot cannot proceed with this config.")
 
             except ValueError as e:  # Config id value was changed but its not valid
                 raise HelpfulError(
@@ -585,10 +962,84 @@ class Config:
         self.auto_playlist_removed_file = ap_removed_file
         self.auto_playlist_cachemap_file = ap_cachemap_file
 
+    def update_option(self, option: "ConfigOption", value: str) -> bool:
+        """
+        Uses option data to parse the given value and update its associated config.
+        No data is saved to file however.
+        """
+        tmp_parser = ExtendedConfigParser()
+        tmp_parser.read_dict({option.section: {option.option: value}})
+
+        try:
+            get = getattr(tmp_parser, option.getter, None)
+            if not get:
+                log.critical("Dev Bug! Config option has getter that is not available.")
+                return False
+            new_conf_val = get(option.section, option.option, fallback=option.default)
+            if not isinstance(new_conf_val, type(option.default)):
+                log.error(
+                    "Dev Bug! Config option has invalid type, getter and default must be the same type."
+                )
+                return False
+            setattr(self, option.dest, new_conf_val)
+            return True
+        except (HelpfulError, ValueError, TypeError):
+            return False
+
+    def save_option(self, option: "ConfigOption") -> bool:
+        """
+        Converts the current Config value into an INI file value as needed.
+        Note: ConfigParser must not use multi-line values. This will break them.
+        Should multiline values be needed, maybe use ConfigUpdater package instead.
+        """
+        try:
+            cu = configupdater.ConfigUpdater()
+            cu.optionxform = str  # type: ignore
+            cu.read(self.config_file, encoding="utf8")
+
+            if option.section in list(cu.keys()):
+                if option.option not in list(cu[option.section].keys()):
+                    log.debug("Option was missing previously.")
+                    cu[option.section][option.option] = self.register.to_ini(option)
+                    c_bits = option.comment.split("\n")
+                    adder = cu[option.section][option.option].add_before
+                    adder.space()
+                    if len(c_bits) > 1:
+                        for line in c_bits:
+                            adder.comment(line)
+                    else:
+                        adder.comment(option.comment)
+                    cu[option.section][option.option].add_after.space()
+                else:
+                    cu[option.section][option.option] = self.register.to_ini(option)
+            else:
+                # TODO: Maybe we should make a method that handles first-time setup
+                # or otherwise some form of auto-update thing for config?
+                log.error(
+                    "Config section not in parsed config! Missing: %s", option.section
+                )
+                return False
+            cu.update_file()
+            log.info(
+                "Saved config option: %s  =  %s",
+                option,
+                cu[option.section][option.option].value,
+            )
+            return True
+        except (
+            OSError,
+            AttributeError,
+            configparser.DuplicateSectionError,
+            configparser.ParsingError,
+        ):
+            log.exception("Failed to save config:  %s", option)
+            return False
+
 
 class ConfigDefaults:
     """
     This class contains default values used mainly as config fallback values.
+    None type is not allowed as a default value.
     """
 
     owner_id: int = 0
@@ -619,18 +1070,12 @@ class ConfigDefaults:
     auto_summon: bool = True
     auto_playlist: bool = True
     auto_playlist_random: bool = True
+    auto_playlist_autoskip: bool = False
+    auto_playlist_remove_on_block: bool = False
     auto_pause: bool = True
     delete_messages: bool = True
     delete_invoking: bool = False
     persistent_queue: bool = True
-
-    debug_level: int = getattr(logging, DEFAULT_LOG_LEVEL, logging.INFO)
-    debug_level_str: str = (
-        DEFAULT_LOG_LEVEL
-        if logging.getLevelName(debug_level) == DEFAULT_LOG_LEVEL
-        else "INFO"
-    )
-
     status_message: str = ""
     write_current_song: bool = False
     allow_author_skip: bool = True
@@ -652,12 +1097,16 @@ class ConfigDefaults:
     enable_options_per_guild: bool = False
     footer_text: str = DEFAULT_FOOTER_TEXT
     defaultround_robin_queue: bool = False
+    enable_network_checker: bool = False
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()
     song_blocklist_enabled: bool = False
     # default true here since the file being populated was previously how it was enabled.
     user_blocklist_enabled: bool = True
+
+    logs_max_kept: int = DEFAULT_LOGS_KEPT
+    logs_date_format: str = DEFAULT_LOGS_ROTATE_FORMAT
 
     # Create path objects from the constants.
     options_file: pathlib.Path = pathlib.Path(DEFAULT_OPTIONS_FILE)
@@ -666,6 +1115,441 @@ class ConfigDefaults:
     auto_playlist_file: pathlib.Path = pathlib.Path(DEFAULT_AUTOPLAYLIST_FILE)
     i18n_file: pathlib.Path = pathlib.Path(DEFAULT_I18N_FILE)
     audio_cache_path: pathlib.Path = pathlib.Path(DEFAULT_AUDIO_CACHE_PATH).absolute()
+
+    @staticmethod
+    def _debug_level() -> Tuple[str, int]:
+        """default values for debug log level configs"""
+        debug_level: int = getattr(logging, DEFAULT_LOG_LEVEL, logging.INFO)
+        debug_level_str: str = (
+            DEFAULT_LOG_LEVEL
+            if logging.getLevelName(debug_level) == DEFAULT_LOG_LEVEL
+            else logging.getLevelName(debug_level)
+        )
+        return (debug_level_str, debug_level)
+
+
+class ConfigOption:
+    """Basic data model for individual registered options."""
+
+    def __init__(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: RegTypes,
+        comment: str,
+        getter: str = "get",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> None:
+        """
+        Defines a configuration option in MusicBot and attributes used to
+        identify the option both at runtime and in the INI file.
+
+        :param: section:    The section this option belongs to, case sensitive.
+        :param: option:     The name of this option, case sensitive.
+        :param: dest:       The name of a Config attribute the value of this option will be stored in.
+        :param: getter:     The name of a callable in ConfigParser used to get this option value.
+        :param: default:    The default value for this option if it is missing or invalid.
+        :param: comment:    A comment or help text to show for this option.
+        :param: editable:   If this option can be changed via commands.
+        :param: invisible:  (Permissions only) hide from display when formatted for per-user display.
+        :param: empty_display_val   Value shown when the parsed value is empty or None.
+        """
+        self.section = section
+        self.option = option
+        self.dest = dest
+        self.getter = getter
+        self.default = default
+        self.comment = comment
+        self.editable = editable
+        self.invisible = invisible
+        self.empty_display_val = empty_display_val
+
+    def __str__(self) -> str:
+        return f"[{self.section}] > {self.option}"
+
+
+class ConfigOptionRegistry:
+    """
+    Management system for registering config options which provides methods to
+    query the state of configurations or translate them.
+    """
+
+    def __init__(
+        self, config: Union[Config, "Permissions"], parser: "ExtendedConfigParser"
+    ) -> None:
+        """
+        Manage a configuration registry that associates config options to their
+        parent section, a runtime name, validation for values, and commentary
+        or other help text about the option.
+        """
+        self._config = config
+        self._parser = parser
+
+        # registered options.
+        self._option_list: List[ConfigOption] = []
+
+        # registered sections.
+        self._sections: Set[str] = set()
+        self._options: Set[str] = set()
+        self._distinct_options: Set[str] = set()
+
+        # set up missing config data.
+        self.ini_missing_options: Set[ConfigOption] = set()
+        self.ini_missing_sections: Set[str] = set()
+
+    @property
+    def sections(self) -> Set[str]:
+        """Available section names."""
+        return self._sections
+
+    @property
+    def option_keys(self) -> Set[str]:
+        """Available options with section names."""
+        return self._options
+
+    @property
+    def option_list(self) -> List[ConfigOption]:
+        """Non-settable option list."""
+        return self._option_list
+
+    def update_missing_config(self) -> None:
+        """
+        Checks over the ini file for options missing from the file.
+        It only considers registered options, rather than looking at examples file.
+        As such it should be run after all options are registered.
+        """
+        # load the unique sections and options from the parser.
+        p_section_set = set()
+        p_key_set = set()
+        parser_sections = dict(self._parser.items())
+        for section in parser_sections:
+            p_section_set.add(section)
+            opts = set(parser_sections[section].keys())
+            for opt in opts:
+                p_key_set.add(f"[{section}] > {opt}")
+
+        # update the missing sections registry.
+        self.ini_missing_sections = self._sections - p_section_set
+
+        # populate the missing options registry.
+        for option in self._option_list:
+            if str(option) not in p_key_set:
+                self.ini_missing_options.add(option)
+
+    def get_updated_options(self) -> List[ConfigOption]:
+        """
+        Get ConfigOptions that have been updated at runtime.
+        """
+        changed = []
+        for option in self._option_list:
+            if not hasattr(self._config, option.dest):
+                raise AttributeError(
+                    f"Dev Bug! Attribute `Config.{option.dest}` does not exist."
+                )
+
+            if not hasattr(self._parser, option.getter):
+                raise AttributeError(
+                    f"Dev Bug! Method `*ConfigParser.{option.getter}` does not exist."
+                )
+
+            p_getter = getattr(self._parser, option.getter)
+            config_value = getattr(self._config, option.dest)
+            parser_value = p_getter(
+                option.section, option.option, fallback=option.default
+            )
+
+            # We only care about changed options that are editable.
+            if config_value != parser_value and option.editable:
+                changed.append(option)
+        return changed
+
+    def get_config_option(self, section: str, option: str) -> Optional[ConfigOption]:
+        """
+        Gets the config option if it exists, or returns None
+        """
+        for opt in self._option_list:
+            if opt.section == section and opt.option == option:
+                return opt
+        return None
+
+    def get_values(self, opt: ConfigOption) -> Tuple[RegTypes, str, str]:
+        """
+        Get the values in Config and *ConfigParser for this config option.
+        Returned tuple contains parsed value, ini-string, and a display string
+        for the parsed config value if applicable.
+        Display string may be empty if not used.
+        """
+        if not opt.editable:
+            return ("", "", "")
+
+        if not hasattr(self._config, opt.dest):
+            raise AttributeError(
+                f"Dev Bug! Attribute `Config.{opt.dest}` does not exist."
+            )
+
+        if not hasattr(self._parser, opt.getter):
+            raise AttributeError(
+                f"Dev Bug! Method `*ConfigParser.{opt.getter}` does not exist."
+            )
+
+        p_getter = getattr(self._parser, opt.getter)
+        config_value = getattr(self._config, opt.dest)
+        parser_value = p_getter(opt.section, opt.option, fallback=opt.default)
+
+        display_config_value = ""
+        if not display_config_value and opt.empty_display_val:
+            display_config_value = opt.empty_display_val
+
+        return (config_value, parser_value, display_config_value)
+
+    def validate_register_destinations(self) -> None:
+        """Check all configured options for matching destination definitions."""
+        errors = []
+        for opt in self._option_list:
+            if not hasattr(self._config, opt.dest):
+                errors.append(
+                    f"Config Option `{opt}` has an missing destination named:  {opt.dest}"
+                )
+        if errors:
+            msg = "Dev Bug!  Some options failed config validation.\n"
+            msg += "\n".join(errors)
+            raise RuntimeError(msg)
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: str,
+        comment: str,
+        getter: str = "get",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> str:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: bool,
+        comment: str,
+        getter: str = "getboolean",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> bool:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: int,
+        comment: str,
+        getter: str = "getint",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> int:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: float,
+        comment: str,
+        getter: str = "getfloat",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> float:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: Set[int],
+        comment: str,
+        getter: str = "getidset",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> Set[int]:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: Set[str],
+        comment: str,
+        getter: str = "getstrset",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> Set[str]:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: DebugLevel,
+        comment: str,
+        getter: str = "getdebuglevel",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> DebugLevel:
+        pass
+
+    @overload
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: pathlib.Path,
+        comment: str,
+        getter: str = "getpathlike",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> pathlib.Path:
+        pass
+
+    def init_option(
+        self,
+        section: str,
+        option: str,
+        dest: str,
+        default: RegTypes,
+        comment: str,
+        getter: str = "get",
+        editable: bool = True,
+        invisible: bool = False,
+        empty_display_val: str = "",
+    ) -> RegTypes:
+        """
+        Register an option while getting its configuration value at the same time.
+
+        :param: section:    The section this option belongs to, case sensitive.
+        :param: option:     The name of this option, case sensitive.
+        :param: dest:       The name of a Config attribute the value of this option will be stored in.
+        :param: getter:     The name of a callable in ConfigParser used to get this option value.
+        :param: default:    The default value for this option if it is missing or invalid.
+        :param: comment:    A comment or help text to show for this option.
+        :param: editable:   If this option can be changed via commands.
+        """
+        # Check that the getter function exists and is callable.
+        if not hasattr(self._parser, getter):
+            raise ValueError(
+                f"Dev Bug! There is no *ConfigParser function by the name of: {getter}"
+            )
+        if not callable(getattr(self._parser, getter)):
+            raise TypeError(
+                f"Dev Bug! The *ConfigParser.{getter} attribute is not a callable function."
+            )
+
+        # add the option to the registry.
+        config_opt = ConfigOption(
+            section=section,
+            option=option,
+            dest=dest,
+            default=default,
+            getter=getter,
+            comment=comment,
+            editable=editable,
+            invisible=invisible,
+            empty_display_val=empty_display_val,
+        )
+        self._option_list.append(config_opt)
+        self._sections.add(section)
+        self._options.add(str(config_opt))
+        self._distinct_options.add(option)
+
+        # get the current config value.
+        getfunc = getattr(self._parser, getter)
+        opt: RegTypes = getfunc(section, option, fallback=default)
+
+        # sanity check that default actually matches the type from getter.
+        if not isinstance(opt, type(default)):
+            raise TypeError(
+                "Dev Bug! Are you using the wrong getter for this option?\n"
+                f"[{section}] > {option} has type: {type(default)} but got type: {type(opt)}"
+            )
+        return opt
+
+    def to_ini(self, option: ConfigOption, use_default: bool = False) -> str:
+        """
+        Convert the parsed config value into an INI value.
+        This method does not perform validation, simply converts the value.
+
+        :param: use_default:  return the default value instead of current config.
+        """
+        if use_default:
+            conf_value = option.default
+        else:
+            if not hasattr(self._config, option.dest):
+                raise AttributeError(
+                    f"Dev Bug! Attribute `Config.{option.dest}` does not exist."
+                )
+
+            conf_value = getattr(self._config, option.dest)
+        return self._value_to_ini(conf_value, option.getter)
+
+    def _value_to_ini(self, conf_value: RegTypes, getter: str) -> str:
+        """Converts a value to an ini string."""
+        if getter == "get":
+            return str(conf_value)
+
+        if getter == "getint":
+            return str(conf_value)
+
+        if getter == "getfloat":
+            return f"{conf_value:.3f}"
+
+        if getter == "getboolean":
+            return "yes" if conf_value else "no"
+
+        if getter in ["getstrset", "getidset"] and isinstance(conf_value, set):
+            return ", ".join(str(x) for x in conf_value)
+
+        if getter == "getdatasize" and isinstance(conf_value, int):
+            return format_size_from_bytes(conf_value)
+
+        if getter == "getduration" and isinstance(conf_value, (int, float)):
+            td = datetime.timedelta(seconds=round(conf_value))
+            return str(td)
+
+        if getter == "getpathlike":
+            return str(conf_value)
+
+        # NOTE: Added for completeness but unused as debug_level is not editable.
+        if getter == "getdebuglevel" and isinstance(conf_value, int):
+            return str(logging.getLevelName(conf_value))
+
+        return str(conf_value)
 
 
 class ExtendedConfigParser(configparser.ConfigParser):
@@ -676,7 +1560,10 @@ class ExtendedConfigParser(configparser.ConfigParser):
     """
 
     def __init__(self) -> None:
-        super().__init__(interpolation=None)
+        # If empty_lines_in_values is ever true, config editing needs refactor.
+        # Probably should use ConfigUpdater package instead.
+        super().__init__(interpolation=None, empty_lines_in_values=False)
+        self.error_preface = "Error loading config value:"
 
     def optionxform(self, optionstr: str) -> str:
         """
@@ -702,11 +1589,11 @@ class ExtendedConfigParser(configparser.ConfigParser):
         section: str,
         key: str,
         fallback: int = 0,
-        raw: bool = False,  # pylint: disable=unused-argument
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
     ) -> int:
         """get the owner ID or 0 for auto"""
-        val = self.get(section, key, fallback="").strip()
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val:
             return fallback
         if val.lower() == "auto":
@@ -716,9 +1603,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
             return int(val)
         except ValueError as e:
             raise HelpfulError(
-                f"OwnerID is not valid. Your setting:  {val}",
-                "Set OwnerID to a numerical ID or set it to 'auto' to have the bot find it.",
-                preface="Error while loading config:\n",
+                f"The owner ID in [{section}] > {key} is not valid. Your setting:  {val}",
+                f"Set {key} to a numerical ID or set it to 'auto' to have the bot find it for you.",
+                preface=self.error_preface,
             ) from e
 
     def getpathlike(
@@ -726,28 +1613,40 @@ class ExtendedConfigParser(configparser.ConfigParser):
         section: str,
         key: str,
         fallback: pathlib.Path,
-        raw: bool = False,  # pylint: disable=unused-argument
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
     ) -> pathlib.Path:
         """
         get a config value and parse it as a Path object.
         the `fallback` argument is required.
         """
-        val = self.get(section, key, fallback="").strip()
-        if not val:
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
+        if not val and fallback:
             return fallback
-        return pathlib.Path(val)
+        if not val and not fallback:
+            raise ValueError(
+                f"The option [{section}] > {key} does not have a valid fallback value. This is a bug!"
+            )
+
+        try:
+            return pathlib.Path(val).resolve(strict=False)
+        except RuntimeError as e:
+            raise HelpfulError(
+                preface=self.error_preface,
+                issue=f"The config option [{section}] > {key} is not a valid file system location.",
+                solution="Check the path setting and make sure it doesn't loop back on itself.",
+            ) from e
 
     def getidset(
         self,
         section: str,
         key: str,
         fallback: Optional[Set[int]] = None,
-        raw: bool = False,  # pylint: disable=unused-argument
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
     ) -> Set[int]:
         """get a config value and parse it as a set of ID values."""
-        val = self.get(section, key, fallback="").strip()
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return set(fallback)
 
@@ -756,9 +1655,9 @@ class ExtendedConfigParser(configparser.ConfigParser):
             return set(int(i) for i in str_ids)
         except ValueError as e:
             raise HelpfulError(
-                f"One of the IDs in your config `{key}` is invalid.",
+                f"One of the IDs in option [{section}] > {key} is invalid.",
                 "Ensure all IDs are numerical, and separated only by spaces or commas.",
-                preface="Error while loading config:\n",
+                preface=self.error_preface,
             ) from e
 
     def getdebuglevel(
@@ -766,11 +1665,11 @@ class ExtendedConfigParser(configparser.ConfigParser):
         section: str,
         key: str,
         fallback: str = "",
-        raw: bool = False,  # pylint: disable=unused-argument
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
-    ) -> Tuple[str, int]:
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+    ) -> DebugLevel:
         """get a config value an parse it as a logger level."""
-        val = self.get(section, key, fallback="").strip().upper()
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip().upper()
         if not val and fallback:
             val = fallback.upper()
 
@@ -794,48 +1693,103 @@ class ExtendedConfigParser(configparser.ConfigParser):
         section: str,
         key: str,
         fallback: int = 0,
-        raw: bool = False,  # pylint: disable=unused-argument
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
     ) -> int:
         """get a config value and parse it as a human readable data size"""
-        val = self.get(section, key, fallback="").strip()
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return fallback
         try:
             return format_size_to_bytes(val)
         except ValueError:
             log.warning(
-                "Config '%s' has invalid config value '%s' using default instead.",
+                "Option [%s] > %s has invalid config value '%s' using default instead.",
+                section,
                 key,
                 val,
             )
             return fallback
+
+    def getpercent(
+        self,
+        section: str,
+        key: str,
+        fallback: float = 0.0,
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+    ) -> float:
+        """
+        Get a config value and parse it as a percentage.
+        Always returns a positive value between 0 and 1 inclusive.
+        """
+        if fallback:
+            fallback = max(0.0, min(abs(fallback), 1.0))
+
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
+        if not val and fallback:
+            return fallback
+
+        v = 0.0
+        # account for literal percentage character: %
+        if val.startswith("%") or val.endswith("%"):
+            try:
+                ival = val.replace("%", "").strip()
+                v = abs(int(ival)) / 100
+            except (ValueError, TypeError):
+                if fallback:
+                    return fallback
+                raise
+
+        # account for explicit float and implied percentage.
+        else:
+            try:
+                v = abs(float(val))
+                # if greater than 1, assume implied percentage.
+                if v > 1:
+                    v = v / 100
+            except (ValueError, TypeError):
+                if fallback:
+                    return fallback
+                raise
+
+        if v > 1:
+            log.warning(
+                "Option [%s] > %s has a value greater than 100 %% (%s) and will be set to %s instead.",
+                section,
+                key,
+                val,
+                fallback if fallback else 1,
+            )
+            v = fallback if fallback else 1
+
+        return v
 
     def getduration(
         self,
         section: str,
         key: str,
         fallback: Union[int, float] = 0,
-        raw: bool = False,  # pylint: disable=unused-argument,
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
     ) -> float:
         """get a config value parsed as a time duration."""
-        val = self.get(section, key, fallback="").strip()
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return float(fallback)
         seconds = format_time_to_seconds(val)
         return float(seconds)
 
-    def getstrset(  # pylint: disable=dangerous-default-value
+    def getstrset(
         self,
         section: str,
         key: str,
-        fallback: Set[str] = set(),
-        raw: bool = False,  # pylint: disable=unused-argument
-        vars: Any = None,  # pylint: disable=unused-argument,redefined-builtin
+        fallback: Set[str],
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
     ) -> Set[str]:
         """get a config value parsed as a set of string values."""
-        val = self.get(section, key, fallback="").strip()
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
         if not val and fallback:
             return set(fallback)
         return set(x for x in val.replace(",", " ").split())

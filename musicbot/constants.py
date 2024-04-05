@@ -15,6 +15,8 @@ except (subprocess.SubprocessError, OSError, ValueError) as e:
 DEFAULT_FOOTER_TEXT: str = f"Just-Some-Bots/MusicBot ({VERSION})"
 DEFAULT_BOT_NAME: str = "MusicBot"
 DEFAULT_BOT_ICON: str = "https://i.imgur.com/gFHBoZA.png"
+DEFAULT_OWNER_GROUP_NAME: str = "Owner (auto)"
+DEFAULT_PERMS_GROUP_NAME: str = "Default"
 
 
 # File path constants
@@ -28,6 +30,11 @@ DEPRECATED_USER_BLACKLIST: str = "config/blacklist.txt"
 DEFAULT_AUTOPLAYLIST_FILE: str = "config/autoplaylist.txt"
 BUNDLED_AUTOPLAYLIST_FILE: str = "config/_autoplaylist.txt"
 DEFAULT_AUDIO_CACHE_PATH: str = "audio_cache"
+DEFAULT_DATA_PATH: str = "data"
+DEFAULT_DATA_NAME_SERVERS: str = "server_names.txt"
+DEFAULT_DATA_NAME_QUEUE: str = "queue.json"
+DEFAULT_DATA_NAME_CUR_SONG: str = "current.txt"
+DEFAULT_DATA_NAME_OPTIONS: str = "options.json"
 
 EXAMPLE_OPTIONS_FILE: str = "config/example_options.ini"
 EXAMPLE_PERMS_FILE: str = "config/example_permissions.ini"

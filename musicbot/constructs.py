@@ -2,7 +2,6 @@ import asyncio
 import inspect
 import json
 import logging
-import pathlib
 import pydoc
 from collections import defaultdict
 from typing import (
@@ -20,12 +19,20 @@ from typing import (
 
 import discord
 
+from .constants import (
+    DEFAULT_BOT_ICON,
+    DEFAULT_BOT_NAME,
+    DEFAULT_DATA_NAME_OPTIONS,
+    DEFAULT_FOOTER_TEXT,
+)
 from .json import Json
 from .utils import _get_variable
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from discord.types.embed import EmbedType
+
     from .bot import MusicBot
     from .config import Config
 
@@ -76,6 +83,7 @@ class GuildSpecificData:
         self._prefix_history: Set[str] = set()
         self._events: DefaultDict[str, GuildAsyncEvent] = defaultdict(GuildAsyncEvent)
         self._file_lock: asyncio.Lock = asyncio.Lock()
+        self._loading_lock: asyncio.Lock = asyncio.Lock()
         self._is_file_loaded: bool = False
 
         # Members below are available for public use.
@@ -86,6 +94,10 @@ class GuildSpecificData:
         # in theory, this should work out fine.
         if bot.loop:
             bot.loop.create_task(self.load_guild_options_file())
+
+    def is_ready(self) -> bool:
+        """A status indicator for fully loaded server data."""
+        return self._is_file_loaded and self._guild_id != 0
 
     def _lookup_guild_id(self) -> int:
         """
@@ -148,44 +160,51 @@ class GuildSpecificData:
         server-specific options intended to persist through shutdowns.
         This method only supports per-server command prefix currently.
         """
-        if self._guild_id == 0:
-            self._guild_id = self._lookup_guild_id()
-            if self._guild_id == 0:
-                log.error(
-                    "Cannot load data for guild with ID 0. This is likely a bug in the code!"
-                )
-                return
-
-        opt_file = pathlib.Path(f"data/{self._guild_id}/options.json")
-        if not opt_file.is_file():
-            log.debug("No file for guild %s/%s", self._guild_id, self._guild_name)
+        if self._loading_lock.locked():
             return
 
-        async with self._file_lock:
-            try:
-                log.debug(
-                    "Loading guild data for guild with ID:  %s/%s",
-                    self._guild_id,
-                    self._guild_name,
-                )
-                options = Json(opt_file)
+        async with self._loading_lock:
+            if self._guild_id == 0:
+                self._guild_id = self._lookup_guild_id()
+                if self._guild_id == 0:
+                    log.error(
+                        "Cannot load data for guild with ID 0. This is likely a bug in the code!"
+                    )
+                    return
+
+            opt_file = self._bot_config.data_path.joinpath(
+                str(self._guild_id), DEFAULT_DATA_NAME_OPTIONS
+            )
+            if not opt_file.is_file():
+                log.debug("No file for guild %s/%s", self._guild_id, self._guild_name)
                 self._is_file_loaded = True
-            except OSError:
-                log.exception(
-                    "An OS error prevented reading guild data file:  %s",
-                    opt_file,
-                )
                 return
 
-        guild_prefix = options.get("command_prefix", None)
-        if guild_prefix:
-            self._command_prefix = guild_prefix
-            log.info(
-                "Guild %s/%s has custom command prefix: %s",
-                self._guild_id,
-                self._guild_name,
-                self._command_prefix,
-            )
+            async with self._file_lock:
+                try:
+                    log.debug(
+                        "Loading guild data for guild with ID:  %s/%s",
+                        self._guild_id,
+                        self._guild_name,
+                    )
+                    options = Json(opt_file)
+                    self._is_file_loaded = True
+                except OSError:
+                    log.exception(
+                        "An OS error prevented reading guild data file:  %s",
+                        opt_file,
+                    )
+                    return
+
+            guild_prefix = options.get("command_prefix", None)
+            if guild_prefix:
+                self._command_prefix = guild_prefix
+                log.info(
+                    "Guild %s/%s has custom command prefix: %s",
+                    self._guild_id,
+                    self._guild_name,
+                    self._command_prefix,
+                )
 
     async def save_guild_options_file(self) -> None:
         """
@@ -198,7 +217,9 @@ class GuildSpecificData:
             )
             return
 
-        opt_file = pathlib.Path(f"data/{self._guild_id}/options.json")
+        opt_file = self._bot_config.data_path.joinpath(
+            str(self._guild_id), DEFAULT_DATA_NAME_OPTIONS
+        )
 
         # Prepare a dictionary to store our options.
         opt_dict = {"command_prefix": self._command_prefix}
