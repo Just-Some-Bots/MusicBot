@@ -331,6 +331,7 @@ class Playlist(EventEmitter, Serializable):
     def reorder_for_round_robin(self) -> None:
         """
         Reorders the current queue for round-robin, one song per author.
+        Entries added by the auto playlist will be removed.
         """
         new_queue: Deque[EntryTypes] = deque()
         all_authors: List["discord.abc.User"] = []
@@ -345,8 +346,7 @@ class Playlist(EventEmitter, Serializable):
             return
 
         # Loop over the queue and organize it by requesting author.
-        # Note this might clobber entries added by auto playlist, or entries
-        # that are being added while this is already running...
+        # This will remove entries which are added by the auto-playlist.
         request_counter = 0
         song: Optional[EntryTypes] = None
         while self.entries:
