@@ -330,24 +330,37 @@ class Playlist(EventEmitter, Serializable):
 
     def reorder_for_round_robin(self) -> None:
         """
-        Reorders the queue for round-robin
+        Reorders the current queue for round-robin, one song per author.
+        Entries added by the auto playlist will be removed.
         """
         new_queue: Deque[EntryTypes] = deque()
         all_authors: List["discord.abc.User"] = []
 
+        # Make a list of unique authors from the current queue.
         for entry in self.entries:
-            author = entry.author
-            if author and author not in all_authors:
-                all_authors.append(author)
+            if entry.author and entry.author not in all_authors:
+                all_authors.append(entry.author)
 
+        # If all queue entries have no author, do nothing.
+        if len(all_authors) == 0:
+            return
+
+        # Loop over the queue and organize it by requesting author.
+        # This will remove entries which are added by the auto-playlist.
         request_counter = 0
         song: Optional[EntryTypes] = None
         while self.entries:
-            if request_counter == len(all_authors):
+            # Do not continue if we have no more authors.
+            if len(all_authors) == 0:
+                break
+
+            # Reset the requesting author if needed.
+            if request_counter >= len(all_authors):
                 request_counter = 0
 
             song = self.get_next_song_from_author(all_authors[request_counter])
 
+            # Remove the authors with no further songs.
             if song is None:
                 all_authors.pop(request_counter)
                 continue
