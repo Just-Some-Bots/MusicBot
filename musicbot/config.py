@@ -24,7 +24,7 @@ def get_all_keys(conf):
 def create_empty_file_ifnoexist(path):
     if not os.path.isfile(path):
         open(path, "a").close()
-        log.warning("Creating %s" % path)
+        log.warning(f"Creating {path}")
 
 
 class Config:
@@ -245,9 +245,7 @@ class Config:
             self.i18n_file
         ):
             log.warning(
-                "i18n file does not exist. Trying to fallback to {0}.".format(
-                    ConfigDefaults.i18n_file
-                )
+                f"i18n file does not exist. Trying to fallback to {ConfigDefaults.i18n_file}."
             )
             self.i18n_file = ConfigDefaults.i18n_file
 
@@ -259,7 +257,7 @@ class Config:
                 preface=self._confpreface,
             )
 
-        log.info("Using i18n: {0}".format(self.i18n_file))
+        log.info(f"Using i18n: {self.i18n_file}")
 
         if not self._login_token:
             # Attempt to fallback to an environment variable.
@@ -284,7 +282,7 @@ class Config:
             if self.owner_id.isdigit():
                 if int(self.owner_id) < 10000:
                     raise HelpfulError(
-                        "An invalid OwnerID was set: {}".format(self.owner_id),
+                        f"An invalid OwnerID was set: {self.owner_id}",
                         "Correct your OwnerID. The ID should be just a number, approximately "
                         "18 characters long, or 'auto'. If you don't know what your ID is, read the "
                         "instructions in the options or ask in the help server.",
@@ -301,7 +299,7 @@ class Config:
         if not self.owner_id:
             raise HelpfulError(
                 "No OwnerID was set.",
-                "Please set the OwnerID option in {}".format(self.config_file),
+                f"Please set the OwnerID option in {self.config_file}",
                 preface=self._confpreface,
             )
 
@@ -366,9 +364,7 @@ class Config:
             self.debug_level = getattr(logging, self.debug_level.upper())
         else:
             log.warning(
-                'Invalid DebugLevel option "{}" given, falling back to INFO'.format(
-                    self.debug_level_str
-                )
+                f'Invalid DebugLevel option "{self.debug_level_str}" given, falling back to INFO'
             )
             self.debug_level = logging.INFO
             self.debug_level_str = "INFO"
@@ -417,9 +413,7 @@ class Config:
             if os.path.isfile(self.config_file + ".ini"):
                 shutil.move(self.config_file + ".ini", self.config_file)
                 log.info(
-                    "Moving {0} to {1}, you should probably turn file extensions on.".format(
-                        self.config_file + ".ini", self.config_file
-                    )
+                    f"Moving {self.config_file + ".ini"} to {self.config_file}, you should probably turn file extensions on."
                 )
 
             elif os.path.isfile("config/example_options.ini"):
@@ -450,18 +444,14 @@ class Config:
 
             except ValueError:  # Config id value was changed but its not valid
                 raise HelpfulError(
-                    'Invalid value "{}" for OwnerID, config cannot be loaded. '.format(
-                        c.get("Permissions", "OwnerID", fallback=None)
-                    ),
+                    f'Invalid value "{c.get("Permissions", "OwnerID", fallback=None)}" for OwnerID, config cannot be loaded. ',
                     "The OwnerID option requires a user ID or 'auto'.",
                 )
 
             except Exception as e:
                 print(flush=True)
                 log.critical(
-                    "Unable to copy config/example_options.ini to {}".format(
-                        self.config_file
-                    ),
+                    f"Unable to copy config/example_options.ini to {self.config_file}",
                     exc_info=e,
                 )
                 sys.exit(2)
@@ -521,7 +511,7 @@ class ConfigDefaults:
     searchlist = False
     self_deafen = True
     defaultsearchresults = 3
-    footer_text = "Just-Some-Bots/MusicBot ({})".format(BOTVERSION)
+    footer_text = f"Just-Some-Bots/MusicBot ({BOTVERSION})"
 
     options_file = "config/options.ini"
     blacklist_file = "config/blacklist.txt"

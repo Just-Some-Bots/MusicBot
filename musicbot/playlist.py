@@ -71,11 +71,11 @@ class Playlist(EventEmitter, Serializable):
             )
         except Exception as e:
             raise ExtractionError(
-                "Could not extract information from {}\n\n{}".format(song_url, e)
+                f"Could not extract information from {song_url}\n\n{e}"
             )
 
         if not info:
-            raise ExtractionError("Could not extract information from %s" % song_url)
+            raise ExtractionError(f"Could not extract information from {song_url}")
 
         # TODO: Sort out what happens next when this happens
         if info.get("_type", None) == "playlist":
@@ -94,10 +94,10 @@ class Playlist(EventEmitter, Serializable):
             try:
                 headers = await get_header(self.bot.aiosession, info["url"])
                 content_type = headers.get("CONTENT-TYPE")
-                log.debug("Got content type {}".format(content_type))
+                log.debug(f"Got content type {content_type}")
             except Exception as e:
                 log.warning(
-                    "Failed to get content type for url {} ({})".format(song_url, e)
+                    f"Failed to get content type for url {song_url} ({e})"
                 )
                 content_type = None
 
@@ -106,8 +106,7 @@ class Playlist(EventEmitter, Serializable):
                     if not any(x in content_type for x in ("/ogg", "/octet-stream")):
                         # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError(
-                            'Invalid content type "%s" for url %s'
-                            % (content_type, song_url)
+                            f'Invalid content type "{content_type}" for url {song_url}'
                         )
 
                 elif (
@@ -123,9 +122,7 @@ class Playlist(EventEmitter, Serializable):
 
                 elif not content_type.startswith(("audio/", "video/")):
                     log.warning(
-                        'Questionable content-type "{}" for url {}'.format(
-                            content_type, song_url
-                        )
+                        f'Questionable content-type "{content_type}" for url {song_url}'
                     )
 
         entry = URLPlaylistEntry(
@@ -162,20 +159,16 @@ class Playlist(EventEmitter, Serializable):
 
                     else:  # it might be a file path that just doesn't exist
                         raise ExtractionError(
-                            "Invalid input: {0.exc_info[0]}: {0.exc_info[1].reason}".format(
-                                e
-                            )
+                            f"Invalid input: {e.exc_info[0]}: {e.exc_info[1].reason}"
                         )
 
                 else:
                     # traceback.print_exc()
-                    raise ExtractionError("Unknown error: {}".format(e))
+                    raise ExtractionError(f"Unknown error: {e}")
 
             except Exception as e:
                 log.error(
-                    "Could not extract information from {} ({}), falling back to direct".format(
-                        song_url, e
-                    ),
+                    f"Could not extract information from {song_url} ({e}), falling back to direct",
                     exc_info=True,
                 )
 
@@ -219,12 +212,12 @@ class Playlist(EventEmitter, Serializable):
             )
         except Exception as e:
             raise ExtractionError(
-                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+                f"Could not extract information from {playlist_url}\n\n{e}"
             )
 
         if not info:
             raise ExtractionError(
-                "Could not extract information from %s" % playlist_url
+                f"Could not extract information from {playlist_url}"
             )
 
         # Once again, the generic extractor fucks things up.
@@ -254,12 +247,12 @@ class Playlist(EventEmitter, Serializable):
                 except Exception as e:
                     baditems += 1
                     log.warning("Could not add item", exc_info=e)
-                    log.debug("Item: {}".format(item), exc_info=True)
+                    log.debug(f"Item: {item}", exc_info=True)
             else:
                 baditems += 1
 
         if baditems:
-            log.info("Skipped {} bad entries".format(baditems))
+            log.info(f"Skipped {baditems} bad entries")
 
         if head:
             entry_list.reverse()
@@ -279,12 +272,12 @@ class Playlist(EventEmitter, Serializable):
             )
         except Exception as e:
             raise ExtractionError(
-                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+                f"Could not extract information from {playlist_url}\n\n{e}"
             )
 
         if not info:
             raise ExtractionError(
-                "Could not extract information from %s" % playlist_url
+                f"Could not extract information from {playlist_url}"
             )
 
         gooditems = []
@@ -296,7 +289,7 @@ class Playlist(EventEmitter, Serializable):
         for entry_data in info["entries"]:
             if entry_data:
                 baseurl = info["webpage_url"].split("playlist?list=")[0]
-                song_url = baseurl + "watch?v=%s" % entry_data["id"]
+                song_url = baseurl + f"watch?v={entry_data["id"]}"
 
                 try:
                     entry, elen = await self.add_entry(song_url, head=head, **meta)
@@ -308,13 +301,13 @@ class Playlist(EventEmitter, Serializable):
                 except Exception as e:
                     baditems += 1
                     log.error(
-                        "Error adding entry {}".format(entry_data["id"]), exc_info=e
+                        f"Error adding entry {entry_data["id"]}", exc_info=e
                     )
             else:
                 baditems += 1
 
         if baditems:
-            log.info("Skipped {} bad entries".format(baditems))
+            log.info(f"Skipped {baditems} bad entries")
 
         if head:
             gooditems.reverse()
@@ -334,12 +327,12 @@ class Playlist(EventEmitter, Serializable):
             )
         except Exception as e:
             raise ExtractionError(
-                "Could not extract information from {}\n\n{}".format(playlist_url, e)
+                f"Could not extract information from {playlist_url}\n\n{e}"
             )
 
         if not info:
             raise ExtractionError(
-                "Could not extract information from %s" % playlist_url
+                f"Could not extract information from {playlist_url}"
             )
 
         gooditems = []
@@ -362,13 +355,13 @@ class Playlist(EventEmitter, Serializable):
                 except Exception as e:
                     baditems += 1
                     log.error(
-                        "Error adding entry {}".format(entry_data["id"]), exc_info=e
+                        f"Error adding entry {entry_data["id"]}", exc_info=e
                     )
             else:
                 baditems += 1
 
         if baditems:
-            log.info("Skipped {} bad entries".format(baditems))
+            log.info(f"Skipped {baditems} bad entries")
 
         if head:
             gooditems.reverse()

@@ -59,7 +59,7 @@ class BasePlaylistEntry(Serializable):
             self._waiting_futures.append(future)
             asyncio.ensure_future(self._download())
 
-        log.debug("Created future for {0}".format(self.filename))
+        log.debug(f"Created future for {self.filename}")
         return future
 
     def _for_each_future(self, cb):
@@ -90,7 +90,7 @@ async def run_command(cmd):
     p = await asyncio.create_subprocess_shell(
         cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    log.debug("Starting asyncio subprocess ({0}) with command: {1}".format(p, cmd))
+    log.debug(f"Starting asyncio subprocess ({p}) with command: {cmd}")
     stdout, stderr = await p.communicate()
     return stdout + stderr
 
@@ -132,7 +132,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 "Cannot extract duration of the entry. This does not affect the ability of the bot. "
                 "However, estimated time for this entry will not be unavailable and estimated time "
                 "of the queue will also not be available until this entry got downloaded.\n"
-                "entry name: {}".format(self.title)
+                f"entry name: {self.title}"
             )
         self.expected_filename = expected_filename
         self.meta = meta
@@ -190,9 +190,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 )
                 if not meta["channel"]:
                     log.warning(
-                        "Cannot find channel in an entry loaded from persistent queue. Chennel id: {}".format(
-                            data["meta"]["channel"]["id"]
-                        )
+                        f"Cannot find channel in an entry loaded from persistent queue. Chennel id: {data["meta"]["channel"]["id"]}"
                     )
                     meta.pop("channel")
                 elif "author" in data["meta"]:
@@ -202,9 +200,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     )
                     if not meta["author"]:
                         log.warning(
-                            "Cannot find author in an entry loaded from persistent queue. Author id: {}".format(
-                                data["meta"]["author"]["id"]
-                            )
+                            f"Cannot find author in an entry loaded from persistent queue. Author id: {data["meta"]["author"]["id"]}"
                         )
                         meta.pop("author")
 
@@ -213,7 +209,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             return entry
         except Exception as e:
-            log.error("Could not load {}".format(cls.__name__), exc_info=e)
+            log.error(f"Could not load {cls.__name__}", exc_info=e)
 
     # noinspection PyTypeChecker
     async def _download(self):
@@ -282,20 +278,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     self.filename = os.path.join(
                         self.download_folder, expected_fname_base
                     )
-                    log.info("Download cached: {}".format(self.url))
+                    log.info(f"Download cached: {self.url}")
 
                 elif expected_fname_noex in flistdir:
                     log.info(
-                        "Download cached (different extension): {}".format(self.url)
+                        f"Download cached (different extension): {self.url}"
                     )
                     self.filename = os.path.join(
                         self.download_folder, ldir[flistdir.index(expected_fname_noex)]
                     )
                     log.debug(
-                        "Expected {}, got {}".format(
-                            self.expected_filename.rsplit(".", 1)[-1],
-                            self.filename.rsplit(".", 1)[-1],
-                        )
+                        f"Expected {self.expected_filename.rsplit(".", 1)[-1]}, got {self.filename.rsplit(".", 1)[-1]}"
                     )
                 else:
                     await self._really_download()
@@ -336,13 +329,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         "This does not affect the ability of the bot. However, estimated time for this entry "
                         "will not be unavailable and estimated time of the queue will also not be available "
                         "until this entry got removed.\n"
-                        "entry file: {}".format(self.filename)
+                        f"entry file: {self.filename}"
                     )
                 else:
                     log.debug(
-                        "Get duration of {} as {} seconds by inspecting it directly".format(
-                            self.filename, self.duration
-                        )
+                        f"Get duration of {self.filename} as {self.duration} seconds by inspecting it directly"
                     )
 
             if self.playlist.bot.config.use_experimental_equalization:
@@ -370,7 +361,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             self._is_downloading = False
 
     async def get_mean_volume(self, input_file):
-        log.debug("Calculating mean volume of {0}".format(input_file))
+        log.debug(f"Calculating mean volume of {input_file}")
         cmd = (
             '"'
             + get("ffmpeg")
@@ -385,7 +376,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
         if i_matches:
-            log.debug("i_matches={}".format(i_matches[0][0]))
+            log.debug(f"i_matches={i_matches[0][0]}")
             I = float(i_matches[0][0])
         else:
             log.debug("Could not parse I in normalise json.")
@@ -393,7 +384,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
         if lra_matches:
-            log.debug("lra_matches={}".format(lra_matches[0][0]))
+            log.debug(f"lra_matches={lra_matches[0][0]}")
             LRA = float(lra_matches[0][0])
         else:
             log.debug("Could not parse LRA in normalise json.")
@@ -401,7 +392,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
         if tp_matches:
-            log.debug("tp_matches={}".format(tp_matches[0][0]))
+            log.debug(f"tp_matches={tp_matches[0][0]}")
             TP = float(tp_matches[0][0])
         else:
             log.debug("Could not parse TP in normalise json.")
@@ -411,7 +402,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output
         )
         if thresh_matches:
-            log.debug("thresh_matches={}".format(thresh_matches[0][0]))
+            log.debug(f"thresh_matches={thresh_matches[0][0]}")
             thresh = float(thresh_matches[0][0])
         else:
             log.debug("Could not parse thresh in normalise json.")
@@ -421,19 +412,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
             r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output
         )
         if offset_matches:
-            log.debug("offset_matches={}".format(offset_matches[0][0]))
+            log.debug(f"offset_matches={offset_matches[0][0]}")
             offset = float(offset_matches[0][0])
         else:
             log.debug("Could not parse offset in normalise json.")
             offset = float(0)
 
-        return "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:measured_I={}:measured_LRA={}:measured_TP={}:measured_thresh={}:offset={}".format(
-            I, LRA, TP, thresh, offset
-        )
+        return f"-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:measured_I={I}:measured_LRA={LRA}:measured_TP=TP}:measured_thresh={thresh}:offset={offset}"
 
     # noinspection PyShadowingBuiltins
     async def _really_download(self, *, hash=False):
-        log.info("Download started: {}".format(self.url))
+        log.info(f"Download started: {self.url}")
 
         retry = True
         result = None
@@ -446,7 +435,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             except Exception as e:
                 raise ExtractionError(e)
 
-        log.info("Download complete: {}".format(self.url))
+        log.info(f"Download complete: {self.url}")
 
         if result is None:
             log.critical("YTDL has failed, everyone panic")
@@ -533,7 +522,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
             return entry
         except Exception as e:
-            log.error("Could not load {}".format(cls.__name__), exc_info=e)
+            log.error(f"Could not load {cls.__name__}", exc_info=e)
 
     # noinspection PyMethodOverriding
     async def _download(self, *, fallback=False):

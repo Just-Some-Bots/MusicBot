@@ -44,7 +44,7 @@ def paginate(content, *, length=DISCORD_MSG_CHAR_LIMIT, reserve=0):
     elif type(content) == list:
         contentlist = content
     else:
-        raise ValueError("Content must be str or list, not %s" % type(content))
+        raise ValueError(f"Content must be str or list, not {type(content)}")
 
     chunks = []
     currentchunk = ""
@@ -180,5 +180,5 @@ def format_song_duration(ftd):
     return (
         ftd
         if int(duration_array[0]) > 0
-        else "{0}:{1}".format(duration_array[1], duration_array[2])
+        else f"{duration_array[1]}:{duration_array[2]}"
     )

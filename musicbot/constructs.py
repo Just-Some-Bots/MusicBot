@@ -113,7 +113,7 @@ class Serializable:
     # Perhaps convert this into some sort of decorator
     @staticmethod
     def _bad(arg):
-        raise TypeError('Argument "%s" must not be None' % arg)
+        raise TypeError(f'Argument "{arg}" must not be None')
 
     def serialize(self, *, cls=Serializer, **kwargs):
         return json.dumps(self, cls=cls, **kwargs)

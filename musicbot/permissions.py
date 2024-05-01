@@ -74,9 +74,7 @@ class Permissions:
             except Exception as e:
                 traceback.print_exc()
                 raise RuntimeError(
-                    "Unable to copy config/example_permissions.ini to {}: {}".format(
-                        config_file, e
-                    )
+                    f"Unable to copy config/example_permissions.ini to {config_file}: {e}"
                 )
 
         self.default_group = PermissionGroup("Default", self.config["Default"])
@@ -269,7 +267,7 @@ class PermissionGroup:
             self.user_list.remove(uid)
 
     def __repr__(self):
-        return "<PermissionGroup: %s>" % self.name
+        return f"<PermissionGroup: {self.name}>"
 
     def __str__(self):
-        return "<PermissionGroup: %s: %s>" % (self.name, self.__dict__)
+        return f"<PermissionGroup: {self.name}: {self.__dict__}>"

@@ -6,7 +6,7 @@ log = logging.getLogger(__name__)
 
 class Json:
     def __init__(self, json_file):
-        log.debug("Init JSON obj with {0}".format(json_file))
+        log.debug(f"Init JSON obj with {json_file}")
         self.file = json_file
         self.data = self.parse()
 
@@ -16,7 +16,7 @@ class Json:
             try:
                 parsed = json.load(data)
             except Exception:
-                log.error("Error parsing {0} as JSON".format(self.file), exc_info=True)
+                log.error(f"Error parsing {self.file} as JSON", exc_info=True)
                 parsed = {}
         return parsed
 

@@ -13,7 +13,7 @@ def _make_token_auth(client_id, client_secret):
     auth_header = base64.b64encode(
         (client_id + ":" + client_secret).encode("ascii")
     )
-    return {"Authorization": "Basic %s" % auth_header.decode("ascii")}
+    return {"Authorization": f"Basic {auth_header.decode("ascii")}"}
 
 
 async def check_token(token):
@@ -38,29 +38,29 @@ class Spotify:
 
     async def get_track(self, uri):
         """Get a track's info from its URI"""
-        return await self.make_spotify_req(self.API_BASE + "tracks/{0}".format(uri))
+        return await self.make_spotify_req(self.API_BASE + f"tracks/{uri}")
 
     async def get_album(self, uri):
         """Get an album's info from its URI"""
-        return await self.make_spotify_req(self.API_BASE + "albums/{0}".format(uri))
+        return await self.make_spotify_req(self.API_BASE + f"albums/{uri}")
 
     async def get_playlist(self, user, uri):
         """Get a playlist's info from its URI"""
         return await self.make_spotify_req(
-            self.API_BASE + "users/{0}/playlists/{1}".format(user, uri)
+            self.API_BASE + f"users/{user}/playlists/{uri}"
         )
 
     async def get_playlist_tracks(self, uri):
         """Get a list of a playlist's tracks"""
         return await self.make_spotify_req(
-            self.API_BASE + "playlists/{0}/tracks".format(uri)
+            self.API_BASE + f"playlists/{uri}/tracks"
         )
 
     async def make_spotify_req(self, url):
         """Proxy method for making a Spotify req using the correct Auth headers"""
         token = await self.get_token()
         return await self.make_get(
-            url, headers={"Authorization": "Bearer {0}".format(token)}
+            url, headers={"Authorization": f"Bearer {token}"}
         )
 
     async def make_get(self, url, headers=None):
@@ -68,9 +68,7 @@ class Spotify:
         async with self.aiosession.get(url, headers=headers) as r:
             if r.status != 200:
                 raise SpotifyError(
-                    "Issue making GET request to {0}: [{1.status}] {2}".format(
-                        url, r, await r.json()
-                    )
+                    f"Issue making GET request to {url}: [{r.status}] {await r.json()}"
                 )
             return await r.json()
 
@@ -79,9 +77,7 @@ class Spotify:
         async with self.aiosession.post(url, data=payload, headers=headers) as r:
             if r.status != 200:
                 raise SpotifyError(
-                    "Issue making POST request to {0}: [{1.status}] {2}".format(
-                        url, r, await r.json()
-                    )
+                    f"Issue making POST request to {url}: [{r.status}] {await r.json()}"
                 )
             return await r.json()
 
@@ -109,9 +105,7 @@ class Spotify:
             token["expires_at"] = int(time.time()) + token["expires_in"]
             self.token = token
         log.debug(
-            "Created a new {0}access token: {1}".format(
-                "guest " if self.guest_mode else "", self.token
-            )
+            f"Created a new {"guest " if self.guest_mode else ""}access token: {self.token}"
         )
         return self.token["access_token"]
 
@@ -130,12 +124,10 @@ class Spotify:
             if r.status != 200:
                 try:
                     raise SpotifyError(
-                        "Issue generating guest token: [{0.status}] {1}".format(
-                            r, await r.json()
-                        )
+                        f"Issue generating guest token: [{r.status}] {await r.json()}"
                     )
                 except aiohttp.ContentTypeError as e:
                     raise SpotifyError(
-                        "Issue generating guest token: [{0.status}] {1}".format(r, e)
+                        f"Issue generating guest token: [{r.status}] {e}"
                     )
             return await r.json()

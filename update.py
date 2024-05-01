@@ -36,7 +36,7 @@ def finalize():
     try:
         from musicbot.constants import VERSION
 
-        print("The current MusicBot version is {0}.".format(VERSION))
+        print(f"The current MusicBot version is {VERSION}.")
     except Exception:
         print(
             "There was a problem fetching your current bot version. The installation may not have completed correctly."
