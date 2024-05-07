@@ -28,6 +28,11 @@ from . import downloader, exceptions
 from .aliases import Aliases, AliasesDefault
 from .config import Config, ConfigDefaults
 from .constants import (
+    DEFAULT_DATA_NAME_CUR_SONG,
+    DEFAULT_DATA_NAME_QUEUE,
+    DEFAULT_DATA_NAME_SERVERS,
+    DEFAULT_OWNER_GROUP_NAME,
+    DEFAULT_PERMS_GROUP_NAME,
     DEFAULT_PING_SLEEP,
     DEFAULT_PING_TARGET,
     DEFAULT_PING_TIMEOUT,
@@ -55,6 +60,7 @@ from .utils import (
     dev_only,
     format_size_from_bytes,
     format_song_duration,
+    format_time_to_seconds,
     instance_diff,
     is_empty_voice_channel,
     load_file,
@@ -117,10 +123,14 @@ class MusicBot(discord.Client):
         load_opus_lib()
 
         if config_file is None:
-            config_file = ConfigDefaults.options_file
+            self._config_file = ConfigDefaults.options_file
+        else:
+            self._config_file = config_file
 
         if perms_file is None:
-            perms_file = PermissionsDefaults.perms_file
+            self._perms_file = PermissionsDefaults.perms_file
+        else:
+            self._perms_file = perms_file
 
         if aliases_file is None:
             aliases_file = AliasesDefault.aliases_file
@@ -138,9 +148,11 @@ class MusicBot(discord.Client):
         self.players: Dict[int, MusicPlayer] = {}
         self.autojoinable_channels: Set[VoiceableChannel] = set()
 
-        self.config = Config(config_file)
+        self.config = Config(self._config_file)
 
-        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
+        self.permissions = Permissions(self._perms_file)
+        # Set the owner ID in case it wasn't auto...
+        self.permissions.set_owner_id(self.config.owner_id)
         self.str = Json(self.config.i18n_file)
 
         if self.config.usealias:
@@ -249,6 +261,10 @@ class MusicBot(discord.Client):
         A self looping method that tests network connectivity.
         This will call to the systems ping command and use its return status.
         """
+        if not self.config.enable_network_checker:
+            log.debug("Network ping test is disabled via config.")
+            return
+
         if self.logout_called:
             log.noise("Network ping test is closing down.")  # type: ignore[attr-defined]
             return
@@ -265,10 +281,14 @@ class MusicBot(discord.Client):
                 ping_target = DEFAULT_PING_TARGET
 
         # Make a ping call based on OS.
-        ping_path = shutil.which("ping")
-        if not ping_path:
-            log.warning("Could not locate path to `ping` system executable.")
-            ping_path = "ping"
+        if not hasattr(self, "_mb_ping_exe_path"):
+            ping_path = shutil.which("ping")
+            if not ping_path:
+                log.warning("Could not locate `ping` executable in your environment.")
+                ping_path = "ping"
+            setattr(self, "_mb_ping_exe_path", ping_path)
+        else:
+            ping_path = getattr(self, "_mb_ping_exe_path", "ping")
 
         ping_cmd: List[str] = []
         if os.name == "nt":
@@ -288,9 +308,25 @@ class MusicBot(discord.Client):
                 stderr=asyncio.subprocess.DEVNULL,
             )
             ping_status = await p.wait()
+        except FileNotFoundError:
+            log.error(
+                "MusicBot could not locate a `ping` command path.  Early network outage detection will not function."
+                "\nMusicBot tried the following command:   %s",
+                " ".join(ping_cmd),
+            )
+            return
+        except PermissionError:
+            log.error(
+                "MusicBot was not allowed to execute the `ping` command.  Early network outage detection will not function."
+                "\nMusicBot tried the following command:   %s",
+                " ".join(ping_cmd),
+            )
+            return
         except OSError:
             log.error(
-                "Your environment may not allow the `ping` system command.  Early network outage detection will not function.",
+                "Your environment may not allow the `ping` system command.  Early network outage detection will not function."
+                "\nMusicBot tried the following command:   %s",
+                " ".join(ping_cmd),
                 exc_info=self.config.debug_mode,
             )
             return
@@ -389,8 +425,6 @@ class MusicBot(discord.Client):
         # Check guilds for a resumable channel, conditionally override with owner summon.
         resuming = False
         for guild in self.guilds:
-            # TODO:  test that this, guild_unavailable hasn't fired in testing yet
-            # but that don't mean this wont break due to fragile API out-of-order packets...
             if guild.unavailable:
                 log.warning(
                     "Guild not available, cannot join:  %s/%s", guild.id, guild.name
@@ -1375,11 +1409,11 @@ class MusicBot(discord.Client):
         # if playing auto-playlist track and a user queues a track,
         # if we're configured to do so, auto skip the auto playlist track.
         if (
-            player.current_entry
+            self.config.auto_playlist_autoskip
+            and player.current_entry
             and player.current_entry.from_auto_playlist
             and playlist.peek() == entry
             and not entry.from_auto_playlist
-            # TODO:  and self.config.autoplaylist_autoskip
         ):
             log.debug("Automatically skipping auto-playlist entry for queued entry.")
             player.skip()
@@ -1505,9 +1539,7 @@ class MusicBot(discord.Client):
                 await self.change_presence(status=status, activity=activity)
                 self.last_status = activity
 
-    async def serialize_queue(
-        self, guild: discord.Guild, *, path: Optional[str] = None
-    ) -> None:
+    async def serialize_queue(self, guild: discord.Guild) -> None:
         """
         Serialize the current queue for a server's player to json.
         """
@@ -1518,8 +1550,7 @@ class MusicBot(discord.Client):
         if not player:
             return
 
-        if path is None:
-            path = f"data/{guild.id}/queue.json"
+        path = self.config.data_path.joinpath(str(guild.id), DEFAULT_DATA_NAME_QUEUE)
 
         async with self.aiolocks["queue_serialization" + ":" + str(guild.id)]:
             log.debug("Serializing queue for %s", guild.id)
@@ -1532,8 +1563,6 @@ class MusicBot(discord.Client):
         guild: discord.Guild,
         voice_client: discord.VoiceClient,
         playlist: Optional[Playlist] = None,
-        *,
-        directory: Optional[str] = None,
     ) -> Optional[MusicPlayer]:
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
@@ -1544,23 +1573,20 @@ class MusicBot(discord.Client):
         if playlist is None:
             playlist = Playlist(self)
 
-        if directory is None:
-            directory = f"data/{guild.id}/queue.json"
+        path = self.config.data_path.joinpath(str(guild.id), DEFAULT_DATA_NAME_QUEUE)
 
         async with self.aiolocks["queue_serialization:" + str(guild.id)]:
-            if not os.path.isfile(directory):
+            if not path.is_file():
                 return None
 
             log.debug("Deserializing queue for %s", guild.id)
 
-            with open(directory, "r", encoding="utf8") as f:
+            with open(path, "r", encoding="utf8") as f:
                 data = f.read()
 
         return MusicPlayer.from_json(data, self, voice_client, playlist)
 
-    async def write_current_song(
-        self, guild: discord.Guild, entry: EntryTypes, *, path: Optional[str] = None
-    ) -> None:
+    async def write_current_song(self, guild: discord.Guild, entry: EntryTypes) -> None:
         """
         Writes the current song to file
         """
@@ -1568,8 +1594,7 @@ class MusicBot(discord.Client):
         if not player:
             return
 
-        if path is None:
-            path = f"data/{guild.id}/current.txt"
+        path = self.config.data_path.joinpath(str(guild.id), DEFAULT_DATA_NAME_CUR_SONG)
 
         async with self.aiolocks["current_song:" + str(guild.id)]:
             log.debug("Writing current song for %s", guild.id)
@@ -2068,11 +2093,6 @@ class MusicBot(discord.Client):
 
         print(flush=True)
 
-        # TODO: if on-demand loading is not good enough, we can load guild specifics here.
-        # if self.config.enable_options_per_guild:
-        #    for s in self.guilds:
-        #        await self._load_guild_options(s)
-
         # validate bound channels and log them.
         if self.config.bound_channels:
             # Get bound channels by ID, and validate that we can use them.
@@ -2172,17 +2192,30 @@ class MusicBot(discord.Client):
         if self.config.show_config_at_start:
             self._on_ready_log_configs()
 
-        # we do this after the config list because it's a lot easier to notice here
-        if self.config.missing_keys:
+        # we do this after the config stuff because it's a lot easier to notice here
+        if self.config.register.ini_missing_options:
+            missing_list = "\n".join(
+                str(o) for o in self.config.register.ini_missing_options
+            )
             conf_warn = exceptions.HelpfulError(
                 preface="Detected missing config options!",
-                issue="Your options.ini file is missing some options. Defaults will be used for this session.\n"
-                f"Here is a list of options we think are missing:\n    {', '.join(self.config.missing_keys)}",
+                issue=(
+                    "Your config file is missing some options. Defaults will be used for this session.\n"
+                    f"Here is a list of options we think are missing:\n{missing_list}"
+                ),
                 solution="Check the example_options.ini file for newly added options and copy them to your config.",
+                footnote="You can also use the `config` command to set the missing options.",
             )
             log.warning(str(conf_warn)[1:])
 
-        # self.loop.create_task(self._on_ready_call_later())
+        # Pre-load guild specific data / options.
+        # TODO:  probably change this later for better UI/UX.
+        if self.config.enable_options_per_guild:
+            for guild in self.guilds:
+                # Triggers on-demand task to load data from disk.
+                self.server_data[guild.id].is_ready()
+                # context switch to give scheduled task an execution window.
+                await asyncio.sleep(0)
 
     async def _on_ready_always(self) -> None:
         """
@@ -2225,9 +2258,10 @@ class MusicBot(discord.Client):
         """
         log.debug("Ensuring data folders exist")
         for guild in self.guilds:
-            pathlib.Path(f"data/{guild.id}/").mkdir(exist_ok=True)
+            self.config.data_path.joinpath(str(guild.id)).mkdir(exist_ok=True)
 
-        with open("data/server_names.txt", "w", encoding="utf8") as f:
+        names_path = self.config.data_path.joinpath(DEFAULT_DATA_NAME_SERVERS)
+        with open(names_path, "w", encoding="utf8") as f:
             for guild in sorted(self.guilds, key=lambda s: int(s.id)):
                 f.write(f"{guild.id}: {guild.name}\n")
 
@@ -2724,7 +2758,7 @@ class MusicBot(discord.Client):
 
     async def cmd_blocksong(
         self,
-        _player: MusicPlayer,
+        _player: Optional[MusicPlayer],
         option: str,
         leftover_args: List[str],
         song_subject: str = "",
@@ -2773,6 +2807,16 @@ class MusicBot(discord.Client):
                     f"Subject `{song_subject}` is already in the song block list.\n{status_msg}"
                 )
 
+            # remove song from auto-playlist if it is blocked
+            if (
+                self.config.auto_playlist_remove_on_block
+                and _player
+                and _player.current_entry
+                and song_subject == _player.current_entry.url
+                and _player.current_entry.from_auto_playlist
+            ):
+                await self.remove_url_from_autoplaylist(song_subject)
+
             async with self.aiolocks["song_blocklist"]:
                 self.config.song_blocklist.append_items([song_subject])
 
@@ -2783,17 +2827,13 @@ class MusicBot(discord.Client):
                 delete_after=10,
             )
 
+        # handle "remove" and "-"
         if not self.config.song_blocklist.is_blocked(song_subject):
             raise exceptions.CommandError(
                 "The subject is not in the song block list and cannot be removed.",
                 expire_in=10,
             )
 
-        # TODO:  add self.config.autoplaylist_remove_on_block
-        # if self.config.autoplaylist_remove_on_block
-        # and song_subject is current_entry.url
-        # and current_entry.from_auto_playlist
-        #   await self.remove_url_from_autoplaylist(song_subject)
         async with self.aiolocks["song_blocklist"]:
             self.config.song_blocklist.remove_items([song_subject])
 
@@ -4678,7 +4718,7 @@ class MusicBot(discord.Client):
         if permission_force_skip and (force_skip or self.config.legacy_skip):
             if (
                 not permission_force_skip
-                and not permissions.skiplooped
+                and not permissions.skip_looped
                 and player.repeatsong
             ):
                 raise exceptions.PermissionsError(
@@ -4740,7 +4780,7 @@ class MusicBot(discord.Client):
         )
 
         if skips_remaining <= 0:
-            if not permissions.skiplooped and player.repeatsong:
+            if not permissions.skip_looped and player.repeatsong:
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-skip-vote-noperms-looped-song",
@@ -4773,7 +4813,7 @@ class MusicBot(discord.Client):
             )
 
         # TODO: When a song gets skipped, delete the old x needed to skip messages
-        if not permissions.skiplooped and player.repeatsong:
+        if not permissions.skip_looped and player.repeatsong:
             raise exceptions.PermissionsError(
                 self.str.get(
                     "cmd-skip-vote-noperms-looped-song",
@@ -4873,6 +4913,249 @@ class MusicBot(discord.Client):
             ).format(new_volume),
             expire_in=20,
         )
+
+    @owner_only
+    async def cmd_config(
+        self,
+        user_mentions: List[discord.Member],
+        channel_mentions: List[discord.abc.GuildChannel],
+        option: str,
+        leftover_args: List[str],
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}config missing
+                Shows help text about any missing config options.
+
+            {command_prefix}config diff
+                Lists the names of options which have been changed since loading config file.
+
+            {command_prefix}config list
+                List the available config options and their sections.
+
+            {command_prefix}config reload
+                Reload the options.ini file from disk.
+
+            {command_prefix}config help [Section] [Option]
+                Shows help text for a specific option.
+
+            {command_prefix}config show [Section] [Option]
+                Display the current value of the option.
+
+            {command_prefix}config save [Section] [Option]
+                Saves the current current value to the options file.
+
+            {command_prefix}config set [Section] [Option] [value]
+                Validates the option and sets the config for the session, but not to file.
+
+        This command allows management of MusicBot config options file.
+        """
+        if user_mentions and channel_mentions:
+            raise exceptions.CommandError(
+                "Config cannot use channel and user mentions at the same time.",
+                expire_in=30,
+            )
+
+        option = option.lower()
+        valid_options = [
+            "missing",
+            "diff",
+            "list",
+            "save",
+            "help",
+            "show",
+            "set",
+            "reload",
+        ]
+        if option not in valid_options:
+            raise exceptions.CommandError(
+                f"Invalid option for command: `{option}`",
+                expire_in=30,
+            )
+
+        # Show missing options with help text.
+        if option == "missing":
+            missing = ""
+            for opt in self.config.register.ini_missing_options:
+                missing += (
+                    f"**Missing Option:** `{opt}`\n"
+                    "```"
+                    f"{opt.comment}\n"
+                    f"Default is set to:  {opt.default}"
+                    "```\n"
+                )
+            if not missing:
+                missing = "*All config options are present and accounted for!*"
+
+            return Response(
+                missing,
+                delete_after=60,
+            )
+
+        # Show options names that have changed since loading.
+        if option == "diff":
+            changed = ""
+            for opt in self.config.register.get_updated_options():
+                changed += f"`{str(opt)}`\n"
+
+            if not changed:
+                changed = "No config options appear to be changed."
+            else:
+                changed = f"**Changed Options:**\n{changed}"
+
+            return Response(
+                changed,
+                delete_after=60,
+            )
+
+        # List all available options.
+        if option == "list":
+            non_edit_opts = ""
+            editable_opts = ""
+            for opt in self.config.register.option_list:
+                if opt.editable:
+                    editable_opts += f"`{opt}`\n"
+                else:
+                    non_edit_opts += f"`{opt}`\n"
+
+            opt_list = (
+                f"## Available Options:\n"
+                f"**Editable Options:**\n{editable_opts}\n"
+                f"**Manual Edit Only:**\n{non_edit_opts}"
+            )
+            return Response(
+                opt_list,
+                delete_after=60,
+            )
+
+        # Try to reload options.ini file from disk.
+        if option == "reload":
+            try:
+                new_conf = Config(self._config_file)
+                await new_conf.async_validate(self)
+
+                self.config = new_conf
+
+                return Response(
+                    "Config options reloaded from file successfully!",
+                    delete_after=30,
+                )
+            except Exception as e:
+                raise exceptions.CommandError(
+                    f"Unable to reload Config due to the following errror:\n{str(e)}",
+                    expire_in=30,
+                ) from e
+
+        # sub commands beyond here need 2 leftover_args
+        if option in ["help", "show", "save"]:
+            if len(leftover_args) < 2:
+                raise exceptions.CommandError(
+                    "You must provide a section name and option name for this command.",
+                    expire_in=30,
+                )
+
+        # Get the command args from leftovers and check them.
+        section_arg = leftover_args.pop(0)
+        option_arg = leftover_args.pop(0)
+        if user_mentions:
+            leftover_args += [str(m.id) for m in user_mentions]
+        if channel_mentions:
+            leftover_args += [str(ch.id) for ch in channel_mentions]
+        value_arg = " ".join(leftover_args)
+        p_opt = self.config.register.get_config_option(section_arg, option_arg)
+
+        if section_arg not in self.config.register.sections:
+            sects = ", ".join(self.config.register.sections)
+            raise exceptions.CommandError(
+                f"The section `{section_arg}` is not available.\n"
+                f"The available sections are:  {sects}",
+                expire_in=30,
+            )
+
+        if p_opt is None:
+            option_arg = f"[{section_arg}] > {option_arg}"
+            raise exceptions.CommandError(
+                f"The option `{option_arg}` is not available.",
+                expire_in=30,
+            )
+        opt = p_opt
+
+        # Display some commentary about the option and its default.
+        if option == "help":
+            default = "\nThis option can only be set by editing the config file."
+            if opt.editable:
+                default = f"\nBy default this option is set to: {opt.default}"
+            return Response(
+                f"**Option:** `{opt}`\n{opt.comment}{default}",
+                delete_after=60,
+            )
+
+        # Save the current config value to the INI file.
+        if option == "save":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable. Cannot save to disk.",
+                    expire_in=30,
+                )
+
+            async with self.aiolocks["config_edit"]:
+                saved = self.config.save_option(opt)
+
+            if not saved:
+                raise exceptions.CommandError(
+                    f"Failed to save the option:  `{opt}`",
+                    expire_in=30,
+                )
+            return Response(
+                f"Successfully saved the option:  `{opt}`",
+                delete_after=30,
+            )
+
+        # Display the current config and INI file values.
+        if option == "show":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable, value cannot be displayed.",
+                    expire_in=30,
+                )
+            # TODO: perhaps make use of currently unused display value for empty configs.
+            cur_val, ini_val, _disp_val = self.config.register.get_values(opt)
+            return Response(
+                f"**Option:** `{opt}`\n"
+                f"Current Value:  `{cur_val}`\n"
+                f"INI File Value:  `{ini_val}`",
+                delete_after=30,
+            )
+
+        # update a config variable, but don't save it.
+        if option == "set":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable. Cannot update setting.",
+                    expire_in=30,
+                )
+
+            if not value_arg:
+                raise exceptions.CommandError(
+                    "You must provide a section, option, and value for this sub command.",
+                    expire_in=30,
+                )
+
+            log.debug("Doing set with on %s == %s", opt, value_arg)
+            async with self.aiolocks["config_update"]:
+                updated = self.config.update_option(opt, value_arg)
+            if not updated:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` was not updated!",
+                    expire_in=30,
+                )
+            return Response(
+                f"Option `{opt}` was updated for this session.\n"
+                f"To save the change use `config save {opt.section} {opt.option}`",
+                delete_after=30,
+            )
+
+        return None
 
     @owner_only
     async def cmd_option(self, option: str, value: str) -> CommandResponse:
@@ -5489,23 +5772,279 @@ class MusicBot(discord.Client):
         permissions = self.permissions.for_user(user)
 
         if user == author:
-            lines = [f"Command permissions in {guild.name}\n", "```", "```"]
+            perms = (
+                f"Your command permissions in {guild.name} are:\n"
+                f"```{permissions.format(for_user=True)}```"
+            )
         else:
-            lines = [
-                f"Command permissions for {user.name} in {guild.name}\n",
-                "```",
-                "```",
-            ]
+            perms = (
+                f"The command permissions for {user.name} in {guild.name} are:\n"
+                f"```{permissions.format()}```"
+            )
 
-        for perm in permissions.__dict__:
-            # TODO: double check this still works as desired.
-            if perm in ["user_list"] or permissions.__dict__[perm] == set():
-                continue
-            perm_data = permissions.__dict__[perm]
-            lines.insert(len(lines) - 1, f"{perm}: {perm_data}")
-
-        await self.safe_send_message(author, "\n".join(lines), fallback_channel=channel)
+        await self.safe_send_message(author, perms, fallback_channel=channel)
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
+
+    @owner_only
+    async def cmd_setperms(
+        self,
+        user_mentions: List[discord.Member],
+        leftover_args: List[str],
+        option: str = "list",
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}setperms list
+                show loaded groups and list permission options.
+
+            {command_prefix}setperms reload
+                reloads permissions from the permissions.ini file.
+
+            {command_prefix}setperms add [GroupName]
+                add new group with defaults.
+
+            {command_prefix}setperms remove [GroupName]
+                remove existing group.
+
+            {command_prefix}setperms help [PermName]
+                show help text for the permission option.
+
+            {command_prefix}setperms show [GroupName] [PermName]
+                show permission value for given group and permission.
+
+            {command_prefix}setperms save [GroupName]
+                save permissions group to file.
+
+            {command_prefix}setperms set [GroupName] [PermName] [Value]
+                set permission value for the group.
+        """
+        if user_mentions:
+            raise exceptions.CommandError(
+                "Permissions cannot use channel and user mentions at the same time.",
+                expire_in=30,
+            )
+
+        option = option.lower()
+        valid_options = [
+            "list",
+            "add",
+            "remove",
+            "save",
+            "help",
+            "show",
+            "set",
+            "reload",
+        ]
+        if option not in valid_options:
+            raise exceptions.CommandError(
+                f"Invalid option for command: `{option}`",
+                expire_in=30,
+            )
+
+        # Reload the permissions file from disk.
+        if option == "reload":
+            try:
+                new_permissions = Permissions(self._perms_file)
+                # Set the owner ID in case it wasn't auto...
+                new_permissions.set_owner_id(self.config.owner_id)
+                await new_permissions.async_validate(self)
+
+                self.permissions = new_permissions
+
+                return Response(
+                    "Permissions reloaded from file successfully!",
+                    delete_after=30,
+                )
+            except Exception as e:
+                raise exceptions.CommandError(
+                    f"Unable to reload Permissions due to the following errror:\n{str(e)}",
+                    expire_in=30,
+                ) from e
+
+        # List permission groups and available permission options.
+        if option == "list":
+            gl = []
+            for section in self.permissions.register.sections:
+                gl.append(f"`{section}`\n")
+
+            editable_opts = ""
+            for opt in self.permissions.register.option_list:
+                if opt.section != DEFAULT_PERMS_GROUP_NAME:
+                    continue
+
+                # if opt.editable:
+                editable_opts += f"`{opt.option}`\n"
+
+            groups = "".join(gl)
+            opt_list = (
+                f"## Available Groups:\n{groups}\n"
+                f"## Available Options:\n"
+                f"{editable_opts}\n"
+            )
+            return Response(
+                opt_list,
+                delete_after=60,
+            )
+
+        # sub commands beyond here need 2 leftover_args
+        if option in ["help", "show", "save", "add", "remove"]:
+            if len(leftover_args) < 1:
+                raise exceptions.CommandError(
+                    "You must provide a group or option name for this command.",
+                    expire_in=30,
+                )
+        if option == "set" and len(leftover_args) < 3:
+            raise exceptions.CommandError(
+                "You must provide a group, option, and value to set for this command.",
+                expire_in=30,
+            )
+
+        # Get the command args from leftovers and check them.
+        group_arg = ""
+        option_arg = ""
+        if option == "help":
+            group_arg = DEFAULT_PERMS_GROUP_NAME
+            option_arg = leftover_args.pop(0)
+        else:
+            group_arg = leftover_args.pop(0)
+        if option in ["set", "show"]:
+            if not leftover_args:
+                raise exceptions.CommandError(
+                    f"The {option} sub-command requires a group and permission name.",
+                    expire_in=30,
+                )
+            option_arg = leftover_args.pop(0)
+
+        if user_mentions:
+            leftover_args += [str(m.id) for m in user_mentions]
+        value_arg = " ".join(leftover_args)
+
+        if group_arg not in self.permissions.register.sections and option != "add":
+            sects = ", ".join(self.permissions.register.sections)
+            raise exceptions.CommandError(
+                f"The group `{group_arg}` is not available.\n"
+                f"The available groups are:  {sects}",
+                expire_in=30,
+            )
+
+        # Make sure the option is set if the sub-command needs it.
+        if option in ["help", "set", "show"]:
+            p_opt = self.permissions.register.get_config_option(group_arg, option_arg)
+            if p_opt is None:
+                option_arg = f"[{group_arg}] > {option_arg}"
+                raise exceptions.CommandError(
+                    f"The permission `{option_arg}` is not available.",
+                    expire_in=30,
+                )
+            opt = p_opt
+
+        # Display some commentary about the option and its default.
+        if option == "help":
+            default = (
+                "\nThis permission can only be set by editing the permissions file."
+            )
+            # TODO:  perhaps use empty display values here.
+            if opt.editable:
+                dval = self.permissions.register.to_ini(opt, use_default=True)
+                default = f"\nBy default this permission is set to: `{dval}`"
+            return Response(
+                f"**Permission:** `{opt.option}`\n{opt.comment}{default}",
+                delete_after=60,
+            )
+
+        if option == "add":
+            if group_arg in self.permissions.register.sections:
+                raise exceptions.CommandError(
+                    f"Cannot add group `{group_arg}` it already exists.",
+                    expire_in=30,
+                )
+            async with self.aiolocks["permission_edit"]:
+                self.permissions.add_group(group_arg)
+
+            return Response(
+                f"Successfully added new group:  `{group_arg}`\n"
+                f"You can now customizse the permissions with:  `setperms set {group_arg}`\n"
+                f"Make sure to save the new group with:  `setperms save {group_arg}`",
+                delete_after=30,
+            )
+
+        if option == "remove":
+            if group_arg in [DEFAULT_OWNER_GROUP_NAME, DEFAULT_PERMS_GROUP_NAME]:
+                raise exceptions.CommandError(
+                    "Cannot remove built-in group.", expire_in=30
+                )
+
+            async with self.aiolocks["permission_edit"]:
+                self.permissions.remove_group(group_arg)
+
+            return Response(
+                f"Successfully removed group:  `{group_arg}`"
+                f"Make sure to save this change with:  `setperms save {group_arg}`",
+                delete_after=30,
+            )
+
+        # Save the current config value to the INI file.
+        if option == "save":
+            if group_arg == DEFAULT_OWNER_GROUP_NAME:
+                raise exceptions.CommandError(
+                    "The owner group is not editable.",
+                    expire_in=30,
+                )
+
+            async with self.aiolocks["permission_edit"]:
+                saved = self.permissions.save_group(group_arg)
+
+            if not saved:
+                raise exceptions.CommandError(
+                    f"Failed to save the group:  `{group_arg}`",
+                    expire_in=30,
+                )
+            return Response(
+                f"Successfully saved the group:  `{group_arg}`",
+                delete_after=30,
+            )
+
+        # Display the current permissions group and INI file values.
+        if option == "show":
+            cur_val, ini_val, empty_display_val = self.permissions.register.get_values(
+                opt
+            )
+            return Response(
+                f"**Permission:** `{opt}`\n"
+                f"Current Value:  `{cur_val}` {empty_display_val}\n"
+                f"INI File Value:  `{ini_val}`",
+                delete_after=30,
+            )
+
+        # update a permission, but don't save it.
+        if option == "set":
+            if group_arg == DEFAULT_OWNER_GROUP_NAME:
+                raise exceptions.CommandError(
+                    "The owner group is not editable.",
+                    expire_in=30,
+                )
+
+            if not value_arg:
+                raise exceptions.CommandError(
+                    "You must provide a section, option, and value for this sub command.",
+                    expire_in=30,
+                )
+
+            log.debug("Doing set with on %s == %s", opt, value_arg)
+            async with self.aiolocks["permission_update"]:
+                updated = self.permissions.update_option(opt, value_arg)
+            if not updated:
+                raise exceptions.CommandError(
+                    f"Permission `{opt}` was not updated!",
+                    expire_in=30,
+                )
+            return Response(
+                f"Permission `{opt}` was updated for this session.\n"
+                f"To save the change use `setperms save {opt.section} {opt.option}`",
+                delete_after=30,
+            )
+
+        return None
 
     @owner_only
     async def cmd_setname(self, leftover_args: List[str], name: str) -> CommandResponse:
@@ -6309,24 +6848,9 @@ class MusicBot(discord.Client):
                     handler_kwargs[key] = arg_value
                     params.pop(key)
 
+            # Test non-owners for command permissions.
             if message.author.id != self.config.owner_id:
-                if (
-                    user_permissions.command_whitelist
-                    and command not in user_permissions.command_whitelist
-                ):
-                    raise exceptions.PermissionsError(
-                        f"This command is not enabled for your group ({user_permissions.name}).",
-                        expire_in=20,
-                    )
-
-                if (
-                    user_permissions.command_blacklist
-                    and command in user_permissions.command_blacklist
-                ):
-                    raise exceptions.PermissionsError(
-                        f"This command is disabled for your group ({user_permissions.name}).",
-                        expire_in=20,
-                    )
+                user_permissions.can_use_command(command)
 
             # Invalid usage, return docstring
             if params:
@@ -6706,7 +7230,7 @@ class MusicBot(discord.Client):
                     )
 
         log.debug("Creating data folder for guild %s", guild.id)
-        pathlib.Path(f"data/{guild.id}/").mkdir(exist_ok=True)
+        self.config.data_path.joinpath(str(guild.id)).mkdir(exist_ok=True)
 
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         """
