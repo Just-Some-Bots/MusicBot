@@ -1199,9 +1199,12 @@ class MusicBot(discord.Client):
         """
         log.debug("Running on_player_pause")
         await self.update_now_playing_status()
+
+        # save current entry progress, if it played "enough" to merit saving.
+        if player.session_progress > 1:
+            await self.serialize_queue(player.voice_client.channel.guild)
+
         self.loop.create_task(self.handle_player_inactivity(player))
-        # TODO: if we manage to add seek functionality this might be wise.
-        # await self.serialize_queue(player.voice_client.channel.guild)
 
     async def on_player_stop(self, player: MusicPlayer, **_: Any) -> None:
         """
@@ -3304,6 +3307,83 @@ class MusicBot(discord.Client):
             skip_playing=True,
         )
 
+    async def cmd_seek(
+        self, guild: discord.Guild, _player: Optional[MusicPlayer], seek_time: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}seek [time]
+
+        Restarts the current song at the given time.
+        Time should be given in seconds, fractional seconds are accepted.
+        Due to codec specifics in ffmpeg, this may not be accurate.
+        """
+        if not _player or not _player.current_entry:
+            raise exceptions.CommandError(
+                "Cannot use seek if there is nothing playing.",
+                expire_in=30,
+            )
+
+        if _player.current_entry.duration is None:
+            raise exceptions.CommandError(
+                "Cannot use seek on current track, it has an unknown duration.",
+                expire_in=30,
+            )
+
+        if not isinstance(
+            _player.current_entry, (URLPlaylistEntry, LocalFilePlaylistEntry)
+        ):
+            raise exceptions.CommandError(
+                "Seeking is not supported for streams.",
+                expire_in=30,
+            )
+
+        if not seek_time:
+            raise exceptions.CommandError(
+                "Cannot use seek without a time to position playback.",
+                expire_in=30,
+            )
+
+        f_seek_time: float = 0
+        if "." in seek_time:
+            try:
+                p1, p2 = seek_time.rsplit(".", maxsplit=1)
+                i_seek_time = format_time_to_seconds(p1)
+                f_seek_time = float(f"0.{p2}")
+                f_seek_time += i_seek_time
+            except (ValueError, TypeError) as e:
+                raise exceptions.CommandError(
+                    f"Could not convert `{seek_time}` to a valid time in seconds.",
+                    expire_in=30,
+                ) from e
+        else:
+            f_seek_time = 0.0 + format_time_to_seconds(seek_time)
+
+        if f_seek_time > _player.current_entry.duration:
+            td = format_song_duration(_player.current_entry.duration_td)
+            raise exceptions.CommandError(
+                f"Cannot seek to `{seek_time}` in the current track with a length of `{td}`",
+                expire_in=30,
+            )
+
+        entry = _player.current_entry
+        entry.set_start_time(f_seek_time)
+        _player.playlist.insert_entry_at_index(0, entry)
+
+        # handle history playlist updates.
+        if (
+            self.config.enable_queue_history_global
+            or self.config.enable_queue_history_guilds
+        ):
+            self.server_data[guild.id].current_playing_url = ""
+
+        _player.skip()
+
+        return Response(
+            f"Seeking to time `{seek_time}` (`{f_seek_time}` seconds) in the current song.",
+            delete_after=30,
+        )
+
     async def cmd_repeat(
         self, guild: discord.Guild, option: str = ""
     ) -> CommandResponse:
@@ -4912,6 +4992,68 @@ class MusicBot(discord.Client):
                 "Unreasonable volume provided: {}%. Provide a value between 1 and 100.",
             ).format(new_volume),
             expire_in=20,
+        )
+
+    async def cmd_speed(
+        self, guild: discord.Guild, player: MusicPlayer, new_speed: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}speed [rate]
+
+        Apply a speed to the currently playing track.
+        The rate must be between 0.5 and 100.0 due to ffmpeg limits.
+        Stream playback does not support speed adjustments.
+        """
+        if not player.current_entry:
+            raise exceptions.CommandError(
+                "No track is playing, cannot set speed.\n"
+                "Use the config command to set a default playback speed.",
+                expire_in=30,
+            )
+
+        if not isinstance(
+            player.current_entry, (URLPlaylistEntry, LocalFilePlaylistEntry)
+        ):
+            raise exceptions.CommandError(
+                "Speed cannot be applied to streamed media.",
+                expire_in=30,
+            )
+
+        if not new_speed:
+            raise exceptions.CommandError(
+                "You must provide a speed to set.",
+                expire_in=30,
+            )
+
+        try:
+            speed = float(new_speed)
+            if speed < 0.5 or speed > 100.0:
+                raise ValueError("Value out of range.")
+        except (ValueError, TypeError) as e:
+            raise exceptions.CommandError(
+                "The speed you proivded is invalid. Use a number between 0.5 and 100.",
+                expire_in=30,
+            ) from e
+
+        # Set current playback progress and speed then restart playback.
+        entry = player.current_entry
+        entry.set_start_time(player.progress)
+        entry.set_playback_speed(speed)
+        player.playlist.insert_entry_at_index(0, entry)
+
+        # handle history playlist updates.
+        if (
+            self.config.enable_queue_history_global
+            or self.config.enable_queue_history_guilds
+        ):
+            self.server_data[guild.id].current_playing_url = ""
+
+        player.skip()
+
+        return Response(
+            f"Setting playback speed to `{speed:.3f}` for current track.",
+            delete_after=30,
         )
 
     @owner_only
