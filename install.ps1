@@ -53,82 +53,102 @@ $DEFAULT_URL_BASE = "https://discordapp.com/api"
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
 
 # Check if git is installed
-"checking if git is already installed..."
-Invoke-Expression "winget list -q Git.Git"
+"Checking if git is already installed..."
+Invoke-Expression "winget list -q Git.Git" | Out-Null
 if (!($LastExitCode -eq 0))
 {
     # install git
-    "installing git..."
+    "Installing git..."
     Invoke-Expression "winget install Git.Git"
+    "Done."
 }
 else
 {
-    "git already installed"
+    "Git already installed."
 }
+""
 
 # Check if Any python 3 is installed
-"checking if python is already installed..."
-Invoke-Expression "winget list -q Python.Python.3"
+"Checking if python is already installed..."
+Invoke-Expression "winget list -q Python.Python.3" | Out-Null
 if (!($LastExitCode -eq 0))
 {
     # install python version 3.11 with the py.exe launcher.
-    "installing python..."
+    "Installing python..."
     Invoke-Expression "winget install Python.Python.3.11 --custom \`"/passive Include_launcher=1\`""
+    "Done."
 }
 else
 {
-    "python already installed"
+    "Python already installed."
 }
+""
 
 # Check if ffmpeg is installed
-"checking if FFmpeg is already installed..."
-Invoke-Expression "winget list -q Gyan.FFmpeg"
+"Checking if FFmpeg is already installed..."
+Invoke-Expression "winget list -q Gyan.FFmpeg" | Out-Null
 if (!($LastExitCode -eq 0))
 {
     # install FFmpeg
-    "installing FFmpeg..."
+    "Installing FFmpeg..."
     Invoke-Expression "winget install Gyan.FFmpeg"
+    "Done."
 }
 else
 {
-    "FFmpeg already installed"
+    "FFmpeg already installed."
 }
+""
 
 # TODO: fix this, it fails due to some missing addition to powershell environment.
-Invoke-Expression "refreshenv"
+# idk if it is even needed, but was here before so whatever I guess...
+Invoke-Expression "refreshenv" 2>$null
 
 # --------------------------------------------------PULLING THE BOT----------------------------------------------------
 
-"MusicBot currently has three branches available."
-"  master - An older MusicBot, for older discord.py. May not work without tweaks!"
-"  review - Newer MusicBot, usually stable with less updates than the dev branch."
-"  dev    - The newest MusicBot, latest features and changes which may need testing."
-""
-$experimental = Read-Host "Enter the branch name you want to install"
-if($experimental -eq "dev")
-{
-    "installing dev branch..."
-    $branch = "dev"
-}
-if($experimental -eq "review")
-{
-    "installing review branch..."
-    $branch = "review"
-}
-else
-{
-    "installing master branch..."
-    $branch = "master"
-}
+# Test if we need to pull the bot or not by checking for some files.
+$MB_Reqs_File=(pwd).Path + '\requirements.txt'
+$MB_Module_Dir=(pwd).Path + '\musicbot'
+$MB_Git_Dir=(pwd).Path + '\.git'
 
-Invoke-Expression "git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b $branch"
-Invoke-Expression "cd MusicBot"
+if((Test-Path $MB_Reqs_File) -and (Test-Path $MB_Module_Dir) -and (Test-Path $MB_Git_Dir) ) {
+    ""
+    "Installer detected an existing clone, and will continue installing with the current source."
+    ""
+} else {
+    ""
+    "MusicBot currently has three branches available."
+    "  master - An older MusicBot, for older discord.py. May not work without tweaks!"
+    "  review - Newer MusicBot, usually stable with less updates than the dev branch."
+    "  dev    - The newest MusicBot, latest features and changes which may need testing."
+    ""
+    $experimental = Read-Host "Enter the branch name you want to install"
+    if($experimental -eq "dev")
+    {
+        "Installing dev branch..."
+        $branch = "dev"
+    }
+    if($experimental -eq "review")
+    {
+        "Installing review branch..."
+        $branch = "review"
+    }
+    else
+    {
+        "Installing master branch..."
+        $branch = "master"
+    }
+
+    Invoke-Expression "git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b $branch"
+    Invoke-Expression "cd MusicBot"
+    ""
+}
 
 # --------------------------------------------INSTALL PYTHON DEPENDENCIES----------------------------------------------
 
 if (Get-Command "python" -errorAction SilentlyContinue)
 {
-    Invoke-Expression "python -c 'import sys; exit(0 if sys.version_info >= (3, 8) else 1)'"
+    Invoke-Expression "python -c 'import sys; exit(0 if sys.version_info >= (3, 8) else 1)'" | Out-Null
     if($LastExitCode -eq 0)
     {
         $PYTHON = "python"
@@ -139,22 +159,38 @@ $versionArray = "3.8", "3.9", "3.10", "3.11", "3.12"
 
 foreach ($version in $versionArray)
 {
-    Invoke-Expression "py -$version -c 'exit()'"
+    Invoke-Expression "py -$version -c 'exit()'" 2>$null
     if($LastExitCode -eq 0)
     {
         $PYTHON = "py -$version"
     }
 }
 
-Invoke-Expression "$PYTHON -m pip install --upgrade -r requirements.txt"
+"Using $PYTHON to install and run MusicBot..."
+Invoke-Expression "$PYTHON -m pip install --upgrade -r requirements.txt" 
 
 # -------------------------------------------------CONFIGURE THE BOT---------------------------------------------------
+""
+"MusicBot is almost ready to run, we just need to configure the bot."
+"This installer provides an automated, but minimal, guided configuration."
+"It will ask you to enter a bot token."
+""
+$iagree = Read-Host "Would you like to continue with configuration? [y/n]"
+if($iagree -ne "Y" -and $iagree -ne "y")
+{
+    "All done!"
+    "Remember to configure your bot token and other options before you start."
+    "You can use run.bat to start the MusicBot."
+    Return
+}
+
+
 Copy-Item ".\config\example_options.ini" -Destination ".\config\options.ini"
 
 # GET AND VERIFY TOKEN
 ""
 "Please enter your bot token. This can be found in your discordapp developer page." 
-$token = Read-Host "Enter Token:" -AsSecureString
+$token = Read-Host "Enter Token" -AsSecureString
 $token_plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($token))
 $header = @{
     "Authorization" = "Bot $token_plain"
@@ -166,6 +202,8 @@ $result_content = $result.Content
 if (!($result_code -eq 200))
 {
     "Error getting user profile, is the token correct? ($result_code $result_content)"
+    ""
+    "You can finish the configuration manually by editing the options.ini file in the config folder."
     Return
 }
 $result_object = ConvertFrom-Json -InputObject $result_content
