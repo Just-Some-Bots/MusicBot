@@ -232,7 +232,6 @@ def update_ffmpeg() -> None:
         print(f"Found FFmpeg EXE at:  {ffmpeg_bin}")
         print(f"Current {localver}")
 
-    # TODO: query winget for updates if winget is detected.
     # only query remote version if we are updating bundled exe.
     if ffmpeg_bin.lower() == bundle_ffmpeg_bin.lower():
         remotever = get_remote_ffmpeg_version()
@@ -241,6 +240,7 @@ def update_ffmpeg() -> None:
 
     print("")
 
+    # If ffmpeg was installed via winget, query it for upgrades instead.
     if (
         ffmpeg_bin.lower() != bundle_ffmpeg_bin.lower()
         and "winget" in ffmpeg_bin.lower()

@@ -37,7 +37,6 @@ class InvalidDataError(MusicbotException):
 
 
 # The no processing entry type failed and an entry was a playlist/vice versa
-# TODO: Add typing options instead of is_playlist
 class WrongEntryTypeError(ExtractionError):
     def __init__(self, message: str, is_playlist: bool, use_url: str) -> None:
         super().__init__(message)
@@ -168,4 +167,5 @@ class RestartSignal(Signal):
 
 # signal to end the bot "gracefully"
 class TerminateSignal(Signal):
-    exit_code: int = 0
+    def __init__(self, exit_code: int = 0):
+        self.exit_code: int = exit_code

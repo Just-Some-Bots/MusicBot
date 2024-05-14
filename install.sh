@@ -116,6 +116,28 @@ function find_python() {
 }
 
 function pull_musicbot_git() {
+    echo ""
+    # Check if we're running inside a previously pulled repo.
+    GitDir="${PWD}/.git"
+    BotDir="${PWD}/musicbot"
+    ReqFile="${PWD}/requirements.txt"
+    if [ -d "$GitDir" ] && [ -d "$BotDir" ] && [ -f "$ReqFile" ] ; then
+        echo "Existing MusicBot repo detected."
+        read -rp "Would you like to install using the current repo? [Y/n]" UsePwd
+        if [ "${UsePwd,,}" == "y" ] || [ "${UsePwd,,}" == "yes" ] ; then
+            echo ""
+            CloneDir="${PWD}"
+            VenvDir="${CloneDir}/Venv"
+
+            $PyBin -m pip install --upgrade -r requirements.txt
+            echo ""
+
+            cp ./config/example_options.ini ./config/options.ini
+            return 0
+        fi
+        echo "Installer will attempt to create a new directory for MusicBot."
+    fi
+
     cd ~ || exit_err "Fatal:  Could not change to home directory."
 
     if [ -d "${CloneDir}" ] ; then
@@ -155,13 +177,12 @@ function pull_musicbot_git() {
     cd "${CloneDir}" || exit_err "Fatal:  Could not change to MusicBot directory."
 
     $PyBin -m pip install --upgrade -r requirements.txt
+    echo ""
 
     cp ./config/example_options.ini ./config/options.ini
 }
 
 function setup_as_service() {
-    local DIR
-    DIR="$(pwd)"
     echo ""
     echo "The installer can also install MusicBot as a system service file."
     echo "This starts the MusicBot at boot and after failures."
@@ -192,7 +213,7 @@ function setup_as_service() {
         sed -i "s,#User=mbuser,User=${BotSysUserName},g" ./musicbot.service
         sed -i "s,#Group=mbusergroup,Group=${BotSysGroupName},g" ./musicbot.service
         sed -i "s,/usr/bin/pythonversionnum,${PyBinPath},g" ./musicbot.service
-        sed -i "s,mbdirectory,${DIR},g" ./musicbot.service
+        sed -i "s,mbdirectory,${PWD},g" ./musicbot.service
 
         # Copy the service file into place and enable it.
         sudo cp ~/${CloneDir}/musicbot.service /etc/systemd/system/
@@ -401,6 +422,8 @@ if [[ "${iagree,,}" != "y" && "${iagree,,}" != "yes" ]] ; then
     exit 2
 fi
 
+echo ""
+echo "Attempting to install required system packages..."
 echo ""
 
 case $DISTRO_NAME in
