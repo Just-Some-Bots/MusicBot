@@ -15,7 +15,7 @@ import sys
 import textwrap
 import time
 from base64 import b64decode
-from typing import Any, Callable, Coroutine, List, Optional, Tuple, Union
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 
 from musicbot.constants import (
     DEFAULT_LOGS_KEPT,
@@ -23,7 +23,12 @@ from musicbot.constants import (
     MAXIMUM_LOGS_LIMIT,
 )
 from musicbot.constants import VERSION as BOTVERSION
-from musicbot.exceptions import HelpfulError, RestartSignal, TerminateSignal
+from musicbot.exceptions import (
+    HelpfulError,
+    RestartCode,
+    RestartSignal,
+    TerminateSignal,
+)
 from musicbot.utils import (
     rotate_log_files,
     set_logging_level,
@@ -226,7 +231,7 @@ class PIP:
             return False
 
     @classmethod
-    def check_updates(cls) -> int:
+    def check_updates(cls) -> List[Dict[str, Any]]:
         """
         Runs `pip install -U -r ./requirements.txt --quiet --dry-run --report -`
         and returns the number of packages that could be updated.
@@ -238,11 +243,14 @@ class PIP:
         try:
             if isinstance(updata, bytes):
                 pip_data = json.loads(updata)
-                return len(pip_data.get("install", []))
+                ilist = pip_data.get("install", [])
+                if not isinstance(ilist, list):
+                    return []
+                return ilist
         except json.JSONDecodeError:
             log.warning("Could not decode pip update report JSON.")
 
-        return 0
+        return []
 
     @classmethod
     def run_upgrade_requirements(
@@ -443,6 +451,9 @@ def req_check_deps() -> None:
     except ImportError:
         # if we can't import discord.py, an error will be thrown later down the line anyway
         pass
+    except AttributeError:
+        # if the user has a library like dpytest installed but discord.py is missing somehow.
+        pass
 
 
 def req_ensure_env() -> None:
@@ -492,6 +503,7 @@ def req_ensure_env() -> None:
         shutil.rmtree("musicbot-test-folder", True)
 
     if sys.platform.startswith("win"):
+        # TODO: this should probably be conditional, in favor of system installed exe.
         log.info("Adding local bins/ folder to path")
         os.environ["PATH"] += ";" + os.path.abspath("bin/")
         sys.path.append(os.path.abspath("bin/"))  # might as well
@@ -535,13 +547,21 @@ def opt_check_updates() -> None:
         )
 
     if PIP.works():
-        # TODO: should probably list / prioritize packages.
-        package_count = PIP.check_updates()
+        install_pkgs = PIP.check_updates()
+        package_count = len(install_pkgs)
         if package_count:
+            pkg_list = "The following packages can be updated:\n"
+            for pkg in install_pkgs:
+                pkg_meta = pkg.get("metadata", {})
+                pkg_name = pkg_meta.get("name", "")
+                pkg_ver = pkg_meta.get("version", "")
+                if pkg_name:
+                    pkg_list += f"  {pkg_name}  to version:  {pkg_ver}\n"
             log.warning(
                 "There may be updates for dependency packages. "
-                "PIP reports %s package(s) could be installed.",
+                "PIP reports %s package(s) could be installed.\n%s",
                 package_count,
+                pkg_list,
             )
             needs_update = True
         else:
@@ -941,7 +961,12 @@ def main() -> None:
                 log.exception("Syntax error (this is a bug, not your fault)")
             break
 
-        except ImportError as e:
+        except (AttributeError, ImportError) as e:
+            # In case a discord extension is installed but discord.py isn't.
+            if isinstance(e, AttributeError):
+                if "module 'discord'" not in str(e):
+                    raise
+
             if cli_args.no_install_deps:
                 helpfulerr = HelpfulError(
                     preface="Cannot start MusicBot due to an error!",
@@ -1001,16 +1026,21 @@ def main() -> None:
                 print()
                 log.info("OK, lets hope that worked!")
                 print()
-                shutdown_loggers()
-                rotate_log_files()
-                setup_loggers()
+
                 retries += 1
                 continue
+
+            if tried_requirementstxt and retries >= 1:
+                exit_signal = RestartSignal(RestartCode.RESTART_FULL)
+                retries += 1
+                break
 
             log.error(
                 "MusicBot got an ImportError after trying to install packages. MusicBot must exit..."
             )
             log.exception("The exception which caused the above error: ")
+            retries = 0
+            exit_signal = TerminateSignal(exit_code=1)
             break
 
         except HelpfulError as e:
