@@ -100,9 +100,10 @@ else
 }
 ""
 
-# TODO: fix this, it fails due to some missing addition to powershell environment.
-# idk if it is even needed, but was here before so whatever I guess...
-Invoke-Expression "refreshenv" 2>$null
+# NOTE: if we need to refresh the environment vars (Path, etc.) after installing
+# the above packages, we may need to add some other dependency which provides
+# RefreshEnv.bat or manually manage paths to newly installed exes.
+# Users should be able to get around this by restarting the powershell script.
 
 # --------------------------------------------------PULLING THE BOT----------------------------------------------------
 
