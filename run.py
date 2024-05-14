@@ -650,7 +650,7 @@ def parse_cli_args() -> argparse.Namespace:
         help="Skip all optional startup checks, including the update check.",
     )
 
-    # Skip update checks option.
+    # Skip disk checks option.
     ap.add_argument(
         "--no-disk-check",
         dest="no_disk_check",
