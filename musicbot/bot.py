@@ -3414,6 +3414,7 @@ class MusicBot(discord.Client):
             {command_prefix}seek [time]
 
         Restarts the current song at the given time.
+        If time starts with + or - seek will be relative to current playback time.
         Time should be given in seconds, fractional seconds are accepted.
         Due to codec specifics in ffmpeg, this may not be accurate.
         """
@@ -3443,9 +3444,15 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
+        relative_seek: int = 0
         f_seek_time: float = 0
         if "." in seek_time:
             try:
+                if seek_time.startswith("-"):
+                    relative_seek = -1
+                if seek_time.startswith("+"):
+                    relative_seek = 1
+
                 p1, p2 = seek_time.rsplit(".", maxsplit=1)
                 i_seek_time = format_time_to_seconds(p1)
                 f_seek_time = float(f"0.{p2}")
@@ -3458,7 +3465,10 @@ class MusicBot(discord.Client):
         else:
             f_seek_time = 0.0 + format_time_to_seconds(seek_time)
 
-        if f_seek_time > _player.current_entry.duration:
+        if relative_seek != 0:
+            f_seek_time = _player.progress + (relative_seek * f_seek_time)
+
+        if f_seek_time > _player.current_entry.duration or f_seek_time < 0:
             td = format_song_duration(_player.current_entry.duration_td)
             raise exceptions.CommandError(
                 f"Cannot seek to `{seek_time}` in the current track with a length of `{td}`",
