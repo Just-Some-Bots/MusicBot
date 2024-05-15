@@ -265,6 +265,17 @@ class Config:
                 "Must be a value from 0 to 1 inclusive."
             ),
         )
+        self.default_speed: float = self.register.init_option(
+            section="MusicBot",
+            option="DefaultSpeed",
+            dest="default_speed",
+            default=ConfigDefaults.default_speed,
+            getter="getfloat",
+            comment=(
+                "Sets the default speed MusicBot will play songs at.\n"
+                "Must be a value from 0.5 to 100.0 for ffmpeg to use it."
+            ),
+        )
         self.skips_required: int = self.register.init_option(
             section="MusicBot",
             option="SkipsRequired",
@@ -817,6 +828,16 @@ class Config:
         if not self.footer_text:
             self.footer_text = ConfigDefaults.footer_text
 
+        if self.default_speed < 0.5 or self.default_speed > 100.0:
+            log.warning(
+                "The default playback speed must be between 0.5 and 100.0. "
+                "The option value of %.3f will be limited instead."
+            )
+            self.default_speed = max(min(self.default_speed, 100.0), 0.5)
+
+        if self.enable_local_media and not self.media_file_dir.is_dir():
+            self.media_file_dir.mkdir(exist_ok=True)
+
     async def async_validate(self, bot: "MusicBot") -> None:
         """
         Validation logic for bot settings that depends on data from async services.
@@ -1060,6 +1081,7 @@ class ConfigDefaults:
     delete_nowplaying: bool = True
 
     default_volume: float = 0.15
+    default_speed: float = 1.0
     skips_required: int = 4
     skip_ratio_required: float = 0.5
     save_videos: bool = True

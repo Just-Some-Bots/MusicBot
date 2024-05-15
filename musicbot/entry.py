@@ -58,6 +58,13 @@ class BasePlaylistEntry(Serializable):
         self._waiting_futures: List[AsyncFuture] = []
 
     @property
+    def start_time(self) -> float:
+        """
+        Time in seconds that is passed to ffmpeg -ss flag.
+        """
+        return 0
+
+    @property
     def url(self) -> str:
         """
         Get a URL suitable for YoutubeDL to download, or likewise
@@ -187,12 +194,12 @@ class URLPlaylistEntry(BasePlaylistEntry):
         Create URL Playlist entry that will be downloaded for playback.
 
         :param: playlist:  The playlist object this entry should belong to.
-        :param: info:  A YtdlResponseDict with from downloader.extract_info()
-        :param: from_apl:  Flag this entry as automatic playback, not queued by a user.
-        :param: meta:  a collection extra of key-values stored with the entry.
+        :param: info:  A YtdlResponseDict from downloader.extract_info()
         """
         super().__init__()
 
+        self._start_time: Optional[float] = None
+        self._playback_rate: Optional[float] = None
         self.playlist: "Playlist" = playlist
         self.downloader: "Downloader" = playlist.bot.downloader
         self.filecache: "AudioFileCache" = playlist.bot.filecache
@@ -210,7 +217,31 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.author: Optional["discord.Member"] = author
         self.channel: Optional[GuildMessageableChannels] = channel
 
-        self.aoptions: str = "-vn"
+        self._aopt_eq: str = ""
+
+    @property
+    def aoptions(self) -> str:
+        """After input options for ffmpeg to use with this entry."""
+        aopts = f"{self._aopt_eq}"
+        # Set playback speed options if needed.
+        if self._playback_rate is not None or self.playback_speed != 1.0:
+            # Append to the EQ options if they are set.
+            if self._aopt_eq:
+                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
+            else:
+                aopts = f"-af atempo={self.playback_speed:.3f}"
+
+        if aopts:
+            return f"{aopts} -vn"
+
+        return "-vn"
+
+    @property
+    def boptions(self) -> str:
+        """Before input options for ffmpeg to use with this entry."""
+        if self._start_time is not None:
+            return f"-ss {self._start_time}"
+        return ""
 
     @property
     def from_auto_playlist(self) -> bool:
@@ -370,6 +401,27 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         return None
 
+    @property
+    def start_time(self) -> float:
+        if self._start_time is not None:
+            return self._start_time
+        return 0
+
+    def set_start_time(self, start_time: float) -> None:
+        """Sets a start time in seconds to use with the ffmpeg -ss flag."""
+        self._start_time = start_time
+
+    @property
+    def playback_speed(self) -> float:
+        """Get the current playback speed if one was set, or return 1.0 for normal playback."""
+        if self._playback_rate is not None:
+            return self._playback_rate
+        return self.playlist.bot.config.default_speed or 1.0
+
+    def set_playback_speed(self, speed: float) -> None:
+        """Set the playback speed to be used with ffmpeg -af:atempo filter."""
+        self._playback_rate = speed
+
     async def _ensure_entry_info(self) -> None:
         """helper to ensure this entry object has critical information"""
 
@@ -457,7 +509,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    aoptions = await self.get_mean_volume(self.filename)
+                    self._aopt_eq = await self.get_mean_volume(self.filename)
 
                 # Unfortunate evil that we abide for now...
                 except Exception:  # pylint: disable=broad-exception-caught
@@ -466,11 +518,6 @@ class URLPlaylistEntry(BasePlaylistEntry):
                         "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.",
                         exc_info=True,
                     )
-                    aoptions = "-vn"
-            else:
-                aoptions = "-vn"
-
-            self.aoptions = aoptions
 
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
