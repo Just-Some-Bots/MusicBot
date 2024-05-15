@@ -285,11 +285,12 @@ class SpotifyPlaylist(SpotifyObject):
             raise ValueError("Invalid playlist_data, missing items key in tracks")
 
         for item in items:
+            if "track" not in item:
+                raise ValueError("Invalid playlist_data, missing track key in items")
+
             track_data = item.get("track", None)
             if track_data:
                 self._track_objects.append(SpotifyTrack(track_data))
-            else:
-                raise ValueError("Invalid playlist_data, missing track key in items")
 
     @property
     def track_objects(self) -> List[SpotifyTrack]:
