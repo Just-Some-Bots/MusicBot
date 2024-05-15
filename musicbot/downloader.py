@@ -254,6 +254,13 @@ class Downloader:
         :raises: yt_dlp.networking.exceptions.RequestError
             as a base exception for any networking errors raised by yt_dlp.
         """
+        # handle local media playback without ever touching ytdl and friends.
+        # We do this here so auto playlist features can take advantage of this as well.
+        if self.bot.config.enable_local_media and song_subject.lower().startswith(
+            "file://"
+        ):
+            return self._return_local_media(song_subject)
+
         # Hash the URL for use as a unique ID in file paths.
         # but ignore services with multiple URLs for the same media.
         song_subject_hash = ""
@@ -447,6 +454,35 @@ class Downloader:
         return await self.bot.loop.run_in_executor(
             self.thread_pool,
             functools.partial(self.safe_ytdl.extract_info, *args, **kwargs),
+        )
+
+    def _return_local_media(self, song_subject: str) -> "YtdlpResponseDict":
+        """Verifies local media files and returns suitable data for local entries."""
+        filename = song_subject[7:]
+        media_path = self.bot.config.media_file_dir.resolve()
+        unclean_path = media_path.joinpath(filename).resolve()
+        if os.path.commonprefix([media_path, unclean_path]) == str(media_path):
+            local_file_path = unclean_path
+        else:
+            local_file_path = media_path.joinpath(pathlib.Path(filename).name)
+        corrected_fie_uri = str(local_file_path).replace(str(media_path), "file://")
+
+        if not local_file_path.is_file():
+            raise MusicbotException("The local media file could not be found.")
+
+        return YtdlpResponseDict(
+            {
+                "__input_subject": song_subject,
+                "__header_data": None,
+                "__expected_filename": local_file_path,
+                "_type": "local",
+                # "original_url": song_subject,
+                "extractor": "local:musicbot",
+                "extractor_key": "LocalMediaMusicBot",
+                # Getting a "good" title for the track will take some serious consideration...
+                "title": local_file_path.name,
+                "url": corrected_fie_uri,
+            }
         )
 
 

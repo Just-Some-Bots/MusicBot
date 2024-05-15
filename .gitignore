@@ -19,5 +19,7 @@ config/whitelist.txt
 config/blacklist.txt
 config/blocklist_users.txt
 config/blocklist_songs.txt
+config/playlists/
+media/
 
 docker-compose.yml

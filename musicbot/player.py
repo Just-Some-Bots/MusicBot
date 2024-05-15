@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from discord import AudioSource, FFmpegPCMAudio, PCMVolumeTransformer, VoiceClient
 
 from .constructs import Serializable, Serializer, SkipState
-from .entry import StreamPlaylistEntry, URLPlaylistEntry
+from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
 from .exceptions import FFmpegError, FFmpegWarning
 from .lib.event_emitter import EventEmitter
 
@@ -24,7 +24,7 @@ else:
     AsyncFuture = asyncio.Future
 
 # Type alias
-EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry]
+EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry, LocalFilePlaylistEntry]
 
 log = logging.getLogger(__name__)
 
@@ -376,7 +376,7 @@ class MusicPlayer(EventEmitter, Serializable):
 
                 boptions = "-nostdin"
                 # aoptions = "-vn -b:a 192k"
-                if isinstance(entry, URLPlaylistEntry):
+                if isinstance(entry, (URLPlaylistEntry, LocalFilePlaylistEntry)):
                     aoptions = entry.aoptions
                     # check for before options, currently just -ss here.
                     if entry.boptions:

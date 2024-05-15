@@ -27,19 +27,29 @@ DEFAULT_COMMAND_ALIAS_FILE: str = "config/aliases.json"
 DEFAULT_USER_BLOCKLIST_FILE: str = "config/blocklist_users.txt"
 DEFAULT_SONG_BLOCKLIST_FILE: str = "config/blocklist_songs.txt"
 DEPRECATED_USER_BLACKLIST: str = "config/blacklist.txt"
-DEFAULT_AUTOPLAYLIST_FILE: str = "config/autoplaylist.txt"
-BUNDLED_AUTOPLAYLIST_FILE: str = "config/_autoplaylist.txt"
-DEFAULT_AUDIO_CACHE_PATH: str = "audio_cache"
-DEFAULT_DATA_PATH: str = "data"
-DEFAULT_DATA_NAME_SERVERS: str = "server_names.txt"
-DEFAULT_DATA_NAME_QUEUE: str = "queue.json"
-DEFAULT_DATA_NAME_CUR_SONG: str = "current.txt"
-DEFAULT_DATA_NAME_OPTIONS: str = "options.json"
+OLD_DEFAULT_AUTOPLAYLIST_FILE: str = "config/autoplaylist.txt"
+OLD_BUNDLED_AUTOPLAYLIST_FILE: str = "config/_autoplaylist.txt"
+DEFAULT_PLAYLIST_DIR: str = "config/playlists/"
+DEFAULT_MEDIA_FILE_DIR: str = "media/"
+DEFAULT_AUDIO_CACHE_DIR: str = "audio_cache/"
+DEFAULT_DATA_DIR: str = "data/"
 
+# File names within the DEFAULT_DATA_DIR or guild folders.
+DATA_FILE_SERVERS: str = "server_names.txt"
+DATA_FILE_CACHEMAP: str = "playlist_cachemap.json"
+DATA_GUILD_FILE_QUEUE: str = "queue.json"
+DATA_GUILD_FILE_CUR_SONG: str = "current.txt"
+DATA_GUILD_FILE_OPTIONS: str = "options.json"
+
+# Example config files.
 EXAMPLE_OPTIONS_FILE: str = "config/example_options.ini"
 EXAMPLE_PERMS_FILE: str = "config/example_permissions.ini"
 EXAMPLE_COMMAND_ALIAS_FILE: str = "config/example_aliases.json"
 
+# Playlist related settings.
+APL_FILE_DEFAULT: str = "default.txt"
+APL_FILE_HISTORY: str = "history.txt"
+APL_FILE_APLCOPY: str = "autoplaylist.txt"
 
 # Logging related constants
 DEFAULT_MUSICBOT_LOG_FILE: str = "logs/musicbot.log"
