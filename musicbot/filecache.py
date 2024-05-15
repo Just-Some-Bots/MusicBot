@@ -6,14 +6,15 @@ import os
 import pathlib
 import shutil
 import time
-from typing import TYPE_CHECKING, Dict, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Tuple
 
+from .constants import DATA_FILE_CACHEMAP, DEFAULT_DATA_DIR
 from .utils import format_size_from_bytes
 
 if TYPE_CHECKING:
     from .bot import MusicBot
     from .config import Config
-    from .entry import BasePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
+    from .entry import BasePlaylistEntry, URLPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class AudioFileCache:
         self.bot: "MusicBot" = bot
         self.config: "Config" = bot.config
         self.cache_path: pathlib.Path = bot.config.audio_cache_path
+        self.cachemap_file = pathlib.Path(DEFAULT_DATA_DIR).joinpath(DATA_FILE_CACHEMAP)
 
         self.size_bytes: int = 0
         self.file_count: int = 0
@@ -38,6 +40,9 @@ class AudioFileCache:
         # Stores filenames without extension associated to a playlist URL.
         self.auto_playlist_cachemap: Dict[str, str] = {}
         self.cachemap_file_lock: asyncio.Lock = asyncio.Lock()
+
+        if self.config.auto_playlist:
+            self.load_autoplay_cachemap()
 
     @property
     def folder(self) -> pathlib.Path:
@@ -152,13 +157,13 @@ class AudioFileCache:
             # mtime is usually older than download time. atime is changed on multiple files by some part of the player.
             # To make this consistent everywhere, we need to store last-played times for songs on our own.
             cached_files = sorted(
-                pathlib.Path(self.cache_path).iterdir(),
+                self.cache_path.iterdir(),
                 key=os.path.getctime,
                 reverse=True,
             )
         else:
             cached_files = sorted(
-                pathlib.Path(self.cache_path).iterdir(),
+                self.cache_path.iterdir(),
                 key=os.path.getatime,
                 reverse=True,
             )
@@ -245,13 +250,11 @@ class AudioFileCache:
 
         return True
 
-    def handle_new_cache_entry(
-        self, entry: Union["URLPlaylistEntry", "StreamPlaylistEntry"]
-    ) -> None:
-        """1
+    def handle_new_cache_entry(self, entry: "URLPlaylistEntry") -> None:
+        """
         Test given entry for cachemap inclusion and run cache limit checks.
         """
-        if entry.url in self.bot.autoplaylist:
+        if entry.url in self.bot.playlist_mgr.loaded_tracks:
             # ignore partial downloads
             if entry.cache_busted:
                 log.noise(  # type: ignore[attr-defined]
@@ -289,12 +292,12 @@ class AudioFileCache:
             self.auto_playlist_cachemap = {}
             return
 
-        if not os.path.isfile(self.config.auto_playlist_cachemap_file):
+        if not self.cachemap_file.is_file():
             log.debug("Autoplaylist has no cache map, moving on.")
             self.auto_playlist_cachemap = {}
             return
 
-        with open(self.config.auto_playlist_cachemap_file, "r", encoding="utf8") as fh:
+        with open(self.cachemap_file, "r", encoding="utf8") as fh:
             try:
                 self.auto_playlist_cachemap = json.load(fh)
                 log.info(
@@ -318,9 +321,7 @@ class AudioFileCache:
 
         async with self.cachemap_file_lock:
             try:
-                with open(
-                    self.config.auto_playlist_cachemap_file, "w", encoding="utf8"
-                ) as fh:
+                with open(self.cachemap_file, "w", encoding="utf8") as fh:
                     json.dump(self.auto_playlist_cachemap, fh)
                     log.debug(
                         "Saved autoplaylist cache map with %s entries.",
@@ -412,7 +413,7 @@ class AudioFileCache:
 
         if filename.stem in self.auto_playlist_cachemap:
             cached_url = self.auto_playlist_cachemap[filename.stem]
-            if cached_url in self.bot.autoplaylist:
+            if cached_url in self.bot.playlist_mgr.loaded_tracks:
                 return True
 
         return False
