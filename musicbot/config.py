@@ -197,6 +197,17 @@ class Config:
             default=ConfigDefaults.command_prefix,
             comment="Command prefix is how all MusicBot commands must be started",
         )
+        self.commands_via_mention: bool = self.register.init_option(
+            section="Chat",
+            option="CommandsByMention",
+            dest="commands_via_mention",
+            default=ConfigDefaults.commands_via_mention,
+            getter="getboolean",
+            comment=(
+                "Enable using commands with @[YourBotNameHere]\n"
+                "The CommandPrefix is still available, but can be replaced with @ mention."
+            ),
+        )
         self.bound_channels: Set[int] = self.register.init_option(
             section="Chat",
             option="BindToChannels",
@@ -419,7 +430,20 @@ class Config:
             option="StatusMessage",
             dest="status_message",
             default=ConfigDefaults.status_message,
-            comment="Set a custom status text instead of showing dynamic info about what is playing in bot's activity status.",
+            comment=(
+                "Specify a custom message to use as the bot's status. If left empty, the bot\n"
+                "will display dynamic info about music currently being played in its status instead.\n"
+                "Status messages may also use the following variables:\n"
+                " {n_playing}   = Number of currently Playing music players.\n"
+                " {n_paused}    = Number of currently Paused music players.\n"
+                " {n_connected} = Number of connected music players, in any player state.\n"
+                "\n"
+                "The following variables give access to information about the player and track.\n"
+                "These variables may not be accurate in multi-guild bots:\n"
+                " {p0_length}   = The total duration of the track, if available. Ex: [2:34]\n"
+                " {p0_title}    = The track title for the currently playing track.\n"
+                " {p0_url}      = The track url for the currently playing track."
+            ),
         )
         self.write_current_song: bool = self.register.init_option(
             section="MusicBot",
@@ -1088,6 +1112,7 @@ class ConfigDefaults:
     spotify_clientsecret: str = ""
 
     command_prefix: str = "!"
+    commands_via_mention: bool = True
     bound_channels: Set[int] = set()
     unbound_servers: bool = False
     autojoin_channels: Set[int] = set()
@@ -1237,6 +1262,7 @@ class ConfigOptionRegistry:
         self._sections: Set[str] = set()
         self._options: Set[str] = set()
         self._distinct_options: Set[str] = set()
+        self._has_resolver: bool = True
 
         # set up missing config data.
         self.ini_missing_options: Set[ConfigOption] = set()
@@ -1256,6 +1282,11 @@ class ConfigOptionRegistry:
     def option_list(self) -> List[ConfigOption]:
         """Non-settable option list."""
         return self._option_list
+
+    @property
+    def resolver_available(self) -> bool:
+        """Status of option name-to-section resolver. If False, resolving cannot be used."""
+        return self._has_resolver
 
     def update_missing_config(self) -> None:
         """
@@ -1280,6 +1311,16 @@ class ConfigOptionRegistry:
         for option in self._option_list:
             if str(option) not in p_key_set:
                 self.ini_missing_options.add(option)
+
+    def get_sections_from_option(self, option_name: str) -> Set[str]:
+        """
+        Get the Section name(s) associated with the given `option_name` if available.
+
+        :return:  A set containing one or more section names, or an empty set if no option exists.
+        """
+        if self._has_resolver:
+            return set(o.section for o in self._option_list if o.option == option_name)
+        return set()
 
     def get_updated_options(self) -> List[ConfigOption]:
         """
@@ -1527,6 +1568,11 @@ class ConfigOptionRegistry:
         )
         self._option_list.append(config_opt)
         self._sections.add(section)
+        if str(config_opt) in self._options:
+            log.warning(
+                "Option names are not unique between INI sections!  Resolver is disabled."
+            )
+            self._has_resolver = False
         self._options.add(str(config_opt))
         self._distinct_options.add(option)
 

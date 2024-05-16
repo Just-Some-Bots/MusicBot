@@ -69,7 +69,7 @@ class PermissionsDefaults:
 
 class PermissiveDefaults(PermissionsDefaults):
     """
-    The maxiumum allowed version of defaults.
+    The maximum allowed version of defaults.
     Most values grant access or remove limits by default.
     """
 
@@ -229,7 +229,7 @@ class Permissions:
         """
         Converts the current Permission Group value into an INI file value as needed.
         Note: ConfigParser must not use multi-line values. This will break them.
-        Should multiline values be needed, maybe use ConfigUpdater package instead.
+        Should multi-line values be needed, maybe use ConfigUpdater package instead.
         """
         try:
             cu = configupdater.ConfigUpdater()
@@ -326,20 +326,26 @@ class PermissionGroup:
 
         self.command_whitelist = self._mgr.register.init_option(
             section=name,
-            option="CommandWhiteList",
+            option="CommandWhitelist",
             dest="command_whitelist",
             getter="getstrset",
             default=defaults.command_whitelist,
-            comment="List of command names allowed for use, separated by spaces. Overrides CommandBlackList is set.",
+            comment=(
+                "List of command names allowed for use, separated by spaces.\n"
+                "This option overrides CommandBlacklist if set."
+            ),
             empty_display_val="(All allowed)",
         )
         self.command_blacklist = self._mgr.register.init_option(
             section=name,
-            option="CommandBlackList",
+            option="CommandBlacklist",
             dest="command_blacklist",
             default=defaults.command_blacklist,
             getter="getstrset",
-            comment="List of command names denied from use, separated by spaces. Will not work if CommandWhiteList is set!",
+            comment=(
+                "List of command names denied from use, separated by spaces.\n"
+                "Will not work if CommandWhitelist is set!"
+            ),
             empty_display_val="(None denied)",
         )
         self.ignore_non_voice = self._mgr.register.init_option(

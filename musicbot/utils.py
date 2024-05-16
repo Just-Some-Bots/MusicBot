@@ -8,7 +8,7 @@ import re
 import sys
 import unicodedata
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Set, Union
 
 # protected imports to keep run.py from breaking on missing packages.
 try:
@@ -212,7 +212,7 @@ def mute_discord_console_log() -> None:
     for h in dlogger.handlers:
         if getattr(h, "terminator", None) == "":
             dlogger.removeHandler(h)
-    # for console output cariage return post muffled log string.
+    # for console output carriage return post muffled log string.
     print()
 
 
@@ -447,39 +447,6 @@ def paginate(
         chunks.append(currentchunk)
 
     return chunks
-
-
-def instance_diff(obj1: Any, obj2: Any) -> Dict[str, Tuple[Any, Any]]:
-    """
-    Compute a dict showing which attributes have changed between two given objects.
-    Objects must be of the same type and have __slots__ or __dict__.
-    """
-    if type(obj1) is not type(obj2):
-        raise ValueError("Objects must be of the same type to get differences.")
-
-    changes: Dict[str, Tuple[Any, Any]] = {}
-    keys = set()
-    if hasattr(obj1, "__slots__") and hasattr(obj2, "__slots__"):
-        vars1 = getattr(obj1, "__slots__", [])
-        vars2 = getattr(obj2, "__slots__", [])
-        if isinstance(vars1, list) and isinstance(vars2, list):
-            keys = set(vars1 + vars2)
-    elif hasattr(obj1, "__dict__") and hasattr(obj2, "__dict__"):
-        vars1 = getattr(obj1, "__dict__", {})
-        vars2 = getattr(obj2, "__dict__", {})
-        if isinstance(vars1, dict) and isinstance(vars2, dict):
-            keys = set(list(vars1.keys()) + list(vars2.keys()))
-    else:
-        raise ValueError(
-            f"Objects don't have __slots__ or __dict__ attribute: ({type(obj1)}, {type(obj2)})"
-        )
-
-    for key in keys:
-        val1 = getattr(obj1, key, None)
-        val2 = getattr(obj2, key, None)
-        if val1 != val2:
-            changes[key] = (val1, val2)
-    return changes
 
 
 def _func_() -> str:

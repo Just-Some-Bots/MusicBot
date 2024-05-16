@@ -66,11 +66,16 @@ DEFAULT_LOG_LEVEL: str = "INFO"
 
 # Default target FQDN or IP to ping with network tester.
 DEFAULT_PING_TARGET: str = "discord.com"
+# Default file location URI used by fallback HTTP network testing.
+# This URI must be available via standard HTTP on the above domain/IP target.
+DEFAULT_PING_HTTP_URI: str = "/robots.txt"
 # Max time in seconds that ping should wait for response.
-DEFAULT_PING_TIMEOUT: int = 2
+DEFAULT_PING_TIMEOUT: int = 5
 # Time in seconds to wait between pings.
-DEFAULT_PING_SLEEP: float = 0.8
-
+DEFAULT_PING_SLEEP: float = 2
+# Ping time settings for HTTP fallback.
+FALLBACK_PING_TIMEOUT: int = 15
+FALLBACK_PING_SLEEP: float = 4
 
 # Minimum number of seconds to wait for a VoiceClient to connect.
 VOICE_CLIENT_RECONNECT_TIMEOUT: int = 5
@@ -89,6 +94,7 @@ DISCORD_MSG_CHAR_LIMIT: int = 2000
 
 EMOJI_CHECK_MARK_BUTTON: str = "\u2705"
 EMOJI_CROSS_MARK_BUTTON: str = "\u274E"
+EMOJI_STOP_SIGN: str = "\U0001F6D1"
 EMOJI_IDLE_ICON: str = "\U0001f634"  # same as \N{SLEEPING FACE}
 EMOJI_PLAY_ICON: str = "\u25B6"  # add \uFE0F to make button
 EMOJI_PAUSE_ICON: str = "\u23F8\uFE0F"  # add \uFE0F to make button

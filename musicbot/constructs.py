@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import inspect
 import json
 import logging
@@ -20,20 +19,13 @@ from typing import (
 
 import discord
 
-from .constants import (
-    DATA_GUILD_FILE_OPTIONS,
-    DEFAULT_BOT_ICON,
-    DEFAULT_BOT_NAME,
-    DEFAULT_FOOTER_TEXT,
-)
+from .constants import DATA_GUILD_FILE_OPTIONS
 from .json import Json
 from .utils import _get_variable
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from discord.types.embed import EmbedType
-
     from .autoplaylist import AutoPlaylist
     from .bot import MusicBot
     from .config import Config
@@ -89,6 +81,9 @@ class GuildSpecificData:
         # Members below are available for public use.
         self.last_np_msg: Optional["discord.Message"] = None
         self.last_played_song_subject: str = ""
+        self.auto_join_channel: Optional[
+            Union["discord.VoiceChannel", "discord.StageChannel"]
+        ] = None
         self.autoplaylist: "AutoPlaylist" = self._bot.playlist_mgr.get_default()
         self.current_playing_url: str = ""
 
@@ -147,8 +142,14 @@ class GuildSpecificData:
     @command_prefix.setter
     def command_prefix(self, value: str) -> None:
         """Set the value of command_prefix"""
+        if not value:
+            raise ValueError("Cannot set an empty prefix.")
+
         # update prefix history
-        self._prefix_history.add(self._command_prefix)
+        if not self._command_prefix:
+            self._prefix_history.add(self._bot_config.command_prefix)
+        else:
+            self._prefix_history.add(self._command_prefix)
 
         # set prefix value
         self._command_prefix = value
@@ -158,11 +159,23 @@ class GuildSpecificData:
             self._prefix_history.pop()
 
     @property
-    def command_prefix_history(self) -> List[str]:
-        """Get the prefix history from this session, including the current prefix."""
+    def command_prefix_list(self) -> List[str]:
+        """
+        Get the prefix list for this guild.
+        It includes a history of prefix changes since last restart as well.
+        """
         history = list(self._prefix_history)
+
+        # add self mention to invoke list.
+        if self._bot_config.commands_via_mention and self._bot.user:
+            history.append(f"<@{self._bot.user.id}>")
+
+        # Add current prefix to list.
         if self._command_prefix:
             history = [self._command_prefix] + history
+        else:
+            history = [self._bot_config.command_prefix] + history
+
         return history
 
     def get_event(self, name: str) -> GuildAsyncEvent:
