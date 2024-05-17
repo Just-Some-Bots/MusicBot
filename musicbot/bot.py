@@ -6937,6 +6937,7 @@ class MusicBot(discord.Client):
         delta = format_song_duration(uptime)
         return Response(
             f"MusicBot has been up for `{delta}`",
+        )
 
     @owner_only
     async def cmd_botlatency(self) -> CommandResponse:
