@@ -1,17 +1,20 @@
 import asyncio
+import glob
 import json
 import logging
 import os
 import pathlib
 import shutil
 import time
-import typing
+from typing import TYPE_CHECKING, Dict, Tuple
 
+from .constants import DATA_FILE_CACHEMAP, DEFAULT_DATA_DIR
 from .utils import format_size_from_bytes
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from .bot import MusicBot
-    from .entry import BasePlaylistEntry
+    from .config import Config
+    from .entry import BasePlaylistEntry, URLPlaylistEntry
 
 log = logging.getLogger(__name__)
 
@@ -22,28 +25,73 @@ class AudioFileCache:
     """
 
     def __init__(self, bot: "MusicBot") -> None:
-        self.bot = bot
-        self.config = bot.config
-        self.cache_path = pathlib.Path(bot.config.audio_cache_path)
+        """
+        Manage data related to the audio cache, such as its current size,
+        file count, file paths, and synchronization locks.
+        """
+        self.bot: "MusicBot" = bot
+        self.config: "Config" = bot.config
+        self.cache_path: pathlib.Path = bot.config.audio_cache_path
+        self.cachemap_file = pathlib.Path(DEFAULT_DATA_DIR).joinpath(DATA_FILE_CACHEMAP)
 
-        self.size_bytes = 0
-        self.file_count = 0
+        self.size_bytes: int = 0
+        self.file_count: int = 0
 
         # Stores filenames without extension associated to a playlist URL.
-        self.auto_playlist_cachemap = {}
-        self.cachemap_file_lock = asyncio.Lock()
+        self.auto_playlist_cachemap: Dict[str, str] = {}
+        self.cachemap_file_lock: asyncio.Lock = asyncio.Lock()
+
+        if self.config.auto_playlist:
+            self.load_autoplay_cachemap()
+
+    @property
+    def folder(self) -> pathlib.Path:
+        """Get the configured cache path as a pathlib.Path"""
+        return self.cache_path
+
+    def get_if_cached(self, filename: str, ignore_ext: bool = True) -> str:
+        """
+        Check for an existing cache file by the given name, and return the matched path.
+        The `filename` will be reduced to its basename and joined with the current cache_path.
+        If `ignore_ext` is set, the filename will be matched without its last suffix / extension.
+        An exact match is preferred, but only the first of many possible matches will be returned.
+
+        :returns: a path string or empty string if not found.
+        """
+        file_path = pathlib.Path(filename)
+        filename = file_path.name
+        cache_file_path = self.cache_path.with_name(filename)
+
+        if ignore_ext:
+            if cache_file_path.is_file():
+                return str(cache_file_path)
+
+            safe_stem = glob.escape(pathlib.Path(filename).stem)
+            for item in self.cache_path.glob(f"{safe_stem}.*"):
+                if item.is_file():
+                    return str(item)
+
+        elif cache_file_path.is_file():
+            return str(file_path)
+
+        return ""
+
+    def ensure_cache_dir_exists(self) -> None:
+        """Check for and create the cache directory path or raise an error"""
+        if not self.cache_dir_exists():
+            self.cache_path.mkdir(parents=True)
 
     def cache_dir_exists(self) -> bool:
         """Wrapper for self.cache.is_dir() for external use."""
         return self.cache_path.is_dir()
 
-    def get_cache_size(self) -> typing.Tuple[int, int]:
+    def get_cache_size(self) -> Tuple[int, int]:
         """
         Returns AudioFileCache size as a two member tuple containing size_bytes and file_count.
         """
         return (self.size_bytes, self.file_count)
 
-    def scan_audio_cache(self) -> typing.Tuple[int, int]:
+    def scan_audio_cache(self) -> Tuple[int, int]:
         """
         Scan the audio cache directory and return a tuple with info.
         Returns (size_in_bytes:int, number_of_files:int)
@@ -66,8 +114,8 @@ class AudioFileCache:
         try:
             path.unlink(missing_ok=True)
             return True
-        except Exception:
-            log.exception(f"Failed to delete cache file:  {path}")
+        except (OSError, PermissionError, IsADirectoryError):
+            log.warning("Failed to delete cache file:  %s", path, exc_info=True)
             return False
 
     def _delete_cache_dir(self) -> bool:
@@ -76,19 +124,21 @@ class AudioFileCache:
         """
         try:
             shutil.rmtree(self.cache_path)
-            self.cached_audio_bytes = 0
+            self.size_bytes = 0
+            self.file_count = 0
             log.debug("Audio cache directory has been removed.")
             return True
-        except Exception:
-            new_name = self.cache_path.stem + "__"
+        except (OSError, PermissionError, NotADirectoryError):
+            new_name = self.cache_path.parent.joinpath(self.cache_path.stem + "__")
             try:
-                new_path = self.cache_path.rename(self.cache_path.with_stem(new_name))
-            except Exception:
+                new_path = self.cache_path.rename(new_name)
+            except (OSError, PermissionError, FileExistsError):
                 log.debug("Audio cache directory could not be removed or renamed.")
                 return False
             try:
                 shutil.rmtree(new_path)
-            except Exception:
+                return True
+            except (OSError, PermissionError, NotADirectoryError):
                 new_path.rename(self.cache_path)
                 log.debug("Audio cache directory could not be removed.")
                 return False
@@ -107,13 +157,13 @@ class AudioFileCache:
             # mtime is usually older than download time. atime is changed on multiple files by some part of the player.
             # To make this consistent everywhere, we need to store last-played times for songs on our own.
             cached_files = sorted(
-                pathlib.Path(self.cache_path).iterdir(),
+                self.cache_path.iterdir(),
                 key=os.path.getctime,
                 reverse=True,
             )
         else:
             cached_files = sorted(
-                pathlib.Path(self.cache_path).iterdir(),
+                self.cache_path.iterdir(),
                 key=os.path.getatime,
                 reverse=True,
             )
@@ -162,28 +212,22 @@ class AudioFileCache:
 
         if removed_count:
             log.debug(
-                "Audio cache deleted {} file{}, total of {} removed.".format(
-                    removed_count,
-                    "" if removed_count == 1 else "s",
-                    format_size_from_bytes(removed_size),
-                )
+                "Audio cache deleted %s file(s), total of %s removed.",
+                removed_count,
+                format_size_from_bytes(removed_size),
             )
         if retained_count:
             log.debug(
-                "Audio cached retained {} file{} from autoplaylist, total of {} retained.".format(
-                    retained_count,
-                    "" if retained_count == 1 else "s",
-                    format_size_from_bytes(retained_size),
-                )
+                "Audio cached retained %s file(s) from autoplaylist, total of %s retained.",
+                retained_count,
+                format_size_from_bytes(retained_size),
             )
         self.file_count = len(cached_files) - removed_count
         self.size_bytes = cached_size
         log.debug(
-            "Audio cache is now {} over {} file{}.".format(
-                format_size_from_bytes(self.size_bytes),
-                self.file_count,
-                "" if self.file_count == 1 else "s",
-            )
+            "Audio cache is now %s over %s file(s).",
+            format_size_from_bytes(self.size_bytes),
+            self.file_count,
         )
         return True
 
@@ -191,7 +235,7 @@ class AudioFileCache:
         """
         Handle deletion of cache data according to settings and return bool status.
         Will return False if no cache directory exists, and error prevented deletion.
-        Param `remove_dir` is intened only to be used in bot-startup.
+        Parameter `remove_dir` is intended only to be used in bot-startup.
         """
 
         if not os.path.isdir(self.cache_path):
@@ -200,19 +244,20 @@ class AudioFileCache:
 
         if self.config.save_videos:
             return self._process_cache_delete()
-        elif remove_dir:
+
+        if remove_dir:
             return self._delete_cache_dir()
 
         return True
 
-    def handle_new_cache_entry(self, entry: "BasePlaylistEntry") -> None:
-        """1
+    def handle_new_cache_entry(self, entry: "URLPlaylistEntry") -> None:
+        """
         Test given entry for cachemap inclusion and run cache limit checks.
         """
-        if entry.url in self.bot.autoplaylist:
+        if entry.url in self.bot.playlist_mgr.loaded_tracks:
             # ignore partial downloads
             if entry.cache_busted:
-                log.noise(
+                log.noise(  # type: ignore[attr-defined]
                     "Audio cache file is from autoplaylist but marked as busted, ignoring it."
                 )
             else:
@@ -224,7 +269,8 @@ class AudioFileCache:
                 self.size_bytes = self.size_bytes + entry.downloaded_bytes
                 if self.size_bytes > self.config.storage_limit_bytes:
                     log.debug(
-                        f"Cache level requires cleanup. {format_size_from_bytes(self.size_bytes)}"
+                        "Cache level requires cleanup. %s",
+                        format_size_from_bytes(self.size_bytes),
                     )
                     self.delete_old_audiocache()
             elif self.config.storage_limit_days:
@@ -246,18 +292,19 @@ class AudioFileCache:
             self.auto_playlist_cachemap = {}
             return
 
-        if not os.path.isfile(self.config.auto_playlist_cachemap_file):
+        if not self.cachemap_file.is_file():
             log.debug("Autoplaylist has no cache map, moving on.")
             self.auto_playlist_cachemap = {}
             return
 
-        with open(self.config.auto_playlist_cachemap_file, "r") as fh:
+        with open(self.cachemap_file, "r", encoding="utf8") as fh:
             try:
                 self.auto_playlist_cachemap = json.load(fh)
                 log.info(
-                    f"Loaded autoplaylist cache map with {len(self.auto_playlist_cachemap)} entries."
+                    "Loaded autoplaylist cache map with %s entries.",
+                    len(self.auto_playlist_cachemap),
                 )
-            except Exception:
+            except json.JSONDecodeError:
                 log.exception("Failed to load autoplaylist cache map.")
                 self.auto_playlist_cachemap = {}
 
@@ -274,12 +321,13 @@ class AudioFileCache:
 
         async with self.cachemap_file_lock:
             try:
-                with open(self.config.auto_playlist_cachemap_file, "w") as fh:
+                with open(self.cachemap_file, "w", encoding="utf8") as fh:
                     json.dump(self.auto_playlist_cachemap, fh)
                     log.debug(
-                        f"Saved autoplaylist cache map with {len(self.auto_playlist_cachemap)} entries."
+                        "Saved autoplaylist cache map with %s entries.",
+                        len(self.auto_playlist_cachemap),
                     )
-            except Exception:
+            except (TypeError, ValueError, RecursionError):
                 log.exception("Failed to save autoplaylist cache map.")
 
     def add_autoplay_cachemap_entry(self, entry: "BasePlaylistEntry") -> None:
@@ -298,11 +346,10 @@ class AudioFileCache:
         if filename in self.auto_playlist_cachemap:
             if self.auto_playlist_cachemap[filename] != entry.url:
                 log.warning(
-                    "Autoplaylist cache map conflict on Key: {}  Old: {}  New: {}".format(
-                        filename,
-                        self.auto_playlist_cachemap[filename],
-                        entry.url,
-                    )
+                    "Autoplaylist cache map conflict on Key: %s  Old: %s  New: %s",
+                    filename,
+                    self.auto_playlist_cachemap[filename],
+                    entry.url,
                 )
                 self.auto_playlist_cachemap[filename] = entry.url
                 change_made = True
@@ -348,7 +395,7 @@ class AudioFileCache:
         for key in to_remove:
             del self.auto_playlist_cachemap[key]
 
-        if len(to_remove):
+        if len(to_remove) != 0:
             self.bot.loop.create_task(self.save_autoplay_cachemap())
 
     def _check_autoplay_cachemap(self, filename: pathlib.Path) -> bool:
@@ -366,7 +413,7 @@ class AudioFileCache:
 
         if filename.stem in self.auto_playlist_cachemap:
             cached_url = self.auto_playlist_cachemap[filename.stem]
-            if cached_url in self.bot.autoplaylist:
+            if cached_url in self.bot.playlist_mgr.loaded_tracks:
                 return True
 
         return False

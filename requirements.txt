@@ -1,7 +1,8 @@
 pynacl
-git+https://github.com/Rapptz/discord.py
+discord.py [voice, speed] @ git+https://github.com/Rapptz/discord.py
 pip
 yt-dlp
 colorlog
 cffi --only-binary all; sys_platform == 'win32'
 certifi
+configupdater

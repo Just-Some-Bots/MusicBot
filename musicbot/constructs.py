@@ -90,8 +90,9 @@ class GuildSpecificData:
 
         # create a task to load any persistent guild options.
         # in theory, this should work out fine.
-        bot.create_task(self.load_guild_options_file(), name="MB_LoadGuildOptions")
-        bot.create_task(self.autoplaylist.load(), name="MB_LoadAPL")
+        if bot.loop:
+            bot.loop.create_task(self.load_guild_options_file())
+            bot.loop.create_task(self.autoplaylist.load())
 
     def is_ready(self) -> bool:
         """A status indicator for fully loaded server data."""

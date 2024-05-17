@@ -29,20 +29,15 @@ def run_or_raise_error(cmd: List[str], message: str, **kws: Any) -> None:
     """
     Wrapper for subprocess.check_call that avoids shell=True
 
-    :kwparam: ok_codes:  A list of non-zero exit codes to consider OK.
     :raises: RuntimeError  with given `message` as exception text.
     """
-    ok_codes = kws.pop("ok_codes", [])
     try:
         subprocess.check_call(cmd, **kws)
-    except subprocess.CalledProcessError as e:
-        if e.returncode in ok_codes:
-            return
-        raise RuntimeError(message) from e
     except (  # pylint: disable=duplicate-code
         OSError,
         PermissionError,
         FileNotFoundError,
+        subprocess.CalledProcessError,
     ) as e:
         raise RuntimeError(message) from e
 
@@ -52,24 +47,13 @@ def get_bot_version(git_bin: str) -> str:
     Gets the bot current version as reported by git, without loading constants.
     """
     try:
-        # Get the last release tag, number of commits since, and g{commit_id} as string.
-        ver_p1 = (
-            subprocess.check_output([git_bin, "describe", "--tags", "--always"])
+        ver = (
+            subprocess.check_output(
+                [git_bin, "describe", "--tags", "--always", "--dirty"]
+            )
             .decode("ascii")
             .strip()
         )
-        # Check status of file modifications.
-        ver_p2 = (
-            subprocess.check_output([git_bin, "status", "-suno", "--porcelain"])
-            .decode("ascii")
-            .strip()
-        )
-        if ver_p2:
-            ver_p2 = "-modded"
-        else:
-            ver_p2 = ""
-
-        ver = f"{ver_p1}{ver_p2}"
 
     except (subprocess.SubprocessError, OSError, ValueError) as e:
         print(f"Failed getting version due to:  {str(e)}")
@@ -135,35 +119,18 @@ def update_deps() -> None:
     """
     print("Attempting to update dependencies...")
 
-    # outside a venv these args are used for pip update
-    run_args = [
-        sys.executable,
-        "-m",
-        "pip",
-        "install",
-        "--no-warn-script-location",
-        "--user",
-        "-U",
-        "-r",
-        "requirements.txt",
-    ]
-
-    # detect if venv is in use and update args.
-    if sys.prefix != sys.base_prefix:
-        run_args = [
+    run_or_raise_error(
+        [
             sys.executable,
             "-m",
             "pip",
             "install",
             "--no-warn-script-location",
-            # No --user site-packages in venv
+            "--user",
             "-U",
             "-r",
             "requirements.txt",
-        ]
-
-    run_or_raise_error(
-        run_args,
+        ],
         "Could not update dependencies. You need to update manually. "
         f"Run:  {sys.executable} -m pip install -U -r requirements.txt",
     )
@@ -292,15 +259,10 @@ def update_ffmpeg() -> None:
                 [
                     winget_bin,
                     "upgrade",
-                    "ffmpeg",
+                    "Gyan.FFmpeg",
                 ],
                 "Could not update ffmpeg. You need to update it manually."
-                "Try running:  winget upgrade ffmpeg",
-                # See here for documented codes:
-                # https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md
-                ok_codes=[
-                    0x8A15002B,  # No applicable update found
-                ],
+                "Try running:  winget upgrade Gyan.FFmpeg",
             )
             return
 
@@ -381,29 +343,20 @@ def main() -> None:
     print("Checking for current bot version and local changes...")
     get_bot_version(git_bin)
 
-    # Check that the current working directory is clean.
-    # -suno is --short with --untracked-files=no
+    # Check that the current working directory is clean
     status_unclean = subprocess.check_output(
-        [git_bin, "status", "-suno", "--porcelain"], universal_newlines=True
+        [git_bin, "status", "--porcelain"], universal_newlines=True
     )
-    if status_unclean.strip():
-        # TODO: Maybe offering a stash option here would not be so bad...
-        print(
-            "Detected the following files have been modified:\n"
-            f"{status_unclean}\n"
-            "To update MusicBot source code, you must first remove modifications made to the above source files.\n"
-            "If you want to keep your changes, consider using `git stash` or otherwise back them up before you continue.\n"
-            "This script can automatically revert your modifications, but cannot automatically save them.\n"
-        )
+    if status_unclean:
         hard_reset = yes_or_no_input(
-            "WARNING:  All changed files listed above will be reset!\n"
-            "Would you like to reset the Source code, to allow MusicBot to update?"
+            "You have modified files that are tracked by Git (e.g the bot's source files).\n"
+            "Should we try to hard reset the repo? You will lose local modifications."
         )
         if hard_reset:
             run_or_raise_error(
                 [git_bin, "reset", "--hard"],
                 "Could not hard reset the directory to a clean state.\n"
-                "You will need to manually reset the local git repository, or make a new clone of MusicBot.",
+                "You will need to run `git pull` manually.",
             )
         else:
             do_deps = yes_or_no_input(

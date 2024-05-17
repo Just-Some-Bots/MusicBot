@@ -1,58 +1,122 @@
-import os
 import asyncio
+import datetime
 import logging
-import traceback
+import os
 import re
-import sys
+import shutil
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
-from enum import Enum
-from yt_dlp.utils import ContentTooShortError
+import discord
+from yt_dlp.utils import (  # type: ignore[import-untyped]
+    ContentTooShortError,
+    YoutubeDLError,
+)
+
 from .constructs import Serializable
-from .exceptions import ExtractionError
-from .utils import get_header, md5sum
+from .downloader import YtdlpResponseDict
+from .exceptions import ExtractionError, InvalidDataError, MusicbotException
+from .spotify import Spotify
 
-# optionally using pymediainfo instead of ffprobe if presents
-try:
-    import pymediainfo
-except ImportError:
-    pymediainfo = None
+if TYPE_CHECKING:
+    from .downloader import Downloader
+    from .filecache import AudioFileCache
+    from .playlist import Playlist
+
+    # Explicit compat with python 3.8
+    AsyncFuture = asyncio.Future[Any]
+else:
+    AsyncFuture = asyncio.Future
+
+GuildMessageableChannels = Union[
+    discord.Thread,
+    discord.TextChannel,
+    discord.VoiceChannel,
+    discord.StageChannel,
+]
 
 log = logging.getLogger(__name__)
 
-
-class EntryTypes(Enum):
-    URL = 1
-    STEAM = 2
-    FILE = 3
-
-    def __str__(self):
-        return self.name
+# optionally using pymediainfo instead of ffprobe if presents
+try:
+    import pymediainfo  # type: ignore[import-untyped]
+except ImportError:
+    log.debug("module 'pymediainfo' not found, will fall back to ffprobe.")
+    pymediainfo = None
 
 
 class BasePlaylistEntry(Serializable):
-    def __init__(self):
-        self.filename = None
-        self.downloaded_bytes = 0
-        self.cache_busted = False
-        self._is_downloading = False
-        self._waiting_futures = []
+    def __init__(self) -> None:
+        """
+        Manage a playable media reference and its meta data.
+        Either a URL or a local file path that ffmpeg can use.
+        """
+        self.filename: str = ""
+        self.downloaded_bytes: int = 0
+        self.cache_busted: bool = False
+        self._is_downloading: bool = False
+        self._is_downloaded: bool = False
+        self._waiting_futures: List[AsyncFuture] = []
 
     @property
-    def is_downloaded(self):
+    def start_time(self) -> float:
+        """
+        Time in seconds that is passed to ffmpeg -ss flag.
+        """
+        return 0
+
+    @property
+    def url(self) -> str:
+        """
+        Get a URL suitable for YoutubeDL to download, or likewise
+        suitable for ffmpeg to stream or directly play back.
+        """
+        raise NotImplementedError
+
+    @property
+    def title(self) -> str:
+        """
+        Get a title suitable for display using any extracted info.
+        """
+        raise NotImplementedError
+
+    @property
+    def duration_td(self) -> datetime.timedelta:
+        """
+        Get this entry's duration as a timedelta object.
+        The object may contain a 0 value.
+        """
+        raise NotImplementedError
+
+    @property
+    def is_downloaded(self) -> bool:
+        """
+        Get the entry's downloaded status.
+        Typically set by _download function.
+        """
         if self._is_downloading:
             return False
 
-        return bool(self.filename)
+        return bool(self.filename) and self._is_downloaded
 
-    async def _download(self):
+    @property
+    def is_downloading(self) -> bool:
+        """Get the entry's downloading status. Usually False."""
+        return self._is_downloading
+
+    async def _download(self) -> None:
+        """
+        Take any steps needed to download the media and make it ready for playback.
+        If the media already exists, this function can return early.
+        """
         raise NotImplementedError
 
-    def get_ready_future(self):
+    def get_ready_future(self) -> AsyncFuture:
         """
-        Returns a future that will fire when the song is ready to be played. The future will either fire with the result (being the entry) or an exception
+        Returns a future that will fire when the song is ready to be played.
+        The future will either fire with the result (being the entry) or an exception
         as to why the song download failed.
         """
-        future = asyncio.Future()
+        future = asyncio.Future()  # type: AsyncFuture
         if self.is_downloaded:
             # In the event that we're downloaded, we're already ready for playback.
             future.set_result(self)
@@ -62,12 +126,14 @@ class BasePlaylistEntry(Serializable):
             self._waiting_futures.append(future)
             asyncio.ensure_future(self._download())
 
-        log.debug("Created future for {0}".format(self.filename))
+        name = self.title or self.filename or self.url
+        log.debug("Created future for %s", name)
         return future
 
-    def _for_each_future(self, cb):
+    def _for_each_future(self, cb: Callable[..., Any]) -> None:
         """
-        Calls `cb` for each future that is not cancelled. Absorbs and logs any errors that may have occurred.
+        Calls `cb` for each future that is not canceled.
+        Absorbs and logs any errors that may have occurred.
         """
         futures = self._waiting_futures
         self._waiting_futures = []
@@ -79,341 +145,498 @@ class BasePlaylistEntry(Serializable):
             try:
                 cb(future)
 
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 log.exception("Unhandled exception in _for_each_future callback.")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         return self is other
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return id(self)
 
 
-async def run_command(cmd):
-    p = await asyncio.create_subprocess_shell(
-        cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+async def run_command(command: List[str]) -> bytes:
+    """
+    Use an async subprocess exec to execute the given `command`
+    This method will wait for then return the output.
+
+    :param: command:
+        Must be a list of arguments, where element 0 is an executable path.
+
+    :returns:  stdout concatenated with stderr as bytes.
+    """
+    p = await asyncio.create_subprocess_exec(
+        # The inconsistency between the various implements of subprocess, asyncio.subprocess, and
+        # all the other process calling functions tucked into python is alone enough to be dangerous.
+        # There is a time and place for everything, and this is not the time or place for shells.
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
     )
-    log.debug("Starting asyncio subprocess ({0}) with command: {1}".format(p, cmd))
+    log.noise(  # type: ignore[attr-defined]
+        "Starting asyncio subprocess (%s) with command: %s", p, command
+    )
     stdout, stderr = await p.communicate()
     return stdout + stderr
 
 
-def get(program):
-    def is_exe(file_path):
-        found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
-        if not found and sys.platform == "win32":
-            file_path = file_path + ".exe"
-            found = os.path.isfile(file_path) and os.access(file_path, os.X_OK)
-        return found
-
-    fpath, __ = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
-
-
 class URLPlaylistEntry(BasePlaylistEntry):
+    SERIAL_VERSION: int = 3  # version for serial data checks.
+
     def __init__(
-        self, playlist, url, title, duration=None, expected_filename=None, **meta
-    ):
+        self,
+        playlist: "Playlist",
+        info: YtdlpResponseDict,
+        author: Optional["discord.Member"] = None,
+        channel: Optional[GuildMessageableChannels] = None,
+    ) -> None:
+        """
+        Create URL Playlist entry that will be downloaded for playback.
+
+        :param: playlist:  The playlist object this entry should belong to.
+        :param: info:  A YtdlResponseDict from downloader.extract_info()
+        """
         super().__init__()
 
-        self.playlist = playlist
-        self.url = url
-        self.title = title
-        self.duration = duration
-        if duration is None:  # duration could be 0
+        self._start_time: Optional[float] = None
+        self._playback_rate: Optional[float] = None
+        self.playlist: "Playlist" = playlist
+        self.downloader: "Downloader" = playlist.bot.downloader
+        self.filecache: "AudioFileCache" = playlist.bot.filecache
+
+        self.info: YtdlpResponseDict = info
+
+        if self.duration is None:
             log.info(
-                "Cannot extract duration of the entry. This does not affect the ability of the bot. "
-                "However, estimated time for this entry will not be unavailable and estimated time "
-                "of the queue will also not be available until this entry got downloaded.\n"
-                "entry name: {}".format(self.title)
+                "Extraction did not provide a duration for this entry.\n"
+                "MusicBot cannot estimate queue times until it is downloaded.\n"
+                "Entry name:  %s",
+                self.title,
             )
-        self.expected_filename = expected_filename
-        self.meta = meta
-        self.aoptions = "-vn"
 
-        self.download_folder = self.playlist.downloader.download_folder
+        self.author: Optional["discord.Member"] = author
+        self.channel: Optional[GuildMessageableChannels] = channel
 
-    def __json__(self):
+        self._aopt_eq: str = ""
+
+    @property
+    def aoptions(self) -> str:
+        """After input options for ffmpeg to use with this entry."""
+        aopts = f"{self._aopt_eq}"
+        # Set playback speed options if needed.
+        if self._playback_rate is not None or self.playback_speed != 1.0:
+            # Append to the EQ options if they are set.
+            if self._aopt_eq:
+                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
+            else:
+                aopts = f"-af atempo={self.playback_speed:.3f}"
+
+        if aopts:
+            return f"{aopts} -vn"
+
+        return "-vn"
+
+    @property
+    def boptions(self) -> str:
+        """Before input options for ffmpeg to use with this entry."""
+        if self._start_time is not None:
+            return f"-ss {self._start_time}"
+        return ""
+
+    @property
+    def from_auto_playlist(self) -> bool:
+        """Returns true if the entry has an author or a channel."""
+        if self.author is not None or self.channel is not None:
+            return False
+        return True
+
+    @property
+    def url(self) -> str:
+        """Gets a playable URL from this entries info."""
+        return self.info.get_playable_url()
+
+    @property
+    def title(self) -> str:
+        """Gets a title string from entry info or 'Unknown'"""
+        # TODO: i18n for this at some point.
+        return self.info.title or "Unknown"
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Gets available duration data or None"""
+        # duration can be 0, if so we make sure it returns None instead.
+        return self.info.get("duration", None) or None
+
+    @duration.setter
+    def duration(self, value: float) -> None:
+        self.info["duration"] = value
+
+    @property
+    def duration_td(self) -> datetime.timedelta:
+        """
+        Returns duration as a datetime.timedelta object.
+        May contain 0 seconds duration.
+        """
+        t = self.duration or 0
+        return datetime.timedelta(seconds=t)
+
+    @property
+    def thumbnail_url(self) -> str:
+        """Get available thumbnail from info or an empty string"""
+        return self.info.thumbnail_url
+
+    @property
+    def expected_filename(self) -> Optional[str]:
+        """Get the expected filename from info if available or None"""
+        return self.info.get("__expected_filename", None)
+
+    def __json__(self) -> Dict[str, Any]:
+        """
+        Handles representing this object as JSON.
+        """
+        # WARNING:  if you change data or keys here, you must increase SERIAL_VERSION.
         return self._enclose_json(
             {
-                "version": 1,
-                "url": self.url,
-                "title": self.title,
-                "duration": self.duration,
+                "version": URLPlaylistEntry.SERIAL_VERSION,
+                "info": self.info.data,
                 "downloaded": self.is_downloaded,
-                "expected_filename": self.expected_filename,
                 "filename": self.filename,
-                "full_filename": (
-                    os.path.abspath(self.filename) if self.filename else self.filename
-                ),
-                "meta": {
-                    name: {
-                        "type": obj.__class__.__name__,
-                        "id": obj.id,
-                        "name": obj.name,
-                    }
-                    for name, obj in self.meta.items()
-                    if obj
-                },
+                "author_id": self.author.id if self.author else None,
+                "channel_id": self.channel.id if self.channel else None,
                 "aoptions": self.aoptions,
             }
         )
 
     @classmethod
-    def _deserialize(cls, data, playlist=None):
+    def _deserialize(
+        cls,
+        raw_json: Dict[str, Any],
+        playlist: Optional["Playlist"] = None,
+        **kwargs: Dict[str, Any],
+    ) -> Optional["URLPlaylistEntry"]:
+        """
+        Handles converting from JSON to URLPlaylistEntry.
+        """
+        # WARNING:  if you change data or keys here, you must increase SERIAL_VERSION.
+
+        # yes this is an Optional that is, in fact, not Optional. :)
         assert playlist is not None, cls._bad("playlist")
 
+        vernum: Optional[int] = raw_json.get("version", None)
+        if not vernum:
+            log.error("Entry data is missing version number, cannot deserialize.")
+            return None
+        if vernum != URLPlaylistEntry.SERIAL_VERSION:
+            log.error("Entry data has the wrong version number, cannot deserialize.")
+            return None
+
         try:
-            # TODO: version check
-            url = data["url"]
-            title = data["title"]
-            duration = data["duration"]
+            info = YtdlpResponseDict(raw_json["info"])
             downloaded = (
-                data["downloaded"] if playlist.bot.config.save_videos else False
+                raw_json["downloaded"] if playlist.bot.config.save_videos else False
             )
-            filename = data["filename"] if downloaded else None
-            expected_filename = data["expected_filename"]
-            meta = {}
+            filename = raw_json["filename"] if downloaded else None
 
-            # TODO: Better [name] fallbacks
-            if "channel" in data["meta"]:
-                # int() it because persistent queue from pre-rewrite days saved ids as strings
-                meta["channel"] = playlist.bot.get_channel(
-                    int(data["meta"]["channel"]["id"])
-                )
-                if not meta["channel"]:
+            channel_id = raw_json.get("channel_id", None)
+            if channel_id:
+                o_channel = playlist.bot.get_channel(int(channel_id))
+
+                if not o_channel:
                     log.warning(
-                        "Cannot find channel in an entry loaded from persistent queue. Chennel id: {}".format(
-                            data["meta"]["channel"]["id"]
-                        )
+                        "Deserialized URLPlaylistEntry cannot find channel with id:  %s",
+                        raw_json["channel_id"],
                     )
-                    meta.pop("channel")
-                elif "author" in data["meta"]:
-                    # int() it because persistent queue from pre-rewrite days saved ids as strings
-                    meta["author"] = meta["channel"].guild.get_member(
-                        int(data["meta"]["author"]["id"])
-                    )
-                    if not meta["author"]:
-                        log.warning(
-                            "Cannot find author in an entry loaded from persistent queue. Author id: {}".format(
-                                data["meta"]["author"]["id"]
-                            )
-                        )
-                        meta.pop("author")
 
-            entry = cls(playlist, url, title, duration, expected_filename, **meta)
+                if isinstance(
+                    o_channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    channel = o_channel
+                else:
+                    log.warning(
+                        "Deserialized URLPlaylistEntry has the wrong channel type:  %s",
+                        type(o_channel),
+                    )
+                    channel = None
+            else:
+                channel = None
+
+            author_id = raw_json.get("author_id", None)
+            if author_id:
+                if isinstance(
+                    channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    author = channel.guild.get_member(int(author_id))
+
+                    if not author:
+                        log.warning(
+                            "Deserialized URLPlaylistEntry cannot find author with id:  %s",
+                            raw_json["author_id"],
+                        )
+                else:
+                    author = None
+                    log.warning(
+                        "Deserialized URLPlaylistEntry has an author ID but no channel for lookup!",
+                    )
+            else:
+                author = None
+
+            entry = cls(playlist, info, author=author, channel=channel)
             entry.filename = filename
 
             return entry
-        except Exception as e:
-            log.error("Could not load {}".format(cls.__name__), exc_info=e)
+        except (ValueError, TypeError, KeyError) as e:
+            log.error("Could not load %s", cls.__name__, exc_info=e)
 
-    # noinspection PyTypeChecker
-    async def _download(self):
+        return None
+
+    @property
+    def start_time(self) -> float:
+        if self._start_time is not None:
+            return self._start_time
+        return 0
+
+    def set_start_time(self, start_time: float) -> None:
+        """Sets a start time in seconds to use with the ffmpeg -ss flag."""
+        self._start_time = start_time
+
+    @property
+    def playback_speed(self) -> float:
+        """Get the current playback speed if one was set, or return 1.0 for normal playback."""
+        if self._playback_rate is not None:
+            return self._playback_rate
+        return self.playlist.bot.config.default_speed or 1.0
+
+    def set_playback_speed(self, speed: float) -> None:
+        """Set the playback speed to be used with ffmpeg -af:atempo filter."""
+        self._playback_rate = speed
+
+    async def _ensure_entry_info(self) -> None:
+        """helper to ensure this entry object has critical information"""
+
+        # handle some extra extraction here so we can allow spotify links in the queue.
+        if "open.spotify.com" in self.url.lower() and Spotify.is_url_supported(
+            self.url
+        ):
+            info = await self.downloader.extract_info(self.url, download=False)
+            if info.ytdl_type == "url":
+                self.info = info
+            else:
+                raise InvalidDataError(
+                    "Cannot download spotify links, these should be extracted before now."
+                )
+
+        # if this isn't set this entry is probably from a playlist and needs more info.
+        if not self.expected_filename:
+            new_info = await self.downloader.extract_info(self.url, download=False)
+            self.info.data = {**self.info.data, **new_info.data}
+
+    async def _download(self) -> None:
         if self._is_downloading:
             return
+        log.debug("URLPlaylistEntry is now checking download status.")
 
         self._is_downloading = True
         try:
+            # Ensure any late-extraction links, like Spotify tracks, get processed.
+            await self._ensure_entry_info()
+
             # Ensure the folder that we're going to move into exists.
-            if not os.path.exists(self.download_folder):
-                os.makedirs(self.download_folder)
+            self.filecache.ensure_cache_dir_exists()
 
-            # self.expected_filename: audio_cache\youtube-9R8aSKwTEMg-NOMA_-_Brain_Power.m4a
-            extractor = os.path.basename(self.expected_filename).split("-")[0]
+            # check and see if the expected file already exists in cache.
+            if self.expected_filename:
+                # get an existing cache path if we have one.
+                file_cache_path = self.filecache.get_if_cached(self.expected_filename)
 
-            # the generic extractor requires special handling
-            if extractor == "generic":
-                flistdir = [
-                    f.rsplit("-", 1)[0] for f in os.listdir(self.download_folder)
-                ]
-                expected_fname_noex, fname_ex = os.path.basename(
-                    self.expected_filename
-                ).rsplit(".", 1)
+                # win a cookie if cache worked but extension was different.
+                if file_cache_path and self.expected_filename != file_cache_path:
+                    log.warning("Download cached with different extension...")
 
-                if expected_fname_noex in flistdir:
-                    try:
-                        rsize = int(
-                            await get_header(
-                                self.playlist.bot.aiosession, self.url, "CONTENT-LENGTH"
-                            )
+                # check if cache size matches remote, basic validation.
+                if file_cache_path:
+                    local_size = os.path.getsize(file_cache_path)
+                    remote_size = int(self.info.http_header("CONTENT-LENGTH", 0))
+
+                    if local_size != remote_size:
+                        log.debug(
+                            "Local size different from remote size. Re-downloading..."
                         )
-                    except Exception:
-                        rsize = 0
-
-                    lfile = os.path.join(
-                        self.download_folder,
-                        os.listdir(self.download_folder)[
-                            flistdir.index(expected_fname_noex)
-                        ],
-                    )
-
-                    # print("Resolved %s to %s" % (self.expected_filename, lfile))
-                    lsize = os.path.getsize(lfile)
-                    # print("Remote size: %s Local size: %s" % (rsize, lsize))
-
-                    if lsize != rsize:
-                        await self._really_download(hash=True)
+                        await self._really_download()
                     else:
-                        # print("[Download] Cached:", self.url)
-                        self.filename = lfile
+                        log.debug("Download already cached at:  %s", file_cache_path)
+                        self.filename = file_cache_path
+                        self._is_downloaded = True
 
-                else:
-                    # print("File not found in cache (%s)" % expected_fname_noex)
-                    await self._really_download(hash=True)
-
-            else:
-                ldir = os.listdir(self.download_folder)
-                flistdir = [f.rsplit(".", 1)[0] for f in ldir]
-                expected_fname_base = os.path.basename(self.expected_filename)
-                expected_fname_noex = expected_fname_base.rsplit(".", 1)[0]
-
-                # idk wtf this is but its probably legacy code
-                # or i have youtube to blame for changing shit again
-
-                if expected_fname_base in ldir:
-                    self.filename = os.path.join(
-                        self.download_folder, expected_fname_base
-                    )
-                    log.info("Download cached: {}".format(self.url))
-
-                elif expected_fname_noex in flistdir:
-                    log.info(
-                        "Download cached (different extension): {}".format(self.url)
-                    )
-                    self.filename = os.path.join(
-                        self.download_folder, ldir[flistdir.index(expected_fname_noex)]
-                    )
-                    log.debug(
-                        "Expected {}, got {}".format(
-                            self.expected_filename.rsplit(".", 1)[-1],
-                            self.filename.rsplit(".", 1)[-1],
-                        )
-                    )
+                # nothing cached, time to download for real.
                 else:
                     await self._really_download()
 
+            # check for duration and attempt to extract it if missing.
             if self.duration is None:
+                # optional pymediainfo over ffprobe?
                 if pymediainfo:
-                    try:
-                        mediainfo = pymediainfo.MediaInfo.parse(self.filename)
-                        self.duration = mediainfo.tracks[0].duration / 1000
-                    except Exception:
-                        self.duration = None
+                    self.duration = self._get_duration_pymedia(self.filename)
 
-                else:
-                    args = [
-                        "ffprobe",
-                        "-i",
-                        self.filename,
-                        "-show_entries",
-                        "format=duration",
-                        "-v",
-                        "quiet",
-                        "-of",
-                        'csv="p=0"',
-                    ]
-
-                    output = await run_command(" ".join(args))
-                    output = output.decode("utf-8")
-
-                    try:
-                        self.duration = float(output)
-                    except ValueError:
-                        # @TheerapakG: If somehow it is not string of float
-                        self.duration = None
+                # no matter what, ffprobe should be available.
+                if self.duration is None:
+                    self.duration = await self._get_duration_ffprobe(self.filename)
 
                 if not self.duration:
                     log.error(
-                        "Cannot extract duration of downloaded entry, invalid output from ffprobe or pymediainfo. "
-                        "This does not affect the ability of the bot. However, estimated time for this entry "
-                        "will not be unavailable and estimated time of the queue will also not be available "
-                        "until this entry got removed.\n"
-                        "entry file: {}".format(self.filename)
+                        "MusicBot could not get duration data for this entry.\n"
+                        "Queue time estimation may be unavailable until this track is cleared.\n"
+                        "Entry file: %s",
+                        self.filename,
                     )
                 else:
                     log.debug(
-                        "Get duration of {} as {} seconds by inspecting it directly".format(
-                            self.filename, self.duration
-                        )
+                        "Got duration of %s seconds for file:  %s",
+                        self.duration,
+                        self.filename,
                     )
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    aoptions = await self.get_mean_volume(self.filename)
-                except Exception:
+                    self._aopt_eq = await self.get_mean_volume(self.filename)
+
+                # Unfortunate evil that we abide for now...
+                except Exception:  # pylint: disable=broad-exception-caught
                     log.error(
                         "There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. "
-                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised."
+                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.",
+                        exc_info=True,
                     )
-                    aoptions = "-vn"
-            else:
-                aoptions = "-vn"
-
-            self.aoptions = aoptions
 
             # Trigger ready callbacks.
             self._for_each_future(lambda future: future.set_result(self))
 
         # Flake8 thinks 'e' is never used, and later undefined. Maybe the lambda is too much.
-        except Exception as e:  # noqa: F841
-            traceback.print_exc()
-            self._for_each_future(lambda future: future.set_exception(e))  # noqa: F821
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            ex = e
+            log.exception("Exception while checking entry data.")
+            self._for_each_future(lambda future: future.set_exception(ex))
 
         finally:
             self._is_downloading = False
 
-    async def get_mean_volume(self, input_file):
-        log.debug("Calculating mean volume of {0}".format(input_file))
-        cmd = (
-            '"'
-            + get("ffmpeg")
-            + '" -i "'
-            + input_file
-            + '" -af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json -f null /dev/null'
-        )
-        output = await run_command(cmd)
-        output = output.decode("utf-8")
-        log.debug(output)
-        # print('----', output)
+    def _get_duration_pymedia(self, input_file: str) -> Optional[float]:
+        """
+        Tries to use pymediainfo module to extract duration, if the module is available.
+        """
+        if pymediainfo:
+            log.debug("Trying to get duration via pymediainfo for:  %s", input_file)
+            try:
+                mediainfo = pymediainfo.MediaInfo.parse(input_file)
+                if mediainfo.tracks:
+                    return int(mediainfo.tracks[0].duration) / 1000
+            except (FileNotFoundError, OSError, RuntimeError, ValueError, TypeError):
+                log.exception("Failed to get duration via pymediainfo.")
+        return None
+
+    async def _get_duration_ffprobe(self, input_file: str) -> Optional[float]:
+        """
+        Tries to use ffprobe to extract duration from media if possible.
+        """
+        log.debug("Trying to get duration via ffprobe for:  %s", input_file)
+        ffprobe_bin = shutil.which("ffprobe")
+        if not ffprobe_bin:
+            log.error("Could not locate ffprobe in your path!")
+            return None
+
+        ffprobe_cmd = [
+            ffprobe_bin,
+            "-i",
+            self.filename,
+            "-show_entries",
+            "format=duration",
+            "-v",
+            "quiet",
+            "-of",
+            "csv=p=0",
+        ]
+
+        try:
+            raw_output = await run_command(ffprobe_cmd)
+            output = raw_output.decode("utf8")
+            return float(output)
+        except (ValueError, UnicodeError):
+            log.error(
+                "ffprobe returned something that could not be used.", exc_info=True
+            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            log.exception("ffprobe could not be executed for some reason.")
+
+        return None
+
+    async def get_mean_volume(self, input_file: str) -> str:
+        """
+        Attempt to calculate the mean volume of the `input_file` by using
+        output from ffmpeg to provide values which can be used by command
+        arguments sent to ffmpeg during playback.
+        """
+        log.debug("Calculating mean volume of:  %s", input_file)
+        ffmpeg_bin = shutil.which("ffmpeg")
+        if not ffmpeg_bin:
+            log.error("Could not locate ffmpeg on your path!")
+            return ""
+
+        # NOTE: this command should contain JSON, but I have no idea how to make
+        # ffmpeg spit out only the JSON.
+        ffmpeg_cmd = [
+            ffmpeg_bin,
+            "-i",
+            input_file,
+            "-af",
+            "loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json",
+            "-f",
+            "null",
+            "/dev/null",
+            "-hide_banner",
+            "-nostats",
+        ]
+
+        raw_output = await run_command(ffmpeg_cmd)
+        output = raw_output.decode("utf-8")
 
         i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
         if i_matches:
-            log.debug("i_matches={}".format(i_matches[0][0]))
-            IVAL = float(i_matches[0][0])
+            # log.debug("i_matches=%s", i_matches[0][0])
+            i_value = float(i_matches[0][0])
         else:
             log.debug("Could not parse I in normalise json.")
-            IVAL = float(0)
+            i_value = float(0)
 
         lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
         if lra_matches:
-            log.debug("lra_matches={}".format(lra_matches[0][0]))
-            LRA = float(lra_matches[0][0])
+            # log.debug("lra_matches=%s", lra_matches[0][0])
+            lra_value = float(lra_matches[0][0])
         else:
             log.debug("Could not parse LRA in normalise json.")
-            LRA = float(0)
+            lra_value = float(0)
 
         tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
         if tp_matches:
-            log.debug("tp_matches={}".format(tp_matches[0][0]))
-            TP = float(tp_matches[0][0])
+            # log.debug("tp_matches=%s", tp_matches[0][0])
+            tp_value = float(tp_matches[0][0])
         else:
             log.debug("Could not parse TP in normalise json.")
-            TP = float(0)
+            tp_value = float(0)
 
         thresh_matches = re.findall(r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output)
         if thresh_matches:
-            log.debug("thresh_matches={}".format(thresh_matches[0][0]))
+            # log.debug("thresh_matches=%s", thresh_matches[0][0])
             thresh = float(thresh_matches[0][0])
         else:
             log.debug("Could not parse thresh in normalise json.")
@@ -421,66 +644,67 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         offset_matches = re.findall(r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output)
         if offset_matches:
-            log.debug("offset_matches={}".format(offset_matches[0][0]))
+            # log.debug("offset_matches=%s", offset_matches[0][0])
             offset = float(offset_matches[0][0])
         else:
             log.debug("Could not parse offset in normalise json.")
             offset = float(0)
 
-        return "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:measured_I={}:measured_LRA={}:measured_TP={}:measured_thresh={}:offset={}".format(
-            IVAL, LRA, TP, thresh, offset
+        loudnorm_opts = (
+            "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
+            f"measured_I={i_value}:"
+            f"measured_LRA={lra_value}:"
+            f"measured_TP={tp_value}:"
+            f"measured_thresh={thresh}:"
+            f"offset={offset}"
         )
+        return loudnorm_opts
 
-    # noinspection PyShadowingBuiltins
-    async def _really_download(self, *, hash=False):
-        log.info("Download started: {}".format(self.url))
+    async def _really_download(self) -> None:
+        """
+        Actually download the media in this entry into cache.
+        """
+        log.info("Download started:  %s", self.url)
 
-        retry = 4
-        result = None
-        while retry:
+        retry = 2
+        info = None
+        while True:
             try:
-                result = await self.playlist.downloader.extract_info(
-                    self.playlist.loop, self.url, download=True
-                )
+                info = await self.downloader.extract_info(self.url, download=True)
                 break
             except ContentTooShortError as e:
-                # this typically means connection was interupted, any download is probably partial.
-                # we should definitely do something about it to prevent broken cached files.
+                # this typically means connection was interrupted, any
+                # download is probably partial. we should definitely do
+                # something about it to prevent broken cached files.
                 if retry > 0:
-                    log.warning(f"Download may have failed, retrying.  Reason: {e}")
+                    log.warning(
+                        "Download may have failed, retrying.  Reason: %s", str(e)
+                    )
                     retry -= 1
+                    await asyncio.sleep(1.5)  # TODO: backoff timer maybe?
                     continue
-                else:
-                    # Mark the file I guess, and maintain the default of raising ExtractionError.
-                    log.error(f"Download failed, not retrying! Reason: {e}")
-                    self.cache_busted = True
-                    raise ExtractionError(e)
+
+                # Mark the file I guess, and maintain the default of raising ExtractionError.
+                log.error("Download failed, not retrying! Reason:  %s", str(e))
+                self.cache_busted = True
+                raise ExtractionError(str(e)) from e
+            except YoutubeDLError as e:
+                # as a base exception for any exceptions raised by yt_dlp.
+                raise ExtractionError(str(e)) from e
+
             except Exception as e:
-                raise ExtractionError(e)
+                log.exception("Extraction encountered an unhandled exception.")
+                raise MusicbotException(str(e)) from e
 
-        log.info("Download complete: {}".format(self.url))
+        log.info("Download complete:  %s", self.url)
 
-        if result is None:
+        if info is None:
             log.critical("YTDL has failed, everyone panic")
             raise ExtractionError("ytdl broke and hell if I know why")
             # What the fuck do I do now?
 
-        self.filename = unhashed_fname = self.playlist.downloader.ytdl.prepare_filename(
-            result
-        )
-
-        if hash:
-            # insert the 8 last characters of the file hash to the file name to ensure uniqueness
-            self.filename = (
-                md5sum(unhashed_fname, 8).join("-.").join(unhashed_fname.rsplit(".", 1))
-            )
-
-            if os.path.isfile(self.filename):
-                # Oh bother it was actually there.
-                os.unlink(unhashed_fname)
-            else:
-                # Move the temporary file to it's final location.
-                os.rename(unhashed_fname, self.filename)
+        self._is_downloaded = True
+        self.filename = info.expected_filename or ""
 
         # It should be safe to get our newly downloaded file size now...
         # This should also leave self.downloaded_bytes set to 0 if the file is in cache already.
@@ -488,88 +712,605 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
 
 class StreamPlaylistEntry(BasePlaylistEntry):
-    def __init__(self, playlist, url, title, *, destination=None, **meta):
+    SERIAL_VERSION: int = 3
+
+    def __init__(
+        self,
+        playlist: "Playlist",
+        info: YtdlpResponseDict,
+        author: Optional["discord.Member"] = None,
+        channel: Optional[GuildMessageableChannels] = None,
+    ) -> None:
+        """
+        Create Stream Playlist entry that will be sent directly to ffmpeg for playback.
+
+        :param: playlist:  The playlist object this entry should belong to.
+        :param: info:  A YtdlResponseDict with from downloader.extract_info()
+        :param: from_apl:  Flag this entry as automatic playback, not queued by a user.
+        :param: meta:  a collection extra of key-values stored with the entry.
+        """
         super().__init__()
 
-        self.playlist = playlist
-        self.url = url
-        self.title = title
-        self.destination = destination
-        self.duration = None
-        self.meta = meta
+        self.playlist: "Playlist" = playlist
+        self.info: YtdlpResponseDict = info
 
-        if self.destination:
-            self.filename = self.destination
+        self.author: Optional["discord.Member"] = author
+        self.channel: Optional[GuildMessageableChannels] = channel
 
-    def __json__(self):
+        self.filename: str = self.url
+
+    @property
+    def from_auto_playlist(self) -> bool:
+        """Returns true if the entry has an author or a channel."""
+        if self.author is not None or self.channel is not None:
+            return False
+        return True
+
+    @property
+    def url(self) -> str:
+        """get extracted url if available or otherwise return the input subject"""
+        if self.info.extractor and self.info.url:
+            return self.info.url
+        return self.info.get("__input_subject", "")
+
+    @property
+    def title(self) -> str:
+        """Gets a title string from entry info or 'Unknown'"""
+        # special case for twitch streams, from previous code.
+        # TODO: test coverage here
+        if self.info.extractor == "twitch:stream":
+            dtitle = self.info.get("description", None)
+            if dtitle and not self.info.title:
+                return str(dtitle)
+
+        # TODO: i18n for this at some point.
+        return self.info.title or "Unknown"
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Gets available duration data or None"""
+        # duration can be 0, if so we make sure it returns None instead.
+        return self.info.get("duration", None) or None
+
+    @duration.setter
+    def duration(self, value: float) -> None:
+        self.info["duration"] = value
+
+    @property
+    def duration_td(self) -> datetime.timedelta:
+        """
+        Get timedelta object from any known duration data.
+        May contain a 0 second duration.
+        """
+        t = self.duration or 0
+        return datetime.timedelta(seconds=t)
+
+    @property
+    def thumbnail_url(self) -> str:
+        """Get available thumbnail from info or an empty string"""
+        return self.info.thumbnail_url
+
+    def __json__(self) -> Dict[str, Any]:
         return self._enclose_json(
             {
-                "version": 1,
-                "url": self.url,
+                "version": StreamPlaylistEntry.SERIAL_VERSION,
+                "info": self.info.data,
                 "filename": self.filename,
-                "title": self.title,
-                "destination": self.destination,
-                "meta": {
-                    name: {
-                        "type": obj.__class__.__name__,
-                        "id": obj.id,
-                        "name": obj.name,
-                    }
-                    for name, obj in self.meta.items()
-                    if obj
-                },
+                "author_id": self.author.id if self.author else None,
+                "channel_id": self.channel.id if self.channel else None,
             }
         )
 
     @classmethod
-    def _deserialize(cls, data, playlist=None):
+    def _deserialize(
+        cls,
+        raw_json: Dict[str, Any],
+        playlist: Optional["Playlist"] = None,
+        **kwargs: Any,
+    ) -> Optional["StreamPlaylistEntry"]:
         assert playlist is not None, cls._bad("playlist")
 
+        vernum = raw_json.get("version", None)
+        if not vernum:
+            log.error("Entry data is missing version number, cannot deserialize.")
+            return None
+        if vernum != URLPlaylistEntry.SERIAL_VERSION:
+            log.error("Entry data has the wrong version number, cannot deserialize.")
+            return None
+
         try:
-            # TODO: version check
-            url = data["url"]
-            title = data["title"]
-            destination = data["destination"]
-            filename = data["filename"]
-            meta = {}
+            info = YtdlpResponseDict(raw_json["info"])
+            filename = raw_json["filename"]
 
-            # TODO: Better [name] fallbacks
-            if "channel" in data["meta"]:
-                ch = playlist.bot.get_channel(data["meta"]["channel"]["id"])
-                meta["channel"] = ch or data["meta"]["channel"]["name"]
+            channel_id = raw_json.get("channel_id", None)
+            if channel_id:
+                o_channel = playlist.bot.get_channel(int(channel_id))
 
-            if "author" in data["meta"]:
-                meta["author"] = meta["channel"].guild.get_member(
-                    data["meta"]["author"]["id"]
-                )
+                if not o_channel:
+                    log.warning(
+                        "Deserialized StreamPlaylistEntry cannot find channel with id:  %s",
+                        raw_json["channel_id"],
+                    )
 
-            entry = cls(playlist, url, title, destination=destination, **meta)
-            if not destination and filename:
-                entry.filename = destination
+                if isinstance(
+                    o_channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    channel = o_channel
+                else:
+                    log.warning(
+                        "Deserialized StreamPlaylistEntry has the wrong channel type:  %s",
+                        type(o_channel),
+                    )
+                    channel = None
+            else:
+                channel = None
+
+            author_id = raw_json.get("author_id", None)
+            if author_id:
+                if isinstance(
+                    channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    author = channel.guild.get_member(int(author_id))
+
+                    if not author:
+                        log.warning(
+                            "Deserialized StreamPlaylistEntry cannot find author with id:  %s",
+                            raw_json["author_id"],
+                        )
+                else:
+                    author = None
+                    log.warning(
+                        "Deserialized StreamPlaylistEntry has an author ID but no channel for lookup!",
+                    )
+            else:
+                author = None
+
+            entry = cls(playlist, info, author=author, channel=channel)
+            entry.filename = filename
+            return entry
+        except (ValueError, KeyError, TypeError) as e:
+            log.error("Could not load %s", cls.__name__, exc_info=e)
+
+        return None
+
+    async def _download(self) -> None:
+        self._is_downloading = True
+        self._is_downloaded = True
+        self.filename = self.url
+        self._is_downloading = False
+
+
+class LocalFilePlaylistEntry(BasePlaylistEntry):
+    SERIAL_VERSION: int = 1
+
+    def __init__(
+        self,
+        playlist: "Playlist",
+        info: YtdlpResponseDict,
+        author: Optional["discord.Member"] = None,
+        channel: Optional[GuildMessageableChannels] = None,
+    ) -> None:
+        """
+        Create URL Playlist entry that will be downloaded for playback.
+
+        :param: playlist:  The playlist object this entry should belong to.
+        :param: info:  A YtdlResponseDict from downloader.extract_info()
+        """
+        super().__init__()
+
+        self._start_time: Optional[float] = None
+        self._playback_rate: Optional[float] = None
+        self.playlist: "Playlist" = playlist
+
+        self.info: YtdlpResponseDict = info
+        self.filename = self.expected_filename or ""
+
+        # TODO: maybe it is worth getting duration as early as possible...
+
+        self.author: Optional["discord.Member"] = author
+        self.channel: Optional[GuildMessageableChannels] = channel
+
+        self._aopt_eq: str = ""
+
+    @property
+    def aoptions(self) -> str:
+        """After input options for ffmpeg to use with this entry."""
+        aopts = f"{self._aopt_eq}"
+        # Set playback speed options if needed.
+        if self._playback_rate is not None or self.playback_speed != 1.0:
+            # Append to the EQ options if they are set.
+            if self._aopt_eq:
+                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
+            else:
+                aopts = f"-af atempo={self.playback_speed:.3f}"
+
+        if aopts:
+            return f"{aopts} -vn"
+
+        return "-vn"
+
+    @property
+    def boptions(self) -> str:
+        """Before input options for ffmpeg to use with this entry."""
+        if self._start_time is not None:
+            return f"-ss {self._start_time}"
+        return ""
+
+    @property
+    def from_auto_playlist(self) -> bool:
+        """Returns true if the entry has an author or a channel."""
+        if self.author is not None or self.channel is not None:
+            return False
+        return True
+
+    @property
+    def url(self) -> str:
+        """Gets a playable URL from this entries info."""
+        return self.info.get_playable_url()
+
+    @property
+    def title(self) -> str:
+        """Gets a title string from entry info or 'Unknown'"""
+        # TODO: i18n for this at some point.
+        return self.info.title or "Unknown"
+
+    @property
+    def duration(self) -> Optional[float]:
+        """Gets available duration data or None"""
+        # duration can be 0, if so we make sure it returns None instead.
+        return self.info.get("duration", None) or None
+
+    @duration.setter
+    def duration(self, value: float) -> None:
+        self.info["duration"] = value
+
+    @property
+    def duration_td(self) -> datetime.timedelta:
+        """
+        Returns duration as a datetime.timedelta object.
+        May contain 0 seconds duration.
+        """
+        t = self.duration or 0
+        return datetime.timedelta(seconds=t)
+
+    @property
+    def thumbnail_url(self) -> str:
+        """Get available thumbnail from info or an empty string"""
+        return self.info.thumbnail_url
+
+    @property
+    def expected_filename(self) -> Optional[str]:
+        """Get the expected filename from info if available or None"""
+        return self.info.get("__expected_filename", None)
+
+    def __json__(self) -> Dict[str, Any]:
+        """
+        Handles representing this object as JSON.
+        """
+        # WARNING:  if you change data or keys here, you must increase SERIAL_VERSION.
+        return self._enclose_json(
+            {
+                "version": LocalFilePlaylistEntry.SERIAL_VERSION,
+                "info": self.info.data,
+                "filename": self.filename,
+                "author_id": self.author.id if self.author else None,
+                "channel_id": self.channel.id if self.channel else None,
+                "aoptions": self.aoptions,
+            }
+        )
+
+    @classmethod
+    def _deserialize(
+        cls,
+        raw_json: Dict[str, Any],
+        playlist: Optional["Playlist"] = None,
+        **kwargs: Dict[str, Any],
+    ) -> Optional["LocalFilePlaylistEntry"]:
+        """
+        Handles converting from JSON to LocalFilePlaylistEntry.
+        """
+        # WARNING:  if you change data or keys here, you must increase SERIAL_VERSION.
+
+        # yes this is an Optional that is, in fact, not Optional. :)
+        assert playlist is not None, cls._bad("playlist")
+
+        vernum: Optional[int] = raw_json.get("version", None)
+        if not vernum:
+            log.error("Entry data is missing version number, cannot deserialize.")
+            return None
+        if vernum != LocalFilePlaylistEntry.SERIAL_VERSION:
+            log.error("Entry data has the wrong version number, cannot deserialize.")
+            return None
+
+        try:
+            info = YtdlpResponseDict(raw_json["info"])
+            downloaded = (
+                raw_json["downloaded"] if playlist.bot.config.save_videos else False
+            )
+            filename = raw_json["filename"] if downloaded else None
+
+            channel_id = raw_json.get("channel_id", None)
+            if channel_id:
+                o_channel = playlist.bot.get_channel(int(channel_id))
+
+                if not o_channel:
+                    log.warning(
+                        "Deserialized LocalFilePlaylistEntry cannot find channel with id:  %s",
+                        raw_json["channel_id"],
+                    )
+
+                if isinstance(
+                    o_channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    channel = o_channel
+                else:
+                    log.warning(
+                        "Deserialized LocalFilePlaylistEntry has the wrong channel type:  %s",
+                        type(o_channel),
+                    )
+                    channel = None
+            else:
+                channel = None
+
+            author_id = raw_json.get("author_id", None)
+            if author_id:
+                if isinstance(
+                    channel,
+                    (
+                        discord.Thread,
+                        discord.TextChannel,
+                        discord.VoiceChannel,
+                        discord.StageChannel,
+                    ),
+                ):
+                    author = channel.guild.get_member(int(author_id))
+
+                    if not author:
+                        log.warning(
+                            "Deserialized LocalFilePlaylistEntry cannot find author with id:  %s",
+                            raw_json["author_id"],
+                        )
+                else:
+                    author = None
+                    log.warning(
+                        "Deserialized LocalFilePlaylistEntry has an author ID but no channel for lookup!",
+                    )
+            else:
+                author = None
+
+            entry = cls(playlist, info, author=author, channel=channel)
+            entry.filename = filename
 
             return entry
-        except Exception as e:
-            log.error("Could not load {}".format(cls.__name__), exc_info=e)
+        except (ValueError, TypeError, KeyError) as e:
+            log.error("Could not load %s", cls.__name__, exc_info=e)
 
-    # noinspection PyMethodOverriding
-    async def _download(self, *, fallback=False):
+        return None
+
+    @property
+    def start_time(self) -> float:
+        if self._start_time is not None:
+            return self._start_time
+        return 0
+
+    def set_start_time(self, start_time: float) -> None:
+        """Sets a start time in seconds to use with the ffmpeg -ss flag."""
+        self._start_time = start_time
+
+    @property
+    def playback_speed(self) -> float:
+        """Get the current playback speed if one was set, or return 1.0 for normal playback."""
+        if self._playback_rate is not None:
+            return self._playback_rate
+        return self.playlist.bot.config.default_speed or 1.0
+
+    def set_playback_speed(self, speed: float) -> None:
+        """Set the playback speed to be used with ffmpeg -af:atempo filter."""
+        self._playback_rate = speed
+
+    async def _download(self) -> None:
+        """
+        Handle readying the local media file, by extracting info like duration
+        or setting up normalized audio options.
+        """
+        if self._is_downloading:
+            return
+        log.debug("LocalFilePlaylistEntry is now extracting media information.")
+
         self._is_downloading = True
-
-        url = self.destination if fallback else self.url
-
         try:
-            result = await self.playlist.downloader.extract_info(
-                self.playlist.loop, url, download=False
-            )
-        except Exception as e:
-            if not fallback and self.destination:
-                return await self._download(fallback=True)
+            # check for duration and attempt to extract it if missing.
+            if self.duration is None:
+                # optional pymediainfo over ffprobe?
+                if pymediainfo:
+                    self.duration = self._get_duration_pymedia(self.filename)
 
-            raise ExtractionError(e)
-        else:
-            self.filename = result["url"]
-            # I might need some sort of events or hooks or shit
-            # for when ffmpeg inevitebly fucks up and i have to restart
-            # although maybe that should be at a slightly lower level
+                # no matter what, ffprobe should be available.
+                if self.duration is None:
+                    self.duration = await self._get_duration_ffprobe(self.filename)
+
+                if not self.duration:
+                    log.error(
+                        "MusicBot could not get duration data for this entry.\n"
+                        "Queue time estimation may be unavailable until this track is cleared.\n"
+                        "Entry file: %s",
+                        self.filename,
+                    )
+                else:
+                    log.debug(
+                        "Got duration of %s seconds for file:  %s",
+                        self.duration,
+                        self.filename,
+                    )
+
+            if self.playlist.bot.config.use_experimental_equalization:
+                try:
+                    self._aopt_eq = await self.get_mean_volume(self.filename)
+
+                # Unfortunate evil that we abide for now...
+                except Exception:  # pylint: disable=broad-exception-caught
+                    log.error(
+                        "There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. "
+                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.",
+                        exc_info=True,
+                    )
+
+            # Trigger ready callbacks.
+            self._is_downloaded = True
+            self._for_each_future(lambda future: future.set_result(self))
+
+        # Flake8 thinks 'e' is never used, and later undefined. Maybe the lambda is too much.
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            ex = e
+            log.exception("Exception while checking entry data.")
+            self._for_each_future(lambda future: future.set_exception(ex))
+
         finally:
             self._is_downloading = False
+
+    def _get_duration_pymedia(self, input_file: str) -> Optional[float]:
+        """
+        Tries to use pymediainfo module to extract duration, if the module is available.
+        """
+        if pymediainfo:
+            log.debug("Trying to get duration via pymediainfo for:  %s", input_file)
+            try:
+                mediainfo = pymediainfo.MediaInfo.parse(input_file)
+                if mediainfo.tracks:
+                    return int(mediainfo.tracks[0].duration) / 1000
+            except (FileNotFoundError, OSError, RuntimeError, ValueError, TypeError):
+                log.exception("Failed to get duration via pymediainfo.")
+        return None
+
+    async def _get_duration_ffprobe(self, input_file: str) -> Optional[float]:
+        """
+        Tries to use ffprobe to extract duration from media if possible.
+        """
+        log.debug("Trying to get duration via ffprobe for:  %s", input_file)
+        ffprobe_bin = shutil.which("ffprobe")
+        if not ffprobe_bin:
+            log.error("Could not locate ffprobe in your path!")
+            return None
+
+        ffprobe_cmd = [
+            ffprobe_bin,
+            "-i",
+            self.filename,
+            "-show_entries",
+            "format=duration",
+            "-v",
+            "quiet",
+            "-of",
+            "csv=p=0",
+        ]
+
+        try:
+            raw_output = await run_command(ffprobe_cmd)
+            output = raw_output.decode("utf8")
+            return float(output)
+        except (ValueError, UnicodeError):
+            log.error(
+                "ffprobe returned something that could not be used.", exc_info=True
+            )
+        except Exception:  # pylint: disable=broad-exception-caught
+            log.exception("ffprobe could not be executed for some reason.")
+
+        return None
+
+    async def get_mean_volume(self, input_file: str) -> str:
+        """
+        Attempt to calculate the mean volume of the `input_file` by using
+        output from ffmpeg to provide values which can be used by command
+        arguments sent to ffmpeg during playback.
+        """
+        log.debug("Calculating mean volume of:  %s", input_file)
+        ffmpeg_bin = shutil.which("ffmpeg")
+        if not ffmpeg_bin:
+            log.error("Could not locate ffmpeg on your path!")
+            return ""
+
+        # NOTE: this command should contain JSON, but I have no idea how to make
+        # ffmpeg spit out only the JSON.
+        ffmpeg_cmd = [
+            ffmpeg_bin,
+            "-i",
+            input_file,
+            "-af",
+            "loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:print_format=json",
+            "-f",
+            "null",
+            "/dev/null",
+            "-hide_banner",
+            "-nostats",
+        ]
+
+        raw_output = await run_command(ffmpeg_cmd)
+        output = raw_output.decode("utf-8")
+
+        i_matches = re.findall(r'"input_i" : "(-?([0-9]*\.[0-9]+))",', output)
+        if i_matches:
+            # log.debug("i_matches=%s", i_matches[0][0])
+            i_value = float(i_matches[0][0])
+        else:
+            log.debug("Could not parse I in normalise json.")
+            i_value = float(0)
+
+        lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
+        if lra_matches:
+            # log.debug("lra_matches=%s", lra_matches[0][0])
+            lra_value = float(lra_matches[0][0])
+        else:
+            log.debug("Could not parse LRA in normalise json.")
+            lra_value = float(0)
+
+        tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
+        if tp_matches:
+            # log.debug("tp_matches=%s", tp_matches[0][0])
+            tp_value = float(tp_matches[0][0])
+        else:
+            log.debug("Could not parse TP in normalise json.")
+            tp_value = float(0)
+
+        thresh_matches = re.findall(r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output)
+        if thresh_matches:
+            # log.debug("thresh_matches=%s", thresh_matches[0][0])
+            thresh = float(thresh_matches[0][0])
+        else:
+            log.debug("Could not parse thresh in normalise json.")
+            thresh = float(0)
+
+        offset_matches = re.findall(r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output)
+        if offset_matches:
+            # log.debug("offset_matches=%s", offset_matches[0][0])
+            offset = float(offset_matches[0][0])
+        else:
+            log.debug("Could not parse offset in normalise json.")
+            offset = float(0)
+
+        loudnorm_opts = (
+            "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
+            f"measured_I={i_value}:"
+            f"measured_LRA={lra_value}:"
+            f"measured_TP={tp_value}:"
+            f"measured_thresh={thresh}:"
+            f"offset={offset}"
+        )
+        return loudnorm_opts
