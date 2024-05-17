@@ -1,47 +1,69 @@
 #!/bin/bash
+# Assuming no files have been moved, 
+# make sure we're in MusicBot directory...
+cd "$(dirname "${BASH_SOURCE[0]}")" || { echo "Could not change directory to MusicBot."; exit 1; }
 
-# Ensure we're in the MusicBot directory
-cd "$(dirname "$BASH_SOURCE")"
+# Suported versions of python using only major.minor format
+PySupported=("3.8" "3.9" "3.10" "3.11" "3.12")
 
-# Set variables for python versions. Could probably be done cleaner, but this works.
-declare -A python=(["0"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[0]))' || { echo "no py"; }) ["1"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py"; }) ["2"]=$(python -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py"; }))
-declare -A python3=(["0"]=$(python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py3"; }) ["1"]=$(python3 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[2]))' || { echo "no py3"; }))
-PYTHON38_VERSION=$(python3.8 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py38"; })
-PYTHON39_VERSION=$(python3.9 -c 'import sys; version=sys.version_info[:3]; print("{0}".format(version[1]))' || { echo "no py39"; })
+# compile a list of bin names to try for.
+PyBins=("python3")  # We hope that python3 maps to a good version.
+for Ver in "${PySupported[@]}" ; do
+    # Typical of source builds and many packages to include the dot.
+    PyBins+=("python${Ver}")
+    # Some distros remove the dot.
+    PyBins+=("python${Ver//./}")
+done
+PyBins+=("python")  # Fat chance, but might as well try versionless too.
 
-if [ "${python[0]}" -eq "3" ]; then         # Python = 3
-    if [ "${python[1]}" -eq "8" ]; then     # Python = 3.8
-        if [ "${python[2]}" -ge "7" ]; then # Python = 3.8.7
-            python update.py
-            exit
+# defaults changed by the loop.
+Python_Bin="python"
+VerGood=0
+for PyBin in "${PyBins[@]}" ; do
+    if ! command -v "$PyBin" > /dev/null 2>&1 ; then
+        continue
+    fi
+
+    # Get version data from python, assume python exists in PATH somewhere.
+    # shellcheck disable=SC2207
+    PY_VER=($($PyBin -c "import sys; print('%s %s %s' % sys.version_info[:3])" || { echo "0 0 0"; }))
+    if [[ "${PY_VER[0]}" == "0" ]]; then
+        echo "Error: Could not get version info from $PyBin"
+        continue
+    fi
+    PY_VER_MAJOR=$((PY_VER[0]))
+    PY_VER_MINOR=$((PY_VER[1]))
+    PY_VER_PATCH=$((PY_VER[2]))
+    # echo "run.sh detected $PY_BIN version: $PY_VER_MAJOR.$PY_VER_MINOR.$PY_VER_PATCH"
+
+    # Major version must be 3+
+    if [[ $PY_VER_MAJOR -ge 3 ]]; then
+        # If 3, minor version minimum is 3.8
+        if [[ $PY_VER_MINOR -eq 8 ]]; then
+            # if 3.8, patch version minimum is 3.8.7
+            if [[ $PY_VER_PATCH -ge 7 ]]; then
+                VerGood=1
+                Python_Bin="$PyBin"
+                break
+            fi
         fi
-    elif [ "${python[1]}" -gt "9" ]; then # Python >= 3.9
-        python update.py
-        exit
+        # if 3.9+ it should work.
+        if [[ $PY_VER_MINOR -ge 9 ]]; then
+            VerGood=1
+            Python_Bin="$PyBin"
+            break
+        fi
     fi
+done
+
+# if we don't have a good version for python, bail.
+if [[ "$VerGood" == "0" ]]; then
+    echo "Python 3.8.7 or higher is required to update MusicBot."
+    exit 1
 fi
 
-if [ "${python3[0]}" -eq "8" ]; then     # Python3 = 3.8
-    if [ "${python3[1]}" -ge "7" ]; then # Python3 >= 3.8.7
-        python3 update.py
-        exit
-    fi
-fi
+echo "Using '${Python_Bin}' to update MusicBot..."
+$Python_Bin update.py
 
-if [ "${python3[0]}" -ge "9" ]; then # Python3 >= 3.9
-    python3 update.py
-    exit
-fi
-
-if [ "$PYTHON38_VERSION" -eq "8" ]; then # Python3.8 = 3.8
-    python3.8 update.py
-    exit
-fi
-
-if [ "$PYTHON39_VERSION" -eq "8" ]; then # Python3.9 = 3.9
-    python3.9 update.py
-    exit
-fi
-
-echo "You are running an unsupported Python version."
-echo "Please use a version of Python above 3.8.7."
+# exit using the code that python exited with.
+exit $?
