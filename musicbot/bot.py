@@ -144,6 +144,7 @@ class MusicBot(discord.Client):
 
         self.use_certifi: bool = use_certifi
         self.exit_signal: ExitSignals = None
+        self._init_time: float = time.time()
         self._os_signal: Optional[signal.Signals] = None
         self._ping_peer_addr: str = ""
         self._ping_use_http: bool = False
@@ -6923,6 +6924,20 @@ class MusicBot(discord.Client):
             f"**Source Code Updates:**\n{git_status}\n\n"
             f"**Dependency Updates:**\n{pip_status}",
             delete_after=60,
+        )
+
+    async def cmd_uptime(self) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}uptime
+
+        Displays the MusicBot uptime, since last start/restart.
+        """
+        uptime = time.time() - self._init_time
+        delta = format_song_duration(uptime)
+        return Response(
+            f"MusicBot has been up for `{delta}`",
+            delete_after=30,
         )
 
     async def cmd_botversion(self) -> CommandResponse:
