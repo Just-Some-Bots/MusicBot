@@ -655,6 +655,15 @@ class Config:
             ),
         )
 
+        self.auto_unpause_on_play: bool = self.register.init_option(
+            section="MusicBot",
+            option="UnpausePlayerOnPlay",
+            dest="auto_unpause_on_play",
+            default=ConfigDefaults.auto_unpause_on_play,
+            getter="getboolean",
+            comment="Allow MusicBot to automatically unpause when play commands are used.",
+        )
+
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
             option="EnableUserBlocklist",
@@ -1164,6 +1173,7 @@ class ConfigDefaults:
     enable_local_media: bool = False
     enable_queue_history_global: bool = False
     enable_queue_history_guilds: bool = False
+    auto_unpause_on_play: bool = False
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()
