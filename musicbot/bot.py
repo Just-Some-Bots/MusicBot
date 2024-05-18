@@ -3230,6 +3230,9 @@ class MusicBot(discord.Client):
 
         This function should not be called from _cmd_play().
         """
+        if not self.config.auto_unpause_on_play:
+            return
+
         if not player or not player.voice_client or not player.voice_client.channel:
             return
 
