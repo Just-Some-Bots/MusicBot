@@ -71,7 +71,7 @@ This covers major changes in the newly added `dev` branch as well as the `review
    * Restart sub commands.
       - Adds new sub commands to restart.
       - soft will reload the config without reloading the source code.
-      - fill will restart and reload configs and source code.
+      - full will restart and reload configs and source code.
       - uppip will attempt to update pip packages and then fully restart.
       - upgit will attempt to upgrade the bot and then fully restart.
       - upgrade will attempt to upgrade the bot and packages then fully restart. 
