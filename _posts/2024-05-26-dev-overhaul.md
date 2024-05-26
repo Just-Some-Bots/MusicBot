@@ -204,6 +204,7 @@ This covers major changes in the newly added `dev` branch as well as the `review
       - Tested Debian 11.3 installation.
       - Tested Raspberry Pi OS (Desktop i386, reported as Debian 11).
    * Added new `install.ps1` script. 
+   * The `np` command now makes use of embeds if set to.
    
    **Final Notes:**
    All changes may not be documented here and it's in your best interest to look at [commits](https://github.com/Just-Some-Bots/MusicBot/commits/dev/) on the repo if you want more in depth explanation of the changes made recently. 
