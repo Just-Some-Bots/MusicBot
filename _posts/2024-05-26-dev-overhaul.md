@@ -27,6 +27,7 @@ This covers major changes in the newly added `dev` branch as well as the `review
    * Adds an option to play local media from the local MediaFileDirectory path. 
       - `play file://path/to/file.ext`
    * Adds the option to automatically unpause the bot when play commands are used. 
+   
    **Files:**
    * Adds an option to keep a max amount of logs. 
    * Adds an option to set the format used for logs. 
