@@ -3,11 +3,9 @@ title: 26th May 2024
 type: major
 ---
 
-**Player overhaul**
+**Noticable Changes**
 
 This covers major changes in the newly added `dev` branch as well as the `review` branch. The entire player backend has had a major overhaul, courtesy of [ItsTheFae](https://github.com/itsTheFae) many bugs have been squashed, new features, commands, and options have been added. The last changelog update was 3 years ago. For an entire list of changes it's best to [view the commits.](https://github.com/Just-Some-Bots/MusicBot/commits/dev/)
-
-**Noticable Changes:**
 
  **Options:**
    * The bot being deafened in a VC has been made optional.
