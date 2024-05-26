@@ -5324,6 +5324,7 @@ class MusicBot(discord.Client):
             )
 
         option = option.lower()
+
         valid_options = [
             "missing",
             "diff",
@@ -5333,7 +5334,9 @@ class MusicBot(discord.Client):
             "show",
             "set",
             "reload",
+            "reset",
         ]
+
         if option not in valid_options:
             raise exceptions.CommandError(
                 f"Invalid option for command: `{option}`",
@@ -5414,7 +5417,7 @@ class MusicBot(discord.Client):
                 ) from e
 
         # sub commands beyond here need 2 leftover_args
-        if option in ["help", "show", "save", "set"]:
+        if option in ["help", "show", "save", "set", "reset"]:
             largs = len(leftover_args)
             if (
                 self.config.register.resolver_available
@@ -5540,6 +5543,35 @@ class MusicBot(discord.Client):
                 )
             return Response(
                 f"Option `{opt}` was updated for this session.\n"
+                f"To save the change use `config save {opt.section} {opt.option}`",
+                delete_after=30,
+            )
+
+        # reset an option to default value as defined in ConfigDefaults
+        if option == "reset":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable. Cannot reset to default.",
+                    expire_in=30,
+                )
+
+            # Use the default value from the option object
+            default_value = self.config.register.to_ini(opt, use_default=True)
+
+            # Prepare a user-friendly message for the reset operation
+            # TODO look into option registry display code for use here
+            reset_value_display = default_value if default_value else "an empty set"
+
+            log.debug("Resetting %s to default %s", opt, default_value)
+            async with self.aiolocks["config_update"]:
+                updated = self.config.update_option(opt, default_value)
+            if not updated:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` was not reset to default!",
+                    expire_in=30,
+                )
+            return Response(
+                f"Option `{opt}` was reset to its default value `{reset_value_display}`.\n"
                 f"To save the change use `config save {opt.section} {opt.option}`",
                 delete_after=30,
             )
