@@ -3511,8 +3511,7 @@ class MusicBot(discord.Client):
             {command_prefix}repeat [all | playlist | song | on | off]
 
         Toggles playlist or song looping.
-        If no option is provided the current song will be repeated.
-        If no option is provided and the song is already repeating, repeating will be turned off.
+        If no option is provided the bot will toggle through playlist looping, song looping, and looping off.
         """
         # TODO: this command needs TLC.
 
@@ -5588,7 +5587,7 @@ class MusicBot(discord.Client):
 
         Changes a config option without restarting the bot. Changes aren't permanent and
         only last until the bot is restarted. To make permanent changes, edit the
-        config file.
+        config file or use the config set and save commands.
 
         Valid options:
             autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
@@ -6907,7 +6906,6 @@ class MusicBot(discord.Client):
             {command_prefix}checkupdates
 
         Display the current bot version and check for updates to MusicBot or dependencies.
-        The option `GitUpdatesBranch` must be set to check for updates to MusicBot.
         """
         git_status = ""
         pip_status = ""
