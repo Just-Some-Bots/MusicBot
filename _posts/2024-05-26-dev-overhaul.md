@@ -48,6 +48,7 @@ This covers major changes in the newly added `dev` branch as well as the `review
       - Adds a command to playback a playlist shuffled. Like turning shuffle on spotify and then pressing play. 
    * Blockuser command.
       - Adds a user to the block list.
+      - Replaces blacklist
    * Blocksong command.
       - Adds a song to the block list.
    * Botlatency command.
@@ -66,8 +67,6 @@ This covers major changes in the newly added `dev` branch as well as the `review
    * Follow command. 
       - Will follow the command issuer around a guild when moving channels.
       - Owner can specify who to follow. 
-   * Resetplaylist command.
-      - Resets all songs in guilds autoplaylist file.
    * Restart sub commands.
       - Adds new sub commands to restart.
       - soft will reload the config without reloading the source code.
@@ -130,8 +129,11 @@ This covers major changes in the newly added `dev` branch as well as the `review
    * Fixed a bug where missing logs would halt startup. 
    * Fixed a index bug with new round robin option.
    * Fixed skip command not tallying votes properly.
+   * The `blockuser` command has been updated to accept ID's so you don't have to mention someone to block them from using the bot.
+   * `stream` command can now be applied to non stream entries. 
    
    **Overhauls:**
+   * ffmpeg and ffmprobe executable files have been updates to essential builds. 
    * The player has been overhauled to be easier to read, and be more effectient. The changes are massive. 
       - The player will now make less calls to extract_info. 
       - Autoplaylist songs are now skipped when a user queues a song. 
