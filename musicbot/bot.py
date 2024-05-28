@@ -1820,6 +1820,9 @@ class MusicBot(discord.Client):
                     "Got HTTPException trying to send message to %s: %s", dest, content
                 )
 
+        except aiohttp.client_exceptions.ClientError:
+            lfunc("Failed to send due to an HTTP error.")
+
         finally:
             if not retry_after and self.config.delete_messages:
                 if msg and expire_in:
@@ -1882,6 +1885,9 @@ class MusicBot(discord.Client):
                 log.noise(  # type: ignore[attr-defined]
                     "Got HTTPException trying to delete message: %s", message
                 )
+
+        except aiohttp.client_exceptions.ClientError:
+            lfunc("Failed to send due to an HTTP error.")
 
         return None
 
@@ -1950,6 +1956,9 @@ class MusicBot(discord.Client):
                 log.noise(  # type: ignore[attr-defined]
                     "Got HTTPException trying to edit message %s to: %s", message, new
                 )
+
+        except aiohttp.client_exceptions.ClientError:
+            lfunc("Failed to send due to an HTTP error.")
 
         return None
 
