@@ -129,7 +129,6 @@ class MusicPlayer(EventEmitter, Serializable):
         self._stderr_future: Optional[AsyncFuture] = None
 
         self._source: Optional[SourcePlaybackCounter] = None
-        self._pending_call_later: Optional[EntryTypes] = None
 
         self.playlist.on("entry-added", self.on_entry_added)
         self.playlist.on("entry-failed", self.on_entry_failed)
@@ -155,11 +154,6 @@ class MusicPlayer(EventEmitter, Serializable):
         """
         Event dispatched by Playlist when an entry is added to the queue.
         """
-        if self.is_stopped and not self.current_entry and not self._pending_call_later:
-            log.noise("calling-later, self.play from player.")  # type: ignore[attr-defined]
-            self._pending_call_later = entry
-            self.loop.call_later(2, self.play)
-
         self.emit(
             "entry-added",
             player=self,
@@ -302,7 +296,9 @@ class MusicPlayer(EventEmitter, Serializable):
             return
 
         if not self.bot.config.save_videos and entry:
-            self.loop.create_task(self._handle_file_cleanup(entry))
+            self.bot.create_task(
+                self._handle_file_cleanup(entry), name="MB_CacheCleanup"
+            )
 
         self.emit("finished-playing", player=self, entry=entry)
 
@@ -337,7 +333,7 @@ class MusicPlayer(EventEmitter, Serializable):
         log.noise(  # type: ignore[attr-defined]
             "MusicPlayer.play() is called:  %s", repr(self)
         )
-        self.loop.create_task(self._play(_continue=_continue))
+        self.bot.create_task(self._play(_continue=_continue), name="MB_Play")
 
     async def _play(self, _continue: bool = False) -> None:
         """
@@ -367,19 +363,23 @@ class MusicPlayer(EventEmitter, Serializable):
 
         async with self._play_lock:
             if self.is_stopped or _continue:
+                # Get the entry before we try to ready it, so it can be passed to error callbacks.
+                entry_up_next = self.playlist.peek()
                 try:
                     entry = await self.playlist.get_next_entry()
-                except IndexError:
-                    log.warning("Failed to get entry.", exc_info=True)
+                except IndexError as e:
+                    log.warning("Failed to get next entry.", exc_info=e)
+                    self.emit("error", player=self, entry=entry_up_next, ex=e)
+                    entry = None
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    log.warning("Failed to process entry for playback.", exc_info=e)
+                    self.emit("error", player=self, entry=entry_up_next, ex=e)
                     entry = None
 
                 # If nothing left to play, transition to the stopped state.
                 if not entry:
                     self.stop()
                     return
-
-                if self._pending_call_later == entry:
-                    self._pending_call_later = None
 
                 # In-case there was a player, kill it. RIP.
                 self._kill_current_player()
@@ -432,7 +432,7 @@ class MusicPlayer(EventEmitter, Serializable):
                 stderr_thread = Thread(
                     target=filter_stderr,
                     args=(stderr_io, self._stderr_future),
-                    name="stderr reader",
+                    name="MB_FFmpegStdErrReader",
                 )
 
                 stderr_thread.start()
@@ -604,8 +604,10 @@ def filter_stderr(stderr: io.BytesIO, future: AsyncFuture) -> None:
     Set the given `future` with either an error found in the stream or
     set the future with a successful result.
     """
+    # NOTE:  This effectiveness of this loop is questionable. Any empty line from
+    # FFmpeg will break the loop, meaning we could be missing errors.
+    # If we care about all errors for the scope of playback, we should change this.
     last_ex = None
-
     while True:
         data = stderr.readline()
         if data:
