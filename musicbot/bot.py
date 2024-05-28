@@ -2029,10 +2029,10 @@ class MusicBot(discord.Client):
             # We can't kill the threads in ThreadPoolExecutor.  User can Ctrl+C though.
             # We can pass `wait=False` and carry on with "shutdown" but threads
             # will stay until they're done.  We wait to keep it clean...
-            if sys.version_info < (3, 9):
-                self.downloader.thread_pool.shutdown()
-            else:
-                self.downloader.thread_pool.shutdown(cancel_futures=True)
+            tps_args: Dict[str, Any] = {}
+            if sys.version_info >= (3, 9):
+                tps_args["cancel_futures"] = True
+            self.downloader.thread_pool.shutdown(**tps_args)
 
             # Inspect all waiting tasks and either cancel them or let them finish.
             pending_tasks = []
