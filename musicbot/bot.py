@@ -219,7 +219,25 @@ class MusicBot(discord.Client):
         else:  # assume 3.8 +
             t = self.loop.create_task(coro, name=name)
         self.task_pool.add(t)
-        t.add_done_callback(self.task_pool.discard)
+
+        def discard_task(task: AsyncTask) -> None:
+            """Clean up the spawned task and handle its exceptions."""
+            ex = task.exception()
+            if ex:
+                if log.getEffectiveLevel() <= logging.DEBUG:
+                    log.exception(
+                        "Unhandled exception for task:  %r", task, exc_info=ex
+                    )
+                else:
+                    log.error(
+                        "Unhandled exception for task:  %r  --  %s",
+                        task,
+                        str(ex),
+                    )
+
+            self.task_pool.discard(task)
+
+        t.add_done_callback(discard_task)
 
     async def setup_hook(self) -> None:
         """async init phase that is called by d.py before login."""
