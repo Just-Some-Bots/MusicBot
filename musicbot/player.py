@@ -270,6 +270,7 @@ class MusicPlayer(EventEmitter, Serializable):
         elif self.loopqueue:
             self.playlist.entries.append(entry)
 
+        # TODO: investigate if this is cruft code or not.
         if self._current_player:
             if hasattr(self._current_player, "after"):
                 self._current_player.after = None
@@ -277,9 +278,9 @@ class MusicPlayer(EventEmitter, Serializable):
 
         self._current_entry = None
         self._source = None
+        self.stop()
 
         if error:
-            self.stop()
             self.emit("error", player=self, entry=entry, ex=error)
             return
 
@@ -290,7 +291,6 @@ class MusicPlayer(EventEmitter, Serializable):
         ):
             # I'm not sure that this would ever not be done if it gets to this point
             # unless ffmpeg is doing something highly questionable
-            self.stop()
             self.emit(
                 "error", player=self, entry=entry, ex=self._stderr_future.exception()
             )
