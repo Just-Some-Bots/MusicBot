@@ -214,7 +214,7 @@ class Playlist(EventEmitter, Serializable):
                     )
 
         log.noise(  # type: ignore[attr-defined]
-            f"Adding URLPlaylistEntry for: {info.get('__input_subject')}"
+            f"Adding URLPlaylistEntry for: {info.input_subject}"
         )
         entry = URLPlaylistEntry(self, info, author=author, channel=channel)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -233,7 +233,7 @@ class Playlist(EventEmitter, Serializable):
         Adds a local media file entry to the playlist.
         """
         log.noise(  # type: ignore[attr-defined]
-            f"Adding LocalFilePlaylistEntry for: {info.get('__input_subject')}"
+            f"Adding LocalFilePlaylistEntry for: {info.input_subject}"
         )
         entry = LocalFilePlaylistEntry(self, info, author=author, channel=channel)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -384,6 +384,9 @@ class Playlist(EventEmitter, Serializable):
         request_counter = 0
         song: Optional[EntryTypes] = None
         while self.entries:
+            log.everything(  # type: ignore[attr-defined]
+                "Reorder looping over entries."
+            )
             # Do not continue if we have no more authors.
             if len(all_authors) == 0:
                 break
@@ -427,41 +430,7 @@ class Playlist(EventEmitter, Serializable):
             "entry-added", playlist=self, entry=entry, defer_serialize=defer_serialize
         )
 
-        if self.peek() is entry:
-            entry.get_ready_future()
-
-    async def _try_get_entry_future(
-        self, entry: EntryTypes, predownload: bool = False
-    ) -> Any:
-        """gracefully try to get the entry ready future, or start pre-downloading one."""
-        moving_on = " Moving to the next entry..."
-        if predownload:
-            moving_on = ""
-
-        try:
-            if predownload:
-                entry.get_ready_future()
-            else:
-                return await entry.get_ready_future()
-
-        except ExtractionError as e:
-            log.warning("Extraction failed for a playlist entry.%s", moving_on)
-            self.emit("entry-failed", entry=entry, error=e)
-            if not predownload:
-                return await self.get_next_entry()
-
-        except AttributeError as e:
-            log.warning(
-                "Deserialize probably failed for a playlist entry.%s",
-                moving_on,
-            )
-            self.emit("entry-failed", entry=entry, error=e)
-            if not predownload:
-                return await self.get_next_entry()
-
-        return None
-
-    async def get_next_entry(self, predownload_next: bool = True) -> Any:
+    async def get_next_entry(self) -> Any:
         """
         A coroutine which will return the next song or None if no songs left to play.
 
@@ -472,13 +441,9 @@ class Playlist(EventEmitter, Serializable):
             return None
 
         entry = self.entries.popleft()
+        # TODO:  Add the pre-download for song-after-next back, later...
 
-        if predownload_next:
-            next_entry = self.peek()
-            if next_entry:
-                await self._try_get_entry_future(next_entry, predownload_next)
-
-        return await self._try_get_entry_future(entry)
+        return await entry.get_ready_future()
 
     def peek(self) -> Optional[EntryTypes]:
         """

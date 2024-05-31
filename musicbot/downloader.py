@@ -79,7 +79,10 @@ class Downloader:
         self.bot: "MusicBot" = bot
         self.download_folder: pathlib.Path = bot.config.audio_cache_path
         # NOTE: this executor may not be good for long-running downloads...
-        self.thread_pool = ThreadPoolExecutor(max_workers=DEFAULT_MAX_INFO_DL_THREADS)
+        self.thread_pool = ThreadPoolExecutor(
+            max_workers=DEFAULT_MAX_INFO_DL_THREADS,
+            thread_name_prefix="MB_Downloader",
+        )
 
         # force ytdlp and HEAD requests to use the same UA string.
         self.http_req_headers = {
@@ -570,6 +573,14 @@ class YtdlpResponseDict(YUserDict):
                 default,
             )
         return default
+
+    @property
+    def input_subject(self) -> str:
+        """Get the input subject used to create this data."""
+        subject = self.data.get("__input_subject", "")
+        if isinstance(subject, str):
+            return subject
+        return ""
 
     @property
     def expected_filename(self) -> Optional[str]:
