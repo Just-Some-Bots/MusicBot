@@ -260,6 +260,13 @@ class MusicPlayer(EventEmitter, Serializable):
 
         :param: error:  An exception, if any, raised by playback.
         """
+        # Ensure the stderr stream reader for ffmpeg is exited.
+        if (
+            isinstance(self._stderr_future, asyncio.Future)
+            and not self._stderr_future.done()
+        ):
+            self._stderr_future.set_result(True)
+
         entry = self._current_entry
         if entry is None:
             log.debug("Playback finished, but _current_entry is None.")
@@ -280,10 +287,12 @@ class MusicPlayer(EventEmitter, Serializable):
         self._source = None
         self.stop()
 
+        # if an error was set, report it and return...
         if error:
             self.emit("error", player=self, entry=entry, ex=error)
             return
 
+        # if a exception is found in the ffmpeg stderr stream, report it and return...
         if (
             isinstance(self._stderr_future, asyncio.Future)
             and self._stderr_future.done()
@@ -296,17 +305,13 @@ class MusicPlayer(EventEmitter, Serializable):
             )
             return
 
-        if (
-            isinstance(self._stderr_future, asyncio.Future)
-            and not self._stderr_future.done()
-        ):
-            self._stderr_future.set_result(True)
-
+        # ensure file cleanup is handled if nothing was wrong with playback.
         if not self.bot.config.save_videos and entry:
             self.bot.create_task(
                 self._handle_file_cleanup(entry), name="MB_CacheCleanup"
             )
 
+        # finally, tell the rest of MusicBot that playback is done.
         self.emit("finished-playing", player=self, entry=entry)
 
     def _kill_current_player(self) -> bool:
