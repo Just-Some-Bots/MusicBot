@@ -1,131 +1,217 @@
 import asyncio
 import inspect
+import json
 import logging
 import math
 import os
 import pathlib
 import random
 import re
-import shlex
 import shutil
+import signal
+import socket
+import ssl
 import sys
 import time
 import traceback
 from collections import defaultdict
-from datetime import timedelta
-from functools import wraps
 from io import BytesIO, StringIO
 from textwrap import dedent
-from typing import Optional
+from typing import Any, DefaultDict, Dict, List, Optional, Set, Union
 
 import aiohttp
-import colorlog
+import certifi  # type: ignore[import-untyped, unused-ignore]
 import discord
+import yt_dlp as youtube_dl  # type: ignore[import-untyped]
 
-from . import downloader
-from . import exceptions
+from . import downloader, exceptions
 from .aliases import Aliases, AliasesDefault
+from .autoplaylist import AutoPlaylistManager
 from .config import Config, ConfigDefaults
-from .constants import DISCORD_MSG_CHAR_LIMIT, AUDIO_CACHE_PATH
+from .constants import (
+    DATA_FILE_SERVERS,
+    DATA_GUILD_FILE_CUR_SONG,
+    DATA_GUILD_FILE_QUEUE,
+    DEFAULT_OWNER_GROUP_NAME,
+    DEFAULT_PERMS_GROUP_NAME,
+    DEFAULT_PING_HTTP_URI,
+    DEFAULT_PING_SLEEP,
+    DEFAULT_PING_TARGET,
+    DEFAULT_PING_TIMEOUT,
+    DISCORD_MSG_CHAR_LIMIT,
+    EMOJI_CHECK_MARK_BUTTON,
+    EMOJI_CROSS_MARK_BUTTON,
+    EMOJI_IDLE_ICON,
+    EMOJI_NEXT_ICON,
+    EMOJI_PREV_ICON,
+    EMOJI_STOP_SIGN,
+    FALLBACK_PING_SLEEP,
+    FALLBACK_PING_TIMEOUT,
+)
 from .constants import VERSION as BOTVERSION
-from .constructs import SkipState, Response
-from .entry import StreamPlaylistEntry
+from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
+from .constructs import GuildSpecificData, Response
+from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
+from .filecache import AudioFileCache
 from .json import Json
 from .opus_loader import load_opus_lib
-from .permissions import Permissions, PermissionsDefaults
+from .permissions import PermissionGroup, Permissions, PermissionsDefaults
 from .player import MusicPlayer
 from .playlist import Playlist
 from .spotify import Spotify
 from .utils import (
-    load_file,
-    write_file,
-    fixg,
-    ftimedelta,
     _func_,
-    _get_variable,
+    count_members_in_voice,
+    dev_only,
+    format_size_from_bytes,
     format_song_duration,
+    format_time_to_seconds,
+    is_empty_voice_channel,
+    muffle_discord_console_log,
+    mute_discord_console_log,
+    owner_only,
+    slugify,
 )
 
-load_opus_lib()
+# optional imports
+try:
+    import objgraph  # type: ignore[import-untyped]
+except ImportError:
+    objgraph = None
+
+
+# Type aliases
+ExitSignals = Union[None, exceptions.RestartSignal, exceptions.TerminateSignal]
+# Channels that MusicBot Can message.
+MessageableChannel = Union[
+    discord.VoiceChannel,
+    discord.StageChannel,
+    discord.TextChannel,
+    discord.Thread,
+    discord.DMChannel,
+    discord.GroupChannel,
+    discord.PartialMessageable,
+]
+GuildMessageableChannels = Union[
+    discord.TextChannel,
+    discord.Thread,
+    discord.VoiceChannel,
+    discord.StageChannel,
+]
+# Voice Channels that MusicBot Can connect to.
+VoiceableChannel = Union[
+    discord.VoiceChannel,
+    discord.StageChannel,
+]
+MessageAuthor = Union[
+    discord.User,
+    discord.Member,
+]
+UserMentions = List[Union[discord.Member, discord.User]]
+EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry, LocalFilePlaylistEntry]
+CommandResponse = Union[Response, None]
+
 
 log = logging.getLogger(__name__)
 
-intents = discord.Intents.all()
-intents.typing = False
-intents.presences = False
+# TODO:  add an aliases command to manage command aliases.
+# TODO:  maybe allow aliases to contain whole/partial commands.
 
 
 class MusicBot(discord.Client):
-    def __init__(self, config_file=None, perms_file=None, aliases_file=None):
-        try:
-            sys.stdout.write("\x1b]2;MusicBot {}\x07".format(BOTVERSION))
-        except:
-            pass
-
-        print()
+    def __init__(
+        self,
+        config_file: Optional[pathlib.Path] = None,
+        perms_file: Optional[pathlib.Path] = None,
+        aliases_file: Optional[pathlib.Path] = None,
+        use_certifi: bool = False,
+    ) -> None:
+        log.info("Initializing MusicBot %s", BOTVERSION)
+        load_opus_lib()
 
         if config_file is None:
-            config_file = ConfigDefaults.options_file
+            self._config_file = ConfigDefaults.options_file
+        else:
+            self._config_file = config_file
 
         if perms_file is None:
-            perms_file = PermissionsDefaults.perms_file
+            self._perms_file = PermissionsDefaults.perms_file
+        else:
+            self._perms_file = perms_file
 
         if aliases_file is None:
             aliases_file = AliasesDefault.aliases_file
 
-        self.players = {}
-        self.exit_signal = None
-        self.init_ok = False
-        self.cached_app_info = None
-        self.last_status = None
+        self.use_certifi: bool = use_certifi
+        self.exit_signal: ExitSignals = None
+        self._init_time: float = time.time()
+        self._os_signal: Optional[signal.Signals] = None
+        self._ping_peer_addr: str = ""
+        self._ping_use_http: bool = False
+        self.network_outage: bool = False
+        self.on_ready_count: int = 0
+        self.init_ok: bool = False
+        self.logout_called: bool = False
+        self.cached_app_info: Optional[discord.AppInfo] = None
+        self.last_status: Optional[discord.BaseActivity] = None
+        self.players: Dict[int, MusicPlayer] = {}
 
-        self.config = Config(config_file)
+        self.config = Config(self._config_file)
 
-        self._setup_logging()
-
-        self.permissions = Permissions(perms_file, grant_all=[self.config.owner_id])
+        self.permissions = Permissions(self._perms_file)
+        # Set the owner ID in case it wasn't auto...
+        self.permissions.set_owner_id(self.config.owner_id)
         self.str = Json(self.config.i18n_file)
 
         if self.config.usealias:
             self.aliases = Aliases(aliases_file)
 
-        self.blacklist = set(load_file(self.config.blacklist_file))
-        self.autoplaylist = load_file(self.config.auto_playlist_file)
+        self.playlist_mgr = AutoPlaylistManager(self)
 
-        self.aiolocks = defaultdict(asyncio.Lock)
-        self.downloader = downloader.Downloader(download_folder="audio_cache")
+        self.aiolocks: DefaultDict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self.filecache = AudioFileCache(self)
+        self.downloader = downloader.Downloader(self)
 
-        log.info("Starting MusicBot {}".format(BOTVERSION))
+        # Factory function for server specific data objects.
+        def server_factory() -> GuildSpecificData:
+            return GuildSpecificData(self)
 
-        if not self.autoplaylist:
-            log.warning("Autoplaylist is empty, disabling.")
-            self.config.auto_playlist = False
-        else:
-            log.info(
-                "Loaded autoplaylist with {} entries".format(len(self.autoplaylist))
-            )
-
-        if self.blacklist:
-            log.debug("Loaded blacklist with {} entries".format(len(self.blacklist)))
-
-        # TODO: Do these properly
-        ssd_defaults = {
-            "last_np_msg": None,
-            "auto_paused": False,
-            "availability_paused": False,
-        }
-        self.server_specific_data = defaultdict(ssd_defaults.copy)
-
-        super().__init__(intents=intents)
-
-    async def _doBotInit(self):
-        self.http.user_agent = "MusicBot/%s" % BOTVERSION
-        self.session = aiohttp.ClientSession(
-            headers={"User-Agent": self.http.user_agent}
+        # defaultdict lets us on-demand create GuildSpecificData.
+        self.server_data: DefaultDict[int, GuildSpecificData] = defaultdict(
+            server_factory
         )
 
-        self.spotify = None
-        if self.config._spotify:
+        self.spotify: Optional[Spotify] = None
+        self.session: Optional[aiohttp.ClientSession] = None
+
+        intents = discord.Intents.all()
+        intents.typing = False
+        intents.presences = False
+        super().__init__(intents=intents)
+
+    async def setup_hook(self) -> None:
+        """async init phase that is called by d.py before login."""
+        if self.config.enable_queue_history_global:
+            await self.playlist_mgr.global_history.load()
+
+        self.http.user_agent = f"MusicBot/{BOTVERSION}"
+        if self.use_certifi:
+            ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+            tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
+
+            # Patches discord.py HTTPClient.
+            self.http.connector = tcp_connector
+
+            self.session = aiohttp.ClientSession(
+                headers={"User-Agent": self.http.user_agent},
+                connector=tcp_connector,
+            )
+        else:
+            self.session = aiohttp.ClientSession(
+                headers={"User-Agent": self.http.user_agent}
+            )
+
+        if self.config.spotify_enabled:
             try:
                 self.spotify = Spotify(
                     self.config.spotify_clientid,
@@ -133,20 +219,19 @@ class MusicBot(discord.Client):
                     aiosession=self.session,
                     loop=self.loop,
                 )
-                if not self.spotify.token:
+                if not await self.spotify.has_token():
                     log.warning("Spotify did not provide us with a token. Disabling.")
-                    self.config._spotify = False
+                    self.config.spotify_enabled = False
                 else:
                     log.info(
                         "Authenticated with Spotify successfully using client ID and secret."
                     )
             except exceptions.SpotifyError as e:
                 log.warning(
-                    "There was a problem initialising the connection to Spotify. Is your client ID and secret correct? Details: {0}. Continuing anyway in 5 seconds...".format(
-                        e
-                    )
+                    "Could not start Spotify client. Is your client ID and secret correct? Details: %s. Continuing anyway in 5 seconds...",
+                    e,
                 )
-                self.config._spotify = False
+                self.config.spotify_enabled = False
                 time.sleep(5)  # make sure they see the problem
         else:
             try:
@@ -156,356 +241,685 @@ class MusicBot(discord.Client):
                 self.spotify = Spotify(
                     None, None, aiosession=self.session, loop=self.loop
                 )
-                await self.spotify.get_token()
-                if not self.spotify.token:
+                if not await self.spotify.has_token():
                     log.warning("Spotify did not provide us with a token. Disabling.")
-                    self.config._spotify = False
+                    self.config.spotify_enabled = False
                 else:
                     log.info(
                         "Authenticated with Spotify successfully using guest mode."
                     )
-                    self.config._spotify = True
+                    self.config.spotify_enabled = True
             except exceptions.SpotifyError as e:
                 log.warning(
-                    "There was a problem initialising the connection to Spotify using guest mode. Details: {0}.".format(
-                        e
+                    "Could not start Spotify client using guest mode. Details: %s.", e
+                )
+                self.config.spotify_enabled = False
+
+        log.info("Initialized, now connecting to discord.")
+        # this creates an output similar to a progress indicator.
+        muffle_discord_console_log()
+        self.loop.create_task(self._test_network(), name="MB_PingTest")
+
+    async def _test_network(self) -> None:
+        """
+        A self looping method that tests network connectivity.
+        This will call to the systems ping command and use its return status.
+        """
+        if not self.config.enable_network_checker:
+            log.debug("Network ping test is disabled via config.")
+            return
+
+        if self.logout_called:
+            log.noise("Network ping test is closing down.")  # type: ignore[attr-defined]
+            return
+
+        # Resolve the given target to speed up pings.
+        ping_target = self._ping_peer_addr
+        if not self._ping_peer_addr:
+            try:
+                ai = socket.getaddrinfo(DEFAULT_PING_TARGET, 80)
+                self._ping_peer_addr = ai[0][4][0]
+                ping_target = self._ping_peer_addr
+            except OSError:
+                log.warning("Could not resolve ping target.")
+                ping_target = DEFAULT_PING_TARGET
+
+        # Make a ping test using sys ping command or http request.
+        if self._ping_use_http:
+            ping_status = await self._test_network_via_http(ping_target)
+        else:
+            ping_status = await self._test_network_via_ping(ping_target)
+            if self._ping_use_http:
+                ping_status = await self._test_network_via_http(ping_target)
+
+        # Ping success, network up.
+        if ping_status == 0:
+            if self.network_outage:
+                self.on_network_up()
+            self.network_outage = False
+
+        # Ping failed, network down.
+        else:
+            if not self.network_outage:
+                self.on_network_down()
+            self.network_outage = True
+
+        # Sleep before next ping.
+        try:
+            if not self._ping_use_http:
+                await asyncio.sleep(DEFAULT_PING_SLEEP)
+            else:
+                await asyncio.sleep(FALLBACK_PING_SLEEP)
+        except asyncio.exceptions.CancelledError:
+            log.noise("Network ping test cancelled.")  # type: ignore[attr-defined]
+            return
+
+        # set up the next ping task if possible.
+        if self.loop and not self.logout_called:
+            self.loop.create_task(self._test_network(), name="MB_PingTest")
+
+    async def _test_network_via_http(self, ping_target: str) -> int:
+        """
+        This method is used as a fall-back if system ping commands are not available.
+        It will make use of current aiohttp session to make a HEAD request for the
+        given `ping_target` and a file defined by DEFAULT_PING_HTTP_URI.
+        """
+        if not self.session:
+            log.warning("Network testing via HTTP does not have a session to borrow.")
+            # As we cannot test it, assume network is up.
+            return 0
+
+        try:
+            ping_host = f"http://{ping_target}{DEFAULT_PING_HTTP_URI}"
+            async with self.session.head(ping_host, timeout=FALLBACK_PING_TIMEOUT):
+                return 0
+        except (aiohttp.ClientError, asyncio.exceptions.TimeoutError, OSError):
+            return 1
+
+    async def _test_network_via_ping(self, ping_target: str) -> int:
+        """
+        This method constructs a ping command to use as a system call.
+        If ping cannot be found or is not permitted, the fall-back flag
+        will be set by this function, and subsequent ping tests will use
+        HTTP ping testing method instead.
+        """
+        # Make a ping call based on OS.
+        if not hasattr(self, "_mb_ping_exe_path"):
+            ping_path = shutil.which("ping")
+            if not ping_path:
+                log.warning("Could not locate `ping` executable in your environment.")
+                ping_path = "ping"
+            setattr(self, "_mb_ping_exe_path", ping_path)
+        else:
+            ping_path = getattr(self, "_mb_ping_exe_path", "ping")
+
+        ping_cmd: List[str] = []
+        if os.name == "nt":
+            # Windows ping -w uses milliseconds.
+            t = 1000 * DEFAULT_PING_TIMEOUT
+            ping_cmd = [ping_path, "-n", "1", "-w", str(t), ping_target]
+        else:
+            t = DEFAULT_PING_TIMEOUT
+            ping_cmd = [ping_path, "-c", "1", "-w", str(t), ping_target]
+
+        # execute the ping command.
+        try:
+            p = await asyncio.create_subprocess_exec(
+                ping_cmd[0],
+                *ping_cmd[1:],
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            ping_status = await p.wait()
+        except FileNotFoundError:
+            log.error(
+                "MusicBot could not locate a `ping` command path.  Will attempt to use HTTP ping instead."
+                "\nMusicBot tried the following command:   %s"
+                "\nYou should enable ping in your system or container environment for best results."
+                "\nAlternatively disable network checking via config.",
+                " ".join(ping_cmd),
+            )
+            self._ping_use_http = True
+            return 1
+        except PermissionError:
+            log.error(
+                "MusicBot was denied permission to execute the `ping` command.  Will attempt to use HTTP ping instead."
+                "\nMusicBot tried the following command:   %s"
+                "\nYou should enable ping in your system or container environment for best results."
+                "\nAlternatively disable network checking via config.",
+                " ".join(ping_cmd),
+            )
+            self._ping_use_http = True
+            return 1
+        except OSError:
+            log.error(
+                "Your environment may not allow the `ping` system command.  Will attempt to use HTTP ping instead."
+                "\nMusicBot tried the following command:   %s"
+                "\nYou should enable ping in your system or container environment for best results."
+                "\nAlternatively disable network checking via config.",
+                " ".join(ping_cmd),
+                exc_info=self.config.debug_mode,
+            )
+            self._ping_use_http = True
+            return 1
+        return ping_status
+
+    def on_network_up(self) -> None:
+        """
+        Event called by MusicBot when it detects network returned from outage.
+        """
+        log.info("MusicBot detected network is available again.")
+        for gid, player in self.players.items():
+            if player.is_paused and not player.paused_auto:
+                if not player.voice_client.is_connected():
+                    log.warning(
+                        "VoiceClient is not connected, waiting to resume MusicPlayer..."
                     )
+                    continue
+                log.info("Resuming playback of player:  (%s) %s", gid, repr(player))
+                player.guild_or_net_unavailable = False
+                player.resume()
+            player.guild_or_net_unavailable = False
+
+    def on_network_down(self) -> None:
+        """
+        Event called by MusicBot when it detects network outage.
+        """
+        log.info("MusicBot detected a network outage.")
+        for gid, player in self.players.items():
+            if player.is_playing:
+                log.info(
+                    "Pausing MusicPlayer due to network availability:  (%s) %s",
+                    gid,
+                    repr(player),
                 )
-                self.config._spotify = False
+                player.pause()
+            player.guild_or_net_unavailable = True
 
-    # TODO: Add some sort of `denied` argument for a message to send when someone else tries to use it
-    def owner_only(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # Only allow the owner to use these commands
-            orig_msg = _get_variable("message")
+    def _get_owner_member(
+        self, *, server: Optional[discord.Guild] = None, voice: bool = False
+    ) -> Optional[discord.Member]:
+        """
+        Get the discord Member object that has a user ID which matches
+        the configured OwnerID.
 
-            if not orig_msg or orig_msg.author.id == self.config.owner_id:
-                # noinspection PyCallingNonCallable
-                return await func(self, *args, **kwargs)
-            else:
-                raise exceptions.PermissionsError(
-                    "Only the owner can use this command.", expire_in=30
-                )
-
-        return wrapper
-
-    def dev_only(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            orig_msg = _get_variable("message")
-
-            if str(orig_msg.author.id) in self.config.dev_ids:
-                # noinspection PyCallingNonCallable
-                return await func(self, *args, **kwargs)
-            else:
-                raise exceptions.PermissionsError(
-                    "Only dev users can use this command.", expire_in=30
-                )
-
-        wrapper.dev_cmd = True
-        return wrapper
-
-    def ensure_appinfo(func):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            await self._cache_app_info()
-            # noinspection PyCallingNonCallable
-            return await func(self, *args, **kwargs)
-
-        return wrapper
-
-    def _get_owner(self, *, server=None, voice=False):
-        return discord.utils.find(
+        :param: server:  The discord Guild in which to expect the member.
+        :param: voice:  Require the owner to be in a voice channel.
+        """
+        owner = discord.utils.find(
             lambda m: m.id == self.config.owner_id and (m.voice if voice else True),
             server.members if server else self.get_all_members(),
         )
-
-    def _delete_old_audiocache(self, path=AUDIO_CACHE_PATH):
-        try:
-            shutil.rmtree(path)
-            return True
-        except:
-            try:
-                os.rename(path, path + "__")
-            except:
-                return False
-            try:
-                shutil.rmtree(path)
-            except:
-                os.rename(path + "__", path)
-                return False
-
-        return True
-
-    def _setup_logging(self):
-        if len(logging.getLogger(__package__).handlers) > 1:
-            log.debug("Skipping logger setup, already set up")
-            return
-
-        shandler = logging.StreamHandler(stream=sys.stdout)
-        sformatter = colorlog.LevelFormatter(
-            fmt={
-                "DEBUG": "{log_color}[{levelname}:{module}] {message}",
-                "INFO": "{log_color}{message}",
-                "WARNING": "{log_color}{levelname}: {message}",
-                "ERROR": "{log_color}[{levelname}:{module}] {message}",
-                "CRITICAL": "{log_color}[{levelname}:{module}] {message}",
-                "EVERYTHING": "{log_color}[{levelname}:{module}] {message}",
-                "NOISY": "{log_color}[{levelname}:{module}] {message}",
-                "VOICEDEBUG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-                "FFMPEG": "{log_color}[{levelname}:{module}][{relativeCreated:.9f}] {message}",
-            },
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "white",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "bold_red",
-                "EVERYTHING": "white",
-                "NOISY": "white",
-                "FFMPEG": "bold_purple",
-                "VOICEDEBUG": "purple",
-            },
-            style="{",
-            datefmt="",
+        log.noise(  # type: ignore[attr-defined]
+            "Looking for owner (in guild: %s) (required voice: %s) and got:  %s",
+            server,
+            voice,
+            owner,
         )
-        shandler.setFormatter(sformatter)
-        shandler.setLevel(self.config.debug_level)
-        logging.getLogger(__package__).addHandler(shandler)
+        return owner
 
-        log.debug("Set logging level to {}".format(self.config.debug_level_str))
+    async def _auto_join_channels(
+        self,
+        from_resume: bool = False,
+    ) -> None:
+        """
+        Attempt to join voice channels that have been configured in options.
+        Also checks for existing voice sessions and attempts to resume them.
+        If self.on_ready_count is 0, it will also run owner auto-summon logic.
+        """
+        log.info("Checking for channels to auto-join or resume...")
+        channel_map: Dict[discord.Guild, VoiceableChannel] = {}
 
-        if self.config.debug_mode:
-            dlogger = logging.getLogger("discord")
-            dlogger.setLevel(logging.DEBUG)
-            dhandler = logging.FileHandler(
-                filename="logs/discord.log", encoding="utf-8", mode="w"
-            )
-            dhandler.setFormatter(
-                logging.Formatter("{asctime}:{levelname}:{name}: {message}", style="{")
-            )
-            dlogger.addHandler(dhandler)
-
-    @staticmethod
-    def _check_if_empty(
-        vchannel: discord.abc.GuildChannel, *, excluding_me=True, excluding_deaf=False
-    ):
-        def check(member):
-            if excluding_me and member == vchannel.guild.me:
-                return False
-
-            if excluding_deaf and any([member.deaf, member.self_deaf]):
-                return False
-
-            if member.bot:
-                return False
-
-            return True
-
-        return not sum(1 for m in vchannel.members if check(m))
-
-    async def _join_startup_channels(self, channels, *, autosummon=True):
-        joined_servers = set()
-        channel_map = {c.guild: c for c in channels}
-
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Initial autopause in empty channel")
-
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild][
-                    "auto_paused"
-                ] = True
-
+        # Check guilds for a resumable channel, conditionally override with owner summon.
+        resuming = False
         for guild in self.guilds:
-            if guild.unavailable or guild in channel_map:
+            auto_join_ch = self.server_data[guild.id].auto_join_channel
+            if auto_join_ch:
+                channel_map[guild] = auto_join_ch
+
+            if guild.unavailable:
+                log.warning(
+                    "Guild not available, cannot auto join:  %s/%s",
+                    guild.id,
+                    guild.name,
+                )
                 continue
 
-            if guild.me.voice:
+            # Check for a resumable channel.
+            if guild.me.voice and guild.me.voice.channel:
                 log.info(
-                    "Found resumable voice channel {0.guild.name}/{0.name}".format(
-                        guild.me.voice.channel
-                    )
+                    "Found resumable voice channel:  %s  in guild:  %s",
+                    guild.me.voice.channel.name,
+                    guild.name,
                 )
-                channel_map[guild] = guild.me.voice.channel
 
-            if autosummon:
-                owner = self._get_owner(server=guild, voice=True)
-                if owner:
-                    log.info('Found owner in "{}"'.format(owner.voice.channel.name))
+                # override an existing auto-join if bot was previously in a different channel.
+                if (
+                    guild in channel_map
+                    and guild.me.voice.channel != channel_map[guild]
+                ):
+                    log.info(
+                        "Will try resuming voice session instead of Auto-Joining channel:  %s",
+                        channel_map[guild].name,
+                    )
+                channel_map[guild] = guild.me.voice.channel
+                resuming = True
+
+            # Check for follow-user mode on resume.
+            follow_user = self.server_data[guild.id].follow_user
+            if from_resume and follow_user:
+                if follow_user.voice and follow_user.voice.channel:
+                    channel_map[guild] = follow_user.voice.channel
+
+            # Check if we should auto-summon to the owner, but only on startup.
+            if self.config.auto_summon and not from_resume:
+                owner = self._get_owner_member(server=guild, voice=True)
+                if owner and owner.voice and owner.voice.channel:
+                    log.info(
+                        "Found owner in voice channel:  %s", owner.voice.channel.name
+                    )
+                    if guild in channel_map:
+                        if resuming:
+                            log.info(
+                                "Ignoring resumable channel, AutoSummon to owner in channel:  %s",
+                                owner.voice.channel.name,
+                            )
+                        else:
+                            log.info(
+                                "Ignoring Auto-Join channel, AutoSummon to owner in channel:  %s",
+                                owner.voice.channel.name,
+                            )
                     channel_map[guild] = owner.voice.channel
 
         for guild, channel in channel_map.items():
-            if guild in joined_servers:
+
+            if (
+                isinstance(guild.voice_client, discord.VoiceClient)
+                and guild.voice_client.is_connected()
+            ):
                 log.info(
-                    'Already joined a channel in "{}", skipping'.format(guild.name)
+                    "Already connected to channel:  %s  in guild:  %s",
+                    guild.voice_client.channel.name,
+                    guild.name,
                 )
                 continue
 
-            if channel and isinstance(channel, discord.VoiceChannel):
-                log.info("Attempting to join {0.guild.name}/{0.name}".format(channel))
-
-                chperms = channel.permissions_for(guild.me)
-
-                if not chperms.connect:
-                    log.info(
-                        'Cannot join channel "{}", no permission.'.format(channel.name)
-                    )
-                    continue
-
-                elif not chperms.speak:
-                    log.info(
-                        'Will not join channel "{}", no permission to speak.'.format(
-                            channel.name
-                        )
-                    )
-                    continue
-
-                try:
-                    player = await self.get_player(
-                        channel, create=True, deserialize=self.config.persistent_queue
-                    )
-                    joined_servers.add(guild)
-
-                    log.info("Joined {0.guild.name}/{0.name}".format(channel))
-
-                    if player.is_stopped:
-                        player.play()
-
-                    if self.config.auto_playlist:
-                        if self.config.auto_pause:
-                            player.once("play", lambda player, **_: _autopause(player))
-                        if not player.playlist.entries:
-                            await self.on_player_finished_playing(player)
-
-                except Exception:
-                    log.debug(
-                        "Error joining {0.guild.name}/{0.name}".format(channel),
-                        exc_info=True,
-                    )
-                    log.error("Failed to join {0.guild.name}/{0.name}".format(channel))
-
-            elif channel:
-                log.warning(
-                    "Not joining {0.guild.name}/{0.name}, that's a text channel.".format(
-                        channel
-                    )
+            if channel and isinstance(
+                channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
+                log.info(
+                    "Attempting to join channel:  %s/%s  in guild:  %s",
+                    channel.guild.name,
+                    channel.name,
+                    channel.guild,
                 )
 
-            else:
-                log.warning("Invalid channel thing: {}".format(channel))
+                player = self.get_player_in(guild)
 
-    async def _wait_delete_msg(self, message, after):
-        await asyncio.sleep(after)
-        await self.safe_delete_message(message, quiet=True)
+                if player:
+                    log.info("Discarding MusicPlayer and making a new one...")
+                    await self.disconnect_voice_client(guild)
 
-    # TODO: Check to see if I can just move this to on_message after the response check
-    async def _manual_delete_check(self, message, *, quiet=False):
-        if self.config.delete_invoking:
-            await self.safe_delete_message(message, quiet=quiet)
+                    try:
+                        player = await self.get_player(
+                            channel,
+                            create=True,
+                            deserialize=self.config.persistent_queue,
+                        )
 
-    async def _check_ignore_non_voice(self, msg):
-        if msg.guild.me.voice:
+                        if player.is_stopped and len(player.playlist) > 0:
+                            player.play()
+
+                        if self.config.auto_playlist and len(player.playlist) == 0:
+                            await self.on_player_finished_playing(player)
+
+                    except (TypeError, exceptions.PermissionsError):
+                        continue
+
+                else:
+                    log.debug("MusicBot will make a new MusicPlayer now...")
+                    try:
+                        player = await self.get_player(
+                            channel,
+                            create=True,
+                            deserialize=self.config.persistent_queue,
+                        )
+
+                        if player.is_stopped and len(player.playlist) > 0:
+                            player.play()
+
+                        if self.config.auto_playlist and len(player.playlist) == 0:
+                            await self.on_player_finished_playing(player)
+
+                    except (TypeError, exceptions.PermissionsError):
+                        continue
+
+            if channel and not isinstance(
+                channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
+                log.warning(
+                    "Not joining %s/%s, it isn't a supported voice channel.",
+                    channel.guild.name,
+                    channel.name,
+                )
+        log.info("Finished joining configured channels.")
+
+    async def _wait_delete_msg(
+        self, message: discord.Message, after: Union[int, float]
+    ) -> None:
+        """
+        Uses asyncio.sleep to delay a call to safe_delete_message but
+        does not check if the bot can delete a message or if it has
+        already been deleted before trying to delete it anyway.
+        """
+        try:
+            await asyncio.sleep(after)
+        except asyncio.CancelledError:
+            log.warning(
+                "Cancelled delete for message (ID: %s):  %s",
+                message.id,
+                message.content,
+            )
+            return
+
+        if not self.is_closed():
+
+            await self.safe_delete_message(message, quiet=True)
+
+    async def _check_ignore_non_voice(self, msg: discord.Message) -> bool:
+        """Check used by on_message to determine if caller is in a VoiceChannel."""
+        if msg.guild and msg.guild.me.voice:
             vc = msg.guild.me.voice.channel
         else:
             vc = None
 
-        # If we've connected to a voice chat and we're in the same voice channel
-        if not vc or (msg.author.voice and vc == msg.author.voice.channel):
-            return True
-        else:
-            raise exceptions.PermissionsError(
-                "you cannot use this command when not in the voice channel (%s)"
-                % vc.name,
+        # Webhooks can't be voice members. discord.User has no .voice attribute.
+        if isinstance(msg.author, discord.User):
+            raise exceptions.CommandError(
+                "Member is not voice-enabled and cannot use this command.",
                 expire_in=30,
             )
 
-    async def _cache_app_info(self, *, update=False):
-        if not self.cached_app_info and not update and self.user.bot:
-            log.debug("Caching app info")
+        # If we've connected to a voice chat and we're in the same voice channel
+        if not vc or (msg.author.voice and vc == msg.author.voice.channel):
+            return True
+
+        raise exceptions.PermissionsError(
+            f"you cannot use this command when not in the voice channel ({vc.name})",
+            expire_in=30,
+        )
+
+    async def generate_invite_link(
+        self,
+        *,
+        permissions: discord.Permissions = discord.Permissions(70380544),
+        guild: discord.Guild = discord.utils.MISSING,
+    ) -> str:
+        """
+        Fetch Application Info from discord and generate an OAuth invite
+        URL for MusicBot.
+        """
+        if not self.cached_app_info:
+            log.debug("Getting bot Application Info.")
             self.cached_app_info = await self.application_info()
 
-        return self.cached_app_info
-
-    async def remove_from_autoplaylist(
-        self, song_url: str, *, ex: Exception = None, delete_from_ap=False
-    ):
-        if song_url not in self.autoplaylist:
-            log.debug('URL "{}" not in autoplaylist, ignoring'.format(song_url))
-            return
-
-        async with self.aiolocks[_func_()]:
-            self.autoplaylist.remove(song_url)
-            log.info(
-                "Removing unplayable song from session autoplaylist: %s" % song_url
-            )
-
-            with open(
-                self.config.auto_playlist_removed_file, "a", encoding="utf8"
-            ) as f:
-                f.write(
-                    "# Entry removed {ctime}\n"
-                    "# Reason: {ex}\n"
-                    "{url}\n\n{sep}\n\n".format(
-                        ctime=time.ctime(),
-                        ex=str(ex).replace(
-                            "\n", "\n#" + " " * 10
-                        ),  # 10 spaces to line up with # Reason:
-                        url=song_url,
-                        sep="#" * 32,
-                    )
-                )
-
-            if delete_from_ap:
-                log.info("Updating autoplaylist")
-                write_file(self.config.auto_playlist_file, self.autoplaylist)
-
-    @ensure_appinfo
-    async def generate_invite_link(
-        self, *, permissions=discord.Permissions(70380544), guild=discord.utils.MISSING
-    ):
         return discord.utils.oauth_url(
             self.cached_app_info.id, permissions=permissions, guild=guild
         )
 
-    async def get_voice_client(self, channel: discord.abc.GuildChannel):
-        if isinstance(channel, discord.Object):
-            channel = self.get_channel(channel.id)
+    async def get_voice_client(self, channel: VoiceableChannel) -> discord.VoiceClient:
+        """
+        Use the given `channel` either return an existing VoiceClient or
+        create a new VoiceClient by connecting to the `channel` object.
 
-        if not isinstance(channel, discord.VoiceChannel):
-            raise AttributeError("Channel passed must be a voice channel")
+        :raises: TypeError
+            If `channel` is not a discord.VoiceChannel or discord.StageChannel
 
-        if channel.guild.voice_client:
-            return channel.guild.voice_client
-        else:
-            client = await channel.connect(timeout=60, reconnect=True)
-            await channel.guild.change_voice_state(
-                channel=channel, self_mute=False, self_deaf=self.config.self_deafen
+        :raises: musicbot.exceptions.PermissionsError
+            If MusicBot does not have permissions required to join or speak in the `channel`.
+        """
+        if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
+            raise TypeError("Channel passed must be a voice channel")
+
+        # Check if MusicBot has required permissions to join in channel.
+        chperms = channel.permissions_for(channel.guild.me)
+        if not chperms.connect:
+            log.error(
+                "MusicBot does not have permission to Connect in channel:  %s",
+                channel.name,
             )
-            return client
+            raise exceptions.PermissionsError(
+                f"MusicBot does not have permission to Connect in channel:  `{channel.name}`",
+                expire_in=30,
+            )
+        if not chperms.speak:
+            log.error(
+                "MusicBot does not have permission to Speak in channel:  %s",
+                channel.name,
+            )
+            raise exceptions.PermissionsError(
+                f"MusicBot does not have permission to Speak in channel:  `{channel.name}`",
+                expire_in=30,
+            )
 
-    async def disconnect_voice_client(self, guild):
-        vc = self.voice_client_in(guild)
-        if not vc:
-            return
+        # check for and return bots VoiceClient if we already have one.
+        vc = channel.guild.voice_client
+        if vc and isinstance(vc, (discord.VoiceClient, discord.StageChannel)):
+            # make sure it is usable
+            if vc.is_connected():
+                log.voicedebug(  # type: ignore[attr-defined]
+                    "Reusing bots VoiceClient from guild:  %s", channel.guild
+                )
+                return vc
+            # or otherwise we kill it and start fresh.
+            log.voicedebug(  # type: ignore[attr-defined]
+                "Forcing disconnect on stale VoiceClient in guild:  %s", channel.guild
+            )
+            try:
+                await vc.disconnect()
+            except (asyncio.exceptions.CancelledError, asyncio.exceptions.TimeoutError):
+                if self.config.debug_mode:
+                    log.warning("Disconnect failed or was cancelled?")
+
+        # Otherwise we need to connect to the given channel.
+        max_timeout = VOICE_CLIENT_RECONNECT_TIMEOUT * VOICE_CLIENT_MAX_RETRY_CONNECT
+        attempts = 0
+        while True:
+            attempts += 1
+            timeout = attempts * VOICE_CLIENT_RECONNECT_TIMEOUT
+            if timeout > max_timeout:
+                log.critical(
+                    "MusicBot is unable to connect to the channel right now:  %s",
+                    channel,
+                )
+                raise exceptions.CommandError(
+                    "MusicBot could not connect to the channel. Try again later, or restart the bot if this continues."
+                )
+
+            try:
+                client: discord.VoiceClient = await channel.connect(
+                    timeout=timeout,
+                    reconnect=True,
+                    self_deaf=self.config.self_deafen,
+                )
+                log.voicedebug(  # type: ignore[attr-defined]
+                    "MusicBot has a VoiceClient now..."
+                )
+                break
+            except asyncio.exceptions.TimeoutError:
+                log.warning(
+                    "Retrying connection after a timeout error (%s) while trying to connect to:  %s",
+                    attempts,
+                    channel,
+                )
+            except asyncio.exceptions.CancelledError as e:
+                log.exception(
+                    "MusicBot VoiceClient connection attempt was cancelled. No retry."
+                )
+                raise exceptions.CommandError(
+                    "MusicBot connection to voice was cancelled. This is odd. Maybe restart?"
+                ) from e
+
+        # TODO: look into Stage channel handling and test this at some point.
+        # It is likely that we'll want to respond to a voice state update instead
+        # to make sure manually moving a bot to a StageChannel gives it speaker.
+        if isinstance(channel, discord.StageChannel):
+            try:
+                await channel.guild.me.edit(suppress=False)
+            except (discord.Forbidden, discord.HTTPException):
+                log.exception("Something broke in StageChannel handling.")
+
+        return client
+
+    async def disconnect_voice_client(self, guild: discord.Guild) -> None:
+        """
+        Check for a MusicPlayer in the given `guild` and close it's VoiceClient
+        gracefully then remove the MusicPlayer instance and reset any timers on
+        the guild for player/channel inactivity.
+        """
 
         if guild.id in self.players:
-            self.players.pop(guild.id).kill()
+            log.info("Disconnecting a MusicPlayer in guild:  %s", guild)
+            player = self.players.pop(guild.id)
 
-        await vc.disconnect()
+            await self.reset_player_inactivity(player)
 
-    async def disconnect_all_voice_clients(self):
-        for vc in list(self.voice_clients).copy():
-            await self.disconnect_voice_client(vc.channel.guild)
+            # reset channel inactivity.
+            if self.config.leave_inactive_channel:
+                event = self.server_data[guild.id].get_event("inactive_vc_timer")
+                if event.is_active() and not event.is_set():
+                    event.set()
+
+            if player.voice_client:
+                log.debug("Disconnecting VoiceClient before we kill the MusicPlayer.")
+                try:
+                    await player.voice_client.disconnect()
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    if self.config.debug_mode:
+                        log.warning("The disconnect failed or was cancelledd.")
+
+            # ensure the player is dead and gone.
+            player.kill()
+            del player
+
+        # Double check for voice objects.
+        for vc in self.voice_clients:
+            if not isinstance(vc, discord.VoiceClient):
+                log.debug(
+                    "MusicBot has a VoiceProtocol that is not a VoiceClient. Disconnecting anyway..."
+                )
+                try:
+                    await vc.disconnect(force=True)
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    if self.config.debug_mode:
+                        log.warning("The disconnect failed or was cancelled.")
+                continue
+
+            if vc.guild and vc.guild == guild:
+                log.debug("Disconnecting a rogue VoiceClient in guild:  %s", guild)
+                try:
+                    await vc.disconnect()
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    if self.config.debug_mode:
+                        log.warning("The disconnect failed or was cancelled.")
+
+        await self.update_now_playing_status()
+
+    async def disconnect_all_voice_clients(self) -> None:
+        """
+        Loop over all references that may have a VoiceClient and ensure they are
+        closed and disposed of in the case of MusicPlayer.
+        """
+        # Disconnect from all guilds.
+        for guild in self.guilds:
+            await self.disconnect_voice_client(guild)
+
+        # Double check for detached voice clients.
+        for vc in self.voice_clients:
+            if isinstance(vc, discord.VoiceClient):
+                log.warning("Disconnecting a non-guild VoiceClient...")
+                try:
+                    await vc.disconnect()
+                except (
+                    asyncio.exceptions.CancelledError,
+                    asyncio.exceptions.TimeoutError,
+                ):
+                    log.warning("The disconnect failed or was cancelled.")
+            else:
+                log.warning(
+                    "MusicBot.voice_clients list contains a non-VoiceClient object?\n"
+                    "The object is actually of type:  %s",
+                    type(vc),
+                )
+
+        # Triple check we don't have rogue players.  This would be a bug.
+        player_gids = list(self.players.keys())
+        for gid in player_gids:
+            player = self.players[gid]
+            log.warning(
+                "We still have a MusicPlayer ref in guild (%s):  %s",
+                gid,
+                repr(player),
+            )
+            del self.players[gid]
 
     def get_player_in(self, guild: discord.Guild) -> Optional[MusicPlayer]:
-        return self.players.get(guild.id)
+        """
+        Get a MusicPlayer in the given guild, but do not create a new player.
+        MusicPlayer returned from this method may not be connected to a voice channel!
+        """
+        p = self.players.get(guild.id)
+        if log.getEffectiveLevel() <= logging.EVERYTHING:  # type: ignore[attr-defined]
+            log.voicedebug(  # type: ignore[attr-defined]
+                "Guild (%s) wants a player, optional:  %s", guild, repr(p)
+            )
+
+        if log.getEffectiveLevel() <= logging.VOICEDEBUG:  # type: ignore[attr-defined]
+            if p and not p.voice_client:
+                log.error(
+                    "[BUG] MusicPlayer is missing a VoiceClient some how.  You should probably restart the bot."
+                )
+            if p and p.voice_client and not p.voice_client.is_connected():
+                # This is normal if the bot is still connecting to voice, or
+                # if the player has been pointedly disconnected.
+                log.warning("MusicPlayer has a VoiceClient that is not connected.")
+                log.noise("MusicPlayer obj:  %r", p)  # type: ignore[attr-defined]
+                log.noise("VoiceClient obj:  %r", p.voice_client)  # type: ignore[attr-defined]
+        return p
 
     async def get_player(
-        self, channel, create=False, *, deserialize=False
+        self,
+        channel: VoiceableChannel,
+        create: bool = False,
+        *,
+        deserialize: bool = False,
     ) -> MusicPlayer:
+        """
+        Get a MusicPlayer in the given guild, creating or deserializing one if needed.
+
+        :raises:  TypeError
+            If given `channel` is not a discord.VoiceChannel or discord.StageChannel
+        :raises:  musicbot.exceptions.PermissionsError
+            If MusicBot is not permitted to join the given `channel`.
+        """
         guild = channel.guild
+
+        log.voicedebug(  # type: ignore[attr-defined]
+            "Getting a MusicPlayer for guild:  %s  In Channel:  %s  Will Create:  %s  Deserialize:  %s",
+            guild,
+            channel,
+            create,
+            deserialize,
+        )
 
         async with self.aiolocks[_func_() + ":" + str(guild.id)]:
             if deserialize:
@@ -513,7 +927,7 @@ class MusicBot(discord.Client):
                 player = await self.deserialize_queue(guild, voice_client)
 
                 if player:
-                    log.debug(
+                    log.voicedebug(  # type: ignore[attr-defined]
                         "Created player via deserialization for guild %s with %s entries",
                         guild.id,
                         len(player.playlist),
@@ -523,21 +937,34 @@ class MusicBot(discord.Client):
 
             if guild.id not in self.players:
                 if not create:
+                    prefix = self.server_data[channel.guild.id].command_prefix
                     raise exceptions.CommandError(
                         "The bot is not in a voice channel.  "
-                        "Use %ssummon to summon it to your voice channel."
-                        % self.config.command_prefix
+                        f"Use {prefix}summon to summon it to your voice channel."
                     )
 
                 voice_client = await self.get_voice_client(channel)
 
-                playlist = Playlist(self)
-                player = MusicPlayer(self, voice_client, playlist)
-                self._init_player(player, guild=guild)
+                if isinstance(voice_client, discord.VoiceClient):
+                    playlist = Playlist(self)
+                    player = MusicPlayer(self, voice_client, playlist)
+                    self._init_player(player, guild=guild)
+                else:
+                    raise RuntimeError(
+                        "Something is wrong, we didn't get the VoiceClient."
+                    )
 
         return self.players[guild.id]
 
-    def _init_player(self, player, *, guild=None):
+    def _init_player(
+        self, player: MusicPlayer, *, guild: Optional[discord.Guild] = None
+    ) -> MusicPlayer:
+        """
+        Connect a brand-new MusicPlayer instance with the MusicBot event
+        handler functions, and store the player reference for reuse.
+
+        :returns: The player with it's event connections.
+        """
         player = (
             player.on("play", self.on_player_play)
             .on("resume", self.on_player_resume)
@@ -548,32 +975,34 @@ class MusicBot(discord.Client):
             .on("error", self.on_player_error)
         )
 
-        player.skip_state = SkipState()
-
         if guild:
             self.players[guild.id] = player
 
         return player
 
-    async def on_player_play(self, player, entry):
+    async def on_player_play(self, player: MusicPlayer, entry: EntryTypes) -> None:
+        """
+        Event called by MusicPlayer when playback of an entry is started.
+        """
         log.debug("Running on_player_play")
-        await self.update_now_playing_status(entry)
+        await self._handle_guild_auto_pause(player)
+        await self.reset_player_inactivity(player)
+        await self.update_now_playing_status()
+        # manage the cache since we may have downloaded something.
+        if isinstance(entry, URLPlaylistEntry):
+            self.filecache.handle_new_cache_entry(entry)
         player.skip_state.reset()
 
-        # This is the one event where its ok to serialize autoplaylist entries
         await self.serialize_queue(player.voice_client.channel.guild)
 
         if self.config.write_current_song:
             await self.write_current_song(player.voice_client.channel.guild, entry)
 
-        channel = entry.meta.get("channel", None)
-        author = entry.meta.get("author", None)
-
-        if channel and author:
-            author_perms = self.permissions.for_user(author)
+        if entry.channel and entry.author:
+            author_perms = self.permissions.for_user(entry.author)
 
             if (
-                author not in player.voice_client.channel.members
+                entry.author not in player.voice_client.channel.members
                 and author_perms.skip_when_absent
             ):
                 newmsg = self.str.get(
@@ -582,15 +1011,24 @@ class MusicBot(discord.Client):
                 ).format(
                     channel=player.voice_client.channel.name,
                     title=entry.title,
-                    author=entry.meta["author"].name,
+                    author=entry.author.name,
                 )
+
+                # handle history playlist updates.
+                guild = player.voice_client.guild
+                if (
+                    self.config.enable_queue_history_global
+                    or self.config.enable_queue_history_guilds
+                ):
+                    self.server_data[guild.id].current_playing_url = ""
+
                 player.skip()
             elif self.config.now_playing_mentions:
                 newmsg = self.str.get(
                     "on_player_play-onChannel_playingMention",
                     "{author} - your song {title} is now playing in {channel}!",
                 ).format(
-                    author=entry.meta["author"].mention,
+                    author=entry.author.mention,
                     title=entry.title,
                     channel=player.voice_client.channel.name,
                 )
@@ -601,95 +1039,240 @@ class MusicBot(discord.Client):
                 ).format(
                     channel=player.voice_client.channel.name,
                     title=entry.title,
-                    author=entry.meta["author"].name,
+                    author=entry.author.name,
                 )
+
         else:
-            # no author (and channel), it's an autoplaylist (or autostream from my other PR) entry.
+            # no author (and channel), it's an auto playlist entry.
             newmsg = self.str.get(
                 "on_player_play-onChannel_noAuthor_autoplaylist",
                 "Now playing automatically added entry {title} in {channel}!",
             ).format(title=entry.title, channel=player.voice_client.channel.name)
 
+        # handle history playlist updates.
+        guild = player.voice_client.guild
+        if (
+            self.config.enable_queue_history_global
+            or self.config.enable_queue_history_guilds
+        ) and not entry.from_auto_playlist:
+            log.debug("Setting URL history guild %s == %s", guild.id, entry.url)
+            self.server_data[guild.id].current_playing_url = entry.url
+
+        last_np_msg = self.server_data[guild.id].last_np_msg
+        np_channel: Optional[MessageableChannel] = None
         if newmsg:
-            if self.config.dm_nowplaying and author:
-                await self.safe_send_message(author, newmsg)
+            if self.config.dm_nowplaying and entry.author:
+                await self.safe_send_message(entry.author, newmsg)
                 return
 
-            if self.config.no_nowplaying_auto and not author:
+            if self.config.no_nowplaying_auto and entry.from_auto_playlist:
                 return
-
-            guild = player.voice_client.guild
-            last_np_msg = self.server_specific_data[guild]["last_np_msg"]
 
             if self.config.nowplaying_channels:
                 for potential_channel_id in self.config.nowplaying_channels:
                     potential_channel = self.get_channel(potential_channel_id)
+                    if isinstance(potential_channel, discord.abc.PrivateChannel):
+                        continue
+
+                    if not isinstance(potential_channel, discord.abc.Messageable):
+                        continue
+
                     if potential_channel and potential_channel.guild == guild:
-                        channel = potential_channel
+                        np_channel = potential_channel
                         break
 
-            if channel:
-                pass
-            elif not channel and last_np_msg:
-                channel = last_np_msg.channel
-            else:
-                log.debug("no channel to put now playing message into")
-                return
+            if not np_channel and last_np_msg:
+                np_channel = last_np_msg.channel
 
-            # send it in specified channel
-            self.server_specific_data[guild][
-                "last_np_msg"
-            ] = await self.safe_send_message(channel, newmsg)
+        content = self._gen_embed()
+        if self.config.embeds:
+            if entry.thumbnail_url:
+                content.set_image(url=entry.thumbnail_url)
+            else:
+                log.warning(
+                    "No thumbnail set for entry with url: %s",
+                    entry.url,
+                )
+
+            if self.config.now_playing_mentions:
+                content.title = None
+                content.add_field(name="\n", value=newmsg, inline=True)
+            else:
+                content.title = newmsg
+
+        # send it in specified channel
+        if not np_channel:
+            log.debug("no channel to put now playing message into")
+            return
+
+        # Don't send the same now-playing message more than once.
+        # This prevents repeated messages when players reconnect.
+        last_subject = self.server_data[guild.id].last_played_song_subject
+        if (
+            last_np_msg is not None
+            and player.current_entry is not None
+            and last_subject
+            and last_subject == player.current_entry.url
+        ):
+            log.debug("ignored now-playing message as it was already posted.")
+            return
+
+        if player.current_entry:
+            self.server_data[guild.id].last_played_song_subject = (
+                player.current_entry.url
+            )
+
+        self.server_data[guild.id].last_np_msg = await self.safe_send_message(
+            np_channel,
+            content if self.config.embeds else newmsg,
+            expire_in=30 if self.config.delete_nowplaying else 0,
+        )
 
         # TODO: Check channel voice state?
 
-    async def on_player_resume(self, player, entry, **_):
+    async def on_player_resume(
+        self,
+        player: MusicPlayer,
+        entry: EntryTypes,  # pylint: disable=unused-argument
+        **_: Any,
+    ) -> None:
+        """
+        Event called by MusicPlayer when the player is resumed from pause.
+        """
         log.debug("Running on_player_resume")
-        await self.update_now_playing_status(entry)
-
-    async def on_player_pause(self, player, entry, **_):
-        log.debug("Running on_player_pause")
-        await self.update_now_playing_status(entry, True)
-        # await self.serialize_queue(player.voice_client.channel.guild)
-
-    async def on_player_stop(self, player, **_):
-        log.debug("Running on_player_stop")
+        await self.reset_player_inactivity(player)
         await self.update_now_playing_status()
 
-    async def on_player_finished_playing(self, player, **_):
+    async def on_player_pause(
+        self,
+        player: MusicPlayer,
+        entry: EntryTypes,  # pylint: disable=unused-argument
+        **_: Any,
+    ) -> None:
+        """
+        Event called by MusicPlayer when the player enters paused state.
+        """
+        log.debug("Running on_player_pause")
+        await self.update_now_playing_status()
+
+        # save current entry progress, if it played "enough" to merit saving.
+        if player.session_progress > 1:
+            await self.serialize_queue(player.voice_client.channel.guild)
+
+        self.loop.create_task(self.handle_player_inactivity(player))
+
+    async def on_player_stop(self, player: MusicPlayer, **_: Any) -> None:
+        """
+        Event called by MusicPlayer any time the player is stopped.
+        Typically after queue is empty or an error stopped playback.
+        """
+        log.debug("Running on_player_stop")
+        await self.update_now_playing_status()
+        self.loop.create_task(self.handle_player_inactivity(player))
+
+    async def on_player_finished_playing(self, player: MusicPlayer, **_: Any) -> None:
+        """
+        Event called by MusicPlayer when playback has finished without error.
+        """
         log.debug("Running on_player_finished_playing")
+        if not self.loop or (self.loop and self.loop.is_closed()):
+            log.debug("Event loop is closed, nothing else to do here.")
+            return
+
+        if self.logout_called:
+            log.debug("Logout under way, ignoring this event.")
+            return
+
+        # handle history playlist updates.
+        guild = player.voice_client.guild
+        last_played_url = self.server_data[guild.id].current_playing_url
+        if self.config.enable_queue_history_global and last_played_url:
+            await self.playlist_mgr.global_history.add_track(last_played_url)
+
+        if self.config.enable_queue_history_guilds and last_played_url:
+            history = await self.server_data[guild.id].get_played_history()
+            if history is not None:
+                await history.add_track(last_played_url)
+        self.server_data[guild.id].current_playing_url = ""
+
+        if not player.voice_client.is_connected():
+            log.debug(
+                "VoiceClient says it is not connected, nothing else we can do here."
+            )
+            return
+
+        if self.config.leave_after_queue_empty:
+            guild = player.voice_client.guild
+            if len(player.playlist.entries) == 0:
+                log.info("Player finished and queue is empty, leaving voice channel...")
+                await self.disconnect_voice_client(guild)
 
         # delete last_np_msg somewhere if we have cached it
         if self.config.delete_nowplaying:
             guild = player.voice_client.guild
-            last_np_msg = self.server_specific_data[guild]["last_np_msg"]
+            last_np_msg = self.server_data[guild.id].last_np_msg
             if last_np_msg:
                 await self.safe_delete_message(last_np_msg)
 
-        def _autopause(player):
-            if self._check_if_empty(player.voice_client.channel):
-                log.info("Player finished playing, autopaused in empty channel")
+        # avoid downloading the next entries if the user is absent and we are configured to skip.
+        notice_sent = False  # set a flag to avoid message spam.
+        while True:
+            next_entry = player.playlist.peek()
 
-                player.pause()
-                self.server_specific_data[player.voice_client.channel.guild][
-                    "auto_paused"
-                ] = True
+            if not next_entry:
+                break
 
+            channel = next_entry.channel
+            author = next_entry.author
+
+            if not channel or not author:
+                break
+
+            author_perms = self.permissions.for_user(author)
+            if (
+                author not in player.voice_client.channel.members
+                and author_perms.skip_when_absent
+            ):
+                if not notice_sent:
+                    await self.safe_send_message(
+                        channel,
+                        # TODO: i18n UI stuff.
+                        f"Skipping songs added by {author.name} as they are not in voice!",
+                        expire_in=60,
+                    )
+                    notice_sent = True
+                deleted_entry = player.playlist.delete_entry_at_index(0)
+                log.noise(  # type: ignore[attr-defined]
+                    "Author `%s` absent, skipped (deleted) entry from queue:  %s",
+                    author.name,
+                    deleted_entry.title,
+                )
+            else:
+                break
+
+        # manage auto playlist playback.
         if (
             not player.playlist.entries
             and not player.current_entry
             and self.config.auto_playlist
         ):
+            # NOTE:  self.server_data[].autoplaylist will only contain links loaded from the file.
+            #  while player.autoplaylist may contain links expanded from playlists.
+            #  the only issue is that links from a playlist might fail and fire
+            #  remove event, but no link will be removed since none will match.
             if not player.autoplaylist:
-                if not self.autoplaylist:
-                    # TODO: When I add playlist expansion, make sure that's not happening during this check
-                    log.warning("No playable songs in the autoplaylist, disabling.")
+                if not self.server_data[guild.id].autoplaylist:
+                    log.warning(
+                        "No playable songs in the Guild autoplaylist, disabling."
+                    )
                     self.config.auto_playlist = False
                 else:
                     log.debug(
                         "No content in current autoplaylist. Filling with new music..."
                     )
-                    player.autoplaylist = list(self.autoplaylist)
+                    player.autoplaylist = list(
+                        self.server_data[player.voice_client.guild.id].autoplaylist
+                    )
 
             while player.autoplaylist:
                 if self.config.auto_playlist_random:
@@ -699,193 +1282,329 @@ class MusicBot(discord.Client):
                     song_url = player.autoplaylist[0]
                 player.autoplaylist.remove(song_url)
 
-                info = {}
+                # Check if song is blocked.
+                if (
+                    self.config.song_blocklist_enabled
+                    and self.config.song_blocklist.is_blocked(song_url)
+                ):
+                    if self.config.auto_playlist_remove_on_block:
+                        await self.server_data[guild.id].autoplaylist.remove_track(
+                            song_url,
+                            ex=UserWarning("Found in song block list."),
+                            delete_from_ap=True,
+                        )
+                    continue
 
                 try:
                     info = await self.downloader.extract_info(
-                        player.playlist.loop, song_url, download=False, process=False
+                        song_url, download=False, process=True
                     )
-                except downloader.youtube_dl.utils.DownloadError as e:
-                    if "YouTube said:" in e.args[0]:
-                        # url is bork, remove from list and put in removed list
-                        log.error("Error processing youtube url:\n{}".format(e.args[0]))
 
-                    else:
-                        # Probably an error from a different extractor, but I've only seen youtube's
-                        log.error(
-                            'Error processing "{url}": {ex}'.format(url=song_url, ex=e)
-                        )
+                except youtube_dl.utils.DownloadError as e:
+                    log.error(
+                        'Error while downloading song "%s":  %s',
+                        song_url,
+                        e,
+                    )
 
-                    await self.remove_from_autoplaylist(
+                    await self.server_data[guild.id].autoplaylist.remove_track(
                         song_url, ex=e, delete_from_ap=self.config.remove_ap
                     )
                     continue
 
-                except Exception as e:
+                except (
+                    exceptions.ExtractionError,
+                    youtube_dl.utils.YoutubeDLError,
+                ) as e:
                     log.error(
-                        'Error processing "{url}": {ex}'.format(url=song_url, ex=e)
+                        'Error extracting song "%s": %s',
+                        song_url,
+                        e,
+                        exc_info=True,
                     )
-                    log.exception()
 
-                    self.autoplaylist.remove(song_url)
+                    await self.server_data[guild.id].autoplaylist.remove_track(
+                        song_url, ex=e, delete_from_ap=self.config.remove_ap
+                    )
                     continue
 
-                if info.get("entries", None):  # or .get('_type', '') == 'playlist'
-                    log.debug(
-                        "Playlist found but is unsupported at this time, skipping."
+                except exceptions.MusicbotException:
+                    log.exception(
+                        "MusicBot needs to stop the autoplaylist extraction and bail."
                     )
-                    # TODO: Playlist expansion
+                    return
+                except Exception:  # pylint: disable=broad-exception-caught
+                    log.exception(
+                        "MusicBot got an unhandled exception in player finished event."
+                    )
+                    break
 
-                # Do I check the initial conditions again?
-                # not (not player.playlist.entries and not player.current_entry and self.config.auto_playlist)
+                if info.has_entries:
+                    log.info(
+                        "Expanding auto playlist with entries extracted from:  %s",
+                        info.url,
+                    )
+                    entries = info.get_entries_objects()
+                    pl_urls: List[str] = []
+                    for entry in entries:
+                        pl_urls.append(entry.url)
 
-                if self.config.auto_pause:
-                    player.once("play", lambda player, **_: _autopause(player))
+                    player.autoplaylist = pl_urls + player.autoplaylist
+                    continue
 
                 try:
-                    await player.playlist.add_entry(
-                        song_url, channel=None, author=None, head=False
+                    await player.playlist.add_entry_from_info(
+                        info,
+                        channel=None,
+                        author=None,
+                        head=False,
                     )
-                except exceptions.ExtractionError as e:
-                    log.error("Error adding song from autoplaylist: {}".format(e))
-                    log.debug("", exc_info=True)
+                except (
+                    exceptions.ExtractionError,
+                    exceptions.WrongEntryTypeError,
+                ) as e:
+                    log.error(
+                        "Error adding song from autoplaylist: %s",
+                        str(e),
+                    )
+                    log.debug("Exception data for above error:", exc_info=True)
                     continue
-
                 break
 
-            if not self.autoplaylist:
-                # TODO: When I add playlist expansion, make sure that's not happening during this check
+            if not self.server_data[guild.id].autoplaylist:
                 log.warning("No playable songs in the autoplaylist, disabling.")
                 self.config.auto_playlist = False
 
         else:  # Don't serialize for autoplaylist events
-            await self.serialize_queue(player.voice_client.channel.guild)
+            await self.serialize_queue(guild)
 
         if not player.is_stopped and not player.is_dead:
             player.play(_continue=True)
 
-    async def on_player_entry_added(self, player, playlist, entry, **_):
+    async def on_player_entry_added(
+        self,
+        player: MusicPlayer,
+        playlist: Playlist,
+        entry: EntryTypes,
+        defer_serialize: bool = False,
+        **_: Any,
+    ) -> None:
+        """
+        Event called by MusicPlayer when an entry is added to the playlist.
+        """
         log.debug("Running on_player_entry_added")
-        if entry.meta.get("author") and entry.meta.get("channel"):
+        # if playing auto-playlist track and a user queues a track,
+        # if we're configured to do so, auto skip the auto playlist track.
+        if (
+            self.config.auto_playlist_autoskip
+            and player.current_entry
+            and player.current_entry.from_auto_playlist
+            and playlist.peek() == entry
+            and not entry.from_auto_playlist
+        ):
+            log.debug("Automatically skipping auto-playlist entry for queued entry.")
+            player.skip()
+
+        # Only serialize the queue for user-added tracks, unless deferred
+        if entry.author and entry.channel and not defer_serialize:
             await self.serialize_queue(player.voice_client.channel.guild)
 
-    async def on_player_error(self, player, entry, ex, **_):
-        if "channel" in entry.meta:
+    async def on_player_error(
+        self,
+        player: MusicPlayer,  # pylint: disable=unused-argument
+        entry: Optional[EntryTypes],
+        ex: Optional[Exception],
+        **_: Any,
+    ) -> None:
+        """
+        Event called by MusicPlayer when an entry throws an error.
+        """
+        if entry and entry.channel:
+            song = entry.title or entry.url
             await self.safe_send_message(
-                entry.meta["channel"], "```\nError while playing:\n{}\n```".format(ex)
+                entry.channel,
+                # TODO: i18n / UI stuff
+                f"Playback failed for song: `{song}` due to error:\n```\n{ex}\n```",
             )
         else:
             log.exception("Player error", exc_info=ex)
 
-    async def update_now_playing_status(self, entry=None, is_paused=False):
-        game = None
+    async def update_now_playing_status(self, set_offline: bool = False) -> None:
+        """Inspects available players and ultimately fire change_presence()"""
+        activity = None  # type: Optional[discord.BaseActivity]
+        status = discord.Status.online  # type: discord.Status
+        # NOTE:  Bots can only set: name, type, state, and url fields of activity.
+        # Even though Custom type is available, we cannot use emoji field with bots.
+        # So Custom Activity is effectively useless at time of writing.
+        # Streaming Activity is a coin toss at best. Usually status changes correctly.
+        # However all other details in the client might be wrong or missing.
+        # Example:  Youtube url shows "Twitch" in client profile info.
 
-        if not self.config.status_message:
-            if self.user.bot:
-                activeplayers = sum(1 for p in self.players.values() if p.is_playing)
-                if activeplayers > 1:
-                    game = discord.Game(
-                        type=0, name="music on %s guilds" % activeplayers
-                    )
-                    entry = None
+        # if requested, try to set the bot offline.
+        if set_offline:
+            activity = discord.Activity(
+                type=discord.ActivityType.custom,
+                state="",
+                name="Custom Status",  # seemingly required.
+            )
+            await self.change_presence(
+                status=discord.Status.invisible, activity=activity
+            )
+            self.last_status = activity
+            return
 
-                elif activeplayers == 1:
-                    player = discord.utils.get(self.players.values(), is_playing=True)
-                    entry = player.current_entry
+        # We ignore player related status when logout is called.
+        if self.logout_called:
+            log.debug("Logout under way, ignoring status update event.")
+            return
 
-            if entry:
-                prefix = "\u275A\u275A " if is_paused else ""
+        playing = sum(1 for p in self.players.values() if p.is_playing)
+        paused = sum(1 for p in self.players.values() if p.is_paused)
+        total = len(self.players)
 
-                name = "{}{}".format(prefix, entry.title)[:128]
-                game = discord.Game(type=0, name=name)
+        def format_status_msg(player: Optional[MusicPlayer]) -> str:
+            msg = self.config.status_message
+            msg = msg.replace("{n_playing}", str(playing))
+            msg = msg.replace("{n_paused}", str(paused))
+            msg = msg.replace("{n_connected}", str(total))
+            if player and player.current_entry:
+                msg = msg.replace("{p0_title}", player.current_entry.title)
+                msg = msg.replace(
+                    "{p0_length}",
+                    format_song_duration(player.current_entry.duration_td),
+                )
+                msg = msg.replace("{p0_url}", player.current_entry.url)
+            else:
+                msg = msg.replace("{p0_title}", "")
+                msg = msg.replace("{p0_length}", "")
+                msg = msg.replace("{p0_url}", "")
+            return msg
+
+        # multiple servers are playing or paused.
+        if total > 1:
+            if paused > playing:
+                status = discord.Status.idle
+
+            text = f"music on {total} servers"
+            if self.config.status_message:
+                player = None
+                for p in self.players.values():
+                    if p.is_playing:
+                        player = p
+                        break
+                text = format_status_msg(player)
+
+            activity = discord.Activity(
+                type=discord.ActivityType.playing,
+                name=text,
+            )
+
+        # only 1 server is playing.
+        elif playing:
+            player = list(self.players.values())[0]
+            if player.current_entry:
+                text = player.current_entry.title.strip()[:128]
+                if self.config.status_message:
+                    text = format_status_msg(player)
+
+                activity = discord.Activity(
+                    type=discord.ActivityType.streaming,
+                    url=player.current_entry.url,
+                    name=text,
+                )
+
+        # only 1 server is paused.
+        elif paused:
+            player = list(self.players.values())[0]
+            if player.current_entry:
+                text = player.current_entry.title.strip()[:128]
+                if self.config.status_message:
+                    text = format_status_msg(player)
+
+                status = discord.Status.idle
+                activity = discord.Activity(
+                    type=discord.ActivityType.custom,
+                    state=text,
+                    name="Custom Status",  # seemingly required.
+                )
+
+        # nothing going on.
         else:
-            game = discord.Game(type=0, name=self.config.status_message.strip()[:128])
+            text = f" ~ {EMOJI_IDLE_ICON} ~ "
+            if self.config.status_message:
+                text = format_status_msg(None)
+
+            status = discord.Status.idle
+            activity = discord.CustomActivity(
+                type=discord.ActivityType.custom,
+                state=text,
+                name="Custom Status",  # seems required to make idle status work.
+            )
 
         async with self.aiolocks[_func_()]:
-            if game != self.last_status:
-                await self.change_presence(activity=game)
-                self.last_status = game
+            if activity != self.last_status:
+                log.noise(  # type: ignore[attr-defined]
+                    f"Update Bot Status:  {status} -- {repr(activity)}"
+                )
+                await self.change_presence(status=status, activity=activity)
+                self.last_status = activity
+                # Discord docs say Game status can only be updated 5 times in 20 seconds.
+                # This sleep should maintain the above lock for long enough to space
+                # out the status updates in multi-guild setups.
+                # If not, we should use the lock to ignore further updates.
+                try:
+                    await asyncio.sleep(4)
+                except asyncio.CancelledError:
+                    pass
 
-    async def update_now_playing_message(self, guild, message, *, channel=None):
-        lnp = self.server_specific_data[guild]["last_np_msg"]
-        m = None
-
-        if message is None and lnp:
-            await self.safe_delete_message(lnp, quiet=True)
-
-        elif lnp:  # If there was a previous lp message
-            oldchannel = lnp.channel
-
-            if lnp.channel == oldchannel:  # If we have a channel to update it in
-                async for lmsg in lnp.channel.history(limit=1):
-                    if lmsg != lnp and lnp:  # If we need to resend it
-                        await self.safe_delete_message(lnp, quiet=True)
-                        m = await self.safe_send_message(channel, message, quiet=True)
-                    else:
-                        m = await self.safe_edit_message(
-                            lnp, message, send_if_fail=True, quiet=False
-                        )
-
-            elif channel:  # If we have a new channel to send it to
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(channel, message, quiet=True)
-
-            else:  # we just resend it in the old channel
-                await self.safe_delete_message(lnp, quiet=True)
-                m = await self.safe_send_message(oldchannel, message, quiet=True)
-
-        elif channel:  # No previous message
-            m = await self.safe_send_message(channel, message, quiet=True)
-
-        self.server_specific_data[guild]["last_np_msg"] = m
-
-    async def serialize_queue(self, guild, *, dir=None):
+    async def serialize_queue(self, guild: discord.Guild) -> None:
         """
         Serialize the current queue for a server's player to json.
         """
+        if not self.config.persistent_queue:
+            return
 
         player = self.get_player_in(guild)
         if not player:
             return
 
-        if dir is None:
-            dir = "data/%s/queue.json" % guild.id
+        path = self.config.data_path.joinpath(str(guild.id), DATA_GUILD_FILE_QUEUE)
 
         async with self.aiolocks["queue_serialization" + ":" + str(guild.id)]:
             log.debug("Serializing queue for %s", guild.id)
 
-            with open(dir, "w", encoding="utf8") as f:
+            with open(path, "w", encoding="utf8") as f:
                 f.write(player.serialize(sort_keys=True))
 
-    async def serialize_all_queues(self, *, dir=None):
-        coros = [self.serialize_queue(s, dir=dir) for s in self.guilds]
-        await asyncio.gather(*coros, return_exceptions=True)
-
     async def deserialize_queue(
-        self, guild, voice_client, playlist=None, *, directory=None
-    ) -> MusicPlayer:
+        self,
+        guild: discord.Guild,
+        voice_client: discord.VoiceClient,
+        playlist: Optional[Playlist] = None,
+    ) -> Optional[MusicPlayer]:
         """
         Deserialize a saved queue for a server into a MusicPlayer.  If no queue is saved, returns None.
         """
+        if not self.config.persistent_queue:
+            return None
 
         if playlist is None:
             playlist = Playlist(self)
 
-        if directory is None:
-            directory = "data/%s/queue.json" % guild.id
+        path = self.config.data_path.joinpath(str(guild.id), DATA_GUILD_FILE_QUEUE)
 
-        async with self.aiolocks["queue_serialization" + ":" + str(guild.id)]:
-            if not os.path.isfile(directory):
+        async with self.aiolocks["queue_serialization:" + str(guild.id)]:
+            if not path.is_file():
                 return None
 
             log.debug("Deserializing queue for %s", guild.id)
 
-            with open(directory, "r", encoding="utf8") as f:
+            with open(path, "r", encoding="utf8") as f:
                 data = f.read()
 
         return MusicPlayer.from_json(data, self, voice_client, playlist)
 
-    async def write_current_song(self, guild, entry, *, directory=None):
+    async def write_current_song(self, guild: discord.Guild, entry: EntryTypes) -> None:
         """
         Writes the current song to file
         """
@@ -893,70 +1612,52 @@ class MusicBot(discord.Client):
         if not player:
             return
 
-        if directory is None:
-            directory = "data/%s/current.txt" % guild.id
+        path = self.config.data_path.joinpath(str(guild.id), DATA_GUILD_FILE_CUR_SONG)
 
-        async with self.aiolocks["current_song" + ":" + str(guild.id)]:
+        async with self.aiolocks["current_song:" + str(guild.id)]:
             log.debug("Writing current song for %s", guild.id)
 
-            with open(directory, "w", encoding="utf8") as f:
+            with open(path, "w", encoding="utf8") as f:
                 f.write(entry.title)
-
-    @ensure_appinfo
-    async def _on_ready_sanity_checks(self):
-        # Ensure folders exist
-        await self._scheck_ensure_env()
-
-        # Server permissions check
-        await self._scheck_server_permissions()
-
-        # playlists in autoplaylist
-        await self._scheck_autoplaylist()
-
-        # config/permissions async validate?
-        await self._scheck_configs()
-
-    async def _scheck_ensure_env(self):
-        log.debug("Ensuring data folders exist")
-        for guild in self.guilds:
-            pathlib.Path("data/%s/" % guild.id).mkdir(exist_ok=True)
-
-        with open("data/server_names.txt", "w", encoding="utf8") as f:
-            for guild in sorted(self.guilds, key=lambda s: int(s.id)):
-                f.write("{:<22} {}\n".format(guild.id, guild.name))
-
-        if not self.config.save_videos and os.path.isdir(AUDIO_CACHE_PATH):
-            if self._delete_old_audiocache():
-                log.debug("Deleted old audio cache")
-            else:
-                log.debug("Could not delete old audio cache, moving on.")
-
-    async def _scheck_server_permissions(self):
-        log.debug("Checking server permissions")
-        pass  # TODO
-
-    async def _scheck_autoplaylist(self):
-        log.debug("Auditing autoplaylist")
-        pass  # TODO
-
-    async def _scheck_configs(self):
-        log.debug("Validating config")
-        await self.config.async_validate(self)
-
-        log.debug("Validating permissions config")
-        await self.permissions.async_validate(self)
 
     #######################################################################################################################
 
-    async def safe_send_message(self, dest, content, **kwargs):
+    async def safe_send_message(
+        self,
+        dest: discord.abc.Messageable,
+        content: Union[str, discord.Embed],
+        **kwargs: Any,
+    ) -> Optional[discord.Message]:
+        """
+        Safely send a message with given `content` to the message-able
+        object in `dest`
+        This method should handle all raised exceptions so callers will
+        not need to handle them locally.
+
+        :param: tts:  set the Text-to-Speech flag on the message.
+        :param: quiet:  Toggle using log.debug or log.warning.
+        :param: expire_in:  time in seconds to wait before auto deleting this message
+        :param: allow_none:  Allow sending a message with empty `content`
+        :param: also_delete:  Optional discord.Message to delete when `expire_in` is set.
+
+        :returns:  May return a discord.Message object if a message was sent.
+        """
         tts = kwargs.pop("tts", False)
         quiet = kwargs.pop("quiet", False)
-        expire_in = kwargs.pop("expire_in", 0)
+        expire_in = int(kwargs.pop("expire_in", 0))
         allow_none = kwargs.pop("allow_none", True)
         also_delete = kwargs.pop("also_delete", None)
+        fallback_channel = kwargs.pop("fallback_channel", None)
 
         msg = None
+        retry_after = 0.0
         lfunc = log.debug if quiet else log.warning
+        if log.getEffectiveLevel() <= logging.NOISY:  # type: ignore[attr-defined]
+            lfunc = log.exception
+
+        ch_name = "DM-Channel"
+        if hasattr(dest, "name"):
+            ch_name = str(dest.name)
 
         try:
             if content is not None or allow_none:
@@ -966,177 +1667,409 @@ class MusicBot(discord.Client):
                     msg = await dest.send(content, tts=tts)
 
         except discord.Forbidden:
-            lfunc('Cannot send message to "%s", no permission', dest.name)
+            lfunc('Cannot send message to "%s", no permission', ch_name)
 
         except discord.NotFound:
-            lfunc('Cannot send message to "%s", invalid channel?', dest.name)
+            lfunc('Cannot send message to "%s", invalid channel?', ch_name)
 
-        except discord.HTTPException:
+        except discord.HTTPException as e:
             if len(content) > DISCORD_MSG_CHAR_LIMIT:
                 lfunc(
                     "Message is over the message size limit (%s)",
                     DISCORD_MSG_CHAR_LIMIT,
                 )
+
+            # if `dest` is a user with strict privacy or a bot, direct message can fail.
+            elif e.code == 50007 and fallback_channel:
+                log.debug("DM failed, sending in fallback channel instead.")
+                await self.safe_send_message(fallback_channel, content, **kwargs)
+
+            elif e.status == 429:
+                # Note:  `e.response` could be either type:  aiohttp.ClientResponse  OR  requests.Response
+                # thankfully both share a similar enough `response.headers` member CI Dict.
+                # See docs on headers here:  https://discord.com/developers/docs/topics/rate-limits
+                try:
+                    retry_after = 0.0
+                    header_val = e.response.headers.get("RETRY-AFTER")
+                    if header_val:
+                        retry_after = float(header_val)
+                except ValueError:
+                    retry_after = 0.0
+                if retry_after:
+                    log.warning(
+                        "Rate limited send message, retrying in %s seconds.",
+                        retry_after,
+                    )
+                    try:
+                        await asyncio.sleep(retry_after)
+                    except asyncio.CancelledError:
+                        log.warning("Cancelled message retry for:  %s", content)
+                        return msg
+                    return await self.safe_send_message(dest, content, **kwargs)
+
+                log.error("Rate limited send message, but cannot retry!")
+
             else:
                 lfunc("Failed to send message")
-                log.noise(
+                log.noise(  # type: ignore[attr-defined]
                     "Got HTTPException trying to send message to %s: %s", dest, content
                 )
 
         finally:
-            if msg and expire_in:
-                asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+            if not retry_after and self.config.delete_messages:
+                if msg and expire_in:
+                    asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
 
-            if also_delete and isinstance(also_delete, discord.Message):
-                asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+            if not retry_after and self.config.delete_invoking:
+                if also_delete and isinstance(also_delete, discord.Message):
+                    asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
 
         return msg
 
-    async def safe_delete_message(self, message, *, quiet=False):
+    async def safe_delete_message(
+        self, message: discord.Message, *, quiet: bool = False
+    ) -> None:
+        """
+        Safely delete the given `message` from discord.
+        This method should handle all raised exceptions so callers will
+        not need to handle them locally.
+
+        :param: quiet:  Toggle using log.debug or log.warning
+        """
+        # TODO: this could use a queue and some other handling.
         lfunc = log.debug if quiet else log.warning
 
         try:
-            return await message.delete()
+            await message.delete()
 
         except discord.Forbidden:
-            lfunc(
-                'Cannot delete message "{}", no permission'.format(
-                    message.clean_content
-                )
-            )
+            lfunc('Cannot delete message "%s", no permission', message.clean_content)
 
         except discord.NotFound:
             lfunc(
-                'Cannot delete message "{}", message not found'.format(
-                    message.clean_content
-                )
+                'Cannot delete message "%s", message not found',
+                message.clean_content,
             )
 
-    async def safe_edit_message(self, message, new, *, send_if_fail=False, quiet=False):
+        except discord.HTTPException as e:
+            if e.status == 429:
+                # Note:  `e.response` could be either type:  aiohttp.ClientResponse  OR  requests.Response
+                # thankfully both share a similar enough `response.headers` member CI Dict.
+                # See docs on headers here:  https://discord.com/developers/docs/topics/rate-limits
+                try:
+                    retry_after = 0.0
+                    header_val = e.response.headers.get("RETRY-AFTER")
+                    if header_val:
+                        retry_after = float(header_val)
+                except ValueError:
+                    retry_after = 0.0
+                if retry_after:
+                    log.warning(
+                        "Rate limited message delete, retrying in %s seconds.",
+                        retry_after,
+                    )
+                    asyncio.ensure_future(self._wait_delete_msg(message, retry_after))
+                else:
+                    log.error("Rate limited message delete, but cannot retry!")
+
+            else:
+                lfunc("Failed to delete message")
+                log.noise(  # type: ignore[attr-defined]
+                    "Got HTTPException trying to delete message: %s", message
+                )
+
+        return None
+
+    async def safe_edit_message(
+        self,
+        message: discord.Message,
+        new: Union[str, discord.Embed],
+        *,
+        send_if_fail: bool = False,
+        quiet: bool = False,
+    ) -> Optional[discord.Message]:
+        """
+        Safely update the given `message` with the `new` content.
+        This function should handle all raised exceptions so callers
+        will not need to handle them locally.
+
+        :param: send_if_fail:  Toggle sending a new message if edit fails.
+        :param: quiet:  Use log.debug if quiet otherwise use log.warning
+
+        :returns:  May return a discord.Message object if edit/send did not fail.
+        """
         lfunc = log.debug if quiet else log.warning
 
         try:
+            if isinstance(new, discord.Embed):
+                return await message.edit(embed=new)
+
             return await message.edit(content=new)
 
         except discord.NotFound:
             lfunc(
-                'Cannot edit message "{}", message not found'.format(
-                    message.clean_content
-                )
+                'Cannot edit message "%s", message not found',
+                message.clean_content,
             )
             if send_if_fail:
                 lfunc("Sending message instead")
                 return await self.safe_send_message(message.channel, new)
 
-    async def restart(self):
-        self.exit_signal = exceptions.RestartSignal()
-        await self.close()
+        except discord.HTTPException as e:
+            if e.status == 429:
+                # Note:  `e.response` could be either type:  aiohttp.ClientResponse  OR  requests.Response
+                # thankfully both share a similar enough `response.headers` member CI Dict.
+                # See docs on headers here:  https://discord.com/developers/docs/topics/rate-limits
+                try:
+                    retry_after = 0.0
+                    header_val = e.response.headers.get("RETRY-AFTER")
+                    if header_val:
+                        retry_after = float(header_val)
+                except ValueError:
+                    retry_after = 0.0
+                if retry_after:
+                    log.warning(
+                        "Rate limited edit message, retrying in %s seconds.",
+                        retry_after,
+                    )
+                    try:
+                        await asyncio.sleep(retry_after)
+                    except asyncio.CancelledError:
+                        log.warning("Cancelled message edit for:  %s", message)
+                        return None
+                    return await self.safe_edit_message(
+                        message, new, send_if_fail=send_if_fail, quiet=quiet
+                    )
+            else:
+                lfunc("Failed to edit message")
+                log.noise(  # type: ignore[attr-defined]
+                    "Got HTTPException trying to edit message %s to: %s", message, new
+                )
 
-    def restart_threadsafe(self):
-        asyncio.run_coroutine_threadsafe(self.restart(), self.loop)
+        return None
 
-    async def _cleanup(self):
+    def _setup_windows_signal_handler(self) -> None:
+        """
+        Windows needs special handling for Ctrl+C signals to play nice with asyncio
+        so this method sets up signals with access to bot event loop.
+        This enables capturing KeyboardInterrupt and using it to cleanly shut down.
+        """
+        if os.name != "nt":
+            return
+
+        # method used to set the above member.
+        def set_windows_signal(sig: int, _frame: Any) -> None:
+            self._os_signal = signal.Signals(sig)
+
+        # method used to periodically check for a signal, and process it.
+        async def check_windows_signal() -> None:
+            while True:
+                if self.logout_called:
+                    break
+
+                if self._os_signal is None:
+                    try:
+                        await asyncio.sleep(1)
+                    except asyncio.CancelledError:
+                        break
+                else:
+                    await self.on_os_signal(self._os_signal, self.loop)
+                    self._os_signal = None
+
+        # register interrupt signal Ctrl+C to be trapped.
+        signal.signal(signal.SIGINT, set_windows_signal)
+        # and start the signal checking loop.
+        asyncio.create_task(check_windows_signal())
+
+    async def on_os_signal(
+        self, sig: signal.Signals, _loop: asyncio.AbstractEventLoop
+    ) -> None:
+        """
+        On Unix-like/Linux OS, this method is called automatically on the event
+        loop for signals registered in run.py.
+        On Windows, this method is called by custom signal handling set up at
+        the start of run_musicbot().
+        This allows MusicBot to handle external signals and triggering a clean
+        shutdown of MusicBot in response to them.
+
+        It essentially just calls logout, and the rest of MusicBot tear-down is
+        finished up in `MusicBot.run_musicbot()` instead.
+
+        Signals handled here are registered with the event loop in run.py.
+        """
+        # This print facilitates putting '^C' on its own line in the terminal.
+        print()
+        log.warning("Caught a signal from the OS: %s", sig.name)
+
         try:
-            self.loop.run_until_complete(self.logout())
-            self.loop.run_until_complete(self.session.close())
-        except:
-            pass
+            if self and not self.logout_called:
+                log.info("Disconnecting and closing down MusicBot...")
+                await self.logout()
+        except Exception as e:
+            log.exception("Exception thrown while handling interrupt signal!")
+            raise KeyboardInterrupt() from e
 
-        pending = asyncio.all_tasks()
-        gathered = asyncio.gather(*pending)
+    async def run_musicbot(self) -> None:
+        """
+        This method is to be used in an event loop to start the MusicBot.
+        It handles cleanup of bot session, while the event loop is closed separately.
+        """
+        # Windows specifically needs some help with signals.
+        self._setup_windows_signal_handler()
 
-        try:
-            gathered.cancel()
-            self.loop.run_until_complete(gathered)
-            gathered.exception()
-        except:
-            pass
-
-    # noinspection PyMethodOverriding
-    async def run(self):
+        # handle start up and teardown.
         try:
             await self.start(*self.config.auth)
+            log.info("MusicBot is now doing shutdown steps...")
+            if self.exit_signal is None:
+                self.exit_signal = exceptions.TerminateSignal()
 
-        except discord.errors.LoginFailure:
-            # Add if token, else
+        except discord.errors.LoginFailure as e:
             raise exceptions.HelpfulError(
-                "Bot cannot login, bad credentials.",
-                "Fix your token in the options file.  "
+                preface="Failed login to discord API!",
+                issue="MusicBot cannot login to discord, is your token correct?",
+                solution="Fix your token in the options.ini config file.\n"
                 "Remember that each field should be on their own line.",
-            )  #     ^^^^ In theory self.config.auth should never have no items
+                footnote="Note: If you are certain your token is correct, this may be due to a Discord API outage.",
+            ) from e
 
         finally:
-            try:
-                await self._cleanup()
-            except Exception:
-                log.error("Error in cleanup", exc_info=True)
+            # Inspect all waiting tasks and either cancel them or let them finish.
+            pending_tasks = []
+            for task in asyncio.all_tasks(loop=self.loop):
+                # Don't cancel run_musicbot task, we need it to finish cleaning.
+                if task == asyncio.current_task():
+                    continue
 
+                tname = task.get_name()
+                coro = task.get_coro()
+                coro_name = "[unknown]"
+                if coro and hasattr(coro, "__qualname__"):
+                    coro_name = getattr(coro, "__qualname__", "[unknown]")
+
+                if (
+                    tname.startswith("Signal_SIG")
+                    or coro_name == "URLPlaylistEntry._download"
+                ):
+                    log.debug("Will wait for task:  %s  (%s)", tname, coro_name)
+                    pending_tasks.append(task)
+
+                else:
+                    log.debug("Will try to cancel task:  %s  (%s)", tname, coro_name)
+                    task.cancel()
+                    pending_tasks.append(task)
+
+            # wait on any pending tasks.
+            if pending_tasks:
+                log.debug("Awaiting pending tasks...")
+                await asyncio.gather(*pending_tasks, return_exceptions=True)
+                await asyncio.sleep(0.5)
+
+            # ensure connector is closed.
+            if self.http.connector:
+                log.debug("Closing HTTP Connector.")
+                await self.http.connector.close()
+                await asyncio.sleep(0.5)
+
+            # ensure the session is closed.
+            if self.session:
+                log.debug("Closing aiohttp session.")
+                await self.session.close()
+                await asyncio.sleep(0.5)
+
+            # if anything set an exit signal, we should raise it here.
             if self.exit_signal:
-                raise self.exit_signal  # pylint: disable=E0702
+                raise self.exit_signal
 
-    async def logout(self):
+    async def logout(self) -> None:
+        """
+        Disconnect all voice clients and signal MusicBot to close it's connections to discord.
+        """
+        log.noise("Logout has been called.")  # type: ignore[attr-defined]
+        await self.update_now_playing_status(set_offline=True)
+
+        self.logout_called = True
         await self.disconnect_all_voice_clients()
         return await super().close()
 
-    async def on_error(self, event, *args, **kwargs):
-        ex_type, ex, stack = sys.exc_info()
+    async def on_error(self, event: str, /, *_args: Any, **_kwargs: Any) -> None:
+        _ex_type, ex, _stack = sys.exc_info()
 
-        if ex_type == exceptions.HelpfulError:
-            log.error("Exception in {}:\n{}".format(event, ex.message))
+        if isinstance(ex, exceptions.HelpfulError):
+            log.error("Exception in %s:\n%s", event, ex.message)
 
-            await asyncio.sleep(2)  # don't ask
+            await asyncio.sleep(2)  # makes extra sure this gets seen(?)
+
             await self.logout()
 
-        elif issubclass(ex_type, exceptions.Signal):
-            self.exit_signal = ex_type
+        elif isinstance(ex, (exceptions.RestartSignal, exceptions.TerminateSignal)):
+            self.exit_signal = ex
             await self.logout()
 
         else:
-            log.error("Exception in {}".format(event), exc_info=True)
+            log.error("Exception in %s", event, exc_info=True)
 
-    async def on_resumed(self):
-        log.info("\nReconnected to discord.\n")
+    async def on_resumed(self) -> None:
+        """
+        Event called by discord.py when the client resumed an existing session.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_resume
+        """
+        log.info("MusicBot resumed a session with discord.")
+        await self._auto_join_channels(from_resume=True)
 
-    async def on_ready(self):
-        dlogger = logging.getLogger("discord")
-        for h in dlogger.handlers:
-            if getattr(h, "terminator", None) == "":
-                dlogger.removeHandler(h)
-                print()
+    async def on_ready(self) -> None:
+        """
+        Event called by discord.py typically when MusicBot has finished login.
+        May be called multiple times, and may not be the first event dispatched!
+        See documentations for specifics:
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_ready
+        """
+        if self.on_ready_count == 0:
+            await self._on_ready_once()
+            self.init_ok = True
 
-        log.debug("Connection established, ready to go.")
+        await self._on_ready_always()
+        self.on_ready_count += 1
 
-        self.ws._keep_alive.name = "Gateway Keepalive"
+        log.debug("Finish on_ready")
 
-        if self.init_ok:
-            log.debug("Received additional READY event, may have failed to resume")
-            return
+    async def _on_ready_once(self) -> None:
+        """
+        A version of on_ready that will only ever be called once, at first login.
+        """
+        mute_discord_console_log()
+        log.debug("Logged in, now getting MusicBot ready...")
 
+        if not self.user:
+            log.critical("ClientUser is somehow none, we gotta bail...")
+            self.exit_signal = exceptions.TerminateSignal()
+            raise self.exit_signal
+
+        # Start the environment checks. Generate folders/files dependent on Discord data.
+        # Also takes care of app-info and auto OwnerID updates.
         await self._on_ready_sanity_checks()
 
-        self.init_ok = True
-
-        ################################
-
         log.info(
-            "Connected: {0}/{1}#{2}".format(
-                self.user.id, self.user.name, self.user.discriminator
-            )
+            "MusicBot:  %s/%s#%s",
+            self.user.id,
+            self.user.name,
+            self.user.discriminator,
         )
 
-        owner = self._get_owner(voice=True) or self._get_owner()
+        owner = self._get_owner_member()
         if owner and self.guilds:
             log.info(
-                "Owner:     {0}/{1}#{2}\n".format(
-                    owner.id, owner.name, owner.discriminator
-                )
+                "Owner:     %s/%s#%s\n",
+                owner.id,
+                owner.name,
+                owner.discriminator,
             )
 
             log.info("Guild List:")
             unavailable_servers = 0
             for s in self.guilds:
-                ser = "{} (unavailable)".format(s.name) if s.unavailable else s.name
-                log.info(" - " + ser)
+                ser = f"{s.name} (unavailable)" if s.unavailable else s.name
+                log.info(" - %s", ser)
                 if self.config.leavenonowners:
                     if s.unavailable:
                         unavailable_servers += 1
@@ -1145,228 +2078,512 @@ class MusicBot(discord.Client):
                         if check is None:
                             await s.leave()
                             log.info(
-                                "Left {} due to bot owner not found".format(s.name)
+                                "Left %s due to bot owner not found",
+                                s.name,
                             )
             if unavailable_servers != 0:
                 log.info(
-                    "Not proceeding with checks in {} servers due to unavailability".format(
-                        str(unavailable_servers)
-                    )
+                    "Not proceeding with checks in %s servers due to unavailability",
+                    str(unavailable_servers),
                 )
 
         elif self.guilds:
             log.warning(
-                "Owner could not be found on any guild (id: %s)\n"
-                % self.config.owner_id
+                "Owner could not be found on any guild (id: %s)\n", self.config.owner_id
             )
 
             log.info("Guild List:")
             for s in self.guilds:
-                ser = "{} (unavailable)".format(s.name) if s.unavailable else s.name
-                log.info(" - " + ser)
+                ser = f"{s.name} (unavailable)" if s.unavailable else s.name
+                log.info(" - %s", ser)
 
         else:
             log.warning("Owner unknown, bot is not on any guilds.")
             if self.user.bot:
+                invite_url = await self.generate_invite_link()
                 log.warning(
                     "To make the bot join a guild, paste this link in your browser. \n"
                     "Note: You should be logged into your main account and have \n"
                     "manage server permissions on the guild you want the bot to join.\n"
-                    "  " + await self.generate_invite_link()
+                    "  %s",
+                    invite_url,
                 )
 
         print(flush=True)
 
+        # validate bound channels and log them.
         if self.config.bound_channels:
-            chlist = set(self.get_channel(i) for i in self.config.bound_channels if i)
-            chlist.discard(None)
+            # Get bound channels by ID, and validate that we can use them.
+            text_chlist: Set[MessageableChannel] = set()
+            invalid_ids: Set[int] = set()
+            for ch_id in self.config.bound_channels:
+                ch = self.get_channel(ch_id)
+                if not ch:
+                    log.warning("Got None for bound channel with ID:  %d", ch_id)
+                    invalid_ids.add(ch_id)
+                    continue
 
-            invalids = set()
-            invalids.update(c for c in chlist if isinstance(c, discord.VoiceChannel))
+                if not isinstance(ch, discord.abc.Messageable):
+                    log.warning(
+                        "Cannot bind to non-messagable channel with ID:  %d",
+                        ch_id,
+                    )
+                    invalid_ids.add(ch_id)
+                    continue
 
-            chlist.difference_update(invalids)
-            self.config.bound_channels.difference_update(invalids)
+                if not isinstance(ch, (discord.PartialMessageable, discord.DMChannel)):
+                    text_chlist.add(ch)
 
-            if chlist:
+            # Clean up our config data so it can be reliable later.
+            self.config.bound_channels.difference_update(invalid_ids)
+
+            # finally, log what we've bound to.
+            if text_chlist:
                 log.info("Bound to text channels:")
-                [
-                    log.info(" - {}/{}".format(ch.guild.name.strip(), ch.name.strip()))
-                    for ch in chlist
-                    if ch
-                ]
+                for valid_ch in text_chlist:
+                    guild_name = "PrivateChannel"
+                    if isinstance(valid_ch, discord.DMChannel):
+                        ch_name = "Unknown User DM"
+                        if valid_ch.recipient:
+                            ch_name = f"DM: {valid_ch.recipient.name}"
+                    elif isinstance(valid_ch, discord.PartialMessageable):
+                        ch_name = "Unknown Partial Channel"
+                    else:
+                        ch_name = valid_ch.name or f"Unnamed Channel: {valid_ch.id}"
+                    if valid_ch.guild:
+                        guild_name = valid_ch.guild.name
+                    log.info(" - %s/%s", guild_name, ch_name)
             else:
-                print("Not bound to any text channels")
-
-            if invalids and self.config.debug_mode:
-                print(flush=True)
-                log.info("Not binding to voice channels:")
-                [
-                    log.info(" - {}/{}".format(ch.guild.name.strip(), ch.name.strip()))
-                    for ch in invalids
-                    if ch
-                ]
-
-            print(flush=True)
-
+                log.info("Not bound to any text channels")
         else:
             log.info("Not bound to any text channels")
 
+        print(flush=True)  # new line in console.
+
+        # validate and display auto-join channels.
         if self.config.autojoin_channels:
-            chlist = set(
-                self.get_channel(i) for i in self.config.autojoin_channels if i
-            )
-            chlist.discard(None)
+            vc_chlist: Set[VoiceableChannel] = set()
+            invalids: Set[int] = set()
+            for ch_id in self.config.autojoin_channels:
+                ch = self.get_channel(ch_id)
+                if not ch:
+                    log.warning("Got None for autojoin channel with ID:  %d", ch_id)
+                    invalids.add(ch_id)
+                    continue
 
-            invalids = set()
-            invalids.update(c for c in chlist if isinstance(c, discord.TextChannel))
+                if isinstance(ch, discord.abc.PrivateChannel):
+                    log.warning(
+                        "Cannot autojoin a Private/Non-Guild channel with ID:  %d",
+                        ch_id,
+                    )
+                    invalids.add(ch_id)
+                    continue
 
-            chlist.difference_update(invalids)
+                if not isinstance(ch, (discord.VoiceChannel, discord.StageChannel)):
+                    log.warning(
+                        "Cannot autojoin to non-connectable channel with ID:  %d",
+                        ch_id,
+                    )
+                    invalids.add(ch_id)
+                    continue
+
+                # Add the channel to vc_chlist for log readout.
+                vc_chlist.add(ch)
+                # Add the channel to guild-specific auto-join slot.
+                self.server_data[ch.guild.id].auto_join_channel = ch
+
+            # Update config data to be reliable later.
             self.config.autojoin_channels.difference_update(invalids)
 
-            if chlist:
+            # log what we're connecting to.
+            if vc_chlist:
                 log.info("Autojoining voice channels:")
-                [
-                    log.info(" - {}/{}".format(ch.guild.name.strip(), ch.name.strip()))
-                    for ch in chlist
-                    if ch
-                ]
+                for ch in vc_chlist:
+                    log.info(" - %s/%s", ch.guild.name.strip(), ch.name.strip())
+
             else:
                 log.info("Not autojoining any voice channels")
 
-            if invalids and self.config.debug_mode:
-                print(flush=True)
-                log.info("Cannot autojoin text channels:")
-                [
-                    log.info(" - {}/{}".format(ch.guild.name.strip(), ch.name.strip()))
-                    for ch in invalids
-                    if ch
-                ]
-
-            self.autojoin_channels = chlist
-
         else:
             log.info("Not autojoining any voice channels")
-            self.autojoin_channels = set()
 
+        # Display and log the config settings.
         if self.config.show_config_at_start:
-            print(flush=True)
-            log.info("Options:")
-
-            log.info("  Command prefix: " + self.config.command_prefix)
-            log.info(
-                "  Default volume: {}%".format(int(self.config.default_volume * 100))
-            )
-            log.info(
-                "  Skip threshold: {} votes or {}%".format(
-                    self.config.skips_required,
-                    fixg(self.config.skip_ratio_required * 100),
-                )
-            )
-            log.info(
-                "  Now Playing @mentions: "
-                + ["Disabled", "Enabled"][self.config.now_playing_mentions]
-            )
-            log.info(
-                "  Auto-Summon: " + ["Disabled", "Enabled"][self.config.auto_summon]
-            )
-            log.info(
-                "  Auto-Playlist: "
-                + ["Disabled", "Enabled"][self.config.auto_playlist]
-                + " (order: "
-                + ["sequential", "random"][self.config.auto_playlist_random]
-                + ")"
-            )
-            log.info("  Auto-Pause: " + ["Disabled", "Enabled"][self.config.auto_pause])
-            log.info(
-                "  Delete Messages: "
-                + ["Disabled", "Enabled"][self.config.delete_messages]
-            )
-            if self.config.delete_messages:
-                log.info(
-                    "    Delete Invoking: "
-                    + ["Disabled", "Enabled"][self.config.delete_invoking]
-                )
-            log.info("  Debug Mode: " + ["Disabled", "Enabled"][self.config.debug_mode])
-            log.info(
-                "  Downloaded songs will be "
-                + ["deleted", "saved"][self.config.save_videos]
-            )
-            if self.config.status_message:
-                log.info("  Status message: " + self.config.status_message)
-            log.info(
-                "  Write current songs to file: "
-                + ["Disabled", "Enabled"][self.config.write_current_song]
-            )
-            log.info(
-                "  Author insta-skip: "
-                + ["Disabled", "Enabled"][self.config.allow_author_skip]
-            )
-            log.info("  Embeds: " + ["Disabled", "Enabled"][self.config.embeds])
-            log.info(
-                "  Spotify integration: "
-                + ["Disabled", "Enabled"][self.config._spotify]
-            )
-            log.info(
-                "  Legacy skip: " + ["Disabled", "Enabled"][self.config.legacy_skip]
-            )
-            log.info(
-                "  Leave non owners: "
-                + ["Disabled", "Enabled"][self.config.leavenonowners]
-            )
-            log.info(
-                "  Self Deafen: " + ["Disabled", "Enabled"][self.config.self_deafen]
-            )
-
-        print(flush=True)
-
-        await self.update_now_playing_status()
-
-        # maybe option to leave the ownerid blank and generate a random command for the owner to use
-        # wait_for_message is pretty neato
-
-        await self._join_startup_channels(
-            self.autojoin_channels, autosummon=self.config.auto_summon
-        )
+            self._on_ready_log_configs()
 
         # we do this after the config stuff because it's a lot easier to notice here
-        if self.config.missing_keys:
-            log.warning(
-                "Your config file is missing some options. If you have recently updated, "
-                "check the example_options.ini file to see if there are new options available to you. "
-                "The options missing are: {0}".format(self.config.missing_keys)
+        if self.config.register.ini_missing_options:
+            missing_list = "\n".join(
+                sorted(str(o) for o in self.config.register.ini_missing_options)
             )
-            print(flush=True)
+            conf_warn = exceptions.HelpfulError(
+                preface="Detected missing config options!",
+                issue=(
+                    "Your config file is missing some options. Defaults will be used for this session.\n"
+                    f"Here is a list of options we think are missing:\n{missing_list}"
+                ),
+                solution="Check the example_options.ini file for newly added options and copy them to your config.",
+                footnote="You can also use the `config` command to set the missing options.",
+            )
+            log.warning(str(conf_warn)[1:])
 
-        # t-t-th-th-that's all folks!
+        # Pre-load guild specific data / options.
+        # TODO:  probably change this later for better UI/UX.
+        if self.config.enable_options_per_guild:
+            for guild in self.guilds:
+                # Triggers on-demand task to load data from disk.
+                self.server_data[guild.id].is_ready()
+                # context switch to give scheduled task an execution window.
+                await asyncio.sleep(0)
 
-    def _gen_embed(self):
+    async def _on_ready_always(self) -> None:
+        """
+        A version of on_ready that will be called on every event.
+        """
+        if self.on_ready_count > 0:
+            log.debug("Event on_ready has fired %s times", self.on_ready_count)
+        self.loop.create_task(self._on_ready_call_later())
+
+    async def _on_ready_call_later(self) -> None:
+        """
+        A collection of calls scheduled for execution by _on_ready_once
+        """
+        await self.update_now_playing_status()
+        await self._auto_join_channels()
+
+    async def _on_ready_sanity_checks(self) -> None:
+        """
+        Run all sanity checks that should be run in/just after on_ready event.
+        """
+        # Ensure AppInfo is loaded.
+        if not self.cached_app_info:
+            log.debug("Getting application info.")
+            self.cached_app_info = await self.application_info()
+
+        # Ensure folders exist
+        await self._on_ready_ensure_env()
+
+        # TODO: Server permissions check
+        # TODO: pre-expand playlists in autoplaylist?
+
+        # Ensure configs are valid / auto OwnerID is updated.
+        await self._on_ready_validate_configs()
+
+    async def _on_ready_ensure_env(self) -> None:
+        """
+        Startup check to make sure guild/server specific directories are
+        available in the data directory.
+        Additionally populate a text file to map guild ID to their names.
+        """
+        log.debug("Ensuring data folders exist")
+        for guild in self.guilds:
+            self.config.data_path.joinpath(str(guild.id)).mkdir(exist_ok=True)
+
+        names_path = self.config.data_path.joinpath(DATA_FILE_SERVERS)
+        with open(names_path, "w", encoding="utf8") as f:
+            for guild in sorted(self.guilds, key=lambda s: int(s.id)):
+                f.write(f"{guild.id}: {guild.name}\n")
+
+        self.filecache.delete_old_audiocache(remove_dir=True)
+
+    async def _on_ready_validate_configs(self) -> None:
+        """
+        Startup check to handle late validation of config and permissions.
+        """
+        log.debug("Validating config")
+        await self.config.async_validate(self)
+
+        log.debug("Validating permissions config")
+        await self.permissions.async_validate(self)
+
+    def _on_ready_log_configs(self) -> None:
+        """
+        Shows information about configs, including missing keys.
+        No validation is done in this method, only display/logs.
+        """
+
+        print(flush=True)
+        log.info("Options:")
+
+        log.info("  Command prefix: %s", self.config.command_prefix)
+        log.info("  Default volume: %d%%", int(self.config.default_volume * 100))
+        log.info(
+            "  Skip threshold: %d votes or %.0f%%",
+            self.config.skips_required,
+            (self.config.skip_ratio_required * 100),
+        )
+        log.info(
+            "  Now Playing @mentions: %s",
+            ["Disabled", "Enabled"][self.config.now_playing_mentions],
+        )
+        log.info("  Auto-Summon: %s", ["Disabled", "Enabled"][self.config.auto_summon])
+        log.info(
+            "  Auto-Playlist: %s (order: %s)",
+            ["Disabled", "Enabled"][self.config.auto_playlist],
+            ["sequential", "random"][self.config.auto_playlist_random],
+        )
+        log.info("  Auto-Pause: %s", ["Disabled", "Enabled"][self.config.auto_pause])
+        log.info(
+            "  Delete Messages: %s",
+            ["Disabled", "Enabled"][self.config.delete_messages],
+        )
+        if self.config.delete_messages:
+            log.info(
+                "    Delete Invoking: %s",
+                ["Disabled", "Enabled"][self.config.delete_invoking],
+            )
+            log.info(
+                "    Delete Nowplaying: %s",
+                ["Disabled", "Enabled"][self.config.delete_nowplaying],
+            )
+        log.info("  Debug Mode: %s", ["Disabled", "Enabled"][self.config.debug_mode])
+        log.info(
+            "  Downloaded songs will be %s",
+            ["deleted", "saved"][self.config.save_videos],
+        )
+        if self.config.save_videos and self.config.storage_limit_days:
+            log.info("    Delete if unused for %d days", self.config.storage_limit_days)
+        if self.config.save_videos and self.config.storage_limit_bytes:
+            size = format_size_from_bytes(self.config.storage_limit_bytes)
+            log.info("    Delete if size exceeds %s", size)
+
+        if self.config.status_message:
+            log.info("  Status message: %s", self.config.status_message)
+        log.info(
+            "  Write current songs to file: %s",
+            ["Disabled", "Enabled"][self.config.write_current_song],
+        )
+        log.info(
+            "  Author insta-skip: %s",
+            ["Disabled", "Enabled"][self.config.allow_author_skip],
+        )
+        log.info("  Embeds: %s", ["Disabled", "Enabled"][self.config.embeds])
+        log.info(
+            "  Spotify integration: %s",
+            ["Disabled", "Enabled"][self.config.spotify_enabled],
+        )
+        log.info("  Legacy skip: %s", ["Disabled", "Enabled"][self.config.legacy_skip])
+        log.info(
+            "  Leave non owners: %s",
+            ["Disabled", "Enabled"][self.config.leavenonowners],
+        )
+        log.info(
+            "  Leave inactive VC: %s",
+            ["Disabled", "Enabled"][self.config.leave_inactive_channel],
+        )
+        if self.config.leave_inactive_channel:
+            log.info(
+                "    Timeout: %s seconds",
+                self.config.leave_inactive_channel_timeout,
+            )
+        log.info(
+            "  Leave at song end/empty queue: %s",
+            ["Disabled", "Enabled"][self.config.leave_after_queue_empty],
+        )
+        log.info(
+            "  Leave when player idles: %s",
+            "Disabled" if self.config.leave_player_inactive_for == 0 else "Enabled",
+        )
+        if self.config.leave_player_inactive_for:
+            log.info("    Timeout: %d seconds", self.config.leave_player_inactive_for)
+        log.info("  Self Deafen: %s", ["Disabled", "Enabled"][self.config.self_deafen])
+        log.info(
+            "  Per-server command prefix: %s",
+            ["Disabled", "Enabled"][self.config.enable_options_per_guild],
+        )
+        log.info("  Search List: %s", ["Disabled", "Enabled"][self.config.searchlist])
+        log.info(
+            "  Round Robin Queue: %s",
+            ["Disabled", "Enabled"][self.config.round_robin_queue],
+        )
+        print(flush=True)
+
+    def _gen_embed(self) -> discord.Embed:
         """Provides a basic template for embeds"""
         e = discord.Embed()
-        e.colour = 7506394
+        e.colour = discord.Colour(7506394)
         e.set_footer(
             text=self.config.footer_text, icon_url="https://i.imgur.com/gFHBoZA.png"
         )
+
+        # TODO: handle this part when EmbedResponse get handled.
+        author_name = "MusicBot"
+        avatar_url = None
+        if self.user:
+            author_name = self.user.name
+            if self.user.avatar:
+                avatar_url = self.user.avatar.url
+
         e.set_author(
-            name=self.user.name,
+            name=author_name,
             url="https://github.com/Just-Some-Bots/MusicBot",
-            icon_url=self.user.avatar.url if self.user.avatar else None,
+            icon_url=avatar_url,
         )
         return e
 
-    async def cmd_resetplaylist(self, player, channel):
+    def _get_song_url_or_none(
+        self, url: str, player: Optional[MusicPlayer]
+    ) -> Optional[str]:
+        """Return song url if provided or one is currently playing, else returns None"""
+        url_or_none = self.downloader.get_url_or_none(url)
+        if url_or_none:
+            return url_or_none
+
+        if player and player.current_entry and player.current_entry.url:
+            return player.current_entry.url
+
+        return None
+
+    def _do_song_blocklist_check(self, song_subject: str) -> None:
+        """
+        Check if the `song_subject` is matched in the block list.
+
+        :raises: musicbot.exceptions.CommandError
+            The subject is matched by a block list entry.
+        """
+        if not self.config.song_blocklist_enabled:
+            return
+
+        if self.config.song_blocklist.is_blocked(song_subject):
+            raise exceptions.CommandError(
+                # TODO: i18n
+                f"The requested song `{song_subject}` is blocked by the song blocklist.",
+                expire_in=30,
+            )
+
+    async def handle_vc_inactivity(self, guild: discord.Guild) -> None:
+        """
+        Manage a server-specific event timer when MusicBot's voice channel becomes idle,
+        if the bot is configured to do so.
+        """
+        if not guild.me.voice or not guild.me.voice.channel:
+            log.warning(
+                "Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
+            )
+            return
+
+        event = self.server_data[guild.id].get_event("inactive_vc_timer")
+
+        if event.is_active():
+            log.debug("Channel activity already waiting in guild: %s", guild)
+            return
+        event.activate()
+
+        try:
+            chname = "Unknown"
+            if guild.me.voice.channel:
+                chname = guild.me.voice.channel.name
+
+            log.info(
+                "Channel activity waiting %d seconds to leave channel: %s",
+                self.config.leave_inactive_channel_timeout,
+                chname,
+            )
+            await discord.utils.sane_wait_for(
+                [event.wait()], timeout=self.config.leave_inactive_channel_timeout
+            )
+        except asyncio.TimeoutError:
+            # could timeout after a disconnect.
+            if guild.me.voice and guild.me.voice.channel:
+                log.info(
+                    "Channel activity timer for %s has expired. Disconnecting.",
+                    guild.name,
+                )
+                await self.on_inactivity_timeout_expired(guild.me.voice.channel)
+        else:
+            log.info(
+                "Channel activity timer canceled for: %s in %s",
+                guild.me.voice.channel.name,
+                guild.name,
+            )
+        finally:
+            event.deactivate()
+            event.clear()
+
+    async def handle_player_inactivity(self, player: MusicPlayer) -> None:
+        """
+        Manage a server-specific event timer when it's MusicPlayer becomes idle,
+        if the bot is configured to do so.
+        """
+        if not self.config.leave_player_inactive_for:
+            return
+        channel = player.voice_client.channel
+        guild = channel.guild
+        event = self.server_data[guild.id].get_event("inactive_player_timer")
+
+        if str(channel.id) in str(self.config.autojoin_channels):
+            log.debug(
+                "Ignoring player inactivity in auto-joined channel:  %s",
+                channel.name,
+            )
+            return
+
+        if event.is_active():
+            log.debug(
+                "Player activity timer already waiting in guild: %s",
+                guild,
+            )
+            return
+        event.activate()
+
+        try:
+            log.info(
+                "Player activity timer waiting %d seconds to leave channel: %s",
+                self.config.leave_player_inactive_for,
+                channel.name,
+            )
+            await discord.utils.sane_wait_for(
+                [event.wait()], timeout=self.config.leave_player_inactive_for
+            )
+        except asyncio.TimeoutError:
+            log.info(
+                "Player activity timer for %s has expired. Disconnecting.",
+                guild.name,
+            )
+            await self.on_inactivity_timeout_expired(channel)
+        else:
+            log.info(
+                "Player activity timer canceled for: %s in %s",
+                channel.name,
+                guild.name,
+            )
+        finally:
+            event.deactivate()
+            event.clear()
+
+    async def reset_player_inactivity(self, player: MusicPlayer) -> None:
+        """
+        Handle reset of the server-specific inactive player timer if it is enabled.
+        """
+        if not self.config.leave_player_inactive_for:
+            return
+        guild = player.voice_client.channel.guild
+        event = self.server_data[guild.id].get_event("inactive_player_timer")
+        if event.is_active() and not event.is_set():
+            event.set()
+            log.debug("Player activity timer is being reset.")
+
+    async def cmd_resetplaylist(
+        self, guild: discord.Guild, player: MusicPlayer
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}resetplaylist
 
         Resets all songs in the server's autoplaylist
         """
-        player.autoplaylist = list(set(self.autoplaylist))
+        player.autoplaylist = list(self.server_data[guild.id].autoplaylist)
         return Response(
             self.str.get("cmd-resetplaylist-response", "\N{OK HAND SIGN}"),
             delete_after=15,
         )
 
-    async def cmd_help(self, message, channel, command=None):
+    async def cmd_help(
+        self,
+        message: discord.Message,
+        guild: discord.Guild,
+        command: Optional[str] = None,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}help [command]
@@ -1375,65 +2592,249 @@ class MusicBot(discord.Client):
         If a command is specified, it prints a help message for that command.
         Otherwise, it lists the available commands.
         """
-        self.commands = []
-        self.is_all = False
-        prefix = self.config.command_prefix
+        commands = []
+        is_all = False
+        is_emoji = False
+        prefix = self.server_data[guild.id].command_prefix
+        # Its OK to skip unicode emoji here, they render correctly inside of code boxes.
+        emoji_regex = re.compile(r"^(<a?:.+:\d+>|:.+:)$")
+        if emoji_regex.match(prefix):
+            is_emoji = True
 
         if command:
             if command.lower() == "all":
-                self.is_all = True
-                await self.gen_cmd_list(message, list_all_cmds=True)
+                is_all = True
+                commands = await self.gen_cmd_list(message, list_all_cmds=True)
 
             else:
                 cmd = getattr(self, "cmd_" + command, None)
                 if cmd and not hasattr(cmd, "dev_cmd"):
                     return Response(
-                        "```\n{}```".format(dedent(cmd.__doc__)).format(
-                            command_prefix=self.config.command_prefix
+                        "```\n{0}```{1}".format(
+                            dedent(cmd.__doc__),
+                            (
+                                self.str.get(
+                                    "cmd-help-prefix-required",
+                                    "\n**Prefix required for use:**\n{example_cmd}\n",
+                                ).format(example_cmd=f"{prefix}`{command} ...`")
+                                if is_emoji
+                                else ""
+                            ),
+                        ).format(
+                            command_prefix=prefix if not is_emoji else "",
                         ),
                         delete_after=60,
                     )
-                else:
-                    raise exceptions.CommandError(
-                        self.str.get("cmd-help-invalid", "No such command"),
-                        expire_in=10,
-                    )
+
+                raise exceptions.CommandError(
+                    self.str.get("cmd-help-invalid", "No such command"),
+                    expire_in=10,
+                )
 
         elif message.author.id == self.config.owner_id:
-            await self.gen_cmd_list(message, list_all_cmds=True)
+            commands = await self.gen_cmd_list(message, list_all_cmds=True)
 
         else:
-            await self.gen_cmd_list(message)
+            commands = await self.gen_cmd_list(message)
 
-        desc = (
-            "```\n"
-            + ", ".join(self.commands)
-            + "\n```\n"
-            + self.str.get(
-                "cmd-help-response",
-                "For information about a particular command, run `{}help [command]`\n"
-                "For further help, see https://just-some-bots.github.io/MusicBot/",
-            ).format(prefix)
-        )
-        if not self.is_all:
+        if is_emoji:
+            desc = (
+                f"\n{prefix}`"
+                + f"`, {prefix}`".join(commands)
+                + "`\n\n"
+                + self.str.get(
+                    "cmd-help-response",
+                    "For information about a particular command, run {example_cmd}\n"
+                    "For further help, see https://just-some-bots.github.io/MusicBot/",
+                ).format(
+                    example_cmd=(
+                        f"{prefix}`help [command]`"
+                        if is_emoji
+                        else f"`{prefix}help [command]`"
+                    ),
+                )
+            )
+        else:
+            desc = (
+                f"```\n{prefix}"
+                + f", {prefix}".join(commands)
+                + "\n```\n"
+                + self.str.get(
+                    "cmd-help-response",
+                    "For information about a particular command, run {example_cmd}\n"
+                    "For further help, see https://just-some-bots.github.io/MusicBot/",
+                ).format(
+                    example_cmd=(
+                        f"{prefix}`help [command]`"
+                        if is_emoji
+                        else f"`{prefix}help [command]`"
+                    ),
+                )
+            )
+        if not is_all:
             desc += self.str.get(
                 "cmd-help-all",
-                "\nOnly showing commands you can use, for a list of all commands, run `{}help all`",
-            ).format(prefix)
+                "\nOnly showing commands you can use, for a list of all commands, run {example_cmd}",
+            ).format(
+                example_cmd=(
+                    f"{prefix}`help all`" if is_emoji else f"`{prefix}help all`"
+                ),
+            )
 
         return Response(desc, reply=True, delete_after=60)
 
-    async def cmd_blacklist(self, message, user_mentions, option, something):
+    async def cmd_blockuser(
+        self,
+        user_mentions: UserMentions,
+        option: str,
+        leftover_args: List[str],
+    ) -> CommandResponse:
         """
         Usage:
-            {command_prefix}blacklist [ + | - | add | remove ] @UserName [@UserName2 ...]
+            {command_prefix}blockuser [ + | - | ? | add | remove | status ] @UserName [@UserName2 ...]
 
-        Add or remove users to the blacklist.
-        Blacklisted users are forbidden from using bot commands.
+        Manage users in the block list.
+        Blocked users are forbidden from using all bot commands.
         """
 
+        if not user_mentions and not leftover_args:
+            raise exceptions.CommandError(
+                "You must mention a user or provide their ID number.",
+                expire_in=20,
+            )
+
+        if option not in ["+", "-", "?", "add", "remove", "status"]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-blacklist-invalid",
+                    'Invalid option "{0}" specified, use +, -, add, or remove',
+                ).format(option),
+                expire_in=20,
+            )
+
+        for p_user in leftover_args:
+            if p_user.isdigit():
+                u = self.get_user(int(p_user))
+                if u:
+                    user_mentions.append(u)
+
         if not user_mentions:
-            raise exceptions.CommandError("No users listed.", expire_in=20)
+            raise exceptions.CommandError(
+                "MusicBot could not find the user(s) you specified.",
+                expire_in=20,
+            )
+
+        for user in user_mentions.copy():
+            if option in ["+", "add"] and self.config.user_blocklist.is_blocked(user):
+                if user.id == self.config.owner_id:
+                    raise exceptions.CommandError(
+                        "The owner cannot be added to the block list."
+                    )
+
+                log.info(
+                    "Not adding user to block list, already blocked:  %s/%s",
+                    user.id,
+                    user.name,
+                )
+                user_mentions.remove(user)
+
+            if option in ["-", "remove"] and not self.config.user_blocklist.is_blocked(
+                user
+            ):
+                log.info(
+                    "Not removing user from blocklist, not listed:  %s/%s",
+                    user.id,
+                    user.name,
+                )
+                user_mentions.remove(user)
+
+        # allow management regardless, but tell the user if it will apply.
+        if self.config.user_blocklist_enabled:
+            status_msg = "User block list is currently enabled."
+        else:
+            status_msg = "User block list is currently disabled."
+
+        old_len = len(self.config.user_blocklist)
+        user_ids = {str(user.id) for user in user_mentions}
+
+        if option in ["+", "add"]:
+            if not user_mentions:
+                raise exceptions.CommandError(
+                    "Cannot add the users you listed, they are already added."
+                )
+
+            async with self.aiolocks["user_blocklist"]:
+                self.config.user_blocklist.append_items(user_ids)
+
+            n_users = len(self.config.user_blocklist) - old_len
+            return Response(
+                f"{n_users} user(s) have been added to the block list.\n{status_msg}",
+                reply=True,
+                delete_after=10,
+            )
+
+        if self.config.user_blocklist.is_disjoint(user_mentions):
+            return Response(
+                self.str.get(
+                    "cmd-blacklist-none",
+                    "None of those users are in the blacklist.",
+                ),
+                reply=True,
+                delete_after=10,
+            )
+
+        if option in ["?", "status"]:
+            ustatus = ""
+            for user in user_mentions:
+                blocked = "not blocked"
+                if self.config.user_blocklist.is_blocked(user):
+                    blocked = "blocked"
+                ustatus += f"User: `{user.name}` is {blocked}\n"
+            return Response(
+                f"**Block list status:**\n{ustatus}\n{status_msg}",
+                delete_after=30,
+            )
+
+        async with self.aiolocks["user_blocklist"]:
+            self.config.user_blocklist.remove_items(user_ids)
+
+        n_users = old_len - len(self.config.user_blocklist)
+        return Response(
+            f"{n_users} user(s) have been removed from the block list.\n{status_msg}",
+            reply=True,
+            delete_after=10,
+        )
+
+    async def cmd_blocksong(
+        self,
+        guild: discord.Guild,
+        _player: Optional[MusicPlayer],
+        option: str,
+        leftover_args: List[str],
+        song_subject: str = "",
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}blocksong [ + | - | add | remove ] [subject]
+
+        Manage a block list applied to song requests and extracted info.
+        A `subject` may be a song URL or a word or phrase found in the track title.
+        If `subject` is omitted, a currently playing track will be used instead.
+
+        Song block list matches loosely, but is case sensitive.
+        So adding "Pie" will match "cherry Pie" but not "cherry pie" in checks.
+        """
+        if leftover_args:
+            song_subject = " ".join([song_subject, *leftover_args])
+
+        if not song_subject:
+            valid_url = self._get_song_url_or_none(song_subject, _player)
+            if not valid_url:
+                raise exceptions.CommandError(
+                    "You must provide a song subject if no song is currently playing.",
+                    expire_in=30,
+                )
+            song_subject = valid_url
 
         if option not in ["+", "-", "add", "remove"]:
             raise exceptions.CommandError(
@@ -1444,51 +2845,61 @@ class MusicBot(discord.Client):
                 expire_in=20,
             )
 
-        for user in user_mentions.copy():
-            if user.id == self.config.owner_id:
-                print("[Commands:Blacklist] The owner cannot be blacklisted.")
-                user_mentions.remove(user)
-
-        old_len = len(self.blacklist)
+        # allow management regardless, but tell the user if it will apply.
+        if self.config.song_blocklist_enabled:
+            status_msg = "Song block list is currently enabled."
+        else:
+            status_msg = "Song block list is currently disabled."
 
         if option in ["+", "add"]:
-            self.blacklist.update(user.id for user in user_mentions)
+            if self.config.song_blocklist.is_blocked(song_subject):
+                raise exceptions.CommandError(
+                    f"Subject `{song_subject}` is already in the song block list.\n{status_msg}"
+                )
 
-            write_file(self.config.blacklist_file, self.blacklist)
+            # remove song from auto-playlist if it is blocked
+            if (
+                self.config.auto_playlist_remove_on_block
+                and _player
+                and _player.current_entry
+                and song_subject == _player.current_entry.url
+                and _player.current_entry.from_auto_playlist
+            ):
+                await self.server_data[guild.id].autoplaylist.remove_track(
+                    song_subject,
+                    ex=UserWarning("Removed and added to block list."),
+                    delete_from_ap=True,
+                )
 
+            async with self.aiolocks["song_blocklist"]:
+                self.config.song_blocklist.append_items([song_subject])
+
+            # TODO: i18n/UI stuff.
             return Response(
-                self.str.get(
-                    "cmd-blacklist-added", "{0} users have been added to the blacklist"
-                ).format(len(self.blacklist) - old_len),
+                f"Added subject `{song_subject}` to the song block list.\n{status_msg}",
                 reply=True,
                 delete_after=10,
             )
 
-        else:
-            if self.blacklist.isdisjoint(user.id for user in user_mentions):
-                return Response(
-                    self.str.get(
-                        "cmd-blacklist-none",
-                        "None of those users are in the blacklist.",
-                    ),
-                    reply=True,
-                    delete_after=10,
-                )
+        # handle "remove" and "-"
+        if not self.config.song_blocklist.is_blocked(song_subject):
+            raise exceptions.CommandError(
+                "The subject is not in the song block list and cannot be removed.",
+                expire_in=10,
+            )
 
-            else:
-                self.blacklist.difference_update(user.id for user in user_mentions)
-                write_file(self.config.blacklist_file, self.blacklist)
+        async with self.aiolocks["song_blocklist"]:
+            self.config.song_blocklist.remove_items([song_subject])
 
-                return Response(
-                    self.str.get(
-                        "cmd-blacklist-removed",
-                        "{0} users have been removed from the blacklist",
-                    ).format(old_len - len(self.blacklist)),
-                    reply=True,
-                    delete_after=10,
-                )
+        return Response(
+            f"Subject `{song_subject}` has been removed from the block list.\n{status_msg}",
+            reply=True,
+            delete_after=10,
+        )
 
-    async def cmd_id(self, author, user_mentions):
+    async def cmd_id(
+        self, author: discord.Member, user_mentions: UserMentions
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}id [@user]
@@ -1501,69 +2912,163 @@ class MusicBot(discord.Client):
                 reply=True,
                 delete_after=35,
             )
-        else:
-            usr = user_mentions[0]
-            return Response(
-                self.str.get("cmd-id-other", "**{0}**s ID is `{1}`").format(
-                    usr.name, usr.id
-                ),
-                reply=True,
-                delete_after=35,
-            )
 
-    async def cmd_save(self, player, url=None):
+        usr = user_mentions[0]
+        return Response(
+            self.str.get("cmd-id-other", "**{0}**s ID is `{1}`").format(
+                usr.name, usr.id
+            ),
+            reply=True,
+            delete_after=35,
+        )
+
+    async def cmd_autoplaylist(
+        self,
+        guild: discord.Guild,
+        author: discord.Member,
+        _player: Optional[MusicPlayer],
+        option: str,
+        opt_url: str = "",
+    ) -> CommandResponse:
         """
         Usage:
-            {command_prefix}save [url]
+            {command_prefix}autoplaylist [ + | - | add | remove] [url]
+                Adds or removes the specified song or currently playing song to/from the current playlist.
 
-        Saves the specified song or current song if not specified to the autoplaylist.
+            {command_prefix}autoplaylist show
+                Show a list of existing playlist files.
+
+            {command_prefix}autoplaylist set [playlist.txt]
+                Set a playlist as default for this guild and reloads the guild auto playlist.
         """
-        if url or (
-            player.current_entry
-            and not isinstance(player.current_entry, StreamPlaylistEntry)
-        ):
-            if not url:
-                url = player.current_entry.url
+        option = option.lower()
+        if option not in ["+", "-", "add", "remove", "show", "set"]:
+            raise exceptions.CommandError(
+                "You must provide one of the following options:  `add`, `remove`, `show`, or `set`",
+                expire_in=30,
+            )
 
-            if url not in self.autoplaylist:
-                self.autoplaylist.append(url)
-                write_file(self.config.auto_playlist_file, self.autoplaylist)
-                log.debug("Appended {} to autoplaylist".format(url))
+        def _get_url() -> str:
+            url = self._get_song_url_or_none(opt_url, _player)
+
+            if not url:
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-autoplaylist-invalid", "The supplied song link is invalid"
+                    ),
+                    expire_in=20,
+                )
+            return url
+
+        if option in ["+", "add"]:
+            url = _get_url()
+            self._do_song_blocklist_check(url)
+            if url not in self.server_data[guild.id].autoplaylist:
+                await self.server_data[guild.id].autoplaylist.add_track(url)
                 return Response(
                     self.str.get(
                         "cmd-save-success", "Added <{0}> to the autoplaylist."
-                    ).format(url)
+                    ).format(url),
+                    delete_after=35,
                 )
-            else:
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-save-exists", "This song is already in the autoplaylist."
-                    )
-                )
-        else:
             raise exceptions.CommandError(
-                self.str.get("cmd-save-invalid", "There is no valid song playing.")
+                self.str.get(
+                    "cmd-save-exists",
+                    "This song is already in the autoplaylist.",
+                ),
+                expire_in=20,
             )
 
+        if option in ["-", "remove"]:
+            url = _get_url()
+            if url in self.server_data[guild.id].autoplaylist:
+                await self.server_data[guild.id].autoplaylist.remove_track(
+                    url,
+                    ex=UserWarning(
+                        f"Removed by command from user:  {author.id}/{author.name}#{author.discriminator}"
+                    ),
+                    delete_from_ap=True,
+                )
+                return Response(
+                    self.str.get(
+                        "cmd-unsave-success", "Removed <{0}> from the autoplaylist."
+                    ).format(url),
+                    delete_after=35,
+                )
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-unsave-does-not-exist",
+                    "This song is not yet in the autoplaylist.",
+                ),
+                expire_in=20,
+            )
+
+        if option == "show":
+            self.playlist_mgr.discover_playlists()
+            names = "\n".join([f"`{pl}`" for pl in self.playlist_mgr.playlist_names])
+            return Response(
+                f"**Available Playlists:**\n{names}",
+                delete_after=40,
+            )
+
+        if option == "set":
+            if not opt_url:
+                raise exceptions.CommandError(
+                    "You must provide a playlist filename.",
+                    expire_in=30,
+                )
+
+            # Add file extension if one was not given.
+            if not opt_url.lower().endswith(".txt"):
+                opt_url += ".txt"
+
+            # Update the server specific data.
+            pl = self.playlist_mgr.get_playlist(opt_url)
+            self.server_data[guild.id].autoplaylist = pl
+            await self.server_data[guild.id].save_guild_options_file()
+            await pl.load()
+
+            # Update the player copy if needed.
+            if _player and self.config.auto_playlist:
+                _player.autoplaylist = list(pl)
+
+            new_msg = ""
+            if not self.playlist_mgr.playlist_exists(opt_url):
+                new_msg = (
+                    "\nThis playlist is new, you must add songs to save it to disk!"
+                )
+            return Response(
+                f"The playlist for this server has been updated to: `{opt_url}`{new_msg}",
+                delete_after=30,
+            )
+
+        raise exceptions.CommandError(
+            self.str.get(
+                "cmd-autoplaylist-option-invalid",
+                'Invalid option "{0}" specified, use +, -, add, or remove',
+            ).format(option),
+            expire_in=20,
+        )
+
     @owner_only
-    async def cmd_joinserver(self, message, server_link=None):
+    async def cmd_joinserver(self) -> CommandResponse:
         """
         Usage:
-            {command_prefix}joinserver invite_link
+            {command_prefix}joinserver
 
-        Asks the bot to join a server.  Note: Bot accounts cannot use invite links.
+        Generate an invite link that can be used to add this bot to another server.
         """
-
         url = await self.generate_invite_link()
         return Response(
             self.str.get(
-                "cmd-joinserver-response", "Click here to add me to a server: \n{}"
+                "cmd-joinserver-response",
+                "Click here to add me to another server: \n{}",
             ).format(url),
             reply=True,
             delete_after=30,
         )
 
-    async def cmd_karaoke(self, player, channel, author):
+    async def cmd_karaoke(self, player: MusicPlayer) -> CommandResponse:
         """
         Usage:
             {command_prefix}karaoke
@@ -1578,10 +3083,24 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def _do_playlist_checks(self, permissions, player, author, testobj):
-        num_songs = sum(1 for _ in testobj)
+    async def _do_playlist_checks(
+        self,
+        player: MusicPlayer,
+        author: discord.Member,
+        result_info: "downloader.YtdlpResponseDict",
+    ) -> bool:
+        """
+        Check if the given `author` has permissions to play the entries
+        in `result_info` or not.
 
-        # I have to do exe extra checks anyways because you can request an arbitrary number of search results
+        :returns:  True is allowed to continue.
+        :raises:  PermissionsError  if permissions deny the playlist.
+        """
+        num_songs = result_info.playlist_count or result_info.entry_count
+        permissions = self.permissions.for_user(author)
+
+        # TODO: correct the language here, since this could be playlist or search results?
+        # I have to do extra checks anyways because you can request an arbitrary number of search results
         if not permissions.allow_playlists and num_songs > 1:
             raise exceptions.PermissionsError(
                 self.str.get(
@@ -1620,9 +3139,136 @@ class MusicBot(discord.Client):
             )
         return True
 
+    async def _handle_guild_auto_pause(self, player: MusicPlayer, _lc: int = 0) -> None:
+        """
+        Check the current voice client channel for members and determine
+        if the player should be paused automatically.
+        This is distinct from Guild availability pausing, which happens
+        when Discord or the network has outages.
+        """
+        if not self.config.auto_pause:
+            if player.paused_auto:
+                player.paused_auto = False
+            return
+
+        if self.network_outage:
+            log.debug("Ignoring auto-pause due to network outage.")
+            return
+
+        if not player.voice_client or not player.voice_client.channel:
+            log.voicedebug(  # type: ignore[attr-defined]
+                "MusicPlayer has no VoiceClient or has no channel data, cannot process auto-pause."
+            )
+            if player.paused_auto:
+                player.paused_auto = False
+            return
+
+        channel = player.voice_client.channel
+        guild = channel.guild
+
+        lock = self.aiolocks[f"auto_pause:{guild.id}"]
+        if lock.locked():
+            log.debug("Already processing auto-pause, ignoring this event.")
+            return
+
+        async with lock:
+            if not player.voice_client.is_connected():
+                if self.loop:
+                    naptime = 3 * (1 + _lc)
+                    log.warning(
+                        "%sVoiceClient not connected, waiting %s seconds to handle auto-pause in guild:  %s",
+                        "[Bug] " if _lc > 12 else "",
+                        naptime,
+                        player.voice_client.guild,
+                    )
+                    try:
+                        await asyncio.sleep(naptime)
+                    except asyncio.CancelledError:
+                        log.debug("Auto-pause waiting was cancelled.")
+                        return
+
+                    _lc += 1
+                    f_player = self.get_player_in(player.voice_client.guild)
+                    if player != f_player:
+                        log.info(
+                            "A new MusicPlayer is being connected, ignoring old auto-pause event."
+                        )
+                        return
+
+                    if f_player is not None:
+                        self.loop.create_task(
+                            self._handle_guild_auto_pause(f_player, _lc=_lc)
+                        )
+                return
+
+        is_empty = is_empty_voice_channel(
+            channel, include_bots=self.config.bot_exception_ids
+        )
+        if is_empty and player.is_playing:
+            log.info(
+                "Playing in an empty voice channel, running auto pause for guild: %s",
+                guild,
+            )
+            player.pause()
+            player.paused_auto = True
+
+        elif not is_empty and player.paused_auto:
+            log.info("Previously auto paused player is unpausing for guild: %s", guild)
+            player.paused_auto = False
+            if player.is_paused:
+                player.resume()
+
+    async def _do_cmd_unpause_check(
+        self,
+        player: Optional[MusicPlayer],
+        channel: MessageableChannel,
+        author: discord.Member,
+        message: discord.Message,
+    ) -> None:
+        """
+        Checks for paused player and resumes it while sending a notice.
+
+        This function should not be called from _cmd_play().
+        """
+        if not player or not player.voice_client or not player.voice_client.channel:
+            return
+
+        if not author.voice or not author.voice.channel:
+            return
+
+        if player and player.voice_client and player.voice_client.channel:
+            pvc = player.voice_client.channel
+            avc = author.voice.channel
+            perms = self.permissions.for_user(author)
+            if pvc != avc and perms.summonplay:
+                await self.cmd_summon(author.guild, author, message)
+                return
+
+            if pvc != avc and not perms.summonplay:
+                return
+
+        if player and player.is_paused:
+            player.resume()
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-unpause-check",
+                    "Bot was previously paused, resuming playback now.",
+                ),
+                expire_in=30,
+            )
+
     async def cmd_play(
-        self, message, _player, channel, author, permissions, leftover_args, song_url
-    ):
+        self,
+        message: discord.Message,
+        _player: Optional[MusicPlayer],
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}play song_link
@@ -1632,15 +3278,17 @@ class MusicBot(discord.Client):
         Adds the song to the playlist.  If a link is not provided, the first
         result from a youtube search is added to the queue.
 
-        If enabled in the config, the bot will also support Spotify URIs, however
+        If enabled in the config, the bot will also support Spotify URLs, however
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         return await self._cmd_play(
             message,
             _player,
             channel,
+            guild,
             author,
             permissions,
             leftover_args,
@@ -1648,9 +3296,56 @@ class MusicBot(discord.Client):
             head=False,
         )
 
+    async def cmd_shuffleplay(
+        self,
+        message: discord.Message,
+        _player: Optional[MusicPlayer],
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}shuffleplay playlist_link
+
+        Like play command but explicitly shuffles entries before adding them to the queue.
+        """
+        await self._do_cmd_unpause_check(_player, channel, author, message)
+
+        await self._cmd_play(
+            message,
+            _player,
+            channel,
+            guild,
+            author,
+            permissions,
+            leftover_args,
+            song_url,
+            head=False,
+            shuffle_entries=True,
+        )
+
+        return Response(
+            self.str.get("cmd-shuffleplay-shuffled", "Shuffled {0}'s playlist").format(
+                message.guild
+            ),
+            delete_after=30,
+        )
+
     async def cmd_playnext(
-        self, message, _player, channel, author, permissions, leftover_args, song_url
-    ):
+        self,
+        message: discord.Message,
+        _player: Optional[MusicPlayer],
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}playnext song_link
@@ -1660,15 +3355,17 @@ class MusicBot(discord.Client):
         Adds the song to the playlist next.  If a link is not provided, the first
         result from a youtube search is added to the queue.
 
-        If enabled in the config, the bot will also support Spotify URIs, however
+        If enabled in the config, the bot will also support Spotify URLs, however
         it will use the metadata (e.g song name and artist) to find a YouTube
         equivalent of the song. Streaming from Spotify is not possible.
         """
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         return await self._cmd_play(
             message,
             _player,
             channel,
+            guild,
             author,
             permissions,
             leftover_args,
@@ -1676,193 +3373,520 @@ class MusicBot(discord.Client):
             head=True,
         )
 
-    async def _cmd_play(
+    async def cmd_playnow(
         self,
-        message,
-        _player,
-        channel,
-        author,
-        permissions,
-        leftover_args,
-        song_url,
-        head,
-    ):
-        player = _player if _player else None
+        message: discord.Message,
+        _player: Optional[MusicPlayer],
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}play song_link
+            {command_prefix}play text to search for
+            {command_prefix}play spotify_uri
 
-        if permissions.summonplay:
-            voice_channel = author.voice.channel if author.voice else None
-            response = await self.cmd_summon(
-                channel, channel.guild, author, voice_channel
-            )  # @TheerapakG: As far as I know voice_channel param is unused
-            if self.config.embeds:
-                content = self._gen_embed()
-                content.title = "summon"
-                content.description = response.content
-            else:
-                content = response.content
-            await self.safe_send_message(
-                channel,
-                content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
+        Adds the song to be played back immediately.  If a link is not provided, the first
+        result from a youtube search is added to the queue.
+
+        If enabled in the config, the bot will also support Spotify URLs, however
+        it will use the metadata (e.g song name and artist) to find a YouTube
+        equivalent of the song. Streaming from Spotify is not possible.
+        """
+        await self._do_cmd_unpause_check(_player, channel, author, message)
+
+        # attempt to queue the song, but used the front of the queue and skip current playback.
+        return await self._cmd_play(
+            message,
+            _player,
+            channel,
+            guild,
+            author,
+            permissions,
+            leftover_args,
+            song_url,
+            head=True,
+            skip_playing=True,
+        )
+
+    async def cmd_seek(
+        self, guild: discord.Guild, _player: Optional[MusicPlayer], seek_time: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}seek [time]
+
+        Restarts the current song at the given time.
+        If time starts with + or - seek will be relative to current playback time.
+        Time should be given in seconds, fractional seconds are accepted.
+        Due to codec specifics in ffmpeg, this may not be accurate.
+        """
+        if not _player or not _player.current_entry:
+            raise exceptions.CommandError(
+                "Cannot use seek if there is nothing playing.",
+                expire_in=30,
             )
-            player = self.get_player_in(channel.guild)
+
+        if _player.current_entry.duration is None:
+            raise exceptions.CommandError(
+                "Cannot use seek on current track, it has an unknown duration.",
+                expire_in=30,
+            )
+
+        if not isinstance(
+            _player.current_entry, (URLPlaylistEntry, LocalFilePlaylistEntry)
+        ):
+            raise exceptions.CommandError(
+                "Seeking is not supported for streams.",
+                expire_in=30,
+            )
+
+        if not seek_time:
+            raise exceptions.CommandError(
+                "Cannot use seek without a time to position playback.",
+                expire_in=30,
+            )
+
+        relative_seek: int = 0
+        f_seek_time: float = 0
+        if "." in seek_time:
+            try:
+                if seek_time.startswith("-"):
+                    relative_seek = -1
+                if seek_time.startswith("+"):
+                    relative_seek = 1
+
+                p1, p2 = seek_time.rsplit(".", maxsplit=1)
+                i_seek_time = format_time_to_seconds(p1)
+                f_seek_time = float(f"0.{p2}")
+                f_seek_time += i_seek_time
+            except (ValueError, TypeError) as e:
+                raise exceptions.CommandError(
+                    f"Could not convert `{seek_time}` to a valid time in seconds.",
+                    expire_in=30,
+                ) from e
+        else:
+            f_seek_time = 0.0 + format_time_to_seconds(seek_time)
+
+        if relative_seek != 0:
+            f_seek_time = _player.progress + (relative_seek * f_seek_time)
+
+        if f_seek_time > _player.current_entry.duration or f_seek_time < 0:
+            td = format_song_duration(_player.current_entry.duration_td)
+            raise exceptions.CommandError(
+                f"Cannot seek to `{seek_time}` in the current track with a length of `{td}`",
+                expire_in=30,
+            )
+
+        entry = _player.current_entry
+        entry.set_start_time(f_seek_time)
+        _player.playlist.insert_entry_at_index(0, entry)
+
+        # handle history playlist updates.
+        if (
+            self.config.enable_queue_history_global
+            or self.config.enable_queue_history_guilds
+        ):
+            self.server_data[guild.id].current_playing_url = ""
+
+        _player.skip()
+
+        return Response(
+            f"Seeking to time `{seek_time}` (`{f_seek_time}` seconds) in the current song.",
+            delete_after=30,
+        )
+
+    async def cmd_repeat(
+        self, guild: discord.Guild, option: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}repeat [all | playlist | song | on | off]
+
+        Toggles playlist or song looping.
+        If no option is provided the current song will be repeated.
+        If no option is provided and the song is already repeating, repeating will be turned off.
+        """
+        # TODO: this command needs TLC.
+
+        player = self.get_player_in(guild)
+        option = option.lower() if option else ""
+        prefix = self.server_data[guild.id].command_prefix
 
         if not player:
             raise exceptions.CommandError(
-                "The bot is not in a voice channel.  "
-                "Use %ssummon to summon it to your voice channel."
-                % self.config.command_prefix
-            )
-
-        song_url = song_url.strip("<>")
-
-        async with channel.typing():
-            if leftover_args:
-                song_url = " ".join([song_url, *leftover_args])
-            leftover_args = None  # prevent some crazy shit happening down the line
-
-            # Make sure forward slashes work properly in search queries
-            links_regex = r"((http(s)*:[/][/]|www.)([a-z]|[A-Z]|[0-9]|[/.]|[~])*)"
-            match_url = re.compile(links_regex).match(song_url)
-            song_url = song_url.replace("/", "%2F") if match_url is None else song_url
-
-            # Rewrite YouTube playlist URLs if the wrong URL type is given
-            playlist_regex = r"watch\?v=.+&(list=[^&]+)"
-            matches = re.search(playlist_regex, song_url)
-            groups = matches.groups() if matches is not None else []
-            song_url = (
-                "https://www.youtube.com/playlist?" + groups[0]
-                if len(groups) > 0
-                else song_url
-            )
-
-            if self.config._spotify:
-                if "open.spotify.com" in song_url:
-                    song_url = "spotify:" + re.sub(
-                        r"(https?:\/\/)?(open.spotify.com)\/", "", song_url
-                    ).replace("/", ":")
-                    # remove session id (and other query stuff)
-                    song_url = re.sub(r"\?.*", "", song_url)
-                if song_url.startswith("spotify:"):
-                    parts = song_url.split(":")
-                    try:
-                        if "track" in parts:
-                            res = await self.spotify.get_track(parts[-1])
-                            song_url = res["artists"][0]["name"] + " " + res["name"]
-
-                        elif "album" in parts:
-                            res = await self.spotify.get_album(parts[-1])
-
-                            await self._do_playlist_checks(
-                                permissions, player, author, res["tracks"]["items"]
-                            )
-                            procmesg = await self.safe_send_message(
-                                channel,
-                                self.str.get(
-                                    "cmd-play-spotify-album-process",
-                                    "Processing album `{0}` (`{1}`)",
-                                ).format(res["name"], song_url),
-                            )
-                            for i in res["tracks"]["items"]:
-                                song_url = i["name"] + " " + i["artists"][0]["name"]
-                                log.debug("Processing {0}".format(song_url))
-                                await self.cmd_play(
-                                    message,
-                                    player,
-                                    channel,
-                                    author,
-                                    permissions,
-                                    leftover_args,
-                                    song_url,
-                                )
-
-                            await self.safe_delete_message(procmesg)
-                            return Response(
-                                self.str.get(
-                                    "cmd-play-spotify-album-queued",
-                                    "Enqueued `{0}` with **{1}** songs.",
-                                ).format(res["name"], len(res["tracks"]["items"]))
-                            )
-
-                        elif "playlist" in parts:
-                            res = []
-                            r = await self.spotify.get_playlist_tracks(parts[-1])
-                            while True:
-                                res.extend(r["items"])
-                                if r["next"] is not None:
-                                    r = await self.spotify.make_spotify_req(r["next"])
-                                    continue
-                                else:
-                                    break
-                            await self._do_playlist_checks(
-                                permissions, player, author, res
-                            )
-                            procmesg = await self.safe_send_message(
-                                channel,
-                                self.str.get(
-                                    "cmd-play-spotify-playlist-process",
-                                    "Processing playlist `{0}` (`{1}`)",
-                                ).format(parts[-1], song_url),
-                            )
-                            for i in res:
-                                song_url = (
-                                    i["track"]["name"]
-                                    + " "
-                                    + i["track"]["artists"][0]["name"]
-                                )
-                                log.debug("Processing {0}".format(song_url))
-                                await self.cmd_play(
-                                    message,
-                                    player,
-                                    channel,
-                                    author,
-                                    permissions,
-                                    leftover_args,
-                                    song_url,
-                                )
-
-                            await self.safe_delete_message(procmesg)
-                            return Response(
-                                self.str.get(
-                                    "cmd-play-spotify-playlist-queued",
-                                    "Enqueued `{0}` with **{1}** songs.",
-                                ).format(parts[-1], len(res))
-                            )
-
-                        else:
-                            raise exceptions.CommandError(
-                                self.str.get(
-                                    "cmd-play-spotify-unsupported",
-                                    "That is not a supported Spotify URI.",
-                                ),
-                                expire_in=30,
-                            )
-                    except exceptions.SpotifyError:
-                        raise exceptions.CommandError(
-                            self.str.get(
-                                "cmd-play-spotify-invalid",
-                                "You either provided an invalid URI, or there was a problem.",
-                            )
-                        )
-
-        async def get_info(song_url):
-            info = await self.downloader.extract_info(
-                player.playlist.loop, song_url, download=False, process=False
-            )
-            # If there is an exception arise when processing we go on and let extract_info down the line report it
-            # because info might be a playlist and thing that's broke it might be individual entry
-            try:
-                info_process = await self.downloader.extract_info(
-                    player.playlist.loop, song_url, download=False
+                self.str.get(
+                    "cmd-repeat-no-voice",
+                    "The bot is not in a voice channel.  "
+                    "Use %ssummon to summon it to your voice channel.",
                 )
-                info_process_err = None
-            except Exception as e:
-                info_process = None
-                info_process_err = e
+                % prefix,
+                expire_in=30,
+            )
 
-            return (info, info_process, info_process_err)
+        if not player.current_entry:
+            return Response(
+                self.str.get(
+                    "cmd-repeat-no-songs",
+                    "No songs are currently playing. Play something with {}play.",
+                ).format(prefix),
+                delete_after=30,
+            )
 
-        # This lock prevent spamming play command to add entries that exceeds time limit/ maximum song limit
+        if option not in ["all", "playlist", "on", "off", "song", ""]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-repeat-invalid",
+                    "Invalid option, please run {}help repeat to a list of available options.",
+                ).format(prefix),
+                expire_in=30,
+            )
+
+        if option in ["all", "playlist"]:
+            player.loopqueue = not player.loopqueue
+            if player.loopqueue:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-playlist-looping", "Playlist is now repeating."
+                    ),
+                    delete_after=30,
+                )
+
+            return Response(
+                self.str.get(
+                    "cmd-repeat-playlist-not-looping",
+                    "Playlist is no longer repeating.",
+                ),
+                delete_after=30,
+            )
+
+        if option == "song":
+            player.repeatsong = not player.repeatsong
+            if player.repeatsong:
+                return Response(
+                    self.str.get("cmd-repeat-song-looping", "Song is now repeating."),
+                    delete_after=30,
+                )
+
+            return Response(
+                self.str.get(
+                    "cmd-repeat-song-not-looping", "Song is no longer repeating."
+                )
+            )
+
+        if option == "on":
+            if player.repeatsong:
+                return Response(
+                    self.str.get(
+                        "cmd-repeat-already-looping", "Song is already looping!"
+                    ),
+                    delete_after=30,
+                )
+
+            player.repeatsong = True
+            return Response(self.str.get("cmd-repeat-song-looping"), delete_after=30)
+
+        if option == "off":
+            # TODO: This will fail to behave is both are somehow on.
+            if player.repeatsong:
+                player.repeatsong = False
+                return Response(self.str.get("cmd-repeat-song-not-looping"))
+
+            if player.loopqueue:
+                player.loopqueue = False
+                return Response(self.str.get("cmd-repeat-playlist-not-looping"))
+
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-repeat-already-off", "The player is not currently looping."
+                ),
+                expire_in=30,
+            )
+
+        if player.repeatsong:
+            player.loopqueue = True
+            player.repeatsong = False
+            return Response(
+                self.str.get("cmd-repeat-playlist-looping"), delete_after=30
+            )
+
+        if player.loopqueue:
+            if len(player.playlist.entries) > 0:
+                message = self.str.get("cmd-repeat-playlist-not-looping")
+            else:
+                message = self.str.get("cmd-repeat-song-not-looping")
+            player.loopqueue = False
+        else:
+            player.repeatsong = True
+            message = self.str.get("cmd-repeat-song-looping")
+
+        return Response(message, delete_after=30)
+
+    async def cmd_move(
+        self,
+        guild: discord.Guild,
+        channel: MessageableChannel,
+        command: str,
+        leftover_args: List[str],
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}move [Index of song to move] [Index to move song to]
+            Ex: !move 1 3
+
+        Swaps the location of a song within the playlist.
+        """
+        # TODO: move command needs some tlc. args renamed, better checks.
+        player = self.get_player_in(guild)
+        if not player:
+            prefix = self.server_data[guild.id].command_prefix
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-move-no-voice",
+                    "The bot is not in a voice channel.  "
+                    f"Use {prefix}summon to summon it to your voice channel.",
+                )
+            )
+
+        if not player.current_entry:
+            return Response(
+                self.str.get(
+                    "cmd-move-no-songs",
+                    "There are no songs queued. Play something with {}play",
+                ).format(self.server_data[guild.id].command_prefix),
+            )
+
+        indexes = []
+        try:
+            indexes.append(int(command) - 1)
+            indexes.append(int(leftover_args[0]) - 1)
+        except (ValueError, IndexError):
+            # TODO: return command error instead, specific to the exception.
+            return Response(
+                self.str.get(
+                    "cmd-move-indexes_not_intergers", "Song indexes must be integers!"
+                ),
+                delete_after=30,
+            )
+
+        for i in indexes:
+            if i < 0 or i > len(player.playlist.entries) - 1:
+                return Response(
+                    self.str.get(
+                        "cmd-move-invalid-indexes",
+                        "Sent indexes are outside of the playlist scope!",
+                    ),
+                    delete_after=30,
+                )
+
+        # TODO:  replace this with a Response maybe.  UI stuff.
+        await self.safe_send_message(
+            channel,
+            self.str.get(
+                "cmd-move-success",
+                "Successfully moved the requested song from positon number {} in queue to position {}!",
+            ).format(indexes[0] + 1, indexes[1] + 1),
+            expire_in=30,
+        )
+
+        song = player.playlist.delete_entry_at_index(indexes[0])
+
+        player.playlist.insert_entry_at_index(indexes[1], song)
+        return None
+
+    async def _cmd_play_compound_link(
+        self,
+        message: discord.Message,
+        player: MusicPlayer,
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+        head: bool,
+    ) -> None:
+        """
+        Helper function to check for playlist IDs embedded in video links.
+        If a "compound" URL is detected, ask the user if they want the
+        associated playlist to be queued as well.
+        """
+        # TODO: maybe add config to auto yes or no and bypass this.
+
+        async def _prompt_for_playing(
+            prompt: str, next_url: str, ignore_vid: str = ""
+        ) -> None:
+            msg = await self.safe_send_message(channel, prompt)
+            if not msg:
+                log.warning(
+                    "Could not prompt for playlist playback, no message to add reactions to."
+                )
+                return
+
+            for r in [EMOJI_CHECK_MARK_BUTTON, EMOJI_CROSS_MARK_BUTTON]:
+                await msg.add_reaction(r)
+
+            def _check_react(reaction: discord.Reaction, user: discord.Member) -> bool:
+                return msg == reaction.message and author == user
+
+            try:
+                reaction, _user = await self.wait_for(
+                    "reaction_add", timeout=60, check=_check_react
+                )
+                if reaction.emoji == EMOJI_CHECK_MARK_BUTTON:
+                    await self._cmd_play(
+                        message,
+                        player,
+                        channel,
+                        guild,
+                        author,
+                        permissions,
+                        leftover_args,
+                        next_url,
+                        head,
+                        ignore_video_id=ignore_vid,
+                    )
+                    await self.safe_delete_message(msg)
+                elif reaction.emoji == EMOJI_CROSS_MARK_BUTTON:
+                    await self.safe_delete_message(msg)
+            except asyncio.TimeoutError:
+                await self.safe_delete_message(msg)
+
+        # Check for playlist in youtube watch link.
+        # https://youtu.be/VID?list=PLID
+        # https://www.youtube.com/watch?v=VID&list=PLID
+        playlist_regex = re.compile(
+            r"(?:youtube.com/watch\?v=|youtu\.be/)([^?&]{6,})[&?]{1}(list=PL[^&]+)",
+            re.I | re.X,
+        )
+        matches = playlist_regex.search(song_url)
+        if matches:
+            pl_url = "https://www.youtube.com/playlist?" + matches.group(2)
+            ignore_vid = matches.group(1)
+            asyncio.ensure_future(
+                _prompt_for_playing(
+                    # TODO: i18n / UI stuff
+                    f"This link contains a Playlist ID:\n`{song_url}`\n\nDo you want to queue the playlist too?",
+                    pl_url,
+                    ignore_vid,
+                )
+            )
+
+    async def _cmd_play(
+        self,
+        message: discord.Message,
+        _player: Optional[MusicPlayer],
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+        song_url: str,
+        head: bool,
+        shuffle_entries: bool = False,
+        ignore_video_id: str = "",
+        skip_playing: bool = False,
+    ) -> CommandResponse:
+        """
+        This function handles actually adding any given URL or song subject to
+        the player playlist if extraction was successful and various checks pass.
+
+        :param: head:  Toggle adding the song(s) to the front of the queue, not the end.
+        :param: shuffle_entries:  Shuffle entries before adding them to the queue.
+        :param: ignore_video_id:  Ignores a video in a playlist if it has this ID.
+        :param: skip_playing:  Skip current playback if a new entry is added.
+        """
+        player = _player if _player else None
+
+        await channel.typing()
+
+        if not player and permissions.summonplay and channel.guild:
+            response = await self.cmd_summon(channel.guild, author, message)
+            if response:
+                if self.config.embeds:
+                    content = self._gen_embed()
+                    content.title = "summon"
+                    content.description = str(response.content)
+                    await self.safe_send_message(
+                        channel,
+                        content,
+                        expire_in=(
+                            response.delete_after if self.config.delete_messages else 0
+                        ),
+                    )
+                else:
+                    await self.safe_send_message(
+                        channel,
+                        str(response.content),
+                        expire_in=(
+                            response.delete_after if self.config.delete_messages else 0
+                        ),
+                    )
+                player = self.get_player_in(channel.guild)
+
+        if not player:
+            prefix = self.server_data[guild.id].command_prefix
+            raise exceptions.CommandError(
+                "The bot is not in a voice channel.  "
+                f"Use {prefix}summon to summon it to your voice channel."
+            )
+
+        if not self.config.enable_local_media and song_url.lower().startswith(
+            "file://"
+        ):
+            raise exceptions.CommandError(
+                "Local media playback is not enabled.",
+            )
+
+        # Validate song_url is actually a URL, or otherwise a search string.
+        valid_song_url = self.downloader.get_url_or_none(song_url)
+        if valid_song_url:
+            song_url = valid_song_url
+            self._do_song_blocklist_check(song_url)
+
+            # Handle if the link has a playlist ID in addition to a video ID.
+            await self._cmd_play_compound_link(
+                message,
+                player,
+                channel,
+                guild,
+                author,
+                permissions,
+                leftover_args,
+                song_url,
+                head,
+            )
+
+        if (
+            not valid_song_url
+            and leftover_args
+            and not (
+                self.config.enable_local_media
+                and song_url.lower().startswith("file://")
+            )
+        ):
+            # treat all arguments as a search string.
+            song_url = " ".join([song_url, *leftover_args])
+            leftover_args = []  # prevent issues later.
+            self._do_song_blocklist_check(song_url)
+
+        # Validate spotify links are supported before we try them.
+        if "open.spotify.com" in song_url.lower():
+            if self.config.spotify_enabled:
+                if not Spotify.is_url_supported(song_url):
+                    raise exceptions.CommandError(
+                        "Spotify URL is invalid or not currently supported."
+                    )
+            else:
+                raise exceptions.CommandError(
+                    "Detected a spotify URL, but spotify is not enabled."
+                )
+
+        # This lock prevent spamming play commands to add entries that exceeds time limit/ maximum song limit
         async with self.aiolocks[_func_() + ":" + str(author.id)]:
             if (
                 permissions.max_songs
@@ -1885,195 +3909,76 @@ class MusicBot(discord.Client):
                     expire_in=30,
                 )
 
-            # Try to determine entry type, if _type is playlist then there should be entries
-            while True:
-                try:
-                    info, info_process, info_process_err = await get_info(song_url)
-                    log.debug(info)
-
-                    if (
-                        info_process
-                        and info
-                        and info_process.get("_type", None) == "playlist"
-                        and "entries" not in info
-                        and not info.get("url", "").startswith("ytsearch")
-                    ):
-                        use_url = info_process.get(
-                            "webpage_url", None
-                        ) or info_process.get("url", None)
-                        if use_url == song_url:
-                            log.warning(
-                                "Determined incorrect entry type, but suggested url is the same.  Help."
-                            )
-                            break  # If we break here it will break things down the line and give "This is a playlist" exception as a result
-
-                        log.debug(
-                            'Assumed url "%s" was a single entry, was actually a playlist'
-                            % song_url
-                        )
-                        log.debug('Using "%s" instead' % use_url)
-                        song_url = use_url
-                    else:
-                        break
-
-                except Exception as e:
-                    if "unknown url type" in str(e):
-                        song_url = song_url.replace(
-                            ":", ""
-                        )  # it's probably not actually an extractor
-                        info, info_process, info_process_err = await get_info(song_url)
-                    else:
-                        raise exceptions.CommandError(e, expire_in=30)
+            # Get processed info from ytdlp
+            info = None
+            try:
+                info = await self.downloader.extract_info(
+                    song_url, download=False, process=True
+                )
+            except Exception as e:
+                info = None
+                log.exception("Issue with extract_info(): ")
+                raise exceptions.CommandError(str(e)) from e
 
             if not info:
                 raise exceptions.CommandError(
                     self.str.get(
                         "cmd-play-noinfo",
                         "That video cannot be played. Try using the {0}stream command.",
-                    ).format(self.config.command_prefix),
+                    ).format(self.server_data[guild.id].command_prefix),
                     expire_in=30,
                 )
 
-            if (
-                info.get("extractor", "") not in permissions.extractors
-                and permissions.extractors
-            ):
+            # ensure the extractor has been allowed via permissions.
+            if info.extractor not in permissions.extractors and permissions.extractors:
                 raise exceptions.PermissionsError(
                     self.str.get(
                         "cmd-play-badextractor",
-                        "You do not have permission to play media from this service.",
-                    ),
+                        "You do not have permission to play the requested media. Service `{}` is not permitted.",
+                    ).format(info.extractor),
                     expire_in=30,
                 )
 
-            # abstract the search handling away from the user
-            # our ytdl options allow us to use search strings as input urls
-            if info.get("url", "").startswith("ytsearch"):
-                # print("[Command:play] Searching for \"%s\"" % song_url)
-                if info_process:
-                    info = info_process
-                else:
-                    await self.safe_send_message(
-                        channel, "```\n%s\n```" % info_process_err, expire_in=120
-                    )
+            # if the result has "entries" but it's empty, it might be a failed search.
+            if "entries" in info and not info.entry_count:
+                if info.extractor == "youtube:search":
+                    # TOOD: UI, i18n stuff
                     raise exceptions.CommandError(
-                        self.str.get(
-                            "cmd-play-nodata",
-                            "Error extracting info from search string, youtubedl returned no data. "
-                            "You may need to restart the bot if this continues to happen.",
-                        ),
-                        expire_in=30,
+                        f"Youtube search returned no results for:  {song_url}"
                     )
 
-                song_url = info_process.get("webpage_url", None) or info_process.get(
-                    "url", None
-                )
+            # If the result has usable entries, we assume it is a playlist
+            if info.has_entries:
+                await self._do_playlist_checks(player, author, info)
 
-                if "entries" in info:
-                    # if entry is playlist then only get the first one
-                    song_url = info["entries"][0]["webpage_url"]
-                    info = info["entries"][0]
+                num_songs = info.playlist_count or info.entry_count
 
-            # If it's playlist
-            if "entries" in info:
-                await self._do_playlist_checks(
-                    permissions, player, author, info["entries"]
-                )
-
-                num_songs = sum(1 for _ in info["entries"])
-
-                if info["extractor"].lower() in [
-                    "youtube:playlist",
-                    "soundcloud:set",
-                    "bandcamp:album",
-                ]:
-                    try:
-                        return await self._cmd_play_playlist_async(
-                            player,
-                            channel,
-                            author,
-                            permissions,
-                            song_url,
-                            info["extractor"],
-                        )
-                    except exceptions.CommandError:
-                        raise
-                    except Exception as e:
-                        log.error("Error queuing playlist", exc_info=True)
-                        raise exceptions.CommandError(
-                            self.str.get(
-                                "cmd-play-playlist-error",
-                                "Error queuing playlist:\n`{0}`",
-                            ).format(e),
-                            expire_in=30,
-                        )
-
-                t0 = time.time()
-
-                # My test was 1.2 seconds per song, but we maybe should fudge it a bit, unless we can
-                # monitor it and edit the message with the estimated time, but that's some ADVANCED SHIT
-                # I don't think we can hook into it anyways, so this will have to do.
-                # It would probably be a thread to check a few playlists and get the speed from that
-                # Different playlists might download at different speeds though
-                wait_per_song = 1.2
-
-                procmesg = await self.safe_send_message(
-                    channel,
-                    self.str.get(
-                        "cmd-play-playlist-gathering-1",
-                        "Gathering playlist information for {0} songs{1}",
-                    ).format(
-                        num_songs,
-                        self.str.get(
-                            "cmd-play-playlist-gathering-2", ", ETA: {0} seconds"
-                        ).format(fixg(num_songs * wait_per_song))
-                        if num_songs >= 10
-                        else ".",
-                    ),
-                )
-
-                # We don't have a pretty way of doing this yet.  We need either a loop
-                # that sends these every 10 seconds or a nice context manager.
-                await channel.typing()
+                if shuffle_entries:
+                    random.shuffle(info["entries"])
 
                 # TODO: I can create an event emitter object instead, add event functions, and every play list might be asyncified
                 # Also have a "verify_entry" hook with the entry as an arg and returns the entry if its ok
-
-                entry_list, position = await player.playlist.import_from(
-                    song_url, channel=channel, author=author, head=False
+                start_time = time.time()
+                entry_list, position = await player.playlist.import_from_info(
+                    info,
+                    channel=channel,
+                    author=author,
+                    head=False,
+                    ignore_video_id=ignore_video_id,
                 )
 
-                tnow = time.time()
-                ttime = tnow - t0
+                time_taken = time.time() - start_time
                 listlen = len(entry_list)
-                drop_count = 0
-
-                if permissions.max_song_length:
-                    for e in entry_list.copy():
-                        if e.duration > permissions.max_song_length:
-                            player.playlist.entries.remove(e)
-                            entry_list.remove(e)
-                            drop_count += 1
-                            # Im pretty sure there's no situation where this would ever break
-                            # Unless the first entry starts being played, which would make this a race condition
-                    if drop_count:
-                        print("Dropped %s songs" % drop_count)
 
                 log.info(
-                    "Processed {} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-                        listlen,
-                        fixg(ttime),
-                        ttime / listlen if listlen else 0,
-                        ttime / listlen - wait_per_song
-                        if listlen - wait_per_song
-                        else 0,
-                        fixg(wait_per_song * num_songs),
-                    )
+                    "Processed %d of %d songs in %.3f seconds at %.2f s/song",
+                    listlen,
+                    num_songs,
+                    time_taken,
+                    time_taken / listlen if listlen else 1,
                 )
 
-                await self.safe_delete_message(procmesg)
-
-                if not listlen - drop_count:
+                if not entry_list:
                     raise exceptions.CommandError(
                         self.str.get(
                             "cmd-play-playlist-maxduration",
@@ -2087,36 +3992,35 @@ class MusicBot(discord.Client):
                     "cmd-play-playlist-reply",
                     "Enqueued **%s** songs to be played. Position in queue: %s",
                 )
-                btext = str(listlen - drop_count)
+                btext = str(listlen)
 
             # If it's an entry
             else:
                 # youtube:playlist extractor but it's actually an entry
-                if info.get("extractor", "").startswith("youtube:playlist"):
-                    try:
-                        info = await self.downloader.extract_info(
-                            player.playlist.loop,
-                            "https://www.youtube.com/watch?v=%s" % info.get("url", ""),
-                            download=False,
-                            process=False,
-                        )
-                    except Exception as e:
-                        raise exceptions.CommandError(e, expire_in=30)
+                # ^ wish I had a URL for this one.
+                if info.get("extractor", "") == "youtube:playlist":
+                    log.noise(  # type: ignore[attr-defined]
+                        "Extracted an entry with youtube:playlist as extractor key"
+                    )
+
+                # Check the block list again, with the info this time.
+                self._do_song_blocklist_check(info.url)
+                self._do_song_blocklist_check(info.title)
 
                 if (
                     permissions.max_song_length
-                    and info.get("duration", 0) > permissions.max_song_length
+                    and info.duration_td.seconds > permissions.max_song_length
                 ):
                     raise exceptions.PermissionsError(
                         self.str.get(
                             "cmd-play-song-limit",
                             "Song duration exceeds limit ({0} > {1})",
-                        ).format(info["duration"], permissions.max_song_length),
+                        ).format(info.duration, permissions.max_song_length),
                         expire_in=30,
                     )
 
-                entry, position = await player.playlist.add_entry(
-                    song_url, channel=channel, author=author, head=head
+                entry, position = await player.playlist.add_entry_from_info(
+                    info, channel=channel, author=author, head=head
                 )
 
                 reply_text = self.str.get(
@@ -2125,7 +4029,24 @@ class MusicBot(discord.Client):
                 )
                 btext = entry.title
 
+            log.debug("Added song(s) at position %s", position)
             if position == 1 and player.is_stopped:
+                position = self.str.get("cmd-play-next", "Up next!")
+                reply_text %= (btext, position)
+
+            # shift the playing track to the end of queue and skip current playback.
+            elif skip_playing and player.is_playing and player.current_entry:
+                player.playlist.entries.append(player.current_entry)
+
+                # handle history playlist updates.
+                if (
+                    self.config.enable_queue_history_global
+                    or self.config.enable_queue_history_guilds
+                ):
+                    self.server_data[guild.id].current_playing_url = ""
+
+                player.skip()
+
                 position = self.str.get("cmd-play-next", "Up next!")
                 reply_text %= (btext, position)
 
@@ -2135,197 +4056,78 @@ class MusicBot(discord.Client):
                     time_until = await player.playlist.estimate_time_until(
                         position, player
                     )
-                    reply_text += self.str.get(
-                        "cmd-play-eta", " - estimated time until playing: %s"
-                    ) % ftimedelta(time_until)
+                    reply_text += (
+                        self.str.get(
+                            "cmd-play-eta", " - estimated time until playing: %s"
+                        )
+                        % f"`{format_song_duration(time_until)}`"
+                    )
                 except exceptions.InvalidDataError:
                     reply_text += self.str.get(
                         "cmd-play-eta-error", " - cannot estimate time until playing"
                     )
-                except:
-                    traceback.print_exc()
+                    log.warning(
+                        "Cannot estimate time until playing for position: %d", position
+                    )
 
         return Response(reply_text, delete_after=30)
 
-    async def _cmd_play_playlist_async(
-        self, player, channel, author, permissions, playlist_url, extractor_type
-    ):
-        """
-        Secret handler to use the async wizardry to make playlist queuing non-"blocking"
-        """
-
-        await channel.typing()
-        info = await self.downloader.extract_info(
-            player.playlist.loop, playlist_url, download=False, process=False
-        )
-
-        if not info:
-            raise exceptions.CommandError(
-                self.str.get(
-                    "cmd-play-playlist-invalid", "That playlist cannot be played."
-                )
-            )
-
-        num_songs = sum(1 for _ in info["entries"])
-        t0 = time.time()
-
-        busymsg = await self.safe_send_message(
-            channel,
-            self.str.get("cmd-play-playlist-process", "Processing {0} songs...").format(
-                num_songs
-            ),
-        )  # TODO: From playlist_title
-        await channel.typing()
-
-        entries_added = 0
-        if extractor_type == "youtube:playlist":
-            try:
-                entries_added = await player.playlist.async_process_youtube_playlist(
-                    playlist_url, channel=channel, author=author
-                )
-                # TODO: Add hook to be called after each song
-                # TODO: Add permissions
-
-            except Exception:
-                log.error("Error processing playlist", exc_info=True)
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-play-playlist-queueerror",
-                        "Error handling playlist {0} queuing.",
-                    ).format(playlist_url),
-                    expire_in=30,
-                )
-
-        elif extractor_type.lower() in ["soundcloud:set", "bandcamp:album"]:
-            try:
-                entries_added = await player.playlist.async_process_sc_bc_playlist(
-                    playlist_url, channel=channel, author=author
-                )
-                # TODO: Add hook to be called after each song
-                # TODO: Add permissions
-
-            except Exception:
-                log.error("Error processing playlist", exc_info=True)
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-play-playlist-queueerror",
-                        "Error handling playlist {0} queuing.",
-                    ).format(playlist_url),
-                    expire_in=30,
-                )
-
-        songs_processed = len(entries_added)
-        drop_count = 0
-        skipped = False
-
-        if permissions.max_song_length:
-            for e in entries_added.copy():
-                if e.duration > permissions.max_song_length:
-                    try:
-                        player.playlist.entries.remove(e)
-                        entries_added.remove(e)
-                        drop_count += 1
-                    except:
-                        pass
-
-            if drop_count:
-                log.debug("Dropped %s songs" % drop_count)
-
-            if (
-                player.current_entry
-                and player.current_entry.duration > permissions.max_song_length
-            ):
-                await self.safe_delete_message(
-                    self.server_specific_data[channel.guild]["last_np_msg"]
-                )
-                self.server_specific_data[channel.guild]["last_np_msg"] = None
-                skipped = True
-                player.skip()
-                entries_added.pop()
-
-        await self.safe_delete_message(busymsg)
-
-        songs_added = len(entries_added)
-        tnow = time.time()
-        ttime = tnow - t0
-        wait_per_song = 1.2
-        # TODO: actually calculate wait per song in the process function and return that too
-
-        # This is technically inaccurate since bad songs are ignored but still take up time
-        log.info(
-            "Processed {}/{} songs in {} seconds at {:.2f}s/song, {:+.2g}/song from expected ({}s)".format(
-                songs_processed,
-                num_songs,
-                fixg(ttime),
-                ttime / num_songs if num_songs else 0,
-                ttime / num_songs - wait_per_song if num_songs - wait_per_song else 0,
-                fixg(wait_per_song * num_songs),
-            )
-        )
-
-        if not songs_added:
-            basetext = (
-                self.str.get(
-                    "cmd-play-playlist-maxduration",
-                    "No songs were added, all songs were over max duration (%ss)",
-                )
-                % permissions.max_song_length
-            )
-            if skipped:
-                basetext += self.str.get(
-                    "cmd-play-playlist-skipped",
-                    "\nAdditionally, the current song was skipped for being too long.",
-                )
-
-            raise exceptions.CommandError(basetext, expire_in=30)
-
-        return Response(
-            self.str.get(
-                "cmd-play-playlist-reply-secs",
-                "Enqueued {0} songs to be played in {1} seconds",
-            ).format(songs_added, fixg(ttime, 1)),
-            delete_after=30,
-        )
-
-    async def cmd_stream(self, _player, channel, author, permissions, song_url):
+    async def cmd_stream(
+        self,
+        _player: Optional[MusicPlayer],
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        message: discord.Message,
+        song_url: str,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}stream song_link
 
         Enqueue a media stream.
         This could mean an actual stream like Twitch or shoutcast, or simply streaming
-        media without predownloading it.  Note: FFmpeg is notoriously bad at handling
+        media without pre-downloading it.  Note: FFmpeg is notoriously bad at handling
         streams, especially on poor connections.  You have been warned.
         """
+
+        await self._do_cmd_unpause_check(_player, channel, author, message)
 
         if _player:
             player = _player
         elif permissions.summonplay:
-            vc = author.voice.channel if author.voice else None
-            response = await self.cmd_summon(
-                channel, channel.guild, author, vc
-            )  # @TheerapakG: As far as I know voice_channel param is unused
-            if self.config.embeds:
-                content = self._gen_embed()
-                content.title = "summon"
-                content.description = response.content
-            else:
-                content = response.content
-            await self.safe_send_message(
-                channel,
-                content,
-                expire_in=response.delete_after if self.config.delete_messages else 0,
-            )
-            player = self.get_player_in(channel.guild)
+            response = await self.cmd_summon(guild, author, message)
+            if response:
+                if self.config.embeds:
+                    content = self._gen_embed()
+                    content.title = "summon"
+                    content.description = str(response.content)
+                    await self.safe_send_message(
+                        channel,
+                        content,
+                        expire_in=(
+                            response.delete_after if self.config.delete_messages else 0
+                        ),
+                    )
+                else:
+                    await self.safe_send_message(
+                        channel,
+                        str(response.content),
+                        expire_in=(
+                            response.delete_after if self.config.delete_messages else 0
+                        ),
+                    )
+                p = self.get_player_in(guild)
+                if p:
+                    player = p
 
         if not player:
+            prefix = self.server_data[guild.id].command_prefix
             raise exceptions.CommandError(
                 "The bot is not in a voice channel.  "
-                "Use %ssummon to summon it to your voice channel."
-                % self.config.command_prefix
+                f"Use {prefix}summon to summon it to your voice channel."
             )
-
-        song_url = song_url.strip("<>")
 
         if (
             permissions.max_songs
@@ -2349,8 +4151,32 @@ class MusicBot(discord.Client):
             )
 
         async with channel.typing():
-            await player.playlist.add_stream_entry(
-                song_url, channel=channel, author=author
+            # TODO: find more streams to test.
+            # NOTE: this will return a URL if one was given but ytdl doesn't support it.
+            try:
+                info = await self.downloader.extract_info(
+                    song_url, download=False, process=True, as_stream=True
+                )
+            except Exception as e:
+                log.exception(
+                    "Failed to get info from the stream request: %s", song_url
+                )
+                raise exceptions.CommandError(str(e)) from e
+
+            if info.has_entries:
+                raise exceptions.CommandError(
+                    "Streaming playlists is not yet supported.",
+                    expire_in=30,
+                )
+                # TODO: could process these and force them to be stream entries...
+
+            self._do_song_blocklist_check(info.url)
+            # if its a "forced stream" this would be a waste.
+            if info.url != info.title:
+                self._do_song_blocklist_check(info.title)
+
+            await player.playlist.add_stream_from_info(
+                info, channel=channel, author=author, head=False
             )
 
         return Response(
@@ -2358,8 +4184,15 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_search(
-        self, message, player, channel, author, permissions, leftover_args
-    ):
+        self,
+        message: discord.Message,
+        player: MusicPlayer,
+        channel: GuildMessageableChannels,
+        guild: discord.Guild,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        leftover_args: List[str],
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}search [service] [number] query
@@ -2398,32 +4231,21 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        def argcheck():
+        def argcheck() -> None:
             if not leftover_args:
-                # noinspection PyUnresolvedReferences
                 raise exceptions.CommandError(
                     self.str.get(
                         "cmd-search-noquery", "Please specify a search query.\n%s"
                     )
                     % dedent(
-                        self.cmd_search.__doc__.format(
-                            command_prefix=self.config.command_prefix
+                        self.cmd_search.__doc__.format(  # type: ignore
+                            command_prefix=self.server_data[guild.id].command_prefix
                         )
                     ),
                     expire_in=60,
                 )
 
         argcheck()
-
-        try:
-            leftover_args = shlex.split(" ".join(leftover_args))
-        except ValueError:
-            raise exceptions.CommandError(
-                self.str.get(
-                    "cmd-search-noquote", "Please quote your search query properly."
-                ),
-                expire_in=30,
-            )
 
         service = "youtube"
         items_requested = self.config.defaultsearchresults
@@ -2455,7 +4277,7 @@ class MusicBot(discord.Client):
                 )
 
         # Look jake, if you see this and go "what the fuck are you doing"
-        # and have a better idea on how to do this, i'd be delighted to know.
+        # and have a better idea on how to do this, I'd be delighted to know.
         # I don't want to just do ' '.join(leftover_args).strip("\"'")
         # Because that eats both quotes if they're there
         # where I only want to eat the outermost ones
@@ -2464,32 +4286,42 @@ class MusicBot(discord.Client):
             leftover_args[0] = leftover_args[0].lstrip(lchar)
             leftover_args[-1] = leftover_args[-1].rstrip(lchar)
 
-        search_query = "%s%s:%s" % (
-            services[service],
-            items_requested,
-            " ".join(leftover_args),
-        )
+        srvc = services[service]
+        args_str = " ".join(leftover_args)
+        search_query = f"{srvc}{items_requested}:{args_str}"
+
+        self._do_song_blocklist_check(args_str)
 
         search_msg = await self.safe_send_message(
             channel, self.str.get("cmd-search-searching", "Searching for videos...")
         )
         await channel.typing()
 
-        try:
+        try:  # pylint: disable=no-else-return
             info = await self.downloader.extract_info(
-                player.playlist.loop, search_query, download=False, process=True
+                search_query, download=False, process=True
             )
 
-        except Exception as e:
-            await self.safe_edit_message(search_msg, str(e), send_if_fail=True)
-            return
+        except (
+            exceptions.ExtractionError,
+            exceptions.SpotifyError,
+            youtube_dl.utils.YoutubeDLError,
+            youtube_dl.networking.exceptions.RequestError,
+        ) as e:
+            if search_msg:
+                await self.safe_edit_message(search_msg, str(e), send_if_fail=True)
+            return None
+
         else:
-            await self.safe_delete_message(search_msg)
+            if search_msg:
+                await self.safe_delete_message(search_msg)
 
         if not info:
             return Response(
                 self.str.get("cmd-search-none", "No videos found."), delete_after=30
             )
+
+        entries = info.get_entries_objects()
 
         # Decide if the list approach or the reaction approach should be used
         if self.config.searchlist:
@@ -2507,7 +4339,7 @@ class MusicBot(discord.Client):
                 ).format(service.capitalize())
                 result_header += "\n\n"
 
-            for e in info["entries"]:
+            for entry in entries:
                 # This formats the results and adds it to an array
                 # format_song_duration removes the hour section
                 # if the song is shorter than an hour
@@ -2515,17 +4347,13 @@ class MusicBot(discord.Client):
                     self.str.get(
                         "cmd-search-list-entry", "**{0}**. **{1}** | {2}"
                     ).format(
-                        info["entries"].index(e) + 1,
-                        e["title"],
-                        format_song_duration(
-                            ftimedelta(timedelta(seconds=e["duration"]))
-                        ),
+                        entries.index(entry) + 1,
+                        entry["title"],
+                        format_song_duration(entry.duration_td),
                     )
                 )
             # This combines the formatted result strings into one list.
-            result_string = "\n".join(
-                "{0}".format(result) for result in result_message_array
-            )
+            result_string = "\n".join(str(result) for result in result_message_array)
             result_string += "\n**0.** Cancel"
 
             if self.config.embeds:
@@ -2547,113 +4375,136 @@ class MusicBot(discord.Client):
                     ),
                 )
 
-            # Check to verify that recived message is valid.
-            def check(reply):
+            # Check to verify that received message is valid.
+            def check(reply: discord.Message) -> bool:
                 return (
                     reply.channel.id == channel.id
                     and reply.author == message.author
                     and reply.content.isdigit()
-                    and -1 <= int(reply.content) - 1 <= len(info["entries"])
+                    and -1 <= int(reply.content) - 1 <= info.entry_count
                 )
 
             # Wait for a response from the author.
             try:
                 choice = await self.wait_for("message", timeout=30.0, check=check)
             except asyncio.TimeoutError:
-                await self.safe_delete_message(result_message)
-                return
+                if result_message:
+                    await self.safe_delete_message(result_message)
+                return None
 
             if choice.content == "0":
                 # Choice 0 will cancel the search
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
-                await self.safe_delete_message(result_message)
+                if result_message:
+                    await self.safe_delete_message(result_message)
             else:
                 # Here we have a valid choice lets queue it.
                 if self.config.delete_invoking:
                     await self.safe_delete_message(choice)
-                await self.safe_delete_message(result_message)
+                if result_message:
+                    await self.safe_delete_message(result_message)
                 await self.cmd_play(
                     message,
                     player,
                     channel,
+                    guild,
                     author,
                     permissions,
                     [],
-                    info["entries"][int(choice.content) - 1]["webpage_url"],
+                    entries[int(choice.content) - 1]["url"],
                 )
                 if self.config.embeds:
                     return Response(
                         self.str.get(
                             "cmd-search-accept-list-embed", "[{0}]({1}) added to queue"
                         ).format(
-                            info["entries"][int(choice.content) - 1]["title"],
-                            info["entries"][int(choice.content) - 1]["webpage_url"],
+                            entries[int(choice.content) - 1]["title"],
+                            entries[int(choice.content) - 1]["url"],
                         ),
                         delete_after=30,
                     )
-                else:
-                    return Response(
-                        self.str.get(
-                            "cmd-search-accept-list-noembed", "{0} added to queue"
-                        ).format(info["entries"][int(choice.content) - 1]["title"]),
-                        delete_after=30,
-                    )
+
+                return Response(
+                    self.str.get(
+                        "cmd-search-accept-list-noembed", "{0} added to queue"
+                    ).format(entries[int(choice.content) - 1]["title"]),
+                    delete_after=30,
+                )
         else:
+            # patch for loop-defined cell variable.
+            res_msg_ids = []
             # Original code
-            for e in info["entries"]:
+            for entry in entries:
                 result_message = await self.safe_send_message(
                     channel,
                     self.str.get("cmd-search-result", "Result {0}/{1}: {2}").format(
-                        info["entries"].index(e) + 1,
-                        len(info["entries"]),
-                        e["webpage_url"],
+                        entries.index(entry) + 1,
+                        info.entry_count,
+                        entry["url"],
                     ),
                 )
+                if not result_message:
+                    continue
 
-                def check(reaction, user):
+                res_msg_ids.append(result_message.id)
+
+                def check_react(
+                    reaction: discord.Reaction, user: discord.Member
+                ) -> bool:
                     return (
-                        user == message.author
-                        and reaction.message.id == result_message.id
+                        user == message.author and reaction.message.id in res_msg_ids
                     )  # why can't these objs be compared directly?
 
-                reactions = ["\u2705", "\U0001F6AB", "\U0001F3C1"]
+                reactions = [
+                    EMOJI_CHECK_MARK_BUTTON,
+                    EMOJI_CROSS_MARK_BUTTON,
+                    EMOJI_STOP_SIGN,
+                ]
                 for r in reactions:
                     await result_message.add_reaction(r)
 
                 try:
-                    reaction, user = await self.wait_for(
-                        "reaction_add", timeout=30.0, check=check
+                    reaction, _user = await self.wait_for(
+                        "reaction_add", timeout=60.0, check=check_react
                     )
                 except asyncio.TimeoutError:
                     await self.safe_delete_message(result_message)
-                    return
+                    return None
 
-                if str(reaction.emoji) == "\u2705":  # check
+                if str(reaction.emoji) == EMOJI_CHECK_MARK_BUTTON:  # check
+                    # play the next and respond, stop the search entry loop.
                     await self.safe_delete_message(result_message)
                     await self.cmd_play(
                         message,
                         player,
                         channel,
+                        guild,
                         author,
                         permissions,
                         [],
-                        e["webpage_url"],
+                        entry["url"],
                     )
                     return Response(
                         self.str.get("cmd-search-accept", "Alright, coming right up!"),
                         delete_after=30,
                     )
-                elif str(reaction.emoji) == "\U0001F6AB":  # cross
-                    await self.safe_delete_message(result_message)
-                else:
-                    await self.safe_delete_message(result_message)
 
-        return Response(
-            self.str.get("cmd-search-decline", "Oh well :("), delete_after=30
-        )
+                if str(reaction.emoji) == EMOJI_CROSS_MARK_BUTTON:  # cross
+                    # delete last result and move on to next
+                    await self.safe_delete_message(result_message)
+                else:  # stop
+                    # delete last result and stop showing results.
+                    await self.safe_delete_message(result_message)
+                    break
+        return None
 
-    async def cmd_np(self, player, channel, guild, message):
+    async def cmd_np(
+        self,
+        player: MusicPlayer,
+        channel: MessageableChannel,
+        guild: discord.Guild,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}np
@@ -2662,17 +4513,15 @@ class MusicBot(discord.Client):
         """
 
         if player.current_entry:
-            if self.server_specific_data[guild]["last_np_msg"]:
-                await self.safe_delete_message(
-                    self.server_specific_data[guild]["last_np_msg"]
-                )
-                self.server_specific_data[guild]["last_np_msg"] = None
+            last_np_msg = self.server_data[guild.id].last_np_msg
+            if last_np_msg:
+                await self.safe_delete_message(last_np_msg)
+                self.server_data[guild.id].last_np_msg = None
 
-            # TODO: Fix timedelta garbage with util function
-            song_progress = ftimedelta(timedelta(seconds=player.progress))
+            song_progress = format_song_duration(player.progress)
             song_total = (
-                ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
+                format_song_duration(player.current_entry.duration_td)
+                if player.current_entry.duration is not None
                 else "(no duration data)"
             )
 
@@ -2684,8 +4533,13 @@ class MusicBot(discord.Client):
 
             # percentage shows how much of the current song has already been played
             percentage = 0.0
-            if player.current_entry.duration and player.current_entry.duration > 0:
-                percentage = player.progress / player.current_entry.duration
+            if (
+                player.current_entry.duration
+                and player.current_entry.duration_td.total_seconds() > 0
+            ):
+                percentage = (
+                    player.progress / player.current_entry.duration_td.total_seconds()
+                )
 
             # create the actual bar
             progress_bar_length = 30
@@ -2695,52 +4549,86 @@ class MusicBot(discord.Client):
                 else:
                     prog_bar_str += "■"
 
+            # TODO: properly do the i18n stuff in here.
             action_text = (
                 self.str.get("cmd-np-action-streaming", "Streaming")
                 if streaming
                 else self.str.get("cmd-np-action-playing", "Playing")
             )
 
-            if player.current_entry.meta.get(
-                "channel", False
-            ) and player.current_entry.meta.get("author", False):
+            entry = player.current_entry
+            entry_author = player.current_entry.author
+
+            if entry_author:
                 np_text = self.str.get(
                     "cmd-np-reply-author",
-                    "Now {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
+                    "Currently {action}: **{title}** added by **{author}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
                 ).format(
                     action=action_text,
-                    title=player.current_entry.title,
-                    author=player.current_entry.meta["author"].name,
+                    title=entry.title,
+                    author=entry_author.name,
                     progress_bar=prog_bar_str,
                     progress=prog_str,
-                    url=player.current_entry.url,
+                    url=entry.url,
                 )
             else:
                 np_text = self.str.get(
                     "cmd-np-reply-noauthor",
-                    "Now {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
+                    "Currently {action}: **{title}**\nProgress: {progress_bar} {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>",
                 ).format(
                     action=action_text,
-                    title=player.current_entry.title,
+                    title=entry.title,
                     progress_bar=prog_bar_str,
                     progress=prog_str,
-                    url=player.current_entry.url,
+                    url=entry.url,
                 )
 
-            self.server_specific_data[guild][
-                "last_np_msg"
-            ] = await self.safe_send_message(channel, np_text)
-            await self._manual_delete_check(message)
-        else:
-            return Response(
-                self.str.get(
-                    "cmd-np-none",
-                    "There are no songs queued! Queue something with {0}play.",
-                ).format(self.config.command_prefix),
-                delete_after=30,
-            )
+                # TODO: i18n
+                if entry.from_auto_playlist:
+                    np_text += "\n`via autoplaylist`"
 
-    async def cmd_summon(self, channel, guild, author, voice_channel):
+            if self.config.embeds:
+                content = self._gen_embed()
+                content.title = action_text
+                content.add_field(
+                    name=f"Currently {action_text}", value=entry.title, inline=False
+                )
+                if entry_author:
+                    content.add_field(
+                        name="Added By:", value=entry_author.name, inline=False
+                    )
+                elif entry.from_auto_playlist:
+                    content.add_field(
+                        name="Added By:", value="`auto playlist`", inline=False
+                    )
+                content.add_field(
+                    name="Progress",
+                    value=f"{prog_str}\n{prog_bar_str}\n\n",
+                    inline=False,
+                )
+                if len(entry.url) <= 1024:
+                    content.add_field(name="URL:", value=entry.url, inline=False)
+                if entry.thumbnail_url:
+                    content.set_image(url=entry.thumbnail_url)
+                else:
+                    log.warning("No thumbnail set for entry with url: %s", entry.url)
+
+            self.server_data[guild.id].last_np_msg = await self.safe_send_message(
+                channel, content if self.config.embeds else np_text, expire_in=30
+            )
+            return None
+
+        return Response(
+            self.str.get(
+                "cmd-np-none",
+                "There are no songs queued! Queue something with {0}play.",
+            ).format(self.server_data[guild.id].command_prefix),
+            delete_after=30,
+        )
+
+    async def cmd_summon(
+        self, guild: discord.Guild, author: discord.Member, message: discord.Message
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}summon
@@ -2750,7 +4638,7 @@ class MusicBot(discord.Client):
 
         # @TheerapakG: Maybe summon should have async lock?
 
-        if not author.voice:
+        if not author.voice or not author.voice.channel:
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-summon-novc",
@@ -2758,41 +4646,16 @@ class MusicBot(discord.Client):
                 )
             )
 
-        voice_client = self.voice_client_in(guild)
-        if voice_client and guild == author.voice.channel.guild:
-            await voice_client.move_to(author.voice.channel)
+        player = self.get_player_in(guild)
+        if player and player.voice_client and guild == author.voice.channel.guild:
+            # NOTE:  .move_to() does not support setting self-deafen flag,
+            # nor respect flags set in initial connect call.
+            # await player.voice_client.move_to(author.voice.channel)
+            await guild.change_voice_state(
+                channel=author.voice.channel,
+                self_deaf=self.config.self_deafen,
+            )
         else:
-            # move to _verify_vc_perms?
-            chperms = author.voice.channel.permissions_for(guild.me)
-
-            if not chperms.connect:
-                log.warning(
-                    "Cannot join channel '{0}', no permission.".format(
-                        author.voice.channel.name
-                    )
-                )
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-summon-noperms-connect",
-                        "Cannot join channel `{0}`, no permission to connect.",
-                    ).format(author.voice.channel.name),
-                    expire_in=25,
-                )
-
-            elif not chperms.speak:
-                log.warning(
-                    "Cannot join channel '{0}', no permission to speak.".format(
-                        author.voice.channel.name
-                    )
-                )
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-summon-noperms-speak",
-                        "Cannot join channel `{0}`, no permission to speak.",
-                    ).format(author.voice.channel.name),
-                    expire_in=25,
-                )
-
             player = await self.get_player(
                 author.voice.channel,
                 create=True,
@@ -2802,18 +4665,72 @@ class MusicBot(discord.Client):
             if player.is_stopped:
                 player.play()
 
-            if self.config.auto_playlist:
-                await self.on_player_finished_playing(player)
+        log.info(
+            "Joining %s/%s",
+            author.voice.channel.guild.name,
+            author.voice.channel.name,
+        )
 
-        log.info("Joining {0.guild.name}/{0.name}".format(author.voice.channel))
+        self.server_data[guild.id].last_np_msg = message
 
         return Response(
             self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
                 author.voice.channel
-            )
+            ),
+            delete_after=30,
         )
 
-    async def cmd_pause(self, player):
+    async def cmd_follow(
+        self,
+        guild: discord.Guild,
+        author: discord.Member,
+        user_mentions: UserMentions,
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}follow
+
+        MusicBot will automatically follow a user when they change channels.
+        """
+        # If MusicBot is already following a user, either change user or un-follow.
+        followed_user = self.server_data[guild.id].follow_user
+        if followed_user is not None:
+            # Un-follow current user.
+            if followed_user.id == author.id:
+                # TODO:  maybe check the current channel for users and decide if
+                # we should automatically move back to guilds auto_join_channel.
+                self.server_data[guild.id].follow_user = None
+                return Response(
+                    f"No longer following user `{author.name}`",
+                    delete_after=30,
+                )
+
+            # Change to following a new user.
+            self.server_data[guild.id].follow_user = author
+            return Response(
+                f"Now following user `{author.name}` between voice channels.",
+                delete_after=30,
+            )
+
+        # Follow the invoking user.
+        # If owner mentioned a user, bind to the mentioned user instead.
+        bind_to_member = author
+        if author.id == self.config.owner_id and user_mentions:
+            m = user_mentions.pop(0)
+            if not isinstance(m, discord.Member):
+                raise exceptions.CommandError(
+                    "MusicBot cannot follow a user that is not a member of the server.",
+                    expire_in=30,
+                )
+            bind_to_member = m
+
+        self.server_data[guild.id].follow_user = bind_to_member
+        return Response(
+            f"Will follow user `{bind_to_member.name}` between voice channels.",
+            delete_after=30,
+        )
+
+    async def cmd_pause(self, player: MusicPlayer) -> CommandResponse:
         """
         Usage:
             {command_prefix}pause
@@ -2826,15 +4743,15 @@ class MusicBot(discord.Client):
             return Response(
                 self.str.get("cmd-pause-reply", "Paused music in `{0.name}`").format(
                     player.voice_client.channel
-                )
+                ),
+                delete_after=30,
             )
 
-        else:
-            raise exceptions.CommandError(
-                self.str.get("cmd-pause-none", "Player is not playing."), expire_in=30
-            )
+        raise exceptions.CommandError(
+            self.str.get("cmd-pause-none", "Player is not playing."), expire_in=30
+        )
 
-    async def cmd_resume(self, player):
+    async def cmd_resume(self, player: MusicPlayer) -> CommandResponse:
         """
         Usage:
             {command_prefix}resume
@@ -2850,14 +4767,18 @@ class MusicBot(discord.Client):
                 ),
                 delete_after=15,
             )
-        elif player.is_stopped and player.playlist:
-            player.play()
-        else:
-            raise exceptions.CommandError(
-                self.str.get("cmd-resume-none", "Player is not paused."), expire_in=30
-            )
 
-    async def cmd_shuffle(self, channel, player):
+        if player.is_stopped and player.playlist:
+            player.play()
+            return None
+
+        raise exceptions.CommandError(
+            self.str.get("cmd-resume-none", "Player is not paused."), expire_in=30
+        )
+
+    async def cmd_shuffle(
+        self, channel: MessageableChannel, player: MusicPlayer
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}shuffle
@@ -2878,12 +4799,13 @@ class MusicBot(discord.Client):
         hand = await self.safe_send_message(channel, " ".join(cards))
         await asyncio.sleep(0.6)
 
-        for x in range(4):
-            random.shuffle(cards)
-            await self.safe_edit_message(hand, " ".join(cards))
-            await asyncio.sleep(0.6)
+        if hand:
+            for _ in range(4):
+                random.shuffle(cards)
+                await self.safe_edit_message(hand, " ".join(cards))
+                await asyncio.sleep(0.6)
 
-        await self.safe_delete_message(hand, quiet=True)
+            await self.safe_delete_message(hand, quiet=True)
         return Response(
             self.str.get("cmd-shuffle-reply", "Shuffled `{0}`'s queue.").format(
                 player.voice_client.channel.guild
@@ -2891,7 +4813,10 @@ class MusicBot(discord.Client):
             delete_after=15,
         )
 
-    async def cmd_clear(self, player, author):
+    async def cmd_clear(
+        self,
+        player: MusicPlayer,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}clear
@@ -2900,6 +4825,7 @@ class MusicBot(discord.Client):
         """
 
         player.playlist.clear()
+
         return Response(
             self.str.get("cmd-clear-reply", "Cleared `{0}`'s queue").format(
                 player.voice_client.channel.guild
@@ -2908,8 +4834,14 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_remove(
-        self, user_mentions, message, author, permissions, channel, player, index=None
-    ):
+        self,
+        user_mentions: UserMentions,
+        author: discord.Member,
+        permissions: PermissionGroup,
+        guild: discord.Guild,
+        player: MusicPlayer,
+        index: str = "",
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}remove [# in queue]
@@ -2928,13 +4860,11 @@ class MusicBot(discord.Client):
                 if permissions.remove or author == user:
                     try:
                         entry_indexes = [
-                            e
-                            for e in player.playlist.entries
-                            if e.meta.get("author", None) == user
+                            e for e in player.playlist.entries if e.author == user
                         ]
                         for entry in entry_indexes:
                             player.playlist.entries.remove(entry)
-                        entry_text = "%s " % len(entry_indexes) + "item"
+                        entry_text = f"{len(entry_indexes)} item"
                         if len(entry_indexes) > 1:
                             entry_text += "s"
                         return Response(
@@ -2945,7 +4875,7 @@ class MusicBot(discord.Client):
                             .strip()
                         )
 
-                    except ValueError:
+                    except ValueError as e:
                         raise exceptions.CommandError(
                             self.str.get(
                                 "cmd-remove-missing",
@@ -2953,7 +4883,7 @@ class MusicBot(discord.Client):
                             )
                             % user.name,
                             expire_in=20,
-                        )
+                        ) from e
 
                 raise exceptions.PermissionsError(
                     self.str.get(
@@ -2964,59 +4894,66 @@ class MusicBot(discord.Client):
                 )
 
         if not index:
-            index = len(player.playlist.entries)
+            idx = len(player.playlist.entries)
 
         try:
-            index = int(index)
-        except (TypeError, ValueError):
+            idx = int(index)
+        except (TypeError, ValueError) as e:
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-remove-invalid",
                     "Invalid number. Use {}queue to find queue positions.",
-                ).format(self.config.command_prefix),
+                ).format(self.server_data[guild.id].command_prefix),
                 expire_in=20,
-            )
+            ) from e
 
-        if index > len(player.playlist.entries):
+        if idx > len(player.playlist.entries):
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-remove-invalid",
                     "Invalid number. Use {}queue to find queue positions.",
-                ).format(self.config.command_prefix),
+                ).format(self.server_data[guild.id].command_prefix),
                 expire_in=20,
             )
 
-        if permissions.remove or author == player.playlist.get_entry_at_index(
-            index - 1
-        ).meta.get("author", None):
-            entry = player.playlist.delete_entry_at_index((index - 1))
-            await self._manual_delete_check(message)
-            if entry.meta.get("channel", False) and entry.meta.get("author", False):
+        if (
+            permissions.remove
+            or author == player.playlist.get_entry_at_index(idx - 1).author
+        ):
+            entry = player.playlist.delete_entry_at_index((idx - 1))
+            if entry.channel and entry.author:
                 return Response(
                     self.str.get(
                         "cmd-remove-reply-author", "Removed entry `{0}` added by `{1}`"
                     )
-                    .format(entry.title, entry.meta["author"].name)
+                    .format(entry.title, entry.author.name)
                     .strip()
                 )
-            else:
-                return Response(
-                    self.str.get("cmd-remove-reply-noauthor", "Removed entry `{0}`")
-                    .format(entry.title)
-                    .strip()
-                )
-        else:
-            raise exceptions.PermissionsError(
-                self.str.get(
-                    "cmd-remove-noperms",
-                    "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions",
-                ),
-                expire_in=20,
+
+            return Response(
+                self.str.get("cmd-remove-reply-noauthor", "Removed entry `{0}`")
+                .format(entry.title)
+                .strip()
             )
 
+        raise exceptions.PermissionsError(
+            self.str.get(
+                "cmd-remove-noperms",
+                "You do not have the valid permissions to remove that entry from the queue, make sure you're the one who queued it or have instant skip permissions",
+            ),
+            expire_in=20,
+        )
+
     async def cmd_skip(
-        self, player, channel, author, message, permissions, voice_channel, param=""
-    ):
+        self,
+        guild: discord.Guild,
+        player: MusicPlayer,
+        author: discord.Member,
+        message: discord.Message,
+        permissions: PermissionGroup,
+        voice_channel: Optional[VoiceableChannel],
+        param: str = "",
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}skip [force/f]
@@ -3032,40 +4969,65 @@ class MusicBot(discord.Client):
             )
 
         if not player.current_entry:
-            if player.playlist.peek():
-                if player.playlist.peek()._is_downloading:
+            next_entry = player.playlist.peek()
+            if next_entry:
+                if next_entry.is_downloading:
                     return Response(
                         self.str.get(
                             "cmd-skip-dl",
                             "The next song (`%s`) is downloading, please wait.",
                         )
-                        % player.playlist.peek().title
+                        % next_entry.title
                     )
 
-                elif player.playlist.peek().is_downloaded:
-                    print("The next song will be played shortly.  Please wait.")
-                else:
-                    print(
-                        "Something odd is happening.  "
-                        "You might want to restart the bot if it doesn't start working."
+                if next_entry.is_downloaded:
+                    return Response(
+                        "The next song will be played shortly.  Please wait."
                     )
-            else:
-                print(
-                    "Something strange is happening.  "
+
+                return Response(
+                    "Something odd is happening.  "
                     "You might want to restart the bot if it doesn't start working."
                 )
+            return Response(
+                "Something strange is happening.  "
+                "You might want to restart the bot if it doesn't start working."
+            )
 
         current_entry = player.current_entry
+        entry_author = current_entry.author
+        entry_author_id = 0
+        if entry_author:
+            entry_author_id = entry_author.id
 
         permission_force_skip = permissions.instaskip or (
-            self.config.allow_author_skip
-            and author == player.current_entry.meta.get("author", None)
+            self.config.allow_author_skip and author.id == entry_author_id
         )
         force_skip = param.lower() in ["force", "f"]
 
         if permission_force_skip and (force_skip or self.config.legacy_skip):
-            player.skip()  # TODO: check autopause stuff here
-            await self._manual_delete_check(message)
+            if (
+                not permission_force_skip
+                and not permissions.skip_looped
+                and player.repeatsong
+            ):
+                raise exceptions.PermissionsError(
+                    self.str.get(
+                        "cmd-skip-force-noperms-looped-song",
+                        "You do not have permission to force skip a looped song.",
+                    )
+                )
+
+            # handle history playlist updates.
+            if (
+                self.config.enable_queue_history_global
+                or self.config.enable_queue_history_guilds
+            ):
+                self.server_data[guild.id].current_playing_url = ""
+
+            if player.repeatsong:
+                player.repeatsong = False
+            player.skip()
             return Response(
                 self.str.get("cmd-skip-force", "Force skipped `{}`.").format(
                     current_entry.title
@@ -3083,18 +5045,26 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        # TODO: ignore person if they're deaf or take them out of the list or something?
-        # Currently is recounted if they vote, deafen, then vote
-
-        num_voice = sum(
-            1
-            for m in voice_channel.members
-            if not (m.voice.deaf or m.voice.self_deaf or m == self.user)
+        # get the number of users in the channel who are not deaf, exclude bots with exceptions.
+        num_voice = count_members_in_voice(
+            voice_channel,
+            # make sure we include bot exceptions.
+            include_bots=self.config.bot_exception_ids,
         )
+        # If all users are deaf, avoid ZeroDivisionError
         if num_voice == 0:
-            num_voice = 1  # incase all users are deafened, to avoid divison by zero
+            num_voice = 1
 
-        num_skips = player.skip_state.add_skipper(author.id, message)
+        # add the current skipper id so we can count it.
+        player.skip_state.add_skipper(author.id, message)
+        # count all members who are in skippers set.
+        num_skips = count_members_in_voice(
+            voice_channel,
+            # This will exclude all other members in the channel who have not skipped.
+            include_only=player.skip_state.skippers,
+            # If a bot has skipped, this allows the exceptions to be counted.
+            include_bots=self.config.bot_exception_ids,
+        )
 
         skips_remaining = (
             min(
@@ -3107,40 +5077,74 @@ class MusicBot(discord.Client):
         )
 
         if skips_remaining <= 0:
-            player.skip()  # check autopause stuff here
-            # @TheerapakG: Check for pausing state in the player.py make more sense
+            if not permissions.skip_looped and player.repeatsong:
+                raise exceptions.PermissionsError(
+                    self.str.get(
+                        "cmd-skip-vote-noperms-looped-song",
+                        "You do not have permission to skip a looped song.",
+                    )
+                )
+
+            if player.repeatsong:
+                player.repeatsong = False
+
+            # handle history playlist updates.
+            if (
+                self.config.enable_queue_history_global
+                or self.config.enable_queue_history_guilds
+            ):
+                self.server_data[guild.id].current_playing_url = ""
+
+            player.skip()
             return Response(
                 self.str.get(
                     "cmd-skip-reply-skipped-1",
                     "Your skip for `{0}` was acknowledged.\nThe vote to skip has been passed.{1}",
                 ).format(
                     current_entry.title,
-                    self.str.get("cmd-skip-reply-skipped-2", " Next song coming up!")
-                    if player.playlist.peek()
-                    else "",
+                    (
+                        self.str.get(
+                            "cmd-skip-reply-skipped-2", " Next song coming up!"
+                        )
+                        if player.playlist.peek()
+                        else ""
+                    ),
                 ),
                 reply=True,
                 delete_after=20,
             )
 
-        else:
-            # TODO: When a song gets skipped, delete the old x needed to skip messages
-            return Response(
+        # TODO: When a song gets skipped, delete the old x needed to skip messages
+        if not permissions.skip_looped and player.repeatsong:
+            raise exceptions.PermissionsError(
                 self.str.get(
-                    "cmd-skip-reply-voted-1",
-                    "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
-                ).format(
-                    current_entry.title,
-                    skips_remaining,
+                    "cmd-skip-vote-noperms-looped-song",
+                    "You do not have permission to skip a looped song.",
+                )
+            )
+
+        if player.repeatsong:
+            player.repeatsong = False
+        return Response(
+            self.str.get(
+                "cmd-skip-reply-voted-1",
+                "Your skip for `{0}` was acknowledged.\n**{1}** more {2} required to vote to skip this song.",
+            ).format(
+                current_entry.title,
+                skips_remaining,
+                (
                     self.str.get("cmd-skip-reply-voted-2", "person is")
                     if skips_remaining == 1
-                    else self.str.get("cmd-skip-reply-voted-3", "people are"),
+                    else self.str.get("cmd-skip-reply-voted-3", "people are")
                 ),
-                reply=True,
-                delete_after=20,
-            )
+            ),
+            reply=True,
+            delete_after=20,
+        )
 
-    async def cmd_volume(self, message, player, new_volume=None):
+    async def cmd_volume(
+        self, player: MusicPlayer, new_volume: str = ""
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}volume (+/-)[volume]
@@ -3162,59 +5166,387 @@ class MusicBot(discord.Client):
             relative = True
 
         try:
-            new_volume = int(new_volume)
+            int_volume = int(new_volume)
 
-        except ValueError:
+        except ValueError as e:
             raise exceptions.CommandError(
                 self.str.get(
                     "cmd-volume-invalid", "`{0}` is not a valid number"
                 ).format(new_volume),
                 expire_in=20,
-            )
+            ) from e
 
-        vol_change = None
+        vol_change = 0
         if relative:
-            vol_change = new_volume
-            new_volume += player.volume * 100
+            vol_change = int_volume
+            int_volume += int(player.volume * 100)
 
         old_volume = int(player.volume * 100)
 
-        if 0 < new_volume <= 100:
-            player.volume = new_volume / 100.0
+        if 0 < int_volume <= 100:
+            player.volume = int_volume / 100.0
 
             return Response(
                 self.str.get("cmd-volume-reply", "Updated volume from **%d** to **%d**")
-                % (old_volume, new_volume),
+                % (old_volume, int_volume),
                 reply=True,
                 delete_after=20,
             )
 
-        else:
-            if relative:
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-volume-unreasonable-relative",
-                        "Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.",
-                    ).format(
-                        old_volume,
-                        vol_change,
-                        old_volume + vol_change,
-                        1 - old_volume,
-                        100 - old_volume,
-                    ),
-                    expire_in=20,
-                )
-            else:
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-volume-unreasonable-absolute",
-                        "Unreasonable volume provided: {}%. Provide a value between 1 and 100.",
-                    ).format(new_volume),
-                    expire_in=20,
-                )
+        if relative:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-volume-unreasonable-relative",
+                    "Unreasonable volume change provided: {}{:+} -> {}%.  Provide a change between {} and {:+}.",
+                ).format(
+                    old_volume,
+                    vol_change,
+                    old_volume + vol_change,
+                    1 - old_volume,
+                    100 - old_volume,
+                ),
+                expire_in=20,
+            )
+
+        raise exceptions.CommandError(
+            self.str.get(
+                "cmd-volume-unreasonable-absolute",
+                "Unreasonable volume provided: {}%. Provide a value between 1 and 100.",
+            ).format(new_volume),
+            expire_in=20,
+        )
+
+    async def cmd_speed(
+        self, guild: discord.Guild, player: MusicPlayer, new_speed: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}speed [rate]
+
+        Apply a speed to the currently playing track.
+        The rate must be between 0.5 and 100.0 due to ffmpeg limits.
+        Stream playback does not support speed adjustments.
+        """
+        if not player.current_entry:
+            raise exceptions.CommandError(
+                "No track is playing, cannot set speed.\n"
+                "Use the config command to set a default playback speed.",
+                expire_in=30,
+            )
+
+        if not isinstance(
+            player.current_entry, (URLPlaylistEntry, LocalFilePlaylistEntry)
+        ):
+            raise exceptions.CommandError(
+                "Speed cannot be applied to streamed media.",
+                expire_in=30,
+            )
+
+        if not new_speed:
+            raise exceptions.CommandError(
+                "You must provide a speed to set.",
+                expire_in=30,
+            )
+
+        try:
+            speed = float(new_speed)
+            if speed < 0.5 or speed > 100.0:
+                raise ValueError("Value out of range.")
+        except (ValueError, TypeError) as e:
+            raise exceptions.CommandError(
+                "The speed you proivded is invalid. Use a number between 0.5 and 100.",
+                expire_in=30,
+            ) from e
+
+        # Set current playback progress and speed then restart playback.
+        entry = player.current_entry
+        entry.set_start_time(player.progress)
+        entry.set_playback_speed(speed)
+        player.playlist.insert_entry_at_index(0, entry)
+
+        # handle history playlist updates.
+        if (
+            self.config.enable_queue_history_global
+            or self.config.enable_queue_history_guilds
+        ):
+            self.server_data[guild.id].current_playing_url = ""
+
+        player.skip()
+
+        return Response(
+            f"Setting playback speed to `{speed:.3f}` for current track.",
+            delete_after=30,
+        )
 
     @owner_only
-    async def cmd_option(self, player, option, value):
+    async def cmd_config(
+        self,
+        user_mentions: UserMentions,
+        channel_mentions: List[discord.abc.GuildChannel],
+        option: str,
+        leftover_args: List[str],
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}config missing
+                Shows help text about any missing config options.
+
+            {command_prefix}config diff
+                Lists the names of options which have been changed since loading config file.
+
+            {command_prefix}config list
+                List the available config options and their sections.
+
+            {command_prefix}config reload
+                Reload the options.ini file from disk.
+
+            {command_prefix}config help [Section] [Option]
+                Shows help text for a specific option.
+
+            {command_prefix}config show [Section] [Option]
+                Display the current value of the option.
+
+            {command_prefix}config save [Section] [Option]
+                Saves the current current value to the options file.
+
+            {command_prefix}config set [Section] [Option] [value]
+                Validates the option and sets the config for the session, but not to file.
+
+        This command allows management of MusicBot config options file.
+        """
+        if user_mentions and channel_mentions:
+            raise exceptions.CommandError(
+                "Config cannot use channel and user mentions at the same time.",
+                expire_in=30,
+            )
+
+        option = option.lower()
+        valid_options = [
+            "missing",
+            "diff",
+            "list",
+            "save",
+            "help",
+            "show",
+            "set",
+            "reload",
+        ]
+        if option not in valid_options:
+            raise exceptions.CommandError(
+                f"Invalid option for command: `{option}`",
+                expire_in=30,
+            )
+
+        # Show missing options with help text.
+        if option == "missing":
+            missing = ""
+            for opt in self.config.register.ini_missing_options:
+                missing += (
+                    f"**Missing Option:** `{opt}`\n"
+                    "```"
+                    f"{opt.comment}\n"
+                    f"Default is set to:  {opt.default}"
+                    "```\n"
+                )
+            if not missing:
+                missing = "*All config options are present and accounted for!*"
+
+            return Response(
+                missing,
+                delete_after=60,
+            )
+
+        # Show options names that have changed since loading.
+        if option == "diff":
+            changed = ""
+            for opt in self.config.register.get_updated_options():
+                changed += f"`{str(opt)}`\n"
+
+            if not changed:
+                changed = "No config options appear to be changed."
+            else:
+                changed = f"**Changed Options:**\n{changed}"
+
+            return Response(
+                changed,
+                delete_after=60,
+            )
+
+        # List all available options.
+        if option == "list":
+            non_edit_opts = ""
+            editable_opts = ""
+            for opt in self.config.register.option_list:
+                if opt.editable:
+                    editable_opts += f"`{opt}`\n"
+                else:
+                    non_edit_opts += f"`{opt}`\n"
+
+            opt_list = (
+                f"## Available Options:\n"
+                f"**Editable Options:**\n{editable_opts}\n"
+                f"**Manual Edit Only:**\n{non_edit_opts}"
+            )
+            return Response(
+                opt_list,
+                delete_after=60,
+            )
+
+        # Try to reload options.ini file from disk.
+        if option == "reload":
+            try:
+                new_conf = Config(self._config_file)
+                await new_conf.async_validate(self)
+
+                self.config = new_conf
+
+                return Response(
+                    "Config options reloaded from file successfully!",
+                    delete_after=30,
+                )
+            except Exception as e:
+                raise exceptions.CommandError(
+                    f"Unable to reload Config due to the following errror:\n{str(e)}",
+                    expire_in=30,
+                ) from e
+
+        # sub commands beyond here need 2 leftover_args
+        if option in ["help", "show", "save", "set"]:
+            largs = len(leftover_args)
+            if (
+                self.config.register.resolver_available
+                and largs != 0
+                and ((option == "set" and largs < 3) or largs < 2)
+            ):
+                # assume that section is omitted.
+                possible_sections = self.config.register.get_sections_from_option(
+                    leftover_args[0]
+                )
+                if len(possible_sections) == 0:
+                    raise exceptions.CommandError(
+                        "Could not resolve section name from option name. Please provide a valid section and option name.",
+                        expire_in=30,
+                    )
+                if len(possible_sections) > 1:
+                    raise exceptions.CommandError(
+                        "The option given is ambiguous, please provide a section name.",
+                        expire_in=30,
+                    )
+                # adjust the command arguments to include the resolved section.
+                leftover_args = [list(possible_sections)[0]] + leftover_args
+            elif largs < 2 or (option == "set" and largs < 3):
+                raise exceptions.CommandError(
+                    "You must provide a section name and option name for this command.",
+                    expire_in=30,
+                )
+
+        # Get the command args from leftovers and check them.
+        section_arg = leftover_args.pop(0)
+        option_arg = leftover_args.pop(0)
+        if user_mentions:
+            leftover_args += [str(m.id) for m in user_mentions]
+        if channel_mentions:
+            leftover_args += [str(ch.id) for ch in channel_mentions]
+        value_arg = " ".join(leftover_args)
+        p_opt = self.config.register.get_config_option(section_arg, option_arg)
+
+        if section_arg not in self.config.register.sections:
+            sects = ", ".join(self.config.register.sections)
+            raise exceptions.CommandError(
+                f"The section `{section_arg}` is not available.\n"
+                f"The available sections are:  {sects}",
+                expire_in=30,
+            )
+
+        if p_opt is None:
+            option_arg = f"[{section_arg}] > {option_arg}"
+            raise exceptions.CommandError(
+                f"The option `{option_arg}` is not available.",
+                expire_in=30,
+            )
+        opt = p_opt
+
+        # Display some commentary about the option and its default.
+        if option == "help":
+            default = "\nThis option can only be set by editing the config file."
+            if opt.editable:
+                default = f"\nBy default this option is set to: {opt.default}"
+            return Response(
+                f"**Option:** `{opt}`\n{opt.comment}{default}",
+                delete_after=60,
+            )
+
+        # Save the current config value to the INI file.
+        if option == "save":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable. Cannot save to disk.",
+                    expire_in=30,
+                )
+
+            async with self.aiolocks["config_edit"]:
+                saved = self.config.save_option(opt)
+
+            if not saved:
+                raise exceptions.CommandError(
+                    f"Failed to save the option:  `{opt}`",
+                    expire_in=30,
+                )
+            return Response(
+                f"Successfully saved the option:  `{opt}`",
+                delete_after=30,
+            )
+
+        # Display the current config and INI file values.
+        if option == "show":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable, value cannot be displayed.",
+                    expire_in=30,
+                )
+            # TODO: perhaps make use of currently unused display value for empty configs.
+            cur_val, ini_val, _disp_val = self.config.register.get_values(opt)
+            return Response(
+                f"**Option:** `{opt}`\n"
+                f"Current Value:  `{cur_val}`\n"
+                f"INI File Value:  `{ini_val}`",
+                delete_after=30,
+            )
+
+        # update a config variable, but don't save it.
+        if option == "set":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable. Cannot update setting.",
+                    expire_in=30,
+                )
+
+            if not value_arg:
+                raise exceptions.CommandError(
+                    "You must provide a section, option, and value for this sub command.",
+                    expire_in=30,
+                )
+
+            log.debug("Doing set with on %s == %s", opt, value_arg)
+            async with self.aiolocks["config_update"]:
+                updated = self.config.update_option(opt, value_arg)
+            if not updated:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` was not updated!",
+                    expire_in=30,
+                )
+            return Response(
+                f"Option `{opt}` was updated for this session.\n"
+                f"To save the change use `config save {opt.section} {opt.option}`",
+                delete_after=30,
+            )
+
+        return None
+
+    @owner_only
+    async def cmd_option(
+        self, guild: discord.Guild, option: str, value: str
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}option [option] [on/y/enabled/off/n/disabled]
@@ -3225,11 +5557,10 @@ class MusicBot(discord.Client):
 
         Valid options:
             autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
-            delete_messages, delete_invoking, write_current_song
+            delete_messages, delete_invoking, write_current_song, round_robin_queue
 
         For information about these options, see the option's comment in the config file.
         """
-
         option = option.lower()
         value = value.lower()
         bool_y = ["on", "y", "enabled"]
@@ -3242,6 +5573,7 @@ class MusicBot(discord.Client):
             "delete_messages",
             "delete_invoking",
             "write_current_song",
+            "round_robin_queue",
         ]  # these need to match attribute names in the Config class
         if option in ["autoplaylist", "auto_playlist"]:
             if value in bool_y:
@@ -3252,16 +5584,16 @@ class MusicBot(discord.Client):
                             "The autoplaylist is already enabled!",
                         )
                     )
-                else:
-                    if not self.autoplaylist:
-                        raise exceptions.CommandError(
-                            self.str.get(
-                                "cmd-option-autoplaylist-none",
-                                "There are no entries in the autoplaylist file.",
-                            )
+
+                if not self.server_data[guild.id].autoplaylist:
+                    raise exceptions.CommandError(
+                        self.str.get(
+                            "cmd-option-autoplaylist-none",
+                            "There are no entries in the autoplaylist file.",
                         )
-                    self.config.auto_playlist = True
-                    await self.on_player_finished_playing(player)
+                    )
+
+                self.config.auto_playlist = True
             elif value in bool_n:
                 if not self.config.auto_playlist:
                     raise exceptions.CommandError(
@@ -3270,8 +5602,8 @@ class MusicBot(discord.Client):
                             "The autoplaylist is already disabled!",
                         )
                     )
-                else:
-                    self.config.auto_playlist = False
+
+                self.config.auto_playlist = False
             else:
                 raise exceptions.CommandError(
                     self.str.get(
@@ -3283,115 +5615,286 @@ class MusicBot(discord.Client):
                 + ["disabled", "enabled"][self.config.auto_playlist]
                 + "."
             )
-        else:
-            is_generic = [
-                o for o in generic if o == option
-            ]  # check if it is a generic bool option
-            if is_generic and (value in bool_y or value in bool_n):
-                name = is_generic[0]
-                log.debug("Setting attribute {0}".format(name))
-                setattr(
-                    self.config, name, True if value in bool_y else False
-                )  # this is scary but should work
-                attr = getattr(self.config, name)
-                res = (
-                    "The option {0} is now ".format(option)
-                    + ["disabled", "enabled"][attr]
-                    + "."
-                )
-                log.warning("Option overriden for this session: {0}".format(res))
-                return Response(res)
-            else:
-                raise exceptions.CommandError(
-                    self.str.get(
-                        "cmd-option-invalid-param",
-                        "The parameters provided were invalid.",
-                    )
-                )
 
-    async def cmd_queue(self, channel, player):
+        is_generic = [
+            o for o in generic if o == option
+        ]  # check if it is a generic bool option
+        if is_generic and (value in bool_y or value in bool_n):
+            name = is_generic[0]
+            log.debug("Setting attribute: %s", name)
+            setattr(self.config, name, value in bool_y)  # this is scary but should work
+            attr = getattr(self.config, name)
+            res = f"The option {option} is now " + ["disabled", "enabled"][attr] + "."
+            log.warning("Option overriden for this session: %s", res)
+            return Response(res)
+
+        raise exceptions.CommandError(
+            self.str.get(
+                "cmd-option-invalid-param",
+                "The parameters provided were invalid.",
+            )
+        )
+
+    @owner_only
+    async def cmd_cache(self, opt: str = "info") -> CommandResponse:
         """
         Usage:
-            {command_prefix}queue
+            {command_prefix}cache
+
+        Display cache storage info or clear cache files.
+        Valid options are:  info, update, clear
+        """
+        opt = opt.lower()
+        if opt not in ["info", "update", "clear"]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-cache-invalid-arg",
+                    'Invalid option "{0}" specified, use info or clear',
+                ).format(opt),
+                expire_in=30,
+            )
+
+        # actually query the filesystem.
+        if opt == "update":
+            self.filecache.scan_audio_cache()
+            # force output of info after we have updated it.
+            opt = "info"
+
+        # report cache info as it is.
+        if opt == "info":
+            save_videos = ["Disabled", "Enabled"][self.config.save_videos]
+            time_limit = f"{self.config.storage_limit_days} days"
+            size_limit = format_size_from_bytes(self.config.storage_limit_bytes)
+            size_now = ""
+
+            if not self.config.storage_limit_bytes:
+                size_limit = "Unlimited"
+
+            if not self.config.storage_limit_days:
+                time_limit = "Unlimited"
+
+            cached_bytes, cached_files = self.filecache.get_cache_size()
+            size_now = self.str.get(
+                "cmd-cache-size-now", "\n\n**Cached Now:**  {0} in {1} file(s)"
+            ).format(
+                format_size_from_bytes(cached_bytes),
+                cached_files,
+            )
+
+            return Response(
+                self.str.get(
+                    "cmd-cache-info",
+                    "**Video Cache:** *{0}*\n**Storage Limit:** *{1}*\n**Time Limit:** *{2}*{3}",
+                ).format(save_videos, size_limit, time_limit, size_now),
+                delete_after=60,
+            )
+
+        # clear cache according to settings.
+        if opt == "clear":
+            if self.filecache.cache_dir_exists():
+                if self.filecache.delete_old_audiocache():
+                    return Response(
+                        self.str.get(
+                            "cmd-cache-clear-success",
+                            "Cache has been cleared.",
+                        ),
+                        delete_after=30,
+                    )
+
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-cache-clear-failed",
+                        "**Failed** to delete cache, check logs for more info...",
+                    ),
+                    expire_in=30,
+                )
+            return Response(
+                self.str.get(
+                    "cmd-cache-clear-no-cache",
+                    "No cache found to clear.",
+                ),
+                delete_after=30,
+            )
+        # TODO: maybe add a "purge" option that fully empties cache regardless of settings.
+        return None
+
+    async def cmd_queue(
+        self,
+        guild: discord.Guild,
+        channel: MessageableChannel,
+        player: MusicPlayer,
+        page: str = "0",
+        update_msg: Optional[discord.Message] = None,
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}queue [page_number]
 
         Prints the current song queue.
+        Show later entries if available by giving optional page number.
         """
 
-        lines = []
-        unlisted = 0
-        andmoretext = "* ... and %s more*" % ("x" * len(player.playlist.entries))
+        # handle the page argument.
+        page_number = 0
+        if page:
+            try:
+                page_number = abs(int(page))
+            except (ValueError, TypeError) as e:
+                raise exceptions.CommandError(
+                    "Queue page argument must be a whole number.",
+                    expire_in=30,
+                ) from e
 
-        if player.is_playing:
-            # TODO: Fix timedelta garbage with util function
-            song_progress = ftimedelta(timedelta(seconds=player.progress))
-            song_total = (
-                ftimedelta(timedelta(seconds=player.current_entry.duration))
-                if player.current_entry.duration != None
-                else "(no duration data)"
-            )
-            prog_str = "`[%s/%s]`" % (song_progress, song_total)
-
-            if player.current_entry.meta.get(
-                "channel", False
-            ) and player.current_entry.meta.get("author", False):
-                lines.append(
-                    self.str.get(
-                        "cmd-queue-playing-author",
-                        "Currently playing: `{0}` added by `{1}` {2}\n",
-                    ).format(
-                        player.current_entry.title,
-                        player.current_entry.meta["author"].name,
-                        prog_str,
-                    )
-                )
-            else:
-                lines.append(
-                    self.str.get(
-                        "cmd-queue-playing-noauthor", "Currently playing: `{0}` {1}\n"
-                    ).format(player.current_entry.title, prog_str)
-                )
-
-        for i, item in enumerate(player.playlist, 1):
-            if item.meta.get("channel", False) and item.meta.get("author", False):
-                nextline = (
-                    self.str.get("cmd-queue-entry-author", "{0} -- `{1}` by `{2}`")
-                    .format(i, item.title, item.meta["author"].name)
-                    .strip()
-                )
-            else:
-                nextline = (
-                    self.str.get("cmd-queue-entry-noauthor", "{0} -- `{1}`")
-                    .format(i, item.title)
-                    .strip()
-                )
-
-            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
-
-            if (
-                currentlinesum + len(nextline) + len(andmoretext)
-                > DISCORD_MSG_CHAR_LIMIT
-            ) or (i > self.config.queue_length):
-                if currentlinesum + len(andmoretext):
-                    unlisted += 1
-                    continue
-
-            lines.append(nextline)
-
-        if unlisted:
-            lines.append(self.str.get("cmd-queue-more", "\n... and %s more") % unlisted)
-
-        if not lines:
-            lines.append(
+        # check for no entries at all.
+        total_entry_count = len(player.playlist.entries)
+        if not total_entry_count:
+            raise exceptions.CommandError(
                 self.str.get(
                     "cmd-queue-none",
                     "There are no songs queued! Queue something with {}play.",
-                ).format(self.config.command_prefix)
+                ).format(self.server_data[guild.id].command_prefix)
             )
 
-        message = "\n".join(lines)
-        return Response(message, delete_after=30)
+        # now check if page number is out of bounds.
+        limit_per_page = 25  # TODO: make this configurable, up to 25 fields per embed.
+        # TODO:  actually just don't use fields, put it all into description field.
+        pages_total = math.ceil(total_entry_count / limit_per_page)
+        if page_number > pages_total:
+            raise exceptions.CommandError(
+                "Requested page number is out of bounds.\n"
+                f"There are **{pages_total}** pages."
+            )
 
-    async def cmd_clean(self, message, channel, guild, author, search_range=50):
+        # Get current entry info if any.
+        current_progress = ""
+        if player.is_playing and player.current_entry:
+            song_progress = format_song_duration(player.progress)
+            song_total = (
+                format_song_duration(player.current_entry.duration_td)
+                if player.current_entry.duration is not None
+                else "(no duration data)"
+            )
+            prog_str = f"`[{song_progress}/{song_total}]`"
+
+            cur_entry_channel = player.current_entry.channel
+            cur_entry_author = player.current_entry.author
+            if cur_entry_channel and cur_entry_author:
+                current_progress = self.str.get(
+                    "cmd-queue-playing-author",
+                    "Currently playing: `{0}`\nAdded by: `{1}`\nProgress: {2}\n",
+                ).format(
+                    player.current_entry.title,
+                    cur_entry_author.name,
+                    prog_str,
+                )
+
+            else:
+                current_progress = self.str.get(
+                    "cmd-queue-playing-noauthor",
+                    "Currently playing: `{0}`\nProgress: {1}\n",
+                ).format(player.current_entry.title, prog_str)
+                # TODO: i18n
+                current_progress += "`via autoplaylist`\n"
+
+        # calculate start and stop slice indices
+        start_index = limit_per_page * page_number
+        end_index = start_index + limit_per_page
+
+        # create an embed
+        starting_at = start_index + 1  # add 1 to index for display.
+        embed = self._gen_embed()
+        embed.title = "Songs in queue"
+        embed.description = (
+            f"{current_progress}There are `{total_entry_count}` entries in the queue.\n"
+            f"Here are the next {limit_per_page} songs, starting at song #{starting_at}"
+        )
+
+        # add the tracks to the embed fields
+        queue_segment = list(player.playlist.entries)[start_index:end_index]
+        for idx, item in enumerate(queue_segment, starting_at):
+            if item == player.current_entry:
+                # TODO: remove this debug later
+                log.debug("Skipped the current playlist entry.")
+                continue
+
+            if item.channel and item.author:
+                embed.add_field(
+                    name=f"Entry #{idx}",
+                    value=f"Title: `{item.title}`\nAdded by: `{item.author.name}`",
+                    inline=False,
+                )
+            else:
+                embed.add_field(
+                    name=f"Entry #{idx}",
+                    value=f"Title: `{item.title}`",
+                    inline=False,
+                )
+
+        # handle sending or editing the queue message.
+        if update_msg:
+            q_msg = await self.safe_edit_message(update_msg, embed, send_if_fail=True)
+        else:
+            if pages_total <= 1:
+                q_msg = await self.safe_send_message(channel, embed, expire_in=30)
+            else:
+                q_msg = await self.safe_send_message(channel, embed)
+
+        if pages_total <= 1:
+            log.debug("Not enough entries to paginate the queue.")
+            return None
+
+        if not q_msg:
+            log.warning("Could not post queue message, no message to add reactions to.")
+            raise exceptions.CommandError(
+                "Try that again. MusicBot couldn't make or get a reference to the queue message.  If the issue persists, file a bug report."
+            )
+
+        # set up the page numbers to be used by reactions.
+        # this essentially make the pages wrap around.
+        prev_index = page_number - 1
+        next_index = page_number + 1
+        if prev_index < 0:
+            prev_index = pages_total
+        if next_index > pages_total:
+            next_index = 0
+
+        for r in [EMOJI_PREV_ICON, EMOJI_NEXT_ICON, EMOJI_CROSS_MARK_BUTTON]:
+            await q_msg.add_reaction(r)
+
+        def _check_react(reaction: discord.Reaction, user: discord.Member) -> bool:
+            # Do not check for the requesting author, any reaction is valid.
+            if not self.user:
+                return False
+            return q_msg.id == reaction.message.id and user.id != self.user.id
+
+        try:
+            reaction, _user = await self.wait_for(
+                "reaction_add", timeout=60, check=_check_react
+            )
+            if reaction.emoji == EMOJI_NEXT_ICON:
+                await q_msg.clear_reactions()
+                await self.cmd_queue(guild, channel, player, str(next_index), q_msg)
+
+            if reaction.emoji == EMOJI_PREV_ICON:
+                await q_msg.clear_reactions()
+                await self.cmd_queue(guild, channel, player, str(prev_index), q_msg)
+
+            if reaction.emoji == EMOJI_CROSS_MARK_BUTTON:
+                await self.safe_delete_message(q_msg)
+
+        except asyncio.TimeoutError:
+            await self.safe_delete_message(q_msg)
+
+        return None
+
+    async def cmd_clean(
+        self,
+        message: discord.Message,
+        channel: MessageableChannel,
+        guild: discord.Guild,
+        author: discord.Member,
+        search_range_str: str = "50",
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}clean [range]
@@ -3400,9 +5903,9 @@ class MusicBot(discord.Client):
         """
 
         try:
-            float(search_range)  # lazy check
-            search_range = min(int(search_range), 1000)
-        except:
+            float(search_range_str)  # lazy check
+            search_range = min(int(search_range_str), 100)
+        except ValueError:
             return Response(
                 self.str.get(
                     "cmd-clean-invalid",
@@ -3414,12 +5917,19 @@ class MusicBot(discord.Client):
 
         await self.safe_delete_message(message, quiet=True)
 
-        def is_possible_command_invoke(entry):
-            valid_call = any(
-                entry.content.startswith(prefix)
-                for prefix in [self.config.command_prefix]
-            )  # can be expanded
-            return valid_call and not entry.content[1:2].isspace()
+        # TODO:  add alias names to the command names list here.
+        # cmd_names = await self.gen_cmd_list(message)
+
+        def is_possible_command_invoke(entry: discord.Message) -> bool:
+            prefix_list = self.server_data[guild.id].command_prefix_list
+            content = entry.content
+            for prefix in prefix_list:
+                if content.startswith(prefix):
+                    content = content.replace(prefix, "", 1).strip()
+                    if content:
+                        # TODO: this should check for command names and alias names.
+                        return True
+            return False
 
         delete_invokes = True
         delete_all = (
@@ -3427,12 +5937,19 @@ class MusicBot(discord.Client):
             or self.config.owner_id == author.id
         )
 
-        def check(message):
+        def check(message: discord.Message) -> bool:
             if is_possible_command_invoke(message) and delete_invokes:
                 return delete_all or message.author == author
             return message.author == self.user
 
-        if self.user.bot:
+        if self.user and self.user.bot:
+            if isinstance(
+                channel,
+                (discord.DMChannel, discord.GroupChannel, discord.PartialMessageable),
+            ):
+                # TODO: maybe fix this to work?
+                raise exceptions.CommandError("Cannot use purge on private DM channel.")
+
             if channel.permissions_for(guild.me).manage_messages:
                 deleted = await channel.purge(
                     check=check, limit=search_range, before=message
@@ -3443,8 +5960,11 @@ class MusicBot(discord.Client):
                     ).format(len(deleted), "s" * bool(deleted)),
                     delete_after=15,
                 )
+        return None
 
-    async def cmd_pldump(self, channel, author, song_url):
+    async def cmd_pldump(
+        self, channel: MessageableChannel, author: discord.Member, song_subject: str
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}pldump url
@@ -3452,61 +5972,76 @@ class MusicBot(discord.Client):
         Dumps the individual urls of a playlist
         """
 
+        song_url = self.downloader.get_url_or_none(song_subject)
+        if not song_url:
+            raise exceptions.CommandError(
+                "The given URL was not a valid URL.", expire_in=25
+            )
+
         try:
             info = await self.downloader.extract_info(
-                self.loop, song_url.strip("<>"), download=False, process=False
+                song_url, download=False, process=True
             )
         except Exception as e:
             raise exceptions.CommandError(
-                "Could not extract info from input url\n%s\n" % e, expire_in=25
-            )
-
-        if not info:
-            raise exceptions.CommandError(
-                "Could not extract info from input url, no data.", expire_in=25
-            )
-
-        if not info.get("entries", None):
-            # TODO: Retarded playlist checking
-            # set(url, webpageurl).difference(set(url))
-
-            if info.get("url", None) != info.get("webpage_url", info.get("url", None)):
-                raise exceptions.CommandError(
-                    "This does not seem to be a playlist.", expire_in=25
-                )
-            else:
-                return await self.cmd_pldump(channel, info.get(""))
-
-        linegens = defaultdict(
-            lambda: None,
-            **{
-                "youtube": lambda d: "https://www.youtube.com/watch?v=%s" % d["id"],
-                "soundcloud": lambda d: d["url"],
-                "bandcamp": lambda d: d["url"],
-            }
-        )
-
-        exfunc = linegens[info["extractor"].split(":")[0]]
-
-        if not exfunc:
-            raise exceptions.CommandError(
-                "Could not extract info from input url, unsupported playlist type.",
+                f"Could not extract info from input url\n{str(e)}\n",
                 expire_in=25,
             )
 
-        with BytesIO() as fcontent:
-            for item in info["entries"]:
-                fcontent.write(exfunc(item).encode("utf8") + b"\n")
-
-            fcontent.seek(0)
-            await author.send(
-                "Here's the playlist dump for <%s>" % song_url,
-                file=discord.File(fcontent, filename="playlist.txt"),
+        if not info.get("entries", None):
+            raise exceptions.CommandError(
+                "This does not seem to be a playlist.", expire_in=25
             )
 
-        return Response("Sent a message with a playlist file.", delete_after=20)
+        sent_to_channel = None
+        filename = "playlist.txt"
+        if info.title:
+            safe_title = slugify(info.title)
+            filename = f"playlist_{safe_title}.txt"
 
-    async def cmd_listids(self, guild, author, leftover_args, cat="all"):
+        # TODO: refactor this in favor of safe_send_message doing it all.
+        with BytesIO() as fcontent:
+            total = info.playlist_count or info.entry_count
+            fcontent.write(f"# Title:  {info.title}\n".encode("utf8"))
+            fcontent.write(f"# Total:  {total}\n".encode("utf8"))
+            fcontent.write(f"# Extractor:  {info.extractor}\n\n".encode("utf8"))
+
+            for item in info.get_entries_objects():
+                # TODO: maybe add track-name as a comment?
+                url = item.get_playable_url()
+                line = f"{url}\n"
+                fcontent.write(line.encode("utf8"))
+
+            fcontent.seek(0)
+            msg_str = f"Here is the playlist dump for:  <{song_url}>"
+            datafile = discord.File(fcontent, filename=filename)
+
+            try:
+                # try to DM. this could fail for users with strict privacy settings.
+                # or users who just can't get direct messages.
+                await author.send(msg_str, file=datafile)
+
+            except discord.errors.HTTPException as e:
+                if e.code == 50007:  # cannot send to this user.
+                    log.debug("DM failed, sending in channel instead.")
+                    sent_to_channel = await channel.send(
+                        msg_str,
+                        file=datafile,
+                    )
+                else:
+                    raise
+        if not sent_to_channel:
+            return Response("Sent a message with a playlist file.", delete_after=20)
+        return None
+
+    async def cmd_listids(
+        self,
+        guild: discord.Guild,
+        author: discord.Member,
+        channel: MessageableChannel,
+        leftover_args: List[str],
+        cat: str = "all",
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}listids [categories]
@@ -3518,8 +6053,9 @@ class MusicBot(discord.Client):
         cats = ["channels", "roles", "users"]
 
         if cat not in cats and cat != "all":
+            cats_str = " ".join([f"`{c}`" for c in cats])
             return Response(
-                "Valid categories: " + " ".join(["`%s`" % c for c in cats]),
+                f"Valid categories: {cats_str}",
                 reply=True,
                 delete_after=25,
             )
@@ -3529,7 +6065,7 @@ class MusicBot(discord.Client):
         else:
             requested_cats = [cat] + [c.strip(",") for c in leftover_args]
 
-        data = ["Your ID: %s" % author.id]
+        data = [f"Your ID: {author.id}"]
 
         for cur_cat in requested_cats:
             rawudata = None
@@ -3537,47 +6073,62 @@ class MusicBot(discord.Client):
             if cur_cat == "users":
                 data.append("\nUser IDs:")
                 rawudata = [
-                    "%s #%s: %s" % (m.name, m.discriminator, m.id)
-                    for m in guild.members
+                    f"{m.name} #{m.discriminator}: {m.id}" for m in guild.members
                 ]
 
             elif cur_cat == "roles":
                 data.append("\nRole IDs:")
-                rawudata = ["%s: %s" % (r.name, r.id) for r in guild.roles]
+                rawudata = [f"{r.name}: {r.id}" for r in guild.roles]
 
             elif cur_cat == "channels":
                 data.append("\nText Channel IDs:")
                 tchans = [
                     c for c in guild.channels if isinstance(c, discord.TextChannel)
                 ]
-                rawudata = ["%s: %s" % (c.name, c.id) for c in tchans]
+                rawudata = [f"{c.name}: {c.id}" for c in tchans]
 
                 rawudata.append("\nVoice Channel IDs:")
                 vchans = [
                     c for c in guild.channels if isinstance(c, discord.VoiceChannel)
                 ]
-                rawudata.extend("%s: %s" % (c.name, c.id) for c in vchans)
+                rawudata.extend(f"{c.name}: {c.id}" for c in vchans)
 
             if rawudata:
                 data.extend(rawudata)
 
+        # TODO: refactor this in favor of safe_send_message doing it all.
+        sent_to_channel = None
         with BytesIO() as sdata:
+            slug = slugify(guild.name)
+            fname = f"{slug}-ids-{cat}.txt"
             sdata.writelines(d.encode("utf8") + b"\n" for d in data)
             sdata.seek(0)
+            datafile = discord.File(sdata, filename=fname)
+            msg_str = "Here are the IDs you requested:"
 
-            # TODO: Fix naming (Discord20API-ids.txt)
-            await author.send(
-                file=discord.File(
-                    sdata,
-                    filename="%s-ids-%s.txt" % (guild.name.replace(" ", "_"), cat),
-                )
-            )
+            try:
+                # try to DM and fall back to channel
+                await author.send(msg_str, file=datafile)
 
-        return Response("Sent a message with a list of IDs.", delete_after=20)
+            except discord.errors.HTTPException as e:
+                if e.code == 50007:  # cannot send to this user.
+                    log.debug("DM failed, sending in channel instead.")
+                    sent_to_channel = await channel.send(msg_str, file=datafile)
+                else:
+                    raise
+        if not sent_to_channel:
+            return Response("Sent a message with a list of IDs.", delete_after=20)
+        return None
 
     async def cmd_perms(
-        self, author, user_mentions, channel, guild, message, permissions, target=None
-    ):
+        self,
+        author: discord.Member,
+        channel: MessageableChannel,
+        user_mentions: UserMentions,
+        guild: discord.Guild,
+        permissions: PermissionGroup,
+        target: str = "",
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}perms [@user]
@@ -3585,44 +6136,304 @@ class MusicBot(discord.Client):
         """
 
         if user_mentions:
-            user = user_mentions[0]
+            user = user_mentions[0]  # type: Union[discord.User, discord.Member]
 
         if not user_mentions and not target:
             user = author
 
         if not user_mentions and target:
-            user = guild.get_member_named(target)
-            if user == None:
+            getuser = guild.get_member_named(target)
+            if getuser is None:
                 try:
-                    user = await self.fetch_user(target)
-                except discord.NotFound:
+                    user = await self.fetch_user(int(target))
+                except (discord.NotFound, ValueError):
                     return Response(
                         "Invalid user ID or server nickname, please double check all typing and try again.",
                         reply=False,
                         delete_after=30,
                     )
+            else:
+                user = getuser
 
         permissions = self.permissions.for_user(user)
 
         if user == author:
-            lines = ["Command permissions in %s\n" % guild.name, "```", "```"]
+            perms = (
+                f"Your command permissions in {guild.name} are:\n"
+                f"```{permissions.format(for_user=True)}```"
+            )
         else:
-            lines = [
-                "Command permissions for {} in {}\n".format(user.name, guild.name),
-                "```",
-                "```",
-            ]
+            perms = (
+                f"The command permissions for {user.name} in {guild.name} are:\n"
+                f"```{permissions.format()}```"
+            )
 
-        for perm in permissions.__dict__:
-            if perm in ["user_list"] or permissions.__dict__[perm] == set():
-                continue
-            lines.insert(len(lines) - 1, "%s: %s" % (perm, permissions.__dict__[perm]))
-
-        await self.safe_send_message(author, "\n".join(lines))
+        await self.safe_send_message(author, perms, fallback_channel=channel)
         return Response("\N{OPEN MAILBOX WITH RAISED FLAG}", delete_after=20)
 
     @owner_only
-    async def cmd_setname(self, leftover_args, name):
+    async def cmd_setperms(
+        self,
+        user_mentions: UserMentions,
+        leftover_args: List[str],
+        option: str = "list",
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}setperms list
+                show loaded groups and list permission options.
+
+            {command_prefix}setperms reload
+                reloads permissions from the permissions.ini file.
+
+            {command_prefix}setperms add [GroupName]
+                add new group with defaults.
+
+            {command_prefix}setperms remove [GroupName]
+                remove existing group.
+
+            {command_prefix}setperms help [PermName]
+                show help text for the permission option.
+
+            {command_prefix}setperms show [GroupName] [PermName]
+                show permission value for given group and permission.
+
+            {command_prefix}setperms save [GroupName]
+                save permissions group to file.
+
+            {command_prefix}setperms set [GroupName] [PermName] [Value]
+                set permission value for the group.
+        """
+        if user_mentions:
+            raise exceptions.CommandError(
+                "Permissions cannot use channel and user mentions at the same time.",
+                expire_in=30,
+            )
+
+        option = option.lower()
+        valid_options = [
+            "list",
+            "add",
+            "remove",
+            "save",
+            "help",
+            "show",
+            "set",
+            "reload",
+        ]
+        if option not in valid_options:
+            raise exceptions.CommandError(
+                f"Invalid option for command: `{option}`",
+                expire_in=30,
+            )
+
+        # Reload the permissions file from disk.
+        if option == "reload":
+            try:
+                new_permissions = Permissions(self._perms_file)
+                # Set the owner ID in case it wasn't auto...
+                new_permissions.set_owner_id(self.config.owner_id)
+                await new_permissions.async_validate(self)
+
+                self.permissions = new_permissions
+
+                return Response(
+                    "Permissions reloaded from file successfully!",
+                    delete_after=30,
+                )
+            except Exception as e:
+                raise exceptions.CommandError(
+                    f"Unable to reload Permissions due to the following errror:\n{str(e)}",
+                    expire_in=30,
+                ) from e
+
+        # List permission groups and available permission options.
+        if option == "list":
+            gl = []
+            for section in self.permissions.register.sections:
+                gl.append(f"`{section}`\n")
+
+            editable_opts = ""
+            for opt in self.permissions.register.option_list:
+                if opt.section != DEFAULT_PERMS_GROUP_NAME:
+                    continue
+
+                # if opt.editable:
+                editable_opts += f"`{opt.option}`\n"
+
+            groups = "".join(gl)
+            opt_list = (
+                f"## Available Groups:\n{groups}\n"
+                f"## Available Options:\n"
+                f"{editable_opts}\n"
+            )
+            return Response(
+                opt_list,
+                delete_after=60,
+            )
+
+        # sub commands beyond here need 2 leftover_args
+        if option in ["help", "show", "save", "add", "remove"]:
+            if len(leftover_args) < 1:
+                raise exceptions.CommandError(
+                    "You must provide a group or option name for this command.",
+                    expire_in=30,
+                )
+        if option == "set" and len(leftover_args) < 3:
+            raise exceptions.CommandError(
+                "You must provide a group, option, and value to set for this command.",
+                expire_in=30,
+            )
+
+        # Get the command args from leftovers and check them.
+        group_arg = ""
+        option_arg = ""
+        if option == "help":
+            group_arg = DEFAULT_PERMS_GROUP_NAME
+            option_arg = leftover_args.pop(0)
+        else:
+            group_arg = leftover_args.pop(0)
+        if option in ["set", "show"]:
+            if not leftover_args:
+                raise exceptions.CommandError(
+                    f"The {option} sub-command requires a group and permission name.",
+                    expire_in=30,
+                )
+            option_arg = leftover_args.pop(0)
+
+        if user_mentions:
+            leftover_args += [str(m.id) for m in user_mentions]
+        value_arg = " ".join(leftover_args)
+
+        if group_arg not in self.permissions.register.sections and option != "add":
+            sects = ", ".join(self.permissions.register.sections)
+            raise exceptions.CommandError(
+                f"The group `{group_arg}` is not available.\n"
+                f"The available groups are:  {sects}",
+                expire_in=30,
+            )
+
+        # Make sure the option is set if the sub-command needs it.
+        if option in ["help", "set", "show"]:
+            p_opt = self.permissions.register.get_config_option(group_arg, option_arg)
+            if p_opt is None:
+                option_arg = f"[{group_arg}] > {option_arg}"
+                raise exceptions.CommandError(
+                    f"The permission `{option_arg}` is not available.",
+                    expire_in=30,
+                )
+            opt = p_opt
+
+        # Display some commentary about the option and its default.
+        if option == "help":
+            default = (
+                "\nThis permission can only be set by editing the permissions file."
+            )
+            # TODO:  perhaps use empty display values here.
+            if opt.editable:
+                dval = self.permissions.register.to_ini(opt, use_default=True)
+                default = f"\nBy default this permission is set to: `{dval}`"
+            return Response(
+                f"**Permission:** `{opt.option}`\n{opt.comment}{default}",
+                delete_after=60,
+            )
+
+        if option == "add":
+            if group_arg in self.permissions.register.sections:
+                raise exceptions.CommandError(
+                    f"Cannot add group `{group_arg}` it already exists.",
+                    expire_in=30,
+                )
+            async with self.aiolocks["permission_edit"]:
+                self.permissions.add_group(group_arg)
+
+            return Response(
+                f"Successfully added new group:  `{group_arg}`\n"
+                f"You can now customizse the permissions with:  `setperms set {group_arg}`\n"
+                f"Make sure to save the new group with:  `setperms save {group_arg}`",
+                delete_after=30,
+            )
+
+        if option == "remove":
+            if group_arg in [DEFAULT_OWNER_GROUP_NAME, DEFAULT_PERMS_GROUP_NAME]:
+                raise exceptions.CommandError(
+                    "Cannot remove built-in group.", expire_in=30
+                )
+
+            async with self.aiolocks["permission_edit"]:
+                self.permissions.remove_group(group_arg)
+
+            return Response(
+                f"Successfully removed group:  `{group_arg}`"
+                f"Make sure to save this change with:  `setperms save {group_arg}`",
+                delete_after=30,
+            )
+
+        # Save the current config value to the INI file.
+        if option == "save":
+            if group_arg == DEFAULT_OWNER_GROUP_NAME:
+                raise exceptions.CommandError(
+                    "The owner group is not editable.",
+                    expire_in=30,
+                )
+
+            async with self.aiolocks["permission_edit"]:
+                saved = self.permissions.save_group(group_arg)
+
+            if not saved:
+                raise exceptions.CommandError(
+                    f"Failed to save the group:  `{group_arg}`",
+                    expire_in=30,
+                )
+            return Response(
+                f"Successfully saved the group:  `{group_arg}`",
+                delete_after=30,
+            )
+
+        # Display the current permissions group and INI file values.
+        if option == "show":
+            cur_val, ini_val, empty_display_val = self.permissions.register.get_values(
+                opt
+            )
+            return Response(
+                f"**Permission:** `{opt}`\n"
+                f"Current Value:  `{cur_val}` {empty_display_val}\n"
+                f"INI File Value:  `{ini_val}`",
+                delete_after=30,
+            )
+
+        # update a permission, but don't save it.
+        if option == "set":
+            if group_arg == DEFAULT_OWNER_GROUP_NAME:
+                raise exceptions.CommandError(
+                    "The owner group is not editable.",
+                    expire_in=30,
+                )
+
+            if not value_arg:
+                raise exceptions.CommandError(
+                    "You must provide a section, option, and value for this sub command.",
+                    expire_in=30,
+                )
+
+            log.debug("Doing set with on %s == %s", opt, value_arg)
+            async with self.aiolocks["permission_update"]:
+                updated = self.permissions.update_option(opt, value_arg)
+            if not updated:
+                raise exceptions.CommandError(
+                    f"Permission `{opt}` was not updated!",
+                    expire_in=30,
+                )
+            return Response(
+                f"Permission `{opt}` was updated for this session.\n"
+                f"To save the change use `setperms save {opt.section} {opt.option}`",
+                delete_after=30,
+            )
+
+        return None
+
+    @owner_only
+    async def cmd_setname(self, leftover_args: List[str], name: str) -> CommandResponse:
         """
         Usage:
             {command_prefix}setname name
@@ -3634,22 +6445,27 @@ class MusicBot(discord.Client):
         name = " ".join([name, *leftover_args])
 
         try:
-            await self.user.edit(username=name)
+            if self.user:
+                await self.user.edit(username=name)
 
-        except discord.HTTPException:
+        except discord.HTTPException as e:
             raise exceptions.CommandError(
                 "Failed to change name. Did you change names too many times?  "
                 "Remember name changes are limited to twice per hour."
-            )
+            ) from e
 
         except Exception as e:
-            raise exceptions.CommandError(e, expire_in=20)
+            raise exceptions.CommandError(str(e), expire_in=20) from e
 
-        return Response(
-            "Set the bot's username to **{0}**".format(name), delete_after=20
-        )
+        return Response(f"Set the bot's username to **{name}**", delete_after=20)
 
-    async def cmd_setnick(self, guild, channel, leftover_args, nick):
+    async def cmd_setnick(
+        self,
+        guild: discord.Guild,
+        channel: MessageableChannel,
+        leftover_args: List[str],
+        nick: str,
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}setnick nick
@@ -3665,12 +6481,68 @@ class MusicBot(discord.Client):
         try:
             await guild.me.edit(nick=nick)
         except Exception as e:
-            raise exceptions.CommandError(e, expire_in=20)
+            raise exceptions.CommandError(str(e), expire_in=20)
 
-        return Response("Set the bot's nickname to `{0}`".format(nick), delete_after=20)
+        return Response(f"Set the bot's nickname to `{nick}`", delete_after=20)
+
+    async def cmd_setprefix(self, guild: discord.Guild, prefix: str) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}setprefix prefix
+
+        If enabled by owner, set an override for command prefix with a custom prefix.
+        """
+        if self.config.enable_options_per_guild:
+            # TODO: maybe filter odd unicode or bad words...
+            # Filter custom guild emoji, bot can only use in-guild emoji.
+            emoji_match = re.match(r"^<a?:(.+):(\d+)>$", prefix)
+            if emoji_match:
+                _e_name, e_id = emoji_match.groups()
+                try:
+                    emoji = self.get_emoji(int(e_id))
+                except ValueError:
+                    emoji = None
+                if not emoji:
+                    raise exceptions.CommandError(
+                        self.str.get(
+                            "cmd-setprefix-emoji-unavailable",
+                            "Custom emoji must be from this server to use as a prefix.",
+                        ),
+                        expire_in=30,
+                    )
+
+            if "clear" == prefix:
+                self.server_data[guild.id].command_prefix = ""
+                await self.server_data[guild.id].save_guild_options_file()
+                return Response(
+                    self.str.get(
+                        "cmd-setprefix-cleared",
+                        "Server command prefix is cleared.",
+                    )
+                )
+
+            self.server_data[guild.id].command_prefix = prefix
+            await self.server_data[guild.id].save_guild_options_file()
+            return Response(
+                self.str.get(
+                    "cmd-setprefix-changed",
+                    "Server command prefix is now:  {0}",
+                ).format(prefix),
+                delete_after=60,
+            )
+
+        raise exceptions.CommandError(
+            self.str.get(
+                "cmd-setprefix-disabled",
+                "Prefix per server is not enabled!",
+            ),
+            expire_in=30,
+        )
 
     @owner_only
-    async def cmd_setavatar(self, message, url=None):
+    async def cmd_setavatar(
+        self, message: discord.Message, av_url: str = ""
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}setavatar [url]
@@ -3679,10 +6551,11 @@ class MusicBot(discord.Client):
         Attaching a file and leaving the url parameter blank also works.
         """
 
+        url = self.downloader.get_url_or_none(av_url)
         if message.attachments:
             thing = message.attachments[0].url
         elif url:
-            thing = url.strip("<>")
+            thing = url
         else:
             raise exceptions.CommandError(
                 "You must provide a URL or attach a file.", expire_in=20
@@ -3690,49 +6563,165 @@ class MusicBot(discord.Client):
 
         try:
             timeout = aiohttp.ClientTimeout(total=10)
-            async with self.session.get(thing, timeout=timeout) as res:
-                await self.user.edit(avatar=await res.read())
+            if self.user and self.session:
+                async with self.session.get(thing, timeout=timeout) as res:
+                    await self.user.edit(avatar=await res.read())
 
         except Exception as e:
             raise exceptions.CommandError(
-                "Unable to change avatar: {}".format(e), expire_in=20
-            )
+                f"Unable to change avatar: {str(e)}", expire_in=20
+            ) from e
 
         return Response("Changed the bot's avatar.", delete_after=20)
 
-    async def cmd_disconnect(self, guild):
+    async def cmd_disconnect(self, guild: discord.Guild) -> CommandResponse:
         """
         Usage:
             {command_prefix}disconnect
 
         Forces the bot leave the current voice channel.
         """
-        await self.disconnect_voice_client(guild)
-        return Response("Disconnected from `{0.name}`".format(guild), delete_after=20)
+        voice_client = self.get_player_in(guild)
+        if voice_client:
+            await self.disconnect_voice_client(guild)
+            return Response(
+                self.str.get(
+                    "cmd-disconnect-success", "Disconnected from `{0.name}`"
+                ).format(guild),
+                delete_after=20,
+            )
 
-    async def cmd_restart(self, channel):
-        """
-        Usage:
-            {command_prefix}restart
+        # check for a raw voice client instead.
+        for vc in self.voice_clients:
+            if not hasattr(vc.channel, "guild"):
+                log.warning(
+                    "MusicBot found a %s with no guild!  This could be a problem.",
+                    type(vc),
+                )
+                continue
 
-        Restarts the bot.
-        Will not properly load new dependencies or file updates unless fully shutdown
-        and restarted.
-        """
-        await self.safe_send_message(
-            channel,
-            "\N{WAVING HAND SIGN} Restarting. If you have updated your bot "
-            "or its dependencies, you need to restart the bot properly, rather than using this command.",
+            if vc.channel.guild and vc.channel.guild == guild:
+                await self.disconnect_voice_client(guild)
+                return Response(
+                    "Disconnected a playerless voice client? [BUG]",
+                    delete_after=30,
+                )
+
+        raise exceptions.CommandError(
+            self.str.get(
+                "cmd-disconnect-no-voice", "Not currently connected to `{0.name}`"
+            ).format(guild),
+            expire_in=30,
         )
 
-        player = self.get_player_in(channel.guild)
-        if player and player.is_paused:
-            player.resume()
+    async def cmd_restart(
+        self,
+        _player: Optional[MusicPlayer],
+        channel: MessageableChannel,
+        opt: str = "soft",
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}restart [soft|full|upgrade|upgit|uppip]
+
+        Restarts the bot, uses soft restart by default.
+        `soft` reloads config without reloading bot code.
+        `full` restart reloading source code and configs.
+        `uppip` upgrade pip packages then fully restarts.
+        `upgit` upgrade bot with git then fully restarts.
+        `upgrade` upgrade bot and packages then restarts.
+        """
+        opt = opt.strip().lower()
+        if opt not in ["soft", "full", "upgrade", "uppip", "upgit"]:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-restart-invalid-arg",
+                    "Invalid option given, use: soft, full, upgrade, uppip, or upgit.",
+                ),
+                expire_in=30,
+            )
+
+        if opt == "soft":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-soft",
+                    "{emoji} Restarting current instance...",
+                ).format(
+                    emoji="\u21A9\uFE0F",  # Right arrow curving left
+                ),
+            )
+        elif opt == "full":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-full",
+                    "{emoji} Restarting bot process...",
+                ).format(
+                    emoji="\U0001F504",  # counterclockwise arrows
+                ),
+            )
+        elif opt == "uppip":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-uppip",
+                    "{emoji} Will try to upgrade required pip packages and restart the bot...",
+                ).format(
+                    emoji="\U0001F4E6",  # package / box
+                ),
+            )
+        elif opt == "upgit":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgit",
+                    "{emoji} Will try to update bot code with git and restart the bot...",
+                ).format(
+                    emoji="\U0001F5C3\uFE0F",  # card box
+                ),
+            )
+        elif opt == "upgrade":
+            await self.safe_send_message(
+                channel,
+                self.str.get(
+                    "cmd-restart-upgrade",
+                    "{emoji} Will try to upgrade everything and restart the bot...",
+                ).format(
+                    emoji="\U0001F310",  # globe with meridians
+                ),
+            )
+
+        if _player and _player.is_paused:
+            _player.resume()
 
         await self.disconnect_all_voice_clients()
-        raise exceptions.RestartSignal()
+        if opt == "soft":
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_SOFT)
 
-    async def cmd_shutdown(self, channel):
+        if opt == "full":
+            raise exceptions.RestartSignal(code=exceptions.RestartCode.RESTART_FULL)
+
+        if opt == "upgrade":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_ALL
+            )
+
+        if opt == "uppip":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_PIP
+            )
+
+        if opt == "upgit":
+            raise exceptions.RestartSignal(
+                code=exceptions.RestartCode.RESTART_UPGRADE_GIT
+            )
+
+        return None
+
+    async def cmd_shutdown(
+        self, guild: discord.Guild, channel: MessageableChannel
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}shutdown
@@ -3741,14 +6730,16 @@ class MusicBot(discord.Client):
         """
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
 
-        player = self.get_player_in(channel.guild)
+        player = self.get_player_in(guild)
         if player and player.is_paused:
             player.resume()
 
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
 
-    async def cmd_leaveserver(self, val, leftover_args):
+    async def cmd_leaveserver(
+        self, val: str, leftover_args: List[str]
+    ) -> CommandResponse:
         """
         Usage:
             {command_prefix}leaveserver <name/ID>
@@ -3756,39 +6747,64 @@ class MusicBot(discord.Client):
         Forces the bot to leave a server.
         When providing names, names are case-sensitive.
         """
+        guild_id = 0
+        guild_name = ""
         if leftover_args:
-            val = " ".join([val, *leftover_args])
+            guild_name = " ".join([val, *leftover_args])
 
-        t = self.get_guild(val)
-        if t is None:
+        try:
+            guild_id = int(val)
+        except ValueError as e:
+            if not guild_name:
+                # TODO: i18n / UI stuff
+                raise exceptions.CommandError("You must provide an ID or name.") from e
+
+        if guild_id:
+            leave_guild = self.get_guild(guild_id)
+
+        if leave_guild is None:
             # Get guild by name
-            t = discord.utils.get(self.guilds, name=val)
-            if t is None:
-                # Get guild by snowflake
-                try:
-                    t = discord.utils.get(self.guilds, id=int(val))
-                except ValueError:
-                    pass
+            leave_guild = discord.utils.get(self.guilds, name=guild_name)
 
-                if t is None:
-                    raise exceptions.CommandError(
-                        "No guild was found with the ID or name as `{0}`".format(val)
-                    )
-        await t.leave()
-        return Response(
-            "Left the guild: `{0.name}` (Owner: `{0.owner.name}`, ID: `{0.id}`)".format(
-                t
+        if leave_guild is None:
+            raise exceptions.CommandError(
+                f"No guild was found with the ID or name as `{val}`"
             )
+
+        await leave_guild.leave()
+
+        guild_name = leave_guild.name
+        guild_owner = leave_guild.owner.name if leave_guild.owner else "Unknown"
+        guild_id = leave_guild.id
+        # TODO: this response doesn't make sense if the command is issued
+        # from within the server being left.
+        return Response(
+            # TODO: i18n / UI stuff
+            f"Left the guild: `{guild_name}` (Owner: `{guild_owner}`, ID: `{guild_id}`)"
         )
 
     @dev_only
-    async def cmd_breakpoint(self, message):
+    async def cmd_breakpoint(self) -> CommandResponse:
+        """
+        Do nothing but print a critical level error to the log.
+        """
         log.critical("Activating debug breakpoint")
-        return
+        return None
 
     @dev_only
-    async def cmd_objgraph(self, channel, func="most_common_types()"):
-        import objgraph
+    async def cmd_objgraph(
+        self,
+        message: discord.Message,  # pylint: disable=unused-argument
+        channel: MessageableChannel,
+        func: str = "most_common_types()",
+    ) -> CommandResponse:
+        """
+        Interact with objgraph to make it spill the beans.
+        """
+        if not objgraph:
+            raise exceptions.CommandError(
+                "Could not import `objgraph`, is it installed?"
+            )
 
         await channel.typing()
 
@@ -3812,12 +6828,17 @@ class MusicBot(discord.Client):
             data = objgraph.typestats(objects=objgraph.get_leaking_objects())
 
         else:
-            data = eval("objgraph." + func)
+            data = eval("objgraph." + func)  # pylint: disable=eval-used
 
         return Response(data, codeblock="py")
 
     @dev_only
-    async def cmd_debug(self, message, _player, *, data):
+    async def cmd_debug(
+        self, _player: Optional[MusicPlayer], *, data: str
+    ) -> CommandResponse:
+        """
+        Evaluate or otherwise execute the python code in `data`
+        """
         codeblock = "```py\n{}\n```"
         result = None
 
@@ -3830,46 +6851,288 @@ class MusicBot(discord.Client):
         scope.update({"self": self})
 
         try:
-            result = eval(code, scope)
-        except:
+            result = eval(code, scope)  # pylint: disable=eval-used
+        except Exception:  # pylint: disable=broad-exception-caught
             try:
-                exec(code, scope)
-            except Exception as e:
+                exec(code, scope)  # pylint: disable=exec-used
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 traceback.print_exc(chain=False)
-                return Response("{}: {}".format(type(e).__name__, e))
+                type_name = type(e).__name__
+                return Response(f"{type_name}: {str(e)}")
 
         if asyncio.iscoroutine(result):
             result = await result
 
         return Response(codeblock.format(result))
 
-    async def on_message(self, message):
+    @owner_only
+    async def cmd_checkupdates(self, channel: MessageableChannel) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}checkupdates
+
+        Display the current bot version and check for updates to MusicBot or dependencies.
+        The option `GitUpdatesBranch` must be set to check for updates to MusicBot.
+        """
+        git_status = ""
+        pip_status = ""
+        updates = False
+
+        await channel.typing()
+
+        # attempt fetching git info.
+        try:
+            git_bin = shutil.which("git")
+            if not git_bin:
+                git_status = "Could not locate git executable."
+                raise RuntimeError("Could not locate git executable.")
+
+            git_cmd_branch = [git_bin, "rev-parse", "--abbrev-ref", "HEAD"]
+            git_cmd_check = [git_bin, "fetch", "--dry-run"]
+
+            # extract current git branch name.
+            cmd_branch = await asyncio.create_subprocess_exec(
+                *git_cmd_branch,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            branch_stdout, _stderr = await cmd_branch.communicate()
+            branch_name = branch_stdout.decode("utf8").strip()
+
+            # check if fetch would update.
+            cmd_check = await asyncio.create_subprocess_exec(
+                *git_cmd_check,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            check_stdout, check_stderr = await cmd_check.communicate()
+            check_stdout += check_stderr
+            lines = check_stdout.decode("utf8").split("\n")
+
+            # inspect dry run for our branch name to see if there are updates.
+            commit_to = ""
+            for line in lines:
+                parts = line.split()
+                if branch_name in parts:
+                    commits = line.strip().split(" ", maxsplit=1)[0]
+                    _commit_at, commit_to = commits.split("..")
+                    break
+
+            if not commit_to:
+                git_status = f"No updates in branch `{branch_name}` remote."
+            else:
+                git_status = (
+                    f"New commits are available in `{branch_name}` branch remote."
+                )
+                updates = True
+        except (OSError, ValueError, ConnectionError, RuntimeError):
+            log.exception("Failed while checking for updates via git command.")
+            git_status = "Error while checking, see logs for details."
+
+        # attempt to fetch pip info.
+        try:
+            pip_cmd_check = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-U",
+                "-r",
+                "./requirements.txt",
+                "--quiet",
+                "--dry-run",
+                "--report",
+                "-",
+            ]
+            pip_cmd = await asyncio.create_subprocess_exec(
+                *pip_cmd_check,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            pip_stdout, _stderr = await pip_cmd.communicate()
+            pip_json = json.loads(pip_stdout)
+            pip_packages = ""
+            for pkg in pip_json.get("install", []):
+                meta = pkg.get("metadata", {})
+                if not meta:
+                    log.debug("Package missing meta in pip report.")
+                    continue
+                name = meta.get("name", "")
+                ver = meta.get("version", "")
+                if name and ver:
+                    pip_packages += f"Update for `{name}` to version: `{ver}`\n"
+            if pip_packages:
+                pip_status = pip_packages
+                updates = True
+            else:
+                pip_status = "No updates for dependencies found."
+        except (OSError, ValueError, ConnectionError):
+            log.exception("Failed to get pip update status due to some error.")
+            pip_status = "Error while checking, see logs for details."
+
+        if updates:
+            header = "There are updates for MusicBot available for download."
+        else:
+            header = "MusicBot is totally up-to-date!"
+
+        return Response(
+            f"{header}\n\n"
+            f"**Source Code Updates:**\n{git_status}\n\n"
+            f"**Dependency Updates:**\n{pip_status}",
+            delete_after=60,
+        )
+
+    async def cmd_uptime(self) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}uptime
+
+        Displays the MusicBot uptime, since last start/restart.
+        """
+        uptime = time.time() - self._init_time
+        delta = format_song_duration(uptime)
+        return Response(
+            f"MusicBot has been up for `{delta}`",
+        )
+
+    @owner_only
+    async def cmd_botlatency(self) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}botlatency
+
+        Prints latency info for all voice clients.
+        """
+        vclats = ""
+        for vc in self.voice_clients:
+            if not isinstance(vc, discord.VoiceClient) or not hasattr(
+                vc.channel, "rtc_region"
+            ):
+                log.debug("Got a strange voice client entry.")
+                continue
+
+            vl = vc.latency * 1000
+            vla = vc.average_latency * 1000
+            # Display Auto for region instead of None
+            region = vc.channel.rtc_region or "auto"
+            vclats += f"- `{vl:.0f} ms` (`{vla:.0f} ms` Avg.) in region: `{region}`\n"
+
+        if not vclats:
+            vclats = "No voice clients connected.\n"
+
+        sl = self.latency * 1000
+        return Response(
+            f"**API Latency:** `{sl:.0f} ms`\n**VoiceClient Latency:**\n{vclats}",
+            delete_after=30,
+        )
+
+    async def cmd_latency(self, guild: discord.Guild) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}latency
+
+        Prints the latency info available to MusicBot.
+        If connected to a voice channel, voice latency is also returned.
+        """
+
+        voice_lat = ""
+        if guild.id in self.players:
+            vc = self.players[guild.id].voice_client
+            if vc:
+                vl = vc.latency * 1000
+                vla = vc.average_latency * 1000
+                voice_lat = f"\n**Voice Latency:** `{vl:.0f} ms` (`{vla:.0f} ms` Avg.)"
+        sl = self.latency * 1000
+        return Response(
+            f"**API Latency:** `{sl:.0f} ms`{voice_lat}",
+            delete_after=30,
+        )
+
+    async def cmd_botversion(self) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}botversion
+
+        Prints the current bot version to chat.
+        """
+        return Response(
+            "https://github.com/Just-Some-Bots/MusicBot\n"
+            f"Current version:  `{BOTVERSION}`",
+            delete_after=30,
+        )
+
+    async def on_message(self, message: discord.Message) -> None:
+        """
+        Event called by discord.py when any message is sent to/around the bot.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_message
+        """
         await self.wait_until_ready()
 
+        if not message.channel:
+            log.debug("Got a message with no channel, somehow:  %s", message)
+            return
+
+        self_mention = "<@MusicBot>"  # placeholder
+        if self.user:
+            self_mention = f"<@{self.user.id}>"
+
+        if message.channel.guild:
+            command_prefix = self.server_data[message.channel.guild.id].command_prefix
+        else:
+            command_prefix = self.config.command_prefix
         message_content = message.content.strip()
-        if not message_content.startswith(self.config.command_prefix):
+        # if the prefix is an emoji, silently remove the space often auto-inserted after it.
+        # this regex will get us close enough to knowing if an unicode emoji is in the prefix...
+        emoji_regex = re.compile(r"^(<a?:.+:\d+>|:.+:|[^ -~]+)$")
+        if emoji_regex.match(command_prefix):
+            message_content = message_content.replace(
+                f"{command_prefix} ", command_prefix, 1
+            )
+
+        if not message_content.startswith(command_prefix) and (
+            self.config.commands_via_mention
+            and not message_content.startswith(self_mention)
+        ):
             return
 
         if message.author == self.user:
-            log.warning("Ignoring command from myself ({})".format(message.content))
+            log.warning("Ignoring command from myself (%s)", message.content)
             return
 
         if (
             message.author.bot
             and message.author.id not in self.config.bot_exception_ids
         ):
-            log.warning("Ignoring command from other bot ({})".format(message.content))
+            log.warning("Ignoring command from other bot (%s)", message.content)
             return
 
         if (not isinstance(message.channel, discord.abc.GuildChannel)) and (
             not isinstance(message.channel, discord.abc.PrivateChannel)
         ):
+            log.warning(
+                "Ignoring command from channel of type:  %s", type(message.channel)
+            )
             return
 
-        command, *args = message_content.split(
-            " "
-        )  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
-        command = command[len(self.config.command_prefix) :].lower().strip()
+        if self.config.commands_via_mention and message_content.startswith(
+            self_mention
+        ):
+            # replace the space often included after mentions.
+            message_content = message_content.replace(
+                f"{self_mention} ", self_mention, 1
+            )
+            command_prefix = self_mention
+
+        # handle spaces inside of a command prefix.
+        # this is only possible through manual edits to the config.
+        if " " in command_prefix:
+            invalid_prefix = command_prefix
+            command_prefix = command_prefix.replace(" ", "_")
+            message_content = message_content.replace(invalid_prefix, command_prefix, 1)
+
+        # Extract the command name and args from the message content.
+        command, *args = message_content.split(" ")
+        command = command[len(command_prefix) :].lower().strip()
 
         # [] produce [''] which is not what we want (it break things)
         if args:
@@ -3899,6 +7162,7 @@ class MusicBot(discord.Client):
 
         if (
             self.config.bound_channels
+            and message.guild
             and message.channel.id not in self.config.bound_channels
         ):
             if self.config.unbound_servers:
@@ -3908,21 +7172,25 @@ class MusicBot(discord.Client):
             else:
                 return  # if I want to log this I just move it under the prefix check
 
+        # check for user id or name in blacklist.
         if (
-            message.author.id in self.blacklist
+            self.config.user_blocklist.is_blocked(message.author)
             and message.author.id != self.config.owner_id
         ):
             log.warning(
-                "User blacklisted: {0.id}/{0!s} ({1})".format(message.author, command)
+                "User in block list: %s/%s  tried command: %s",
+                message.author.id,
+                str(message.author),
+                command,
             )
             return
 
-        else:
-            log.info(
-                "{0.id}/{0!s}: {1}".format(
-                    message.author, message_content.replace("\n", "\n... ")
-                )
-            )
+        log.info(
+            "Message from %s/%s: %s",
+            message.author.id,
+            str(message.author),
+            message_content.replace("\n", "\n... "),
+        )
 
         user_permissions = self.permissions.for_user(message.author)
 
@@ -3931,7 +7199,6 @@ class MusicBot(discord.Client):
 
         sentmsg = response = None
 
-        # noinspection PyBroadException
         try:
             if (
                 user_permissions.ignore_non_voice
@@ -3939,7 +7206,8 @@ class MusicBot(discord.Client):
             ):
                 await self._check_ignore_non_voice(message)
 
-            handler_kwargs = {}
+            # populate the existing command signature args.
+            handler_kwargs: Dict[str, Any] = {}
             if params.pop("message", None):
                 handler_kwargs["message"] = message
 
@@ -3952,29 +7220,72 @@ class MusicBot(discord.Client):
             if params.pop("guild", None):
                 handler_kwargs["guild"] = message.guild
 
+            # this is the player-required arg, it prompts to be summoned if not already in voice.
+            # or otherwise denies use if non-guild voice is used.
             if params.pop("player", None):
-                handler_kwargs["player"] = await self.get_player(message.channel)
+                # however, it needs a voice channel to connect to.
+                if (
+                    isinstance(message.author, discord.Member)
+                    and message.guild
+                    and message.author.voice
+                    and message.author.voice.channel
+                ):
+                    handler_kwargs["player"] = await self.get_player(
+                        message.author.voice.channel
+                    )
+                else:
+                    # TODO: enable ignore-non-voice commands to work here
+                    # by looking for the first available VC if author has none.
+                    raise exceptions.CommandError(
+                        "This command requires you to be in a Guild Voice channel."
+                    )
 
+            # this is the optional-player arg.
             if params.pop("_player", None):
-                handler_kwargs["_player"] = self.get_player_in(message.guild)
+                if message.guild:
+                    handler_kwargs["_player"] = self.get_player_in(message.guild)
+                else:
+                    handler_kwargs["_player"] = None
 
             if params.pop("permissions", None):
                 handler_kwargs["permissions"] = user_permissions
 
+            # this arg only works in guilds.
             if params.pop("user_mentions", None):
-                handler_kwargs["user_mentions"] = list(
-                    map(message.guild.get_member, message.raw_mentions)
-                )
 
+                def member_or_user(
+                    uid: int,
+                ) -> Optional[Union[discord.Member, discord.User]]:
+                    if message.guild:
+                        m = message.guild.get_member(uid)
+                        if m:
+                            return m
+                    return self.get_user(uid)
+
+                handler_kwargs["user_mentions"] = []
+                for um_id in message.raw_mentions:
+                    m = member_or_user(um_id)
+                    if m is not None:
+                        handler_kwargs["user_mentions"].append(m)
+
+            # this arg only works in guilds.
             if params.pop("channel_mentions", None):
-                handler_kwargs["channel_mentions"] = list(
-                    map(message.guild.get_channel, message.raw_channel_mentions)
-                )
+                if message.guild:
+                    handler_kwargs["channel_mentions"] = list(
+                        map(message.guild.get_channel, message.raw_channel_mentions)
+                    )
+                else:
+                    handler_kwargs["channel_mentions"] = []
 
             if params.pop("voice_channel", None):
-                handler_kwargs["voice_channel"] = (
-                    message.guild.me.voice.channel if message.guild.me.voice else None
-                )
+                if message.guild:
+                    handler_kwargs["voice_channel"] = (
+                        message.guild.me.voice.channel
+                        if message.guild.me.voice
+                        else None
+                    )
+                else:
+                    handler_kwargs["voice_channel"] = None
 
             if params.pop("leftover_args", None):
                 handler_kwargs["leftover_args"] = args
@@ -3995,7 +7306,7 @@ class MusicBot(discord.Client):
                     continue
 
                 doc_key = (
-                    "[{}={}]".format(key, param.default)
+                    f"[{key}={param.default}]"
                     if param.default is not param.empty
                     else key
                 )
@@ -4012,43 +7323,21 @@ class MusicBot(discord.Client):
                     handler_kwargs[key] = arg_value
                     params.pop(key)
 
+            # Test non-owners for command permissions.
             if message.author.id != self.config.owner_id:
-                if (
-                    user_permissions.command_whitelist
-                    and command not in user_permissions.command_whitelist
-                ):
-                    raise exceptions.PermissionsError(
-                        "This command is not enabled for your group ({}).".format(
-                            user_permissions.name
-                        ),
-                        expire_in=20,
-                    )
-
-                elif (
-                    user_permissions.command_blacklist
-                    and command in user_permissions.command_blacklist
-                ):
-                    raise exceptions.PermissionsError(
-                        "This command is disabled for your group ({}).".format(
-                            user_permissions.name
-                        ),
-                        expire_in=20,
-                    )
+                user_permissions.can_use_command(command)
 
             # Invalid usage, return docstring
             if params:
                 docs = getattr(handler, "__doc__", None)
                 if not docs:
-                    docs = "Usage: {}{} {}".format(
-                        self.config.command_prefix, command, " ".join(args_expected)
-                    )
+                    doc_args = " ".join(args_expected)
+                    docs = f"Usage: {command_prefix}{command} {doc_args}"
 
-                docs = dedent(docs)
+                docs = dedent(docs).format(command_prefix=command_prefix)
                 await self.safe_send_message(
                     message.channel,
-                    "```\n{}\n```".format(
-                        docs.format(command_prefix=self.config.command_prefix)
-                    ),
+                    f"```\n{docs}\n```",
                     expire_in=60,
                 )
                 return
@@ -4062,26 +7351,33 @@ class MusicBot(discord.Client):
                     content = self._gen_embed()
                     content.title = command
                     content.description = response.content
-                else:
-                    content = response.content
 
-                if response.reply:
-                    if isinstance(content, discord.Embed):
-                        content.description = "{} {}".format(
-                            message.author.mention,
-                            content.description,
+                    if response.reply:
+                        content.description = (
+                            f"{message.author.mention} {content.description}"
                         )
-                    else:
-                        content = "{}: {}".format(message.author.mention, content)
+                    sentmsg = await self.safe_send_message(
+                        message.channel,
+                        content,
+                        expire_in=(
+                            response.delete_after if self.config.delete_messages else 0
+                        ),
+                        also_delete=message if self.config.delete_invoking else None,
+                    )
 
-                sentmsg = await self.safe_send_message(
-                    message.channel,
-                    content,
-                    expire_in=response.delete_after
-                    if self.config.delete_messages
-                    else 0,
-                    also_delete=message if self.config.delete_invoking else None,
-                )
+                else:
+                    contents = response.content
+                    if response.reply:
+                        contents = f"{message.author.mention}: {contents}"
+
+                    sentmsg = await self.safe_send_message(
+                        message.channel,
+                        contents,
+                        expire_in=(
+                            response.delete_after if self.config.delete_messages else 0
+                        ),
+                        also_delete=message if self.config.delete_invoking else None,
+                    )
 
         except (
             exceptions.CommandError,
@@ -4089,40 +7385,59 @@ class MusicBot(discord.Client):
             exceptions.ExtractionError,
         ) as e:
             log.error(
-                "Error in {0}: {1.__class__.__name__}: {1.message}".format(command, e),
+                "Error in %s: %s: %s",
+                command,
+                e.__class__.__name__,
+                e.message,
                 exc_info=True,
             )
 
-            expirein = e.expire_in if self.config.delete_messages else None
+            expirein = e.expire_in if self.config.delete_messages else 0
             alsodelete = message if self.config.delete_invoking else None
 
             if self.config.embeds:
                 content = self._gen_embed()
                 content.add_field(name="Error", value=e.message, inline=False)
-                content.colour = 13369344
-            else:
-                content = "```\n{}\n```".format(e.message)
+                content.colour = discord.Colour(13369344)
 
-            await self.safe_send_message(
-                message.channel, content, expire_in=expirein, also_delete=alsodelete
-            )
+                await self.safe_send_message(
+                    message.channel, content, expire_in=expirein, also_delete=alsodelete
+                )
+
+            else:
+                contents = f"```\n{e.message}\n```"
+
+                await self.safe_send_message(
+                    message.channel,
+                    contents,
+                    expire_in=expirein,
+                    also_delete=alsodelete,
+                )
 
         except exceptions.Signal:
             raise
 
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             log.error("Exception in on_message", exc_info=True)
             if self.config.debug_mode:
-                await self.safe_send_message(
-                    message.channel, "```\n{}\n```".format(traceback.format_exc())
-                )
+                tb_str = traceback.format_exc()
+                await self.safe_send_message(message.channel, f"```\n{tb_str}\n```")
 
         finally:
             if not sentmsg and not response and self.config.delete_invoking:
                 await asyncio.sleep(5)
                 await self.safe_delete_message(message, quiet=True)
 
-    async def gen_cmd_list(self, message, list_all_cmds=False):
+    async def gen_cmd_list(
+        self, message: discord.Message, list_all_cmds: bool = False
+    ) -> List[str]:
+        """
+        Return a list of valid command names, without prefix, for the given message author.
+        Commands marked with @dev_cmd are never included.
+
+        Param `list_all_cmds` set True will list commands regardless of permission restrictions.
+        """
+        commands = []
         for att in dir(self):
             # This will always return at least cmd_help, since they needed perms to run this command
             if att.startswith("cmd_") and not hasattr(getattr(self, att), "dev_cmd"):
@@ -4131,9 +7446,7 @@ class MusicBot(discord.Client):
                 whitelist = user_permissions.command_whitelist
                 blacklist = user_permissions.command_blacklist
                 if list_all_cmds:
-                    self.commands.append(
-                        "{}{}".format(self.config.command_prefix, command_name)
-                    )
+                    commands.append(command_name)
 
                 elif blacklist and command_name in blacklist:
                     pass
@@ -4142,203 +7455,400 @@ class MusicBot(discord.Client):
                     pass
 
                 else:
-                    self.commands.append(
-                        "{}{}".format(self.config.command_prefix, command_name)
+                    commands.append(command_name)
+        return commands
+
+    async def on_inactivity_timeout_expired(
+        self, voice_channel: VoiceableChannel
+    ) -> None:
+        """
+        A generic event called by MusicBot when configured channel or player
+        activity timers reach their end.
+        """
+        guild = voice_channel.guild
+
+        if voice_channel:
+            last_np_msg = self.server_data[guild.id].last_np_msg
+            if last_np_msg is not None and last_np_msg.channel:
+                channel = last_np_msg.channel
+                if self.config.embeds:
+                    embed = self._gen_embed()
+                    embed.title = "Leaving voice channel"
+                    embed.description = (
+                        f"Leaving voice channel {voice_channel.name} due to inactivity."
+                    )
+                    await self.safe_send_message(channel, embed, expire_in=30)
+                else:
+                    await self.safe_send_message(
+                        channel,
+                        f"Leaving voice channel {voice_channel.name} in due to inactivity.",
+                        expire_in=30,
                     )
 
-    async def on_voice_state_update(self, member, before, after):
+            log.info(
+                "Leaving voice channel %s in %s due to inactivity.",
+                voice_channel.name,
+                voice_channel.guild,
+            )
+            await self.disconnect_voice_client(guild)
+
+    async def on_connect(self) -> None:
+        """Event called by discord.py when the Client has connected to the API."""
+        if self.init_ok:
+            log.info("MusicBot has become connected.")
+
+    async def on_disconnect(self) -> None:
+        """Event called by discord.py any time bot is disconnected, or fails to connect."""
+        log.info("MusicBot has become disconnected.")
+
+    async def on_socket_event_type(self, event_type: str) -> None:
+        """Event called by discord.py on any socket event."""
+        log.everything(  # type: ignore[attr-defined]
+            "Got a Socket Event:  %s", event_type
+        )
+
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        before: discord.VoiceState,
+        after: discord.VoiceState,
+    ) -> None:
+        """
+        Event called by discord.py when a VoiceClient changes state in any way.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_voice_state_update
+        """
         if not self.init_ok:
+            if self.config.debug_mode:
+                log.warning(
+                    "VoiceState updated before on_ready finished"
+                )  # TODO: remove after coverage testing
             return  # Ignore stuff before ready
 
-        if before.channel:
-            channel = before.channel
-        elif after.channel:
-            channel = after.channel
-        else:
-            return
+        guild = member.guild
+        follow_user = self.server_data[guild.id].follow_user
 
-        if (
-            member == self.user and not after.channel
-        ):  # if bot was disconnected from channel
-            await self.disconnect_voice_client(before.channel.guild)
-            return
+        if self.config.leave_inactive_channel and not follow_user:
+            event = self.server_data[guild.id].get_event("inactive_vc_timer")
 
-        if not self.config.auto_pause:
-            return
-
-        autopause_msg = "{state} in {channel.guild.name}/{channel.name} {reason}"
-
-        auto_paused = self.server_specific_data[channel.guild]["auto_paused"]
-
-        try:
-            player = await self.get_player(channel)
-        except exceptions.CommandError:
-            return
-
-        def is_active(member):
-            if not member.voice:
-                return False
-
-            if any([member.voice.deaf, member.voice.self_deaf, member.bot]):
-                return False
-
-            return True
-
-        if not member == self.user and is_active(member):  # if the user is not inactive
-            if (
-                player.voice_client.channel != before.channel
-                and player.voice_client.channel == after.channel
-            ):  # if the person joined
-                if auto_paused and player.is_paused:
+            if before.channel and self.user in before.channel.members:
+                if str(before.channel.id) in str(self.config.autojoin_channels):
                     log.info(
-                        autopause_msg.format(
-                            state="Unpausing",
-                            channel=player.voice_client.channel,
-                            reason="",
-                        ).strip()
+                        "Ignoring %s in %s as it is a bound voice channel.",
+                        before.channel.name,
+                        before.channel.guild,
                     )
 
-                    self.server_specific_data[player.voice_client.guild][
-                        "auto_paused"
-                    ] = False
-                    player.resume()
-            elif (
-                player.voice_client.channel == before.channel
-                and player.voice_client.channel != after.channel
-            ):
-                if not any(
-                    is_active(m) for m in player.voice_client.channel.members
-                ):  # channel is empty
-                    if not auto_paused and player.is_playing:
+                elif is_empty_voice_channel(
+                    before.channel, include_bots=self.config.bot_exception_ids
+                ):
+                    log.info(
+                        "%s has been detected as empty. Handling timeouts.",
+                        before.channel.name,
+                    )
+                    self.loop.create_task(self.handle_vc_inactivity(guild))
+            elif after.channel and member != self.user:
+                if self.user in after.channel.members:
+                    if event.is_active():
+                        # Added to not spam the console with the message for every person that joins
                         log.info(
-                            autopause_msg.format(
-                                state="Pausing",
-                                channel=player.voice_client.channel,
-                                reason="(empty channel)",
-                            ).strip()
+                            "A user joined %s, cancelling timer.",
+                            after.channel.name,
+                        )
+                    event.set()
+
+            if (
+                member == self.user and before.channel and after.channel
+            ):  # bot got moved from channel to channel
+                # if not any(not user.bot for user in after.channel.members):
+                if is_empty_voice_channel(
+                    after.channel, include_bots=self.config.bot_exception_ids
+                ):
+                    log.info(
+                        "The bot got moved and the voice channel %s is empty. Handling timeouts.",
+                        after.channel.name,
+                    )
+                    self.loop.create_task(self.handle_vc_inactivity(guild))
+                else:
+                    if event.is_active():
+                        log.info(
+                            "The bot got moved and the voice channel %s is not empty.",
+                            after.channel.name,
+                        )
+                        event.set()
+
+        # Voice stat updates for bot itself.
+        if member == self.user:
+            # check if bot was disconnected from a voice channel
+            if not after.channel and before.channel and not self.network_outage:
+                if await self._handle_api_disconnect(before):
+                    return
+
+        if before.channel:
+            player = self.get_player_in(before.channel.guild)
+            if player and not follow_user:
+                await self._handle_guild_auto_pause(player)
+        if after.channel:
+            player = self.get_player_in(after.channel.guild)
+            if player and not follow_user:
+                await self._handle_guild_auto_pause(player)
+
+        if follow_user and member.id == follow_user.id:
+            # follow-user has left the server voice channels.
+            if after.channel is None:
+                log.debug("No longer following user %s", member)
+                self.server_data[member.guild.id].follow_user = None
+                if player and not self.server_data[member.guild.id].auto_join_channel:
+                    await self._handle_guild_auto_pause(player)
+                if player and self.server_data[member.guild.id].auto_join_channel:
+                    if (
+                        player.voice_client.channel
+                        != self.server_data[member.guild.id].auto_join_channel
+                    ):
+                        # move_to does not support setting deafen flags nor keep
+                        # the flags set from initial connection.
+                        # await player.voice_client.move_to(
+                        #     self.server_data[member.guild.id].auto_join_channel
+                        # )
+                        await member.guild.change_voice_state(
+                            channel=self.server_data[member.guild.id].auto_join_channel,
+                            self_deaf=self.config.self_deafen,
                         )
 
-                        self.server_specific_data[player.voice_client.guild][
-                            "auto_paused"
-                        ] = True
-                        player.pause()
-            elif (
-                player.voice_client.channel == before.channel
-                and player.voice_client.channel == after.channel
-            ):  # if the person undeafen
-                if auto_paused and player.is_paused:
-                    log.info(
-                        autopause_msg.format(
-                            state="Unpausing",
-                            channel=player.voice_client.channel,
-                            reason="(member undeafen)",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild][
-                        "auto_paused"
-                    ] = False
-                    player.resume()
-        else:
-            if any(
-                is_active(m) for m in player.voice_client.channel.members
-            ):  # channel is not empty
-                if auto_paused and player.is_paused:
-                    log.info(
-                        autopause_msg.format(
-                            state="Unpausing",
-                            channel=player.voice_client.channel,
-                            reason="",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild][
-                        "auto_paused"
-                    ] = False
-                    player.resume()
-
-            else:
-                if not auto_paused and player.is_playing:
-                    log.info(
-                        autopause_msg.format(
-                            state="Pausing",
-                            channel=player.voice_client.channel,
-                            reason="(empty channel or member deafened)",
-                        ).strip()
-                    )
-
-                    self.server_specific_data[player.voice_client.guild][
-                        "auto_paused"
-                    ] = True
+            # follow-user has moved to a new channel.
+            elif before.channel != after.channel and player:
+                log.debug("Following user `%s` to channel:  %s", member, after.channel)
+                if player.is_playing:
                     player.pause()
-
-    async def on_guild_update(self, before: discord.Guild, after: discord.Guild):
-        if before.region != after.region:
-            log.warning(
-                'Guild "%s" changed regions: %s -> %s'
-                % (after.name, before.region, after.region)
-            )
-
-    async def on_guild_join(self, guild: discord.Guild):
-        log.info("Bot has been added to guild: {}".format(guild.name))
-        owner = self._get_owner(voice=True) or self._get_owner()
-        if self.config.leavenonowners:
-            check = guild.get_member(owner.id)
-            if check is None:
-                await guild.leave()
-                log.info("Left {} due to bot owner not found.".format(guild.name))
-                await owner.send(
-                    self.str.get(
-                        "left-no-owner-guilds",
-                        "Left `{}` due to bot owner not being found in it.".format(
-                            guild.name
-                        ),
-                    )
+                # using move_to does not respect the self-deafen flags from connect
+                # nor does it allow us to set them...
+                # await player.voice_client.move_to(after.channel)
+                await member.guild.change_voice_state(
+                    channel=after.channel,
+                    self_deaf=self.config.self_deafen,
                 )
+                if player.is_paused:
+                    player.resume()
+
+    async def _handle_api_disconnect(self, before: discord.VoiceState) -> bool:
+        """
+        Method called from on_voice_state_update when MusicBot is disconnected from voice.
+        """
+        if not before.channel:
+            log.debug("VoiceState disconnect before.channel is None.")
+            return False
+
+        o_guild = self.get_guild(before.channel.guild.id)
+        o_vc: Optional[discord.VoiceClient] = None
+        close_code: Optional[int] = None
+        state: Optional[Any] = None
+        if o_guild is not None and isinstance(
+            o_guild.voice_client, discord.VoiceClient
+        ):
+            o_vc = o_guild.voice_client
+            # borrow this for logging sake.
+            close_code = (
+                o_vc._connection.ws._close_code  # pylint: disable=protected-access
+            )
+            state = o_vc._connection.state  # pylint: disable=protected-access
+
+        # These conditions are met when API terminates a voice client.
+        # This could be a user initiated disconnect, but we have no way to tell.
+        # Normally VoiceClients should auto-reconnect. However attempting to wait
+        # by using VoiceClient.wait_until_connected() never seems to resolve.
+        if (
+            o_guild is not None
+            and ((o_vc and not o_vc.is_connected()) or o_vc is None)
+            and o_guild.id in self.players
+        ):
+            log.info(
+                "Disconnected from voice by Discord API in: %s/%s (Code: %s) [S:%s]",
+                o_guild.name,
+                before.channel.name,
+                close_code,
+                state.name.upper() if state else None,
+            )
+            await self.disconnect_voice_client(o_guild)
+
+            # reconnect if the guild is configured to auto-join.
+            if self.server_data[o_guild.id].auto_join_channel is not None:
+                # Look for the last channel we were in.
+                target_channel = self.get_channel(before.channel.id)
+                if not target_channel:
+                    # fall back to the configured channel.
+                    target_channel = self.server_data[o_guild.id].auto_join_channel
+
+                if not isinstance(
+                    target_channel, (discord.VoiceChannel, discord.StageChannel)
+                ):
+                    log.error(
+                        "Cannot use auto-join channel with type: %s  in guild:  %s",
+                        type(target_channel),
+                        before.channel.guild,
+                    )
+                    return True
+
+                if not target_channel:
+                    log.error(
+                        "Cannot find the auto-joined channel, was it deleted?  Guild:  %s",
+                        before.channel.guild,
+                    )
+                    return True
+
+                log.info(
+                    "Reconnecting to auto-joined guild on channel:  %s",
+                    target_channel,
+                )
+                try:
+                    r_player = await self.get_player(
+                        target_channel, create=True, deserialize=True
+                    )
+
+                    if r_player.is_stopped:
+                        r_player.play()
+
+                except (TypeError, exceptions.PermissionsError):
+                    log.warning(
+                        "Cannot auto join channel:  %s",
+                        before.channel,
+                        exc_info=True,
+                    )
+            return True
+
+        # TODO: If bot has left a server but still had a client, we should kill it.
+        # if o_guild is None and before.channel.guild.id in self.players:
+
+        return False
+
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        """
+        Event called by discord.py when the bot joins a new guild.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_join
+        """
+        log.info("Bot has been added to guild: %s", guild.name)
+
+        # Leave guilds if the owner is not a member and configured to do so.
+        if self.config.leavenonowners:
+            # Get the owner so we can notify them of the leave via DM.
+            owner = self._get_owner_member()
+            if owner:
+                # check for the owner in the guild.
+                check = guild.get_member(owner.id)
+                if check is None:
+                    await guild.leave()
+                    log.info(
+                        "Left guild '%s' due to bot owner not found.",
+                        guild.name,
+                    )
+                    await owner.send(
+                        self.str.get(
+                            "left-no-owner-guilds",
+                            "Left `{}` due to bot owner not being found in it.",
+                        ).format(guild.name)
+                    )
 
         log.debug("Creating data folder for guild %s", guild.id)
-        pathlib.Path("data/%s/" % guild.id).mkdir(exist_ok=True)
+        self.config.data_path.joinpath(str(guild.id)).mkdir(exist_ok=True)
 
-    async def on_guild_remove(self, guild: discord.Guild):
-        log.info("Bot has been removed from guild: {}".format(guild.name))
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        """
+        Event called by discord.py when the bot is removed from a guild or a guild is deleted.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_remove
+        """
+        log.info("Bot has been removed from guild: %s", guild.name)
         log.debug("Updated guild list:")
-        [log.debug(" - " + s.name) for s in self.guilds]
+        for s in self.guilds:
+            log.debug(" - %s", s.name)
 
         if guild.id in self.players:
             self.players.pop(guild.id).kill()
 
-    async def on_guild_available(self, guild: discord.Guild):
+    async def on_guild_available(self, guild: discord.Guild) -> None:
+        """
+        Event called by discord.py when a guild becomes available.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_available
+        """
         if not self.init_ok:
             return  # Ignore pre-ready events
 
-        log.debug('Guild "{}" has become available.'.format(guild.name))
+        log.info('Guild "%s" has become available.', guild.name)
 
         player = self.get_player_in(guild)
 
-        if player and player.is_paused:
-            av_paused = self.server_specific_data[guild]["availability_paused"]
+        if player and player.is_paused and player.guild_or_net_unavailable:
+            log.debug(
+                'Resuming player in "%s" due to availability.',
+                guild.name,
+            )
+            player.guild_or_net_unavailable = False
+            player.resume()
 
-            if av_paused:
-                log.debug(
-                    'Resuming player in "{}" due to availability.'.format(guild.name)
-                )
-                self.server_specific_data[guild]["availability_paused"] = False
-                player.resume()
+        if player:
+            player.guild_or_net_unavailable = False
 
-    async def on_guild_unavailable(self, guild: discord.Guild):
-        log.debug('Guild "{}" has become unavailable.'.format(guild.name))
+    async def on_guild_unavailable(self, guild: discord.Guild) -> None:
+        """
+        Event called by discord.py when Discord API says a guild is unavailable.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_unavailable
+        """
+        if not self.init_ok:
+            return  # Ignore pre-ready events.
+
+        log.info('Guild "%s" has become unavailable.', guild.name)
 
         player = self.get_player_in(guild)
 
         if player and player.is_playing:
             log.debug(
-                'Pausing player in "{}" due to unavailability.'.format(guild.name)
+                'Pausing player in "%s" due to unavailability.',
+                guild.name,
             )
-            self.server_specific_data[guild]["availability_paused"] = True
             player.pause()
 
-    def voice_client_in(self, guild):
-        for vc in self.voice_clients:
-            if vc.guild == guild:
-                return vc
-        return None
+        if player:
+            player.guild_or_net_unavailable = True
+
+    async def on_guild_update(
+        self, before: discord.Guild, after: discord.Guild
+    ) -> None:
+        """
+        Event called by discord.py when guild properties are updated.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_update
+        """
+        if log.getEffectiveLevel() <= logging.EVERYTHING:  # type: ignore[attr-defined]
+            log.info("Guild update for:  %s", before)
+            for name in set(getattr(before, "__slotnames__")):
+                a_val = getattr(after, name, None)
+                b_val = getattr(before, name, None)
+                if b_val != a_val:
+                    log.everything(  # type: ignore[attr-defined]
+                        f"Guild attribute {name} is now: {a_val}  -- Was: {b_val}"
+                    )
+
+    async def on_guild_channel_update(
+        self, before: GuildMessageableChannels, after: GuildMessageableChannels
+    ) -> None:
+        """
+        Event called by discord.py when a guild channel is updated.
+        https://discordpy.readthedocs.io/en/stable/api.html#discord.on_guild_channel_update
+        """
+        # This allows us to log when certain channel properties are changed.
+        # Mostly for information sake at current.
+        changes = ""
+        if before.name != after.name:
+            changes += f" name = {after.name}"
+        if isinstance(
+            before, (discord.VoiceChannel, discord.StageChannel)
+        ) and isinstance(after, (discord.VoiceChannel, discord.StageChannel)):
+            # Splitting hairs, but we could pause playback here until voice update later.
+            if before.rtc_region != after.rtc_region:
+                changes += f" voice-region = {after.rtc_region}"
+            if before.bitrate != after.bitrate:
+                changes += f" bitrate = {after.bitrate}"
+            if before.user_limit != after.user_limit:
+                changes += f" user-limit = {after.user_limit}"
+        # The chat delay is not currently respected by MusicBot. Is this a problem?
+        if before.slowmode_delay != after.slowmode_delay:
+            changes += f" slowmode = {after.slowmode_delay}"
+
+        if changes:
+            log.info("Channel update for:  %s  --  %s", before, changes)
