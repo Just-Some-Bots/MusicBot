@@ -7035,6 +7035,59 @@ class MusicBot(discord.Client):
 
         return Response(codeblock.format(result))
 
+    @dev_only
+    async def cmd_makemarkdown(
+        self,
+        channel: MessageableChannel,
+        author: discord.Member,
+        cfg: str = "opts",
+    ) -> CommandResponse:
+        """
+        Command to generate markdown for options and permissions files.
+        Contents are generated from code and not pulled from the files!
+        """
+        valid_opts = ["opts", "perms"]
+        if cfg not in valid_opts:
+            opts = ", ".join([f"`{o}`" for o in valid_opts])
+            raise exceptions.CommandError("Option must be one of: %s" % (opts))
+
+        filename = "config_options.md"
+        msg_str = "Config options described in Markdown:\n"
+        if cfg == "perms":
+            filename = "config_permissions.md"
+            msg_str = "Permissions described in Markdown:\n"
+            config_md = self.permissions.register.export_markdown()
+        else:
+            config_md = self.config.register.export_markdown()
+
+        sent_to_channel = None
+
+        # TODO: refactor this in favor of safe_send_message doing it all.
+        with BytesIO() as fcontent:
+            fcontent.write(config_md.encode("utf8"))
+            fcontent.seek(0)
+            datafile = discord.File(fcontent, filename=filename)
+
+            try:
+                # try to DM. this could fail for users with strict privacy settings.
+                # or users who just can't get direct messages.
+                await author.send(msg_str, file=datafile)
+
+            except discord.errors.HTTPException as e:
+                if e.code == 50007:  # cannot send to this user.
+                    log.debug("DM failed, sending in channel instead.")
+                    sent_to_channel = await channel.send(
+                        msg_str,
+                        file=datafile,
+                    )
+                else:
+                    raise
+        if not sent_to_channel:
+            return Response(
+                "Sent a message with the requested config markdown.", delete_after=20
+            )
+        return None
+
     @owner_only
     async def cmd_checkupdates(self, channel: MessageableChannel) -> CommandResponse:
         """

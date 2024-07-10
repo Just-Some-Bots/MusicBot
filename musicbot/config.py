@@ -1664,6 +1664,43 @@ class ConfigOptionRegistry:
 
         return str(conf_value)
 
+    def export_markdown(self) -> str:
+        """
+        Transform registered config options into markdown.
+        This is intended to generate documentation from the code.
+        Currently will print options in order they are registered.
+        But prints sections in the order ConfigParser loads them.
+        """
+        md_sections = {}
+        for opt in self.option_list:
+            dval = self.to_ini(opt, use_default=True)
+            if dval.strip() == "":
+                if opt.empty_display_val:
+                    dval = f"`{opt.empty_display_val}`"
+                else:
+                    dval = "*empty*"
+            else:
+                dval = f"`{dval}`"
+
+            # fmt: off
+            md_option = (
+                "#### %s\n"
+                "%s  \n"
+                "**Default Value:** %s  \n\n"
+            ) % (opt.option, opt.comment, dval)
+            # fmt: on
+            if opt.section not in md_sections:
+                md_sections[opt.section] = [md_option]
+            else:
+                md_sections[opt.section].append(md_option)
+
+        markdown = ""
+        for sect in self._parser.sections():
+            opts = md_sections[sect]
+            markdown += "### [%s]\n%s" % (sect, "".join(opts))
+
+        return markdown
+
 
 class ExtendedConfigParser(configparser.ConfigParser):
     """
