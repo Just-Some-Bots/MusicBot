@@ -37,6 +37,7 @@ DEFAULT_DATA_DIR: str = "data/"
 # File names within the DEFAULT_DATA_DIR or guild folders.
 DATA_FILE_SERVERS: str = "server_names.txt"
 DATA_FILE_CACHEMAP: str = "playlist_cachemap.json"
+DATA_FILE_COOKIES: str = "cookies.txt"  # No support for this, go read yt-dlp docs.
 DATA_GUILD_FILE_QUEUE: str = "queue.json"
 DATA_GUILD_FILE_CUR_SONG: str = "current.txt"
 DATA_GUILD_FILE_OPTIONS: str = "options.json"

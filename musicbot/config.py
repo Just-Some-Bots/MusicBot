@@ -20,6 +20,7 @@ from typing import (
 import configupdater
 
 from .constants import (
+    DATA_FILE_COOKIES,
     DATA_FILE_SERVERS,
     DEFAULT_AUDIO_CACHE_DIR,
     DEFAULT_DATA_DIR,
@@ -780,6 +781,7 @@ class Config:
         # Convert all path constants into config as pathlib.Path objects.
         self.data_path = pathlib.Path(DEFAULT_DATA_DIR).resolve()
         self.server_names_path = self.data_path.joinpath(DATA_FILE_SERVERS)
+        self.cookies_path = self.data_path.joinpath(DATA_FILE_COOKIES)
 
         # Validate the config settings match destination values.
         self.register.validate_register_destinations()
@@ -917,6 +919,14 @@ class Config:
 
         if self.enable_local_media and not self.media_file_dir.is_dir():
             self.media_file_dir.mkdir(exist_ok=True)
+
+        if self.cookies_path.is_file():
+            log.warning(
+                "Cookies TXT file detected. MusicBot will pass them to yt-dlp.\n"
+                "Enabling cookies is not recommended, and could be risky.\n"
+                "Make sure you understand how yt-dlp will be using the cookies.\n"
+                "Good Luck!  \U0001F596"
+            )
 
     async def async_validate(self, bot: "MusicBot") -> None:
         """

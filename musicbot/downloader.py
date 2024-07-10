@@ -92,6 +92,14 @@ class Downloader:
         ytdl_format_options = ytdl_format_options_immutable.copy()
         ytdl_format_options["http_headers"] = self.http_req_headers
 
+        # check if we should apply a cookies file to ytdlp.
+        if bot.config.cookies_path.is_file():
+            log.info(
+                "MusicBot will use cookies for yt-dlp from:  %s",
+                bot.config.cookies_path,
+            )
+            ytdl_format_options["cookiefile"] = bot.config.cookies_path
+
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
             otmpl = ytdl_format_options["outtmpl"]
