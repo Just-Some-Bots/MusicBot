@@ -1653,9 +1653,14 @@ class ConfigOptionRegistry:
         if getter == "getpathlike":
             return str(conf_value)
 
-        # NOTE: Added for completeness but unused as debug_level is not editable.
-        if getter == "getdebuglevel" and isinstance(conf_value, int):
-            return str(logging.getLevelName(conf_value))
+        # NOTE: debug_level is not editable, but can be displayed.
+        if (
+            getter == "getdebuglevel"
+            and isinstance(conf_value, tuple)
+            and isinstance(conf_value[0], str)
+            and isinstance(conf_value[1], int)
+        ):
+            return str(logging.getLevelName(conf_value[1]))
 
         return str(conf_value)
 
