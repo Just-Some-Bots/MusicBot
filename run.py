@@ -809,9 +809,11 @@ def set_console_title() -> None:
             # if colorama fails to import we can assume setup_logs didn't load it.
             import colorama  # type: ignore[import-untyped]
 
-            # if it works, then great, one less thing to worry about right???
+            # this is only available in colorama version 0.4.6+
+            # which as it happens isn't required by colorlog.
+            # TODO: maybe add colorama>=0.4.6 to requirements.txt
             colorama.just_fix_windows_console()
-        except ImportError:
+        except (ImportError, AttributeError):
             # This might only work for Win 10+
             from ctypes import windll  # type: ignore[attr-defined]
 
