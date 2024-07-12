@@ -506,11 +506,40 @@ def req_ensure_env() -> None:
     finally:
         shutil.rmtree("musicbot-test-folder", True)
 
+    # this actually does an access check as well.
+    ffmpeg_bin = shutil.which("ffmpeg")
     if sys.platform.startswith("win"):
-        # TODO: this should probably be conditional, in favor of system installed exe.
-        log.info("Adding local bins/ folder to path")
-        os.environ["PATH"] += ";" + os.path.abspath("bin/")
-        sys.path.append(os.path.abspath("bin/"))  # might as well
+        if ffmpeg_bin:
+            log.info("Detected FFmpeg is installed at:  %s", ffmpeg_bin)
+        else:
+            log.info("Adding local bins/ folder environment PATH for bundled ffmpeg...")
+            os.environ["PATH"] += ";" + os.path.abspath("bin/")
+            sys.path.append(os.path.abspath("bin/"))  # might as well
+            # try to get the local bin path again.
+            ffmpeg_bin = shutil.which("ffmpeg")
+
+    # make sure ffmpeg is available.
+    if not ffmpeg_bin:
+        log.critical(
+            "MusicBot could not locate FFmpeg binary in your environment.\n"
+            "Please install FFmpeg so it is available in your environment PATH variable."
+        )
+        if sys.platform.startswith("win"):
+            log.info(
+                "On Windows, you can add a pre-compiled EXE to the MusicBot `bin` folder,\n"
+                "or you can install FFmpeg system-wide using WinGet or by running the install.bat file."
+            )
+        elif sys.platform.startswith("darwin"):
+            log.info(
+                "On MacOS, you may be able to install FFmpeg via homebrew.\n"
+                "Otherwise, check the official FFmpeg site for build or install steps."
+            )
+        else:
+            log.info(
+                "On Linux, many distros make FFmpeg available via system package managers.\n"
+                "Check for ffmpeg with your system package manager or build from sources."
+            )
+        bugger_off()
 
 
 def opt_check_disk_space(warnlimit_mb: int = 200) -> None:
