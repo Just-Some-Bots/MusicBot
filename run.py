@@ -40,9 +40,13 @@ from musicbot.utils import (
 
 # protect dependency import from stopping the launcher
 try:
+    # This has been available for 7+ years. So it should be OK to do this...
     from aiohttp.client_exceptions import ClientConnectorCertificateError
 except ImportError:
-    pass
+    # prevent NameError while handling exceptions later, if import fails.
+    class ClientConnectorCertificateError(Exception):  # type: ignore[no-redef]
+        pass
+
 
 log = logging.getLogger("musicbot.launcher")
 
@@ -963,7 +967,7 @@ def main() -> None:
                 log.exception("Syntax error (this is a bug, not your fault)")
             break
 
-        except (AttributeError, ImportError) as e:
+        except (AttributeError, ImportError, ModuleNotFoundError) as e:
             # In case a discord extension is installed but discord.py isn't.
             if isinstance(e, AttributeError):
                 if "module 'discord'" not in str(e):
