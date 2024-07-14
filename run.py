@@ -990,7 +990,7 @@ def main() -> None:
                 continue
 
         except SyntaxError:
-            if "-dirty" in BOTVERSION:
+            if "-modded" in BOTVERSION:
                 log.exception("Syntax error (version is dirty, did you edit the code?)")
             else:
                 log.exception("Syntax error (this is a bug, not your fault)")
