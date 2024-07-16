@@ -844,7 +844,6 @@ def set_console_title() -> None:
 
             # this is only available in colorama version 0.4.6+
             # which as it happens isn't required by colorlog.
-            # TODO: maybe add colorama>=0.4.6 to requirements.txt
             colorama.just_fix_windows_console()
         except (ImportError, AttributeError):
             # This might only work for Win 10+
