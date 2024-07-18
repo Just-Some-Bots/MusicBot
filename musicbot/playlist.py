@@ -441,8 +441,11 @@ class Playlist(EventEmitter, Serializable):
             return None
 
         entry = self.entries.popleft()
-        # TODO:  Add the pre-download for song-after-next back, later...
-
+        next_entry = self.peek()
+        if next_entry and next_entry != entry:
+            log.everything("Pre-downloading next track:  %r", next_entry)
+            entry.get_ready_future()
+        
         return await entry.get_ready_future()
 
     def peek(self) -> Optional[EntryTypes]:
