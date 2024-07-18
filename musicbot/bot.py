@@ -7049,15 +7049,14 @@ class MusicBot(discord.Client):
             try:
                 run_type = "exec"
                 # exec needs a fake locals so we can get `result` from it.
-                lscope = {}
+                lscope: Dict[str, Any] = {}
                 # exec also needs locals() to be in globals() for access to work.
                 gscope = globals().copy()
                 gscope.update(locals().copy())
                 exec(code, gscope, lscope)  # pylint: disable=exec-used
                 log.debug("Debug code ran with exec().")
-                if "result" in lscope:
-                    result = lscope["result"]
-            except Exception as e:  # pylint: disable=broad-exception-caught
+                result = lscope.get("result", result)
+            except Exception as e:
                 log.exception("Debug code failed to execute.")
                 raise exceptions.CommandError(
                     f"Failed to execute debug code.\n{codeblock.format(code)}\n"
