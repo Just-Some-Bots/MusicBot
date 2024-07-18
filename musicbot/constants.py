@@ -35,6 +35,13 @@ DEFAULT_BOT_NAME: str = "MusicBot"
 DEFAULT_BOT_ICON: str = "https://i.imgur.com/gFHBoZA.png"
 DEFAULT_OWNER_GROUP_NAME: str = "Owner (auto)"
 DEFAULT_PERMS_GROUP_NAME: str = "Default"
+# This UA string is used by MusicBot only for the aiohttp session.
+# Meaning discord API and spotify API communications.
+# NOT used by ytdlp, they have a dynamic UA selection feature.
+MUSICBOT_USER_AGENT_AIOHTTP: str = f"MusicBot/{VERSION}"
+# Intentionally left empty, for dynamic selection.
+# Not recommended to change this, unless you understand how ytdlp uses it.
+MUSICBOT_USER_AGENT_YTDLP: str = ""
 
 
 # File path constants

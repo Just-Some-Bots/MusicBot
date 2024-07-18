@@ -47,6 +47,7 @@ from .constants import (
     EMOJI_STOP_SIGN,
     FALLBACK_PING_SLEEP,
     FALLBACK_PING_TIMEOUT,
+    MUSICBOT_USER_AGENT_AIOHTTP,
 )
 from .constants import VERSION as BOTVERSION
 from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
@@ -248,7 +249,7 @@ class MusicBot(discord.Client):
         if self.config.enable_queue_history_global:
             await self.playlist_mgr.global_history.load()
 
-        self.http.user_agent = f"MusicBot/{BOTVERSION}"
+        self.http.user_agent = MUSICBOT_USER_AGENT_AIOHTTP
         if self.use_certifi:
             ssl_ctx = ssl.create_default_context(cafile=certifi.where())
             tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
