@@ -123,7 +123,6 @@ CommandResponse = Union[Response, None]
 log = logging.getLogger(__name__)
 
 # TODO:  add an aliases command to manage command aliases.
-# TODO:  maybe allow aliases to contain whole/partial commands.
 
 
 class MusicBot(discord.Client):
@@ -173,7 +172,12 @@ class MusicBot(discord.Client):
         self.str = Json(self.config.i18n_file)
 
         if self.config.usealias:
-            self.aliases = Aliases(aliases_file)
+            # get a list of natural command names.
+            nat_cmds = [
+                x.replace("cmd_", "") for x in dir(self) if x.startswith("cmd_")
+            ]
+            # load the aliases file.
+            self.aliases = Aliases(aliases_file, nat_cmds)
 
         self.playlist_mgr = AutoPlaylistManager(self)
 
@@ -7363,14 +7367,22 @@ class MusicBot(discord.Client):
         else:
             args = []
 
+        # Check if the incomming command is a "natural" command.
         handler = getattr(self, "cmd_" + command, None)
         if not handler:
-            # alias handler
+            # If no natural command was found, check for aliases when enabled.
             if self.config.usealias:
-                command = self.aliases.get(command)
+                # log.debug("Checking for alias with: %s", command)
+                command, alias_arg_str = self.aliases.get(command)
                 handler = getattr(self, "cmd_" + command, None)
                 if not handler:
                     return
+                # log.debug("Alias found:  %s %s", command, alias_arg_str)
+                # Complex aliases may have args of their own.
+                # We assume the user args go after the alias args.
+                if alias_arg_str:
+                    args = alias_arg_str.split(" ") + args
+            # Or ignore aliases, and this non-existent command.
             else:
                 return
 

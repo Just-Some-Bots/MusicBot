@@ -1,4 +1,19 @@
 {
+    "--comment": [
+        "Aliases allow you to rename or shorten existing commands.                          ",
+        "Alias names may contain anything, except for spaces.                               ",
+        "The keys must be valid commands, and can have simple, space separated arguments.   ",
+        "Arguments passed by the user will be appended to any command arguments set here.   ",
+        "                                                                                   ",
+        "For Example:                                                                       ",
+        {
+            "_command_name_":  ["alias1", "a_long_alias"],
+            "_cmd_ arg1 arg2 argN": ["short"],
+
+            "config set MusicBot": ["setcfg"]
+        }
+    ],
+    
     "play": ["p"],
     "skip": ["s"],
     "queue": ["q"],
