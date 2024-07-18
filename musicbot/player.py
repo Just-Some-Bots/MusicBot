@@ -56,6 +56,8 @@ class SourcePlaybackCounter(AudioSource):
 
         :param: start_time:  A time in seconds that was used in ffmpeg -ss flag.
         """
+        # NOTE: PCMVolumeTransformer will let you set any crazy value.
+        # But internally it limits between 0 and 2.0.
         self._source = source
         self._num_reads: int = 0
         self._start_time: float = start_time
