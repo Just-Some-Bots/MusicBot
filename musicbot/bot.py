@@ -7008,10 +7008,30 @@ class MusicBot(discord.Client):
 
     @dev_only
     async def cmd_debug(
-        self, _player: Optional[MusicPlayer], *, data: str
+        self,
+        _player: Optional[MusicPlayer],
+        message: discord.Message,  # pylint: disable=unused-argument
+        channel: GuildMessageableChannels,  # pylint: disable=unused-argument
+        guild: discord.Guild,  # pylint: disable=unused-argument
+        author: discord.Member,  # pylint: disable=unused-argument
+        permissions: PermissionGroup,  # pylint: disable=unused-argument
+        *,
+        data: str,
     ) -> CommandResponse:
         """
-        Evaluate or otherwise execute the python code in `data`
+        Usage:
+            {command_prefix}debug [one line of code]
+                OR
+            {command_prefix}debug ` ` `py
+            many lines
+            of python code.
+            ` ` `
+
+            This command will execute python code in the commands scope.
+            First eval() is attempted, if exceptions are thrown exec() is tried.
+            If eval is successful, its return value is displayed.
+            If exec is successful, a value can be set to local variable `result`
+            and that value will be returned.
         """
         codeblock = "```py\n{}\n```"
         result = None
@@ -7020,24 +7040,33 @@ class MusicBot(discord.Client):
             data = "\n".join(data.rstrip("`\n").split("\n")[1:])
 
         code = data.strip("` \n")
-
-        scope = globals().copy()
-        scope.update({"self": self})
-
         try:
-            result = eval(code, scope)  # pylint: disable=eval-used
+            run_type = "eval"
+            result = eval(code)  # pylint: disable=eval-used
+            log.debug("Debug code ran with eval().")
         except Exception:  # pylint: disable=broad-exception-caught
             try:
-                exec(code, scope)  # pylint: disable=exec-used
+                run_type = "exec"
+                # exec needs a fake locals so we can get `result` from it.
+                lscope = {}
+                # exec also needs locals() to be in globals() for access to work.
+                gscope = globals().copy()
+                gscope.update(locals().copy())
+                exec(code, gscope, lscope)  # pylint: disable=exec-used
+                log.debug("Debug code ran with exec().")
+                if "result" in lscope:
+                    result = lscope["result"]
             except Exception as e:  # pylint: disable=broad-exception-caught
-                traceback.print_exc(chain=False)
-                type_name = type(e).__name__
-                return Response(f"{type_name}: {str(e)}")
+                log.exception("Debug code failed to execute.")
+                raise exceptions.CommandError(
+                    f"Failed to execute debug code.\n{codeblock.format(code)}\n"
+                    f"Exception: ```\n{type(e).__name__}:\n{str(e)}```"
+                ) from e
 
         if asyncio.iscoroutine(result):
             result = await result
 
-        return Response(codeblock.format(result))
+        return Response(f"**{run_type}() Result:**\n{codeblock.format(result)}")
 
     @dev_only
     async def cmd_makemarkdown(
