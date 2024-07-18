@@ -20,6 +20,7 @@ class Aliases:
     Command alias with conflicting names will overload each other, it is up to
     the user to avoid configuring aliases with conflicts.
     """
+
     # TODO: add a method to query aliases a natural command has.
 
     def __init__(self, aliases_file: Path, nat_cmds: List[str]) -> None:
@@ -65,15 +66,17 @@ class Aliases:
                 self.aliases_seed = json.load(f)
         except OSError as e:
             log.error(
-                f"Failed to load aliases file:  {str(self.aliases_file)}",
+                "Failed to load aliases file:  %s",
+                self.aliases_file,
                 exc_info=e,
             )
             self.aliases_seed = AliasesDefault.aliases_seed
             return
         except json.JSONDecodeError as e:
             log.error(
-                f"Failed to parse aliases file:  {str(self.aliases_file)}\n"
+                "Failed to parse aliases file:  %s\n"
                 "Ensure the file contains valid JSON and restart the bot.",
+                self.aliases_file,
                 exc_info=e,
             )
             self.aliases_seed = AliasesDefault.aliases_seed
