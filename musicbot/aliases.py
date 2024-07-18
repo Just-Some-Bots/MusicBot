@@ -123,7 +123,6 @@ class Aliases:
                     )
                     continue
 
-                
                 self.aliases.update({alias: (cmd, cmd_args)})
 
     def get(self, alias_name: str) -> Tuple[str, str]:
