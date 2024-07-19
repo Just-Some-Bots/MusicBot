@@ -445,7 +445,7 @@ class Playlist(EventEmitter, Serializable):
         if next_entry and next_entry != entry:
             log.everything("Pre-downloading next track:  %r", next_entry)
             entry.get_ready_future()
-        
+
         return await entry.get_ready_future()
 
     def peek(self) -> Optional[EntryTypes]:
