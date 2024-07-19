@@ -446,6 +446,14 @@ class Config:
                 " {p0_url}      = The track url for the currently playing track."
             ),
         )
+        self.status_include_paused: bool = self.register.init_option(
+            section="MusicBot",
+            option="StatusIncludePaused",
+            dest="status_include_paused",
+            default=ConfigDefaults.status_include_paused,
+            getter="getboolean",
+            comment="If enabled, status messages will report info on paused players.",
+        )
         self.write_current_song: bool = self.register.init_option(
             section="MusicBot",
             option="WriteCurrentSong",
@@ -1159,6 +1167,7 @@ class ConfigDefaults:
     delete_invoking: bool = False
     persistent_queue: bool = True
     status_message: str = ""
+    status_include_paused: bool = False
     write_current_song: bool = False
     allow_author_skip: bool = True
     use_experimental_equalization: bool = False

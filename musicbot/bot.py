@@ -1569,13 +1569,20 @@ class MusicBot(discord.Client):
             return
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
-        paused = sum(1 for p in self.players.values() if p.is_paused)
+        if self.config.status_include_paused:
+            paused = sum(1 for p in self.players.values() if p.is_paused)
+        else:
+            paused = 0
         total = len(self.players)
 
         def format_status_msg(player: Optional[MusicPlayer]) -> str:
+            if not self.config.status_include_paused:
+                p = sum(1 for p in self.players.values() if p.is_paused)
+            else:
+                p = paused
             msg = self.config.status_message
             msg = msg.replace("{n_playing}", str(playing))
-            msg = msg.replace("{n_paused}", str(paused))
+            msg = msg.replace("{n_paused}", str(p))
             msg = msg.replace("{n_connected}", str(total))
             if player and player.current_entry:
                 msg = msg.replace("{p0_title}", player.current_entry.title)
