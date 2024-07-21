@@ -415,8 +415,6 @@ def main() -> None:
     update_ffmpeg()
     finalize()
 
-# TODO: make sure pip update runs again after any git pull is done.
-
 
 if __name__ == "__main__":
     main()

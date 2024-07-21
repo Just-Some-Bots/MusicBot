@@ -123,8 +123,6 @@ CommandResponse = Union[Response, None]
 
 log = logging.getLogger(__name__)
 
-# TODO:  add an aliases command to manage command aliases.
-
 
 class MusicBot(discord.Client):
     def __init__(
