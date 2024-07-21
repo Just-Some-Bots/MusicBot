@@ -114,6 +114,13 @@ DEFAULT_MAX_INFO_DL_THREADS: int = 2
 # Maximum number of seconds to wait for HEAD request on media files.
 DEFAULT_MAX_INFO_REQUEST_TIMEOUT: int = 10
 
+# MusicBot can pre-download the track up-next, while the current plays.
+# Typically not an issue, but makes more requests over all to the same media.
+# If it is an issue for some, this constant can disable the pre-downloads.
+PRE_DOWNLOAD_NEXT_TRACK: bool = True
+# Time to wait before starting pre-download when a new song is playing.
+DEFAULT_PRE_DOWNLOAD_DELAY: float = 4.0
+
 # Discord and other API constants
 DISCORD_MSG_CHAR_LIMIT: int = 2000
 

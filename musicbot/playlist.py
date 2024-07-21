@@ -18,6 +18,7 @@ from typing import (
 
 import discord
 
+from .constants import DEFAULT_PRE_DOWNLOAD_DELAY, PRE_DOWNLOAD_NEXT_TRACK
 from .constructs import Serializable
 from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
 from .exceptions import ExtractionError, InvalidDataError, WrongEntryTypeError
@@ -441,14 +442,34 @@ class Playlist(EventEmitter, Serializable):
             return None
 
         entry = self.entries.popleft()
+        self.bot.create_task(
+            self._pre_download_entry_after_next(entry),
+            name="MB_PreDownloadNextUp",
+        )
+
+        return await entry.get_ready_future()
+
+    async def _pre_download_entry_after_next(self, last_entry: EntryTypes) -> None:
+        """
+        Enforces a delay before doing pre-download of the "next" song.
+        Should only be called from get_next_entry() after pop.
+        """
+        if not PRE_DOWNLOAD_NEXT_TRACK:
+            return
+
+        if not self.entries:
+            return
+
+        # get the next entry to pre-download before we wait.
         next_entry = self.peek()
-        if next_entry and next_entry != entry:
+
+        await asyncio.sleep(DEFAULT_PRE_DOWNLOAD_DELAY)
+
+        if next_entry and next_entry != last_entry:
             log.everything(  # type: ignore[attr-defined]
                 "Pre-downloading next track:  %r", next_entry
             )
-            entry.get_ready_future()
-
-        return await entry.get_ready_future()
+            next_entry.get_ready_future()
 
     def peek(self) -> Optional[EntryTypes]:
         """
