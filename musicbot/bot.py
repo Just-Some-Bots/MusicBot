@@ -2643,6 +2643,9 @@ class MusicBot(discord.Client):
         Manage a server-specific event timer when it's MusicPlayer becomes idle,
         if the bot is configured to do so.
         """
+        if self.logout_called:
+            return
+
         if not self.config.leave_player_inactive_for:
             return
         channel = player.voice_client.channel
@@ -2674,11 +2677,18 @@ class MusicBot(discord.Client):
                 [event.wait()], timeout=self.config.leave_player_inactive_for
             )
         except asyncio.TimeoutError:
-            log.info(
-                "Player activity timer for %s has expired. Disconnecting.",
-                guild.name,
-            )
-            await self.on_inactivity_timeout_expired(channel)
+            if not player.is_playing:
+                log.info(
+                    "Player activity timer for %s has expired. Disconnecting.",
+                    guild.name,
+                )
+                await self.on_inactivity_timeout_expired(channel)
+            else:
+                log.info(
+                    "Player activity timer canceled for: %s in %s",
+                    channel.name,
+                    guild.name,
+                )
         else:
             log.info(
                 "Player activity timer canceled for: %s in %s",
