@@ -247,6 +247,12 @@ class MusicBot(discord.Client):
         if self.config.enable_queue_history_global:
             await self.playlist_mgr.global_history.load()
 
+        # TODO: testing is needed to see if this would be required.
+        # See also:  https://github.com/aio-libs/aiohttp/discussions/6044
+        # aiohttp version must be at least 3.8.0 for the following to potentially work.
+        # Python 3.11+ might also be a requirement if CPython does not support start_tls.
+        # setattr(asyncio.sslproto._SSLProtocolTransport, "_start_tls_compatible", True)
+
         self.http.user_agent = MUSICBOT_USER_AGENT_AIOHTTP
         if self.use_certifi:
             ssl_ctx = ssl.create_default_context(cafile=certifi.where())

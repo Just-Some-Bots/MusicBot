@@ -108,6 +108,10 @@ class Downloader:
             )
             ytdl_format_options["cookiefile"] = bot.config.cookies_path
 
+        if bot.config.ytdlp_proxy:
+            log.info("Yt-dlp will use your configured proxy server.")
+            ytdl_format_options["proxy"] = bot.config.ytdlp_proxy
+
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
             otmpl = ytdl_format_options["outtmpl"]
@@ -207,6 +211,7 @@ class Downloader:
             timeout=req_timeout,
             allow_redirects=allow_redirects,
             headers=req_headers,
+            proxy=self.bot.config.ytdlp_proxy,
         ) as response:
             return response.headers
 

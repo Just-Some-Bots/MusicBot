@@ -673,6 +673,27 @@ class Config:
             comment="Allow MusicBot to automatically unpause when play commands are used.",
         )
 
+        # This is likely to turn into one option for each separate part.
+        # Due to how the support for protocols differs from part to part.
+        # ytdlp has its own option that uses requests.
+        # aiohttp requires per-call proxy parameter be set.
+        # and ffmpeg with stream mode also makes its own direct connections.
+        # top it off with proxy for the API. Once we tip the proxy iceberg...
+        # In some cases, users might get away with setting environment variables,
+        # HTTP_PROXY, HTTPS_PROXY, and others for ytdlp and ffmpeg.
+        # While aiohttp would require some other param or config file for that.
+        self.ytdlp_proxy: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpProxy",
+            dest="ytdlp_proxy",
+            default=ConfigDefaults.ytdlp_proxy,
+            comment=(
+                "Experimental, HTTP/HTTPS proxy settings to use with ytdlp media downloader.\n"
+                "The value set here is passed to `ytdlp --proxy` and aiohttp header checking.\n"
+                "Leave blank to disable."
+            ),
+        )
+
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
             option="EnableUserBlocklist",
@@ -1193,6 +1214,7 @@ class ConfigDefaults:
     enable_queue_history_global: bool = False
     enable_queue_history_guilds: bool = False
     auto_unpause_on_play: bool = False
+    ytdlp_proxy: str = ""
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()
