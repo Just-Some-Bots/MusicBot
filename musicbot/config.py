@@ -694,6 +694,18 @@ class Config:
             ),
         )
 
+        self.ytdlp_user_agent: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpUserAgent",
+            dest="ytdlp_user_agent",
+            default=ConfigDefaults.ytdlp_user_agent,
+            comment=(
+                "Experimental option to set a static User-Agent header in yt-dlp.\n"
+                "It is not typically recommended by yt-dlp to change the UA string.\n"
+                "Leave blank to use default, dynamically generated UA strings."
+            ),
+        )
+
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
             option="EnableUserBlocklist",
@@ -1215,6 +1227,7 @@ class ConfigDefaults:
     enable_queue_history_guilds: bool = False
     auto_unpause_on_play: bool = False
     ytdlp_proxy: str = ""
+    ytdlp_user_agent: str = ""
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()

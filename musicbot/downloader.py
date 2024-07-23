@@ -19,11 +19,7 @@ from yt_dlp.networking.exceptions import (  # type: ignore[import-untyped]
 from yt_dlp.utils import DownloadError  # type: ignore[import-untyped]
 from yt_dlp.utils import UnsupportedError
 
-from .constants import (
-    DEFAULT_MAX_INFO_DL_THREADS,
-    DEFAULT_MAX_INFO_REQUEST_TIMEOUT,
-    MUSICBOT_USER_AGENT_YTDLP,
-)
+from .constants import DEFAULT_MAX_INFO_DL_THREADS, DEFAULT_MAX_INFO_REQUEST_TIMEOUT
 from .exceptions import ExtractionError, MusicbotException
 from .spotify import Spotify
 
@@ -90,8 +86,8 @@ class Downloader:
 
         # force ytdlp and HEAD requests to use the same UA string.
         # If the constant is set, use that, otherwise use dynamic selection.
-        if MUSICBOT_USER_AGENT_YTDLP:
-            ua = MUSICBOT_USER_AGENT_YTDLP
+        if bot.config.ytdlp_user_agent:
+            ua = bot.config.ytdlp_user_agent
             log.warning("Forcing YTDLP to use User Agent:  %s", ua)
         else:
             ua = youtube_dl.utils.networking.random_user_agent()
