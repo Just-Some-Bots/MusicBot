@@ -182,14 +182,6 @@ class Permissions:
             log.debug("Setting auto OwnerID for owner permissions group.")
             self.owner_group.user_list = {bot.config.owner_id}
 
-    def save(self) -> None:
-        """
-        Currently unused function intended to write permissions back to
-        its configuration file.
-        """
-        with open(self.perms_file, "w", encoding="utf8") as f:
-            self.config.write(f)
-
     def for_user(self, user: Union[discord.Member, discord.User]) -> "PermissionGroup":
         """
         Returns the first PermissionGroup a user belongs to

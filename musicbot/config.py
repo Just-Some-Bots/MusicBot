@@ -5,6 +5,7 @@ import os
 import pathlib
 import shutil
 import sys
+import time
 from typing import (
     TYPE_CHECKING,
     Dict,
@@ -20,6 +21,7 @@ from typing import (
 import configupdater
 
 from .constants import (
+    DATA_FILE_COOKIES,
     DATA_FILE_SERVERS,
     DEFAULT_AUDIO_CACHE_DIR,
     DEFAULT_DATA_DIR,
@@ -425,6 +427,17 @@ class Config:
             getter="getboolean",
             comment="Allow MusicBot to save the song queue, so they will survive restarts.",
         )
+        self.pre_download_next_song: bool = self.register.init_option(
+            section="MusicBot",
+            option="PreDownloadNextSong",
+            dest="pre_download_next_song",
+            default=ConfigDefaults.pre_download_next_song,
+            getter="getboolean",
+            comment=(
+                "Enable MusicBot to download the next song in the queue while a song is playing.\n"
+                "Currently this option does not apply to auto-playlist or songs added to an empty queue."
+            ),
+        )
         self.status_message: str = self.register.init_option(
             section="MusicBot",
             option="StatusMessage",
@@ -444,6 +457,14 @@ class Config:
                 " {p0_title}    = The track title for the currently playing track.\n"
                 " {p0_url}      = The track url for the currently playing track."
             ),
+        )
+        self.status_include_paused: bool = self.register.init_option(
+            section="MusicBot",
+            option="StatusIncludePaused",
+            dest="status_include_paused",
+            default=ConfigDefaults.status_include_paused,
+            getter="getboolean",
+            comment="If enabled, status messages will report info on paused players.",
         )
         self.write_current_song: bool = self.register.init_option(
             section="MusicBot",
@@ -664,6 +685,41 @@ class Config:
             comment="Allow MusicBot to automatically unpause when play commands are used.",
         )
 
+        # This is likely to turn into one option for each separate part.
+        # Due to how the support for protocols differs from part to part.
+        # ytdlp has its own option that uses requests.
+        # aiohttp requires per-call proxy parameter be set.
+        # and ffmpeg with stream mode also makes its own direct connections.
+        # top it off with proxy for the API. Once we tip the proxy iceberg...
+        # In some cases, users might get away with setting environment variables,
+        # HTTP_PROXY, HTTPS_PROXY, and others for ytdlp and ffmpeg.
+        # While aiohttp would require some other param or config file for that.
+        self.ytdlp_proxy: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpProxy",
+            dest="ytdlp_proxy",
+            default=ConfigDefaults.ytdlp_proxy,
+            comment=(
+                "Experimental, HTTP/HTTPS proxy settings to use with ytdlp media downloader.\n"
+                "The value set here is passed to `ytdlp --proxy` and aiohttp header checking.\n"
+                "Leave blank to disable."
+            ),
+        )
+        self.ytdlp_user_agent: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpUserAgent",
+            dest="ytdlp_user_agent",
+            default=ConfigDefaults.ytdlp_user_agent,
+            comment=(
+                "Experimental option to set a static User-Agent header in yt-dlp.\n"
+                "It is not typically recommended by yt-dlp to change the UA string.\n"
+                "For examples of what you might put here, check the following two links:\n"
+                "   https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent \n"
+                "   https://www.useragents.me/ \n"
+                "Leave blank to use default, dynamically generated UA strings."
+            ),
+        )
+
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
             option="EnableUserBlocklist",
@@ -780,6 +836,7 @@ class Config:
         # Convert all path constants into config as pathlib.Path objects.
         self.data_path = pathlib.Path(DEFAULT_DATA_DIR).resolve()
         self.server_names_path = self.data_path.joinpath(DATA_FILE_SERVERS)
+        self.cookies_path = self.data_path.joinpath(DATA_FILE_COOKIES)
 
         # Validate the config settings match destination values.
         self.register.validate_register_destinations()
@@ -917,6 +974,17 @@ class Config:
 
         if self.enable_local_media and not self.media_file_dir.is_dir():
             self.media_file_dir.mkdir(exist_ok=True)
+
+        if self.cookies_path.is_file():
+            log.warning(
+                "Cookies TXT file detected. MusicBot will pass them to yt-dlp.\n"
+                "Cookies are not recommended, may not be supported, and may totally break.\n"
+                "Copying cookies from your web-browser risks exposing personal data and \n"
+                "in the best case can result in your accounts being banned!\n\n"
+                "You have been warned!  Good Luck!  \U0001F596\n"
+            )
+            # make sure the user sees this.
+            time.sleep(3)
 
     async def async_validate(self, bot: "MusicBot") -> None:
         """
@@ -1149,6 +1217,7 @@ class ConfigDefaults:
     delete_invoking: bool = False
     persistent_queue: bool = True
     status_message: str = ""
+    status_include_paused: bool = False
     write_current_song: bool = False
     allow_author_skip: bool = True
     use_experimental_equalization: bool = False
@@ -1174,6 +1243,9 @@ class ConfigDefaults:
     enable_queue_history_global: bool = False
     enable_queue_history_guilds: bool = False
     auto_unpause_on_play: bool = False
+    ytdlp_proxy: str = ""
+    ytdlp_user_agent: str = ""
+    pre_download_next_song: bool = True
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()
@@ -1643,11 +1715,53 @@ class ConfigOptionRegistry:
         if getter == "getpathlike":
             return str(conf_value)
 
-        # NOTE: Added for completeness but unused as debug_level is not editable.
-        if getter == "getdebuglevel" and isinstance(conf_value, int):
-            return str(logging.getLevelName(conf_value))
+        # NOTE: debug_level is not editable, but can be displayed.
+        if (
+            getter == "getdebuglevel"
+            and isinstance(conf_value, tuple)
+            and isinstance(conf_value[0], str)
+            and isinstance(conf_value[1], int)
+        ):
+            return str(logging.getLevelName(conf_value[1]))
 
         return str(conf_value)
+
+    def export_markdown(self) -> str:
+        """
+        Transform registered config options into markdown.
+        This is intended to generate documentation from the code.
+        Currently will print options in order they are registered.
+        But prints sections in the order ConfigParser loads them.
+        """
+        md_sections = {}
+        for opt in self.option_list:
+            dval = self.to_ini(opt, use_default=True)
+            if dval.strip() == "":
+                if opt.empty_display_val:
+                    dval = f"`{opt.empty_display_val}`"
+                else:
+                    dval = "*empty*"
+            else:
+                dval = f"`{dval}`"
+
+            # fmt: off
+            md_option = (
+                "#### %s\n"
+                "%s  \n"
+                "**Default Value:** %s  \n\n"
+            ) % (opt.option, opt.comment, dval)
+            # fmt: on
+            if opt.section not in md_sections:
+                md_sections[opt.section] = [md_option]
+            else:
+                md_sections[opt.section].append(md_option)
+
+        markdown = ""
+        for sect in self._parser.sections():
+            opts = md_sections[sect]
+            markdown += "### [%s]\n%s" % (sect, "".join(opts))
+
+        return markdown
 
 
 class ExtendedConfigParser(configparser.ConfigParser):

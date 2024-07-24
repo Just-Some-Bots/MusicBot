@@ -1,12 +1,30 @@
 import subprocess
 
+# VERSION is determined by asking the `git` executable about the current repository.
+# This fails if not cloned, or if git is not available for some reason.
+# VERSION should never be empty though.
+# Note this code is duplicated in update.py for stand-alone use.
 VERSION: str = ""
 try:
-    VERSION = (
-        subprocess.check_output(["git", "describe", "--tags", "--always", "--dirty"])
+    # Get the last release tag, number of commits since, and g{commit_id} as string.
+    _VERSION_P1 = (
+        subprocess.check_output(["git", "describe", "--tags", "--always"])
         .decode("ascii")
         .strip()
     )
+    # Check if any tracked files are modified for -modded version flag.
+    _VERSION_P2 = (
+        subprocess.check_output(["git", "status", "-suno", "--porcelain"])
+        .decode("ascii")
+        .strip()
+    )
+    if _VERSION_P2:
+        _VERSION_P2 = "-modded"
+    else:
+        _VERSION_P2 = ""
+
+    VERSION = f"{_VERSION_P1}{_VERSION_P2}"
+
 except (subprocess.SubprocessError, OSError, ValueError) as e:
     print(f"Failed setting version constant, reason:  {str(e)}")
     VERSION = "version_unknown"
@@ -17,6 +35,10 @@ DEFAULT_BOT_NAME: str = "MusicBot"
 DEFAULT_BOT_ICON: str = "https://i.imgur.com/gFHBoZA.png"
 DEFAULT_OWNER_GROUP_NAME: str = "Owner (auto)"
 DEFAULT_PERMS_GROUP_NAME: str = "Default"
+# This UA string is used by MusicBot only for the aiohttp session.
+# Meaning discord API and spotify API communications.
+# NOT used by ytdlp, they have a dynamic UA selection feature.
+MUSICBOT_USER_AGENT_AIOHTTP: str = f"MusicBot/{VERSION}"
 
 
 # File path constants
@@ -37,6 +59,7 @@ DEFAULT_DATA_DIR: str = "data/"
 # File names within the DEFAULT_DATA_DIR or guild folders.
 DATA_FILE_SERVERS: str = "server_names.txt"
 DATA_FILE_CACHEMAP: str = "playlist_cachemap.json"
+DATA_FILE_COOKIES: str = "cookies.txt"  # No support for this, go read yt-dlp docs.
 DATA_GUILD_FILE_QUEUE: str = "queue.json"
 DATA_GUILD_FILE_CUR_SONG: str = "current.txt"
 DATA_GUILD_FILE_OPTIONS: str = "options.json"
@@ -87,6 +110,9 @@ VOICE_CLIENT_MAX_RETRY_CONNECT: int = 5
 DEFAULT_MAX_INFO_DL_THREADS: int = 2
 # Maximum number of seconds to wait for HEAD request on media files.
 DEFAULT_MAX_INFO_REQUEST_TIMEOUT: int = 10
+
+# Time to wait before starting pre-download when a new song is playing.
+DEFAULT_PRE_DOWNLOAD_DELAY: float = 4.0
 
 # Discord and other API constants
 DISCORD_MSG_CHAR_LIMIT: int = 2000

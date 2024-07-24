@@ -47,6 +47,7 @@ from .constants import (
     EMOJI_STOP_SIGN,
     FALLBACK_PING_SLEEP,
     FALLBACK_PING_TIMEOUT,
+    MUSICBOT_USER_AGENT_AIOHTTP,
 )
 from .constants import VERSION as BOTVERSION
 from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
@@ -122,9 +123,6 @@ CommandResponse = Union[Response, None]
 
 log = logging.getLogger(__name__)
 
-# TODO:  add an aliases command to manage command aliases.
-# TODO:  maybe allow aliases to contain whole/partial commands.
-
 
 class MusicBot(discord.Client):
     def __init__(
@@ -173,7 +171,12 @@ class MusicBot(discord.Client):
         self.str = Json(self.config.i18n_file)
 
         if self.config.usealias:
-            self.aliases = Aliases(aliases_file)
+            # get a list of natural command names.
+            nat_cmds = [
+                x.replace("cmd_", "") for x in dir(self) if x.startswith("cmd_")
+            ]
+            # load the aliases file.
+            self.aliases = Aliases(aliases_file, nat_cmds)
 
         self.playlist_mgr = AutoPlaylistManager(self)
 
@@ -244,7 +247,13 @@ class MusicBot(discord.Client):
         if self.config.enable_queue_history_global:
             await self.playlist_mgr.global_history.load()
 
-        self.http.user_agent = f"MusicBot/{BOTVERSION}"
+        # TODO: testing is needed to see if this would be required.
+        # See also:  https://github.com/aio-libs/aiohttp/discussions/6044
+        # aiohttp version must be at least 3.8.0 for the following to potentially work.
+        # Python 3.11+ might also be a requirement if CPython does not support start_tls.
+        # setattr(asyncio.sslproto._SSLProtocolTransport, "_start_tls_compatible", True)
+
+        self.http.user_agent = MUSICBOT_USER_AGENT_AIOHTTP
         if self.use_certifi:
             ssl_ctx = ssl.create_default_context(cafile=certifi.where())
             tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
@@ -1564,13 +1573,20 @@ class MusicBot(discord.Client):
             return
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
-        paused = sum(1 for p in self.players.values() if p.is_paused)
+        if self.config.status_include_paused:
+            paused = sum(1 for p in self.players.values() if p.is_paused)
+        else:
+            paused = 0
         total = len(self.players)
 
         def format_status_msg(player: Optional[MusicPlayer]) -> str:
+            if not self.config.status_include_paused:
+                p = sum(1 for p in self.players.values() if p.is_paused)
+            else:
+                p = paused
             msg = self.config.status_message
             msg = msg.replace("{n_playing}", str(playing))
-            msg = msg.replace("{n_paused}", str(paused))
+            msg = msg.replace("{n_paused}", str(p))
             msg = msg.replace("{n_connected}", str(total))
             if player and player.current_entry:
                 msg = msg.replace("{p0_title}", player.current_entry.title)
@@ -2631,6 +2647,9 @@ class MusicBot(discord.Client):
         Manage a server-specific event timer when it's MusicPlayer becomes idle,
         if the bot is configured to do so.
         """
+        if self.logout_called:
+            return
+
         if not self.config.leave_player_inactive_for:
             return
         channel = player.voice_client.channel
@@ -2662,11 +2681,18 @@ class MusicBot(discord.Client):
                 [event.wait()], timeout=self.config.leave_player_inactive_for
             )
         except asyncio.TimeoutError:
-            log.info(
-                "Player activity timer for %s has expired. Disconnecting.",
-                guild.name,
-            )
-            await self.on_inactivity_timeout_expired(channel)
+            if not player.is_playing:
+                log.info(
+                    "Player activity timer for %s has expired. Disconnecting.",
+                    guild.name,
+                )
+                await self.on_inactivity_timeout_expired(channel)
+            else:
+                log.info(
+                    "Player activity timer canceled for: %s in %s",
+                    channel.name,
+                    guild.name,
+                )
         else:
             log.info(
                 "Player activity timer canceled for: %s in %s",
@@ -7004,10 +7030,30 @@ class MusicBot(discord.Client):
 
     @dev_only
     async def cmd_debug(
-        self, _player: Optional[MusicPlayer], *, data: str
+        self,
+        _player: Optional[MusicPlayer],
+        message: discord.Message,  # pylint: disable=unused-argument
+        channel: GuildMessageableChannels,  # pylint: disable=unused-argument
+        guild: discord.Guild,  # pylint: disable=unused-argument
+        author: discord.Member,  # pylint: disable=unused-argument
+        permissions: PermissionGroup,  # pylint: disable=unused-argument
+        *,
+        data: str,
     ) -> CommandResponse:
         """
-        Evaluate or otherwise execute the python code in `data`
+        Usage:
+            {command_prefix}debug [one line of code]
+                OR
+            {command_prefix}debug ` ` `py
+            many lines
+            of python code.
+            ` ` `
+
+            This command will execute python code in the commands scope.
+            First eval() is attempted, if exceptions are thrown exec() is tried.
+            If eval is successful, its return value is displayed.
+            If exec is successful, a value can be set to local variable `result`
+            and that value will be returned.
         """
         codeblock = "```py\n{}\n```"
         result = None
@@ -7016,24 +7062,85 @@ class MusicBot(discord.Client):
             data = "\n".join(data.rstrip("`\n").split("\n")[1:])
 
         code = data.strip("` \n")
-
-        scope = globals().copy()
-        scope.update({"self": self})
-
         try:
-            result = eval(code, scope)  # pylint: disable=eval-used
+            run_type = "eval"
+            result = eval(code)  # pylint: disable=eval-used
+            log.debug("Debug code ran with eval().")
         except Exception:  # pylint: disable=broad-exception-caught
             try:
-                exec(code, scope)  # pylint: disable=exec-used
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                traceback.print_exc(chain=False)
-                type_name = type(e).__name__
-                return Response(f"{type_name}: {str(e)}")
+                run_type = "exec"
+                # exec needs a fake locals so we can get `result` from it.
+                lscope: Dict[str, Any] = {}
+                # exec also needs locals() to be in globals() for access to work.
+                gscope = globals().copy()
+                gscope.update(locals().copy())
+                exec(code, gscope, lscope)  # pylint: disable=exec-used
+                log.debug("Debug code ran with exec().")
+                result = lscope.get("result", result)
+            except Exception as e:
+                log.exception("Debug code failed to execute.")
+                raise exceptions.CommandError(
+                    f"Failed to execute debug code.\n{codeblock.format(code)}\n"
+                    f"Exception: ```\n{type(e).__name__}:\n{str(e)}```"
+                ) from e
 
         if asyncio.iscoroutine(result):
             result = await result
 
-        return Response(codeblock.format(result))
+        return Response(f"**{run_type}() Result:**\n{codeblock.format(result)}")
+
+    @dev_only
+    async def cmd_makemarkdown(
+        self,
+        channel: MessageableChannel,
+        author: discord.Member,
+        cfg: str = "opts",
+    ) -> CommandResponse:
+        """
+        Command to generate markdown for options and permissions files.
+        Contents are generated from code and not pulled from the files!
+        """
+        valid_opts = ["opts", "perms"]
+        if cfg not in valid_opts:
+            opts = ", ".join([f"`{o}`" for o in valid_opts])
+            raise exceptions.CommandError("Option must be one of: %s" % (opts))
+
+        filename = "config_options.md"
+        msg_str = "Config options described in Markdown:\n"
+        if cfg == "perms":
+            filename = "config_permissions.md"
+            msg_str = "Permissions described in Markdown:\n"
+            config_md = self.permissions.register.export_markdown()
+        else:
+            config_md = self.config.register.export_markdown()
+
+        sent_to_channel = None
+
+        # TODO: refactor this in favor of safe_send_message doing it all.
+        with BytesIO() as fcontent:
+            fcontent.write(config_md.encode("utf8"))
+            fcontent.seek(0)
+            datafile = discord.File(fcontent, filename=filename)
+
+            try:
+                # try to DM. this could fail for users with strict privacy settings.
+                # or users who just can't get direct messages.
+                await author.send(msg_str, file=datafile)
+
+            except discord.errors.HTTPException as e:
+                if e.code == 50007:  # cannot send to this user.
+                    log.debug("DM failed, sending in channel instead.")
+                    sent_to_channel = await channel.send(
+                        msg_str,
+                        file=datafile,
+                    )
+                else:
+                    raise
+        if not sent_to_channel:
+            return Response(
+                "Sent a message with the requested config markdown.", delete_after=20
+            )
+        return None
 
     @owner_only
     async def cmd_checkupdates(self, channel: MessageableChannel) -> CommandResponse:
@@ -7310,14 +7417,22 @@ class MusicBot(discord.Client):
         else:
             args = []
 
+        # Check if the incomming command is a "natural" command.
         handler = getattr(self, "cmd_" + command, None)
         if not handler:
-            # alias handler
+            # If no natural command was found, check for aliases when enabled.
             if self.config.usealias:
-                command = self.aliases.get(command)
+                # log.debug("Checking for alias with: %s", command)
+                command, alias_arg_str = self.aliases.get(command)
                 handler = getattr(self, "cmd_" + command, None)
                 if not handler:
                     return
+                # log.debug("Alias found:  %s %s", command, alias_arg_str)
+                # Complex aliases may have args of their own.
+                # We assume the user args go after the alias args.
+                if alias_arg_str:
+                    args = alias_arg_str.split(" ") + args
+            # Or ignore aliases, and this non-existent command.
             else:
                 return
 

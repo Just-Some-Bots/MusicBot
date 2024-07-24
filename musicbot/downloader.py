@@ -85,12 +85,28 @@ class Downloader:
         )
 
         # force ytdlp and HEAD requests to use the same UA string.
-        self.http_req_headers = {
-            "User-Agent": youtube_dl.utils.networking.random_user_agent()
-        }
+        # If the constant is set, use that, otherwise use dynamic selection.
+        if bot.config.ytdlp_user_agent:
+            ua = bot.config.ytdlp_user_agent
+            log.warning("Forcing YTDLP to use User Agent:  %s", ua)
+        else:
+            ua = youtube_dl.utils.networking.random_user_agent()
+        self.http_req_headers = {"User-Agent": ua}
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
         ytdl_format_options["http_headers"] = self.http_req_headers
+
+        # check if we should apply a cookies file to ytdlp.
+        if bot.config.cookies_path.is_file():
+            log.info(
+                "MusicBot will use cookies for yt-dlp from:  %s",
+                bot.config.cookies_path,
+            )
+            ytdl_format_options["cookiefile"] = bot.config.cookies_path
+
+        if bot.config.ytdlp_proxy:
+            log.info("Yt-dlp will use your configured proxy server.")
+            ytdl_format_options["proxy"] = bot.config.ytdlp_proxy
 
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))
@@ -191,6 +207,7 @@ class Downloader:
             timeout=req_timeout,
             allow_redirects=allow_redirects,
             headers=req_headers,
+            proxy=self.bot.config.ytdlp_proxy,
         ) as response:
             return response.headers
 
