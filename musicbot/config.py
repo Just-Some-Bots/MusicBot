@@ -5,6 +5,7 @@ import os
 import pathlib
 import shutil
 import sys
+import time
 from typing import (
     TYPE_CHECKING,
     Dict,
@@ -426,6 +427,17 @@ class Config:
             getter="getboolean",
             comment="Allow MusicBot to save the song queue, so they will survive restarts.",
         )
+        self.pre_download_next_song: bool = self.register.init_option(
+            section="MusicBot",
+            option="PreDownloadNextSong",
+            dest="pre_download_next_song",
+            default=ConfigDefaults.pre_download_next_song,
+            getter="getboolean",
+            comment=(
+                "Enable MusicBot to download the next song in the queue while a song is playing.\n"
+                "Currently this option does not apply to auto-playlist or songs added to an empty queue."
+            ),
+        )
         self.status_message: str = self.register.init_option(
             section="MusicBot",
             option="StatusMessage",
@@ -693,7 +705,6 @@ class Config:
                 "Leave blank to disable."
             ),
         )
-
         self.ytdlp_user_agent: str = self.register.init_option(
             section="MusicBot",
             option="YtdlpUserAgent",
@@ -702,6 +713,9 @@ class Config:
             comment=(
                 "Experimental option to set a static User-Agent header in yt-dlp.\n"
                 "It is not typically recommended by yt-dlp to change the UA string.\n"
+                "For examples of what you might put here, check the following two links:\n"
+                "   https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent \n"
+                "   https://www.useragents.me/ \n"
                 "Leave blank to use default, dynamically generated UA strings."
             ),
         )
@@ -964,10 +978,13 @@ class Config:
         if self.cookies_path.is_file():
             log.warning(
                 "Cookies TXT file detected. MusicBot will pass them to yt-dlp.\n"
-                "Enabling cookies is not recommended, and could be risky.\n"
-                "Make sure you understand how yt-dlp will be using the cookies.\n"
-                "Good Luck!  \U0001F596"
+                "Cookies are not recommended, may not be supported, and may totally break.\n"
+                "Copying cookies from your web-browser risks exposing personal data and \n"
+                "in the best case can result in your accounts being banned!\n\n"
+                "You have been warned!  Good Luck!  \U0001F596\n"
             )
+            # make sure the user sees this.
+            time.sleep(3)
 
     async def async_validate(self, bot: "MusicBot") -> None:
         """
@@ -1228,6 +1245,7 @@ class ConfigDefaults:
     auto_unpause_on_play: bool = False
     ytdlp_proxy: str = ""
     ytdlp_user_agent: str = ""
+    pre_download_next_song: bool = True
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()

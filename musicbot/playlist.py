@@ -18,7 +18,7 @@ from typing import (
 
 import discord
 
-from .constants import DEFAULT_PRE_DOWNLOAD_DELAY, PRE_DOWNLOAD_NEXT_TRACK
+from .constants import DEFAULT_PRE_DOWNLOAD_DELAY
 from .constructs import Serializable
 from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
 from .exceptions import ExtractionError, InvalidDataError, WrongEntryTypeError
@@ -454,7 +454,7 @@ class Playlist(EventEmitter, Serializable):
         Enforces a delay before doing pre-download of the "next" song.
         Should only be called from get_next_entry() after pop.
         """
-        if not PRE_DOWNLOAD_NEXT_TRACK:
+        if not self.bot.config.pre_download_next_song:
             return
 
         if not self.entries:
