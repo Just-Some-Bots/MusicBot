@@ -837,6 +837,9 @@ class Config:
         self.data_path = pathlib.Path(DEFAULT_DATA_DIR).resolve()
         self.server_names_path = self.data_path.joinpath(DATA_FILE_SERVERS)
         self.cookies_path = self.data_path.joinpath(DATA_FILE_COOKIES)
+        self.disabled_cookies_path = self.cookies_path.parent.joinpath(
+            f"_{self.cookies_path.name}"
+        )
 
         # Validate the config settings match destination values.
         self.register.validate_register_destinations()

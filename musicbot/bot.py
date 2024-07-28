@@ -7338,6 +7338,97 @@ class MusicBot(discord.Client):
             delete_after=30,
         )
 
+    @owner_only
+    async def cmd_setcookies(
+        self, message: discord.Message, opt: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}setcookies [ off | on ]
+                Disable or enable cookies.txt file without deleting it.
+
+            {command_prefix}setcookies
+                Update the cookies.txt file using a supplied attachment.
+
+        Note:
+          When updating cookies, you must upload a file named cookies.txt
+          If cookies are disabled, uploading will enable the feature.
+          Uploads will delete existing cookies, including disabled cookies file.
+        """
+        opt = opt.lower()
+        if opt == "on":
+            if self.downloader.cookies_enabled:
+                raise exceptions.CommandError("Cookies already enabled.")
+
+            if (
+                not self.config.disabled_cookies_path.is_file()
+                and not self.config.cookies_path.is_file()
+            ):
+                raise exceptions.CommandError(
+                    "Cookies must be uploaded to be enabled. (Missing cookies file.)"
+                )
+
+            # check for cookies file and use it.
+            if self.config.cookies_path.is_file():
+                self.downloader.enable_ytdl_cookies()
+            else:
+                # or rename the file as needed.
+                try:
+                    self.config.disabled_cookies_path.rename(self.config.cookies_path)
+                    self.downloader.enable_ytdl_cookies()
+                except OSError as e:
+                    raise exceptions.CommandError(
+                        f"Could not enable cookies due to error:  {str(e)}"
+                    ) from e
+            return Response("Cookies have been enabled.")
+
+        if opt == "off":
+            if self.downloader.cookies_enabled:
+                self.downloader.disable_ytdl_cookies()
+
+            if self.config.cookies_path.is_file():
+                try:
+                    self.config.cookies_path.rename(self.config.disabled_cookies_path)
+                except OSError as e:
+                    raise exceptions.CommandError(
+                        f"Could not rename cookies file due to error:  {str(e)}\n"
+                        "Cookies temporarilly disabled and will be re-enabled on next restart."
+                    ) from e
+            return Response("Cookies have been disabled.")
+
+        # check for attached files and inspect them for use.
+        if not message.attachments:
+            raise exceptions.CommandError(
+                "No attached uploads were found, try again while uploading a cookie file."
+            )
+
+        # check for a disabled cookies file and remove it.
+        if self.config.disabled_cookies_path.is_file():
+            try:
+                self.config.disabled_cookies_path.unlink()
+            except OSError as e:
+                log.warning(
+                    "Could not remove old, disabled cookies file:  %s", str(e)
+                )
+
+        # simply save the uploaded file in attachment 1 as cookies.txt.
+        try:
+            await message.attachments[0].save(self.config.cookies_path)
+        except discord.HTTPException as e:
+            raise exceptions.CommandError(
+                f"Error downloading the cookies file from discord:  {str(e)}"
+            ) from e
+        except OSError as e:
+            raise exceptions.CommandError(
+                f"Could not save cookies to disk:  {str(e)}"
+            ) from e
+
+        # enable cookies if it is not already.
+        if not self.downloader.cookies_enabled:
+            self.downloader.enable_ytdl_cookies()
+
+        return Response("Cookies uploaded and enabled.")
+
     async def on_message(self, message: discord.Message) -> None:
         """
         Event called by discord.py when any message is sent to/around the bot.

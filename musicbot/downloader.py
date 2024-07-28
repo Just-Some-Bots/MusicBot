@@ -125,6 +125,29 @@ class Downloader:
         """Get the Safe (errors ignored) instance of YoutubeDL."""
         return self.safe_ytdl
 
+    @property
+    def cookies_enabled(self) -> bool:
+        """
+        Get status of cookiefile option in ytdlp objects.
+        """
+        return all(
+            ["cookiefile" in ytdl.params for ytdl in [self.safe_ytdl, self.unsafe_ytdl]]
+        )
+
+    def enable_ytdl_cookies(self) -> None:
+        """
+        Set the cookiefile option on the ytdl objects.
+        """
+        self.safe_ytdl.params["cookiefile"] = self.bot.config.cookies_path
+        self.unsafe_ytdl.params["cookiefile"] = self.bot.config.cookies_path
+
+    def disable_ytdl_cookies(self) -> None:
+        """
+        Remove the cookiefile option on the ytdl objects.
+        """
+        del self.safe_ytdl.params["cookiefile"]
+        del self.unsafe_ytdl.params["cookiefile"]
+
     def get_url_or_none(self, url: str) -> Optional[str]:
         """
         Uses ytdl.utils.url_or_none() to validate a playable URL.
