@@ -7268,7 +7268,7 @@ class MusicBot(discord.Client):
         uptime = time.time() - self._init_time
         delta = format_song_duration(uptime)
         return Response(
-            f"MusicBot has been up for `{delta}`",
+            f"{self.user.name} has been up for `{delta}`",
             delete_after=30,
         )
 
