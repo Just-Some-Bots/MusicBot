@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import datetime
 import functools
@@ -205,6 +206,9 @@ class Downloader:
                         headers[new_key] = values
                     else:
                         headers[new_key] = values.pop()
+            except asyncio.exceptions.TimeoutError:
+                log.warning("Checking media headers failed due to timeout.")
+                headers = headers = {"X-HEAD-REQ-FAILED": "1"}
             except (ExtractionError, OSError, aiohttp.ClientError):
                 log.warning("Failed HEAD request for:  %s", test_url)
                 log.exception("HEAD Request exception: ")
