@@ -7354,6 +7354,12 @@ class MusicBot(discord.Client):
           When updating cookies, you must upload a file named cookies.txt
           If cookies are disabled, uploading will enable the feature.
           Uploads will delete existing cookies, including disabled cookies file.
+
+        WARNING:
+          Copying cookies can risk exposing your personal information or accounts,
+          and may result in account bans or theft if you are not careful.
+          It is not recommended due to these risks, and you should not use this
+          feature if you do not understand how to avoid the risks.
         """
         opt = opt.lower()
         if opt == "on":
