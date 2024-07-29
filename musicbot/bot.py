@@ -7402,7 +7402,7 @@ class MusicBot(discord.Client):
                 except OSError as e:
                     raise exceptions.CommandError(
                         f"Could not rename cookies file due to error:  {str(e)}\n"
-                        "Cookies temporarilly disabled and will be re-enabled on next restart."
+                        "Cookies temporarily disabled and will be re-enabled on next restart."
                     ) from e
             return Response("Cookies have been disabled.")
 
