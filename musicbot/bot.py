@@ -32,6 +32,7 @@ from .constants import (
     DATA_FILE_SERVERS,
     DATA_GUILD_FILE_CUR_SONG,
     DATA_GUILD_FILE_QUEUE,
+    DEFAULT_BOT_NAME,
     DEFAULT_OWNER_GROUP_NAME,
     DEFAULT_PERMS_GROUP_NAME,
     DEFAULT_PING_HTTP_URI,
@@ -7267,8 +7268,11 @@ class MusicBot(discord.Client):
         """
         uptime = time.time() - self._init_time
         delta = format_song_duration(uptime)
+        name = DEFAULT_BOT_NAME
+        if self.user:
+            name = self.user.name
         return Response(
-            f"{self.user.name} has been up for `{delta}`",
+            f"{name} has been up for `{delta}`",
             delete_after=30,
         )
 

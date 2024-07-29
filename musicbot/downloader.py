@@ -132,7 +132,7 @@ class Downloader:
         Get status of cookiefile option in ytdlp objects.
         """
         return all(
-            ["cookiefile" in ytdl.params for ytdl in [self.safe_ytdl, self.unsafe_ytdl]]
+            "cookiefile" in ytdl.params for ytdl in [self.safe_ytdl, self.unsafe_ytdl]
         )
 
     def enable_ytdl_cookies(self) -> None:
