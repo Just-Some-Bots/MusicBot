@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import datetime
 import functools
@@ -125,6 +126,43 @@ class Downloader:
         """Get the Safe (errors ignored) instance of YoutubeDL."""
         return self.safe_ytdl
 
+    @property
+    def cookies_enabled(self) -> bool:
+        """
+        Get status of cookiefile option in ytdlp objects.
+        """
+        return all(
+            "cookiefile" in ytdl.params for ytdl in [self.safe_ytdl, self.unsafe_ytdl]
+        )
+
+    def enable_ytdl_cookies(self) -> None:
+        """
+        Set the cookiefile option on the ytdl objects.
+        """
+        self.safe_ytdl.params["cookiefile"] = self.bot.config.cookies_path
+        self.unsafe_ytdl.params["cookiefile"] = self.bot.config.cookies_path
+
+    def disable_ytdl_cookies(self) -> None:
+        """
+        Remove the cookiefile option on the ytdl objects.
+        """
+        del self.safe_ytdl.params["cookiefile"]
+        del self.unsafe_ytdl.params["cookiefile"]
+
+    def randomize_user_agent_string(self) -> None:
+        """
+        Uses ytdlp utils functions to re-randomize UA strings in YoutubeDL
+        objects and header check requests.
+        """
+        # ignore this call if static UA is configured.
+        if not self.bot.config.ytdlp_user_agent:
+            return
+
+        new_ua = youtube_dl.utils.networking.random_user_agent()
+        self.unsafe_ytdl.params["http_headers"]["User-Agent"] = new_ua
+        self.safe_ytdl.params["http_headers"]["User-Agent"] = new_ua
+        self.http_req_headers["User-Agent"] = new_ua
+
     def get_url_or_none(self, url: str) -> Optional[str]:
         """
         Uses ytdl.utils.url_or_none() to validate a playable URL.
@@ -168,6 +206,9 @@ class Downloader:
                         headers[new_key] = values
                     else:
                         headers[new_key] = values.pop()
+            except asyncio.exceptions.TimeoutError:
+                log.warning("Checking media headers failed due to timeout.")
+                headers = {"X-HEAD-REQ-FAILED": "1"}
             except (ExtractionError, OSError, aiohttp.ClientError):
                 log.warning("Failed HEAD request for:  %s", test_url)
                 log.exception("HEAD Request exception: ")
@@ -313,6 +354,9 @@ class Downloader:
         data["__input_subject"] = song_subject
         data["__header_data"] = headers or None
         data["__expected_filename"] = self.ytdl.prepare_filename(data)
+
+        # ensure the UA is randomized with each new request if not set static.
+        self.randomize_user_agent_string()
 
         """
         # disabled since it is only needed for working on extractions.
