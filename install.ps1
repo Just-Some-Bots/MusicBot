@@ -45,6 +45,15 @@ if (-Not (Get-Command winget -ErrorAction SilentlyContinue) )
     ""
     Return
 }
+else
+{
+    ""
+    "Checking WinGet can be used..."
+    "If prompted, you must agree to the MS terms to continue installing."
+    ""
+    winget list -q Git.Git
+    ""
+}
 
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
@@ -69,7 +78,7 @@ else
 ""
 
 # Check if Any python 3 is installed
-"Checking if python is already installed..."
+"Checking if python 3 is already installed..."
 Invoke-Expression "winget list -q Python.Python.3" | Out-Null
 if (!($LastExitCode -eq 0))
 {
@@ -80,7 +89,7 @@ if (!($LastExitCode -eq 0))
 }
 else
 {
-    "Python already installed."
+    "Python 3 already installed."
 }
 ""
 
@@ -119,7 +128,7 @@ if((Test-Path $MB_Reqs_File) -and (Test-Path $MB_Module_Dir) -and (Test-Path $MB
 } else {
     ""
     "MusicBot currently has three branches available."
-    "  master - An older MusicBot, for older discord.py. May not work without tweaks!"
+    "  master - Stable MusicBot, least updates and may at times be out-of-date."
     "  review - Newer MusicBot, usually stable with less updates than the dev branch."
     "  dev    - The newest MusicBot, latest features and changes which may need testing."
     ""
@@ -160,7 +169,7 @@ $versionArray = "3.8", "3.9", "3.10", "3.11", "3.12"
 
 foreach ($version in $versionArray)
 {
-    Invoke-Expression "py -$version -c 'exit()'" 2>$null
+    Invoke-Expression "py -$version -c 'exit()'" | Out-Null
     if($LastExitCode -eq 0)
     {
         $PYTHON = "py -$version"
