@@ -804,6 +804,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         """Get available thumbnail from info or an empty string"""
         return self.info.thumbnail_url
 
+    @property
+    def playback_speed(self) -> float:
+        """Playback speed for streamed entries cannot typically be adjusted."""
+        return 1.0
+
     def __json__(self) -> Dict[str, Any]:
         return self._enclose_json(
             {
