@@ -3,6 +3,7 @@ import copy
 import datetime
 import functools
 import hashlib
+import importlib
 import logging
 import os
 import pathlib
@@ -23,6 +24,7 @@ from yt_dlp.utils import UnsupportedError
 from .constants import DEFAULT_MAX_INFO_DL_THREADS, DEFAULT_MAX_INFO_REQUEST_TIMEOUT
 from .exceptions import ExtractionError, MusicbotException
 from .spotify import Spotify
+from .ytdlp_oauth2_plugin import enable_ytdlp_oauth2_plugin
 
 if TYPE_CHECKING:
     from multidict import CIMultiDictProxy
@@ -108,6 +110,28 @@ class Downloader:
         if bot.config.ytdlp_proxy:
             log.info("Yt-dlp will use your configured proxy server.")
             ytdl_format_options["proxy"] = bot.config.ytdlp_proxy
+
+        if bot.config.ytdlp_use_oauth2:
+            # set the login info so oauth2 is prompted.
+            ytdl_format_options["username"] = "oauth2"
+            ytdl_format_options["password"] = ""
+            # ytdl_format_options["extractor_args"] = {
+            #    "youtubetab": {"skip": ["authcheck"]}
+            # }
+
+            # check if the original plugin is installed, and use it instead of ours.
+            # It's worth doing this because our version might fail to work,
+            # even if the original causes infinite loop hangs while auth is pending...
+            oauth_spec = importlib.utils.find_spec(
+                "yt_dlp_plugins.extractor.youtubeoauth"
+            )
+            if oauth_spec is not None:
+                log.warning(
+                    "Loading the original OAuth2 plugin. This may cause MusicBot to not close completely!\n"
+                    "Uninstall the yt-dlp-youtube-oauth2 package to use integrated OAuth2 features."
+                )
+            else:
+                enable_ytdlp_oauth2_plugin(self.bot.config)
 
         if self.download_folder:
             # print("setting template to " + os.path.join(download_folder, otmpl))

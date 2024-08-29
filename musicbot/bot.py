@@ -315,6 +315,16 @@ class MusicBot(discord.Client):
                 )
                 self.config.spotify_enabled = False
 
+        # trigger yt tv oauth2 authorization.
+        if self.config.ytdlp_use_oauth2 and self.config.ytdlp_oauth2_url:
+            log.warning(
+                "Experimental Yt-dlp OAuth2 plugin is enabled. This might break at any point!"
+            )
+            # could probably do this with items from an auto-playlist but meh.
+            await self.downloader.extract_info(
+                self.config.ytdlp_oauth2_url, download=False, process=True
+            )
+
         log.info("Initialized, now connecting to discord.")
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()

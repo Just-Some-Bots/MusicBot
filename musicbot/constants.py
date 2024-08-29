@@ -1,4 +1,5 @@
 import subprocess
+from typing import List
 
 # VERSION is determined by asking the `git` executable about the current repository.
 # This fails if not cloned, or if git is not available for some reason.
@@ -60,6 +61,7 @@ DEFAULT_DATA_DIR: str = "data/"
 DATA_FILE_SERVERS: str = "server_names.txt"
 DATA_FILE_CACHEMAP: str = "playlist_cachemap.json"
 DATA_FILE_COOKIES: str = "cookies.txt"  # No support for this, go read yt-dlp docs.
+DATA_FILE_YTDLP_OAUTH2: str = "oauth2.token"
 DATA_GUILD_FILE_QUEUE: str = "queue.json"
 DATA_GUILD_FILE_CUR_SONG: str = "current.txt"
 DATA_GUILD_FILE_OPTIONS: str = "options.json"
@@ -113,6 +115,28 @@ DEFAULT_MAX_INFO_REQUEST_TIMEOUT: int = 10
 
 # Time to wait before starting pre-download when a new song is playing.
 DEFAULT_PRE_DOWNLOAD_DELAY: float = 4.0
+
+# Time in seconds to wait before oauth2 authorization fails.
+# This provides time to authorize as well as prevent process hang at shutdown.
+DEFAULT_YTDLP_OAUTH2_TTL: float = 180.0
+
+# Default / fallback scopes used for OAuth2 ytdlp plugin.
+DEFAULT_YTDLP_OAUTH2_SCOPES: str = (
+    "http://gdata.youtube.com https://www.googleapis.com/auth/youtube"
+)
+# Info Extractors to exclude from OAuth2 patching, when OAuth2 is enabled.
+YTDLP_OAUTH2_EXCLUDED_IES: List[str] = [
+    "YoutubeBaseInfoExtractor",
+    "YoutubeTabBaseInfoExtractor",
+]
+# Yt-dlp client creators that are not compatible with OAuth2 plugin.
+YTDLP_OAUTH2_UNSUPPORTED_CLIENTS: List[str] = [
+    "web_creator",
+    "android_creator",
+    "ios_creator",
+]
+# Additional Yt-dlp clients to add to the OAuth2 client list.
+YTDLP_OAUTH2_CLIENTS: List[str] = ["mweb"]
 
 # Discord and other API constants
 DISCORD_MSG_CHAR_LIMIT: int = 2000
