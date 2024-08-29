@@ -122,7 +122,7 @@ class Downloader:
             # check if the original plugin is installed, and use it instead of ours.
             # It's worth doing this because our version might fail to work,
             # even if the original causes infinite loop hangs while auth is pending...
-            oauth_spec = importlib.utils.find_spec(
+            oauth_spec = importlib.util.find_spec(
                 "yt_dlp_plugins.extractor.youtubeoauth"
             )
             if oauth_spec is not None:
