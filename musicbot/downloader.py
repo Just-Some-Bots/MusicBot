@@ -127,9 +127,14 @@ class Downloader:
             )
             if oauth_spec is not None:
                 log.warning(
-                    "Loading the original OAuth2 plugin. This may cause MusicBot to not close completely!\n"
-                    "Uninstall the yt-dlp-youtube-oauth2 package to use integrated OAuth2 features."
+                    "Original OAuth2 plugin is installed and will be used instead.\n"
+                    "This may cause MusicBot to not close completely, or hang pending authorization!\n"
+                    "To close MusicBot, you must manually Kill the MusicBot process!\n"
+                    "Yt-dlp is being set to show warnings and other log messages, to show the Auth code.\n"
+                    "Uninstall the yt-dlp-youtube-oauth2 package to use integrated OAuth2 features instead."
                 )
+                ytdl_format_options["quiet"] = False
+                ytdl_format_options["no_warnings"] = False
             else:
                 enable_ytdlp_oauth2_plugin(self.bot.config)
 
