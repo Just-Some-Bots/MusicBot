@@ -17,7 +17,7 @@ import pathlib
 import time
 import urllib.parse
 import uuid
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Tuple
 
 import yt_dlp.networking  # type: ignore[import-untyped]
 from yt_dlp.extractor.common import InfoExtractor  # type: ignore[import-untyped]
@@ -48,10 +48,12 @@ class YtdlpOAuth2Exception(Exception):
     pass
 
 
-class YouTubeOAuth2Handler(InfoExtractor):
+class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
+    # pylint: disable=W0223
     _oauth2_token_path: pathlib.Path = pathlib.Path(DEFAULT_DATA_DIR).joinpath(
         DATA_FILE_YTDLP_OAUTH2
     )
+    _client_token_data: TokenDict = {}
     _client_id: str = ""
     # I hate this, I am stupid and lazy. Future me/you, sorry and thanks ahead of time. :)
     _client_secret: str = ""
@@ -59,13 +61,22 @@ class YouTubeOAuth2Handler(InfoExtractor):
 
     @staticmethod
     def set_client_id(client_id: str) -> None:
+        """
+        Sets the shared, static client ID for use by OAuth2.
+        """
         YouTubeOAuth2Handler._client_id = client_id
 
     @staticmethod
     def set_client_secret(client_secret: str) -> None:
+        """
+        Sets the shared, static client secret for use by OAuth2.
+        """
         YouTubeOAuth2Handler._client_secret = client_secret
 
     def _save_token_data(self, token_data: TokenDict) -> None:
+        """
+        Handles saving token data as JSON to file system.
+        """
         try:
             with open(self._oauth2_token_path, "w", encoding="utf8") as fh:
                 json.dump(token_data, fh)
@@ -73,6 +84,9 @@ class YouTubeOAuth2Handler(InfoExtractor):
             log.error("Failed to save ytdlp oauth2 token data due to:  %s", e)
 
     def _load_token_data(self) -> TokenDict:
+        """
+        Handles loading token data as JSON from file system.
+        """
         log.everything(  # type: ignore[attr-defined]
             "Loading Youtube TV OAuth2 token data."
         )
@@ -88,20 +102,28 @@ class YouTubeOAuth2Handler(InfoExtractor):
         return d
 
     def store_token(self, token_data: TokenDict) -> None:
+        """
+        Saves token data to cache.
+        """
         log.everything(  # type: ignore[attr-defined]
             "Storing Youtube TV OAuth2 token data"
         )
         self._save_token_data(token_data)
-        self._TOKEN_DATA = token_data
+        self._client_token_data = token_data
 
     def get_token(self) -> TokenDict:
-        if not getattr(self, "_TOKEN_DATA", None):
-            # self._TOKEN_DATA = self.cache.load("youtube-oauth2", "token_data")
-            self._TOKEN_DATA = self._load_token_data()
+        """
+        Returns token data from cache.
+        """
+        if not getattr(self, "_client_token_data", None):
+            self._client_token_data = self._load_token_data()
 
-        return self._TOKEN_DATA
+        return self._client_token_data
 
     def validate_token_data(self, token_data: TokenDict) -> bool:
+        """
+        Validate required token data exists.
+        """
         log.everything("validate ytdlp token...")  # type: ignore[attr-defined]
         return all(
             key in token_data
@@ -109,7 +131,10 @@ class YouTubeOAuth2Handler(InfoExtractor):
         )
 
     def initialize_oauth(self) -> TokenDict:
-        log.everything("init oauth for ytdlp")
+        """
+        Validates existing OAuth2 data or triggers authorization flow.
+        """
+        log.everything("init oauth for ytdlp")  # type: ignore[attr-defined]
         token_data = self.get_token()
 
         if token_data and not self.validate_token_data(token_data):
@@ -127,14 +152,19 @@ class YouTubeOAuth2Handler(InfoExtractor):
             token_data.get("expires", 0)
             < datetime.datetime.now(datetime.timezone.utc).timestamp() + 60
         ):
-            log.everything("Access token expired, refreshing")
+            log.everything(  # type: ignore[attr-defined]
+                "Access token expired, refreshing"
+            )
             token_data = self.refresh_token(token_data["refresh_token"])
             self.store_token(token_data)
 
         return token_data
 
-    def handle_oauth(self, request: yt_dlp.networking.Request):
-        log.everything("handling oauth2")
+    def handle_oauth(self, request: yt_dlp.networking.Request) -> None:
+        """
+        Fix up request to include proper OAuth2 data.
+        """
+        log.everything("handling oauth2")  # type: ignore[attr-defined]
         if not urllib.parse.urlparse(request.url).netloc.endswith("youtube.com"):
             return
 
@@ -159,7 +189,10 @@ class YouTubeOAuth2Handler(InfoExtractor):
         }
         request.headers.update(authorization_header)
 
-    def refresh_token(self, refresh_token: TokenDict):
+    def refresh_token(self, refresh_token: TokenDict) -> TokenDict:
+        """
+        Refresh authorization using refresh data or restarting auth flow.
+        """
         log.info("refreshing oauth2 token")
         token_response = self._download_json(
             "https://www.youtube.com/o/oauth2/token",
@@ -193,7 +226,10 @@ class YouTubeOAuth2Handler(InfoExtractor):
         }
 
     def authorize(self) -> TokenDict:
-        log.everything("Starting oauth2 flow...")
+        """
+        Start authorization flow and loop until authorized or time-out.
+        """
+        log.everything("Starting oauth2 flow...")  # type: ignore[attr-defined]
         code_response = self._download_json(
             "https://www.youtube.com/o/oauth2/device/code",
             video_id="oauth2",
@@ -253,15 +289,16 @@ class YouTubeOAuth2Handler(InfoExtractor):
                 if error == "authorization_pending":
                     time.sleep(code_response["interval"])
                     continue
-                elif error == "expired_token":
+                if error == "expired_token":
                     log.warning(
                         "The device code has expired, restarting authorization flow for yt-dlp."
                     )
                     return self.authorize()
-                else:
-                    raise YtdlpOAuth2Exception(f"Unhandled OAuth2 Error: {error}")
+                raise YtdlpOAuth2Exception(f"Unhandled OAuth2 Error: {error}")
 
-            log.everything("Yt-dlp OAuth2 authorization successful.")
+            log.everything(  # type: ignore[attr-defined]
+                "Yt-dlp OAuth2 authorization successful."
+            )
             return {
                 "access_token": token_response["access_token"],
                 "expires": datetime.datetime.now(datetime.timezone.utc).timestamp()
@@ -272,11 +309,14 @@ class YouTubeOAuth2Handler(InfoExtractor):
 
 
 def enable_ytdlp_oauth2_plugin(config: "Config") -> None:
+    """
+    Controls addition of OAuth2 plugin to ytdlp.
+    """
     YouTubeOAuth2Handler.set_client_id(config.ytdlp_oauth2_client_id)
     YouTubeOAuth2Handler.set_client_secret(config.ytdlp_oauth2_client_secret)
 
     # build a list of info extractors to be patched.
-    YOUTUBE_IES = filter(
+    youtube_extractors = filter(
         lambda m: issubclass(m[1], YoutubeBaseInfoExtractor)
         and m[0] not in YTDLP_OAUTH2_EXCLUDED_IES,
         inspect.getmembers(
@@ -285,18 +325,22 @@ def enable_ytdlp_oauth2_plugin(config: "Config") -> None:
     )
 
     # patch each of the info extractors.
-    for _, ie in YOUTUBE_IES:
-        log.everything("Adding OAuth2 Plugin to Yt-dlp IE:  %s", ie)
+    for _, ie in youtube_extractors:
+        log.everything(  # type: ignore[attr-defined]
+            "Adding OAuth2 Plugin to Yt-dlp IE:  %s", ie
+        )
 
         class _YouTubeOAuth(
             ie,  # type: ignore[valid-type, misc]
             YouTubeOAuth2Handler,
             plugin_name="oauth2",  # type: ignore[call-arg]
         ):
+            # pylint: disable=W0223,C0103
+            _DEFAULT_CLIENTS: Tuple[str]
             _NETRC_MACHINE = "youtube"
             _use_oauth2 = False
 
-            def _perform_login(self, username, password):
+            def _perform_login(self, username: str, password: str) -> None:
                 if username == "oauth2":
                     # Ensure clients are supported.
                     self._DEFAULT_CLIENTS = tuple(
@@ -304,12 +348,14 @@ def enable_ytdlp_oauth2_plugin(config: "Config") -> None:
                         for c in getattr(self, "_DEFAULT_CLIENTS", [])
                         if c not in YTDLP_OAUTH2_UNSUPPORTED_CLIENTS
                     ) + tuple(YTDLP_OAUTH2_CLIENTS)
-                    log.everything("Default Yt-dlp Clients:  %s", self._DEFAULT_CLIENTS)
+                    log.everything(  # type: ignore[attr-defined]
+                        "Default Yt-dlp Clients:  %s", self._DEFAULT_CLIENTS
+                    )
 
                     self._use_oauth2 = True
                     self.initialize_oauth()
 
-            def _create_request(self, *args, **kwargs):
+            def _create_request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
                 request = super()._create_request(*args, **kwargs)
                 if "__youtube_oauth__" in request.headers:
                     request.headers.pop("__youtube_oauth__")
@@ -318,8 +364,12 @@ def enable_ytdlp_oauth2_plugin(config: "Config") -> None:
                 return request
 
             @property
-            def is_authenticated(self):
+            def is_authenticated(self) -> bool:
+                """Validate oauth2 auth data or return super value."""
                 if self._use_oauth2:
                     token_data = self.get_token()
-                    return token_data and self.validate_token_data(token_data)
-                return super().is_authenticated
+                    if token_data and self.validate_token_data(token_data):
+                        return True
+                if super().is_authenticated:
+                    return True
+                return False
