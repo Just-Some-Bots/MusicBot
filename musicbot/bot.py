@@ -4097,14 +4097,7 @@ class MusicBot(discord.Client):
                 )
 
             # ensure the extractor has been allowed via permissions.
-            if info.extractor not in permissions.extractors and permissions.extractors:
-                raise exceptions.PermissionsError(
-                    self.str.get(
-                        "cmd-play-badextractor",
-                        "You do not have permission to play the requested media. Service `{}` is not permitted.",
-                    ).format(info.extractor),
-                    expire_in=30,
-                )
+            permissions.can_use_extractor(info.extractor)
 
             # if the result has "entries" but it's empty, it might be a failed search.
             if "entries" in info and not info.entry_count:
