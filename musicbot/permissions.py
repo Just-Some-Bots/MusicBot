@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+PERMS_ALLOW_ALL_EXTRACTOR_NAME: str = "__"
 
-# Permissive class define the permissive value of each permissions
 
-
+# Permissive class define the permissive value of each default permissions
 class PermissionsDefaults:
     """
     Permissions system and PermissionGroup default values.
@@ -56,9 +56,8 @@ class PermissionsDefaults:
     extractors: Set[str] = {
         "generic",
         "youtube",
-        "youtube:tab",
-        "youtube:search",
-        "youtube:playlist",
+        "soundcloud",
+        "Bandcamp",
         "spotify:musicbot",
     }
 
@@ -479,6 +478,10 @@ class PermissionGroup:
             default=defaults.extractors,
             comment=(
                 "List of yt_dlp extractor keys, separated by spaces, that are allowed to be used.\n"
+                "Extractor names are matched partially, to allow for strict and flexible permissions.\n"
+                "Example:  `youtube:search` allows only search, but `youtube` allows all of youtube extractors.\n"
+                "When empty, hard-coded defaults are used. If you set this, you may want to add those defaults as well.\n"
+                f"To allow all extractors, add `{PERMS_ALLOW_ALL_EXTRACTOR_NAME}` to the list of extractors.\n"
                 "Services supported by yt_dlp shown here:  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md \n"
                 "MusicBot also provides one custom service `spotify:musicbot` to enable or disable spotify API extraction.\n"
                 "NOTICE: MusicBot might not support all services available to yt_dlp!\n"
@@ -493,6 +496,10 @@ class PermissionGroup:
         if self.max_search_items > 100:
             log.warning("Max search items can't be larger than 100. Setting to 100.")
             self.max_search_items = 100
+
+        # if extractors contains the all marker, blank out the list to allow all.
+        if PERMS_ALLOW_ALL_EXTRACTOR_NAME in self.extractors:
+            self.extractors = set()
 
     def add_user(self, uid: int) -> None:
         """Add given discord User ID to the user list."""
@@ -520,6 +527,28 @@ class PermissionGroup:
                 f"This command is disabled for your group ({self.name}).",
                 expire_in=20,
             )
+
+    def can_use_extractor(self, extractor: str) -> None:
+        """
+        Test if this group / user can use the given extractor.
+
+        :raises:  PermissionsError  if extractor is not allowed.
+        """
+        # empty extractor list will allow all extractors.
+        if not self.extractors:
+            return
+
+        # check the list for any partial matches.
+        for allowed in self.extractors:
+            if extractor.startswith(allowed):
+                return
+
+        # the extractor is not allowed.
+        raise PermissionsError(
+            "You do not have permission to play the requested media.\n"
+            f"The yt-dlp extractor `{extractor}` is not permitted in your group.",
+            expire_in=30,
+        )
 
     def format(self, for_user: bool = False) -> str:
         """

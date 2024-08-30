@@ -315,6 +315,16 @@ class MusicBot(discord.Client):
                 )
                 self.config.spotify_enabled = False
 
+        # trigger yt tv oauth2 authorization.
+        if self.config.ytdlp_use_oauth2 and self.config.ytdlp_oauth2_url:
+            log.warning(
+                "Experimental Yt-dlp OAuth2 plugin is enabled. This might break at any point!"
+            )
+            # could probably do this with items from an auto-playlist but meh.
+            await self.downloader.extract_info(
+                self.config.ytdlp_oauth2_url, download=False, process=True
+            )
+
         log.info("Initialized, now connecting to discord.")
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()
@@ -4087,14 +4097,7 @@ class MusicBot(discord.Client):
                 )
 
             # ensure the extractor has been allowed via permissions.
-            if info.extractor not in permissions.extractors and permissions.extractors:
-                raise exceptions.PermissionsError(
-                    self.str.get(
-                        "cmd-play-badextractor",
-                        "You do not have permission to play the requested media. Service `{}` is not permitted.",
-                    ).format(info.extractor),
-                    expire_in=30,
-                )
+            permissions.can_use_extractor(info.extractor)
 
             # if the result has "entries" but it's empty, it might be a failed search.
             if "entries" in info and not info.entry_count:
