@@ -732,13 +732,15 @@ class Config:
                 "The authorization token is then stored in the "
                 f"`{DEFAULT_DATA_DIR}/{DATA_FILE_YTDLP_OAUTH2}` file.\n"
                 "This option should not be used when cookies are enabled.\n"
-                "Using a personal account may not be recommended."
+                "Using a personal account may not be recommended.\n"
+                "Set yes to enable or no to disable."
             ),
         )
         self.ytdlp_oauth2_client_id: str = self.register.init_option(
             section="Credentials",
             option="YtdlpOAuth2ClientID",
             dest="ytdlp_oauth2_client_id",
+            getter="getstr",
             default=ConfigDefaults.ytdlp_oauth2_client_id,
             comment=(
                 "Sets the YouTube API Client ID, used by Yt-dlp OAuth2 plugin.\n"
@@ -749,6 +751,7 @@ class Config:
             section="Credentials",
             option="YtdlpOAuth2ClientSecret",
             dest="ytdlp_oauth2_client_secret",
+            getter="getstr",
             default=ConfigDefaults.ytdlp_oauth2_client_secret,
             comment=(
                 "Sets the YouTube API Client Secret key, used by Yt-dlp OAuth2 plugin.\n"
@@ -759,10 +762,12 @@ class Config:
             section="MusicBot",
             option="YtdlpOAuth2URL",
             dest="ytdlp_oauth2_url",
+            getter="getstr",
             default=ConfigDefaults.ytdlp_oauth2_url,
             comment=(
-                "Optional youtube URL used at start-up for triggering OAuth2 authorization.\n"
+                "Optional youtube video URL used at start-up for triggering OAuth2 authorization.\n"
                 "This starts the OAuth2 prompt early, rather than waiting for a song request.\n"
+                "The URL set here should be an accessible youtube video URL.\n"
                 "Authorization must be completed before start-up will continue when this is set."
             ),
         )
@@ -1856,6 +1861,39 @@ class ExtendedConfigParser(configparser.ConfigParser):
             s = sects[k]
             keys += list(s.keys())
         return keys
+
+    def getstr(
+        self,
+        section: str,
+        key: str,
+        raw: bool = False,
+        vars: ConfVars = None,
+        fallback: str = "",
+    ) -> str:
+        """A version of get which strips spaces and uses fallback / default for empty values."""
+        val = self.get(section, key, fallback=fallback, raw=raw, vars=vars).strip()
+        if not val:
+            return fallback
+        return val
+
+    def getboolean(  # type: ignore[override]
+        self,
+        section: str,
+        key: str,
+        *,
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        fallback: bool,
+    ) -> bool:
+        """Make getboolean less bitchy about empty values, so it uses fallback instead."""
+        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
+        if not val:
+            return fallback
+
+        try:
+            return super().getboolean(section, key, fallback=fallback)
+        except ValueError:
+            return fallback
 
     def getownerid(
         self,
