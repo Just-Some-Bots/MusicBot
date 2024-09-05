@@ -14,10 +14,10 @@ function do_exit() {
 }
 
 # attempt to find the "standard" venv and activate it.
-if [ -d "../MusicBotVenv" ] ; then
+if [ -f "../bin/activate" ] ; then
     echo "Detected MusicBot Venv & Loading it..."
     # shellcheck disable=SC1091
-    source "../MusicBotVenv/bin/activate"
+    source "../bin/activate"
 fi
 
 # Suported versions of python using only major.minor format

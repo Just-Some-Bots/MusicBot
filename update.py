@@ -130,18 +130,35 @@ def update_deps() -> None:
     """
     print("Attempting to update dependencies...")
 
-    run_or_raise_error(
-        [
+    # outside a venv these args are used for pip update
+    run_args = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--no-warn-script-location",
+        "--user",
+        "-U",
+        "-r",
+        "requirements.txt",
+    ]
+
+    # detect if venv is in use and update args.
+    if sys.prefix != sys.base_prefix:
+        run_args = [
             sys.executable,
             "-m",
             "pip",
             "install",
             "--no-warn-script-location",
-            "--user",
+            # No --user site-packages in venv
             "-U",
             "-r",
             "requirements.txt",
-        ],
+        ]
+
+    run_or_raise_error(
+        run_args,
         "Could not update dependencies. You need to update manually. "
         f"Run:  {sys.executable} -m pip install -U -r requirements.txt",
     )
