@@ -2609,7 +2609,7 @@ class MusicBot(discord.Client):
         Manage a server-specific event timer when MusicBot's voice channel becomes idle,
         if the bot is configured to do so.
         """
-        if not guild.me.voice or not guild.me.voice.channel:
+        if not guild.voice_client or not guild.voice_client.channel:
             log.warning(
                 "Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
             )
@@ -2624,8 +2624,8 @@ class MusicBot(discord.Client):
 
         try:
             chname = "Unknown"
-            if guild.me.voice.channel:
-                chname = guild.me.voice.channel.name
+            if hasattr(guild.voice_client.channel, "name"):
+                chname = guild.voice_client.channel.name
 
             log.info(
                 "Channel activity waiting %d seconds to leave channel: %s",
@@ -2637,16 +2637,18 @@ class MusicBot(discord.Client):
             )
         except asyncio.TimeoutError:
             # could timeout after a disconnect.
-            if guild.me.voice and guild.me.voice.channel:
+            if guild.voice_client and isinstance(
+                guild.voice_client.channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
                 log.info(
                     "Channel activity timer for %s has expired. Disconnecting.",
                     guild.name,
                 )
-                await self.on_inactivity_timeout_expired(guild.me.voice.channel)
+                await self.on_inactivity_timeout_expired(guild.voice_client.channel)
         else:
             log.info(
                 "Channel activity timer canceled for: %s in %s",
-                guild.me.voice.channel.name,
+                guild.voice_client.channel.name,
                 guild.name,
             )
         finally:
@@ -2692,7 +2694,7 @@ class MusicBot(discord.Client):
                 [event.wait()], timeout=self.config.leave_player_inactive_for
             )
         except asyncio.TimeoutError:
-            if not player.is_playing:
+            if not player.is_playing and player.voice_client.is_connected():
                 log.info(
                     "Player activity timer for %s has expired. Disconnecting.",
                     guild.name,
@@ -7865,7 +7867,7 @@ class MusicBot(discord.Client):
         """
         guild = voice_channel.guild
 
-        if voice_channel:
+        if isinstance(voice_channel, (discord.VoiceChannel, discord.StageChannel)):
             last_np_msg = self.server_data[guild.id].last_np_msg
             if last_np_msg is not None and last_np_msg.channel:
                 channel = last_np_msg.channel
