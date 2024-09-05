@@ -4134,7 +4134,7 @@ class MusicBot(discord.Client):
                     info,
                     channel=channel,
                     author=author,
-                    head=False,
+                    head=head,
                     ignore_video_id=ignore_video_id,
                 )
 
