@@ -3657,7 +3657,7 @@ class MusicBot(discord.Client):
             td = format_song_duration(_player.current_entry.duration_td)
             prog = format_song_duration(_player.progress)
             raise exceptions.CommandError(
-                f"Cannot seek to `{seek_time}` (`{f_seek_time}` seconds) in the current track with a length of `{prog} / {td}`",
+                f"Cannot seek to `{seek_time}` (`{f_seek_time:.2f}` seconds) in the current track with a length of `{prog} / {td}`",
                 expire_in=30,
             )
 
@@ -3675,7 +3675,7 @@ class MusicBot(discord.Client):
         _player.skip()
 
         return Response(
-            f"Seeking to time `{seek_time}` (`{f_seek_time}` seconds) in the current song.",
+            f"Seeking to time `{seek_time}` (`{f_seek_time:.2f}` seconds) in the current song.",
             delete_after=30,
         )
 
