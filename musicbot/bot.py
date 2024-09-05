@@ -3581,7 +3581,11 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_seek(
-        self, guild: discord.Guild, _player: Optional[MusicPlayer], seek_time: str = ""
+        self,
+        guild: discord.Guild,
+        _player: Optional[MusicPlayer],
+        leftover_args: List[str],
+        seek_time: str = "",
     ) -> CommandResponse:
         """
         Usage:
@@ -3613,6 +3617,12 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
+        # take in all potential arguments.
+        if leftover_args:
+            args = leftover_args
+            args.insert(0, seek_time)
+            seek_time = " ".join(args)
+
         if not seek_time:
             raise exceptions.CommandError(
                 "Cannot use seek without a time to position playback.",
@@ -3621,13 +3631,13 @@ class MusicBot(discord.Client):
 
         relative_seek: int = 0
         f_seek_time: float = 0
+        if seek_time.startswith("-"):
+            relative_seek = -1
+        if seek_time.startswith("+"):
+            relative_seek = 1
+
         if "." in seek_time:
             try:
-                if seek_time.startswith("-"):
-                    relative_seek = -1
-                if seek_time.startswith("+"):
-                    relative_seek = 1
-
                 p1, p2 = seek_time.rsplit(".", maxsplit=1)
                 i_seek_time = format_time_to_seconds(p1)
                 f_seek_time = float(f"0.{p2}")
@@ -3645,8 +3655,9 @@ class MusicBot(discord.Client):
 
         if f_seek_time > _player.current_entry.duration or f_seek_time < 0:
             td = format_song_duration(_player.current_entry.duration_td)
+            prog = format_song_duration(_player.progress)
             raise exceptions.CommandError(
-                f"Cannot seek to `{seek_time}` in the current track with a length of `{td}`",
+                f"Cannot seek to `{seek_time}` (`{f_seek_time}` seconds) in the current track with a length of `{prog} / {td}`",
                 expire_in=30,
             )
 
