@@ -517,6 +517,30 @@ case $DISTRO_NAME in
         pull_musicbot_git
         ;;
 
+    # Tested working:
+    # 24.04  @  2024/09/04
+    *"Ubuntu 24"*)
+        sudo apt-get update -y
+        sudo apt-get upgrade -y
+        sudo apt-get install build-essential software-properties-common \
+            unzip curl git ffmpeg libopus-dev libffi-dev libsodium-dev \
+            python3-full python3-pip python3-venv python3-dev jq -y
+
+        # Create and activate a venv using python that was just installed.
+        find_python
+        $PyBin -m venv "${VenvDir}"
+        InstalledViaVenv=1
+        CloneDir="${VenvDir}/${CloneDir}"
+        # shellcheck disable=SC1091
+        source "${VenvDir}/bin/activate"
+        find_python
+
+        pull_musicbot_git
+
+        # exit venv
+        deactiveate
+        ;;
+
     # Ubuntu version 17 and under is not supported.
     *)
         echo "Unsupported version of Ubuntu."
@@ -542,12 +566,13 @@ case $DISTRO_NAME in
         pull_musicbot_git
         ;;
 
-    *"Debian GNU/Linux 12"*)  # Tested working 12.5  @  2024/03/31
+    # Tested working 12.5  @  2024/03/31
+    *"Debian GNU/Linux 12"*|*"Debian GNU/Linux 13"*)
         # Debian 12 uses system controlled python packages.
         sudo apt-get update -y
         sudo apt-get upgrade -y
         sudo apt-get install build-essential libopus-dev libffi-dev libsodium-dev \
-            python3-full python3-dev python3-pip git ffmpeg curl
+            python3-full python3-dev python3-venv python3-pip git ffmpeg curl
 
         # Create and activate a venv using python that was just installed.
         find_python
