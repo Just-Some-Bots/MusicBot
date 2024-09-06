@@ -216,7 +216,7 @@ function setup_as_service() {
         sed -i "s,mbdirectory,${PWD},g" ./musicbot.service
 
         # Copy the service file into place and enable it.
-        sudo cp ~/${CloneDir}/musicbot.service /etc/systemd/system/
+        sudo cp ~/"${CloneDir}"/musicbot.service /etc/systemd/system/
         sudo chown root:root /etc/systemd/system/musicbot.service
         sudo chmod 644 /etc/systemd/system/musicbot.service
         sudo systemctl enable musicbot
@@ -236,7 +236,7 @@ function ask_setup_aliases() {
     case $SERVICE in
     [Yy]*)
         echo "Setting up command..."
-        sudo cp ~/${CloneDir}/musicbotcmd /usr/bin/musicbot
+        sudo cp ~/"${CloneDir}"/musicbotcmd /usr/bin/musicbot
         sudo chown root:root /usr/bin/musicbot
         sudo chmod 644 /usr/bin/musicbot
         sudo chmod +x /usr/bin/musicbot
@@ -450,14 +450,42 @@ case $DISTRO_NAME in
     deactivate
     ;;
 
-*"Pop!_OS"*)  # Tested working 22.04  @  2024/03/29
-    sudo apt-get update -y
-    sudo apt-get upgrade -y
-    sudo apt-get install build-essential software-properties-common \
-        unzip curl git ffmpeg libopus-dev libffi-dev libsodium-dev \
-        python3-pip python3-dev jq -y
+*"Pop!_OS"* )
+    case $DISTRO_NAME in
 
-    pull_musicbot_git
+    # Tested working 22.04  @  2024/03/29
+    *"Pop!_OS 22.04"*)
+        sudo apt-get update -y
+        sudo apt-get upgrade -y
+        sudo apt-get install build-essential software-properties-common \
+            unzip curl git ffmpeg libopus-dev libffi-dev libsodium-dev \
+            python3-pip python3-dev jq -y
+
+        pull_musicbot_git
+        ;;
+
+    *"Pop!_OS 24.04"*)
+        sudo apt-get update -y
+        sudo apt-get upgrade -y
+        sudo apt-get install build-essential software-properties-common \
+            unzip curl git ffmpeg libopus-dev libffi-dev libsodium-dev \
+            python3-full python3-pip python3-venv python3-dev jq -y
+
+        # Create and activate a venv using python that was just installed.
+        find_python
+        $PyBin -m venv "${VenvDir}"
+        InstalledViaVenv=1
+        CloneDir="${VenvDir}/${CloneDir}"
+        # shellcheck disable=SC1091
+        source "${VenvDir}/bin/activate"
+        find_python
+
+        pull_musicbot_git
+
+        # exit venv
+        deactiveate
+        ;;
+    esac
     ;;
 
 *"Ubuntu"* )
