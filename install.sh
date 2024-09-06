@@ -485,6 +485,11 @@ case $DISTRO_NAME in
         # exit venv
         deactiveate
         ;;
+
+    *)
+        echo "Unsupported version of Pop! OS."
+        exit 1
+        ;;
     esac
     ;;
 
