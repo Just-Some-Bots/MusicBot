@@ -379,7 +379,7 @@ if [[ "${1,,}" == "--list" ]] ; then
     # We control which cases we grab based on the space at the end of each 
     # case pattern, before ) or | characters.
     # This allows adding complex cases which will be excluded from the list.
-    Avail=$(grep -oh '\*"[[:alnum:] _!\.]*"\*[|)]' "$0" )
+    Avail=$(grep -oh '\*"[[:alnum:] _!\./]*"\*[|)]' "$0" )
     Avail="${Avail//\*\"/}"
     Avail="${Avail//\"\*/}"
     Avail="${Avail//[|)]/}"
@@ -551,7 +551,7 @@ case $DISTRO_NAME in
     ;;
 
 # NOTE: Raspberry Pi OS 11, i386 arch, returns Debian as distro name.
-*"Debian"*)
+*"Debian"* )
     case $DISTRO_NAME in
     # Tested working:
     # R-Pi OS 11  @  2024/03/29
@@ -567,7 +567,9 @@ case $DISTRO_NAME in
         ;;
 
     # Tested working 12.5  @  2024/03/31
-    *"Debian GNU/Linux 12"*|*"Debian GNU/Linux 13"*)
+    # Tested working 12.7  @  2024/09/05
+    # Tested working trixie  @  2024/09/05
+    *"Debian GNU/Linux 12"*|*"Debian GNU/Linux trixie"*|*"Debian GNU/Linux sid"*)
         # Debian 12 uses system controlled python packages.
         sudo apt-get update -y
         sudo apt-get upgrade -y
