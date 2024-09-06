@@ -2609,7 +2609,7 @@ class MusicBot(discord.Client):
         Manage a server-specific event timer when MusicBot's voice channel becomes idle,
         if the bot is configured to do so.
         """
-        if not guild.me.voice or not guild.me.voice.channel:
+        if not guild.voice_client or not guild.voice_client.channel:
             log.warning(
                 "Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
             )
@@ -2624,8 +2624,8 @@ class MusicBot(discord.Client):
 
         try:
             chname = "Unknown"
-            if guild.me.voice.channel:
-                chname = guild.me.voice.channel.name
+            if hasattr(guild.voice_client.channel, "name"):
+                chname = guild.voice_client.channel.name
 
             log.info(
                 "Channel activity waiting %d seconds to leave channel: %s",
@@ -2637,16 +2637,18 @@ class MusicBot(discord.Client):
             )
         except asyncio.TimeoutError:
             # could timeout after a disconnect.
-            if guild.me.voice and guild.me.voice.channel:
+            if guild.voice_client and isinstance(
+                guild.voice_client.channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
                 log.info(
                     "Channel activity timer for %s has expired. Disconnecting.",
                     guild.name,
                 )
-                await self.on_inactivity_timeout_expired(guild.me.voice.channel)
+                await self.on_inactivity_timeout_expired(guild.voice_client.channel)
         else:
             log.info(
                 "Channel activity timer canceled for: %s in %s",
-                guild.me.voice.channel.name,
+                guild.voice_client.channel.name,
                 guild.name,
             )
         finally:
@@ -2692,7 +2694,7 @@ class MusicBot(discord.Client):
                 [event.wait()], timeout=self.config.leave_player_inactive_for
             )
         except asyncio.TimeoutError:
-            if not player.is_playing:
+            if not player.is_playing and player.voice_client.is_connected():
                 log.info(
                     "Player activity timer for %s has expired. Disconnecting.",
                     guild.name,
@@ -3581,7 +3583,11 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_seek(
-        self, guild: discord.Guild, _player: Optional[MusicPlayer], seek_time: str = ""
+        self,
+        guild: discord.Guild,
+        _player: Optional[MusicPlayer],
+        leftover_args: List[str],
+        seek_time: str = "",
     ) -> CommandResponse:
         """
         Usage:
@@ -3613,6 +3619,12 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
+        # take in all potential arguments.
+        if leftover_args:
+            args = leftover_args
+            args.insert(0, seek_time)
+            seek_time = " ".join(args)
+
         if not seek_time:
             raise exceptions.CommandError(
                 "Cannot use seek without a time to position playback.",
@@ -3621,13 +3633,13 @@ class MusicBot(discord.Client):
 
         relative_seek: int = 0
         f_seek_time: float = 0
+        if seek_time.startswith("-"):
+            relative_seek = -1
+        if seek_time.startswith("+"):
+            relative_seek = 1
+
         if "." in seek_time:
             try:
-                if seek_time.startswith("-"):
-                    relative_seek = -1
-                if seek_time.startswith("+"):
-                    relative_seek = 1
-
                 p1, p2 = seek_time.rsplit(".", maxsplit=1)
                 i_seek_time = format_time_to_seconds(p1)
                 f_seek_time = float(f"0.{p2}")
@@ -3645,8 +3657,9 @@ class MusicBot(discord.Client):
 
         if f_seek_time > _player.current_entry.duration or f_seek_time < 0:
             td = format_song_duration(_player.current_entry.duration_td)
+            prog = format_song_duration(_player.progress)
             raise exceptions.CommandError(
-                f"Cannot seek to `{seek_time}` in the current track with a length of `{td}`",
+                f"Cannot seek to `{seek_time}` (`{f_seek_time:.2f}` seconds) in the current track with a length of `{prog} / {td}`",
                 expire_in=30,
             )
 
@@ -3664,7 +3677,7 @@ class MusicBot(discord.Client):
         _player.skip()
 
         return Response(
-            f"Seeking to time `{seek_time}` (`{f_seek_time}` seconds) in the current song.",
+            f"Seeking to time `{seek_time}` (`{f_seek_time:.2f}` seconds) in the current song.",
             delete_after=30,
         )
 
@@ -4123,7 +4136,7 @@ class MusicBot(discord.Client):
                     info,
                     channel=channel,
                     author=author,
-                    head=False,
+                    head=head,
                     ignore_video_id=ignore_video_id,
                 )
 
@@ -7854,7 +7867,7 @@ class MusicBot(discord.Client):
         """
         guild = voice_channel.guild
 
-        if voice_channel:
+        if isinstance(voice_channel, (discord.VoiceChannel, discord.StageChannel)):
             last_np_msg = self.server_data[guild.id].last_np_msg
             if last_np_msg is not None and last_np_msg.channel:
                 channel = last_np_msg.channel
