@@ -384,6 +384,8 @@ if [[ "${1,,}" == "--list" ]] ; then
     Avail="${Avail//\"\*/}"
     Avail="${Avail//[|)]/}"
 
+    echo "We detected your OS is:  ${DISTRO_NAME}"
+    echo ""
     echo "The MusicBot installer might have support for these flavors of Linux:"
     echo "$Avail"
     echo ""
