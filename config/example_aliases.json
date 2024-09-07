@@ -1,4 +1,25 @@
 {
+    "--comment": [
+        "Aliases allow you to rename or shorten existing commands.                          ",
+        "Alias names may contain anything, except for spaces.                               ",
+        "The keys must be valid commands, and can have simple, space separated arguments.   ",
+        "Arguments passed by the user will be appended to any command arguments set here.   ",
+        "                                                                                   ",
+        "For example, (replace _cmd_name_ with the command of your choice):                 ",
+        "This will map _cmd_name_ to multiple aliases, alias1 & a_long_alias           ",
+        {
+            "_cmd_name_":  ["alias1", "a_long_alias"]
+        },
+        "                                                                                   ",
+        "To alias a command with arguments, use something like the following:               ",
+        {
+            "_cmd_name_ arg1 arg2 argN": ["macro_alias"]
+        },
+        "Lets say you have the following alias: ",
+        {"config set MusicBot": ["setcfg"]},
+        "Users can use `setcfg DefaultVolume 0.40` to set default playback volume to 40%.   "
+    ],
+    
     "play": ["p"],
     "skip": ["s"],
     "queue": ["q"],

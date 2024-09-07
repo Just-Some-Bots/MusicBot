@@ -47,13 +47,24 @@ def get_bot_version(git_bin: str) -> str:
     Gets the bot current version as reported by git, without loading constants.
     """
     try:
-        ver = (
-            subprocess.check_output(
-                [git_bin, "describe", "--tags", "--always", "--dirty"]
-            )
+        # Get the last release tag, number of commits since, and g{commit_id} as string.
+        ver_p1 = (
+            subprocess.check_output([git_bin, "describe", "--tags", "--always"])
             .decode("ascii")
             .strip()
         )
+        # Check status of file modifications.
+        ver_p2 = (
+            subprocess.check_output([git_bin, "status", "-suno", "--porcelain"])
+            .decode("ascii")
+            .strip()
+        )
+        if ver_p2:
+            ver_p2 = "-modded"
+        else:
+            ver_p2 = ""
+
+        ver = f"{ver_p1}{ver_p2}"
 
     except (subprocess.SubprocessError, OSError, ValueError) as e:
         print(f"Failed getting version due to:  {str(e)}")
@@ -343,20 +354,29 @@ def main() -> None:
     print("Checking for current bot version and local changes...")
     get_bot_version(git_bin)
 
-    # Check that the current working directory is clean
+    # Check that the current working directory is clean.
+    # -suno is --short with --untracked-files=no
     status_unclean = subprocess.check_output(
-        [git_bin, "status", "--porcelain"], universal_newlines=True
+        [git_bin, "status", "-suno", "--porcelain"], universal_newlines=True
     )
-    if status_unclean:
+    if status_unclean.strip():
+        # TODO: Maybe offering a stash option here would not be so bad...
+        print(
+            "Detected the following files have been modified:\n"
+            f"{status_unclean}\n"
+            "To update MusicBot source code, you must first remove modifications made to the above source files.\n"
+            "If you want to keep your changes, consider using `git stash` or otherwise back them up before you continue.\n"
+            "This script can automatically revert your modifications, but cannot automatically save them.\n"
+        )
         hard_reset = yes_or_no_input(
-            "You have modified files that are tracked by Git (e.g the bot's source files).\n"
-            "Should we try to hard reset the repo? You will lose local modifications."
+            "WARNING:  All changed files listed above will be reset!\n"
+            "Would you like to reset the Source code, to allow MusicBot to update?"
         )
         if hard_reset:
             run_or_raise_error(
                 [git_bin, "reset", "--hard"],
                 "Could not hard reset the directory to a clean state.\n"
-                "You will need to run `git pull` manually.",
+                "You will need to manually reset the local git repository, or make a new clone of MusicBot.",
             )
         else:
             do_deps = yes_or_no_input(

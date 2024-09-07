@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import shutil
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
 
 import discord
 from yt_dlp.utils import (  # type: ignore[import-untyped]
@@ -24,8 +24,10 @@ if TYPE_CHECKING:
 
     # Explicit compat with python 3.8
     AsyncFuture = asyncio.Future[Any]
+    AsyncTask = asyncio.Task[Any]
 else:
     AsyncFuture = asyncio.Future
+    AsyncTask = asyncio.Task
 
 GuildMessageableChannels = Union[
     discord.Thread,
@@ -56,6 +58,7 @@ class BasePlaylistEntry(Serializable):
         self._is_downloading: bool = False
         self._is_downloaded: bool = False
         self._waiting_futures: List[AsyncFuture] = []
+        self._task_pool: Set[AsyncTask] = set()
 
     @property
     def start_time(self) -> float:
@@ -116,7 +119,7 @@ class BasePlaylistEntry(Serializable):
         The future will either fire with the result (being the entry) or an exception
         as to why the song download failed.
         """
-        future = asyncio.Future()  # type: AsyncFuture
+        future: AsyncFuture = asyncio.Future()
         if self.is_downloaded:
             # In the event that we're downloaded, we're already ready for playback.
             future.set_result(self)
@@ -124,10 +127,12 @@ class BasePlaylistEntry(Serializable):
         else:
             # If we request a ready future, let's ensure that it'll actually resolve at one point.
             self._waiting_futures.append(future)
-            asyncio.ensure_future(self._download())
+            task = asyncio.create_task(self._download(), name="MB_EntryReadyTask")
+            # Make sure garbage collection does not delete the task early...
+            self._task_pool.add(task)
+            task.add_done_callback(self._task_pool.discard)
 
-        name = self.title or self.filename or self.url
-        log.debug("Created future for %s", name)
+        log.debug("Created future for %r", self)
         return future
 
     def _for_each_future(self, cb: Callable[..., Any]) -> None:
@@ -138,13 +143,15 @@ class BasePlaylistEntry(Serializable):
         futures = self._waiting_futures
         self._waiting_futures = []
 
+        log.everything(  # type: ignore[attr-defined]
+            "Completed futures for %r with %r", self, cb
+        )
         for future in futures:
             if future.cancelled():
                 continue
 
             try:
                 cb(future)
-
             except Exception:  # pylint: disable=broad-exception-caught
                 log.exception("Unhandled exception in _for_each_future callback.")
 
@@ -153,6 +160,9 @@ class BasePlaylistEntry(Serializable):
 
     def __hash__(self) -> int:
         return id(self)
+
+    def __repr__(self) -> str:
+        return f"<{type(self).__name__}(url='{self.url}', title='{self.title}' file='{self.filename}')>"
 
 
 async def run_command(command: List[str]) -> bytes:
@@ -445,7 +455,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
     async def _download(self) -> None:
         if self._is_downloading:
             return
-        log.debug("URLPlaylistEntry is now checking download status.")
+        log.debug("Getting ready for entry:  %r", self)
 
         self._is_downloading = True
         try:
@@ -525,7 +535,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
         # Flake8 thinks 'e' is never used, and later undefined. Maybe the lambda is too much.
         except Exception as e:  # pylint: disable=broad-exception-caught
             ex = e
-            log.exception("Exception while checking entry data.")
+            if log.getEffectiveLevel() <= logging.DEBUG:
+                log.error("Exception while checking entry data.")
             self._for_each_future(lambda future: future.set_exception(ex))
 
         finally:
@@ -664,11 +675,13 @@ class URLPlaylistEntry(BasePlaylistEntry):
         """
         Actually download the media in this entry into cache.
         """
-        log.info("Download started:  %s", self.url)
+        log.info("Download started:  %r", self)
 
-        retry = 2
         info = None
-        while True:
+        for attempt in range(1, 4):
+            log.everything(  # type: ignore[attr-defined]
+                "Download attempt %s of 3...", attempt
+            )
             try:
                 info = await self.downloader.extract_info(self.url, download=True)
                 break
@@ -676,12 +689,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 # this typically means connection was interrupted, any
                 # download is probably partial. we should definitely do
                 # something about it to prevent broken cached files.
-                if retry > 0:
+                if attempt < 3:
+                    wait_for = 1.5 * attempt
                     log.warning(
-                        "Download may have failed, retrying.  Reason: %s", str(e)
+                        "Download incomplete, retrying in %.1f seconds.  Reason: %s",
+                        wait_for,
+                        str(e),
                     )
-                    retry -= 1
-                    await asyncio.sleep(1.5)  # TODO: backoff timer maybe?
+                    await asyncio.sleep(wait_for)  # TODO: backoff timer maybe?
                     continue
 
                 # Mark the file I guess, and maintain the default of raising ExtractionError.
@@ -693,15 +708,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 raise ExtractionError(str(e)) from e
 
             except Exception as e:
-                log.exception("Extraction encountered an unhandled exception.")
+                log.error("Extraction encountered an unhandled exception.")
                 raise MusicbotException(str(e)) from e
 
-        log.info("Download complete:  %s", self.url)
-
         if info is None:
-            log.critical("YTDL has failed, everyone panic")
-            raise ExtractionError("ytdl broke and hell if I know why")
-            # What the fuck do I do now?
+            log.error("Download failed:  %r", self)
+            raise ExtractionError("Failed to extract data for the requested media.")
+
+        log.info("Download complete:  %r", self)
 
         self._is_downloaded = True
         self.filename = info.expected_filename or ""
@@ -751,7 +765,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         """get extracted url if available or otherwise return the input subject"""
         if self.info.extractor and self.info.url:
             return self.info.url
-        return self.info.get("__input_subject", "")
+        return self.info.input_subject
 
     @property
     def title(self) -> str:
@@ -789,6 +803,11 @@ class StreamPlaylistEntry(BasePlaylistEntry):
     def thumbnail_url(self) -> str:
         """Get available thumbnail from info or an empty string"""
         return self.info.thumbnail_url
+
+    @property
+    def playback_speed(self) -> float:
+        """Playback speed for streamed entries cannot typically be adjusted."""
+        return 1.0
 
     def __json__(self) -> Dict[str, Any]:
         return self._enclose_json(
@@ -886,10 +905,13 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         return None
 
     async def _download(self) -> None:
+        log.debug("Getting ready for entry:  %r", self)
         self._is_downloading = True
         self._is_downloaded = True
         self.filename = self.url
         self._is_downloading = False
+
+        self._for_each_future(lambda future: future.set_result(self))
 
 
 class LocalFilePlaylistEntry(BasePlaylistEntry):
@@ -1133,7 +1155,8 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
         """
         if self._is_downloading:
             return
-        log.debug("LocalFilePlaylistEntry is now extracting media information.")
+
+        log.debug("Getting ready for entry:  %r", self)
 
         self._is_downloading = True
         try:
@@ -1180,7 +1203,8 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
         # Flake8 thinks 'e' is never used, and later undefined. Maybe the lambda is too much.
         except Exception as e:  # pylint: disable=broad-exception-caught
             ex = e
-            log.exception("Exception while checking entry data.")
+            if log.getEffectiveLevel() <= logging.DEBUG:
+                log.error("Exception while checking entry data.")
             self._for_each_future(lambda future: future.set_exception(ex))
 
         finally:

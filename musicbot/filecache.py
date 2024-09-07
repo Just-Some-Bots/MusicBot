@@ -358,7 +358,9 @@ class AudioFileCache:
             change_made = True
 
         if change_made:
-            self.bot.loop.create_task(self.save_autoplay_cachemap())
+            self.bot.create_task(
+                self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
+            )
 
     def remove_autoplay_cachemap_entry(self, entry: "BasePlaylistEntry") -> None:
         """
@@ -374,7 +376,9 @@ class AudioFileCache:
         filename = pathlib.Path(entry.filename).stem
         if filename in self.auto_playlist_cachemap:
             del self.auto_playlist_cachemap[filename]
-            self.bot.loop.create_task(self.save_autoplay_cachemap())
+            self.bot.create_task(
+                self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
+            )
 
     def remove_autoplay_cachemap_entry_by_url(self, url: str) -> None:
         """
@@ -396,7 +400,9 @@ class AudioFileCache:
             del self.auto_playlist_cachemap[key]
 
         if len(to_remove) != 0:
-            self.bot.loop.create_task(self.save_autoplay_cachemap())
+            self.bot.create_task(
+                self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
+            )
 
     def _check_autoplay_cachemap(self, filename: pathlib.Path) -> bool:
         """

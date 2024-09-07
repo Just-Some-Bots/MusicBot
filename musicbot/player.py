@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+import time
 from enum import Enum
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
@@ -55,6 +56,8 @@ class SourcePlaybackCounter(AudioSource):
 
         :param: start_time:  A time in seconds that was used in ffmpeg -ss flag.
         """
+        # NOTE: PCMVolumeTransformer will let you set any crazy value.
+        # But internally it limits between 0 and 2.0.
         self._source = source
         self._num_reads: int = 0
         self._start_time: float = start_time
@@ -129,7 +132,6 @@ class MusicPlayer(EventEmitter, Serializable):
         self._stderr_future: Optional[AsyncFuture] = None
 
         self._source: Optional[SourcePlaybackCounter] = None
-        self._pending_call_later: Optional[EntryTypes] = None
 
         self.playlist.on("entry-added", self.on_entry_added)
         self.playlist.on("entry-failed", self.on_entry_failed)
@@ -155,11 +157,6 @@ class MusicPlayer(EventEmitter, Serializable):
         """
         Event dispatched by Playlist when an entry is added to the queue.
         """
-        if self.is_stopped and not self.current_entry and not self._pending_call_later:
-            log.noise("calling-later, self.play from player.")  # type: ignore[attr-defined]
-            self._pending_call_later = entry
-            self.loop.call_later(2, self.play)
-
         self.emit(
             "entry-added",
             player=self,
@@ -265,6 +262,13 @@ class MusicPlayer(EventEmitter, Serializable):
 
         :param: error:  An exception, if any, raised by playback.
         """
+        # Ensure the stderr stream reader for ffmpeg is exited.
+        if (
+            isinstance(self._stderr_future, asyncio.Future)
+            and not self._stderr_future.done()
+        ):
+            self._stderr_future.set_result(True)
+
         entry = self._current_entry
         if entry is None:
             log.debug("Playback finished, but _current_entry is None.")
@@ -275,6 +279,7 @@ class MusicPlayer(EventEmitter, Serializable):
         elif self.loopqueue:
             self.playlist.entries.append(entry)
 
+        # TODO: investigate if this is cruft code or not.
         if self._current_player:
             if hasattr(self._current_player, "after"):
                 self._current_player.after = None
@@ -282,12 +287,14 @@ class MusicPlayer(EventEmitter, Serializable):
 
         self._current_entry = None
         self._source = None
+        self.stop()
 
+        # if an error was set, report it and return...
         if error:
-            self.stop()
             self.emit("error", player=self, entry=entry, ex=error)
             return
 
+        # if a exception is found in the ffmpeg stderr stream, report it and return...
         if (
             isinstance(self._stderr_future, asyncio.Future)
             and self._stderr_future.done()
@@ -295,15 +302,18 @@ class MusicPlayer(EventEmitter, Serializable):
         ):
             # I'm not sure that this would ever not be done if it gets to this point
             # unless ffmpeg is doing something highly questionable
-            self.stop()
             self.emit(
                 "error", player=self, entry=entry, ex=self._stderr_future.exception()
             )
             return
 
+        # ensure file cleanup is handled if nothing was wrong with playback.
         if not self.bot.config.save_videos and entry:
-            self.loop.create_task(self._handle_file_cleanup(entry))
+            self.bot.create_task(
+                self._handle_file_cleanup(entry), name="MB_CacheCleanup"
+            )
 
+        # finally, tell the rest of MusicBot that playback is done.
         self.emit("finished-playing", player=self, entry=entry)
 
     def _kill_current_player(self) -> bool:
@@ -337,7 +347,7 @@ class MusicPlayer(EventEmitter, Serializable):
         log.noise(  # type: ignore[attr-defined]
             "MusicPlayer.play() is called:  %s", repr(self)
         )
-        self.loop.create_task(self._play(_continue=_continue))
+        self.bot.create_task(self._play(_continue=_continue), name="MB_Play")
 
     async def _play(self, _continue: bool = False) -> None:
         """
@@ -367,19 +377,23 @@ class MusicPlayer(EventEmitter, Serializable):
 
         async with self._play_lock:
             if self.is_stopped or _continue:
+                # Get the entry before we try to ready it, so it can be passed to error callbacks.
+                entry_up_next = self.playlist.peek()
                 try:
                     entry = await self.playlist.get_next_entry()
-                except IndexError:
-                    log.warning("Failed to get entry.", exc_info=True)
+                except IndexError as e:
+                    log.warning("Failed to get next entry.", exc_info=e)
+                    self.emit("error", player=self, entry=entry_up_next, ex=e)
+                    entry = None
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    log.warning("Failed to process entry for playback.", exc_info=e)
+                    self.emit("error", player=self, entry=entry_up_next, ex=e)
                     entry = None
 
                 # If nothing left to play, transition to the stopped state.
                 if not entry:
                     self.stop()
                     return
-
-                if self._pending_call_later == entry:
-                    self._pending_call_later = None
 
                 # In-case there was a player, kill it. RIP.
                 self._kill_current_player()
@@ -432,7 +446,7 @@ class MusicPlayer(EventEmitter, Serializable):
                 stderr_thread = Thread(
                     target=filter_stderr,
                     args=(stderr_io, self._stderr_future),
-                    name="stderr reader",
+                    name="MB_FFmpegStdErrReader",
                 )
 
                 stderr_thread.start()
@@ -605,8 +619,7 @@ def filter_stderr(stderr: io.BytesIO, future: AsyncFuture) -> None:
     set the future with a successful result.
     """
     last_ex = None
-
-    while True:
+    while not future.done():
         data = stderr.readline()
         if data:
             log.ffmpeg(  # type: ignore[attr-defined]
@@ -623,18 +636,21 @@ def filter_stderr(stderr: io.BytesIO, future: AsyncFuture) -> None:
                     "Error from ffmpeg: %s", str(e).strip()
                 )
                 last_ex = e
+                if not future.done():
+                    future.set_exception(e)
 
             except FFmpegWarning as e:
                 log.ffmpeg(  # type: ignore[attr-defined]
                     "Warning from ffmpeg:  %s", str(e).strip()
                 )
         else:
-            break
+            time.sleep(0.5)
 
-    if last_ex:
-        future.set_exception(last_ex)
-    else:
-        future.set_result(True)
+    if not future.done():
+        if last_ex:
+            future.set_exception(last_ex)
+        else:
+            future.set_result(True)
 
 
 def check_stderr(data: bytes) -> bool:

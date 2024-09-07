@@ -1,8 +1,11 @@
 pynacl
-discord.py [voice, speed] @ git+https://github.com/Rapptz/discord.py
+discord.py [voice, speed] @ git+https://github.com/Rapptz/discord.py ; sys_platform != 'win32'
+discord.py [voice] @ git+https://github.com/Rapptz/discord.py ; sys_platform == 'win32'
+# Windows users may want to install orjson and pycares for speed, but avoid aiodns for now.
 pip
 yt-dlp
 colorlog
+colorama >= 0.4.6; sys_platform == 'win32'
 cffi --only-binary all; sys_platform == 'win32'
 certifi
 configupdater

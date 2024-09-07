@@ -297,6 +297,8 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
     :param: date_fmt:  format compatible with datetime.strftime() for rotated filename.
     """
     if hasattr(logging, "_mb_logs_rotated"):
+        if log.getEffectiveLevel() <= logging.DEBUG:
+            print("Logs already rotated.")
         return
 
     # Use the input arguments or fall back to settings or defaults.
@@ -312,6 +314,8 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
 
     # Rotation can be disabled by setting 0.
     if not max_kept:
+        if log.getEffectiveLevel() <= logging.DEBUG:
+            print("No logs rotated.")
         return
 
     # Format a date that will be used for files rotated now.

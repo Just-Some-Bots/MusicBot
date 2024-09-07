@@ -17,7 +17,7 @@ import traceback
 from collections import defaultdict
 from io import BytesIO, StringIO
 from textwrap import dedent
-from typing import Any, DefaultDict, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, DefaultDict, Dict, List, Optional, Set, Union
 
 import aiohttp
 import certifi  # type: ignore[import-untyped, unused-ignore]
@@ -32,6 +32,7 @@ from .constants import (
     DATA_FILE_SERVERS,
     DATA_GUILD_FILE_CUR_SONG,
     DATA_GUILD_FILE_QUEUE,
+    DEFAULT_BOT_NAME,
     DEFAULT_OWNER_GROUP_NAME,
     DEFAULT_PERMS_GROUP_NAME,
     DEFAULT_PING_HTTP_URI,
@@ -47,6 +48,7 @@ from .constants import (
     EMOJI_STOP_SIGN,
     FALLBACK_PING_SLEEP,
     FALLBACK_PING_TIMEOUT,
+    MUSICBOT_USER_AGENT_AIOHTTP,
 )
 from .constants import VERSION as BOTVERSION
 from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
@@ -79,6 +81,14 @@ try:
 except ImportError:
     objgraph = None
 
+
+if TYPE_CHECKING:
+    from collections.abc import Coroutine
+    from contextvars import Context as CtxVars
+
+    AsyncTask = asyncio.Task[Any]
+else:
+    AsyncTask = asyncio.Task
 
 # Type aliases
 ExitSignals = Union[None, exceptions.RestartSignal, exceptions.TerminateSignal]
@@ -113,9 +123,6 @@ CommandResponse = Union[Response, None]
 
 
 log = logging.getLogger(__name__)
-
-# TODO:  add an aliases command to manage command aliases.
-# TODO:  maybe allow aliases to contain whole/partial commands.
 
 
 class MusicBot(discord.Client):
@@ -155,6 +162,7 @@ class MusicBot(discord.Client):
         self.cached_app_info: Optional[discord.AppInfo] = None
         self.last_status: Optional[discord.BaseActivity] = None
         self.players: Dict[int, MusicPlayer] = {}
+        self.task_pool: Set[AsyncTask] = set()
 
         self.config = Config(self._config_file)
 
@@ -164,7 +172,12 @@ class MusicBot(discord.Client):
         self.str = Json(self.config.i18n_file)
 
         if self.config.usealias:
-            self.aliases = Aliases(aliases_file)
+            # get a list of natural command names.
+            nat_cmds = [
+                x.replace("cmd_", "") for x in dir(self) if x.startswith("cmd_")
+            ]
+            # load the aliases file.
+            self.aliases = Aliases(aliases_file, nat_cmds)
 
         self.playlist_mgr = AutoPlaylistManager(self)
 
@@ -189,12 +202,59 @@ class MusicBot(discord.Client):
         intents.presences = False
         super().__init__(intents=intents)
 
+    def create_task(
+        self,
+        coro: "Coroutine[Any, Any, Any]",
+        *,
+        name: Optional[str] = None,
+        ctx: Optional["CtxVars"] = None,
+    ) -> None:
+        """
+        Same as asyncio.create_task() but manages the task reference.
+        This prevents garbage collection of tasks until they are finished.
+        """
+        if not self.loop:
+            log.error("Loop is closed, cannot create task for: %r", coro)
+            return
+
+        # context was not added until python 3.11
+        if sys.version_info >= (3, 11):
+            t = self.loop.create_task(coro, name=name, context=ctx)
+        else:  # assume 3.8 +
+            t = self.loop.create_task(coro, name=name)
+        self.task_pool.add(t)
+
+        def discard_task(task: AsyncTask) -> None:
+            """Clean up the spawned task and handle its exceptions."""
+            ex = task.exception()
+            if ex:
+                if log.getEffectiveLevel() <= logging.DEBUG:
+                    log.exception(
+                        "Unhandled exception for task:  %r", task, exc_info=ex
+                    )
+                else:
+                    log.error(
+                        "Unhandled exception for task:  %r  --  %s",
+                        task,
+                        str(ex),
+                    )
+
+            self.task_pool.discard(task)
+
+        t.add_done_callback(discard_task)
+
     async def setup_hook(self) -> None:
         """async init phase that is called by d.py before login."""
         if self.config.enable_queue_history_global:
             await self.playlist_mgr.global_history.load()
 
-        self.http.user_agent = f"MusicBot/{BOTVERSION}"
+        # TODO: testing is needed to see if this would be required.
+        # See also:  https://github.com/aio-libs/aiohttp/discussions/6044
+        # aiohttp version must be at least 3.8.0 for the following to potentially work.
+        # Python 3.11+ might also be a requirement if CPython does not support start_tls.
+        # setattr(asyncio.sslproto._SSLProtocolTransport, "_start_tls_compatible", True)
+
+        self.http.user_agent = MUSICBOT_USER_AGENT_AIOHTTP
         if self.use_certifi:
             ssl_ctx = ssl.create_default_context(cafile=certifi.where())
             tcp_connector = aiohttp.TCPConnector(ssl_context=ssl_ctx)
@@ -255,10 +315,20 @@ class MusicBot(discord.Client):
                 )
                 self.config.spotify_enabled = False
 
+        # trigger yt tv oauth2 authorization.
+        if self.config.ytdlp_use_oauth2 and self.config.ytdlp_oauth2_url:
+            log.warning(
+                "Experimental Yt-dlp OAuth2 plugin is enabled. This might break at any point!"
+            )
+            # could probably do this with items from an auto-playlist but meh.
+            await self.downloader.extract_info(
+                self.config.ytdlp_oauth2_url, download=False, process=True
+            )
+
         log.info("Initialized, now connecting to discord.")
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()
-        self.loop.create_task(self._test_network(), name="MB_PingTest")
+        self.create_task(self._test_network(), name="MB_PingTest")
 
     async def _test_network(self) -> None:
         """
@@ -315,8 +385,8 @@ class MusicBot(discord.Client):
             return
 
         # set up the next ping task if possible.
-        if self.loop and not self.logout_called:
-            self.loop.create_task(self._test_network(), name="MB_PingTest")
+        if not self.logout_called:
+            self.create_task(self._test_network(), name="MB_PingTest")
 
     async def _test_network_via_http(self, ping_target: str) -> int:
         """
@@ -723,10 +793,8 @@ class MusicBot(discord.Client):
 
         # Otherwise we need to connect to the given channel.
         max_timeout = VOICE_CLIENT_RECONNECT_TIMEOUT * VOICE_CLIENT_MAX_RETRY_CONNECT
-        attempts = 0
-        while True:
-            attempts += 1
-            timeout = attempts * VOICE_CLIENT_RECONNECT_TIMEOUT
+        for attempt in range(1, (VOICE_CLIENT_MAX_RETRY_CONNECT + 1)):
+            timeout = attempt * VOICE_CLIENT_RECONNECT_TIMEOUT
             if timeout > max_timeout:
                 log.critical(
                     "MusicBot is unable to connect to the channel right now:  %s",
@@ -749,7 +817,7 @@ class MusicBot(discord.Client):
             except asyncio.exceptions.TimeoutError:
                 log.warning(
                     "Retrying connection after a timeout error (%s) while trying to connect to:  %s",
-                    attempts,
+                    attempt,
                     channel,
                 )
             except asyncio.exceptions.CancelledError as e:
@@ -799,7 +867,7 @@ class MusicBot(discord.Client):
                     asyncio.exceptions.TimeoutError,
                 ):
                     if self.config.debug_mode:
-                        log.warning("The disconnect failed or was cancelledd.")
+                        log.warning("The disconnect failed or was cancelled.")
 
             # ensure the player is dead and gone.
             player.kill()
@@ -1159,7 +1227,9 @@ class MusicBot(discord.Client):
         if player.session_progress > 1:
             await self.serialize_queue(player.voice_client.channel.guild)
 
-        self.loop.create_task(self.handle_player_inactivity(player))
+        self.create_task(
+            self.handle_player_inactivity(player), name="MB_HandleInactivePlayer"
+        )
 
     async def on_player_stop(self, player: MusicPlayer, **_: Any) -> None:
         """
@@ -1168,7 +1238,9 @@ class MusicBot(discord.Client):
         """
         log.debug("Running on_player_stop")
         await self.update_now_playing_status()
-        self.loop.create_task(self.handle_player_inactivity(player))
+        self.create_task(
+            self.handle_player_inactivity(player), name="MB_HandleInactivePlayer"
+        )
 
     async def on_player_finished_playing(self, player: MusicPlayer, **_: Any) -> None:
         """
@@ -1216,7 +1288,19 @@ class MusicBot(discord.Client):
 
         # avoid downloading the next entries if the user is absent and we are configured to skip.
         notice_sent = False  # set a flag to avoid message spam.
-        while True:
+        while len(player.playlist):
+            log.everything(  # type: ignore[attr-defined]
+                "Looping over queue to expunge songs with missing author..."
+            )
+
+            if not self.loop or (self.loop and self.loop.is_closed()):
+                log.debug("Event loop is closed, nothing else to do here.")
+                return
+
+            if self.logout_called:
+                log.debug("Logout under way, ignoring this event.")
+                return
+
             next_entry = player.playlist.peek()
 
             if not next_entry:
@@ -1275,6 +1359,18 @@ class MusicBot(discord.Client):
                     )
 
             while player.autoplaylist:
+                log.everything(  # type: ignore[attr-defined]
+                    "Looping over player autoplaylist..."
+                )
+
+                if not self.loop or (self.loop and self.loop.is_closed()):
+                    log.debug("Event loop is closed, nothing else to do here.")
+                    return
+
+                if self.logout_called:
+                    log.debug("Logout under way, ignoring this event.")
+                    return
+
                 if self.config.auto_playlist_random:
                     random.shuffle(player.autoplaylist)
                     song_url = random.choice(player.autoplaylist)
@@ -1302,7 +1398,7 @@ class MusicBot(discord.Client):
 
                 except youtube_dl.utils.DownloadError as e:
                     log.error(
-                        'Error while downloading song "%s":  %s',
+                        'Error while processing song "%s":  %s',
                         song_url,
                         e,
                     )
@@ -1370,6 +1466,7 @@ class MusicBot(discord.Client):
                     log.debug("Exception data for above error:", exc_info=True)
                     continue
                 break
+            # end of autoplaylist loop.
 
             if not self.server_data[guild.id].autoplaylist:
                 log.warning("No playable songs in the autoplaylist, disabling.")
@@ -1378,7 +1475,7 @@ class MusicBot(discord.Client):
         else:  # Don't serialize for autoplaylist events
             await self.serialize_queue(guild)
 
-        if not player.is_stopped and not player.is_dead:
+        if not player.is_dead and not player.current_entry and len(player.playlist):
             player.play(_continue=True)
 
     async def on_player_entry_added(
@@ -1411,7 +1508,7 @@ class MusicBot(discord.Client):
 
     async def on_player_error(
         self,
-        player: MusicPlayer,  # pylint: disable=unused-argument
+        player: MusicPlayer,
         entry: Optional[EntryTypes],
         ex: Optional[Exception],
         **_: Any,
@@ -1419,15 +1516,43 @@ class MusicBot(discord.Client):
         """
         Event called by MusicPlayer when an entry throws an error.
         """
+        # Log the exception according to entry or bare error.
+        if entry is not None:
+            log.exception(
+                "MusicPlayer exception for entry: %r",
+                entry,
+                exc_info=ex,
+            )
+        else:
+            log.exception(
+                "MusicPlayer exception.",
+                exc_info=ex,
+            )
+
+        # Send a message to the calling channel if we can.
         if entry and entry.channel:
             song = entry.title or entry.url
             await self.safe_send_message(
                 entry.channel,
                 # TODO: i18n / UI stuff
                 f"Playback failed for song: `{song}` due to error:\n```\n{ex}\n```",
+                expire_in=90,
             )
-        else:
-            log.exception("Player error", exc_info=ex)
+
+        # Take care of auto-playlist related issues.
+        if entry and entry.from_auto_playlist:
+            log.info("Auto playlist track could not be played:  %r", entry)
+            guild = player.voice_client.guild
+            await self.server_data[guild.id].autoplaylist.remove_track(
+                entry.info.input_subject, ex=ex, delete_from_ap=self.config.remove_ap
+            )
+
+        # If the party isn't rockin', don't bother knockin on my door.
+        if not player.is_dead:
+            if len(player.playlist):
+                player.play(_continue=True)
+            elif self.config.auto_playlist:
+                await self.on_player_finished_playing(player)
 
     async def update_now_playing_status(self, set_offline: bool = False) -> None:
         """Inspects available players and ultimately fire change_presence()"""
@@ -1459,13 +1584,20 @@ class MusicBot(discord.Client):
             return
 
         playing = sum(1 for p in self.players.values() if p.is_playing)
-        paused = sum(1 for p in self.players.values() if p.is_paused)
+        if self.config.status_include_paused:
+            paused = sum(1 for p in self.players.values() if p.is_paused)
+        else:
+            paused = 0
         total = len(self.players)
 
         def format_status_msg(player: Optional[MusicPlayer]) -> str:
+            if not self.config.status_include_paused:
+                p = sum(1 for p in self.players.values() if p.is_paused)
+            else:
+                p = paused
             msg = self.config.status_message
             msg = msg.replace("{n_playing}", str(playing))
-            msg = msg.replace("{n_paused}", str(paused))
+            msg = msg.replace("{n_paused}", str(p))
             msg = msg.replace("{n_connected}", str(total))
             if player and player.current_entry:
                 msg = msg.replace("{p0_title}", player.current_entry.title)
@@ -1715,14 +1847,17 @@ class MusicBot(discord.Client):
                     "Got HTTPException trying to send message to %s: %s", dest, content
                 )
 
+        except aiohttp.client_exceptions.ClientError:
+            lfunc("Failed to send due to an HTTP error.")
+
         finally:
             if not retry_after and self.config.delete_messages:
                 if msg and expire_in:
-                    asyncio.ensure_future(self._wait_delete_msg(msg, expire_in))
+                    self.create_task(self._wait_delete_msg(msg, expire_in))
 
             if not retry_after and self.config.delete_invoking:
                 if also_delete and isinstance(also_delete, discord.Message):
-                    asyncio.ensure_future(self._wait_delete_msg(also_delete, expire_in))
+                    self.create_task(self._wait_delete_msg(also_delete, expire_in))
 
         return msg
 
@@ -1768,7 +1903,7 @@ class MusicBot(discord.Client):
                         "Rate limited message delete, retrying in %s seconds.",
                         retry_after,
                     )
-                    asyncio.ensure_future(self._wait_delete_msg(message, retry_after))
+                    self.create_task(self._wait_delete_msg(message, retry_after))
                 else:
                     log.error("Rate limited message delete, but cannot retry!")
 
@@ -1777,6 +1912,9 @@ class MusicBot(discord.Client):
                 log.noise(  # type: ignore[attr-defined]
                     "Got HTTPException trying to delete message: %s", message
                 )
+
+        except aiohttp.client_exceptions.ClientError:
+            lfunc("Failed to send due to an HTTP error.")
 
         return None
 
@@ -1846,6 +1984,9 @@ class MusicBot(discord.Client):
                     "Got HTTPException trying to edit message %s to: %s", message, new
                 )
 
+        except aiohttp.client_exceptions.ClientError:
+            lfunc("Failed to send due to an HTTP error.")
+
         return None
 
     def _setup_windows_signal_handler(self) -> None:
@@ -1864,9 +2005,9 @@ class MusicBot(discord.Client):
         # method used to periodically check for a signal, and process it.
         async def check_windows_signal() -> None:
             while True:
+
                 if self.logout_called:
                     break
-
                 if self._os_signal is None:
                     try:
                         await asyncio.sleep(1)
@@ -1879,7 +2020,10 @@ class MusicBot(discord.Client):
         # register interrupt signal Ctrl+C to be trapped.
         signal.signal(signal.SIGINT, set_windows_signal)
         # and start the signal checking loop.
-        asyncio.create_task(check_windows_signal())
+        task_ref = asyncio.create_task(
+            check_windows_signal(), name="MB_WinInteruptChecker"
+        )
+        setattr(self, "_mb_win_sig_checker_task", task_ref)
 
     async def on_os_signal(
         self, sig: signal.Signals, _loop: asyncio.AbstractEventLoop
@@ -1934,6 +2078,16 @@ class MusicBot(discord.Client):
             ) from e
 
         finally:
+            # Shut down the thread pool executor.
+            log.info("Waiting for download threads to finish up...")
+            # We can't kill the threads in ThreadPoolExecutor.  User can Ctrl+C though.
+            # We can pass `wait=False` and carry on with "shutdown" but threads
+            # will stay until they're done.  We wait to keep it clean...
+            tps_args: Dict[str, Any] = {}
+            if sys.version_info >= (3, 9):
+                tps_args["cancel_futures"] = True
+            self.downloader.thread_pool.shutdown(**tps_args)
+
             # Inspect all waiting tasks and either cancel them or let them finish.
             pending_tasks = []
             for task in asyncio.all_tasks(loop=self.loop):
@@ -1947,9 +2101,8 @@ class MusicBot(discord.Client):
                 if coro and hasattr(coro, "__qualname__"):
                     coro_name = getattr(coro, "__qualname__", "[unknown]")
 
-                if (
-                    tname.startswith("Signal_SIG")
-                    or coro_name == "URLPlaylistEntry._download"
+                if tname.startswith("Signal_SIG") or coro_name.startswith(
+                    "Client.close."
                 ):
                     log.debug("Will wait for task:  %s  (%s)", tname, coro_name)
                     pending_tasks.append(task)
@@ -2242,7 +2395,7 @@ class MusicBot(discord.Client):
         """
         if self.on_ready_count > 0:
             log.debug("Event on_ready has fired %s times", self.on_ready_count)
-        self.loop.create_task(self._on_ready_call_later())
+        self.create_task(self._on_ready_call_later(), name="MB_PostOnReady")
 
     async def _on_ready_call_later(self) -> None:
         """
@@ -2456,7 +2609,7 @@ class MusicBot(discord.Client):
         Manage a server-specific event timer when MusicBot's voice channel becomes idle,
         if the bot is configured to do so.
         """
-        if not guild.me.voice or not guild.me.voice.channel:
+        if not guild.voice_client or not guild.voice_client.channel:
             log.warning(
                 "Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
             )
@@ -2471,8 +2624,8 @@ class MusicBot(discord.Client):
 
         try:
             chname = "Unknown"
-            if guild.me.voice.channel:
-                chname = guild.me.voice.channel.name
+            if hasattr(guild.voice_client.channel, "name"):
+                chname = guild.voice_client.channel.name
 
             log.info(
                 "Channel activity waiting %d seconds to leave channel: %s",
@@ -2484,16 +2637,18 @@ class MusicBot(discord.Client):
             )
         except asyncio.TimeoutError:
             # could timeout after a disconnect.
-            if guild.me.voice and guild.me.voice.channel:
+            if guild.voice_client and isinstance(
+                guild.voice_client.channel, (discord.VoiceChannel, discord.StageChannel)
+            ):
                 log.info(
                     "Channel activity timer for %s has expired. Disconnecting.",
                     guild.name,
                 )
-                await self.on_inactivity_timeout_expired(guild.me.voice.channel)
+                await self.on_inactivity_timeout_expired(guild.voice_client.channel)
         else:
             log.info(
                 "Channel activity timer canceled for: %s in %s",
-                guild.me.voice.channel.name,
+                guild.voice_client.channel.name,
                 guild.name,
             )
         finally:
@@ -2505,6 +2660,9 @@ class MusicBot(discord.Client):
         Manage a server-specific event timer when it's MusicPlayer becomes idle,
         if the bot is configured to do so.
         """
+        if self.logout_called:
+            return
+
         if not self.config.leave_player_inactive_for:
             return
         channel = player.voice_client.channel
@@ -2536,11 +2694,18 @@ class MusicBot(discord.Client):
                 [event.wait()], timeout=self.config.leave_player_inactive_for
             )
         except asyncio.TimeoutError:
-            log.info(
-                "Player activity timer for %s has expired. Disconnecting.",
-                guild.name,
-            )
-            await self.on_inactivity_timeout_expired(channel)
+            if not player.is_playing and player.voice_client.is_connected():
+                log.info(
+                    "Player activity timer for %s has expired. Disconnecting.",
+                    guild.name,
+                )
+                await self.on_inactivity_timeout_expired(channel)
+            else:
+                log.info(
+                    "Player activity timer canceled for: %s in %s",
+                    channel.name,
+                    guild.name,
+                )
         else:
             log.info(
                 "Player activity timer canceled for: %s in %s",
@@ -3196,8 +3361,9 @@ class MusicBot(discord.Client):
                         return
 
                     if f_player is not None:
-                        self.loop.create_task(
-                            self._handle_guild_auto_pause(f_player, _lc=_lc)
+                        self.create_task(
+                            self._handle_guild_auto_pause(f_player, _lc=_lc),
+                            name="MB_HandleGuildAutoPause",
                         )
                 return
 
@@ -3230,6 +3396,9 @@ class MusicBot(discord.Client):
 
         This function should not be called from _cmd_play().
         """
+        if not self.config.auto_unpause_on_play:
+            return
+
         if not player or not player.voice_client or not player.voice_client.channel:
             return
 
@@ -3414,7 +3583,11 @@ class MusicBot(discord.Client):
         )
 
     async def cmd_seek(
-        self, guild: discord.Guild, _player: Optional[MusicPlayer], seek_time: str = ""
+        self,
+        guild: discord.Guild,
+        _player: Optional[MusicPlayer],
+        leftover_args: List[str],
+        seek_time: str = "",
     ) -> CommandResponse:
         """
         Usage:
@@ -3425,6 +3598,7 @@ class MusicBot(discord.Client):
         Time should be given in seconds, fractional seconds are accepted.
         Due to codec specifics in ffmpeg, this may not be accurate.
         """
+        # TODO: perhaps a means of listing chapters and seeking to them. like `seek ch1` & `seek list`
         if not _player or not _player.current_entry:
             raise exceptions.CommandError(
                 "Cannot use seek if there is nothing playing.",
@@ -3445,6 +3619,12 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
+        # take in all potential arguments.
+        if leftover_args:
+            args = leftover_args
+            args.insert(0, seek_time)
+            seek_time = " ".join(args)
+
         if not seek_time:
             raise exceptions.CommandError(
                 "Cannot use seek without a time to position playback.",
@@ -3453,13 +3633,13 @@ class MusicBot(discord.Client):
 
         relative_seek: int = 0
         f_seek_time: float = 0
+        if seek_time.startswith("-"):
+            relative_seek = -1
+        if seek_time.startswith("+"):
+            relative_seek = 1
+
         if "." in seek_time:
             try:
-                if seek_time.startswith("-"):
-                    relative_seek = -1
-                if seek_time.startswith("+"):
-                    relative_seek = 1
-
                 p1, p2 = seek_time.rsplit(".", maxsplit=1)
                 i_seek_time = format_time_to_seconds(p1)
                 f_seek_time = float(f"0.{p2}")
@@ -3477,8 +3657,9 @@ class MusicBot(discord.Client):
 
         if f_seek_time > _player.current_entry.duration or f_seek_time < 0:
             td = format_song_duration(_player.current_entry.duration_td)
+            prog = format_song_duration(_player.progress)
             raise exceptions.CommandError(
-                f"Cannot seek to `{seek_time}` in the current track with a length of `{td}`",
+                f"Cannot seek to `{seek_time}` (`{f_seek_time:.2f}` seconds) in the current track with a length of `{prog} / {td}`",
                 expire_in=30,
             )
 
@@ -3496,7 +3677,7 @@ class MusicBot(discord.Client):
         _player.skip()
 
         return Response(
-            f"Seeking to time `{seek_time}` (`{f_seek_time}` seconds) in the current song.",
+            f"Seeking to time `{seek_time}` (`{f_seek_time:.2f}` seconds) in the current song.",
             delete_after=30,
         )
 
@@ -3508,8 +3689,7 @@ class MusicBot(discord.Client):
             {command_prefix}repeat [all | playlist | song | on | off]
 
         Toggles playlist or song looping.
-        If no option is provided the current song will be repeated.
-        If no option is provided and the song is already repeating, repeating will be turned off.
+        If no option is provided the bot will toggle through playlist looping, song looping, and looping off.
         """
         # TODO: this command needs TLC.
 
@@ -3767,7 +3947,7 @@ class MusicBot(discord.Client):
         if matches:
             pl_url = "https://www.youtube.com/playlist?" + matches.group(2)
             ignore_vid = matches.group(1)
-            asyncio.ensure_future(
+            self.create_task(
                 _prompt_for_playing(
                     # TODO: i18n / UI stuff
                     f"This link contains a Playlist ID:\n`{song_url}`\n\nDo you want to queue the playlist too?",
@@ -3930,14 +4110,7 @@ class MusicBot(discord.Client):
                 )
 
             # ensure the extractor has been allowed via permissions.
-            if info.extractor not in permissions.extractors and permissions.extractors:
-                raise exceptions.PermissionsError(
-                    self.str.get(
-                        "cmd-play-badextractor",
-                        "You do not have permission to play the requested media. Service `{}` is not permitted.",
-                    ).format(info.extractor),
-                    expire_in=30,
-                )
+            permissions.can_use_extractor(info.extractor)
 
             # if the result has "entries" but it's empty, it might be a failed search.
             if "entries" in info and not info.entry_count:
@@ -3963,7 +4136,7 @@ class MusicBot(discord.Client):
                     info,
                     channel=channel,
                     author=author,
-                    head=False,
+                    head=head,
                     ignore_video_id=ignore_video_id,
                 )
 
@@ -4033,6 +4206,7 @@ class MusicBot(discord.Client):
             if position == 1 and player.is_stopped:
                 position = self.str.get("cmd-play-next", "Up next!")
                 reply_text %= (btext, position)
+                player.play()
 
             # shift the playing track to the end of queue and skip current playback.
             elif skip_playing and player.is_playing and player.current_entry:
@@ -4094,9 +4268,7 @@ class MusicBot(discord.Client):
 
         await self._do_cmd_unpause_check(_player, channel, author, message)
 
-        if _player:
-            player = _player
-        elif permissions.summonplay:
+        if permissions.summonplay:
             response = await self.cmd_summon(guild, author, message)
             if response:
                 if self.config.embeds:
@@ -4120,9 +4292,9 @@ class MusicBot(discord.Client):
                     )
                 p = self.get_player_in(guild)
                 if p:
-                    player = p
+                    _player = p
 
-        if not player:
+        if not _player:
             prefix = self.server_data[guild.id].command_prefix
             raise exceptions.CommandError(
                 "The bot is not in a voice channel.  "
@@ -4131,7 +4303,7 @@ class MusicBot(discord.Client):
 
         if (
             permissions.max_songs
-            and player.playlist.count_for_user(author) >= permissions.max_songs
+            and _player.playlist.count_for_user(author) >= permissions.max_songs
         ):
             raise exceptions.PermissionsError(
                 self.str.get(
@@ -4141,7 +4313,7 @@ class MusicBot(discord.Client):
                 expire_in=30,
             )
 
-        if player.karaoke_mode and not permissions.bypass_karaoke_mode:
+        if _player.karaoke_mode and not permissions.bypass_karaoke_mode:
             raise exceptions.PermissionsError(
                 self.str.get(
                     "karaoke-enabled",
@@ -4175,9 +4347,12 @@ class MusicBot(discord.Client):
             if info.url != info.title:
                 self._do_song_blocklist_check(info.title)
 
-            await player.playlist.add_stream_from_info(
+            await _player.playlist.add_stream_from_info(
                 info, channel=channel, author=author, head=False
             )
+
+            if _player.is_stopped:
+                _player.play()
 
         return Response(
             self.str.get("cmd-stream-success", "Streaming."), delete_after=6
@@ -5321,6 +5496,7 @@ class MusicBot(discord.Client):
             )
 
         option = option.lower()
+
         valid_options = [
             "missing",
             "diff",
@@ -5330,7 +5506,9 @@ class MusicBot(discord.Client):
             "show",
             "set",
             "reload",
+            "reset",
         ]
+
         if option not in valid_options:
             raise exceptions.CommandError(
                 f"Invalid option for command: `{option}`",
@@ -5411,7 +5589,7 @@ class MusicBot(discord.Client):
                 ) from e
 
         # sub commands beyond here need 2 leftover_args
-        if option in ["help", "show", "save", "set"]:
+        if option in ["help", "show", "save", "set", "reset"]:
             largs = len(leftover_args)
             if (
                 self.config.register.resolver_available
@@ -5541,6 +5719,35 @@ class MusicBot(discord.Client):
                 delete_after=30,
             )
 
+        # reset an option to default value as defined in ConfigDefaults
+        if option == "reset":
+            if not opt.editable:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` is not editable. Cannot reset to default.",
+                    expire_in=30,
+                )
+
+            # Use the default value from the option object
+            default_value = self.config.register.to_ini(opt, use_default=True)
+
+            # Prepare a user-friendly message for the reset operation
+            # TODO look into option registry display code for use here
+            reset_value_display = default_value if default_value else "an empty set"
+
+            log.debug("Resetting %s to default %s", opt, default_value)
+            async with self.aiolocks["config_update"]:
+                updated = self.config.update_option(opt, default_value)
+            if not updated:
+                raise exceptions.CommandError(
+                    f"Option `{opt}` was not reset to default!",
+                    expire_in=30,
+                )
+            return Response(
+                f"Option `{opt}` was reset to its default value `{reset_value_display}`.\n"
+                f"To save the change use `config save {opt.section} {opt.option}`",
+                delete_after=30,
+            )
+
         return None
 
     @owner_only
@@ -5553,7 +5760,7 @@ class MusicBot(discord.Client):
 
         Changes a config option without restarting the bot. Changes aren't permanent and
         only last until the bot is restarted. To make permanent changes, edit the
-        config file.
+        config file or use the config set and save commands.
 
         Valid options:
             autoplaylist, save_videos, now_playing_mentions, auto_playlist_random, auto_pause,
@@ -6135,8 +6342,9 @@ class MusicBot(discord.Client):
         Sends the user a list of their permissions, or the permissions of the user specified.
         """
 
+        user: Optional[MessageAuthor] = None
         if user_mentions:
-            user = user_mentions[0]  # type: Union[discord.User, discord.Member]
+            user = user_mentions[0]
 
         if not user_mentions and not target:
             user = author
@@ -6146,14 +6354,19 @@ class MusicBot(discord.Client):
             if getuser is None:
                 try:
                     user = await self.fetch_user(int(target))
-                except (discord.NotFound, ValueError):
-                    return Response(
-                        "Invalid user ID or server nickname, please double check all typing and try again.",
-                        reply=False,
-                        delete_after=30,
-                    )
+                except (discord.NotFound, ValueError) as e:
+                    raise exceptions.CommandError(
+                        "Invalid user ID or server nickname, please double check the ID and try again.",
+                        expire_in=30,
+                    ) from e
             else:
                 user = getuser
+
+        if not user:
+            raise exceptions.CommandError(
+                "Could not determine the discord User.  Try again.",
+                expire_in=30,
+            )
 
         permissions = self.permissions.for_user(user)
 
@@ -6834,10 +7047,30 @@ class MusicBot(discord.Client):
 
     @dev_only
     async def cmd_debug(
-        self, _player: Optional[MusicPlayer], *, data: str
+        self,
+        _player: Optional[MusicPlayer],
+        message: discord.Message,  # pylint: disable=unused-argument
+        channel: GuildMessageableChannels,  # pylint: disable=unused-argument
+        guild: discord.Guild,  # pylint: disable=unused-argument
+        author: discord.Member,  # pylint: disable=unused-argument
+        permissions: PermissionGroup,  # pylint: disable=unused-argument
+        *,
+        data: str,
     ) -> CommandResponse:
         """
-        Evaluate or otherwise execute the python code in `data`
+        Usage:
+            {command_prefix}debug [one line of code]
+                OR
+            {command_prefix}debug ` ` `py
+            many lines
+            of python code.
+            ` ` `
+
+            This command will execute python code in the commands scope.
+            First eval() is attempted, if exceptions are thrown exec() is tried.
+            If eval is successful, its return value is displayed.
+            If exec is successful, a value can be set to local variable `result`
+            and that value will be returned.
         """
         codeblock = "```py\n{}\n```"
         result = None
@@ -6846,24 +7079,85 @@ class MusicBot(discord.Client):
             data = "\n".join(data.rstrip("`\n").split("\n")[1:])
 
         code = data.strip("` \n")
-
-        scope = globals().copy()
-        scope.update({"self": self})
-
         try:
-            result = eval(code, scope)  # pylint: disable=eval-used
+            run_type = "eval"
+            result = eval(code)  # pylint: disable=eval-used
+            log.debug("Debug code ran with eval().")
         except Exception:  # pylint: disable=broad-exception-caught
             try:
-                exec(code, scope)  # pylint: disable=exec-used
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                traceback.print_exc(chain=False)
-                type_name = type(e).__name__
-                return Response(f"{type_name}: {str(e)}")
+                run_type = "exec"
+                # exec needs a fake locals so we can get `result` from it.
+                lscope: Dict[str, Any] = {}
+                # exec also needs locals() to be in globals() for access to work.
+                gscope = globals().copy()
+                gscope.update(locals().copy())
+                exec(code, gscope, lscope)  # pylint: disable=exec-used
+                log.debug("Debug code ran with exec().")
+                result = lscope.get("result", result)
+            except Exception as e:
+                log.exception("Debug code failed to execute.")
+                raise exceptions.CommandError(
+                    f"Failed to execute debug code.\n{codeblock.format(code)}\n"
+                    f"Exception: ```\n{type(e).__name__}:\n{str(e)}```"
+                ) from e
 
         if asyncio.iscoroutine(result):
             result = await result
 
-        return Response(codeblock.format(result))
+        return Response(f"**{run_type}() Result:**\n{codeblock.format(result)}")
+
+    @dev_only
+    async def cmd_makemarkdown(
+        self,
+        channel: MessageableChannel,
+        author: discord.Member,
+        cfg: str = "opts",
+    ) -> CommandResponse:
+        """
+        Command to generate markdown for options and permissions files.
+        Contents are generated from code and not pulled from the files!
+        """
+        valid_opts = ["opts", "perms"]
+        if cfg not in valid_opts:
+            opts = ", ".join([f"`{o}`" for o in valid_opts])
+            raise exceptions.CommandError("Option must be one of: %s" % (opts))
+
+        filename = "config_options.md"
+        msg_str = "Config options described in Markdown:\n"
+        if cfg == "perms":
+            filename = "config_permissions.md"
+            msg_str = "Permissions described in Markdown:\n"
+            config_md = self.permissions.register.export_markdown()
+        else:
+            config_md = self.config.register.export_markdown()
+
+        sent_to_channel = None
+
+        # TODO: refactor this in favor of safe_send_message doing it all.
+        with BytesIO() as fcontent:
+            fcontent.write(config_md.encode("utf8"))
+            fcontent.seek(0)
+            datafile = discord.File(fcontent, filename=filename)
+
+            try:
+                # try to DM. this could fail for users with strict privacy settings.
+                # or users who just can't get direct messages.
+                await author.send(msg_str, file=datafile)
+
+            except discord.errors.HTTPException as e:
+                if e.code == 50007:  # cannot send to this user.
+                    log.debug("DM failed, sending in channel instead.")
+                    sent_to_channel = await channel.send(
+                        msg_str,
+                        file=datafile,
+                    )
+                else:
+                    raise
+        if not sent_to_channel:
+            return Response(
+                "Sent a message with the requested config markdown.", delete_after=20
+            )
+        return None
 
     @owner_only
     async def cmd_checkupdates(self, channel: MessageableChannel) -> CommandResponse:
@@ -6872,7 +7166,6 @@ class MusicBot(discord.Client):
             {command_prefix}checkupdates
 
         Display the current bot version and check for updates to MusicBot or dependencies.
-        The option `GitUpdatesBranch` must be set to check for updates to MusicBot.
         """
         git_status = ""
         pip_status = ""
@@ -6991,8 +7284,12 @@ class MusicBot(discord.Client):
         """
         uptime = time.time() - self._init_time
         delta = format_song_duration(uptime)
+        name = DEFAULT_BOT_NAME
+        if self.user:
+            name = self.user.name
         return Response(
-            f"MusicBot has been up for `{delta}`",
+            f"{name} has been up for `{delta}`",
+            delete_after=30,
         )
 
     @owner_only
@@ -7060,6 +7357,101 @@ class MusicBot(discord.Client):
             f"Current version:  `{BOTVERSION}`",
             delete_after=30,
         )
+
+    @owner_only
+    async def cmd_setcookies(
+        self, message: discord.Message, opt: str = ""
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}setcookies [ off | on ]
+                Disable or enable cookies.txt file without deleting it.
+
+            {command_prefix}setcookies
+                Update the cookies.txt file using a supplied attachment.
+
+        Note:
+          When updating cookies, you must upload a file named cookies.txt
+          If cookies are disabled, uploading will enable the feature.
+          Uploads will delete existing cookies, including disabled cookies file.
+
+        WARNING:
+          Copying cookies can risk exposing your personal information or accounts,
+          and may result in account bans or theft if you are not careful.
+          It is not recommended due to these risks, and you should not use this
+          feature if you do not understand how to avoid the risks.
+        """
+        opt = opt.lower()
+        if opt == "on":
+            if self.downloader.cookies_enabled:
+                raise exceptions.CommandError("Cookies already enabled.")
+
+            if (
+                not self.config.disabled_cookies_path.is_file()
+                and not self.config.cookies_path.is_file()
+            ):
+                raise exceptions.CommandError(
+                    "Cookies must be uploaded to be enabled. (Missing cookies file.)"
+                )
+
+            # check for cookies file and use it.
+            if self.config.cookies_path.is_file():
+                self.downloader.enable_ytdl_cookies()
+            else:
+                # or rename the file as needed.
+                try:
+                    self.config.disabled_cookies_path.rename(self.config.cookies_path)
+                    self.downloader.enable_ytdl_cookies()
+                except OSError as e:
+                    raise exceptions.CommandError(
+                        f"Could not enable cookies due to error:  {str(e)}"
+                    ) from e
+            return Response("Cookies have been enabled.")
+
+        if opt == "off":
+            if self.downloader.cookies_enabled:
+                self.downloader.disable_ytdl_cookies()
+
+            if self.config.cookies_path.is_file():
+                try:
+                    self.config.cookies_path.rename(self.config.disabled_cookies_path)
+                except OSError as e:
+                    raise exceptions.CommandError(
+                        f"Could not rename cookies file due to error:  {str(e)}\n"
+                        "Cookies temporarily disabled and will be re-enabled on next restart."
+                    ) from e
+            return Response("Cookies have been disabled.")
+
+        # check for attached files and inspect them for use.
+        if not message.attachments:
+            raise exceptions.CommandError(
+                "No attached uploads were found, try again while uploading a cookie file."
+            )
+
+        # check for a disabled cookies file and remove it.
+        if self.config.disabled_cookies_path.is_file():
+            try:
+                self.config.disabled_cookies_path.unlink()
+            except OSError as e:
+                log.warning("Could not remove old, disabled cookies file:  %s", str(e))
+
+        # simply save the uploaded file in attachment 1 as cookies.txt.
+        try:
+            await message.attachments[0].save(self.config.cookies_path)
+        except discord.HTTPException as e:
+            raise exceptions.CommandError(
+                f"Error downloading the cookies file from discord:  {str(e)}"
+            ) from e
+        except OSError as e:
+            raise exceptions.CommandError(
+                f"Could not save cookies to disk:  {str(e)}"
+            ) from e
+
+        # enable cookies if it is not already.
+        if not self.downloader.cookies_enabled:
+            self.downloader.enable_ytdl_cookies()
+
+        return Response("Cookies uploaded and enabled.")
 
     async def on_message(self, message: discord.Message) -> None:
         """
@@ -7140,14 +7532,22 @@ class MusicBot(discord.Client):
         else:
             args = []
 
+        # Check if the incomming command is a "natural" command.
         handler = getattr(self, "cmd_" + command, None)
         if not handler:
-            # alias handler
+            # If no natural command was found, check for aliases when enabled.
             if self.config.usealias:
-                command = self.aliases.get(command)
+                # log.debug("Checking for alias with: %s", command)
+                command, alias_arg_str = self.aliases.get(command)
                 handler = getattr(self, "cmd_" + command, None)
                 if not handler:
                     return
+                # log.debug("Alias found:  %s %s", command, alias_arg_str)
+                # Complex aliases may have args of their own.
+                # We assume the user args go after the alias args.
+                if alias_arg_str:
+                    args = alias_arg_str.split(" ") + args
+            # Or ignore aliases, and this non-existent command.
             else:
                 return
 
@@ -7467,7 +7867,7 @@ class MusicBot(discord.Client):
         """
         guild = voice_channel.guild
 
-        if voice_channel:
+        if isinstance(voice_channel, (discord.VoiceChannel, discord.StageChannel)):
             last_np_msg = self.server_data[guild.id].last_np_msg
             if last_np_msg is not None and last_np_msg.channel:
                 channel = last_np_msg.channel
@@ -7545,7 +7945,9 @@ class MusicBot(discord.Client):
                         "%s has been detected as empty. Handling timeouts.",
                         before.channel.name,
                     )
-                    self.loop.create_task(self.handle_vc_inactivity(guild))
+                    self.create_task(
+                        self.handle_vc_inactivity(guild), name="MB_HandleInactiveVC"
+                    )
             elif after.channel and member != self.user:
                 if self.user in after.channel.members:
                     if event.is_active():
@@ -7567,7 +7969,9 @@ class MusicBot(discord.Client):
                         "The bot got moved and the voice channel %s is empty. Handling timeouts.",
                         after.channel.name,
                     )
-                    self.loop.create_task(self.handle_vc_inactivity(guild))
+                    self.create_task(
+                        self.handle_vc_inactivity(guild), name="MB_HandleInactiveVC"
+                    )
                 else:
                     if event.is_active():
                         log.info(
