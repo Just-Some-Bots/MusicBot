@@ -91,6 +91,8 @@ function show_help() {
     echo "  --help      Show this help text and exit."
     echo "  --sys-only  Install only system packages, no bot or pip libraries."
     echo "  --no-sys    Bypass system packages, install bot and pip libraries."
+    echo "  --debug     Enter debug mode, with extra output. (for developers)"
+    echo "  --any-branch    Allow any existing branch to be given at the branch prompt. (for developers)"
     echo ""
     exit 0
 }
@@ -191,6 +193,9 @@ function pull_musicbot_git() {
     echo "  master - An older MusicBot, for older discord.py. May not work without tweaks!"
     echo "  review - Newer MusicBot, usually stable with less updates than the dev branch."
     echo "  dev    - The newest MusicBot, latest features and changes which may need testing."
+    if [ "$EnableUnlistedBranches" == "1" ] ; then
+    echo "  *      - WARNING: Any branch name is allowed, if it exists on github."
+    fi
     echo ""
     read -rp "Enter the branch name you want to install:  " BRANCH
     case ${BRANCH,,} in
@@ -454,6 +459,17 @@ while [[ $# -gt 0 ]]; do
         shift
     ;;
 
+    --any-branch )
+        EnableUnlistedBranches=1
+        shift
+    ;;
+
+    --debug )
+        DEBUG=1
+        shift
+        echo "DEBUG MODE IS ENABLED!"
+    ;;
+
     * )
         echo "Unknown option $1"
         exit 1
@@ -500,7 +516,15 @@ if [[ "${iagree,,}" != "y" && "${iagree,,}" != "yes" ]] ; then
 fi
 
 echo ""
-echo "Attempting to install required system packages..."
+if [ "${INSTALL_SYS_PKGS}${INSTALL_BOT_BITS}" == "11" ] ; then
+    echo "Attempting to install required system packages & MusicBot software..."
+else
+    if [ "${INSTALL_SYS_PKGS}${INSTALL_BOT_BITS}" == "10" ] ; then
+        echo "Attempting to install only required system packages..."
+    else
+        echo "Attempting to install only MusicBot and pip libraries..."
+    fi
+fi
 echo ""
 
 case $DISTRO_NAME in
@@ -824,8 +848,10 @@ case $DISTRO_NAME in
 esac
 
 if ! [[ $DISTRO_NAME == *"Darwin"* ]]; then
-    configure_bot
-    setup_as_service
+    if [ "$INSTALL_BOT_BITS" == "1" ] ; then
+        configure_bot
+        setup_as_service
+    fi
 else
     echo "The bot has been successfully installed to your user directory"
     echo "You can configure the bot by navigating to the config folder, and modifying the contents of the options.ini and permissions.ini files"
