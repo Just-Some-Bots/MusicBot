@@ -1,6 +1,5 @@
 pynacl
-discord.py [voice, speed] @ git+https://github.com/Rapptz/discord.py
-# Windows users may want to install orjson and pycares for speed, but avoid aiodns for now.
+discord.py [voice, speed] >= 2.4.0
 pip
 yt-dlp
 colorlog
