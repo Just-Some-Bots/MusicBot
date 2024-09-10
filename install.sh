@@ -94,7 +94,7 @@ function show_help() {
     echo "  --no-sys    Bypass system packages, install bot and pip libraries."
     echo "  --debug     Enter debug mode, with extra output. (for developers)"
     echo "  --any-branch    Allow any existing branch to be given at the branch prompt. (for developers)"
-    echo "  --dir=[PATH]    Directory into which MusicBot will be installed. Default is user Home directory."
+    echo "  --dir [PATH]    Directory into which MusicBot will be installed. Default is user Home directory."
     echo ""
     exit 0
 }
