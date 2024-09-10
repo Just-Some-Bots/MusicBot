@@ -186,16 +186,15 @@ function pull_musicbot_git() {
     # test if we install at home-directory or a specified path.
     if [ "$InstallDir" == "" ] ; then
         cd ~ || exit_err "Fatal:  Could not change into home directory."
+        if [ -d "${CloneDir}" ] ; then
+            echo "Error: A directory named ${CloneDir} already exists in your home directory."
+            exit_err "Delete the ${CloneDir} directory and try again, or complete the install manually."
+        fi
     else
         cd "$InstallDir" || exit_err "Fatal:  Could not change into install directory:  ${InstallDir}"
         if [ "$InstalledViaVenv" != "1" ] ; then
             CloneDir="${InstallDir}"
         fi
-    fi
-
-    if [ -d "${CloneDir}" ] ; then
-        echo "Error: A directory named ${CloneDir} already exists in your home directory."
-        exit_err "Delete the ${CloneDir} directory and try again, or complete the install manually."
     fi
 
     echo ""
