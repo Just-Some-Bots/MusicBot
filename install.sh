@@ -10,7 +10,8 @@
 #-----------------------------------------------Configs-----------------------------------------------#
 MusicBotGitURL="https://github.com/Just-Some-Bots/MusicBot.git"
 CloneDir="MusicBot"
-VenvDir="${CloneDir}Venv"
+VenvDir="MusicBotVenv"
+InstallDir=""
 
 EnableUnlistedBranches=0
 DEBUG=0
@@ -93,6 +94,7 @@ function show_help() {
     echo "  --no-sys    Bypass system packages, install bot and pip libraries."
     echo "  --debug     Enter debug mode, with extra output. (for developers)"
     echo "  --any-branch    Allow any existing branch to be given at the branch prompt. (for developers)"
+    echo "  --dir=[PATH]    Directory into which MusicBot will be installed. Default is user Home directory."
     echo ""
     exit 0
 }
@@ -161,16 +163,16 @@ function find_python() {
 function pull_musicbot_git() {
     echo ""
     # Check if we're running inside a previously pulled repo.
+    # ignore this if InstallDir is set.
     GitDir="${PWD}/.git"
     BotDir="${PWD}/musicbot"
     ReqFile="${PWD}/requirements.txt"
-    if [ -d "$GitDir" ] && [ -d "$BotDir" ] && [ -f "$ReqFile" ] ; then
+    if [ -d "$GitDir" ] && [ -d "$BotDir" ] && [ -f "$ReqFile" ] && [ "$InstallDir" == "" ]; then
         echo "Existing MusicBot repo detected."
         read -rp "Would you like to install using the current repo? [Y/n]" UsePwd
         if [ "${UsePwd,,}" == "y" ] || [ "${UsePwd,,}" == "yes" ] ; then
             echo ""
             CloneDir="${PWD}"
-            VenvDir="${CloneDir}/Venv"
 
             $PyBin -m pip install --upgrade -r requirements.txt
             echo ""
@@ -181,7 +183,15 @@ function pull_musicbot_git() {
         echo "Installer will attempt to create a new directory for MusicBot."
     fi
 
-    cd ~ || exit_err "Fatal:  Could not change to home directory."
+    # test if we install at home-directory or a specified path.
+    if [ "$InstallDir" == "" ] ; then
+        cd ~ || exit_err "Fatal:  Could not change into home directory."
+    else
+        cd "$InstallDir" || exit_err "Fatal:  Could not change into install directory:  ${InstallDir}"
+        if [ "$InstalledViaVenv" != "1" ] ; then
+            CloneDir="${InstallDir}"
+        fi
+    fi
 
     if [ -d "${CloneDir}" ] ; then
         echo "Error: A directory named ${CloneDir} already exists in your home directory."
@@ -470,16 +480,27 @@ while [[ $# -gt 0 ]]; do
         echo "DEBUG MODE IS ENABLED!"
     ;;
 
+    "--dir" )
+        InstallDir="$2"
+        shift
+        shift
+        if [ "${InstallDir:0-1}" != "/" ] ; then
+            InstallDir="${InstallDir}/"
+        fi
+        if ! [ -d "$InstallDir" ] ; then
+            exit_err "The install directory given does not exist:   '$InstallDir'"
+        fi
+        VenvDir="${InstallDir}${VenvDir}"
+    ;;
+
     * )
-        echo "Unknown option $1"
-        exit 1
+        exit_err "Unknown option $1"
     ;;
   esac
 done
 
 if [ "${INSTALL_SYS_PKGS}${INSTALL_BOT_BITS}" == "00" ] ; then
-    echo "The options --no-sys and --sys-only cannot be used together."
-    exit 1
+    exit_err "The options --no-sys and --sys-only cannot be used together."
 fi
 
 #------------------------------------------------Logic------------------------------------------------#
