@@ -237,7 +237,11 @@ function pull_musicbot_git() {
     $PyBin -m pip install --upgrade -r requirements.txt
     echo ""
 
-    cp ./config/example_options.ini ./config/options.ini
+    if ! [ -f ./config/options.ini ] ; then
+        echo "Creating empty options.ini file from example_options.ini file."
+        echo ""
+        cp ./config/example_options.ini ./config/options.ini
+    fi
 }
 
 function install_as_venv() {
@@ -384,15 +388,15 @@ function setup_as_service() {
         echo ""
 
         # copy the template to edit it.
-        cp "$SrvTplFile" "$SrvCpyFile"
+        cp "${SrvTplFile}" "${SrvCpyFile}"
         # Replace parts of musicbot.service with proper values.
-        sed -i "s,#User=mbuser,User=${Inst_User},g" "$SrvCpyFile"
-        sed -i "s,#Group=mbusergroup,Group=${Inst_Group},g" "$SrvCpyFile"
-        sed -i "s,/usr/bin/pythonversionnum,${PyBinPath},g" "$SrvCpyFile"
-        sed -i "s,mbdirectory,${PWD},g" "$SrvCpyFile"
+        sed -i "s,#User=mbuser,User=${Inst_User},g" "${SrvCpyFile}"
+        sed -i "s,#Group=mbusergroup,Group=${Inst_Group},g" "${SrvCpyFile}"
+        sed -i "s,/usr/bin/pythonversionnum,${PyBinPath},g" "${SrvCpyFile}"
+        sed -i "s,mbdirectory,${PWD},g" "${SrvCpyFile}"
 
         # Copy the service file into place and enable it.
-        sudo cp "$SrvCpyFile" "$SrvInstFile"
+        sudo cp "${SrvCpyFile}" "${SrvInstFile}"
         sudo chown root:root "$SrvInstFile"
         sudo chmod 644 "$SrvInstFile"
         sudo systemctl enable "$ServiceName"
