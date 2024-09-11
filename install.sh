@@ -264,6 +264,7 @@ function issue_root_warning() {
 function ask_for_user() {
     # ask the user to supply a valid username. It must exist already.
     while :; do
+        echo ""
         read -rp "Please enter an existing User name:  " Inst_User
         if id -u "$Inst_User" >/dev/null 2>&1; then
             if [ "${Inst_User,,}" == "root" ] ; then
@@ -275,7 +276,6 @@ function ask_for_user() {
             fi
         else
             echo "Username does not exist!  Try again."
-            echo ""
             Inst_User="$(id -un)"
         fi
     done
@@ -284,6 +284,7 @@ function ask_for_user() {
 function ask_for_group() {
     # ask the user to supply a valid group name. It must exist already.
     while :; do
+        echo ""
         read -rp "Please enter an existing Group name:  " Inst_Group
         if id -g "$Inst_Group" >/dev/null 2>&1 ; then
             if [ "${Inst_Group,,}" == "root" ] ; then
@@ -295,7 +296,6 @@ function ask_for_group() {
             fi
         else
             echo "Group does not exist!  Try again."
-            echo ""
             Inst_Group="$(id -gn)"
         fi
     done
@@ -303,6 +303,7 @@ function ask_for_group() {
 
 function ask_change_user_group() {
     User_Group="${Inst_User} / ${Inst_Group}"
+    echo ""
     echo "The installer is currently running as:  ${User_Group}"
     read -rp "Set a different User / Group to run the service? [N/y]: " MakeChange
     case $MakeChange in
@@ -314,6 +315,7 @@ function ask_change_user_group() {
 }
 
 function ask_change_service_name() {
+    echo ""
     echo "The service will be installed as:  $ServiceName"
     read -rp "Would you like to change the name? [N/y]: " ChangeSrvName
     case $ChangeSrvName in
@@ -321,6 +323,7 @@ function ask_change_service_name() {
         while :; do
             # ASCII letters, digits, ":", "-", "_", ".", and "\"
             # but I know \ will complicate shit. so no thanks, sysD.
+            echo ""
             echo "Service names may use only letters, numbers, and the listed special characters."
             echo "Spaces are not allowed. Special characters:  -_.:"
             read -rp "Provide a name for the service:  " ServiceName
@@ -331,11 +334,9 @@ function ask_change_service_name() {
                     return 0
                 else
                     echo "A service by this name already exists, try another."
-                    echo ""
                 fi
             else
                 echo "Invalid service name, try again."
-                echo ""
             fi
         done
     ;;
