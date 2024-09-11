@@ -253,7 +253,7 @@ function install_as_venv() {
     pull_musicbot_git
 
     # exit venv
-    deactiveate
+    deactivate
 }
 
 function issue_root_warning() {
@@ -328,7 +328,7 @@ function ask_change_service_name() {
             if [[ "$ServiceName" =~ ^[a-zA-Z0-9:-_\.]+$ ]] ; then
                 # attempt to avoid conflicting service names...
                 if ! systemctl list-unit-files "$ServiceName" &>/dev/null ; then
-                    exit 0
+                    return 0
                 else
                     echo "A service by this name already exists, try another."
                     echo ""
@@ -369,10 +369,18 @@ function setup_as_service() {
             return 1
         fi
 
-        echo "Setting up the bot as a service"
-        SrvTplFile="${CloneDir}/musicbot.service.tpl"
-        SrvCpyFile="${CloneDir}/${ServiceName}.service"
+        CDir="$CloneDir"
+        if [ "${CDir:0:1}" != "/" ] ; then
+            CDir="./${CDir}"
+        fi
+        SrvTplFile="${CDir}/musicbot.service.tpl"
+        SrvCpyFile="${CDir}/${ServiceName}.service"
         SrvInstFile="/etc/systemd/system/${ServiceName}.service"
+        
+        echo "Setting up MusicBot as a service named:  ${ServiceName}"
+        echo "Generated File:  ${SrvCpyFile}"
+        echo "Installed File:  ${SrvInstFile}"
+        echo ""
 
         # copy the template to edit it.
         cp "$SrvTplFile" "$SrvCpyFile"
@@ -387,11 +395,8 @@ function setup_as_service() {
         sudo chown root:root "$SrvInstFile"
         sudo chmod 644 "$SrvInstFile"
         sudo systemctl enable "$ServiceName"
-        echo "MusicBot setup as the service:  ${ServiceName}"
-        echo "Generated File:  ${SrvCpyFile}"
-        echo "Installed File:  ${SrvInstFile}"
-        echo ""
         
+        echo ""
         echo "MusicBot will start automatically after the next reboot."
         read -rp "Would you like to start MusicBot now? [N/y]" StartService
         case $StartService in
