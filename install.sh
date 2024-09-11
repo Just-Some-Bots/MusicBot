@@ -12,6 +12,7 @@ MusicBotGitURL="https://github.com/Just-Some-Bots/MusicBot.git"
 CloneDir="MusicBot"
 VenvDir="MusicBotVenv"
 InstallDir=""
+ServiceName="musicbot"
 
 EnableUnlistedBranches=0
 DEBUG=0
@@ -82,7 +83,7 @@ function show_help() {
     echo "By default, the installer script installs as the user who runs the script."
     echo "The user should have permission to install system packages using sudo."
     echo "Do NOT run this script with sudo, you will be prompted when it is needed!"
-    echo "To bypass system packages steps, provide option: --no-sys"
+    echo "To bypass steps using sudo, use --no-sudo or --no-sys as desired."
     echo " Note: Your system admin must install the packages before hand, by using:"
     echo "   $0 --sys-only"
     echo ""
@@ -91,7 +92,9 @@ function show_help() {
     echo "  --list      List potentially supported versions and exits."
     echo "  --help      Show this help text and exit."
     echo "  --sys-only  Install only system packages, no bot or pip libraries."
+    echo "  --service   Install only the system service for MusicBot."
     echo "  --no-sys    Bypass system packages, install bot and pip libraries."
+    echo "  --no-sudo   Skip all steps that use sudo. This implies --no-sys."
     echo "  --debug     Enter debug mode, with extra output. (for developers)"
     echo "  --any-branch    Allow any existing branch to be given at the branch prompt. (for developers)"
     echo "  --dir [PATH]    Directory into which MusicBot will be installed. Default is user Home directory."
@@ -253,70 +256,152 @@ function install_as_venv() {
     deactiveate
 }
 
+function issue_root_warning() {
+    echo "Just like my opinion, but root and MusicBot shouldn't mix."
+    echo "The installer will prevent this for the benefit of us all."
+}
+
+function ask_for_user() {
+    # ask the user to supply a valid username. It must exist already.
+    while :; do
+        read -rp "Please enter an existing User name:  " Inst_User
+        if id -u "$Inst_User" >/dev/null 2>&1; then
+            if [ "${Inst_User,,}" == "root" ] ; then
+                issue_root_warning
+                echo "Try again."
+                Inst_User=""
+            else
+                return 0
+            fi
+        else
+            echo "Username does not exist!  Try again."
+            echo ""
+            Inst_User="$(id -un)"
+        fi
+    done
+}
+
+function ask_for_group() {
+    # ask the user to supply a valid group name. It must exist already.
+    while :; do
+        read -rp "Please enter an existing Group name:  " Inst_Group
+        if id -g "$Inst_Group" >/dev/null 2>&1 ; then
+            if [ "${Inst_Group,,}" == "root" ] ; then
+                issue_root_warning
+                echo "Try again."
+                Inst_Group=""
+            else
+                return 0
+            fi
+        else
+            echo "Group does not exist!  Try again."
+            echo ""
+            Inst_Group="$(id -gn)"
+        fi
+    done
+}
+
+function ask_change_user_group() {
+    User_Group="${Inst_User} / ${Inst_Group}"
+    echo "The installer is currently running as:  ${User_Group}"
+    read -rp "Set a different User / Group to run the service? [N/y]: " MakeChange
+    case $MakeChange in
+    [Yy]*)
+        ask_for_user
+        ask_for_group
+    ;;
+    esac
+}
+
+function ask_change_service_name() {
+    echo "The service will be installed as:  $ServiceName"
+    read -rp "Would you like to change the name? [N/y]: " ChangeSrvName
+    case $ChangeSrvName in
+    [Yy]*)
+        while :; do
+            # ASCII letters, digits, ":", "-", "_", ".", and "\"
+            # but I know \ will complicate shit. so no thanks, sysD.
+            echo "Service names may use only letters, numbers, and the listed special characters."
+            echo "Spaces are not allowed. Special characters:  -_.:"
+            read -rp "Provide a name for the service:  " ServiceName
+            # validate service name is allowed.
+            if [[ "$ServiceName" =~ ^[a-zA-Z0-9:-_\.]+$ ]] ; then
+                # attempt to avoid conflicting service names...
+                if ! systemctl list-unit-files "$ServiceName" &>/dev/null ; then
+                    exit 0
+                else
+                    echo "A service by this name already exists, try another."
+                    echo ""
+                fi
+            else
+                echo "Invalid service name, try again."
+                echo ""
+            fi
+        done
+    ;;
+    esac
+}
+
 function setup_as_service() {
+    if [ "$SKIP_ALL_SUDO" == "1" ] ; then
+        return 0
+    fi
+
+    # TODO: should we assume systemd is all?  perhaps check for it first...
+
+    Inst_User="$(id -un)"
+    Inst_Group="$(id -gn)"
     echo ""
-    echo "The installer can also install MusicBot as a system service file."
-    echo "This starts the MusicBot at boot and after failures."
-    echo "You must specify a User and Group which the service will run as."
+    echo "The installer can also install MusicBot as a system service."
+    echo "This starts the MusicBot at boot and restarts after failures."
     read -rp "Install the musicbot system service? [N/y] " SERVICE
     case $SERVICE in
     [Yy]*)
-        # Because running this service as root is really not a good idea,
-        # a user and group is required here.
-        echo "Please provide an existing User name and Group name for the service to use."
-        read -rp "Enter an existing User name: " BotSysUserName
-        echo ""
-        read -rp "Enter an existing Group name: " BotSysGroupName
-        echo ""
-        # TODO: maybe check if the given values are valid, or create the user/group...
+        ask_change_service_name
+        ask_change_user_group
 
-        if [ "$BotSysUserName" == "" ] ; then
+        if [ "$Inst_User" == "" ] ; then
             echo "Cannot set up the service with a blank User name."
-            return
+            return 1
         fi
-        if [ "$BotSysGroupName" == "" ] ; then
+        if [ "$Inst_Group" == "" ] ; then
             echo "Cannot set up the service with a blank Group name."
-            return
+            return 1
         fi
 
         echo "Setting up the bot as a service"
+        SrvTplFile="${CloneDir}/musicbot.service.tpl"
+        SrvCpyFile="${CloneDir}/${ServiceName}.service"
+        SrvInstFile="/etc/systemd/system/${ServiceName}.service"
+
+        # copy the template to edit it.
+        cp "$SrvTplFile" "$SrvCpyFile"
         # Replace parts of musicbot.service with proper values.
-        sed -i "s,#User=mbuser,User=${BotSysUserName},g" ./musicbot.service
-        sed -i "s,#Group=mbusergroup,Group=${BotSysGroupName},g" ./musicbot.service
-        sed -i "s,/usr/bin/pythonversionnum,${PyBinPath},g" ./musicbot.service
-        sed -i "s,mbdirectory,${PWD},g" ./musicbot.service
+        sed -i "s,#User=mbuser,User=${Inst_User},g" "$SrvCpyFile"
+        sed -i "s,#Group=mbusergroup,Group=${Inst_Group},g" "$SrvCpyFile"
+        sed -i "s,/usr/bin/pythonversionnum,${PyBinPath},g" "$SrvCpyFile"
+        sed -i "s,mbdirectory,${PWD},g" "$SrvCpyFile"
 
         # Copy the service file into place and enable it.
-        sudo cp ~/"${CloneDir}"/musicbot.service /etc/systemd/system/
-        sudo chown root:root /etc/systemd/system/musicbot.service
-        sudo chmod 644 /etc/systemd/system/musicbot.service
-        sudo systemctl enable musicbot
-        sudo systemctl start musicbot
-
-        echo "Bot setup as a service and started"
-        ask_setup_aliases
-        ;;
-    esac
-
-}
-
-function ask_setup_aliases() {
-    echo " "
-    # TODO: ADD LINK TO WIKI
-    read -rp "Would you like to set up a command to manage the service? [N/y] " SERVICE
-    case $SERVICE in
-    [Yy]*)
-        echo "Setting up command..."
-        sudo cp ~/"${CloneDir}"/musicbotcmd /usr/bin/musicbot
-        sudo chown root:root /usr/bin/musicbot
-        sudo chmod 644 /usr/bin/musicbot
-        sudo chmod +x /usr/bin/musicbot
+        sudo cp "$SrvCpyFile" "$SrvInstFile"
+        sudo chown root:root "$SrvInstFile"
+        sudo chmod 644 "$SrvInstFile"
+        sudo systemctl enable "$ServiceName"
+        echo "MusicBot setup as the service:  ${ServiceName}"
+        echo "Generated File:  ${SrvCpyFile}"
+        echo "Installed File:  ${SrvInstFile}"
         echo ""
-        echo "Command created!"
-        echo "Information regarding how the bot can now be managed found by running:"
-        echo "musicbot --help"
+        
+        echo "MusicBot will start automatically after the next reboot."
+        read -rp "Would you like to start MusicBot now? [N/y]" StartService
+        case $StartService in
+        [Yy]*)
+            sudo systemctl start "$ServiceName"
+        ;;
+        esac
         ;;
     esac
+
 }
 
 function debug() {
@@ -446,6 +531,7 @@ function configure_bot() {
 #------------------------------------------CLI Arguments----------------------------------------------#
 INSTALL_SYS_PKGS="1"
 INSTALL_BOT_BITS="1"
+SKIP_ALL_SUDO="0"
 
 while [[ $# -gt 0 ]]; do
   case ${1,,} in
@@ -461,6 +547,11 @@ while [[ $# -gt 0 ]]; do
     --no-sys )
         INSTALL_SYS_PKGS="0"
         shift
+    ;;
+    
+    --no-sudo )
+        INSTALL_SYS_PKGS="0"
+        SKIP_ALL_SUDO="1"
     ;;
 
     --sys-only )
@@ -881,12 +972,13 @@ fi
 if [ "$InstalledViaVenv" == "1" ] ; then
     echo ""
     echo "Notice:"
-    echo "This system required MusicBot to be installed inside a Python venv."
-    echo "In order to run or update MusicBot, you must use the venv or binaries stored within it."
-    echo "To activate the venv, run the following command: "
-    echo "  source ${VenvDir}/bin/activate"
+    echo "  This system required MusicBot to be installed inside a Python venv."
+    echo "  Shell scripts included with MusicBot should detect and use the venv automatically."
+    echo "  If you do not use the included scripts, you must manually activate instead."
+    echo "  To manually activate the venv, run the following command: "
+    echo "    source ${VenvDir}/bin/activate"
     echo ""
-    echo "The venv module is bundled with python 3.3+, for more info about venv, see here:"
-    echo "  https://docs.python.org/3/library/venv.html"
+    echo "  The venv module is bundled with python 3.3+, for more info about venv, see here:"
+    echo "    https://docs.python.org/3/library/venv.html"
     echo ""
 fi
