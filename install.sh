@@ -19,6 +19,7 @@ DEBUG=0
 
 
 #----------------------------------------------Constants----------------------------------------------#
+SrvTplFile="./musicbot.service.tpl"
 DEFAULT_URL_BASE="https://discordapp.com/api"
 # Suported versions of python using only major.minor format
 PySupported=("3.8" "3.9" "3.10" "3.11" "3.12")
@@ -348,7 +349,14 @@ function ask_change_service_name() {
 }
 
 function setup_as_service() {
+    # Provide steps to generate and install a .service file
+    # This function assumes we previously cd into the clone target.
     if [ "$SKIP_ALL_SUDO" == "1" ] ; then
+        return 0
+    fi
+
+    if ! [ -f "$SrvTplFile" ] ; then
+        echo "Could not locate the service file template:  $SrvTplFile"
         return 0
     fi
 
@@ -374,12 +382,7 @@ function setup_as_service() {
             return 1
         fi
 
-        CDir="$CloneDir"
-        if [ "${CDir:0:1}" != "/" ] ; then
-            CDir="./${CDir}"
-        fi
-        SrvTplFile="${CDir}/musicbot.service.tpl"
-        SrvCpyFile="${CDir}/${ServiceName}.service"
+        SrvCpyFile="./${ServiceName}.service"
         SrvInstFile="/etc/systemd/system/${ServiceName}.service"
         
         echo "Setting up MusicBot as a service named:  ${ServiceName}"
