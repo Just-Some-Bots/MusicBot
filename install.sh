@@ -19,7 +19,6 @@ DEBUG=0
 
 
 #----------------------------------------------Constants----------------------------------------------#
-SrvTplFile="./musicbot.service.tpl"
 DEFAULT_URL_BASE="https://discordapp.com/api"
 # Suported versions of python using only major.minor format
 PySupported=("3.8" "3.9" "3.10" "3.11" "3.12")
@@ -84,7 +83,7 @@ function show_help() {
     echo "By default, the installer script installs as the user who runs the script."
     echo "The user should have permission to install system packages using sudo."
     echo "Do NOT run this script with sudo, you will be prompted when it is needed!"
-    echo "To bypass steps using sudo, use --no-sudo or --no-sys as desired."
+    echo "To bypass steps that use sudo, use --no-sudo or --no-sys as desired."
     echo " Note: Your system admin must install the packages before hand, by using:"
     echo "   $0 --sys-only"
     echo ""
@@ -164,14 +163,40 @@ function find_python() {
     return 1
 }
 
+function find_python_venv() {
+    # activates venv, locates python bin, deactivates venv.
+    # shellcheck disable=SC1091
+    source "../bin/activate"
+    find_python
+    deactivate
+}
+
+function in_existing_repo() {
+    # check the current working directory is a MusicBot repo clone.
+    GitDir="${PWD}/.git"
+    BotDir="${PWD}/musicbot"
+    ReqFile="${PWD}/requirements.txt"
+    RunFile="${PWD}/run.py"
+    if [ -d "$GitDir" ] && [ -d "$BotDir" ] && [ -f "$ReqFile" ] && [ -f "$RunFile" ]; then
+        return 0
+    fi
+    return 1
+}
+
+function in_venv() {
+    # Check if the current directory is inside a Venv, does not activate.
+    # Assumes the current directory is a MusicBot clone.
+    if [ -f "../bin/activate" ] ; then
+        return 0
+    fi
+    return 1
+}
+
 function pull_musicbot_git() {
     echo ""
     # Check if we're running inside a previously pulled repo.
     # ignore this if InstallDir is set.
-    GitDir="${PWD}/.git"
-    BotDir="${PWD}/musicbot"
-    ReqFile="${PWD}/requirements.txt"
-    if [ -d "$GitDir" ] && [ -d "$BotDir" ] && [ -f "$ReqFile" ] && [ "$InstallDir" == "" ]; then
+    if in_existing_repo && [ "$InstallDir" == "" ]; then
         echo "Existing MusicBot repo detected."
         read -rp "Would you like to install using the current repo? [Y/n]" UsePwd
         if [ "${UsePwd,,}" == "y" ] || [ "${UsePwd,,}" == "yes" ] ; then
@@ -348,16 +373,62 @@ function ask_change_service_name() {
     esac
 }
 
+function generate_service_file() {
+    # generate a .service file in the current directory.
+    cat << EOSF > "$1"
+[Unit]
+Description=Just-Some-Bots/MusicBot a discord.py bot that plays music.
+
+# Only start this service after networking is ready.
+After=network.target
+
+
+[Service]
+# If you do not set these, MusicBot may run as root!  You've been warned!
+User=${Inst_User}
+Group=${Inst_Group}
+
+# Replace with a path where MusicBot was cloned into.
+WorkingDirectory=${PWD}
+
+# Here you need to use both the correct python path and a path to run.py
+ExecStart=${PyBinPath} ${PWD}/run.py --no-checks
+
+# Set the condition under which the service should be restarted.
+# Using on-failure allows the bot's shutdown command to actually stop the service.
+# Using always will require you to stop the service via the service manager.
+Restart=on-failure
+
+# Time to wait between restarts.  Useful to avoid rate limits.
+RestartSec=8
+
+
+[Install]
+WantedBy=default.target
+
+EOSF
+
+}
+
 function setup_as_service() {
     # Provide steps to generate and install a .service file
-    # This function assumes we previously cd into the clone target.
-    if [ "$SKIP_ALL_SUDO" == "1" ] ; then
-        return 0
+
+    # check for existing repo or install --dir option.
+    if ! in_existing_repo ; then
+        if [ "$InstallDir" != "" ]; then
+            cd "$InstallDir" || { exit_err "Could not cd to the supplied install directory."; }
+        else
+            echo "Please add the --dir option and a path to a directory with the service template."
+            return 1
+        fi
     fi
 
-    if ! [ -f "$SrvTplFile" ] ; then
-        echo "Could not locate the service file template:  $SrvTplFile"
-        return 0
+    # check if we're in a venv install.
+    if in_venv ; then
+        debug "Detected a Venv install"
+        find_python_venv
+    else
+        find_python
     fi
 
     # TODO: should we assume systemd is all?  perhaps check for it first...
@@ -385,36 +456,34 @@ function setup_as_service() {
         SrvCpyFile="./${ServiceName}.service"
         SrvInstFile="/etc/systemd/system/${ServiceName}.service"
         
+        echo ""
         echo "Setting up MusicBot as a service named:  ${ServiceName}"
         echo "Generated File:  ${SrvCpyFile}"
-        echo "Installed File:  ${SrvInstFile}"
-        echo ""
 
-        # copy the template to edit it.
-        cp "${SrvTplFile}" "${SrvCpyFile}"
-        # Replace parts of musicbot.service with proper values.
-        sed -i "s,#User=mbuser,User=${Inst_User},g" "${SrvCpyFile}"
-        sed -i "s,#Group=mbusergroup,Group=${Inst_Group},g" "${SrvCpyFile}"
-        sed -i "s,/usr/bin/pythonversionnum,${PyBinPath},g" "${SrvCpyFile}"
-        sed -i "s,mbdirectory,${PWD},g" "${SrvCpyFile}"
-
-        # Copy the service file into place and enable it.
-        sudo cp "${SrvCpyFile}" "${SrvInstFile}"
-        sudo chown root:root "$SrvInstFile"
-        sudo chmod 644 "$SrvInstFile"
-        sudo systemctl enable "$ServiceName"
+        generate_service_file "${SrvCpyFile}"
         
+        if [ "$SKIP_ALL_SUDO" == "0" ] ; then
+            # Copy the service file into place and enable it.
+            sudo cp "${SrvCpyFile}" "${SrvInstFile}"
+            sudo chown root:root "$SrvInstFile"
+            sudo chmod 644 "$SrvInstFile"
+            sudo systemctl enable "$ServiceName"
+
+            echo "Installed File:  ${SrvInstFile}"
+
+            echo ""
+            echo "MusicBot will start automatically after the next reboot."
+            read -rp "Would you like to start MusicBot now? [N/y]" StartService
+            case $StartService in
+            [Yy]*)
+                sudo systemctl start "$ServiceName"
+            ;;
+            esac
+        fi
         echo ""
-        echo "MusicBot will start automatically after the next reboot."
-        read -rp "Would you like to start MusicBot now? [N/y]" StartService
-        case $StartService in
-        [Yy]*)
-            sudo systemctl start "$ServiceName"
-        ;;
-        esac
         ;;
     esac
-
+    return 0
 }
 
 function debug() {
@@ -544,6 +613,7 @@ function configure_bot() {
 #------------------------------------------CLI Arguments----------------------------------------------#
 INSTALL_SYS_PKGS="1"
 INSTALL_BOT_BITS="1"
+SERVICE_ONLY="0"
 SKIP_ALL_SUDO="0"
 
 while [[ $# -gt 0 ]]; do
@@ -565,10 +635,16 @@ while [[ $# -gt 0 ]]; do
     --no-sudo )
         INSTALL_SYS_PKGS="0"
         SKIP_ALL_SUDO="1"
+        shift
     ;;
 
     --sys-only )
         INSTALL_BOT_BITS="0"
+        shift
+    ;;
+    
+    --service )
+        SERVICE_ONLY="1"
         shift
     ;;
 
@@ -607,6 +683,12 @@ if [ "${INSTALL_SYS_PKGS}${INSTALL_BOT_BITS}" == "00" ] ; then
 fi
 
 #------------------------------------------------Logic------------------------------------------------#
+if [ "$SERVICE_ONLY" = "1" ] ; then
+    setup_as_service
+    exit 0
+fi
+
+# display preamble
 cat << EOF
 MusicBot Installer
 
@@ -637,6 +719,12 @@ echo "We detected your OS is:  ${DISTRO_NAME}"
 read -rp "Would you like to continue with the installer? [Y/n]:  " iagree
 if [[ "${iagree,,}" != "y" && "${iagree,,}" != "yes" ]] ; then
     exit 2
+fi
+
+# attempt to change the working directory to where this installer is. 
+# if nothing is moved this location might be a clone repo...
+if [ "$InstallDir" == "" ] ; then
+    cd "$(dirname "${BASH_SOURCE[0]}")" || { exit_err "Could not change directory for MusicBot installer."; }
 fi
 
 echo ""
