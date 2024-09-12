@@ -417,8 +417,19 @@ function setup_as_service() {
     if ! in_existing_repo ; then
         if [ "$InstallDir" != "" ]; then
             cd "$InstallDir" || { exit_err "Could not cd to the supplied install directory."; }
+
+            # if we still aren't in a valid repo, warn the user but continue on.
+            if ! in_existing_repo ; then
+                echo "WARNING:"
+                echo "  Installer is generating a service file without a valid install!"
+                echo "  The generated file may not contain the correct paths to python or run.py"
+                echo "  Manually edit the service file or re-run using a valid install directory."
+                echo ""
+            fi
         else
-            echo "Please add the --dir option and a path to a directory with the service template."
+            echo "The installer cannot generate a service file without an existing installation."
+            echo "Please add the --dir option or install the MusicBot first."
+            echo ""
             return 1
         fi
     fi
