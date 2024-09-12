@@ -478,6 +478,8 @@ function setup_as_service() {
             sudo cp "${SrvCpyFile}" "${SrvInstFile}"
             sudo chown root:root "$SrvInstFile"
             sudo chmod 644 "$SrvInstFile"
+            # TODO:  maybe we need to reload the daemon... 
+            # sudo systemctl daemon-reload
             sudo systemctl enable "$ServiceName"
 
             echo "Installed File:  ${SrvInstFile}"
@@ -487,9 +489,13 @@ function setup_as_service() {
             read -rp "Would you like to start MusicBot now? [N/y]" StartService
             case $StartService in
             [Yy]*)
+                echo "Running:  sudo systemctl start $ServiceName"
                 sudo systemctl start "$ServiceName"
             ;;
             esac
+        else
+            echo "Installing of generated service skipped, sudo is required to install it."
+            echo "The file was left on disk so you can manually install it."
         fi
         echo ""
         ;;
