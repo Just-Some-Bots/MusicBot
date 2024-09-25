@@ -1,5 +1,6 @@
 pynacl
-discord.py [voice, speed] >= 2.4.0
+#discord.py [voice, speed] >= 2.4.0
+discord.py [voice, speed] @ git+https://github.com/Rapptz/discord.py
 pip
 yt-dlp
 colorlog
