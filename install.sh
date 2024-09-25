@@ -56,9 +56,8 @@ else
 fi
 
 #----------------------------------------------Functions----------------------------------------------#
-function list_supported() {
-    # List off "supported" linux distro/versions if asked to and exit.
-    # We search this file and extract names from the supported cases below.
+function get_supported() {
+    # Search this file and extract names from the supported cases below.
     # We control which cases we grab based on the space at the end of each 
     # case pattern, before ) or | characters.
     # This allows adding complex cases which will be excluded from the list.
@@ -66,11 +65,32 @@ function list_supported() {
     Avail="${Avail//\*\"/}"
     Avail="${Avail//\"\*/}"
     Avail="${Avail//[|)]/}"
+    echo "$Avail"
+}
 
-    echo "We detected your OS is:  ${DISTRO_NAME}"
+function distro_supported() {
+    # Loops over "supported" distros and color-codes the current distro.
+    OIFS=$IFS
+    IFS=$'\n'
+    for dist in $(get_supported) ; do
+        debug "Testing '$dist' in '$DISTRO_NAME'"
+        if [[ "$DISTRO_NAME" == *"$dist"* ]] ; then
+            echo -e "\e[1;32m${DISTRO_NAME}\e[0m"
+            IFS=$OIFS
+            return 0
+        fi
+    done
+    IFS=$OIFS
+    echo -e "\e[1;33m${DISTRO_NAME}\e[0m"
+    return 1
+}
+
+function list_supported() {
+    # List off "supported" linux distro/versions if asked to and exit.
+    echo "We detected your OS is:  $(distro_supported)"
     echo ""
     echo "The MusicBot installer might have support for these flavors of Linux:"
-    echo "$Avail"
+    get_supported
     echo ""
     exit 0
 }
@@ -506,7 +526,7 @@ function setup_as_service() {
 function debug() {
     local msg=$1
     if [[ $DEBUG == '1' ]]; then
-        echo "[DEBUG] $msg" 1>&2
+        echo -e "\e[1;36m[DEBUG]\e[0m $msg" 1>&2
     fi
 }
 
@@ -731,11 +751,46 @@ For a list of potentially supported OS, run the command:
 
 EOF
 
-echo "We detected your OS is:  ${DISTRO_NAME}"
+echo "We detected your OS is:  $(distro_supported)"
 
 read -rp "Would you like to continue with the installer? [Y/n]:  " iagree
 if [[ "${iagree,,}" != "y" && "${iagree,,}" != "yes" ]] ; then
     exit 2
+fi
+
+# check if we are running as root, and if so make a more informed choice.
+if [ "$(id -u)" -eq "0" ] && [ "$INSTALL_BOT_BITS" == "1" ] ;  then
+    # in theory, we could prompt for a user and do all the setup.
+    # better that folks learn to admin their own systems though.
+    echo ""
+    echo -e "\e[1;37m\e[41m  Warning  \e[0m  You are using root and installing MusicBot."
+    echo "        This can break python permissions and will create MusicBot files as root."
+    echo "        Meaning, little or no support and you have to fix stuff manually."
+    echo "        Running MuiscBot as root is not recommended. You have been warned."
+    echo ""
+    read -rp "Type 'I understand' (without quotes) to continue installing:" iunderstand
+    if [[ "${iunderstand,,}" != "i understand" ]] ; then
+        echo ""
+        exit_err "Try again with --sys-only or change to a non-root user and use --no-sys and/or --no-sudo"
+    fi
+fi
+
+# check if we can sudo or not
+if [ "$SKIP_ALL_SUDO" == "0" ] ; then
+    echo "Checking if user can sudo..."
+    if ! sudo -v ; then
+        if [ "$INSTALL_SYS_PKGS" == "1" ] ; then
+            echo -e "\e[1;31mThe current user cannot run sudo to install system packages.\e[0m"
+            echo "If you have already installed system dependencies, try again with:"
+            echo "  $0 --no-sys"
+            echo ""
+            echo "To install system dependencies, switch to root and run:"
+            echo "  $0 --sys-only"
+            exit 1
+        fi
+        echo "Will skip all sudo steps."
+        SKIP_ALL_SUDO="1"
+    fi
 fi
 
 # attempt to change the working directory to where this installer is. 
