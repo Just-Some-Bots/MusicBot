@@ -37,29 +37,47 @@ if($iagree -ne "Y" -and $iagree -ne "y")
 if (-Not (Get-Command winget -ErrorAction SilentlyContinue) )
 {
     ""
-    "Sorry, you must install WinGet to use this installer."
-    "Supposedly included with Windows, but we couldn't find it."
-    "You can get it via Microsoft Store, the Official repo on github, or "
-    "use the following link to quickly download an installer for it:"
+    "Microsoft WinGet tool is required to continue installing."
+    "It will be downloaded from:"
     "  https://aka.ms/getwinget  "
     ""
-    Return
+    "Please complete the Windows installer when prompted."
+    ""
+
+    # download and run the installer.
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -Uri "https://aka.ms/getwinget" -OutFile "winget.msixbundle"
+    $ProgressPreference = 'Continue'
+    Start-Process "winget.msixbundle"
+    
+    # wait for user to finish installing winget...
+    $ready = Read-Host "Is WinGet installed and ready to continue? [y/n]"
+    if ($ready -ne "Y" -and $ready -ne "y") {
+        # exit if not ready.
+        Return
+    }
+    
+    # check if winget is available post-install.
+    if (-Not (Get-Command winget -ErrorAction SilentlyContinue) ) {
+        "WinGet is not available.  Installer cannot continue."
+        Return
+    }
 }
-else
-{
-    ""
-    "Checking WinGet can be used..."
-    "If prompted, you must agree to the MS terms to continue installing."
-    ""
-    winget list -q Git.Git
-    ""
-}
+
+# 
+""
+"Checking WinGet can be used..."
+"If prompted, you must agree to the MS terms to continue installing."
+""
+winget list -q Git.Git
+""
 
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
 $DEFAULT_URL_BASE = "https://discordapp.com/api"
 
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
+$NeedsRestartShell = 0
 
 # Check if git is installed
 "Checking if git is already installed..."
@@ -69,6 +87,7 @@ if (!($LastExitCode -eq 0))
     # install git
     "Installing git..."
     Invoke-Expression "winget install Git.Git"
+    $NeedsRestartShell = 1
     "Done."
 }
 else
@@ -85,6 +104,7 @@ if (!($LastExitCode -eq 0))
     # install python version 3.11 with the py.exe launcher.
     "Installing python..."
     Invoke-Expression "winget install Python.Python.3.11 --custom \`"/passive Include_launcher=1\`""
+    $NeedsRestartShell = 1
     "Done."
 }
 else
@@ -109,10 +129,14 @@ else
 }
 ""
 
-# NOTE: if we need to refresh the environment vars (Path, etc.) after installing
-# the above packages, we may need to add some other dependency which provides
-# RefreshEnv.bat or manually manage paths to newly installed exes.
-# Users should be able to get around this by restarting the powershell script.
+# Restart the installer if we just installed git or python.
+# this should reload environment variables...
+if ($NeedsRestartShell -eq 1) 
+{
+    "Restarting the installer so we can use the stuff we just installed..."
+    start powershell "$(Split-Path $MyInvocation.MyCommand.Path)/install.ps1"
+    Return
+}
 
 # --------------------------------------------------PULLING THE BOT----------------------------------------------------
 
