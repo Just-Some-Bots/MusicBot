@@ -34,6 +34,17 @@ if($iagree -ne "Y" -and $iagree -ne "y")
     Return
 }
 
+# First, unhide file extensions...
+$FERegPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+$HideExt = (Get-ItemProperty -Path $FERegPath -Name "HideFileExt").HideFileExt
+if ($HideExt -eq 1) {
+    ""
+    "Microsoft hates you and hides file extensions by default."
+    "We're going to un-hide them to make things less confusing."
+    Set-ItemProperty -Name "HideFileExt" -Value 0 -Path $FERegPath -Force
+}
+
+# If no winget, try to download and install.
 if (-Not (Get-Command winget -ErrorAction SilentlyContinue) )
 {
     ""
@@ -77,7 +88,7 @@ winget list -q Git.Git
 $DEFAULT_URL_BASE = "https://discordapp.com/api"
 
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
-$NeedsRestartShell = 0
+$NeedsEnvReload = 0
 
 # Check if git is installed
 "Checking if git is already installed..."
@@ -87,7 +98,7 @@ if (!($LastExitCode -eq 0))
     # install git
     "Installing git..."
     Invoke-Expression "winget install Git.Git"
-    $NeedsRestartShell = 1
+    $NeedsEnvReload = 1
     "Done."
 }
 else
@@ -104,7 +115,7 @@ if (!($LastExitCode -eq 0))
     # install python version 3.11 with the py.exe launcher.
     "Installing python..."
     Invoke-Expression "winget install Python.Python.3.11 --custom \`"/passive Include_launcher=1\`""
-    $NeedsRestartShell = 1
+    $NeedsEnvReload = 1
     "Done."
 }
 else
@@ -121,6 +132,7 @@ if (!($LastExitCode -eq 0))
     # install FFmpeg
     "Installing FFmpeg..."
     Invoke-Expression "winget install Gyan.FFmpeg"
+    $NeedsEnvReload = 1
     "Done."
 }
 else
@@ -129,13 +141,10 @@ else
 }
 ""
 
-# Restart the installer if we just installed git or python.
-# this should reload environment variables...
-if ($NeedsRestartShell -eq 1) 
+# try to reload environment variables...
+if ($NeedsEnvReload -eq 1) 
 {
-    "Restarting the installer so we can use the stuff we just installed..."
-    start powershell "$(Split-Path $MyInvocation.MyCommand.Path)/install.ps1"
-    Return
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
 
 # --------------------------------------------------PULLING THE BOT----------------------------------------------------
