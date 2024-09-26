@@ -137,12 +137,12 @@ else
 
 # Check if ffmpeg is installed
 "Checking if FFmpeg is already installed..."
-Invoke-Expression "winget list -q Gyan.FFmpeg" | Out-Null
+Invoke-Expression "winget list -q ffmpeg" | Out-Null
 if (!($LastExitCode -eq 0))
 {
     # install FFmpeg
     "Installing FFmpeg..."
-    Invoke-Expression "winget install Gyan.FFmpeg"
+    Invoke-Expression "winget install ffmpeg"
     $NeedsEnvReload = 1
     "Done."
 }

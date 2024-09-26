@@ -294,10 +294,10 @@ def update_ffmpeg() -> None:
                 [
                     winget_bin,
                     "upgrade",
-                    "Gyan.FFmpeg",
+                    "ffmpeg",
                 ],
                 "Could not update ffmpeg. You need to update it manually."
-                "Try running:  winget upgrade Gyan.FFmpeg",
+                "Try running:  winget upgrade ffmpeg",
                 
                 # See here for documented codes:
                 # https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md
