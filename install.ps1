@@ -8,6 +8,8 @@
 #
 #    powershell.exe -noprofile -executionpolicy bypass -file install.ps1
 #
+# Last tested:
+#  Win 10 Home 22H2 x64 - 2024/09/26
 # --------------------------------------------------CLI Parameters-----------------------------------------------------
 param (
     # -anybranch  Enables the use of any named branch, if it exists on repo.
@@ -91,6 +93,15 @@ if (-Not (Get-Command winget -ErrorAction SilentlyContinue) )
 ""
 winget list -q Git.Git
 ""
+
+# since windows is silly with certificates and certifi may not always work,
+# we queitly spawn some requests that -may- populate the certificate store.
+# this isn't a sustainable approach, but it seems to work...
+$ProgressPreference = 'SilentlyContinue'
+Invoke-WebRequest -Uri "https://discord.com" -OutFile "cert.fetch" 2>&1 | Out-Null
+Invoke-WebRequest -Uri "https://spotify.com" -OutFile "cert.fetch" 2>&1 | Out-Null
+$ProgressPreference = 'Continue'
+Remove-Item "cert.fetch"
 
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
