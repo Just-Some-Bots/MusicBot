@@ -29,15 +29,21 @@ def run_or_raise_error(cmd: List[str], message: str, **kws: Any) -> None:
     """
     Wrapper for subprocess.check_call that avoids shell=True
 
+    :kwparam: ok_codes:  A list of non-zero exit codes to consider OK.
     :raises: RuntimeError  with given `message` as exception text.
     """
+    ok_codes = kws.pop("ok_codes", [])
     try:
         subprocess.check_call(cmd, **kws)
+    except subprocess.CalledProcessError as e:
+        if e.returncode in ok_codes:
+            return
+        else:
+            raise RuntimeError(message) from e
     except (  # pylint: disable=duplicate-code
         OSError,
         PermissionError,
         FileNotFoundError,
-        subprocess.CalledProcessError,
     ) as e:
         raise RuntimeError(message) from e
 
@@ -283,6 +289,7 @@ def update_ffmpeg() -> None:
 
         do_upgrade = yes_or_no_input("Should we upgrade FFmpeg using winget? [Y/n]")
         if do_upgrade:
+            # exit 
             run_or_raise_error(
                 [
                     winget_bin,
@@ -291,6 +298,12 @@ def update_ffmpeg() -> None:
                 ],
                 "Could not update ffmpeg. You need to update it manually."
                 "Try running:  winget upgrade Gyan.FFmpeg",
+                
+                # See here for documented codes:
+                # https://github.com/microsoft/winget-cli/blob/master/doc/windows/package-manager/winget/returnCodes.md
+                ok_codes=[
+                    0x8A15002B,  # No applicable update found
+                ],
             )
             return
 

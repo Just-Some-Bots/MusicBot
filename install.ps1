@@ -1,6 +1,6 @@
 # This script is designed to be used without pulling the repository first!
 # You can simply download and run it to have MusicBot installed for you.
-# Current the script only supports one installation per user account.
+# Currently the script only supports one installation per user account.
 #
 # Notice:
 #  If you want to run this .ps1 script without setting execution policy in PowerShell,
@@ -8,6 +8,13 @@
 #
 #    powershell.exe -noprofile -executionpolicy bypass -file install.ps1
 #
+# --------------------------------------------------CLI Parameters-----------------------------------------------------
+param (
+    # -anybranch  Enables the use of any named branch, if it exists on repo.
+    [switch]$anybranch = $false
+)
+
+
 # ---------------------------------------------Install notice and prompt-----------------------------------------------
 "MusicBot Installer"
 ""
@@ -86,6 +93,8 @@ winget list -q Git.Git
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
 $DEFAULT_URL_BASE = "https://discordapp.com/api"
+#$MB_RepoURL = "https://github.com/Just-Some-Bots/MusicBot.git"
+$MB_RepoURL = "https://github.com/itsthefae/MusicBot.git"
 
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
 $NeedsEnvReload = 0
@@ -164,25 +173,36 @@ if((Test-Path $MB_Reqs_File) -and (Test-Path $MB_Module_Dir) -and (Test-Path $MB
     "  master - Stable MusicBot, least updates and may at times be out-of-date."
     "  review - Newer MusicBot, usually stable with less updates than the dev branch."
     "  dev    - The newest MusicBot, latest features and changes which may need testing."
+    if($anybranch) {
+    "   *     - WARNING: Any branch name is allowed, if it exists on github."
+    }
     ""
     $experimental = Read-Host "Enter the branch name you want to install"
-    if($experimental -eq "dev")
-    {
-        "Installing dev branch..."
-        $branch = "dev"
-    }
-    if($experimental -eq "review")
-    {
-        "Installing review branch..."
-        $branch = "review"
-    }
-    else
-    {
-        "Installing master branch..."
-        $branch = "master"
+    $experimental = $experimental.Trim()
+    switch($experimental) {
+        "dev" {
+            "Installing dev branch..."
+            $branch = "dev"
+        }
+        "review" {
+            "Installing review branch..."
+            $branch = "review"
+        }
+        default {
+            if($anybranch -and $experimental -and $experimental -ne "master")
+            {
+                "Installing with $experimental branch, if it exists..."
+                $branch = $experimental
+            }
+            else
+            {
+                "Installing master branch..."
+                $branch = "master"
+            }
+        }
     }
 
-    Invoke-Expression "git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b $branch"
+    Invoke-Expression "git clone $MB_RepoURL MusicBot -b $branch"
     Invoke-Expression "cd MusicBot"
     ""
 }
