@@ -8,9 +8,10 @@ import sys
 import time
 from typing import (
     TYPE_CHECKING,
-    Dict,
+    Any,
     Iterable,
     List,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -57,7 +58,7 @@ if TYPE_CHECKING:
     from .permissions import Permissions
 
 # Type for ConfigParser.get(... vars) argument
-ConfVars = Optional[Dict[str, str]]
+ConfVars = Optional[Mapping[str, str]]
 # Types considered valid for config options.
 DebugLevel = Tuple[str, int]
 RegTypes = Union[str, int, bool, float, Set[int], Set[str], DebugLevel, pathlib.Path]
@@ -788,7 +789,7 @@ class Config:
             getter="getpathlike",
             comment="An optional file path to a text file listing Discord User IDs, one per line.",
         )
-        self.user_blocklist: "UserBlocklist" = UserBlocklist(self.user_blocklist_file)
+        self.user_blocklist: UserBlocklist = UserBlocklist(self.user_blocklist_file)
 
         self.song_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
@@ -809,7 +810,7 @@ class Config:
                 "Any song title or URL that contains any line in the list will be blocked."
             ),
         )
-        self.song_blocklist: "SongBlocklist" = SongBlocklist(self.song_blocklist_file)
+        self.song_blocklist: SongBlocklist = SongBlocklist(self.song_blocklist_file)
 
         self.auto_playlist_dir: pathlib.Path = self.register.init_option(
             section="Files",
@@ -1812,10 +1813,10 @@ class ConfigOptionRegistry:
 
             # fmt: off
             md_option = (
-                "#### %s\n"
-                "%s  \n"
-                "**Default Value:** %s  \n\n"
-            ) % (opt.option, opt.comment, dval)
+                f"#### {opt.option}\n"
+                f"{opt.comment}  \n"
+                f"**Default Value:** {dval}  \n\n"
+            )
             # fmt: on
             if opt.section not in md_sections:
                 md_sections[opt.section] = [md_option]
@@ -1825,7 +1826,7 @@ class ConfigOptionRegistry:
         markdown = ""
         for sect in self._parser.sections():
             opts = md_sections[sect]
-            markdown += "### [%s]\n%s" % (sect, "".join(opts))
+            markdown += f"### [{sect}]\n{''.join(opts)}"
 
         return markdown
 
@@ -1867,7 +1868,7 @@ class ExtendedConfigParser(configparser.ConfigParser):
         section: str,
         key: str,
         raw: bool = False,
-        vars: ConfVars = None,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
         fallback: str = "",
     ) -> str:
         """A version of get which strips spaces and uses fallback / default for empty values."""
@@ -1879,19 +1880,20 @@ class ExtendedConfigParser(configparser.ConfigParser):
     def getboolean(  # type: ignore[override]
         self,
         section: str,
-        key: str,
+        option: str,
         *,
         raw: bool = False,
         vars: ConfVars = None,  # pylint: disable=redefined-builtin
-        fallback: bool,
+        fallback: bool = False,
+        **kwargs: Optional[Mapping[str, Any]],
     ) -> bool:
         """Make getboolean less bitchy about empty values, so it uses fallback instead."""
-        val = self.get(section, key, fallback="", raw=raw, vars=vars).strip()
+        val = self.get(section, option, fallback="", raw=raw, vars=vars).strip()
         if not val:
             return fallback
 
         try:
-            return super().getboolean(section, key, fallback=fallback)
+            return super().getboolean(section, option, fallback=fallback)
         except ValueError:
             return fallback
 
