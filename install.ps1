@@ -13,7 +13,9 @@ param (
     # -anybranch  Enables the use of any named branch, if it exists on repo.
     [switch]$anybranch = $false
 )
-
+# Where to put MusicBot by default.  Updated by repo detection.
+# prolly should be param, but someone who cares about windows can code for it.
+$Install_Dir = (pwd).Path + '\MusicBot\'
 
 # ---------------------------------------------Install notice and prompt-----------------------------------------------
 "MusicBot Installer"
@@ -167,6 +169,7 @@ if((Test-Path $MB_Reqs_File) -and (Test-Path $MB_Module_Dir) -and (Test-Path $MB
     ""
     "Installer detected an existing clone, and will continue installing with the current source."
     ""
+    $Install_Dir = (pwd).Path
 } else {
     ""
     "MusicBot currently has three branches available."
@@ -202,8 +205,8 @@ if((Test-Path $MB_Reqs_File) -and (Test-Path $MB_Module_Dir) -and (Test-Path $MB
         }
     }
 
-    Invoke-Expression "git clone $MB_RepoURL MusicBot -b $branch"
-    Invoke-Expression "cd MusicBot"
+    Invoke-Expression "git clone $MB_RepoURL '$Install_Dir' -b $branch"
+    Invoke-Expression "cd '$Install_Dir'"
     ""
 }
 
@@ -222,7 +225,7 @@ $versionArray = "3.8", "3.9", "3.10", "3.11", "3.12"
 
 foreach ($version in $versionArray)
 {
-    Invoke-Expression "py -$version -c 'exit()'" | Out-Null
+    Invoke-Expression "py -$version -c 'exit()' 2>&1" | Out-Null
     if($LastExitCode -eq 0)
     {
         $PYTHON = "py -$version"
@@ -230,6 +233,7 @@ foreach ($version in $versionArray)
 }
 
 "Using $PYTHON to install and run MusicBot..."
+""
 Invoke-Expression "$PYTHON -m pip install --upgrade -r requirements.txt" 
 
 # -------------------------------------------------CONFIGURE THE BOT---------------------------------------------------
@@ -243,7 +247,9 @@ if($iagree -ne "Y" -and $iagree -ne "y")
 {
     "All done!"
     "Remember to configure your bot token and other options before you start."
-    "You can use run.bat to start the MusicBot."
+    "You must open a new command prompt before using run.bat to start the MusicBot."
+    "MusicBot was installed to:"
+    "  $Install_Dir"
     Return
 }
 
@@ -318,4 +324,7 @@ else
 "Saving your config..."
 Set-Content -Path ".\config\options.ini" -Value $config
 
-"You can now use run.bat to run the bot"
+"You can use run.bat to run the bot."
+"Restart your command prompt first!"
+"MusicBot was installed to:"
+"  $Install_Dir"
