@@ -4308,7 +4308,7 @@ class MusicBot(discord.Client):
 
         await self._do_cmd_unpause_check(_player, channel, author, message)
 
-        if permissions.summonplay:
+        if permissions.summonplay and not _player:
             response = await self.cmd_summon(guild, author, message)
             if response:
                 if self.config.embeds:
