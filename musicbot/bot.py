@@ -4154,7 +4154,7 @@ class MusicBot(discord.Client):
 
             # if the result has "entries" but it's empty, it might be a failed search.
             if "entries" in info and not info.entry_count:
-                if info.extractor == "youtube:search":
+                if info.extractor.startswith("youtube:search"):
                     # TOOD: UI, i18n stuff
                     raise exceptions.CommandError(
                         f"Youtube search returned no results for:  {song_url}"
@@ -4211,7 +4211,7 @@ class MusicBot(discord.Client):
             else:
                 # youtube:playlist extractor but it's actually an entry
                 # ^ wish I had a URL for this one.
-                if info.get("extractor", "") == "youtube:playlist":
+                if info.get("extractor", "").startswith("youtube:playlist"):
                     log.noise(  # type: ignore[attr-defined]
                         "Extracted an entry with youtube:playlist as extractor key"
                     )

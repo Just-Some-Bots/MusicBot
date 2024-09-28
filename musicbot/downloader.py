@@ -525,7 +525,7 @@ class Downloader:
         # This prevents single-entry searches being processed like a playlist later.
         # However we must preserve the list behavior when using cmd_search.
         if (
-            data.get("extractor", "") == "youtube:search"
+            data.get("extractor", "").startswith("youtube:search")
             and len(data.get("entries", [])) == 1
             and isinstance(data.get("entries", None), list)
             and data.get("playlist_count", 0) == 1
@@ -728,7 +728,7 @@ class YtdlpResponseDict(YUserDict):
                 return turl
 
         # if all else fails, try to make a URL on our own.
-        if self.extractor == "youtube":
+        if self.extractor.startswith("youtube"):
             if self.video_id:
                 return f"https://i.ytimg.com/vi/{self.video_id}/maxresdefault.jpg"
 
@@ -875,7 +875,7 @@ class YtdlpResponseDict(YUserDict):
             return True
 
         # Warning: questionable methods from here on.
-        if self.extractor == "generic":
+        if self.extractor.startswith("generic"):
             # check against known streaming service headers.
             if self.http_header("ICY-NAME") or self.http_header("ICY-URL"):
                 return True

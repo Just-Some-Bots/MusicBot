@@ -187,7 +187,7 @@ class Playlist(EventEmitter, Serializable):
             )
 
         # TODO: Extract this to its own function
-        if info.extractor in ["generic", "Dropbox"]:
+        if any(info.extractor.startswith(x) for x in ["generic", "Dropbox"]):
             content_type = info.http_header("content-type", None)
 
             if content_type:
