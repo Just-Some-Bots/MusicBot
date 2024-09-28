@@ -401,7 +401,10 @@ class MusicBot(discord.Client):
 
         try:
             ping_host = f"http://{ping_target}{DEFAULT_PING_HTTP_URI}"
-            async with self.session.head(ping_host, timeout=FALLBACK_PING_TIMEOUT):
+            async with self.session.head(
+                ping_host,
+                timeout=FALLBACK_PING_TIMEOUT,  # type: ignore[arg-type,unused-ignore]
+            ):
                 return 0
         except (aiohttp.ClientError, asyncio.exceptions.TimeoutError, OSError):
             return 1
@@ -2648,7 +2651,7 @@ class MusicBot(discord.Client):
         else:
             log.info(
                 "Channel activity timer canceled for: %s in %s",
-                guild.voice_client.channel.name,
+                getattr(guild.voice_client.channel, "name", guild.voice_client.channel),
                 guild.name,
             )
         finally:
@@ -3092,13 +3095,17 @@ class MusicBot(discord.Client):
         guild: discord.Guild,
         author: discord.Member,
         _player: Optional[MusicPlayer],
+        player: MusicPlayer,
         option: str,
         opt_url: str = "",
     ) -> CommandResponse:
         """
         Usage:
-            {command_prefix}autoplaylist [ + | - | add | remove] [url]
+            {command_prefix}autoplaylist [+ | - | add | remove] [url]
                 Adds or removes the specified song or currently playing song to/from the current playlist.
+
+            {command_prefix}autoplaylist [+ all | add all]
+                Adds the entire queue to the guilds playlist.
 
             {command_prefix}autoplaylist show
                 Show a list of existing playlist files.
@@ -3124,6 +3131,39 @@ class MusicBot(discord.Client):
                     expire_in=20,
                 )
             return url
+
+        if option in ["+", "add"] and opt_url.lower() == "all":
+            if not player.playlist.entries:
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-autoplaylist-add-all-empty-queue",
+                        "The queue is empty. Add some songs with `{0}play`!",
+                    ).format(self.server_data[guild.id].command_prefix),
+                    expire_in=30,
+                )
+
+            added_songs = set()
+            for e in player.playlist.entries:
+                if e.url not in self.server_data[guild.id].autoplaylist:
+                    await self.server_data[guild.id].autoplaylist.add_track(e.url)
+                    added_songs.add(e.url)
+
+            if not added_songs:
+                return Response(
+                    self.str.get(
+                        "cmd-save-all-exist",
+                        "All songs in the queue are already in the autoplaylist.",
+                    ),
+                    delete_after=20,
+                )
+
+            return Response(
+                self.str.get(
+                    "cmd-save-success-multiple",
+                    "Added {0} songs to the autoplaylist.",
+                ).format(len(added_songs)),
+                delete_after=30,
+            )
 
         if option in ["+", "add"]:
             url = _get_url()
@@ -4114,7 +4154,7 @@ class MusicBot(discord.Client):
 
             # if the result has "entries" but it's empty, it might be a failed search.
             if "entries" in info and not info.entry_count:
-                if info.extractor == "youtube:search":
+                if info.extractor.startswith("youtube:search"):
                     # TOOD: UI, i18n stuff
                     raise exceptions.CommandError(
                         f"Youtube search returned no results for:  {song_url}"
@@ -4171,7 +4211,7 @@ class MusicBot(discord.Client):
             else:
                 # youtube:playlist extractor but it's actually an entry
                 # ^ wish I had a URL for this one.
-                if info.get("extractor", "") == "youtube:playlist":
+                if info.get("extractor", "").startswith("youtube:playlist"):
                     log.noise(  # type: ignore[attr-defined]
                         "Extracted an entry with youtube:playlist as extractor key"
                     )
@@ -4268,7 +4308,7 @@ class MusicBot(discord.Client):
 
         await self._do_cmd_unpause_check(_player, channel, author, message)
 
-        if permissions.summonplay:
+        if permissions.summonplay and not _player:
             response = await self.cmd_summon(guild, author, message)
             if response:
                 if self.config.embeds:
@@ -4811,49 +4851,55 @@ class MusicBot(discord.Client):
         Call the bot to the summoner's voice channel.
         """
 
-        # @TheerapakG: Maybe summon should have async lock?
+        lock_key = f"summon:{guild.id}"
 
-        if not author.voice or not author.voice.channel:
-            raise exceptions.CommandError(
-                self.str.get(
-                    "cmd-summon-novc",
-                    "You are not connected to voice. Try joining a voice channel!",
+        if self.aiolocks[lock_key].locked():
+            log.debug("Waiting for summon lock: %s", lock_key)
+
+        async with self.aiolocks[lock_key]:
+            log.debug("Summon lock acquired for: %s", lock_key)
+
+            if not author.voice or not author.voice.channel:
+                raise exceptions.CommandError(
+                    self.str.get(
+                        "cmd-summon-novc",
+                        "You are not connected to voice. Try joining a voice channel!",
+                    )
                 )
+
+            player = self.get_player_in(guild)
+            if player and player.voice_client and guild == author.voice.channel.guild:
+                # NOTE:  .move_to() does not support setting self-deafen flag,
+                # nor respect flags set in initial connect call.
+                # await player.voice_client.move_to(author.voice.channel)
+                await guild.change_voice_state(
+                    channel=author.voice.channel,
+                    self_deaf=self.config.self_deafen,
+                )
+            else:
+                player = await self.get_player(
+                    author.voice.channel,
+                    create=True,
+                    deserialize=self.config.persistent_queue,
+                )
+
+                if player.is_stopped:
+                    player.play()
+
+            log.info(
+                "Joining %s/%s",
+                author.voice.channel.guild.name,
+                author.voice.channel.name,
             )
 
-        player = self.get_player_in(guild)
-        if player and player.voice_client and guild == author.voice.channel.guild:
-            # NOTE:  .move_to() does not support setting self-deafen flag,
-            # nor respect flags set in initial connect call.
-            # await player.voice_client.move_to(author.voice.channel)
-            await guild.change_voice_state(
-                channel=author.voice.channel,
-                self_deaf=self.config.self_deafen,
+            self.server_data[guild.id].last_np_msg = message
+
+            return Response(
+                self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
+                    author.voice.channel
+                ),
+                delete_after=30,
             )
-        else:
-            player = await self.get_player(
-                author.voice.channel,
-                create=True,
-                deserialize=self.config.persistent_queue,
-            )
-
-            if player.is_stopped:
-                player.play()
-
-        log.info(
-            "Joining %s/%s",
-            author.voice.channel.guild.name,
-            author.voice.channel.name,
-        )
-
-        self.server_data[guild.id].last_np_msg = message
-
-        return Response(
-            self.str.get("cmd-summon-reply", "Connected to `{0.name}`").format(
-                author.voice.channel
-            ),
-            delete_after=30,
-        )
 
     async def cmd_follow(
         self,
@@ -5002,7 +5048,7 @@ class MusicBot(discord.Client):
         player.playlist.clear()
 
         return Response(
-            self.str.get("cmd-clear-reply", "Cleared `{0}`'s queue").format(
+            self.str.get("cmd-clear-reply", "Cleared `{0}'s` queue").format(
                 player.voice_client.channel.guild
             ),
             delete_after=20,
@@ -5496,7 +5542,6 @@ class MusicBot(discord.Client):
             )
 
         option = option.lower()
-
         valid_options = [
             "missing",
             "diff",
@@ -5508,7 +5553,6 @@ class MusicBot(discord.Client):
             "reload",
             "reset",
         ]
-
         if option not in valid_options:
             raise exceptions.CommandError(
                 f"Invalid option for command: `{option}`",
@@ -7120,7 +7164,7 @@ class MusicBot(discord.Client):
         valid_opts = ["opts", "perms"]
         if cfg not in valid_opts:
             opts = ", ".join([f"`{o}`" for o in valid_opts])
-            raise exceptions.CommandError("Option must be one of: %s" % (opts))
+            raise exceptions.CommandError(f"Option must be one of: {opts}")
 
         filename = "config_options.md"
         msg_str = "Config options described in Markdown:\n"

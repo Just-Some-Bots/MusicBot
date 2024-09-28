@@ -112,9 +112,11 @@ class SpotifyTrack(SpotifyObject):
     def __init__(
         self, track_data: Dict[str, Any], origin_url: Optional[str] = None
     ) -> None:
-        if not SpotifyObject.is_track_data(track_data):
-            raise SpotifyError("Invalid track_data, must be of type 'track'")
         super().__init__(track_data, origin_url)
+        if not SpotifyObject.is_track_data(track_data):
+            raise SpotifyError(
+                f"Invalid track_data, must be of type `track` got `{self.spotify_type}`"
+            )
 
     @property
     def artist_name(self) -> str:
@@ -289,8 +291,14 @@ class SpotifyPlaylist(SpotifyObject):
                 raise ValueError("Invalid playlist_data, missing track key in items")
 
             track_data = item.get("track", None)
-            if track_data:
+            track_type = track_data.get("type", None)
+            if track_data and track_type == "track":
                 self._track_objects.append(SpotifyTrack(track_data))
+            else:
+                log.everything(  # type: ignore[attr-defined]
+                    "Ignored non-track entry in playlist with type:  %s",
+                    track_type,
+                )
 
     @property
     def track_objects(self) -> List[SpotifyTrack]:
@@ -307,6 +315,11 @@ class SpotifyPlaylist(SpotifyObject):
         """Get number of total tracks in playlist, as reported by API"""
         tracks = self.data.get("tracks", {})
         return int(tracks.get("total", 0))
+
+    @property
+    def tracks_loaded(self) -> int:
+        """Get number of valid tracks in the playlist."""
+        return len(self._track_objects)
 
     @property
     def thumbnail_url(self) -> str:
@@ -532,7 +545,9 @@ class Spotify:
 
         pldata["tracks"]["items"] = tracks
 
-        return SpotifyPlaylist(pldata)
+        plobj = SpotifyPlaylist(pldata)
+        log.debug("Spotify Playlist contained %s usable tracks.", plobj.tracks_loaded)
+        return plobj
 
     async def get_playlist_object(self, list_id: str) -> SpotifyPlaylist:
         """Lookup a spotify playlist by its ID and return a SpotifyPlaylist object"""
@@ -559,6 +574,7 @@ class Spotify:
                     raise SpotifyError(
                         f"Response status is not OK: [{r.status}] {r.reason}"
                     )
+                # log.everything("Spotify API GET:  %s\nData:  %s", url, await r.text() )
                 data = await r.json()  # type: Dict[str, Any]
                 if not isinstance(data, dict):
                     raise SpotifyError("Response JSON did not decode to a dict!")
