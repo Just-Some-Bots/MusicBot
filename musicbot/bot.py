@@ -1589,18 +1589,15 @@ class MusicBot(discord.Client):
         playing = sum(1 for p in self.players.values() if p.is_playing)
         if self.config.status_include_paused:
             paused = sum(1 for p in self.players.values() if p.is_paused)
+            total = len(self.players)
         else:
             paused = 0
-        total = len(self.players)
+            total = playing
 
         def format_status_msg(player: Optional[MusicPlayer]) -> str:
-            if not self.config.status_include_paused:
-                p = sum(1 for p in self.players.values() if p.is_paused)
-            else:
-                p = paused
             msg = self.config.status_message
             msg = msg.replace("{n_playing}", str(playing))
-            msg = msg.replace("{n_paused}", str(p))
+            msg = msg.replace("{n_paused}", str(paused))
             msg = msg.replace("{n_connected}", str(total))
             if player and player.current_entry:
                 msg = msg.replace("{p0_title}", player.current_entry.title)
@@ -1636,8 +1633,12 @@ class MusicBot(discord.Client):
 
         # only 1 server is playing.
         elif playing:
-            player = list(self.players.values())[0]
-            if player.current_entry:
+            player = None
+            for p in self.players.values():
+                if p.is_playing:
+                    player = p
+                    break
+            if player and player.current_entry:
                 text = player.current_entry.title.strip()[:128]
                 if self.config.status_message:
                     text = format_status_msg(player)
@@ -1650,8 +1651,12 @@ class MusicBot(discord.Client):
 
         # only 1 server is paused.
         elif paused:
-            player = list(self.players.values())[0]
-            if player.current_entry:
+            player = None
+            for p in self.players.values():
+                if p.is_paused:
+                    player = p
+                    break
+            if player and player.current_entry:
                 text = player.current_entry.title.strip()[:128]
                 if self.config.status_message:
                     text = format_status_msg(player)
