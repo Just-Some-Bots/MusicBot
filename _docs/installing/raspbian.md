@@ -21,8 +21,8 @@ We're interested in the last two bits of info, the number and code-name.
   <summary>Raspbery Pi OS 12 (bookworm) install steps.</summary>  
 
 For Pi OS version 12 (bookworm) or later, Python 3 is system-managed.<br>  
-This means MusicBot must be installed in a Python Venv (Virtual Environment) to avoid complications between system python libraries and libraries that MusicBot depends on.<br />  
-In practice, there are only a few extra commands to follow:<br />  
+This means MusicBot must be installed in a Python Venv (Virtual Environment) to avoid complications between system python libraries and libraries that MusicBot depends on.<br>  
+In practice, there are only a few extra commands to follow:<br>  
 
 {% highlight bash %}
 # Update system packages.
@@ -54,9 +54,9 @@ python -m pip install -U -r ./requirements.txt
 deactivate
 {% endhighlight %}
 
-After these steps, MusicBot will be installed within <code>./MusicBotVenv/MusicBot/</code> and will need to be configured. Follow the <a href="{{ site.baseurl }}/using/configuration">Configuration</a> guide before starting the MusicBot.  
-
-<b>Note:</b> As long as the MusicBot cloned directory is inside the Venv directory, the <code>run.sh</code> and <code>update.sh</code> scripts should find and load the Venv automatically.  
+After these steps, MusicBot will be installed within <code>./MusicBotVenv/MusicBot/</code> and will need to be configured. Follow the <a href="{{ site.baseurl }}/using/configuration">Configuration</a> guide before starting the MusicBot.  <br>
+<br>
+<b>Note:</b> As long as the MusicBot cloned directory is inside the Venv directory, the <code>run.sh</code> and <code>update.sh</code> scripts should find and load the Venv automatically.<br>  
 If you need to manually update python libraries for MusicBot, you will need to activate the venv before you can do so.  
 
 </details>  
@@ -67,7 +67,8 @@ If you need to manually update python libraries for MusicBot, you will need to a
 <details>
   <summary>Raspberry Pi OS 11 (bullseye) install steps.</summary>  
 
-For Pi OS version 11 (bullseye), the Python 3.8+ is available as a system package, so installing is pretty simple. Just follow these commands:  
+For Pi OS version 11 (bullseye), the Python 3.8+ is available as a system package, so installing is pretty simple.<br>  
+Just follow these commands:  
 
 {% highlight bash %}
 # Update system packages.
@@ -87,7 +88,8 @@ cd ./MusicBot/
 python -m pip install -U -r ./requirements.txt
 {% endhighlight %}
 
-Once finished, you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot. After configuring you can use the command <code>./run.sh</code> to start the bot.
+Once finished, you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.<br>  
+After configuring you can use the command <code>./run.sh</code> to start the bot.
 
 </details>
 
@@ -97,9 +99,9 @@ Once finished, you need to <a href="{{ site.baseurl }}/using/configuration">Conf
 <details>
   <summary>Raspbian 10 (buster) install steps.</summary>
 
-For Raspbian version 10 (buster) and earlier versions, you will need to manually build/compile an appropriate version of Python 3.8 or higher as well as installing pip.  
-This can take a bit of time to complete and may require a little troubleshooting know-how if these steps are out-of-date or incomplete in some way.  
-
+For Raspbian version 10 (buster) and earlier versions, you will need to compile a version of Python 3.8 or higher as well as installing pip.<br>  
+This can take a bit of time to complete and may require a little troubleshooting know-how if these steps are out-of-date or incomplete in some way.<br>  
+<br>
 If you're willing to carefully follow along, these steps *should* get MusicBot working:
 
 {% highlight bash %}
@@ -145,7 +147,7 @@ python -m pip install -U -r ./requirements.txt
 
 {% endhighlight %}
 
-When install is finished you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.  
+When install is finished you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.<br>  
 After configuring you can use the command <code>./run.sh</code> to start the bot.
 
 </details>
