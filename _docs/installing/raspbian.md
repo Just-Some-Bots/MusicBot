@@ -24,8 +24,8 @@ If you're willing to try it, you can run the following commands in order to inst
 <details>
   <summary>Bullseye install steps.</summary>
 
-For **Bullseye** or later versions, Python 3.9+ is already installed and system-managed.
-```bash
+For <b>Bullseye</b> or later versions, Python 3.9+ is already installed and system-managed.  
+{% highlight bash %}
 # Update system packages.
 sudo apt-get update -y
 sudo apt-get upgrade -y
@@ -40,7 +40,7 @@ cd ./MusicBot/
 # Make install script executable and run it
 chmod +x ./install.sh
 ./install.sh
-```
+{% endhighlight %}
 
 </details>
 
