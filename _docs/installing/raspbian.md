@@ -20,7 +20,7 @@ We're interested in the last two bits of info, the number and code-name.
 <details>
   <summary>Raspbery Pi OS 12 (bookworm) install steps.</summary>  
 
-For Pi OS version 12 (bookworm) or later, Python 3 is system-managed.<br />  
+For Pi OS version 12 (bookworm) or later, Python 3 is system-managed.<br>  
 This means MusicBot must be installed in a Python Venv (Virtual Environment) to avoid complications between system python libraries and libraries that MusicBot depends on.<br />  
 In practice, there are only a few extra commands to follow:<br />  
 
