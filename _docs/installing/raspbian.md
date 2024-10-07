@@ -1,143 +1,153 @@
 ---
-title: Raspbian
+title: Raspbian / Raspberry Pi OS
 category: Installing the bot
 order: 4
 ---
 
 <img class="doc-img" src="{{ site.baseurl }}/images/raspbian.png" alt="Raspbian" style="width: 75px; float: right;"/>
 
-MusicBot can be installed on Raspbian and Raspberry Pi OS. Older versions of Pi OS (known as Raspbian) may require some manual install steps.
+MusicBot can be installed on Raspbian and Raspberry Pi OS. Older versions of Pi OS (known as Raspbian) may require some manual steps.  
 This guide is broken into three sections depending on your version of Raspberry Pi OS or Raspbian.  
-If you're unsure which version you can run the following command:
-`lsb_release -s -d`
-You should see an output similar to the one of the following:
-`Debian GNU/Linux 12 (bookworm)`  or `Raspbian GNU/Linux 10 (buster)`
-We're most interested in the last two bits of info, the number and code-name.  
-
-Installing MusicBot on Raspbian may take a while to complete.
-If you're willing to try it, you can run the following commands in order to install it:
+If you're unsure which version you have, you can find out by using the following command:  
+`lsb_release -s -d`  
+It should output something similar to the one of the following:  
+`Debian GNU/Linux 12 (bookworm)`  *or* `Raspbian GNU/Linux 10 (buster)`  
+We're interested in the last two bits of info, the number and code-name.  
 
 ---
 
-## Bullseye and higher.
-
+## Version 12 (bookworm) and up
 <details>
-  <summary>Bullseye install steps.</summary>
+  <summary>Raspbery Pi OS 12 (bookworm) install steps.</summary>  
 
-For <b>Bullseye</b> or later versions, Python 3.9+ is already installed and system-managed.  
+For Pi OS version 12 (bookworm) or later, Python 3 is system-managed.  
+This means MusicBot must be installed in a Python Venv (Virtual Environment) to avoid complications between system python libraries and libraries that MusicBot depends on.  
+In practice, there are only a few extra commands to follow:  
+
 {% highlight bash %}
 # Update system packages.
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
 # Install dependencies.
-sudo apt install git libopus-dev ffmpeg -y
+sudo apt install -y jq git curl ffmpeg build-essential \
+   libopus-dev libffi-dev libsodium-dev \
+   python3-full python3-dev python3-venv python3-pip
 
-# Clone the MusicBot repository targeting the latest dev branch.
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b dev
+# Set up the venv directory as ./MusicBotVenv
+python -m venv ./MusicBotVenv
+
+# Change into the venv directory and activate venv
+cd ./MusicBotVenv
+source ./bin/activate
+
+# Clone the MusicBot repository targeting the latest dev branch
+git clone https://github.com/Just-Some-Bots/MusicBot.git -b dev ./MusicBot
+
+# Change directory into the cloned repo
 cd ./MusicBot/
 
-# Make install script executable and run it
-chmod +x ./install.sh
-./install.sh
+# Now install the pip libraries
+python -m pip install -U -r ./requirements.txt
+
+# lastly, exit the virtual environment
+deactivate
 {% endhighlight %}
+
+After these steps, MusicBot will be installed within `./MusicBotVenv/MusicBot/` and will need to be configured. Follow the [Configuration]({{ site.baseurl }}/using/configuration) guide before starting the MusicBot.  
+
+<b>Note:</b> As long as the MusicBot cloned directory is inside the Venv directory, the `run.sh` and `update.sh` scripts should find and load the Venv automatically.  
+If you need to manually update python libraries for MusicBot, you will need to activate the venv before you can do so.  
+
+</details>  
+
+---
+
+## Version 11 (bullseye)
+<details>
+  <summary>Raspberry Pi OS 11 (bullseye) install steps.</summary>  
+
+For Pi OS version 11 (bullseye), the Python 3.8+ is available as a system package, so installing is pretty simple. Just follow these commands:  
+
+{% highlight bash %}
+# Update system packages.
+sudo apt-get update -y
+sudo apt-get upgrade -y
+
+# Install dependencies.
+sudo apt install -y git curl ffmpeg python3 python3-pip
+
+# Clone the MusicBot repository targeting the latest dev branch
+git clone https://github.com/Just-Some-Bots/MusicBot.git -b dev ./MusicBot
+
+# Change directory into the cloned repo
+cd ./MusicBot/
+
+# Now install the pip libraries
+python -m pip install -U -r ./requirements.txt
+{% endhighlight %}
+
+Once finished, you need to [Configure]({{ site.baseurl }}/using/configuration) MusicBot. After configuring you can use the command `./run.sh` to start the bot.
 
 </details>
 
 ---
 
-## Buster and earlier.
+## Version 10 (buster) and earlier.
+<details>
+  <summary>Raspbian 10 (buster) install steps.</summary>
 
-We will need to build python3.10 manually.
+For Raspbian version 10 (buster) and earlier versions, you will need to manually build/compile an appropriate version of Python 3.8 or higher as well as installing pip.  
+This can take a bit of time to complete and may require a little troubleshooting know-how if these steps are out-of-date or incomplete in some way.  
 
-```bash
+If you're willing to carefully follow along, these steps *should* get MusicBot working:
+
+{% highlight bash %}
 # Update system packages.
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
-# Install dependencies required to build Python.
-sudo apt-get install -y build-essential zlib1g-dev uuid-dev liblzma-dev \
-lzma-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev \
-libreadline-dev libffi-dev libsqlite3-dev libbz2-dev
+# Install required packages for Python and MusicBot.
+sudo apt-get install -y build-essential libopus-dev libffi-dev \
+    libsodium-dev libssl-dev zlib1g-dev libncurses5-dev \
+    libgdbm-dev libnss3-dev libreadline-dev libsqlite3-dev \
+    libbz2-dev liblzma-dev lzma-dev uuid-dev \
+    unzip curl git jq ffmpeg
 
 # Download and build Python 3.10
-wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tar.xz
-tar -xf Python-3.10.13.tar.xz
-cd Python-3.10.13
+wget https://www.python.org/ftp/python/3.10.13/Python-3.10.14.tar.xz
+
+# Extract the downloaded archive and change into it.
+tar -xf Python-3.10.14.tar.xz
+cd Python-3.10.14
+
+# Configure Python 3.10.14 build options.
 ./configure --enable-optimizations
-make -j4 # Compile the source code using 4 parallel jobs for faster build times.
+
+# Compile the source code.
+# Note: add `-j N` where N is the number of CPU cores, for faster builds.
+make
+
+# Install Python to the system using alternate install location to avoid conflicts with older system python
 sudo make altinstall
+
+# Leave the source directory
 cd ..
-```
 
-### Installing pip
-When it comes to installing pip, you have a couple options based on your system version.
+# Clone MusicBot
+git clone https://github.com/Just-Some-Bots/MusicBot/ -b dev ./MusicBot
 
-1.
-```bash
-# Install pip using the get-pip.py script for Debian 10 or less
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3.10 get-pip.py
-```
+# Change into the cloned directory
+cd ./MusicBot
 
-2.
-```bash
-# Install pip using apt for 11
-sudo apt install python3-pip -y
-```
+# Now install the pip libraries
+python -m pip install -U -r ./requirements.txt
 
-3.
-```bash
-# Use a virtual enviroment for 12+
+{% endhighlight %}
 
-# change to home directory
-cd ~
+When install is finished you need to [Configure]({{ site.baseurl }}/using/configuration) MusicBot.  
+After configuring you can use the command `./run.sh` to start the bot.
 
-# set up venv in MusicBotVenv
-python -m venv MusicBotVenv
-
-# move cloned directory inside venv, so MusicBot can see the venv
-mv ./MusicBot ./MusicBotVenv/MusicBot
-
-# activate venv
-source ./MusicBotVenv/bin/activate
-
-# install pip libs inside venv
-pip install -U -r ./MusicBotVenv/MusicBot/requirements.txt
-
-# leave venv when done with
-deactivate
-```
-
-4.
-```bash
-# Install with the -break-system-packages 12+
-# NOT RECOMMENED
-# If you plan to use the Pi for more than just MusicBot this could have side effects on your system.
-# There is software in modern Debian based Linux distros that is built out of python, so to keep it all stable they force pip to obey rules of the system package manager instead.
-
-pip install --break-system-packages -U -r ./MusicBot/requirements.txt
-```
-
-
-```bash
-# Cleanup (only need if you had to manually build python 3.10)
-rm -r Python-3.10.13  # Remove the source directory; it's no longer needed to run Python.
-rm Python-3.10.13.tar.xz # Remove the archive; it's no longer needed after extraction.
-rm get-pip.py # Remove the installation script; pip is now installed.
-
-# Install additional dependencies
-sudo apt install git libopus-dev ffmpeg -y
-
-# Clone the MusicBot repository targeting the latest dev branch.
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b dev
-cd ./MusicBot/
-
-# Make install script executable and run it
-chmod +x ./install.sh
-./install.sh
-```
+</details>
 
 ---
-
-After this, you can find a folder called `MusicBot` inside your home directory. [Configure]({{ site.baseurl }}/using/configuration) it, and then run `./run.sh` to start the bot.
