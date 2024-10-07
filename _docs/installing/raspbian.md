@@ -9,8 +9,8 @@ order: 4
 > This guide is broken into two sections depending on your version of Raspberry Pi OS or Raspbian.
 
 For **Debian 12(bookworm)** or later, Python 3.9+ is system-managed, so manual installation isn't required.
-For **Buster** and earlier, you will need to manually install Python 3.10.
-If you're unsure which version you have try one of the following commands:
+For **Debian 10(Buster)** and earlier, you will need to manually install Python 3.10.
+If you're unsure which version you can run the following command:
 `lsb_release -s -d`
 You should see an output similar to the one of the following:
 ```bash
@@ -72,7 +72,7 @@ cd ..
 ### Installing pip
 When it comes to installing pip, you have a couple options based on your system version.
 
-1. 
+1.
 ```bash
 # Install pip using the get-pip.py script for Debian 10 or less
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
