@@ -6,17 +6,12 @@ order: 4
 
 <img class="doc-img" src="{{ site.baseurl }}/images/raspbian.png" alt="Raspbian" style="width: 75px; float: right;"/>
 
-> This guide is broken into two sections depending on your version of Raspberry Pi OS or Raspbian.
-
-For **Debian 12(bookworm)** or later, Python 3.9+ is system-managed, so manual installation isn't required.
-For **Debian 10(Buster)** and earlier, you will need to manually install Python 3.10.
+MusicBot can be installed on Raspbian and Raspberry Pi OS. Older versions of Pi OS (known as Raspbian) may require some manual install steps.
+This guide is broken into three sections depending on your version of Raspberry Pi OS or Raspbian.  
 If you're unsure which version you can run the following command:
 `lsb_release -s -d`
 You should see an output similar to the one of the following:
-```bash
-Debian GNU/Linux 12 (bookworm)
-Raspbian GNU/Linux 10 (buster)
-```
+`Debian GNU/Linux 12 (bookworm)`  or `Raspbian GNU/Linux 10 (buster)`
 We're most interested in the last two bits of info, the number and code-name.  
 
 Installing MusicBot on Raspbian may take a while to complete.
@@ -26,6 +21,8 @@ If you're willing to try it, you can run the following commands in order to inst
 
 ## Bullseye and higher.
 
+<details>
+  <summary>Bullseye install steps.</summary>
 For **Bullseye** or later versions, Python 3.9+ is already installed and system-managed.
 ```bash
 # Update system packages.
@@ -43,6 +40,9 @@ cd ./MusicBot/
 chmod +x ./install.sh
 ./install.sh
 ```
+
+</details>
+
 ---
 
 ## Buster and earlier.
