@@ -1,5 +1,5 @@
 ---
-title: Raspbian / Raspberry Pi OS
+title: Raspbian / Pi OS
 category: Installing the bot
 order: 4
 ---
@@ -54,7 +54,7 @@ python -m pip install -U -r ./requirements.txt
 deactivate
 {% endhighlight %}
 
-After these steps, MusicBot will be installed within `./MusicBotVenv/MusicBot/` and will need to be configured. Follow the [Configuration]({{ site.baseurl }}/using/configuration) guide before starting the MusicBot.  
+After these steps, MusicBot will be installed within `./MusicBotVenv/MusicBot/` and will need to be configured. Follow the <a href="{{ site.baseurl }}/using/configuration">Configuration</a> guide before starting the MusicBot.  
 
 <b>Note:</b> As long as the MusicBot cloned directory is inside the Venv directory, the `run.sh` and `update.sh` scripts should find and load the Venv automatically.  
 If you need to manually update python libraries for MusicBot, you will need to activate the venv before you can do so.  
@@ -87,7 +87,7 @@ cd ./MusicBot/
 python -m pip install -U -r ./requirements.txt
 {% endhighlight %}
 
-Once finished, you need to [Configure]({{ site.baseurl }}/using/configuration) MusicBot. After configuring you can use the command `./run.sh` to start the bot.
+Once finished, you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot. After configuring you can use the command `./run.sh` to start the bot.
 
 </details>
 
@@ -145,7 +145,7 @@ python -m pip install -U -r ./requirements.txt
 
 {% endhighlight %}
 
-When install is finished you need to [Configure]({{ site.baseurl }}/using/configuration) MusicBot.  
+When install is finished you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.  
 After configuring you can use the command `./run.sh` to start the bot.
 
 </details>
