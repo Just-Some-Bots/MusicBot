@@ -23,6 +23,7 @@ If you're willing to try it, you can run the following commands in order to inst
 
 <details>
   <summary>Bullseye install steps.</summary>
+
 For **Bullseye** or later versions, Python 3.9+ is already installed and system-managed.
 ```bash
 # Update system packages.
