@@ -82,7 +82,7 @@ After configuring you can use the command <code>./run.sh</code> to start the bot
 
 For Ubuntu 20.04 and 22.04, the Python 3 packages should be 3.8 or newer which makes install pretty simple.
 
-{% hightlight bash %}
+{% highlight bash %}
 # Update system packages first
 sudo apt-get update -y
 sudo apt-get upgrade -y
@@ -117,7 +117,7 @@ After configuring you can use the command <code>./run.sh</code> to start the bot
 On Ubuntu 24.04 and up, Python is system-managed. This means we need to install a Venv.<br>  
 So an additional package and some steps to set up Venv are required.<br>  
 
-{% hightlight bash %}
+{% highlight bash %}
 
 sudo apt-get update -y
 sudo apt-get upgrade -y
