@@ -91,23 +91,24 @@
 			function listenerByClass(className, eventName, funct) {
 				var elms = document.getElementsByClassName(className);
 				for (var i=0; i < elms.length; i++) {
-					elms[i].addEventListener(eventName, funct(elms[i]));
+					elms[i].addEventListener(eventName, funct);
 				}
 			}
 			
-			listenerByClass("expand-all-details", "click", function (elm) {
+			var DeetsOpen = false;
+			listenerByClass("expand-all-details", "click", function () {
 				var deets = document.getElementsByTagName("details");
 				for (var i=0; i < deets.length; i++) {
-					if (elm.hasAttribute("open")) {
+					if (DeetsOpen) {
 						deets[i].removeAttribute("open");
 					} else {
 						deets[i].setAttribute("open","");
 					}
 				}
-				if (elm.hasAttribute("open")) {
-					elm.removeAttribute("open")
+				if (DeetsOpen) {
+					DeetsOpen = false;
 				} else {
-					elm.setAttribute("open", "")
+					DeetsOpen = true;
 				}
 			});
 		</script>
