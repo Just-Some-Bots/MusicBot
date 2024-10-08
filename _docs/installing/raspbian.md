@@ -153,3 +153,5 @@ After configuring you can use the command <code>./run.sh</code> to start the bot
 </details>
 
 ---
+
+<a id="expand-all-details">Show/Hide All</a>
