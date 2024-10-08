@@ -436,6 +436,10 @@ blockquote {
 img {
 	max-width: 100%;
 	height: auto;
+
+	@media (prefers-color-scheme: dark) {
+		filter: invert(100%) hue-rotate(180deg);
+	}
 }
 
 .editor-link {
