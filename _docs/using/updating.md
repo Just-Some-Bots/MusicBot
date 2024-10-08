@@ -1,7 +1,7 @@
 ---
 title: Updating
 category: Using the bot
-order: 4
+order: 5
 ---
 
 [![GitHub stars](https://img.shields.io/github/stars/Just-Some-Bots/MusicBot.svg)](https://github.com/Just-Some-Bots/MusicBot/stargazers)

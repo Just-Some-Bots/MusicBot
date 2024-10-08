@@ -14,5 +14,6 @@ If you require additional help beyond what you can find on this site, join our [
 
 [Configuration Guide]({{ site.baseurl }}/using/configuration/)  
 [Permissions Guide]({{ site.baseurl }}/using/permissions/)  
-[Command Reference]({{ site.baseurl }}/using/commands/)
-[Aliases Guide]({{ site.baseurl }}/using/aliases/)
+[Command Reference]({{ site.baseurl }}/using/commands/)  
+[Aliases Guide]({{ site.baseurl }}/using/aliases/)  
+

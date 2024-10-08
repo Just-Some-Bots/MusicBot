@@ -1,8 +1,10 @@
 ---
 title: Intents
 category: Using the bot
-order: 8
+order: 11
 ---
+
+defunct
 
 #### How to enable Intents?
 1. Go to Discord's [applications page](https://discord.com/developers/applications/me) (logging in if prompted).

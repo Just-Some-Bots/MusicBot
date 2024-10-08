@@ -1,7 +1,7 @@
 ---
 title: Permissions
 category: Using the bot
-order: 3
+order: 2
 ---
 
 This page gives information on how to setup **permissions**. When you install the bot, you will get a file inside the `config` folder named `example_permissions.ini`. This option contains an **example set** of permissions. Edit it, and then **save it as a new file** called `permissions.ini`.
