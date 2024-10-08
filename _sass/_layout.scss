@@ -471,24 +471,24 @@ img {
 }
 
 details {
-    border: 1px solid rgba(0,0,0,0.14);
-    padding: 0.2em;
+	border: 1px solid rgba(0,0,0,0.14);
+	padding: 0.2em;
 }
 
 details summary {
-    text-decoration: underline;
-    cursor: pointer;
+	text-decoration: underline;
+	cursor: pointer;
 }
 details[open] summary {
-    margin-bottom: 1em;
+	margin-bottom: 1em;
 }
 
 details summary::before {
-    content: "\27A4";
-    width: 24px;
-    display: inline-block;
-    text-align: center;
+	content: "\27A4";
+	width: 24px;
+	display: inline-block;
+	text-align: center;
 }
 details[open] summary::before {
-    content: "\25BC";
+	content: "\25BC";
 }

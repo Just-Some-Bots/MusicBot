@@ -425,3 +425,17 @@ td,
 th {
   padding: 0;
 }
+
+/* Details / Summary
+   ===========================================================================*/
+/**
+ * Summary is a mess in safari, maybe due to setting display block above...
+ */
+
+details > summary {
+    list-style-type: none;
+}
+
+details > summary::-webkit-details-marker {
+    display: none;
+}

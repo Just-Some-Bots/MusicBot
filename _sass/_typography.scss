@@ -89,9 +89,6 @@ ul,
 ol,
 dl,
 figure {
-	-webkit-font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
-	-moz-font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
-	-o-font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
 	margin: 0 0 1.75em 0;
 	text-rendering: geometricPrecision;
 }

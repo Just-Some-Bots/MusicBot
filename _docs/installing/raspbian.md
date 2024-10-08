@@ -16,6 +16,8 @@ We're interested in the last two bits of info, the number and code-name.
 
 ---
 
+<a class="expand-all-details">Show/Hide All</a>
+
 ## Version 12 (bookworm) and up
 <details>
   <summary>Raspbery Pi OS 12 (bookworm) install steps.</summary>  
@@ -154,4 +156,4 @@ After configuring you can use the command <code>./run.sh</code> to start the bot
 
 ---
 
-<a id="expand-all-details">Show/Hide All</a>
+<a class="expand-all-details">Show/Hide All</a>

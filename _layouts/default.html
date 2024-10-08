@@ -87,20 +87,27 @@
 			document.getElementById("open-nav").addEventListener("click", function () {
 				document.body.classList.toggle("nav-open");
 			});
-			var expelm = document.getElementById("expand-all-details")
-			expelm.addEventListener("click", function () {
+			
+			function listenerByClass(className, eventName, funct) {
+				var elms = document.getElementsByClassName(className);
+				for (var i=0; i < elms.length; i++) {
+					elms[i].addEventListener(eventName, funct(elms[i]));
+				}
+			}
+			
+			listenerByClass("expand-all-details", "click", function (elm) {
 				var deets = document.getElementsByTagName("details");
 				for (var i=0; i < deets.length; i++) {
-					if (expelm.hasAttribute("open")) {
+					if (elm.hasAttribute("open")) {
 						deets[i].removeAttribute("open");
 					} else {
 						deets[i].setAttribute("open","");
 					}
 				}
-				if (expelm.hasAttribute("open")) {
-					expelm.removeAttribute("open")
+				if (elm.hasAttribute("open")) {
+					elm.removeAttribute("open")
 				} else {
-					expelm.setAttribute("open", "")
+					elm.setAttribute("open", "")
 				}
 			});
 		</script>
