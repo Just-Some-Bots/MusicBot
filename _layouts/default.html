@@ -8,7 +8,6 @@
 		{% seo %}
 		{% feed_meta %}
 
-		<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400,400italic,700,700italic|Open+Sans:400,400italic,600,600italic,700,700italic|Inconsolata:400,700">
 		<link rel="stylesheet" href="{{ site.baseurl }}/css/main.css">
 		<link rel="apple-touch-icon" href="{{ site.baseurl }}/apple-touch-icon.png">
 		<link rel="icon" type="image/png" href="{{ site.baseurl }}/touch-icon.png" sizes="192x192">
@@ -86,6 +85,22 @@
 		<script>
 			document.getElementById("open-nav").addEventListener("click", function () {
 				document.body.classList.toggle("nav-open");
+			});
+			var expelm = document.getElementById("expand-all-details")
+			expelm.addEventListener("click", function () {
+				var deets = document.getElementsByTagName("details");
+				for (var i=0; i < deets.length; i++) {
+					if (expelm.hasAttribute("open")) {
+						deets[i].removeAttribute("open");
+					} else {
+						deets[i].setAttribute("open","");
+					}
+				}
+				if (expelm.hasAttribute("open")) {
+					expelm.removeAttribute("open")
+				} else {
+					expelm.setAttribute("open", "")
+				}
 			});
 		</script>
 	</body>
