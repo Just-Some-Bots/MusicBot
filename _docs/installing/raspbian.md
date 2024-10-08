@@ -10,7 +10,7 @@ MusicBot can be installed on Raspbian and Raspberry Pi OS. Older versions of Pi 
 This guide is broken into three sections depending on your version of Raspberry Pi OS or Raspbian.  
 If you're unsure which version you have, you can find out by using the following command:  
 `lsb_release -s -d`  
-It should output something similar to the one of the following:  
+It should output something similar to one of the following:  
 `Debian GNU/Linux 12 (bookworm)`  *or* `Raspbian GNU/Linux 10 (buster)`  
 We're interested in the last two bits of info, the number and code-name.  
 
@@ -102,7 +102,7 @@ After configuring you can use the command <code>./run.sh</code> to start the bot
 For Raspbian version 10 (buster) and earlier versions, you will need to compile a version of Python 3.8 or higher as well as installing pip.<br>  
 This can take a bit of time to complete and may require a little troubleshooting know-how if these steps are out-of-date or incomplete in some way.<br>  
 <br>
-If you're willing to carefully follow along, these steps *should* get MusicBot working:
+If you're willing to carefully follow along, these steps <i>should</i> get MusicBot working:
 
 {% highlight bash %}
 # Update system packages.
