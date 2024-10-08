@@ -89,6 +89,7 @@
 			});
 			
 			function listenerByClass(className, eventName, funct) {
+				console.log("binding " + className + " with " + eventName)
 				var elms = document.getElementsByClassName(className);
 				for (var i=0; i < elms.length; i++) {
 					elms[i].addEventListener(eventName, funct);
@@ -97,12 +98,17 @@
 			
 			var DeetsOpen = false;
 			listenerByClass("expand-all-details", "click", function () {
+				console.log('show-hide click');
 				var deets = document.getElementsByTagName("details");
 				for (var i=0; i < deets.length; i++) {
 					if (DeetsOpen) {
-						deets[i].removeAttribute("open");
+						if (deets[i].hasAttribute("open")) {
+							deets[i].removeAttribute("open");
+						}
 					} else {
-						deets[i].setAttribute("open","");
+						if ( ! deets[i].hasAttribute("open")) {
+							deets[i].setAttribute("open","");
+						}
 					}
 				}
 				if (DeetsOpen) {
