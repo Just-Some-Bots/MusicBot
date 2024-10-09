@@ -37,118 +37,118 @@ However, **don't add an ID to the Default group!** This group is assigned to eve
 <details>
   <summary>CommandWhitelist</summary>
 
-List of command names allowed for use, separated by spaces.
-This option overrides CommandBlacklist if set.  
+List of command names allowed for use, separated by spaces.<br>
+This option overrides CommandBlacklist if set.<br>  
 <strong>Default Value:</strong> <code>(All allowed)</code>  
 </details>  
 <details>
   <summary>CommandBlacklist</summary>
 
-List of command names denied from use, separated by spaces.
-Will not work if CommandWhitelist is set!  
+List of command names denied from use, separated by spaces.<br>
+Will not work if CommandWhitelist is set!<br>  
 <strong>Default Value:</strong> <code>(None denied)</code>  
 </details>  
 <details>
   <summary>IgnoreNonVoice</summary>
 
-List of command names that can only be used while in the same voice channel as MusicBot.
-Some commands will always require the user to be in voice, regardless of this list.
-Command names should be separated by spaces.  
+List of command names that can only be used while in the same voice channel as MusicBot.<br>
+Some commands will always require the user to be in voice, regardless of this list.<br>
+Command names should be separated by spaces.<br>  
 <strong>Default Value:</strong> <code>(No commands listed)</code>  
 </details>  
 <details>
   <summary>GrantToRoles</summary>
 
-List of Discord server role IDs that are granted this permission group. This option is ignored if UserList is set.  
+List of Discord server role IDs that are granted this permission group. This option is ignored if UserList is set.<br>  
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
   <summary>UserList</summary>
 
-List of Discord member IDs that are granted permissions in this group. This option overrides GrantToRoles.  
+List of Discord member IDs that are granted permissions in this group. This option overrides GrantToRoles.<br>  
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
   <summary>MaxSongs</summary>
 
-Maximum number of songs a user is allowed to queue. A value of 0 means unlimited.  
+Maximum number of songs a user is allowed to queue. A value of 0 means unlimited.<br>  
 <strong>Default Value:</strong> <code>0</code>  
 </details>  
 <details>
   <summary>MaxSongLength</summary>
 
-Maximum length of a song in seconds. A value of 0 means unlimited.
-This permission may not be enforced if song duration is not available.  
+Maximum length of a song in seconds. A value of 0 means unlimited.<br>
+This permission may not be enforced if song duration is not available.<br>  
 <strong>Default Value:</strong> <code>0</code>  
 </details>  
 <details>
   <summary>MaxPlaylistLength</summary>
 
-Maximum number of songs a playlist is allowed to have to be queued. A value of 0 means unlimited.  
+Maximum number of songs a playlist is allowed to have to be queued. A value of 0 means unlimited.<br>  
 <strong>Default Value:</strong> <code>0</code>  
 </details>  
 <details>
   <summary>MaxSearchItems</summary>
 
-The maximum number of items that can be returned in a search.  
+The maximum number of items that can be returned in a search.<br>  
 <strong>Default Value:</strong> <code>10</code>  
 </details>  
 <details>
   <summary>AllowPlaylists</summary>
 
-Allow users to queue playlists, or multiple songs at once.  
+Allow users to queue playlists, or multiple songs at once.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>InstaSkip</summary>
 
-Allow users to skip without voting, if LegacySkip config option is enabled.  
+Allow users to skip without voting, if LegacySkip config option is enabled.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>SkipLooped</summary>
 
-Allows the user to skip a looped song.  
+Allows the user to skip a looped song.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>Remove</summary>
 
-Allows the user to remove any song from the queue.
-Does not remove or skip currently playing songs.  
+Allows the user to remove any song from the queue.<br>
+Does not remove or skip currently playing songs.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>SkipWhenAbsent</summary>
 
-Skip songs added by users who are not in voice when their song is played.  
+Skip songs added by users who are not in voice when their song is played.<br>  
 <strong>Default Value:</strong> <code>no</code>  
 </details>  
 <details>
   <summary>BypassKaraokeMode</summary>
 
-Allows the user to add songs to the queue when Karaoke Mode is enabled.  
+Allows the user to add songs to the queue when Karaoke Mode is enabled.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>SummonNoVoice</summary>
 
-Auto summon to user voice channel when using play commands, if bot isn't in voice already.
-The summon command must still be allowed for this group!  
+Auto summon to user voice channel when using play commands, if bot isn't in voice already.<br>
+The summon command must still be allowed for this group!<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>Extractors</summary>
 
-List of yt_dlp extractor keys, separated by spaces, that are allowed to be used.
-Extractor names are matched partially, to allow for strict and flexible permissions.
-Example:  <code>youtube:search</code> allows only search, but <code>youtube</code> allows all of youtube extractors.
-When empty, hard-coded defaults are used. If you set this, you may want to add those defaults as well.
-To allow all extractors, add <code>__</code> to the list of extractors.
-Services supported by yt_dlp shown here:  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md 
-MusicBot also provides one custom service <code>spotify:musicbot</code> to enable or disable spotify API extraction.
-NOTICE: MusicBot might not support all services available to yt_dlp!
-  
+List of yt_dlp extractor keys, separated by spaces, that are allowed to be used.<br>
+Extractor names are matched partially, to allow for strict and flexible permissions.<br>
+Example:  `youtube:search` allows only search, but `youtube` allows all of youtube extractors.<br>
+When empty, hard-coded defaults are used. If you set this, you may want to add those defaults as well.<br>
+To allow all extractors, add `__` to the list of extractors.<br>
+Services supported by yt_dlp shown here:  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md <br>
+MusicBot also provides one custom service `spotify:musicbot` to enable or disable spotify API extraction.<br>
+NOTICE: MusicBot might not support all services available to yt_dlp!<br>
+<br>  
 <strong>Default Value:</strong> <code>(All allowed)</code>  
 </details>  
 
@@ -158,119 +158,119 @@ NOTICE: MusicBot might not support all services available to yt_dlp!
 <details>
   <summary>CommandWhitelist</summary>
 
-List of command names allowed for use, separated by spaces.
-This option overrides CommandBlacklist if set.  
+List of command names allowed for use, separated by spaces.<br>
+This option overrides CommandBlacklist if set.<br>  
 <strong>Default Value:</strong> <code>(All allowed)</code>  
 </details>  
 <details>
   <summary>CommandBlacklist</summary>
 
-List of command names denied from use, separated by spaces.
-Will not work if CommandWhitelist is set!  
+List of command names denied from use, separated by spaces.<br>
+Will not work if CommandWhitelist is set!<br>  
 <strong>Default Value:</strong> <code>(None denied)</code>  
 </details>  
 <details>
   <summary>IgnoreNonVoice</summary>
 
-List of command names that can only be used while in the same voice channel as MusicBot.
-Some commands will always require the user to be in voice, regardless of this list.
-Command names should be separated by spaces.  
+List of command names that can only be used while in the same voice channel as MusicBot.<br>
+Some commands will always require the user to be in voice, regardless of this list.<br>
+Command names should be separated by spaces.<br>  
 <strong>Default Value:</strong> <code>(No commands listed)</code>  
 </details>  
 <details>
   <summary>GrantToRoles</summary>
 
-List of Discord server role IDs that are granted this permission group. This option is ignored if UserList is set.  
+List of Discord server role IDs that are granted this permission group. This option is ignored if UserList is set.<br>  
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
   <summary>UserList</summary>
 
-List of Discord member IDs that are granted permissions in this group. This option overrides GrantToRoles.  
+List of Discord member IDs that are granted permissions in this group. This option overrides GrantToRoles.<br>  
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
   <summary>MaxSongs</summary>
 
-Maximum number of songs a user is allowed to queue. A value of 0 means unlimited.  
+Maximum number of songs a user is allowed to queue. A value of 0 means unlimited.<br>  
 <strong>Default Value:</strong> <code>8</code>  
 </details>  
 <details>
   <summary>MaxSongLength</summary>
 
-Maximum length of a song in seconds. A value of 0 means unlimited.
-This permission may not be enforced if song duration is not available.  
+Maximum length of a song in seconds. A value of 0 means unlimited.<br>
+This permission may not be enforced if song duration is not available.<br>  
 <strong>Default Value:</strong> <code>210</code>  
 </details>  
 <details>
   <summary>MaxPlaylistLength</summary>
 
-Maximum number of songs a playlist is allowed to have to be queued. A value of 0 means unlimited.  
+Maximum number of songs a playlist is allowed to have to be queued. A value of 0 means unlimited.<br>  
 <strong>Default Value:</strong> <code>0</code>  
 </details>  
 <details>
   <summary>MaxSearchItems</summary>
 
-The maximum number of items that can be returned in a search.  
+The maximum number of items that can be returned in a search.<br>  
 <strong>Default Value:</strong> <code>10</code>  
 </details>  
 <details>
   <summary>AllowPlaylists</summary>
 
-Allow users to queue playlists, or multiple songs at once.  
+Allow users to queue playlists, or multiple songs at once.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>InstaSkip</summary>
 
-Allow users to skip without voting, if LegacySkip config option is enabled.  
+Allow users to skip without voting, if LegacySkip config option is enabled.<br>  
 <strong>Default Value:</strong> <code>no</code>  
 </details>  
 <details>
   <summary>SkipLooped</summary>
 
-Allows the user to skip a looped song.  
+Allows the user to skip a looped song.<br>  
 <strong>Default Value:</strong> <code>no</code>  
 </details>  
 <details>
   <summary>Remove</summary>
 
-Allows the user to remove any song from the queue.
-Does not remove or skip currently playing songs.  
+Allows the user to remove any song from the queue.<br>
+Does not remove or skip currently playing songs.<br>  
 <strong>Default Value:</strong> <code>no</code>  
 </details>  
 <details>
   <summary>SkipWhenAbsent</summary>
 
-Skip songs added by users who are not in voice when their song is played.  
+Skip songs added by users who are not in voice when their song is played.<br>  
 <strong>Default Value:</strong> <code>yes</code>  
 </details>  
 <details>
   <summary>BypassKaraokeMode</summary>
 
-Allows the user to add songs to the queue when Karaoke Mode is enabled.  
+Allows the user to add songs to the queue when Karaoke Mode is enabled.<br>  
 <strong>Default Value:</strong> <code>no</code>  
 </details>  
 <details>
   <summary>SummonNoVoice</summary>
 
-Auto summon to user voice channel when using play commands, if bot isn't in voice already.
-The summon command must still be allowed for this group!  
+Auto summon to user voice channel when using play commands, if bot isn't in voice already.<br>
+The summon command must still be allowed for this group!<br>  
 <strong>Default Value:</strong> <code>no</code>  
 </details>  
 <details>
   <summary>Extractors</summary>
 
-List of yt_dlp extractor keys, separated by spaces, that are allowed to be used.
-Extractor names are matched partially, to allow for strict and flexible permissions.
-Example:  <code>youtube:search</code> allows only search, but <code>youtube</code> allows all of youtube extractors.
-When empty, hard-coded defaults are used. If you set this, you may want to add those defaults as well.
-To allow all extractors, add <code>__</code> to the list of extractors.
-Services supported by yt_dlp shown here:  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md 
-MusicBot also provides one custom service <code>spotify:musicbot</code> to enable or disable spotify API extraction.
-NOTICE: MusicBot might not support all services available to yt_dlp!
-  
-<strong>Default Value:</strong> <code>generic, Bandcamp, spotify:musicbot, soundcloud, youtube</code>  
+List of yt_dlp extractor keys, separated by spaces, that are allowed to be used.<br>
+Extractor names are matched partially, to allow for strict and flexible permissions.<br>
+Example:  `youtube:search` allows only search, but `youtube` allows all of youtube extractors.<br>
+When empty, hard-coded defaults are used. If you set this, you may want to add those defaults as well.<br>
+To allow all extractors, add `__` to the list of extractors.<br>
+Services supported by yt_dlp shown here:  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md <br>
+MusicBot also provides one custom service `spotify:musicbot` to enable or disable spotify API extraction.<br>
+NOTICE: MusicBot might not support all services available to yt_dlp!<br>
+<br>  
+<strong>Default Value:</strong> <code>youtube, Bandcamp, soundcloud, generic, spotify:musicbot</code>  
 </details>  
 
 
