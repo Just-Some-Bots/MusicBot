@@ -14,25 +14,27 @@ The main configuration file is `config/options.ini`, which is typically copied f
 ## First Time Setup
 
 Before you can configure MusicBot, you need to set up a Bot application on the Discord Developer Portal.  
+This section will guide you through all those steps:  
 
 <details>
-  <summary>How to make a Discord Bot.</summary>
+  <summary>How to make a Discord Bot and Configure MusicBot.</summary>
 
 <h3>Make a new Bot and Token</h3>
 
 First, log in to the official Discord Developer Portal and access the <a href="https://discord.com/developers/applications/me">Applications page</a>.<br>  
-<br>
 <ul>
 <li>Create a new application, then open the "Bot" page from the menu.</li>  
 <li>Find the Token section to reveal and copy your new Bot Token.<br>  
-  <strong>Notice:</strong> If you have 2FA enabled, you may need to "Reset Token" before you can see it.<br>
-  <strong>Warning:</strong> Keep the Token safe! Don't share it or lose it or you'll need to regenerate it!<br></li>  
+  <strong style="color:#7d6f00;">Notice:</strong> If you have 2FA enabled, you may need to "Reset Token" before you can see it.<br>
+  <strong style="color:#ff7373;">Warning:</strong> Keep the Token safe! Don't share it or lose it or you'll need to regenerate it!<br></li>  
 
 <li>Next set the privileged intents. You need to enable each of the Gateway Intents.<br>  
   - Enable Presence Intent<br>
   - Enable Server Members Intent<br>
   - Enable Message Content Intent<br></li>
 </ul>
+
+<h3>Configure MusicBot</h3>
 
 You should now have your token and can now copy it into your config file.<br>  
 To finish setting up:<br>  
@@ -44,7 +46,8 @@ To finish setting up:<br>
 <li>Save, close, and try running MusicBot!</li>
 </ul>
 
-If everything is working, make sure to review the rest of the options and make changes as needed.
+If everything is working, make sure to review the rest of the options and make changes as needed.<br>
+<br>
 
 </details>
 
