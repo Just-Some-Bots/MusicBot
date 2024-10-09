@@ -1,7 +1,7 @@
 ---
 title: Spotify
 category: Using the bot
-order: 10
+order: 12
 ---
 
 potentially defunct
