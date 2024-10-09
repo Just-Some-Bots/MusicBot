@@ -25,9 +25,9 @@ First, log in to the official Discord Developer Portal and access the <a href="h
 <ul>
 <li>Create a new application, then open the "Bot" page from the menu.</li>  
 <li>Find the Token section to reveal and copy your new Bot Token.<br>  
-  **Notice:** If you have 2FA enabled, you may need to "Reset Token" before you can see it.<br>
-  **Warning:** Keep the Token safe! Don't share it or lose it or you'll need to regenerate it!<br></li>  
-  
+  <strong>Notice:</strong> If you have 2FA enabled, you may need to "Reset Token" before you can see it.<br>
+  <strong>Warning:</strong> Keep the Token safe! Don't share it or lose it or you'll need to regenerate it!<br></li>  
+
 <li>Next set the privileged intents. You need to enable each of the Gateway Intents.<br>  
   - Enable Presence Intent<br>
   - Enable Server Members Intent<br>
@@ -37,9 +37,9 @@ First, log in to the official Discord Developer Portal and access the <a href="h
 You should now have your token and can now copy it into your config file.<br>  
 To finish setting up:<br>  
 <ul>
-<li>Open your bot folder and then the `config` folder within it.</li>  
-<li>Copy `example_options.ini` and rename it to `options.ini`.</li>  
-<li>Open `options.ini` then find the "Token" option under `[Credentials]`.</li>  
+<li>Open your bot folder and then the <code>config</code> folder within it.</li>  
+<li>Copy <code>example_options.ini</code> and rename it to <code>options.ini</code>.</li>  
+<li>Open <code>options.ini</code> then find the "Token" option under <code>[Credentials]</code>.</li>  
 <li>Update the value of "Token" with the token you copied from Discord Applications.</li>  
 <li>Save, close, and try running MusicBot!</li>
 </ul>
