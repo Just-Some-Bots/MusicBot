@@ -490,8 +490,8 @@ details {
 		text-align: center;
 	}
 	
-	h3::before { margin: 12px 0; }
-	h4::before { margin: 12px 0; }
+	h3::before { margin: 12px 0 !important; }
+	h4::before { margin: 12px 0 !important; }
 }
 details[open] summary {
 	margin-bottom: 1em;
