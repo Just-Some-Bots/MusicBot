@@ -1,7 +1,7 @@
 ---
 title: Raspbian / Pi OS
 category: Installing the bot
-order: 4
+order: 6
 ---
 
 <img class="doc-img" src="{{ site.baseurl }}/images/raspbian.png" alt="Raspbian" style="width: 75px; float: right;"/>

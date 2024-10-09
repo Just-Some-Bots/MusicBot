@@ -1,7 +1,7 @@
 ---
 title: Ubuntu
 category: Installing the bot
-order: 1
+order: 3
 ---
 
 <img class="doc-img" src="{{ site.baseurl }}/images/ubuntu.png" alt="Ubuntu" style="width: 75px; float: right;"/>

@@ -1,7 +1,7 @@
 ---
 title: CentOS
 category: Installing the bot
-order: 6
+order: 8
 ---
 <img class="doc-img" src="{{ site.baseurl }}/images/centos.png" alt="centos" style="width: 75px; float: right;"/>
 Installation on CentOS is **majorly untested and is not officially supported** due to issues. Please keep this in mind when seeking support.
