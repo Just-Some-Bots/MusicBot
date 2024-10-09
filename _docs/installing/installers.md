@@ -18,7 +18,7 @@ For Windows you need to download `install.bat` and `install.ps1` into the same d
 The `install.bat` file will set a temporary execution profile and execute the `install.ps1` file.  
 If you are familiar with PowerShell and execution profiles / restrictions, feel free to skip the bat-file.  
 The installer may request administrative access in order to install winget, git, python, and ffmpeg before it downloads the MusicBot files.  
-Both files can be located in the Github repository.  
+Both install files can be located in the Github repository.  
 
 For users familiar with Command Prompt, these commands will quickly do the job.  
 Do NOT start Command Prompt in admin mode, it will only cause trouble here.  
@@ -34,7 +34,6 @@ install.bat
 The above will download both the latest .bat and .ps1 from the dev branch, then execute the .bat file.  
 The files should be in your `C:\User\<user>\` folder or whatever directory the prompt displays.  
 
----
 
 ### Linux 
 
