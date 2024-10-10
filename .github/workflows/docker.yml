@@ -70,8 +70,8 @@ jobs:
           images: |
             ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_URL == 'ghcr.io' && github.repository_owner || env.REGISTRY_USER }}/${{ steps.image_name.outputs.IMAGE }}
           tags: |
-            type=raw,value=latest,enable=${{ endsWith(github.ref, 'main') || endsWith(github.ref, 'master') }}
-            type=ref,event=branch,enable=${{ !endsWith(github.ref, 'main') && !endsWith(github.ref, 'master') }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+            type=ref,event=branch
             type=semver,pattern={{version}}
           flavor: |
             latest=false
