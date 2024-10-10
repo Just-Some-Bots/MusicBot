@@ -35,5 +35,5 @@ config/autoplaylist.cachemap.json
 # docker
 docker-compose.yml
 
-# includsions (has to be declared last)
+# inclusions (has to be declared last)
 !**/*.example
