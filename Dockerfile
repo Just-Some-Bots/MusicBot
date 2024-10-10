@@ -73,3 +73,4 @@ ENV APP_ENV=docker
 ENTRYPOINT ["/bin/sh", "docker-entrypoint.sh"]
 
 LABEL org.opencontainers.image.title="musicbot"
+LABEL org.opencontainers.image.description "The original MusicBot for Discord"
