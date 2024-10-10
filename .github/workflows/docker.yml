@@ -82,6 +82,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # TODO: fix tagging
+      # ! 'manifest unknown' via `docker pull ghcr.io/pythoninthegrass/musicbot:feat-update_docker`
+      # ! `docker pull ghcr.io/pythoninthegrass/musicbot@sha256:40b2474ed9a12a7276196e1e09956c2b94ddd379ba46c6859ed40740ea41039a` works
+      # ! annotations also only apply to sha256 -- not 'branch/tag' versions
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
