@@ -1,14 +1,24 @@
+# editor settings
 .idea/
-*.pyc
-~*/
 .vscode/
 
+# python bytecode
+*.pyc
+
+# temp files
+~*/
+
+# directories
 audio_cache/
 dectalk/
-
-discord.log
 logs/
 data/
+media/
+
+# logs
+discord.log
+
+# configs
 config/options.ini
 config/permissions.ini
 config/aliases.json
@@ -20,7 +30,10 @@ config/blacklist.txt
 config/blocklist_users.txt
 config/blocklist_songs.txt
 config/playlists/
-media/
-
-docker-compose.yml
 config/autoplaylist.cachemap.json
+
+# docker
+docker-compose.yml
+
+# includsions (has to be declared last)
+!**/*.example
