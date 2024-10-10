@@ -1,0 +1,94 @@
+name: Publish Docker images
+
+on:
+  push:
+    branches:
+      - 'main'
+      - 'master'
+    tags:
+      - '*.*.*'
+    paths:
+      - '.dockerignore'
+      - '.env.example'
+      - '.github/workflows/**'
+      - '**.bat'
+      - '**.ps1'
+      - '**.py'
+      - '**.sh'
+      - 'bin/**'
+      - 'config/**'
+      - 'Dockerfile*'
+      - 'musicbot.service'
+      - 'musicbot/**'
+      - 'musicbotcmd'
+      - 'poetry.lock'
+      - 'pyproject.toml'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+env:
+  REGISTRY_URL: ${{ vars.REGISTRY_URL }}
+  REGISTRY_USER: ${{ vars.REGISTRY_USER }}
+  REGISTRY_PASS: ${{ secrets.REGISTRY_PASS }}
+
+jobs:
+  push_to_registry:
+    name: Push Docker image to container registry
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dockerfile: [Dockerfile]
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.dockerfile }}-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      packages: write
+      contents: read
+      actions: read
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Log into container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_URL }}
+          username: ${{ env.REGISTRY_URL == 'ghcr.io' && github.repository_owner || env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_URL == 'ghcr.io' && secrets.GITHUB_TOKEN || env.REGISTRY_PASS }}
+
+      - name: Extract image name from Dockerfile
+        id: image_name
+        run: |
+          IMAGE=$(grep "LABEL org.opencontainers.image.title" ${{ matrix.dockerfile }} | cut -d'"' -f2)
+          echo "IMAGE=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_URL == 'ghcr.io' && github.repository_owner || env.REGISTRY_USER }}/${{ steps.image_name.outputs.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ endsWith(github.ref, 'main') || endsWith(github.ref, 'master') }}
+            type=ref,event=branch,enable=${{ !endsWith(github.ref, 'main') && !endsWith(github.ref, 'master') }}
+            type=semver,pattern={{version}}
+          flavor: |
+            latest=false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64/v8
+          cache-from: type=registry,ref=${{ steps.meta.outputs.tags }}
+          cache-to: type=registry,ref=${{ steps.meta.outputs.tags }},mode=max
