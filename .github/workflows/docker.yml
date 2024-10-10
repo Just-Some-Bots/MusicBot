@@ -76,16 +76,6 @@ jobs:
           flavor: |
             latest=false
 
-      - name: Extract description from Dockerfile
-        id: dockerfile_description
-        run: |
-          DESCRIPTION=$(grep "LABEL org.opencontainers.image.description" ${{ matrix.dockerfile }} | cut -d'"' -f2 || echo "")
-          if [ -z "$DESCRIPTION" ]; then
-            DESCRIPTION="No description provided"
-            echo "Warning: No description found in Dockerfile. Using default." >&2
-          fi
-          echo "DESCRIPTION=$DESCRIPTION" >> $GITHUB_OUTPUT
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -103,6 +93,6 @@ jobs:
           platforms: linux/amd64,linux/arm64/v8
           cache-from: type=registry,ref=${{ steps.meta.outputs.tags }}
           cache-to: type=registry,ref=${{ steps.meta.outputs.tags }},mode=max
-          outputs: |
-            type=image,name=${{ steps.meta.outputs.tags }},annotation-index.org.opencontainers.image.description=${{ steps.dockerfile_description.outputs.DESCRIPTION }}
-
+          outputs: >
+            type=image,name=${{ steps.meta.outputs.tags }},
+            annotation-index.org.opencontainers.image.description=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.description'] }}
