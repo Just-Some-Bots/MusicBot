@@ -24,7 +24,7 @@ RUN apk update && apk add --no-cache \
     git \
     && rm -rf /var/cache/apk/*
 
-WORKDIR /app
+WORKDIR /musicbot
 
 # Install pip and dependencies
 COPY requirements.txt .
@@ -49,11 +49,12 @@ ENV LC_ALL=C.UTF-8
 
 # Install runtime dependencies
 RUN apk update && apk add --no-cache \
+    ca-certificates \
+    ffmpeg \
+    git \
     libffi \
     libsodium \
-    ffmpeg \
-    opus \
-    git \
+    opus-dev \
     && rm -rf /var/cache/apk/*
 
 # Copy only necessary files from builder stage
