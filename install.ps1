@@ -1,6 +1,6 @@
 # This script is designed to be used without pulling the repository first!
 # You can simply download and run it to have MusicBot installed for you.
-# Current the script only supports one installation per user account.
+# Currently the script only supports one installation per user account.
 #
 # Notice:
 #  If you want to run this .ps1 script without setting execution policy in PowerShell,
@@ -8,6 +8,17 @@
 #
 #    powershell.exe -noprofile -executionpolicy bypass -file install.ps1
 #
+# Last tested:
+#  Win 10 Home 22H2 x64 - 2024/09/26
+# --------------------------------------------------CLI Parameters-----------------------------------------------------
+param (
+    # -anybranch  Enables the use of any named branch, if it exists on repo.
+    [switch]$anybranch = $false
+)
+# Where to put MusicBot by default.  Updated by repo detection.
+# prolly should be param, but someone who cares about windows can code for it.
+$Install_Dir = (pwd).Path + '\MusicBot\'
+
 # ---------------------------------------------Install notice and prompt-----------------------------------------------
 "MusicBot Installer"
 ""
@@ -34,32 +45,71 @@ if($iagree -ne "Y" -and $iagree -ne "y")
     Return
 }
 
+# First, unhide file extensions...
+$FERegPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+$HideExt = (Get-ItemProperty -Path $FERegPath -Name "HideFileExt").HideFileExt
+if ($HideExt -eq 1) {
+    ""
+    "Microsoft hates you and hides file extensions by default."
+    "We're going to un-hide them to make things less confusing."
+    Set-ItemProperty -Name "HideFileExt" -Value 0 -Path $FERegPath -Force
+}
+
+# If no winget, try to download and install.
 if (-Not (Get-Command winget -ErrorAction SilentlyContinue) )
 {
     ""
-    "Sorry, you must install WinGet to use this installer."
-    "Supposedly included with Windows, but we couldn't find it."
-    "You can get it via Microsoft Store, the Official repo on github, or "
-    "use the following link to quickly download an installer for it:"
+    "Microsoft WinGet tool is required to continue installing."
+    "It will be downloaded from:"
     "  https://aka.ms/getwinget  "
     ""
-    Return
+    "Please complete the Windows installer when prompted."
+    ""
+
+    # download and run the installer.
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -Uri "https://aka.ms/getwinget" -OutFile "winget.msixbundle"
+    $ProgressPreference = 'Continue'
+    Start-Process "winget.msixbundle"
+    
+    # wait for user to finish installing winget...
+    $ready = Read-Host "Is WinGet installed and ready to continue? [y/n]"
+    if ($ready -ne "Y" -and $ready -ne "y") {
+        # exit if not ready.
+        Return
+    }
+    
+    # check if winget is available post-install.
+    if (-Not (Get-Command winget -ErrorAction SilentlyContinue) ) {
+        "WinGet is not available.  Installer cannot continue."
+        Return
+    }
 }
-else
-{
-    ""
-    "Checking WinGet can be used..."
-    "If prompted, you must agree to the MS terms to continue installing."
-    ""
-    winget list -q Git.Git
-    ""
-}
+
+# 
+""
+"Checking WinGet can be used..."
+"If prompted, you must agree to the MS terms to continue installing."
+""
+winget list -q Git.Git
+""
+
+# since windows is silly with certificates and certifi may not always work,
+# we queitly spawn some requests that -may- populate the certificate store.
+# this isn't a sustainable approach, but it seems to work...
+$ProgressPreference = 'SilentlyContinue'
+Invoke-WebRequest -Uri "https://discord.com" -OutFile "cert.fetch" 2>&1 | Out-Null
+Invoke-WebRequest -Uri "https://spotify.com" -OutFile "cert.fetch" 2>&1 | Out-Null
+$ProgressPreference = 'Continue'
+Remove-Item "cert.fetch"
 
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
 $DEFAULT_URL_BASE = "https://discordapp.com/api"
+$MB_RepoURL = "https://github.com/Just-Some-Bots/MusicBot.git"
 
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
+$NeedsEnvReload = 0
 
 # Check if git is installed
 "Checking if git is already installed..."
@@ -69,6 +119,7 @@ if (!($LastExitCode -eq 0))
     # install git
     "Installing git..."
     Invoke-Expression "winget install Git.Git"
+    $NeedsEnvReload = 1
     "Done."
 }
 else
@@ -85,6 +136,7 @@ if (!($LastExitCode -eq 0))
     # install python version 3.11 with the py.exe launcher.
     "Installing python..."
     Invoke-Expression "winget install Python.Python.3.11 --custom \`"/passive Include_launcher=1\`""
+    $NeedsEnvReload = 1
     "Done."
 }
 else
@@ -95,12 +147,13 @@ else
 
 # Check if ffmpeg is installed
 "Checking if FFmpeg is already installed..."
-Invoke-Expression "winget list -q Gyan.FFmpeg" | Out-Null
+Invoke-Expression "winget list -q ffmpeg" | Out-Null
 if (!($LastExitCode -eq 0))
 {
     # install FFmpeg
     "Installing FFmpeg..."
-    Invoke-Expression "winget install Gyan.FFmpeg"
+    Invoke-Expression "winget install ffmpeg"
+    $NeedsEnvReload = 1
     "Done."
 }
 else
@@ -109,10 +162,11 @@ else
 }
 ""
 
-# NOTE: if we need to refresh the environment vars (Path, etc.) after installing
-# the above packages, we may need to add some other dependency which provides
-# RefreshEnv.bat or manually manage paths to newly installed exes.
-# Users should be able to get around this by restarting the powershell script.
+# try to reload environment variables...
+if ($NeedsEnvReload -eq 1) 
+{
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+}
 
 # --------------------------------------------------PULLING THE BOT----------------------------------------------------
 
@@ -125,32 +179,44 @@ if((Test-Path $MB_Reqs_File) -and (Test-Path $MB_Module_Dir) -and (Test-Path $MB
     ""
     "Installer detected an existing clone, and will continue installing with the current source."
     ""
+    $Install_Dir = (pwd).Path
 } else {
     ""
     "MusicBot currently has three branches available."
     "  master - Stable MusicBot, least updates and may at times be out-of-date."
     "  review - Newer MusicBot, usually stable with less updates than the dev branch."
     "  dev    - The newest MusicBot, latest features and changes which may need testing."
+    if($anybranch) {
+    "   *     - WARNING: Any branch name is allowed, if it exists on github."
+    }
     ""
     $experimental = Read-Host "Enter the branch name you want to install"
-    if($experimental -eq "dev")
-    {
-        "Installing dev branch..."
-        $branch = "dev"
-    }
-    if($experimental -eq "review")
-    {
-        "Installing review branch..."
-        $branch = "review"
-    }
-    else
-    {
-        "Installing master branch..."
-        $branch = "master"
+    $experimental = $experimental.Trim()
+    switch($experimental) {
+        "dev" {
+            "Installing dev branch..."
+            $branch = "dev"
+        }
+        "review" {
+            "Installing review branch..."
+            $branch = "review"
+        }
+        default {
+            if($anybranch -and $experimental -and $experimental -ne "master")
+            {
+                "Installing with $experimental branch, if it exists..."
+                $branch = $experimental
+            }
+            else
+            {
+                "Installing master branch..."
+                $branch = "master"
+            }
+        }
     }
 
-    Invoke-Expression "git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b $branch"
-    Invoke-Expression "cd MusicBot"
+    Invoke-Expression "git clone $MB_RepoURL '$Install_Dir' -b $branch"
+    Invoke-Expression "cd '$Install_Dir'"
     ""
 }
 
@@ -169,7 +235,7 @@ $versionArray = "3.8", "3.9", "3.10", "3.11", "3.12"
 
 foreach ($version in $versionArray)
 {
-    Invoke-Expression "py -$version -c 'exit()'" | Out-Null
+    Invoke-Expression "py -$version -c 'exit()' 2>&1" | Out-Null
     if($LastExitCode -eq 0)
     {
         $PYTHON = "py -$version"
@@ -177,6 +243,7 @@ foreach ($version in $versionArray)
 }
 
 "Using $PYTHON to install and run MusicBot..."
+""
 Invoke-Expression "$PYTHON -m pip install --upgrade -r requirements.txt" 
 
 # -------------------------------------------------CONFIGURE THE BOT---------------------------------------------------
@@ -190,7 +257,9 @@ if($iagree -ne "Y" -and $iagree -ne "y")
 {
     "All done!"
     "Remember to configure your bot token and other options before you start."
-    "You can use run.bat to start the MusicBot."
+    "You must open a new command prompt before using run.bat to start the MusicBot."
+    "MusicBot was installed to:"
+    "  $Install_Dir"
     Return
 }
 
@@ -265,4 +334,7 @@ else
 "Saving your config..."
 Set-Content -Path ".\config\options.ini" -Value $config
 
-"You can now use run.bat to run the bot"
+"You can use run.bat to run the bot."
+"Restart your command prompt first!"
+"MusicBot was installed to:"
+"  $Install_Dir"
