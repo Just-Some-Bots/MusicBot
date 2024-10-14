@@ -493,8 +493,12 @@ details {
 	h3::before { margin: 12px 0 !important; }
 	h4::before { margin: 12px 0 !important; }
 }
-details[open] summary {
-	margin-bottom: 1em;
+details[open] {
+	padding-bottom: 2em;
+
+	summary {
+		margin-bottom: 1em;
+	}
 }
 details[open] summary::before {
 	content: "\25BC";

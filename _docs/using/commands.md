@@ -16,7 +16,9 @@ For command usage, MusicBot uses the following rules:
 5. ` | ` denotes multiple choices for the parameter.  
 6. Literal terms may appear without parameter marks.  
 
+---
 
+<a class="expand-all-details">Show/Hide All</a>
 
 ### General Command  
 
