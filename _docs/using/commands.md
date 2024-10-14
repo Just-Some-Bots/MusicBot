@@ -7,14 +7,15 @@ order: 3
 This page contains a list of all commands that can be used to control the MusicBot.  
 Every command must start with the prefix that is [configured]({{ site.baseurl }}/using/configuration) for your bot.  
 The default prefix for MusicBot is `!` but we omit it in this documentation.  
+In usage descriptions, `< >` denotes a required parameter, `[ ]` denotes an optional parameter, and `|` denotes multiple choices for the parameter.  
+Parameters or terms in lower-case are literal, and used as the argument value.  
+While upper-case parameters are just placeholders, you put in your own value(s).  
 
-For command usage, MusicBot uses the following rules:  
-1. All literal parameters must be lower case and alphanumeric.  
-2. All placeholder parameters must be upper case and alphanumeric.  
-3. `< >` denotes a required parameter.  
-4. `[ ]` denotes an optional parameter.  
-5. ` | ` denotes multiple choices for the parameter.  
-6. Literal terms may appear without parameter marks.  
+Take this usage for example:  
+`autoplaylist <add | remove> [URL]`  
+It means you can use `add` or `remove` as the first parameter.  The second parameter is a value you provide.
+With the default prefix, an example of using the command would be:  
+`!autoplaylist add https://link.to/my/song.mp3`  
 
 ---
 
