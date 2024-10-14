@@ -4,7 +4,18 @@ category: Using the bot
 order: 3
 ---
 
-This is a list of the commands that can be used to control the MusicBot. You cannot use commands in private messages. Every command starts with the prefix that you [configured]({{ site.baseurl }}/using/configuration). This page assumes your prefix is `!`, the default. Required parameters are indicated with `<` and `>`, while optional parameters are indicated with `[` and `]`.
+This page contains a list of all commands that can be used to control the MusicBot.  
+Every command must start with the prefix that is [configured]({{ site.baseurl }}/using/configuration) for your bot.  
+The default prefix for MusicBot is `!` but we omit it in this documentation.  
+
+For command usage, MusicBot uses the following rules:  
+1. All literal parameters must be lower case and alphanumeric.  
+2. All placeholder parameters must be upper case and alphanumeric.  
+3. `< >` denotes a required parameter.  
+4. `[ ]` denotes an optional parameter.  
+5. ` | ` denotes multiple choices for the parameter.  
+6. Literal terms may appear without parameter marks.  
+
 
 
 ### General Command  
