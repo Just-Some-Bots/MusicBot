@@ -6,101 +6,26 @@ order: 3
 
 This is a list of the commands that can be used to control the MusicBot. You cannot use commands in private messages. Every command starts with the prefix that you [configured]({{ site.baseurl }}/using/configuration). This page assumes your prefix is `!`, the default. Required parameters are indicated with `<` and `>`, while optional parameters are indicated with `[` and `]`.
 
-#### General
 
-- `!help [command]` - Prints a list of commands, or info on a command if one is specified.
-- `!play <URL/query>` - Plays audio from a specific URL or searches for a query on YouTube and queues the first result.
-- `!playnext <URL/query>` - Adds a song to the top of the queue to be played immediatly after what's already playing.
-- `!shuffleplay <URL>` - Adds a playlist and shuffles it before playback begins. 
-- `!playnow <URL/query>` - Skips the currently playing track and starts playback of requested song immediately.
-- `!queue` - Displays all of the media that is queued.
-- `!np` - Displays the media that is currently being played.
-- `!skip` - Vote to skip the current media. Required skips/skip ratio is set in the config file. The bot's owner will instantly skip when using `!skip f`.
-- `!search [service] [#] <query>` - Searches a specific service (default: YT) for a query and returns the first few results (default: 3, limit: 10). The user can then select from the results if they want to add any to the queue.
-- `!shuffle` - Shuffles the queue.
-- `!clear` - Clears the queue.
-- `!pause` - Pauses the current media.
-- `!resume` - Resumes the current media
-- `!volume [number]` - Sets the volume of the bot for everyone. Should be a number between 1 and 100. Can be relative (e.g `+10` to add 10 to current volume). If no parameter is given, it will display the current volume.
-- `!summon` - Connects the bot to your current voice channel, if it has permission.
-- `!clean <number>` - Searches through the number of messages given and deletes those that were sent by the bot, effectively cleaning the channel. If the bot has `Manage Messages` on the server, it will delete user command messages too, like `!play`.
-- <span class="badge warn">deprecated</span> `!id [@user]` - Prints the user's ID in the chat, or prints the ID of the specified user. User must be @mentioned if not yourself.
-- <span class="badge warn">deprecated</span> `!listids` - Sends a message to the user with a list of all of the IDs on the server, so that permissions and such can be configured.
-- `!perms` - Sends a message to the user with their bot permissions.
-- `!stream <url>` - Streams a URL. This can be a Twitch, YouTube, etc livestream, or a radio stream. This feature of the bot is experimental and may have some issues.
-- `!save` - Saves the current song to the autoplaylist.
-- `!karaoke` - Enables karaoke mode in a server. During karaoke mode, only users with the `BypassKaraokeMode` permission can queue music.
-- `!autoplaylist [+, -, add, remove] [show] [set] [URL]` - Manipulate the autoplaylist file, or set a playlist file to be used for the guild.
-- `!latency` - Displays the latency between the bot and discord, and the latency in the server voice region.
-- `!disconnect` - Disconnects the bot from the voice channel.
-- `!follow [@user1]` - Follow a user around the guild VC's. The owner can set who to follow. 
-- `!move <number number>` - Move an entry from a spot in the queue to another.
-- `!seek <time>` - Seek to a certain spot of the current entry. 
-- `!speed <rate>` - Applies a playback speed to the currently playing entry. 
-- `!uptime` - Displays the bot uptime since last start or restart. 
-A `subject` may be a song URL or a word or phrase found in the track title.
-If `subject` is omitted, a currently playing track will be used instead.
-- `!repeat [all | playlist | song | on | off]` -   Toggles playlist or song looping.
-If no option is provided the bot will toggle through song repeating, playlist repeating, or off.
-- `!botversion` - Prints the current bot version to chat.
-
-
-#### Admin
-
-- `!joinserver` - Provides the URL that can be used to add the bot to another server. This command is always restricted to the owner of the bot.
-- `!leaveserver <name/id>` - Forces the bot to leave a server. You must specify either the server name or id.
-- `!pldump <playlist>` - Collects URLs from a YouTube playlist or Soundcloud set and dumps them into a text file that can be copied into the autoplaylist.
-- `!setavatar [url]` - Changes the bot's avatar to the specified URL or uploaded image. A URL does not need to be specified if an image is uploaded with the command as the message (comment).
-- `!setname <name>` - Changes the bot's Discord username (not nickname). Discord limits these changes to 2/hr.
-- `!setnick <nick>` - Changes the bot's nickname on a server, if it has permission to do so.
-- `!setperms [list, reload, add, remove, help, show, save, set]` - Allows numerous operations of modification to the current permissions config.
-- `setprefix <prefix>` - Set the bot prefix for the guild.
-- `!restart [soft, full, uppip, upgit, upgrade]` - Restarts the bot with various options. Soft is used by default if no option is provided.
-Uppip will check for pip packages to update then restart fully, upgit will check for updates on the repo, attempt to pull them and then restart fully, upgrade will attemp to
-update the bot and pip packages then restart fully.
-- `!shutdown` - Shuts down the bot and terminates the process.
-- `!option <option> <y/n>` - Changes a config option without restarting the bot for the current session. Run `!help option` for info.
-- `!remove <number>` - Removes a song from the queue by its numbered position. Use `!queue` to find out song positions.
-- `!resetplaylist` - Resets all songs in the server's autoplaylist.
-- `!config [diff, missing, list, help, show, save, set]` - Allows numerous operations of modification to the current config options.
-- `!blocksong [+, -, add, remove] <subject>` - Manage a block list applied to song requests and extracted info.
-- `!blockuser [+, -, add, remove, ?, status] <@user1>` - Manage users in the block list.
-Blocked users are forbidden from using all bot commands.
-- `!checkupdates` - Display the current bot version and check for updates to MusicBot or dependencies.
-The option `GitUpdatesBranch` must be set to check for updates to MusicBot.
-- `!botlatency` -  Prints latency info for all voice clients as well as API latency.
-
-
-#### Dev
-
-> These commands are intended for people who know how Python works and/or developers of the bot. As such, they are restricted behind additional permissions that must be granted in the options file. Please do not run any of these commands unless you are absolutely sure that you are aware what you are doing and the potential consequences, as they can be very dangerous.
-
-- `!breakpoint` - Activates a debugging breakpoint.
-- `!objgraph [func]` - Returns an object graph.
-- `!debug` - Evaluates arbitrary code. This can be an extremely dangerous command.
-
----
-
-
-# Command List  
+### General Command  
 
 <details>
   <summary>autoplaylist</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_autoplaylist <add | remove> [URL]
+autoplaylist <add | remove> [URL]
     Adds or removes the specified song or currently playing song to/from the current playlist.
 
-cmd_autoplaylist add all
+autoplaylist add all
     Adds the entire queue to the guilds playlist.
 
-cmd_autoplaylist show
+autoplaylist show
     Show a list of existing playlist files.
 
-cmd_autoplaylist restart
+autoplaylist restart
     Reset the auto playlist queue, restarting at the first track unless randomized.
 
-cmd_autoplaylist set <NAME>
+autoplaylist set <NAME>
     Set a playlist as default for this guild and reloads the guild auto playlist.
 
 {% endhighlight %}
@@ -112,7 +37,7 @@ Manage auto playlist files and per-guild settings.
   <summary>blocksong</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_blocksong <add | remove> [SUBJECT]
+blocksong <add | remove> [SUBJECT]
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -129,11 +54,11 @@ This means adding 'Pie' will match 'cherry Pie' but not 'piecrust' in checks.<br
   <summary>blockuser</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_blockuser add <@USER>
+blockuser add <@USER>
     Block a mentioned user.
-cmd_blockuser remove <@USER>
+blockuser remove <@USER>
     Unblock a mentioned user.
-cmd_blockuser status <@USER>
+blockuser status <@USER>
     Show the block status of a mentioned user.
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -146,7 +71,7 @@ Blocked users are forbidden from using all bot commands.<br>
   <summary>botversion</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_botversion
+botversion
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display MusicBot version number in the chat.
@@ -156,7 +81,7 @@ Display MusicBot version number in the chat.
   <summary>clean</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_clean [RANGE]
+clean [RANGE]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Search for and remove bot messages and commands from the calling text channel.<br>
@@ -169,7 +94,7 @@ This command may be slow if larger ranges are given.<br>
   <summary>clear</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_clear
+clear
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Removes all songs currently in the queue.
@@ -179,7 +104,7 @@ Removes all songs currently in the queue.
   <summary>disconnect</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_disconnect
+disconnect
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Force MusicBot to disconnect from the discord server.
@@ -189,7 +114,7 @@ Force MusicBot to disconnect from the discord server.
   <summary>follow</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_follow
+follow
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Makes MusicBot follow a user when they change channels in a server.<br>
@@ -200,7 +125,7 @@ Makes MusicBot follow a user when they change channels in a server.<br>
   <summary>help</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_help [COMMAND]
+help [COMMAND]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Show usage and description of a command, or list all available commands.<br>
@@ -211,7 +136,7 @@ Show usage and description of a command, or list all available commands.<br>
   <summary>id</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_id [@USER]
+id [@USER]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display your Discord User ID, or the ID of a mentioned user.<br>
@@ -223,7 +148,7 @@ This command is deprecated in favor of Developer Mode in Discord clients.<br>
   <summary>karaoke</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_karaoke
+karaoke
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Toggle karaoke mode on or off. While enabled, only karaoke members may queue songs.<br>
@@ -235,7 +160,7 @@ Groups with BypassKaraokeMode permission control which members are Karaoke membe
   <summary>latency</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_latency
+latency
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display API latency and Voice latency if MusicBot is connected.
@@ -245,7 +170,7 @@ Display API latency and Voice latency if MusicBot is connected.
   <summary>leaveserver</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_leaveserver <NAME | ID>
+leaveserver <NAME | ID>
    Leave the discord server given by name or server ID.
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -258,7 +183,7 @@ Names are case-sensitive, so using an ID number is more reliable.<br>
   <summary>listids</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_listids [all | users | roles | channels]
+listids [all | users | roles | channels]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 List the Discord IDs for the selected category.<br>
@@ -271,7 +196,7 @@ This command is deprecated in favor of using Developer mode in Discord clients.<
   <summary>move</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_move <FROM> <TO>
+move <FROM> <TO>
     Move song at position FROM to position TO.
 
 {% endhighlight %}
@@ -285,7 +210,7 @@ Use the queue command to find track position numbers.<br>
   <summary>np</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_np
+np
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Show information on what is currently playing.
@@ -295,7 +220,7 @@ Show information on what is currently playing.
   <summary>pause</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_pause
+pause
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Pause playback if a track is currently playing.
@@ -305,7 +230,7 @@ Pause playback if a track is currently playing.
   <summary>perms</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_perms [@USER]
+perms [@USER]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Get a list of your permissions, or the permisions of the mentioned user.
@@ -315,7 +240,7 @@ Get a list of your permissions, or the permisions of the mentioned user.
   <summary>play</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_play <URL | SEARCH>
+play <URL | SEARCH>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Add a song to be played in the queue. If no song is playing or paused, playback will be started.<br>
@@ -331,7 +256,7 @@ MusicBot also supports Spotify URIs and URLs, but audio is fetched from youtube 
   <summary>playnext</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_playnext <URL | SEARCH>
+playnext <URL | SEARCH>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 A play command that adds the song as the next to play rather than last.<br>
@@ -343,7 +268,7 @@ Read help for the play command for information on supported inputs.<br>
   <summary>playnow</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_playnow <URL | SEARCH>
+playnow <URL | SEARCH>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 A play command which skips any current song and plays immediately.<br>
@@ -355,7 +280,7 @@ Read help for the play command for information on supported inputs.<br>
   <summary>pldump</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_pldump <URL>
+pldump <URL>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Dump the individual urls of a playlist to a file.
@@ -365,7 +290,7 @@ Dump the individual urls of a playlist to a file.
   <summary>queue</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_queue [PAGE]
+queue [PAGE]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display information about the current player queue.<br>
@@ -377,7 +302,7 @@ Optional page number shows later entries in the queue.<br>
   <summary>remove</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_remove [POSITION]
+remove [POSITION]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Remove a song from the queue, optionally at the given queue position.<br>
@@ -391,7 +316,7 @@ However, positions of all songs are changed when a new song starts playing.<br>
   <summary>repeat</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_repeat [all | song | playlist | on | off]
+repeat [all | song | playlist | on | off]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Toggles playlist or song looping.<br>
@@ -404,7 +329,7 @@ If no option is provided and the song is already repeating, repeating will be tu
   <summary>resetplaylist</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_resetplaylist
+resetplaylist
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Reset the auto playlist queue by copying it back into player memory.<br>
@@ -415,19 +340,19 @@ This command will be removed in a future version, replaced by the autoplaylist c
   <summary>restart</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_restart [soft]
+restart [soft]
     Attempt to reload without process restart. The default option.
 
-cmd_restart full
+restart full
     Attempt to restart the entire MusicBot process, reloading everything.
 
-cmd_restart uppip
+restart uppip
     Full restart, but attempt to update pip packages before restart.
 
-cmd_restart upgit
+restart upgit
     Full restart, but update MusicBot source code with git first.
 
-cmd_restart upgrade
+restart upgrade
     Attempt to update all dependency and source code before fully restarting.
 
 {% endhighlight %}
@@ -443,7 +368,7 @@ If you have a service manager, we recommend using it instead of this command for
   <summary>resume</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_resume
+resume
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Resumes playback if the player was previously paused.
@@ -453,10 +378,10 @@ Resumes playback if the player was previously paused.
   <summary>search</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_search [SERVICE] [NUMBER] <QUERY>
+search [SERVICE] [NUMBER] <QUERY>
     Search with service for a number of results with the search query.
 
-cmd_search [NUMBER] "<QUERY>"
+search [NUMBER] "<QUERY>"
     Search youtube for query but get a custom number of results.
     Note: the double-quotes are required in this case.
 
@@ -475,7 +400,7 @@ Select from these services:<br>
   <summary>seek</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_seek <TIME>
+seek <TIME>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Restarts the current song at the given time.<br>
@@ -489,7 +414,7 @@ Due to codec specifics in ffmpeg, this may not be accurate.<br>
   <summary>setnick</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setnick <NICK>
+setnick <NICK>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Change the MusicBot's nickname.
@@ -499,7 +424,7 @@ Change the MusicBot's nickname.
   <summary>setprefix</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setprefix <PREFIX>
+setprefix <PREFIX>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Override the default command prefix in the server.<br>
@@ -510,7 +435,7 @@ The option EnablePrefixPerGuild must be enabled first.
   <summary>shuffle</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_shuffle
+shuffle
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Shuffle all current tracks in the queue.
@@ -520,7 +445,7 @@ Shuffle all current tracks in the queue.
   <summary>shuffleplay</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_shuffleplay [URL]
+shuffleplay [URL]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Play command that shuffles playlist entries before adding them to the queue.<br>
@@ -531,7 +456,7 @@ Play command that shuffles playlist entries before adding them to the queue.<br>
   <summary>shutdown</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_shutdown
+shutdown
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Disconnect from all voice channels and close the MusicBot process.
@@ -541,7 +466,7 @@ Disconnect from all voice channels and close the MusicBot process.
   <summary>skip</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_skip [force | f]
+skip [force | f]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Skip or vote to skip the current playing song.<br>
@@ -554,7 +479,7 @@ If LegacySkip option is enabled, the force parameter can be ignored.<br>
   <summary>speed</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_speed [RATE]
+speed [RATE]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Change the playback speed of the currently playing track only.<br>
@@ -567,7 +492,7 @@ Streaming playback does not support speed adjustments.<br>
   <summary>stream</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_stream <URL>
+stream <URL>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Add a media URL to the queue as a Stream.<br>
@@ -581,7 +506,7 @@ Note: FFmpeg may drop the stream randomly or if connection hiccups happen.<br>
   <summary>summon</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_summon
+summon
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Tell MusicBot to join the channel you're in.
@@ -591,7 +516,7 @@ Tell MusicBot to join the channel you're in.
   <summary>uptime</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_uptime
+uptime
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Displays the MusicBot uptime, or time since last start / restart.
@@ -601,7 +526,7 @@ Displays the MusicBot uptime, or time since last start / restart.
   <summary>volume</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_volume [VOLUME]
+volume [VOLUME]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Set the output volume level of MusicBot from 1 to 100.<br>
@@ -610,13 +535,13 @@ The volume setting is retained until MusicBot is restarted.<br>
 
 </details>
 
-# Admin Commands  
+### Admin Commands  
 
 <details>
   <summary>botlatency</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_botlatency
+botlatency
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display latency information for Discord API and all connected voice clients.
@@ -626,7 +551,7 @@ Display latency information for Discord API and all connected voice clients.
   <summary>cache</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_cache <info | clear | update>
+cache <info | clear | update>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display information about cache storage or clear cache according to configured limits.<br>
@@ -637,7 +562,7 @@ Using update option will scan the cache for external changes before displaying d
   <summary>checkupdates</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_checkupdates
+checkupdates
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display the current bot version and check for updates to MusicBot or dependencies.<br>
@@ -648,31 +573,31 @@ Display the current bot version and check for updates to MusicBot or dependencie
   <summary>config</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_config missing
+config missing
     Shows help text about any missing config options.
 
-cmd_config diff
+config diff
     Lists the names of options which have been changed since loading config file.
 
-cmd_config list
+config list
     List the available config options and their sections.
 
-cmd_config reload
+config reload
     Reload the options.ini file from disk.
 
-cmd_config help <SECTION> <OPTION>
+config help <SECTION> <OPTION>
     Shows help text for a specific option.
 
-cmd_config show <SECTION> <OPTION>
+config show <SECTION> <OPTION>
     Display the current value of the option.
 
-cmd_config save <SECTION> <OPTION>
+config save <SECTION> <OPTION>
     Saves the current current value to the options file.
 
-cmd_config set <SECTION> <OPTION> <VALUE>
+config set <SECTION> <OPTION> <VALUE>
     Validates the option and sets the config for the session, but not to file.
 
-cmd_config reset <SECTION> <OPTION>
+config reset <SECTION> <OPTION>
     Reset the option to it's default value.
 
 {% endhighlight %}
@@ -684,7 +609,7 @@ Manage options.ini configuration from within Discord.
   <summary>joinserver</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_joinserver
+joinserver
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Generate an invite link that can be used to add this bot to another server.
@@ -694,7 +619,7 @@ Generate an invite link that can be used to add this bot to another server.
   <summary>option</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_option
+option
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Deprecated command, use the config command instead.
@@ -704,12 +629,12 @@ Deprecated command, use the config command instead.
   <summary>setalias</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setalias + <ALIAS> <CMD> [ARGS]
+setalias + <ALIAS> <CMD> [ARGS]
     Add an new alias with optional arguments.
 
-cmd_setalias - <ALIAS>
+setalias - <ALIAS>
     Remove an alias with the given name.
-cmd_setalias <save | load>
+setalias <save | load>
     Reload or save aliases from/to the config file.
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -720,7 +645,7 @@ Allows management of aliases from discord. To see aliases use the help command.
   <summary>setavatar</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setavatar [URL]
+setavatar [URL]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Change MusicBot's avatar.<br>
@@ -732,9 +657,9 @@ Attaching a file and omitting the url parameter also works.<br>
   <summary>setcookies</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setcookies
+setcookies
     Update the cookies.txt file using a cookies.txt attachment.
-cmd_setcookies [off | on]
+setcookies [off | on]
     Enable or disable cookies.txt file without deleting it.
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -754,7 +679,7 @@ WARNING:<br>
   <summary>setname</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setname <NAME>
+setname <NAME>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Change the bot's username on discord.Note: The API may limit name changes to twice per hour.
@@ -764,28 +689,28 @@ Change the bot's username on discord.Note: The API may limit name changes to twi
   <summary>setperms</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_setperms list
+setperms list
     Show loaded groups and list permission options.
 
-cmd_setperms reload
+setperms reload
     Reloads permissions from the permissions.ini file.
 
-cmd_setperms add <GROUP>
+setperms add <GROUP>
     Add new group with defaults.
 
-cmd_setperms remove <GROUP>
+setperms remove <GROUP>
     Remove existing group.
 
-cmd_setperms help <PERMISSION>
+setperms help <PERMISSION>
     Show help text for the permission option.
 
-cmd_setperms show <GROUP> <PERMISSION>
+setperms show <GROUP> <PERMISSION>
     Show permission value for given group and permission.
 
-cmd_setperms save <GROUP>
+setperms save <GROUP>
     Save permissions group to file.
 
-cmd_setperms set <GROUP> <PERMISSION> [VALUE]
+setperms set <GROUP> <PERMISSION> [VALUE]
     Set permission value for the group.
 
 {% endhighlight %}
@@ -793,13 +718,13 @@ cmd_setperms set <GROUP> <PERMISSION> [VALUE]
 Manage permissions.ini configuration from within discord.
 </details>
 
-# Dev Commands  
+### Dev Commands  
 
 <details>
   <summary>breakpoint</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_breakpoint
+breakpoint
 {% endhighlight %}
 <strong>Description:</strong><br>  
 This command issues a log at level CRITICAL, but does nothing else.<br>
@@ -811,7 +736,7 @@ Can be used to manually pin-point events in the MusicBot log file.<br>
   <summary>debug</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_debug [PYCODE]
+debug [PYCODE]
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -832,7 +757,7 @@ The danger of this command cannot be understated. Do not use it or give access t
   <summary>makemarkdown</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_makemarkdown < opts | perms | help >
+makemarkdown < opts | perms | help >
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Create 'markdown' for options, permissions, or commands from the code.<br>
@@ -843,19 +768,19 @@ The output is used to update github pages and is thus unsuitable for normal refe
   <summary>objgraph</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_objgraph
+objgraph
     View most common types reported by objgraph.
 
-cmd_objgraph growth
+objgraph growth
     View limited objgraph.show_growth() output.
 
-cmd_objgraph leaks
+objgraph leaks
     View most common types of leaking objects.
 
-cmd_objgraph leakstats
+objgraph leakstats
     View typestats of leaking objects.
 
-cmd_objgraph [objgraph.function(...)]
+objgraph [objgraph.function(...)]
     Evaluate the given function and args on objgraph.
 
 {% endhighlight %}
@@ -870,9 +795,12 @@ Since this method evaluates arbitrary code, it is considered dangerous like the 
   <summary>testready</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-cmd_testready
+testready
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Command used for testing. It prints a list of commands which can be verified by a test suite.
 </details>
 
+---
+
+<a class="expand-all-details">Show/Hide All</a>
