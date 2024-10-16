@@ -6,10 +6,10 @@ services:
       dockerfile: Dockerfile
     hostname: musicbot
     platform: ${PLATFORM:-linux/amd64}
-    env_file:
-      - .env
+    environment:
+      - APP_ENV=docker
     volumes:
-      - ./config:/musicbot/config/
+      - ./config:/musicbot/config
       - ./audio_cache:/musicbot/audio_cache
       - ./data:/musicbot/data
       - ./logs:/musicbot/logs

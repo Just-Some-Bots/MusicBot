@@ -11,6 +11,7 @@ MusicBot is the original Discord music bot written for [Python](https://www.pyth
 ![Main](https://i.imgur.com/FWcHtcS.png)
 
 ## Setup
+
 Setting up the MusicBot is relatively painless - just follow one of the [guides](https://just-some-bots.github.io/MusicBot/). After that, configure the bot to ensure its connection to Discord.
 
 The main configuration file is `config/options.ini`, but it is not included by default. Simply make a copy of `example_options.ini` and rename it to `options.ini`. See [`example_options.ini`](./config/example_options.ini) for more information about configurations.
@@ -19,7 +20,52 @@ The main configuration file is `config/options.ini`, but it is not included by d
 
 There are many commands that can be used with the bot. Most notably, the `play <url>` command (preceded by your command prefix), which will download, process, and play a song from YouTube or a similar site. A full list of commands is available [here](https://just-some-bots.github.io/MusicBot/using/commands/ "Commands").
 
-### Further reading
+## Docker Usage
+
+MusicBot can be run inside a container via either `docker` or `docker compose`. Be sure to setup the `config/options.ini` as described in [Setup](#setup).
+
+[Install docker](https://docs.docker.com/compose/install/) first, then run follow the steps in [docker](#docker) or [docker compose](#docker-compose) to get started.
+
+### Docker
+
+<!-- TODO: add ghcr.io / docker.io image steps -->
+<!-- docker pull ghcr.io/just-some-bots/musicbot:latest -->
+<!-- docker pull justsomebots/musicbot:latest -->
+
+```bash
+# build the image
+docker build -t musicbot .
+
+# run the container
+docker run -it -d \
+    --name musicbot \
+    -v $(pwd)/config:/musicbot/config \
+    -v $(pwd)/audio_cache:/musicbot/audio_cache \
+    -v $(pwd)/data:/musicbot/data \
+    -v $(pwd)/logs:/musicbot/logs \
+    musicbot
+
+# stop the container
+docker stop musicbot
+
+# remove the container
+docker rm musicbot
+```
+
+### Docker Compose
+
+```bash
+# run the container
+docker compose up -d
+
+# stop the container
+docker compose stop
+
+# remove the container
+docker compose down
+```
+
+## Further reading
 
 * [Support Discord server](https://discord.gg/bots)
 * [Project license](LICENSE)
