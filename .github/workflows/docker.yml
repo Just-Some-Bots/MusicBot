@@ -57,11 +57,16 @@ jobs:
           username: ${{ env.REGISTRY_USER }}
           password: ${{ env.REGISTRY_PASS }}
 
-      - name: Extract image name from Dockerfile
+      - name: Set image name
         id: image_name
         run: |
-          IMAGE=$(grep "LABEL org.opencontainers.image.title" Dockerfile | cut -d'"' -f2)
+          if [ -n "${{ env.IMAGE }}" ]; then
+            IMAGE="${{ env.IMAGE }}"
+          else
+            IMAGE=$(grep "LABEL org.opencontainers.image.title" Dockerfile | cut -d'"' -f2)
+          fi
           echo "IMAGE=$IMAGE" >> $GITHUB_OUTPUT
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
       - name: Docker meta
         id: meta
