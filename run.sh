@@ -4,6 +4,22 @@
 # make sure we're in MusicBot directory...
 cd "$(dirname "${BASH_SOURCE[0]}")" || { echo "Could not change directory to MusicBot."; exit 1; }
 
+# provides an exit that also deactivates venv.
+function do_exit() {
+    if [ "${VIRTUAL_ENV}" != "" ] ; then
+        echo "Leaving MusicBot Venv..."
+        deactivate
+    fi
+    exit "$1"
+}
+
+# attempt to find the "standard" venv and activate it.
+if [ -f "../bin/activate" ] ; then
+    echo "Detected MusicBot Venv & Loading it..."
+    # shellcheck disable=SC1091
+    source "../bin/activate"
+fi
+
 # Suported versions of python using only major.minor format
 PySupported=("3.8" "3.9" "3.10" "3.11" "3.12")
 
@@ -60,7 +76,7 @@ done
 # if we don't have a good version for python, bail.
 if [[ "$VerGood" == "0" ]]; then
     echo "Python 3.8.7 or higher is required to run MusicBot."
-    exit 1
+    do_exit 1
 fi
 
 echo "Using '${Python_Bin}' to launch MusicBot..."
@@ -69,4 +85,4 @@ echo "Using '${Python_Bin}' to launch MusicBot..."
 $Python_Bin run.py "$@"
 
 # exit using the code that python exited with.
-exit $?
+do_exit $?

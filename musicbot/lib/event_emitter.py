@@ -1,7 +1,12 @@
 import asyncio
 import collections
 import traceback
-from typing import Any, Callable, DefaultDict, List
+from typing import TYPE_CHECKING, Any, Callable, DefaultDict, List, Set
+
+if TYPE_CHECKING:
+    AsyncTask = asyncio.Task[Any]
+else:
+    AsyncTask = asyncio.Task
 
 EventCallback = Callable[..., Any]
 EventList = List[EventCallback]
@@ -16,6 +21,7 @@ class EventEmitter:
         """
         self._events: EventDict = collections.defaultdict(list)
         self.loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+        self._task_pool: Set[AsyncTask] = set()
 
     def emit(self, event: str, *args: Any, **kwargs: Any) -> None:
         """
@@ -28,7 +34,14 @@ class EventEmitter:
         for cb in list(self._events[event]):
             try:
                 if asyncio.iscoroutinefunction(cb):
-                    asyncio.ensure_future(cb(*args, **kwargs), loop=self.loop)
+                    # Create the task and save a reference to ensure it is not
+                    # garbage collected early.
+                    t = self.loop.create_task(
+                        cb(*args, **kwargs),
+                        name=f"MB_EE_{type(self).__name__}_{cb.__name__}",
+                    )
+                    self._task_pool.add(t)
+                    t.add_done_callback(self._task_pool.discard)
                 else:
                     cb(*args, **kwargs)
 
