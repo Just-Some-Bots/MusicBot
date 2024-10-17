@@ -17,12 +17,10 @@ It means you can use `add` or `remove` as the first parameter.  The second param
 With the default prefix, an example of using the command would be:  
 `!autoplaylist add https://link.to/my/song.mp3`  
 
----
 
-<a class="expand-all-details">Show/Hide All</a>
+### General Commands  
 
-### General Command  
-
+<p><a class="expand-all-details">Show/Hide All</a></p>
 <details>
   <summary>autoplaylist</summary>
 <strong>Example usage:</strong><br>  
@@ -44,7 +42,8 @@ autoplaylist set <NAME>
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Manage auto playlist files and per-guild settings.
+Manage auto playlist files and per-guild settings.<br>
+
 </details>
 
 <details>
@@ -88,7 +87,8 @@ Blocked users are forbidden from using all bot commands.<br>
 botversion
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Display MusicBot version number in the chat.
+Display MusicBot version number in the chat.<br>
+
 </details>
 
 <details>
@@ -111,7 +111,8 @@ This command may be slow if larger ranges are given.<br>
 clear
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Removes all songs currently in the queue.
+Removes all songs currently in the queue.<br>
+
 </details>
 
 <details>
@@ -121,7 +122,8 @@ Removes all songs currently in the queue.
 disconnect
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Force MusicBot to disconnect from the discord server.
+Force MusicBot to disconnect from the discord server.<br>
+
 </details>
 
 <details>
@@ -177,7 +179,8 @@ Groups with BypassKaraokeMode permission control which members are Karaoke membe
 latency
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Display API latency and Voice latency if MusicBot is connected.
+Display API latency and Voice latency if MusicBot is connected.<br>
+
 </details>
 
 <details>
@@ -227,7 +230,8 @@ Use the queue command to find track position numbers.<br>
 np
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Show information on what is currently playing.
+Show information on what is currently playing.<br>
+
 </details>
 
 <details>
@@ -237,7 +241,8 @@ Show information on what is currently playing.
 pause
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Pause playback if a track is currently playing.
+Pause playback if a track is currently playing.<br>
+
 </details>
 
 <details>
@@ -247,7 +252,8 @@ Pause playback if a track is currently playing.
 perms [@USER]
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Get a list of your permissions, or the permisions of the mentioned user.
+Get a list of your permissions, or the permisions of the mentioned user.<br>
+
 </details>
 
 <details>
@@ -297,7 +303,8 @@ Read help for the play command for information on supported inputs.<br>
 pldump <URL>
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Dump the individual urls of a playlist to a file.
+Dump the individual urls of a playlist to a file.<br>
+
 </details>
 
 <details>
@@ -347,7 +354,8 @@ resetplaylist
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Reset the auto playlist queue by copying it back into player memory.<br>
-This command will be removed in a future version, replaced by the autoplaylist command(s).
+This command will be removed in a future version, replaced by the autoplaylist command(s).<br>
+
 </details>
 
 <details>
@@ -385,7 +393,8 @@ If you have a service manager, we recommend using it instead of this command for
 resume
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Resumes playback if the player was previously paused.
+Resumes playback if the player was previously paused.<br>
+
 </details>
 
 <details>
@@ -431,7 +440,8 @@ Due to codec specifics in ffmpeg, this may not be accurate.<br>
 setnick <NICK>
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Change the MusicBot's nickname.
+Change the MusicBot's nickname.<br>
+
 </details>
 
 <details>
@@ -442,7 +452,8 @@ setprefix <PREFIX>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Override the default command prefix in the server.<br>
-The option EnablePrefixPerGuild must be enabled first.
+The option EnablePrefixPerGuild must be enabled first.<br>
+
 </details>
 
 <details>
@@ -452,7 +463,8 @@ The option EnablePrefixPerGuild must be enabled first.
 shuffle
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Shuffle all current tracks in the queue.
+Shuffle all current tracks in the queue.<br>
+
 </details>
 
 <details>
@@ -473,7 +485,8 @@ Play command that shuffles playlist entries before adding them to the queue.<br>
 shutdown
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Disconnect from all voice channels and close the MusicBot process.
+Disconnect from all voice channels and close the MusicBot process.<br>
+
 </details>
 
 <details>
@@ -523,7 +536,8 @@ Note: FFmpeg may drop the stream randomly or if connection hiccups happen.<br>
 summon
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Tell MusicBot to join the channel you're in.
+Tell MusicBot to join the channel you're in.<br>
+
 </details>
 
 <details>
@@ -533,7 +547,8 @@ Tell MusicBot to join the channel you're in.
 uptime
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Displays the MusicBot uptime, or time since last start / restart.
+Displays the MusicBot uptime, or time since last start / restart.<br>
+
 </details>
 
 <details>
@@ -549,7 +564,7 @@ The volume setting is retained until MusicBot is restarted.<br>
 
 </details>
 
-### Admin Commands  
+### Owner Commands  
 
 <details>
   <summary>botlatency</summary>
@@ -558,7 +573,8 @@ The volume setting is retained until MusicBot is restarted.<br>
 botlatency
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Display latency information for Discord API and all connected voice clients.
+Display latency information for Discord API and all connected voice clients.<br>
+
 </details>
 
 <details>
@@ -569,7 +585,8 @@ cache <info | clear | update>
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Display information about cache storage or clear cache according to configured limits.<br>
-Using update option will scan the cache for external changes before displaying details.
+Using update option will scan the cache for external changes before displaying details.<br>
+
 </details>
 
 <details>
@@ -616,7 +633,8 @@ config reset <SECTION> <OPTION>
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Manage options.ini configuration from within Discord.
+Manage options.ini configuration from within Discord.<br>
+
 </details>
 
 <details>
@@ -626,7 +644,8 @@ Manage options.ini configuration from within Discord.
 joinserver
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Generate an invite link that can be used to add this bot to another server.
+Generate an invite link that can be used to add this bot to another server.<br>
+
 </details>
 
 <details>
@@ -636,7 +655,8 @@ Generate an invite link that can be used to add this bot to another server.
 option
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Deprecated command, use the config command instead.
+Deprecated command, use the config command instead.<br>
+
 </details>
 
 <details>
@@ -652,7 +672,8 @@ setalias <save | load>
     Reload or save aliases from/to the config file.
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Allows management of aliases from discord. To see aliases use the help command.
+Allows management of aliases from discord. To see aliases use the help command.<br>
+
 </details>
 
 <details>
@@ -686,7 +707,8 @@ WARNING:<br>
   Copying cookies can risk exposing your personal information or accounts,<br>
   and may result in account bans or theft if you are not careful.<br>
   It is not recommended due to these risks, and you should not use this<br>
-  feature if you do not understand how to avoid the risks.
+  feature if you do not understand how to avoid the risks.<br>
+
 </details>
 
 <details>
@@ -696,7 +718,8 @@ WARNING:<br>
 setname <NAME>
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Change the bot's username on discord.Note: The API may limit name changes to twice per hour.
+Change the bot's username on discord.Note: The API may limit name changes to twice per hour.<br>
+
 </details>
 
 <details>
@@ -729,7 +752,8 @@ setperms set <GROUP> <PERMISSION> [VALUE]
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Manage permissions.ini configuration from within discord.
+Manage permissions.ini configuration from within discord.<br>
+
 </details>
 
 ### Dev Commands  
@@ -768,6 +792,17 @@ The danger of this command cannot be understated. Do not use it or give access t
 </details>
 
 <details>
+  <summary>makeini</summary>
+<strong>Example usage:</strong><br>  
+{% highlight text %}
+makeini
+{% endhighlight %}
+<strong>Description:</strong><br>  
+Makes default INI files.<br>
+
+</details>
+
+<details>
   <summary>makemarkdown</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
@@ -775,7 +810,8 @@ makemarkdown < opts | perms | help >
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Create 'markdown' for options, permissions, or commands from the code.<br>
-The output is used to update github pages and is thus unsuitable for normal reference use.
+The output is used to update github pages and is thus unsuitable for normal reference use.<br>
+
 </details>
 
 <details>
@@ -812,7 +848,8 @@ Since this method evaluates arbitrary code, it is considered dangerous like the 
 testready
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Command used for testing. It prints a list of commands which can be verified by a test suite.
+Command used for testing. It prints a list of commands which can be verified by a test suite.<br>
+
 </details>
 
 ---
