@@ -16,6 +16,15 @@ The bot was developed to support YouTube and SoundCloud URLs, but it can theoret
 
 Currently, the bot can't play music that is saved on your computer locally, though it is a [planned feature](https://github.com/Just-Some-Bots/MusicBot/issues/168).
 
+#### How can I sign into youtube?
+
+By using the experimental OAuth2 integration, you can use a youtube/google account to sign in.  
+First enable `YtdlpUseOauth2` in your options file.  
+Next, update the `YtdlpOauth2URL` option with a youtube video URL.  
+While the URL is set, you should be prompted to verify at MusicBot startup.  Otherwise MusicBot will prompt when a youtube video is requested.  
+
+In most cases you should only need to verify once.  MusicBot will update the oauth token as needed while making requests to youtube.  
+
 #### Can I modify the bot?
 
 MusicBot is licensed under MIT. If you want to modify it, you can. Please bare in mind that we won't give any support for you doing this. If you don't know how to write asynchronous code in Python, don't even attempt this.
