@@ -1,8 +1,23 @@
 services:
   musicbot:
-    build: .
+    container_name: musicbot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: musicbot
+    platform: ${PLATFORM:-linux/amd64}
+    environment:
+      - APP_ENV=docker
     volumes:
-      - ./config:/musicbot/config/
+      - ./config:/musicbot/config
       - ./audio_cache:/musicbot/audio_cache
       - ./data:/musicbot/data
       - ./logs:/musicbot/logs
+    networks:
+      - musicbot
+    working_dir: /musicbot
+
+networks:
+  musicbot:
+    name: musicbot
+    driver: bridge

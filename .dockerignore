@@ -1,3 +1,12 @@
+# ETC
+.dive-ci
+.editorconfig
+.env
+.hadolint.yaml
+**/*.example
+**/*.md
+LICENSE
+
 # Runtime
 audio_cache/
 bin/
@@ -8,11 +17,14 @@ musicbot/lib/__pycache__/
 
 # Docker
 .dockerignore
+docker-compose.example.yml
+docker-compose.yml
 Dockerfile
 
 # Git
 .git/
 .gitattributes
+.github/
 .gitignore
 
 # IDE

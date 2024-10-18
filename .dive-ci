@@ -1,0 +1,4 @@
+rules:
+  lowestEfficiency: 0.97          # ratio between 0-1
+  highestWastedBytes: 20MB        # B, KB, MB, and GB
+  highestUserWastedPercent: 0.20  # ratio between 0-1
