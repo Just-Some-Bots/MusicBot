@@ -831,9 +831,8 @@ class MusicBot(discord.Client):
                     "MusicBot connection to voice was cancelled. This is odd. Maybe restart?"
                 ) from e
 
-        # Moving the bot does not grant it permissions to speak automatically, 
+        # Moving the bot does not grant it permissions to speak automatically,
         # however stage mods can invite it to speak
-        # TODO: Having both forbidden and http in one feels not great... 
         if isinstance(channel, discord.StageChannel):
             await self.handle_stage_channels(channel)
 
@@ -8081,26 +8080,43 @@ class MusicBot(discord.Client):
 
         # handle cases where the bot was moved into a stage channel
         # this seems to be glitchy at best, I had to make it leave and rejoin to get audio to work again
-        # 
-        if before.channel and after.channel and isinstance(after.channel, discord.StageChannel):
+        if (
+            before.channel
+            and after.channel
+            and isinstance(after.channel, discord.StageChannel)
+        ):
             if after.channel != before.channel:
                 await self.handle_stage_channels(after.channel)
+            elif after.suppress and not before.suppress:
+                log.info(f"Bot was moved  to the audience in {after.channel} by staff.")
+                if player.is_playing:
+                    player.pause()
+                    log.info("Player is pausing.")
+                return
+            elif not after.suppress and before.suppress:
+                log.info(f"Bot was made speaker in {after.channel} by staff.")
+                if player.is_paused:
+                    player.resume()
+                    log.info("Player is resuming.")
+                return
 
     async def handle_stage_channels(self, channel: discord.StageChannel) -> None:
         """
         Handles actions related to a StageChannel, such as unmuting the bot
         and requesting permission to speak if necessary.
 
-        :param channel: 
-            The StageChannel to handle. 
+        :param channel:
+            The StageChannel to handle.
 
         :raises: musicbot.exceptions.PermissionsError
             If MusicBot does not have permissions required to unmute or request to speak.
         """
 
         # Check if already handling stage channels
-        if hasattr(self, 'handling_stage_channel') and self.handling_stage_channel:
-            log.info("Ignoring stage channel handling call, as we're already processing.")
+        if hasattr(self, "handling_stage_channel") and self.handling_stage_channel:
+            log.info(
+                "Ignoring stage channel handling call, as we're already processing."
+            )
             return
 
         # Set the flag to prevent re-entry
@@ -8110,16 +8126,27 @@ class MusicBot(discord.Client):
             await channel.guild.me.edit(suppress=False)
             log.info(f"Connected to {channel} and unmuted successfully.")
             return
-        except (discord.Forbidden, discord.HTTPException):
-            log.exception("Missing permissions to unmute. Attempting to request to speak.")
+        except (discord.Forbidden, discord.HTTPException) as e:
+            if isinstance(e, discord.Forbidden):
+                log.info(
+                    "Missing permissions to unmute. Attempting to request to speak."
+                )
+            else:
+                log.debug(f"HTTP exception occured: {e}")
 
             try:
                 await channel.guild.me.request_to_speak()
                 log.info(f"Requested permission to speak in {channel}.")
                 return
-            except (discord.Forbidden, discord.HTTPException):
-                log.exception("Failed to request to speak. Waiting for permission to play audio.")
-                raise exceptions.PermissionsError("Unable to request to speak, missing permissions or other issues.")
+            except discord.Forbidden:
+                log.exception(
+                    "Failed to request to speak. Waiting for permission to play audio."
+                )
+                raise exceptions.PermissionsError(
+                    "Unable to request to speak, missing permissions"
+                )
+            except discord.HTTPException as e:
+                log.debug(f"HTTP exception occured: {e}")
         finally:
             # Reset the handling flag after the attempt is complete
             self.handling_stage_channel = False
