@@ -831,14 +831,23 @@ class MusicBot(discord.Client):
                     "MusicBot connection to voice was cancelled. This is odd. Maybe restart?"
                 ) from e
 
-        # TODO: look into Stage channel handling and test this at some point.
-        # It is likely that we'll want to respond to a voice state update instead
-        # to make sure manually moving a bot to a StageChannel gives it speaker.
+        # TODO: Moving the bot does not grant it permissions to speak automatically, 
+        # however stage mods can invite to speak which should be fine
+        # TODO: Add this logic to voice state updates probably?
+        # TODO: Having both forbidden and http in one feels not great... 
         if isinstance(channel, discord.StageChannel):
             try:
                 await channel.guild.me.edit(suppress=False)
+                log.info(f"Connected to {channel} and unmuted successfully.")
             except (discord.Forbidden, discord.HTTPException):
-                log.exception("Something broke in StageChannel handling.")
+                log.exception("Missing permissions to unmute. Attempting to request to speak.")
+
+                try:
+                    await channel.guild.me.request_to_speak()
+                    log.info(f"Requested permission to speak in {channel}.")
+                except (discord.Forbidden, discord.HTTPException):
+                    log.exception("Failed to request to speak. Waiting for permission to play audio.")
+                    raise exceptions.PermissionsError("Unable to request to speak, missing permissions or other issues.")
 
         return client
 
