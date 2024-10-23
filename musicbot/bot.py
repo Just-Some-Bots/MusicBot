@@ -8080,9 +8080,10 @@ class MusicBot(discord.Client):
                     player.resume()
 
         # handle cases where the bot was moved into a stage channel
-        # this needs further testing
-        if after.channel and isinstance(after.channel, discord.StageChannel):
-            if member == self.user:
+        # this seems to be glitchy at best, I had to make it leave and rejoin to get audio to work again
+        # 
+        if before.channel and after.channel and isinstance(after.channel, discord.StageChannel):
+            if after.channel != before.channel:
                 await self.handle_stage_channels(after.channel)
 
     async def handle_stage_channels(self, channel: discord.StageChannel) -> None:
@@ -8094,33 +8095,34 @@ class MusicBot(discord.Client):
             The StageChannel to handle. 
 
         :raises: musicbot.exceptions.PermissionsError
-            If MusicBot does not have permissions required to join or speak in the `channel`.
+            If MusicBot does not have permissions required to unmute or request to speak.
         """
 
-        # TODO: Add check for if we get moved back to the audience. 
+        # Check if already handling stage channels
+        if hasattr(self, 'handling_stage_channel') and self.handling_stage_channel:
+            log.info("Ignoring stage channel handling call, as we're already processing.")
+            return
 
-        setattr(self, 'stage_channel_handling', True) # set this so we don't infinity loop
-
-        if hasattr(self, 'stage_channel_handling'):
-            log.warning("Already handling stage channel actions, skipping...")
-            return # Prevent re-entry
+        # Set the flag to prevent re-entry
+        self.handling_stage_channel = True
 
         try:
             await channel.guild.me.edit(suppress=False)
             log.info(f"Connected to {channel} and unmuted successfully.")
+            return
         except (discord.Forbidden, discord.HTTPException):
             log.exception("Missing permissions to unmute. Attempting to request to speak.")
 
             try:
                 await channel.guild.me.request_to_speak()
                 log.info(f"Requested permission to speak in {channel}.")
+                return
             except (discord.Forbidden, discord.HTTPException):
-                    log.exception("Failed to request to speak. Waiting for permission to play audio.")
-                    raise exceptions.PermissionsError("Unable to request to speak, missing permissions or other issues.")
+                log.exception("Failed to request to speak. Waiting for permission to play audio.")
+                raise exceptions.PermissionsError("Unable to request to speak, missing permissions or other issues.")
         finally:
-            await asyncio.sleep(5) # Wait before allowing another handling so we don't loop infinity
-            del self.stage_channel_handling
-
+            # Reset the handling flag after the attempt is complete
+            self.handling_stage_channel = False
 
     async def _handle_api_disconnect(self, before: discord.VoiceState) -> bool:
         """
