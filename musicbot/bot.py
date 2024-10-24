@@ -834,7 +834,7 @@ class MusicBot(discord.Client):
         # Moving the bot does not grant it permissions to speak automatically,
         # however stage mods can invite it to speak
         if isinstance(channel, discord.StageChannel):
-            await self.handle_stage_channels(channel)
+            await self._handle_stage_channels(channel)
 
         return client
 
@@ -8085,7 +8085,7 @@ class MusicBot(discord.Client):
             and isinstance(after.channel, discord.StageChannel)
         ):
             if after.channel != before.channel:
-                await self.handle_stage_channels(after.channel)
+                await self._handle_stage_channels(after.channel)
             # handles bot moved to audience    
             elif after.suppress and not before.suppress:
                 log.info(f"Bot was moved  to the audience in {after.channel} by staff.")
@@ -8102,7 +8102,7 @@ class MusicBot(discord.Client):
                     log.info("Player is resuming.")
                 return
 
-    async def handle_stage_channels(self, channel: discord.StageChannel) -> None:
+    async def _handle_stage_channels(self, channel: discord.StageChannel) -> None:
         """
         Handles actions related to a StageChannel, such as unmuting the bot
         and requesting permission to speak if necessary.
