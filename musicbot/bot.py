@@ -8079,7 +8079,6 @@ class MusicBot(discord.Client):
                     player.resume()
 
         # handle cases where the bot was moved into a stage channel
-        # this seems to be glitchy at best, I had to make it leave and rejoin to get audio to work again
         if (
             before.channel
             and after.channel
@@ -8087,12 +8086,14 @@ class MusicBot(discord.Client):
         ):
             if after.channel != before.channel:
                 await self.handle_stage_channels(after.channel)
+            # handles bot moved to audience    
             elif after.suppress and not before.suppress:
                 log.info(f"Bot was moved  to the audience in {after.channel} by staff.")
                 if player.is_playing:
                     player.pause()
                     log.info("Player is pausing.")
                 return
+            # handles bot invited to speak    
             elif not after.suppress and before.suppress:
                 log.info(f"Bot was made speaker in {after.channel} by staff.")
                 if player.is_paused:
