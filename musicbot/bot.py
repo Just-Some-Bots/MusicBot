@@ -8132,6 +8132,7 @@ class MusicBot(discord.Client):
                 log.info(
                     "Missing permissions to unmute. Attempting to request to speak."
                 )
+                raise exceptions.PermissionsError("Missing permissions to unmute. Will try to request to speak.")
             else:
                 log.debug(f"HTTP exception occured: {e}")
 
