@@ -8093,7 +8093,8 @@ class MusicBot(discord.Client):
                     player.pause()
                     log.info("Player is pausing.")
                 return
-            # handles bot invited to speak    
+            # handles bot invited to speak
+            # TODO: seperate from initial request with perms to unmute 
             elif not after.suppress and before.suppress:
                 log.info(f"Bot was made speaker in {after.channel} by staff.")
                 if player.is_paused:
