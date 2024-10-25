@@ -8113,45 +8113,34 @@ class MusicBot(discord.Client):
             If MusicBot does not have permissions required to unmute or request to speak.
         """
 
-        # Check if already handling stage channels
-        if hasattr(self, "handling_stage_channel") and self.handling_stage_channel:
-            log.info(
-                "Ignoring stage channel handling call, as we're already processing."
-            )
-            return
-
-        # Set the flag to prevent re-entry
-        self.handling_stage_channel = True
-
-        try:
-            await channel.guild.me.edit(suppress=False)
-            log.info(f"Connected to {channel} and unmuted successfully.")
-            return
-        except (discord.Forbidden, discord.HTTPException) as e:
-            if isinstance(e, discord.Forbidden):
-                log.info(
-                    "Missing permissions to unmute. Attempting to request to speak."
-                )
-                raise exceptions.PermissionsError("Missing permissions to unmute. Will try to request to speak.")
-            else:
-                log.debug(f"HTTP exception occured: {e}")
-
+        lock_key = f"stage_channel:{channel.id}"
+        async with self.aiolocks[lock_key]:
             try:
-                await channel.guild.me.request_to_speak()
-                log.info(f"Requested permission to speak in {channel}.")
+                await channel.guild.me.edit(suppress=False)
+                log.info(f"Connected to {channel} and unmuted successfully.")
                 return
-            except discord.Forbidden:
-                log.exception(
-                    "Failed to request to speak. Waiting for permission to play audio."
-                )
-                raise exceptions.PermissionsError(
-                    "Unable to request to speak, missing permissions"
-                )
-            except discord.HTTPException as e:
-                log.debug(f"HTTP exception occured: {e}")
-        finally:
-            # Reset the handling flag after the attempt is complete
-            self.handling_stage_channel = False
+            except (discord.Forbidden, discord.HTTPException) as e:
+                if isinstance(e, discord.Forbidden):
+                    log.info(
+                        "Missing permissions to unmute. Attempting to request to speak."
+                    )
+                    raise exceptions.PermissionsError("Missing permissions to unmute. Will try to request to speak.")
+                else:
+                    log.debug(f"HTTP exception occured: {e}")
+
+                try:
+                    await channel.guild.me.request_to_speak()
+                    log.info(f"Requested permission to speak in {channel}.")
+                    return
+                except discord.Forbidden:
+                    log.exception(
+                        "Failed to request to speak. Waiting for permission to play audio."
+                    )
+                    raise exceptions.PermissionsError(
+                        "Unable to request to speak, missing permissions"
+                    )
+                except discord.HTTPException as e:
+                    log.debug(f"HTTP exception occured: {e}")
 
     async def _handle_api_disconnect(self, before: discord.VoiceState) -> bool:
         """
