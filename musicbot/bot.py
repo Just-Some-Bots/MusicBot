@@ -8086,7 +8086,7 @@ class MusicBot(discord.Client):
         ):
             if after.channel != before.channel:
                 await self._handle_stage_channels(after.channel)
-            # handles bot moved to audience    
+            # handles bot moved to audience
             elif after.suppress and not before.suppress:
                 log.info(f"Bot was moved  to the audience in {after.channel}.")
                 if player.is_playing:
@@ -8124,7 +8124,9 @@ class MusicBot(discord.Client):
                     log.info(
                         "Missing permissions to unmute. Attempting to request to speak."
                     )
-                    raise exceptions.PermissionsError("Missing permissions to unmute. Will try to request to speak.")
+                    raise exceptions.PermissionsError(
+                        "Missing permissions to unmute. Will try to request to speak."
+                    )
                 else:
                     log.debug(f"HTTP exception occured: {e}")
 
