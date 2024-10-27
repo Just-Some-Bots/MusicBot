@@ -1,0 +1,13 @@
+[tool.black]
+exclude = '''
+/\.github/
+/\.travis/
+/audio_cache/
+/bin/
+/config/
+/data/
+/logs/
+\.gitignore
+\.travis.yml
+/musicbot/__pycache__/
+'''
