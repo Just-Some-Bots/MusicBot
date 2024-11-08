@@ -16,4 +16,5 @@ If you require additional help beyond what you can find on this site, join our [
 [Permissions Guide]({{ site.baseurl }}/using/permissions/)  
 [Command Reference]({{ site.baseurl }}/using/commands/)  
 [Aliases Guide]({{ site.baseurl }}/using/aliases/)  
+[Command Line Options]({{ site.baseurl }}/using/cliargs/)  
 
