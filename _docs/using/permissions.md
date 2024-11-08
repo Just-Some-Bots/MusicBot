@@ -70,19 +70,22 @@ Command names should be separated by spaces.<br>
 <details>
   <summary>GrantToRoles</summary>
 
-List of Discord server role IDs that are granted this permission group. This option is ignored if UserList is set.<br>  
+List of Discord server role IDs that are granted this permission group.<br>
+This option is ignored if UserList is set.<br>  
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
   <summary>UserList</summary>
 
-List of Discord member IDs that are granted permissions in this group. This option overrides GrantToRoles.<br>  
+List of Discord member IDs that are granted permissions in this group.<br>
+This option overrides GrantToRoles.<br>  
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
   <summary>MaxSongs</summary>
 
-Maximum number of songs a user is allowed to queue. A value of 0 means unlimited.<br>  
+Maximum number of songs a user is allowed to queue.<br>
+A value of 0 means unlimited.<br>  
 <strong>Default Value:</strong> <code>8</code>  
 </details>  
 <details>
@@ -95,7 +98,8 @@ This permission may not be enforced if song duration is not available.<br>
 <details>
   <summary>MaxPlaylistLength</summary>
 
-Maximum number of songs a playlist is allowed to have to be queued. A value of 0 means unlimited.<br>  
+Maximum number of songs a playlist is allowed to have when queued.<br>
+A value of 0 means unlimited.<br>  
 <strong>Default Value:</strong> <code>0</code>  
 </details>  
 <details>
@@ -158,10 +162,10 @@ To allow all extractors, add `__` without quotes to the list.<br>
 Services/extractors supported by yt-dlp are listed here:<br>
   https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md <br>
 <br>
-MusicBot also provides one custom service `spotify:musicbot` to enable or disable spotify API extraction.<br>
+MusicBot also provides one custom service `spotify:musicbot` to enable or disable Spotify API extraction.<br>
 NOTICE: MusicBot might not support all services available to yt-dlp!<br>
 <br>  
-<strong>Default Value:</strong> <code>generic, spotify:musicbot, youtube, Bandcamp, soundcloud</code>  
+<strong>Default Value:</strong> <code>Bandcamp, youtube, spotify:musicbot, soundcloud, generic</code>  
 </details>
 
 ---

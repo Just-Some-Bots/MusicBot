@@ -21,6 +21,7 @@ With the default prefix, an example of using the command would be:
 ### General Commands  
 
 <p><a class="expand-all-details">Show/Hide All</a></p>
+
 <details>
   <summary>autoplaylist</summary>
 <strong>Example usage:</strong><br>  
@@ -51,7 +52,6 @@ Manage auto playlist files and per-guild settings.<br>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
 blocksong <add | remove> [SUBJECT]
-
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Manage a block list applied to song requests and extracted song data.<br>
@@ -252,7 +252,7 @@ Pause playback if a track is currently playing.<br>
 perms [@USER]
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Get a list of your permissions, or the permisions of the mentioned user.<br>
+Get a list of your permissions, or the permissions of the mentioned user.<br>
 
 </details>
 
@@ -267,8 +267,8 @@ Add a song to be played in the queue. If no song is playing or paused, playback 
 <br>
 You may supply a URL to a video or audio file or the URL of a service supported by yt-dlp.<br>
 Playlist links will be extracted into multiple links and added to the queue.<br>
-If you enter a non-URL, the input will be used as search criteria on youtube and the first result played.<br>
-MusicBot also supports Spotify URIs and URLs, but audio is fetched from youtube regardless.<br>
+If you enter a non-URL, the input will be used as search criteria on YouTube and the first result played.<br>
+MusicBot also supports Spotify URIs and URLs, but audio is fetched from YouTube regardless.<br>
 
 </details>
 
@@ -303,7 +303,7 @@ Read help for the play command for information on supported inputs.<br>
 pldump <URL>
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Dump the individual urls of a playlist to a file.<br>
+Dump the individual URLs of a playlist to a file.<br>
 
 </details>
 
@@ -363,7 +363,7 @@ This command will be removed in a future version, replaced by the autoplaylist c
 <strong>Example usage:</strong><br>  
 {% highlight text %}
 restart [soft]
-    Attempt to reload without process restart. The default option.
+    Attempt to reload without process restart. The default tion.
 
 restart full
     Attempt to restart the entire MusicBot process, reloading everything.
@@ -405,7 +405,7 @@ search [SERVICE] [NUMBER] <QUERY>
     Search with service for a number of results with the search query.
 
 search [NUMBER] "<QUERY>"
-    Search youtube for query but get a custom number of results.
+    Search YouTube for query but get a custom number of results.
     Note: the double-quotes are required in this case.
 
 {% endhighlight %}
@@ -449,6 +449,9 @@ Change the MusicBot's nickname.<br>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
 setprefix <PREFIX>
+    Set a per-server command prefix.
+setprefix clear
+    Clear the per-server command prefix.
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Override the default command prefix in the server.<br>
@@ -623,13 +626,13 @@ config show <SECTION> <OPTION>
     Display the current value of the option.
 
 config save <SECTION> <OPTION>
-    Saves the current current value to the options file.
+    Saves the current value to the options file.
 
 config set <SECTION> <OPTION> <VALUE>
     Validates the option and sets the config for the session, but not to file.
 
 config reset <SECTION> <OPTION>
-    Reset the option to it's default value.
+    Reset the option to its default value.
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -718,7 +721,8 @@ WARNING:<br>
 setname <NAME>
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Change the bot's username on discord.Note: The API may limit name changes to twice per hour.<br>
+Change the bot's username on discord.<br>
+Note: The API may limit name changes to twice per hour.<br>
 
 </details>
 
@@ -766,7 +770,7 @@ breakpoint
 {% endhighlight %}
 <strong>Description:</strong><br>  
 This command issues a log at level CRITICAL, but does nothing else.<br>
-Can be used to manually pin-point events in the MusicBot log file.<br>
+Can be used to manually pinpoint events in the MusicBot log file.<br>
 
 </details>
 
@@ -775,7 +779,6 @@ Can be used to manually pin-point events in the MusicBot log file.<br>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
 debug [PYCODE]
-
 {% endhighlight %}
 <strong>Description:</strong><br>  
 This command will execute arbitrary python code in the command scope.<br>
@@ -810,7 +813,7 @@ makemarkdown < opts | perms | help >
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Create 'markdown' for options, permissions, or commands from the code.<br>
-The output is used to update github pages and is thus unsuitable for normal reference use.<br>
+The output is used to update GitHub Pages and is thus unsuitable for normal reference use.<br>
 
 </details>
 
@@ -831,7 +834,7 @@ objgraph leakstats
     View typestats of leaking objects.
 
 objgraph [objgraph.function(...)]
-    Evaluate the given function and args on objgraph.
+    Evaluate the given function and arguments on objgraph.
 
 {% endhighlight %}
 <strong>Description:</strong><br>  
@@ -845,7 +848,7 @@ Since this method evaluates arbitrary code, it is considered dangerous like the 
   <summary>testready</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-testready
+testready [dry]
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Command used for testing. It prints a list of commands which can be verified by a test suite.<br>
