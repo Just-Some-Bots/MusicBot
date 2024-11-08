@@ -47,7 +47,14 @@ To finish setting up:<br>
 </ul>
 
 If everything is working, make sure to review the rest of the options and make changes as needed.<br>
-<br>
+
+<h3>How to Run MusicBot</h3>
+
+MusicBot provides a collection of scripts to start the bot.<br>  
+For Windows you'll usually use `run.bat` to start the bot.<br>  
+For various Linux-like OS, use `run.sh` instead.<br>  
+You may also launch `run.py` by passing it to python directly.<br>
+All of these scripts support the same <a href="{{ site.baseurl }}/using/cliargs/">command line arguments</a>.<br>  
 
 </details>
 

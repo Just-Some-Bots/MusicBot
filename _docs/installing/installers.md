@@ -34,6 +34,9 @@ install.bat
 The above will download both the latest .bat and .ps1 from the dev branch, then execute the .bat file.  
 The files should be in your `C:\User\<user>\` folder or whatever directory the prompt displays.  
 
+Read and follow the prompts in the installer.  Then [configure your bot]({{ site.baseurl }}/using/configuration/) before you start it.  
+
+To run the bot on Windows, most users will use `run.bat` to start MusicBot.  
 
 ### Linux 
 
@@ -69,6 +72,9 @@ bash <(curl -s https://raw.githubusercontent.com/just-some-bots/musicbot/dev/ins
 # download with wget and execute immediately.
 bash <(wget -q https://raw.githubusercontent.com/just-some-bots/musicbot/dev/install.sh -O -)
 ```
+
+After you run the installer, be sure to [configure]({{ site.baseurl }}/using/configuration/) your bot.  
+You can start the bot using the `run.sh` script.
 
 ---
 
