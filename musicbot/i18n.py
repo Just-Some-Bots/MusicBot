@@ -259,7 +259,7 @@ class I18n:
         )
 
         # parse the lang args.
-        args = ap.parse_args()
+        args, _ = ap.parse_known_args()
         if args.show_sys_lang:
             self._show_sys_lang = True
         if args.lang_both and args.lang_both != DEFAULT_I18N_LANG:
