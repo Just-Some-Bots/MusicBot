@@ -106,8 +106,7 @@ Remove-Item "cert.fetch"
 # -----------------------------------------------------CONSTANTS-------------------------------------------------------
 
 $DEFAULT_URL_BASE = "https://discordapp.com/api"
-#$MB_RepoURL = "https://github.com/Just-Some-Bots/MusicBot.git"
-$MB_RepoURL = "https://github.com/itsthefae/MusicBot.git"
+$MB_RepoURL = "https://github.com/Just-Some-Bots/MusicBot.git"
 
 # ----------------------------------------------INSTALLING DEPENDENCIES------------------------------------------------
 $NeedsEnvReload = 0

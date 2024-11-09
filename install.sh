@@ -10,10 +10,7 @@
 # TODO: Venv install with pre-cloned repo needs fixed.
 
 #-----------------------------------------------Configs-----------------------------------------------#
-# Original repo is here:
-#MusicBotGitURL="https://github.com/Just-Some-Bots/MusicBot.git"
-# This is currently required since upstream does not have the updated service file.
-MusicBotGitURL="https://github.com/itsTheFae/MusicBot.git"
+MusicBotGitURL="https://github.com/Just-Some-Bots/MusicBot.git"
 CloneDir="MusicBot"
 VenvDir="MusicBotVenv"
 InstallDir=""
