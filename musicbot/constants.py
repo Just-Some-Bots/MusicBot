@@ -15,7 +15,9 @@ try:
     )
     # Check if any tracked files are modified for -modded version flag.
     _VERSION_P2 = (
-        subprocess.check_output(["git", "status", "-suno", "--porcelain"])
+        subprocess.check_output(
+            ["git", "-c", "core.fileMode=false", "status", "-suno", "--porcelain"]
+        )
         .decode("ascii")
         .strip()
     )
@@ -40,12 +42,17 @@ DEFAULT_PERMS_GROUP_NAME: str = "Default"
 # Meaning discord API and spotify API communications.
 # NOT used by ytdlp, they have a dynamic UA selection feature.
 MUSICBOT_USER_AGENT_AIOHTTP: str = f"MusicBot/{VERSION}"
-
+MUSICBOT_GIT_URL: str = "https://github.com/Just-Some-Bots/MusicBot/"
+# The Environment variable MusicBot checks for if no Token is given in the config file.
+MUSICBOT_TOKEN_ENV_VAR: str = "MUSICBOT_TOKEN"
 
 # File path constants
 DEFAULT_OPTIONS_FILE: str = "config/options.ini"
 DEFAULT_PERMS_FILE: str = "config/permissions.ini"
+# TODO: Remove this file constant in favor of gettext messages.
 DEFAULT_I18N_FILE: str = "config/i18n/en.json"
+DEFAULT_I18N_DIR: str = "i18n/"
+DEFAULT_I18N_LANG: str = "en_US"
 DEFAULT_COMMAND_ALIAS_FILE: str = "config/aliases.json"
 DEFAULT_USER_BLOCKLIST_FILE: str = "config/blocklist_users.txt"
 DEFAULT_SONG_BLOCKLIST_FILE: str = "config/blocklist_songs.txt"
@@ -65,6 +72,9 @@ DATA_FILE_YTDLP_OAUTH2: str = "oauth2.token"
 DATA_GUILD_FILE_QUEUE: str = "queue.json"
 DATA_GUILD_FILE_CUR_SONG: str = "current.txt"
 DATA_GUILD_FILE_OPTIONS: str = "options.json"
+
+I18N_DISCORD_TEXT_DOMAIN: str = "musicbot_messages"
+I18N_LOGFILE_TEXT_DOMAIN: str = "musicbot_logs"
 
 # Example config files.
 EXAMPLE_OPTIONS_FILE: str = "config/example_options.ini"
@@ -141,6 +151,10 @@ YTDLP_OAUTH2_CLIENTS: List[str] = ["mweb"]
 # Discord and other API constants
 DISCORD_MSG_CHAR_LIMIT: int = 2000
 
+# Embed specifics
+MUSICBOT_EMBED_COLOR_NORMAL: str = "#7289DA"
+MUSICBOT_EMBED_COLOR_ERROR: str = "#CC0000"
+
 
 EMOJI_CHECK_MARK_BUTTON: str = "\u2705"
 EMOJI_CROSS_MARK_BUTTON: str = "\u274E"
@@ -152,3 +166,8 @@ EMOJI_LAST_ICON: str = "\u23ED\uFE0F"  # next track button
 EMOJI_FIRST_ICON: str = "\u23EE\uFE0F"  # last track button
 EMOJI_NEXT_ICON: str = "\u23E9"  # fast-forward button
 EMOJI_PREV_ICON: str = "\u23EA"  # rewind button
+EMOJI_RESTART_SOFT: str = "\u21A9\uFE0F"  # Right arrow curving left
+EMOJI_RESTART_FULL: str = "\U0001F504"  # counterclockwise arrows
+EMOJI_UPDATE_PIP: str = "\U0001F4E6"  # package / box
+EMOJI_UPDATE_GIT: str = "\U0001F5C3\uFE0F"  # card box
+EMOJI_UPDATE_ALL: str = "\U0001F310"  # globe with meridians

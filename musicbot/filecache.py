@@ -29,8 +29,8 @@ class AudioFileCache:
         Manage data related to the audio cache, such as its current size,
         file count, file paths, and synchronization locks.
         """
-        self.bot: "MusicBot" = bot
-        self.config: "Config" = bot.config
+        self.bot: MusicBot = bot
+        self.config: Config = bot.config
         self.cache_path: pathlib.Path = bot.config.audio_cache_path
         self.cachemap_file = pathlib.Path(DEFAULT_DATA_DIR).joinpath(DATA_FILE_CACHEMAP)
 
@@ -212,22 +212,28 @@ class AudioFileCache:
 
         if removed_count:
             log.debug(
-                "Audio cache deleted %s file(s), total of %s removed.",
-                removed_count,
-                format_size_from_bytes(removed_size),
+                "Audio cache deleted %(number)s file(s), total of %(size)s removed.",
+                {
+                    "number": removed_count,
+                    "size": format_size_from_bytes(removed_size),
+                },
             )
         if retained_count:
             log.debug(
-                "Audio cached retained %s file(s) from autoplaylist, total of %s retained.",
-                retained_count,
-                format_size_from_bytes(retained_size),
+                "Audio cached retained %(number)s file(s) from autoplaylist, total of %(size)s retained.",
+                {
+                    "number": retained_count,
+                    "size": format_size_from_bytes(retained_size),
+                },
             )
         self.file_count = len(cached_files) - removed_count
         self.size_bytes = cached_size
         log.debug(
-            "Audio cache is now %s over %s file(s).",
-            format_size_from_bytes(self.size_bytes),
-            self.file_count,
+            "Audio cache is now %(size)s over %(number)s file(s).",
+            {
+                "size": format_size_from_bytes(self.size_bytes),
+                "number": self.file_count,
+            },
         )
         return True
 
@@ -293,7 +299,7 @@ class AudioFileCache:
             return
 
         if not self.cachemap_file.is_file():
-            log.debug("Autoplaylist has no cache map, moving on.")
+            log.debug("Auto playlist has no cache map, moving on.")
             self.auto_playlist_cachemap = {}
             return
 
@@ -301,11 +307,11 @@ class AudioFileCache:
             try:
                 self.auto_playlist_cachemap = json.load(fh)
                 log.info(
-                    "Loaded autoplaylist cache map with %s entries.",
+                    "Loaded auto playlist cache map with %s entries.",
                     len(self.auto_playlist_cachemap),
                 )
             except json.JSONDecodeError:
-                log.exception("Failed to load autoplaylist cache map.")
+                log.exception("Failed to load auto playlist cache map.")
                 self.auto_playlist_cachemap = {}
 
     async def save_autoplay_cachemap(self) -> None:
@@ -324,11 +330,11 @@ class AudioFileCache:
                 with open(self.cachemap_file, "w", encoding="utf8") as fh:
                     json.dump(self.auto_playlist_cachemap, fh)
                     log.debug(
-                        "Saved autoplaylist cache map with %s entries.",
+                        "Saved auto playlist cache map with %s entries.",
                         len(self.auto_playlist_cachemap),
                     )
             except (TypeError, ValueError, RecursionError):
-                log.exception("Failed to save autoplaylist cache map.")
+                log.exception("Failed to save auto playlist cache map.")
 
     def add_autoplay_cachemap_entry(self, entry: "BasePlaylistEntry") -> None:
         """
@@ -346,10 +352,12 @@ class AudioFileCache:
         if filename in self.auto_playlist_cachemap:
             if self.auto_playlist_cachemap[filename] != entry.url:
                 log.warning(
-                    "Autoplaylist cache map conflict on Key: %s  Old: %s  New: %s",
-                    filename,
-                    self.auto_playlist_cachemap[filename],
-                    entry.url,
+                    "Auto playlist cache map conflict on Key: %(file)s  Old: %(old)s  New: %(new)s",
+                    {
+                        "file": filename,
+                        "old": self.auto_playlist_cachemap[filename],
+                        "new": entry.url,
+                    },
                 )
                 self.auto_playlist_cachemap[filename] = entry.url
                 change_made = True

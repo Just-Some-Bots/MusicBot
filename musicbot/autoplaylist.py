@@ -13,6 +13,7 @@ from .constants import (
     OLD_BUNDLED_AUTOPLAYLIST_FILE,
     OLD_DEFAULT_AUTOPLAYLIST_FILE,
 )
+from .exceptions import MusicbotException
 
 if TYPE_CHECKING:
     from .bot import MusicBot
@@ -28,7 +29,7 @@ class AutoPlaylist(StrUserList):
     def __init__(self, filename: pathlib.Path, bot: "MusicBot") -> None:
         super().__init__()
 
-        self._bot: "MusicBot" = bot
+        self._bot: MusicBot = bot
         self._file: pathlib.Path = filename
         self._removed_file = filename.with_name(f"{filename.stem}.removed.log")
 
@@ -115,12 +116,16 @@ class AutoPlaylist(StrUserList):
 
         async with self._update_lock:
             self.data.remove(song_subject)
-            log.info(
-                "Removing%s song from playlist, %s: %s",
-                " unplayable" if ex and not isinstance(ex, UserWarning) else "",
-                self._file.name,
-                song_subject,
-            )
+            if ex and not isinstance(ex, UserWarning):
+                log.info(
+                    "Removing unplayable song from playlist, %(playlist)s: %(track)s",
+                    {"playlist": self._file.name, "track": song_subject},
+                )
+            else:
+                log.info(
+                    "Removing song from playlist, %(playlist)s: %(track)s",
+                    {"playlist": self._file.name, "track": song_subject},
+                )
 
             if not self._removed_file.is_file():
                 self._removed_file.touch(exist_ok=True)
@@ -128,8 +133,12 @@ class AutoPlaylist(StrUserList):
             try:
                 with open(self._removed_file, "a", encoding="utf8") as f:
                     ctime = time.ctime()
+                    if isinstance(ex, MusicbotException):
+                        error = ex.message % ex.fmt_args
+                    else:
+                        error = str(ex)
                     # add 10 spaces to line up with # Reason:
-                    e_str = str(ex).replace("\n", "\n#" + " " * 10)
+                    e_str = error.replace("\n", "\n#" + " " * 10)
                     sep = "#" * 32
                     f.write(
                         f"# Entry removed {ctime}\n"
@@ -175,9 +184,8 @@ class AutoPlaylist(StrUserList):
             # Note, this does not update the player's copy of the list.
             self.data.append(song_subject)
             log.info(
-                "Adding new URL to playlist, %s: %s",
-                self._file.name,
-                song_subject,
+                "Adding new URL to playlist, %(playlist)s: %(track)s",
+                {"playlist": self._file.name, "track": song_subject},
             )
 
             try:
@@ -207,7 +215,7 @@ class AutoPlaylistManager:
         """
         Initialize the manager, checking the file system for usable playlists.
         """
-        self._bot: "MusicBot" = bot
+        self._bot: MusicBot = bot
         self._apl_dir: pathlib.Path = bot.config.auto_playlist_dir
         self._apl_file_default = self._apl_dir.joinpath(APL_FILE_DEFAULT)
         self._apl_file_history = self._apl_dir.joinpath(APL_FILE_HISTORY)
