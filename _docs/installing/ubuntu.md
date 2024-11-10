@@ -38,7 +38,7 @@ sudo apt-get install -y build-essential libopus-dev libffi-dev \
     unzip curl git jq ffmpeg
 
 # Download and build Python 3.10
-wget https://www.python.org/ftp/python/3.10.13/Python-3.10.14.tar.xz
+wget https://www.python.org/ftp/python/3.10.14/Python-3.10.14.tar.xz
 
 # Extract the downloaded archive and change into it.
 tar -xf Python-3.10.14.tar.xz
