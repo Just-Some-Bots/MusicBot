@@ -830,6 +830,7 @@ class MusicBot(discord.Client):
         # request speaker automatically in stage channels.
         if isinstance(channel, discord.StageChannel):
             try:
+                log.info("MusicBot is requesting to speak in channel: %s", channel.name)
                 # this has the same effect as edit(suppress=False)
                 await channel.guild.me.request_to_speak()
             except discord.Forbidden as e:
@@ -8377,8 +8378,20 @@ class MusicBot(discord.Client):
                     return
 
             # if the bot was moved to a stage channel, request speaker.
-            if isinstance(after.channel, discord.StageChannel):
+            # similarly, make the bot request speaker when suppressed.
+            if (
+                after.channel != before.channel
+                and after.suppress
+                and isinstance(after.channel, discord.StageChannel)
+            ) or (
+                after.channel == before.channel
+                and after.suppress
+                and before.suppress
+                and after.requested_to_speak_at is None
+                and isinstance(after.channel, discord.StageChannel)
+            ):
                 try:
+                    log.info("MusicBot is requesting to speak in channel: %s", after.channel.name)
                     # this has the same effect as edit(suppress=False)
                     await after.channel.guild.me.request_to_speak()
                 except discord.Forbidden:
