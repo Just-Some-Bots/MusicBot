@@ -6928,7 +6928,7 @@ class MusicBot(discord.Client):
         if subcmd == "set":
             if lang_code not in available_langs:
                 raise exceptions.CommandError(
-                    "Cannot set language to `%(locale)s` it s not available.",
+                    "Cannot set language to `%(locale)s` it is not available.",
                     fmt_args={"locale": ssd_.lang_code},
                 )
             ssd_.lang_code = lang_code

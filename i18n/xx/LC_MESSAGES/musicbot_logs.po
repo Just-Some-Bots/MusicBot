@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Just-Some-Bots/MusicBot release-250723-1027-g20e3b1a7\n"
+"Project-Id-Version: Just-Some-Bots/MusicBot release-250723-1028-gf19aea8d\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-11 16:33-0800\n"
+"POT-Creation-Date: 2024-11-11 16:38-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2020,8 +2020,8 @@ msgstr ".noitamrofni erom rof dnammoc pleh eht esU .nevig dnammoc-bus dilavnI"
 
 #: musicbot/bot.py:6934
 #, python-format
-msgid "Cannot set language to `%(locale)s` it s not available."
-msgstr ".elbaliava ton s ti `%(locale)s` ot egaugnal tes tonnaC"
+msgid "Cannot set language to `%(locale)s` it is not available."
+msgstr ".elbaliava ton si ti `%(locale)s` ot egaugnal tes tonnaC"
 
 #: musicbot/bot.py:6979
 msgid "You must provide a URL or attach a file."
