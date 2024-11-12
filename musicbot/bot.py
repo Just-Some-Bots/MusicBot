@@ -6005,9 +6005,7 @@ class MusicBot(discord.Client):
             )
 
         # now check if page number is out of bounds.
-        limit_per_page = 25  # TODO: make this configurable, up to 25 fields per embed.
-        # TODO:  actually just don't use fields, put it all into description field.
-        pages_total = math.ceil(total_entry_count / limit_per_page)
+        pages_total = math.ceil(total_entry_count / self.config.queue_length)
         if page_number > pages_total:
             raise exceptions.CommandError(
                 "Requested page number is out of bounds.\n"
@@ -6043,8 +6041,8 @@ class MusicBot(discord.Client):
             }
 
         # calculate start and stop slice indices
-        start_index = limit_per_page * page_number
-        end_index = start_index + limit_per_page
+        start_index = self.config.queue_length * page_number
+        end_index = start_index + self.config.queue_length
         starting_at = start_index + 1  # add 1 to index for display.
 
         # add the tracks to the embed fields
@@ -6078,7 +6076,7 @@ class MusicBot(discord.Client):
             % {
                 "progress": current_progress,
                 "total": total_entry_count,
-                "per_page": limit_per_page,
+                "per_page": self.config.queue_length,
                 "start": starting_at,
                 "tracks": tracks_list,
             },

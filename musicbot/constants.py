@@ -49,8 +49,6 @@ MUSICBOT_TOKEN_ENV_VAR: str = "MUSICBOT_TOKEN"
 # File path constants
 DEFAULT_OPTIONS_FILE: str = "config/options.ini"
 DEFAULT_PERMS_FILE: str = "config/permissions.ini"
-# TODO: Remove this file constant in favor of gettext messages.
-DEFAULT_I18N_FILE: str = "config/i18n/en.json"
 DEFAULT_I18N_DIR: str = "i18n/"
 DEFAULT_I18N_LANG: str = "en_US"
 DEFAULT_COMMAND_ALIAS_FILE: str = "config/aliases.json"

@@ -458,7 +458,6 @@ class Config:
                 "This only applies to the current playing song if it was added by the auto playlist."
             ),
         )
-        # TODO:  this option needs more implementation to ensure blocked tracks are removed.
         self.auto_playlist_remove_on_block: bool = self.register.init_option(
             section="MusicBot",
             option="AutoPlaylistRemoveBlocked",
