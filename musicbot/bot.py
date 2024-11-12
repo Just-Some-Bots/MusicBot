@@ -33,6 +33,8 @@ from .constants import (
     DATA_GUILD_FILE_CUR_SONG,
     DATA_GUILD_FILE_QUEUE,
     DEFAULT_BOT_NAME,
+    DEFAULT_I18N_DIR,
+    DEFAULT_I18N_LANG,
     DEFAULT_OWNER_GROUP_NAME,
     DEFAULT_PERMS_GROUP_NAME,
     DEFAULT_PING_HTTP_URI,
@@ -6876,6 +6878,79 @@ class MusicBot(discord.Client):
             "Use the config command to update the prefix instead.",
         )
 
+    @command_helper(
+        # fmt: off
+        usage=[
+            "{cmd} show\n"
+            + _Dd("    Show language codes available to use.\n"),
+
+            "{cmd} set [LOCALE]\n"
+            + _Dd("    Set the desired language for this server.\n"),
+
+            "{cmd} reset\n"
+            + _Dd("    Reset the server language to bot's default language.\n"),
+        ],
+        # fmt: on
+        desc=_Dd("Manage the language used for messages in the calling server."),
+    )
+    async def cmd_language(
+        self,
+        ssd_: Optional[GuildSpecificData],
+        subcmd: str = "show",
+        lang_code: str = "",
+    ) -> CommandResponse:
+        """
+        Allow management of per-server language settings.
+        This does not depend on an option, outside of default language.
+        """
+        if not ssd_:
+            raise exceptions.CommandError("This command can only be used in guilds.")
+
+        subcmd = subcmd.lower()
+        if subcmd not in ["show", "set", "reset"]:
+            raise exceptions.CommandError(
+                "Invalid sub-command given. Use the help command for more information."
+            )
+
+        langdir = pathlib.Path(DEFAULT_I18N_DIR)
+        available_langs = set()
+        for f in langdir.glob("*/LC_MESSAGES/*.mo"):
+            available_langs.add(f.parent.parent.name)
+
+        if subcmd == "show":
+            return Response(
+                _D(
+                    "**Current Language:** `%(locale)s`\n"
+                    "**Available Languages:**\n```\n%(languages)s```",
+                    ssd_,
+                )
+                % {"locale": ssd_.lang_code, "languages": ", ".join(available_langs)}
+            )
+
+        if subcmd == "set":
+            if lang_code not in available_langs:
+                raise exceptions.CommandError(
+                    "Cannot set language to `%(locale)s` it s not available.",
+                    fmt_args={"locale": ssd_.lang_code},
+                )
+            ssd_.lang_code = lang_code
+            return Response(
+                _D("Language for this server now set to: `%(locale)s`", ssd_)
+                % {"locale": lang_code},
+            )
+
+        if subcmd == "reset":
+            ssd_.lang_code = ""
+            return Response(
+                _D(
+                    "Language for this server has been reset to: `%(locale)s`",
+                    ssd_,
+                )
+                % {"locale": DEFAULT_I18N_LANG},
+            )
+
+        return None
+
     @owner_only
     @command_helper(
         usage=["{cmd} [URL]"],
@@ -8391,7 +8466,10 @@ class MusicBot(discord.Client):
                 and isinstance(after.channel, discord.StageChannel)
             ):
                 try:
-                    log.info("MusicBot is requesting to speak in channel: %s", after.channel.name)
+                    log.info(
+                        "MusicBot is requesting to speak in channel: %s",
+                        after.channel.name,
+                    )
                     # this has the same effect as edit(suppress=False)
                     await after.channel.guild.me.request_to_speak()
                 except discord.Forbidden:

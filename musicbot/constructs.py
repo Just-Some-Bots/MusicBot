@@ -248,6 +248,8 @@ class GuildSpecificData:
                     )
                     return
 
+            self.lang_code = options.get("language", "")
+
             guild_prefix = options.get("command_prefix", None)
             if guild_prefix:
                 self._command_prefix = guild_prefix
@@ -288,6 +290,7 @@ class GuildSpecificData:
         opt_dict = {
             "command_prefix": self._command_prefix,
             "auto_playlist": auto_playlist,
+            "language": self.lang_code,
         }
 
         async with self._file_lock:
