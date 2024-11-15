@@ -8,6 +8,19 @@ import re
 import subprocess
 import sys
 
+try:
+    import colorama
+    # import colorama  # type: ignore[import-untyped]
+    colorama.just_fix_windows_console()
+
+    C_RED = colorama.Fore.RED
+    C_GREEN = colorama.Fore.GREEN
+    C_END =  colorama.Style.RESET_ALL
+except Exception:  # pylint: disable=broad-exception-caught
+    C_RED = ""
+    C_GREEN = ""
+    C_END = ""
+
 
 class LangTool:
     def __init__(self, args, basedir):
@@ -152,6 +165,7 @@ class LangTool:
         Short simply excludes the file:line comments from the diff output.
         """
         print("Preparing diff for source strings...")
+        short_ignore = ["@@", "+#:", "-#:"]
         self._do_diff = True
         self.extract()
 
@@ -161,8 +175,14 @@ class LangTool:
         for line in difflib.unified_diff(
             a, b, fromfile="old", tofile="new", n=0, lineterm=""
         ):
-            if short and line.startswith("#:"):
+            if short and any(line.startswith(ig) for ig in short_ignore):
                 continue
+
+            if line.startswith("-"):
+                line = f"{C_RED}{line}{C_END}"
+            elif line.startswith("+"):
+                line = f"{C_GREEN}{line}{C_END}"
+
             print(line)
         print("")
 
@@ -172,8 +192,14 @@ class LangTool:
         for line in difflib.unified_diff(
             a, b, fromfile="old", tofile="new", n=0, lineterm=""
         ):
-            if short and line.startswith("#:"):
+            if short and any(line.startswith(ig) for ig in short_ignore):
                 continue
+
+            if line.startswith("-"):
+                line = f"{C_RED}{line}{C_END}"
+            elif line.startswith("+"):
+                line = f"{C_GREEN}{line}{C_END}"
+
             print(line)
         print("")
 
