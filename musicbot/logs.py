@@ -2,9 +2,10 @@ import datetime
 import glob
 import logging
 import os
-import pathlib
 import sys
 from typing import TYPE_CHECKING, Any
+
+from . import write_path
 
 # protected imports to keep run.py from breaking on missing packages.
 try:
@@ -56,24 +57,28 @@ class MusicBotLogger(BaseLoggerClass):
         """Log debug level message, translating the message first."""
         if self.isEnabledFor(DEBUG):
             msg = self.i18n.gettext(msg)
+            kwargs.setdefault("stacklevel", 2)
             super().debug(msg, *args, **kwargs)
 
     def info(self, msg: str, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Log info level messge, translating the message first."""
         if self.isEnabledFor(INFO):
             msg = self.i18n.gettext(msg)
+            kwargs.setdefault("stacklevel", 2)
             super().info(msg, *args, **kwargs)
 
     def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Log warning level message, with translation first."""
         if self.isEnabledFor(WARNING):
             msg = self.i18n.gettext(msg)
+            kwargs.setdefault("stacklevel", 2)
             super().warning(msg, *args, **kwargs)
 
     def error(self, msg: str, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Log error level message, with translation first."""
         if self.isEnabledFor(ERROR):
             msg = self.i18n.gettext(msg)
+            kwargs.setdefault("stacklevel", 2)
             super().error(msg, *args, **kwargs)
 
     def exception(  # type: ignore[override]
@@ -83,12 +88,14 @@ class MusicBotLogger(BaseLoggerClass):
         Log error with exception info.
         Exception text may not be translated.
         """
+        kwargs.setdefault("stacklevel", 3)
         self.error(msg, *args, exc_info=exc_info, **kwargs)
 
     def critical(self, msg: str, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Log critical level message, with translation first."""
         if self.isEnabledFor(CRITICAL):
             msg = self.i18n.gettext(msg)
+            kwargs.setdefault("stacklevel", 2)
             super().critical(msg, *args, **kwargs)
 
     # Custom log levels defined here.
@@ -125,7 +132,7 @@ def setup_loggers() -> None:
         return
 
     # Do some pre-flight checking...
-    log_file = pathlib.Path(DEFAULT_MUSICBOT_LOG_FILE)
+    log_file = write_path(DEFAULT_MUSICBOT_LOG_FILE)
     if not log_file.parent.is_dir():
         try:
             log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -368,7 +375,7 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
     before = datetime.datetime.now().strftime(date_fmt)
 
     # Rotate musicbot logs
-    logfile = pathlib.Path(DEFAULT_MUSICBOT_LOG_FILE)
+    logfile = write_path(DEFAULT_MUSICBOT_LOG_FILE)
     logpath = logfile.parent
     if logfile.is_file():
         new_name = logpath.joinpath(f"{logfile.stem}{before}{logfile.suffix}")
@@ -392,7 +399,7 @@ def rotate_log_files(max_kept: int = -1, date_fmt: str = "") -> None:
                 path.unlink()
 
     # Rotate discord.py logs
-    dlogfile = pathlib.Path(DEFAULT_DISCORD_LOG_FILE)
+    dlogfile = write_path(DEFAULT_DISCORD_LOG_FILE)
     dlogpath = dlogfile.parent
     if dlogfile.is_file():
         new_name = dlogfile.parent.joinpath(f"{dlogfile.stem}{before}{dlogfile.suffix}")

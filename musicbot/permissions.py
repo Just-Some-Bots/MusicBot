@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Dict, Set, Tuple, Type, Union
 import configupdater
 import discord
 
+from . import write_path
 from .config import ConfigOption, ConfigOptionRegistry, ExtendedConfigParser, RegTypes
 from .constants import (
     DEFAULT_OWNER_GROUP_NAME,
@@ -64,8 +65,8 @@ class PermissionsDefaults:
     }
 
     # These defaults are not used per-group but rather for permissions system itself.
-    perms_file: pathlib.Path = pathlib.Path(DEFAULT_PERMS_FILE)
-    example_perms_file: pathlib.Path = pathlib.Path(EXAMPLE_PERMS_FILE)
+    perms_file: pathlib.Path = write_path(DEFAULT_PERMS_FILE)
+    example_perms_file: pathlib.Path = write_path(EXAMPLE_PERMS_FILE)
 
 
 class PermissiveDefaults(PermissionsDefaults):
@@ -114,22 +115,29 @@ class Permissions:
 
         if not self.config.read(self.perms_file, encoding="utf-8"):
             example_file = PermissionsDefaults.example_perms_file
-            log.info(
-                "Permissions file not found, copying from:  %s",
-                example_file,
-            )
-
-            try:
-                shutil.copy(example_file, self.perms_file)
-                self.config.read(self.perms_file, encoding="utf-8")
-
-            except Exception as e:
-                log.exception(
-                    "Error copying example permissions file:  %s", example_file
+            if example_file.is_file():
+                log.warning(
+                    "Permissions file not found, copying from:  %s",
+                    example_file,
                 )
-                raise RuntimeError(
-                    f"Unable to copy {example_file} to {self.perms_file}:  {str(e)}"
-                ) from e
+
+                try:
+                    shutil.copy(example_file, self.perms_file)
+                    self.config.read(self.perms_file, encoding="utf-8")
+                except Exception as e:
+                    log.exception(
+                        "Error copying example permissions file:  %s", example_file
+                    )
+                    raise RuntimeError(
+                        f"Unable to copy {example_file} to {self.perms_file}:  {str(e)}"
+                    ) from e
+            else:
+                log.error(
+                    "Could not locate config permissions or example permissions files.\n"
+                    "MusicBot will generate the config files at the location:\n"
+                    "  %(perms_file)s",
+                    {"perms_file": self.perms_file.parent},
+                )
 
         for section in self.config.sections():
             if section == DEFAULT_OWNER_GROUP_NAME:
@@ -150,6 +158,28 @@ class Permissions:
             )
 
         self.register.validate_register_destinations()
+
+        if not self.perms_file.is_file():
+            log.info("Generating new config permissions files...")
+            try:
+                ex_file = PermissionsDefaults.example_perms_file
+                self.register.write_default_ini(ex_file)
+                shutil.copy(ex_file, self.perms_file)
+                self.config.read(self.perms_file, encoding="utf-8")
+            except OSError as e:
+                raise HelpfulError(
+                    # fmt: off
+                    "Error creating default config permissions file.\n"
+                    "\n"
+                    "Problem:\n"
+                    "  MusicBot attempted to generate the config files but failed due to an error:\n"
+                    "  %(raw_error)s\n"
+                    "\n"
+                    "Solution:\n"
+                    "  Make sure MusicBot can read and write to your config files.\n",
+                    # fmt: on
+                    fmt_args={"raw_error": e},
+                ) from e
 
     def _generate_default_group(self, name: str) -> "PermissionGroup":
         """Generate a group with `name` using PermissionDefaults."""

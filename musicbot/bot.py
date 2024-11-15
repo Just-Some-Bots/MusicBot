@@ -24,7 +24,7 @@ import certifi  # type: ignore[import-untyped, unused-ignore]
 import discord
 import yt_dlp as youtube_dl  # type: ignore[import-untyped]
 
-from . import downloader, exceptions
+from . import downloader, exceptions, write_path
 from .aliases import Aliases, AliasesDefault
 from .autoplaylist import AutoPlaylistManager
 from .config import Config, ConfigDefaults
@@ -53,6 +53,8 @@ from .constants import (
     EMOJI_UPDATE_ALL,
     EMOJI_UPDATE_GIT,
     EMOJI_UPDATE_PIP,
+    EXAMPLE_OPTIONS_FILE,
+    EXAMPLE_PERMS_FILE,
     FALLBACK_PING_SLEEP,
     FALLBACK_PING_TIMEOUT,
     MUSICBOT_USER_AGENT_AIOHTTP,
@@ -190,7 +192,10 @@ class MusicBot(discord.Client):
         self.players: Dict[int, MusicPlayer] = {}
         self.task_pool: Set[AsyncTask] = set()
 
-        self.config = Config(self._config_file)
+        try:
+            self.config = Config(self._config_file)
+        except exceptions.RetryConfigException:
+            self.config = Config(self._config_file)
 
         self.permissions = Permissions(self._perms_file)
         # Set the owner ID in case it wasn't auto...
@@ -2136,12 +2141,14 @@ class MusicBot(discord.Client):
 
         # handle start up and teardown.
         try:
+            log.info("MusicBot is now doing start up steps...")
             await self.start(*self.config.auth)
             log.info("MusicBot is now doing shutdown steps...")
             if self.exit_signal is None:
                 self.exit_signal = exceptions.TerminateSignal()
 
         except discord.errors.LoginFailure as e:
+            log.warning("Start up failed at login.")
             raise exceptions.HelpfulError(
                 # fmt: off
                 "Failed Discord API Login!\n"
@@ -3216,14 +3223,23 @@ class MusicBot(discord.Client):
             "{cmd} add all\n"
             + _Dd("    Adds the entire queue to the guilds playlist.\n"),
 
+            "{cmd} clear [NAME]\n"
+            + _Dd(
+                "    Clear all songs from the named playlist file.\n"
+                "    If name is omitted, the currently loaded playlist is emptied.\n"
+            ),
+
             "{cmd} show\n"
-            + _Dd("    Show a list of existing playlist files.\n"),
+            + _Dd("    Show the currently selected playlist and a list of existing playlist files.\n"),
 
             "{cmd} restart\n"
-            + _Dd("    Reset the auto playlist queue, restarting at the first track unless randomized.\n"),
+            + _Dd(
+                "    Reload the auto playlist queue, restarting at the first track unless randomized.\n"
+            ),
 
             "{cmd} set <NAME>\n"
             + _Dd("    Set a playlist as default for this guild and reloads the guild auto playlist.\n"),
+
         ],
         # fmt: on
         desc=_Dd("Manage auto playlist files and per-guild settings."),
@@ -3244,7 +3260,17 @@ class MusicBot(discord.Client):
         """
         # TODO: add a method to display the current auto playlist setting in chat.
         option = option.lower()
-        if option not in ["+", "-", "add", "remove", "show", "set", "restart"]:
+        if option not in [
+            "+",
+            "-",
+            "add",
+            "remove",
+            "clear",
+            "show",
+            "set",
+            "restart",
+            "queue",
+        ]:
             raise exceptions.CommandError(
                 "Invalid sub-command given. Use `help autoplaylist` for usage examples.",
             )
@@ -3321,13 +3347,17 @@ class MusicBot(discord.Client):
 
         if option == "show":
             self.playlist_mgr.discover_playlists()
+            filename = " "
+            if ssd_:
+                filename = ssd_.autoplaylist.filename
             names = "\n".join([f"`{pl}`" for pl in self.playlist_mgr.playlist_names])
             return Response(
                 _D(
+                    "**Current Playlist:** `%(playlist)s`"
                     "**Available Playlists:**\n%(names)s",
                     ssd_,
                 )
-                % {"names": names},
+                % {"playlist": filename, "names": names},
                 delete_after=self.config.delete_delay_long,
             )
 
@@ -3363,6 +3393,25 @@ class MusicBot(discord.Client):
                     ssd_,
                 )
                 % {"name": opt_url, "note": new_msg},
+            )
+
+        if option == "clear":
+            if not opt_url and ssd_:
+                plname = ssd_.autoplaylist.filename
+            else:
+                plname = opt_url.lower()
+                if not plname.endswith(".txt"):
+                    plname += ".txt"
+                if not self.playlist_mgr.playlist_exists(plname):
+                    raise exceptions.CommandError(
+                        "No playlist file exists with the name: `%(playlist)s`",
+                        fmt_args={"playlist": plname},
+                    )
+            pl = self.playlist_mgr.get_playlist(plname)
+            await pl.clear_all_tracks(f"Playlist was cleared by user: {author}")
+            return Response(
+                _D("The playlist `%(playlist)s` has been cleared.", ssd_)
+                % {"playlist": plname}
             )
 
         return None
@@ -7471,14 +7520,10 @@ class MusicBot(discord.Client):
             )
 
         if cfg == "opts":
-            self.config.register.write_default_ini(
-                pathlib.Path("./config/example_options.ini")
-            )
+            self.config.register.write_default_ini(write_path(EXAMPLE_OPTIONS_FILE))
 
         if cfg == "perms":
-            self.permissions.register.write_default_ini(
-                pathlib.Path("./config/example_permissions.ini")
-            )
+            self.permissions.register.write_default_ini(write_path(EXAMPLE_PERMS_FILE))
 
         return Response(_D("Saved the requested INI file to disk. Go check it", ssd_))
 

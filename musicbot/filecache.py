@@ -8,6 +8,7 @@ import shutil
 import time
 from typing import TYPE_CHECKING, Dict, Tuple
 
+from . import write_path
 from .constants import DATA_FILE_CACHEMAP, DEFAULT_DATA_DIR
 from .utils import format_size_from_bytes
 
@@ -32,7 +33,7 @@ class AudioFileCache:
         self.bot: MusicBot = bot
         self.config: Config = bot.config
         self.cache_path: pathlib.Path = bot.config.audio_cache_path
-        self.cachemap_file = pathlib.Path(DEFAULT_DATA_DIR).joinpath(DATA_FILE_CACHEMAP)
+        self.cachemap_file = write_path(DEFAULT_DATA_DIR).joinpath(DATA_FILE_CACHEMAP)
 
         self.size_bytes: int = 0
         self.file_count: int = 0
@@ -40,6 +41,7 @@ class AudioFileCache:
         # Stores filenames without extension associated to a playlist URL.
         self.auto_playlist_cachemap: Dict[str, str] = {}
         self.cachemap_file_lock: asyncio.Lock = asyncio.Lock()
+        self.cachemap_defer_write: bool = False
 
         if self.config.auto_playlist:
             self.load_autoplay_cachemap()
@@ -325,6 +327,12 @@ class AudioFileCache:
         ):
             return
 
+        if self.cachemap_defer_write:
+            log.everything(  # type: ignore[attr-defined]
+                "Cachemap defer flag is set, not yet saving to disk..."
+            )
+            return
+
         async with self.cachemap_file_lock:
             try:
                 with open(self.cachemap_file, "w", encoding="utf8") as fh:
@@ -365,7 +373,7 @@ class AudioFileCache:
             self.auto_playlist_cachemap[filename] = entry.url
             change_made = True
 
-        if change_made:
+        if change_made and not self.cachemap_defer_write:
             self.bot.create_task(
                 self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
             )
@@ -384,9 +392,10 @@ class AudioFileCache:
         filename = pathlib.Path(entry.filename).stem
         if filename in self.auto_playlist_cachemap:
             del self.auto_playlist_cachemap[filename]
-            self.bot.create_task(
-                self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
-            )
+            if not self.cachemap_defer_write:
+                self.bot.create_task(
+                    self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
+                )
 
     def remove_autoplay_cachemap_entry_by_url(self, url: str) -> None:
         """
@@ -407,7 +416,7 @@ class AudioFileCache:
         for key in to_remove:
             del self.auto_playlist_cachemap[key]
 
-        if len(to_remove) != 0:
+        if len(to_remove) != 0 and not self.cachemap_defer_write:
             self.bot.create_task(
                 self.save_autoplay_cachemap(), name="MB_SaveAutoPlayCachemap"
             )

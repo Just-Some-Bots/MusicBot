@@ -397,6 +397,9 @@ def format_size_to_bytes(size_str: str, strict_si: bool = False) -> int:
     :param: size_str:  A size notation like: 20MB or "12.3 kb"
     :param: strict_si:  Toggles use of 1000 rather than 1024 for SI suffixes.
     """
+    if not size_str:
+        return 0
+
     si_units = 1024
     if strict_si:
         si_units = 1000

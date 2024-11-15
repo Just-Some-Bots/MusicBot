@@ -23,6 +23,7 @@ from typing import (
 import configupdater
 from configupdater.block import Comment, Space
 
+from . import write_path
 from .constants import (
     APL_FILE_HISTORY,
     DATA_FILE_COOKIES,
@@ -45,7 +46,7 @@ from .constants import (
     MAXIMUM_LOGS_LIMIT,
     MUSICBOT_TOKEN_ENV_VAR,
 )
-from .exceptions import HelpfulError
+from .exceptions import HelpfulError, RetryConfigException
 from .i18n import _Dd
 from .logs import (
     set_logging_level,
@@ -113,7 +114,8 @@ class Config:
         # ConfigRenameManager(self.config_file)
 
         config = ExtendedConfigParser()
-        config.read(config_file, encoding="utf-8")
+        if self.config_file.is_file():
+            config.read(config_file, encoding="utf-8")
         self.register = ConfigOptionRegistry(self, config)
 
         # DebugLevel is important for feedback, so we load it first.
@@ -816,7 +818,7 @@ class Config:
             comment_args={"filename": f"{DEFAULT_PLAYLIST_DIR}{APL_FILE_HISTORY}"},
         )
 
-        hist_file = pathlib.Path(APL_FILE_HISTORY)
+        hist_file = write_path(APL_FILE_HISTORY)
         self.enable_queue_history_guilds: bool = self.register.init_option(
             section="MusicBot",
             option="SavePlayedHistoryGuilds",
@@ -828,7 +830,7 @@ class Config:
                 "Enable saving songs played per-server to a playlist file:  %(basename)s[Server ID]%(ext)s"
             ),
             comment_args={
-                "basename": f"{DEFAULT_PLAYLIST_DIR}{hist_file.stem}",
+                "basename": f"{hist_file.parent}/{hist_file.stem}",
                 "ext": hist_file.suffix,
             },
         )
@@ -1058,8 +1060,32 @@ class Config:
         # end of config registry.
         #
 
+        if not self.config_file.is_file():
+            log.info("Generating new config options files...")
+            try:
+                ex_file = write_path(EXAMPLE_OPTIONS_FILE)
+                self.register.write_default_ini(ex_file)
+                shutil.copy(ex_file, self.config_file)
+                raise RetryConfigException()
+            except OSError as e:
+                # pylint: disable=duplicate-code
+                raise HelpfulError(
+                    # fmt: off
+                    "Error creating default config options file.\n"
+                    "\n"
+                    "Problem:\n"
+                    "  MusicBot attempted to generate the config files but failed due to an error:\n"
+                    "  %(raw_error)s\n"
+                    "\n"
+                    "Solution:\n"
+                    "  Make sure MusicBot can read and write to your config files.\n",
+                    # fmt: on
+                    fmt_args={"raw_error": e},
+                ) from e
+                # pylint: enable=duplicate-code
+
         # Convert all path constants into config as pathlib.Path objects.
-        self.data_path = pathlib.Path(DEFAULT_DATA_DIR).resolve()
+        self.data_path = write_path(DEFAULT_DATA_DIR)
         self.server_names_path = self.data_path.joinpath(DATA_FILE_SERVERS)
         self.cookies_path = self.data_path.joinpath(DATA_FILE_COOKIES)
         self.disabled_cookies_path = self.cookies_path.parent.joinpath(
@@ -1284,6 +1310,7 @@ class Config:
         if not self.config_file.is_file():
             log.warning("Config options file not found. Checking for alternatives...")
 
+            example_file = write_path(EXAMPLE_OPTIONS_FILE)
             try:
                 # Check for options.ini.ini because windows.
                 ini_file = self.config_file.with_suffix(".ini.ini")
@@ -1299,23 +1326,20 @@ class Config:
                     )
 
                 # Look for an existing examples file.
-                elif os.path.isfile(EXAMPLE_OPTIONS_FILE):
-                    shutil.copy(EXAMPLE_OPTIONS_FILE, self.config_file)
+                elif os.path.isfile(example_file):
+                    shutil.copy(example_file, self.config_file)
                     log.warning(
                         "Copying existing example options file:  %(example_file)s",
-                        {"example_file": EXAMPLE_OPTIONS_FILE},
+                        {"example_file": example_file},
                     )
 
-                # Generate a new example file and copy it too.
+                # Tell the user we don't have any config to use.
                 else:
-                    self.register.write_default_ini(pathlib.Path(EXAMPLE_OPTIONS_FILE))
-                    shutil.copy(EXAMPLE_OPTIONS_FILE, self.config_file)
-                    log.warning(
-                        "Generated a new %(example_file)s and copied it to %(option_file)s",
-                        {
-                            "example_file": EXAMPLE_OPTIONS_FILE,
-                            "option_file": self.config_file,
-                        },
+                    log.error(
+                        "Could not locate config options or example options files.\n"
+                        "MusicBot will generate the config files at the location:\n"
+                        "  %(cfg_file)s",
+                        {"cfg_file": self.config_file.parent},
                     )
             except OSError as e:
                 log.exception(
@@ -1522,12 +1546,12 @@ class ConfigDefaults:
     logs_date_format: str = DEFAULT_LOGS_ROTATE_FORMAT
 
     # Create path objects from the constants.
-    options_file: pathlib.Path = pathlib.Path(DEFAULT_OPTIONS_FILE)
-    user_blocklist_file: pathlib.Path = pathlib.Path(DEFAULT_USER_BLOCKLIST_FILE)
-    song_blocklist_file: pathlib.Path = pathlib.Path(DEFAULT_SONG_BLOCKLIST_FILE)
-    auto_playlist_dir: pathlib.Path = pathlib.Path(DEFAULT_PLAYLIST_DIR)
-    media_file_dir: pathlib.Path = pathlib.Path(DEFAULT_MEDIA_FILE_DIR)
-    audio_cache_path: pathlib.Path = pathlib.Path(DEFAULT_AUDIO_CACHE_DIR)
+    options_file: pathlib.Path = write_path(DEFAULT_OPTIONS_FILE)
+    user_blocklist_file: pathlib.Path = write_path(DEFAULT_USER_BLOCKLIST_FILE)
+    song_blocklist_file: pathlib.Path = write_path(DEFAULT_SONG_BLOCKLIST_FILE)
+    auto_playlist_dir: pathlib.Path = write_path(DEFAULT_PLAYLIST_DIR)
+    media_file_dir: pathlib.Path = write_path(DEFAULT_MEDIA_FILE_DIR)
+    audio_cache_path: pathlib.Path = write_path(DEFAULT_AUDIO_CACHE_DIR)
 
     @staticmethod
     def _debug_level() -> Tuple[str, int]:
@@ -2274,7 +2298,10 @@ class ExtendedConfigParser(configparser.ConfigParser):
         """get a config value an parse it as a logger level."""
         val = self.get(section, key, fallback="", raw=raw, vars=vars).strip().upper()
         if not val and fallback:
-            val = fallback.upper()
+            if isinstance(fallback, tuple):
+                val = fallback[0]
+            else:
+                val = fallback
 
         int_level = 0
         str_level = val
@@ -2680,7 +2707,7 @@ class UserBlocklist(Blocklist):
         """
         In case the original, ambiguous block list file exists, lets rename it.
         """
-        old_file = pathlib.Path(DEPRECATED_USER_BLACKLIST)
+        old_file = write_path(DEPRECATED_USER_BLACKLIST)
         if old_file.is_file() and not new_file.is_file():
             log.warning(
                 "We found a legacy blacklist file, it will be renamed to:  %s",

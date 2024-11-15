@@ -17,10 +17,15 @@ from base64 import b64decode
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 
 import musicbot.logs
+from musicbot import get_write_base, parse_write_base_arg, write_path
 from musicbot.constants import (
+    DEFAULT_AUDIO_CACHE_DIR,
+    DEFAULT_DATA_DIR,
     DEFAULT_I18N_LANG,
     DEFAULT_LOGS_KEPT,
     DEFAULT_LOGS_ROTATE_FORMAT,
+    DEFAULT_MEDIA_FILE_DIR,
+    DEFAULT_OPTIONS_FILE,
     MAXIMUM_LOGS_LIMIT,
 )
 from musicbot.constants import VERSION as BOTVERSION
@@ -51,6 +56,7 @@ except ImportError:
 
 
 I18n()
+parse_write_base_arg()
 musicbot.logs.install_logger()
 log = logging.getLogger("musicbot.launcher")
 
@@ -352,9 +358,6 @@ def sanity_checks(args: argparse.Namespace) -> None:
     # Make sure we're in a writable env
     req_ensure_env()
 
-    # Make our folders if needed
-    pathlib.Path("data").mkdir(exist_ok=True)
-
     # For rewrite only
     req_check_deps()
 
@@ -482,10 +485,8 @@ def req_ensure_env() -> None:
         )
         bugger_off()
 
+    # Make sure musicbot exists and test if it can be imported.
     try:
-        if not os.path.isdir("config"):
-            raise RuntimeError('folder "config" not found')
-
         if not os.path.isdir("musicbot"):
             raise RuntimeError('folder "musicbot" not found')
 
@@ -498,19 +499,39 @@ def req_ensure_env() -> None:
         log.critical("Failed environment check, %s", e)
         bugger_off()
 
+    # test we have permissions to write files.
+    # if so, make all our write-enabled directories if needed.
+    test_path: pathlib.Path = write_path("musicbot-test-folder")
     try:
-        os.mkdir("musicbot-test-folder")
+        os.mkdir(test_path)
+        # Make our write-enabled folders if needed.
+        write_path(DEFAULT_DATA_DIR).mkdir(parents=True, exist_ok=True)
+        write_path(DEFAULT_OPTIONS_FILE).parent.mkdir(parents=True, exist_ok=True)
+        write_path(DEFAULT_MEDIA_FILE_DIR).mkdir(parents=True, exist_ok=True)
+        write_path(DEFAULT_AUDIO_CACHE_DIR).mkdir(parents=True, exist_ok=True)
     except (
         OSError,
         FileExistsError,
         PermissionError,
         IsADirectoryError,
     ):
-        log.critical("Current working directory does not seem to be writable")
-        log.critical("Please move the bot to a folder that is writable")
+        basedir = get_write_base()
+        if not basedir:
+            basedir = os.getcwd()
+
+        log.critical(
+            "MusicBot could not write files in the following directory:\n%(dir)s",
+            {"dir": basedir},
+        )
+        log.critical(
+            "Please make sure MusicBot can read and write in the above directory."
+        )
         bugger_off()
     finally:
-        shutil.rmtree("musicbot-test-folder", True)
+        try:
+            shutil.rmtree(test_path, ignore_errors=True)
+        except Exception:  # pylint: disable=broad-exception-caught
+            log.exception("Failed to clean up write-test path.")
 
     # this actually does an access check as well.
     ffmpeg_bin = shutil.which("ffmpeg")
@@ -787,9 +808,17 @@ def parse_cli_args() -> argparse.Namespace:
         % (DEFAULT_LOGS_ROTATE_FORMAT.replace("%", "%%")),
     )
 
-    # TODO: maybe more arguments for other things:
-    # --config-dir      force this directory for config data (all files)
-    # --config-file     load config from this file, but default for other configs.
+    ap.add_argument(
+        "--write-dir",
+        dest="global_writes_basedir",
+        default="",
+        type=str,
+        help=_L(
+            "Supply a directory where MusicBot can store all mutable files.\n"
+            "Essentially treats the install directory as read-only.\n"
+            "MusicBot must have permission to create this directory.\n"
+        ),
+    )
 
     args = ap.parse_args()
 
@@ -1146,7 +1175,10 @@ def main() -> None:
             break
 
         except HelpfulError as e:
-            log.error(_L(e.message), e.fmt_args)
+            if e.fmt_args:
+                log.error(_L(e.message), e.fmt_args)
+            else:
+                log.error(_L(e.message))
             break
 
         except TerminateSignal as e:

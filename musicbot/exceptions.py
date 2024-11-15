@@ -93,6 +93,11 @@ class HelpfulWarning(HelpfulError):
     pass
 
 
+# simple exception used to signal that initial config load should retry.
+class RetryConfigException(Exception):
+    pass
+
+
 # Signal codes used in RestartSignal
 class RestartCode(Enum):
     RESTART_SOFT = 0

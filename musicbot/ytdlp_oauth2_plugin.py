@@ -26,6 +26,7 @@ from yt_dlp.extractor.youtube import (  # type: ignore[import-untyped]
 )
 from yt_dlp.utils.traversal import traverse_obj  # type: ignore[import-untyped]
 
+from . import write_path
 from .constants import (
     DATA_FILE_YTDLP_OAUTH2,
     DEFAULT_DATA_DIR,
@@ -50,7 +51,7 @@ class YtdlpOAuth2Exception(Exception):
 
 class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
     # pylint: disable=W0223
-    _oauth2_token_path: pathlib.Path = pathlib.Path(DEFAULT_DATA_DIR).joinpath(
+    _oauth2_token_path: pathlib.Path = write_path(DEFAULT_DATA_DIR).joinpath(
         DATA_FILE_YTDLP_OAUTH2
     )
     _client_token_data: TokenDict = {}
