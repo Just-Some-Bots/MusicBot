@@ -253,7 +253,8 @@ nav > ul {
 	&.current > a,
 	> a:active,
 	> a:hover {
-		color: #111;
+		color: rgb(0, 0, 0);
+		background-color: #3583d6;
 	}
 
 	&.top-level > a {
