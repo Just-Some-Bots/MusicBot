@@ -5066,13 +5066,41 @@ class MusicBot(discord.Client):
     async def cmd_clear(
         self,
         ssd_: Optional[GuildSpecificData],
-        player: MusicPlayer,
+        _player: MusicPlayer,
+        guild: discord.Guild,
     ) -> CommandResponse:
         """
         Clears the playlist but does not skip current playing track.
+        If no player is available the queue file will be removed if it exists.
         """
 
-        player.playlist.clear()
+        # Ensure player is not none and that it's not empty
+        if _player and len(_player.playlist) < 1:
+            raise exceptions.CommandError(
+                "There is nothing currently playing. Play something with a play command."
+            )
+
+        # Try to gracefully clear the guild queue if we're not in a vc.
+        if not _player:
+            queue_path = self.config.data_path.joinpath(
+                f"{guild.id}/{DATA_GUILD_FILE_QUEUE}"
+            )
+            try:
+                queue_path.unlink()
+            except FileNotFoundError:
+                pass  # Silently ignore if file doesn't exist.
+            except PermissionError:
+                log.error(
+                    "Missing permissions to delete queue file for %(guild)s(%(id)s) at: %(path)s",
+                    {"guild": guild.name, "id": guild.id, "path": queue_path},
+                )
+            except OSError:
+                log.exception(
+                    "OS level error while trying to delete queue file: %(path)s",
+                    {"path": queue_path},
+                )
+        else:
+            _player.playlist.clear()  # Clear playlist from vc
 
         return Response(_D("Cleared all songs from the queue.", ssd_))
 

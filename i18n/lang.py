@@ -12,6 +12,7 @@ from collections import defaultdict
 
 try:
     import colorama
+
     # import colorama  # type: ignore[import-untyped]
     colorama.just_fix_windows_console()
 
@@ -19,7 +20,7 @@ try:
     C_GREEN = colorama.Fore.GREEN
     C_YELLOW = colorama.Fore.YELLOW
     C_BWHITE = f"{colorama.Style.BRIGHT}{colorama.Fore.WHITE}"
-    C_END =  colorama.Style.RESET_ALL
+    C_END = colorama.Style.RESET_ALL
 except Exception:  # pylint: disable=broad-exception-caught
     C_RED = ""
     C_GREEN = ""
@@ -107,12 +108,12 @@ class LangTool:
             locale = po_file.parent.parent.name
             fname = po_file.name
             ptl = self._colorize_percent(po.percent_translated())
-            print(
-                f"Compiled:  {C_BWHITE}{locale}{C_END} - {fname} - {ptl} translated"
-            )
+            print(f"Compiled:  {C_BWHITE}{locale}{C_END} - {fname} - {ptl} translated")
 
         print("Done.")
-        print("Note:  Translation percent is calculated based on PO file contents only!")
+        print(
+            "Note:  Translation percent is calculated based on PO file contents only!"
+        )
         print("       Use the -s option to compare translations to current source.")
         print("")
 
@@ -273,19 +274,19 @@ class LangTool:
 
             completed += po.percent_translated()
             total += 100
-            nO = len(po.obsolete_entries())
-            nU = len(po.untranslated_entries())
+            n_o = len(po.obsolete_entries())
+            n_u = len(po.untranslated_entries())
             o_color = u_color = C_RED
-            if nO < 5:
+            if n_o < 5:
                 o_color = C_YELLOW
-            if nO == 0:
+            if n_o == 0:
                 o_color = C_GREEN
-            if nU < 5:
+            if n_u < 5:
                 u_color = C_YELLOW
-            if nU == 0:
+            if n_u == 0:
                 u_color = C_GREEN
-            obs = f"{o_color}{nO}{C_END}"
-            unt = f"{u_color}{nU}{C_END}"
+            obs = f"{o_color}{n_o}{C_END}"
+            unt = f"{u_color}{n_u}{C_END}"
             ptl = self._colorize_percent(
                 po.percent_translated(),
                 fmt="{p: >4}%",
@@ -295,8 +296,8 @@ class LangTool:
             )
             data[locale][po_file.name] = {
                 "percent_done": po.percent_translated(),
-                "obsolete": nO,
-                "untranslated": nU,
+                "obsolete": n_o,
+                "untranslated": n_u,
             }
 
         pct = completed / total * 100
@@ -360,6 +361,7 @@ class LangTool:
         """Update the POT file then run merge on existing PO files."""
         self._check_polib()
         import polib
+
         print("Updating POT and PO files from sources...")
         self.extract()
 
@@ -370,17 +372,13 @@ class LangTool:
             locale = po_file.parent.parent.name
             po = polib.pofile(po_file)
             pre_pct = self._colorize_percent(po.percent_translated())
-            pre_obs = len(po.obsolete_entries())
-            pre_unt = len(po.untranslated_entries())
-            
+
             if po_file.name.startswith("musicbot_logs"):
                 po.merge(pot_logs)
             elif po_file.name.startswith("musicbot_messages"):
                 po.merge(pot_msgs)
-                
+
             pct = self._colorize_percent(po.percent_translated())
-            obs = len(po.obsolete_entries())
-            unt = len(po.untranslated_entries())
             po.save()
             print(
                 f"Updated: {locale} - {po_file.name} Was {pre_pct} translated, now {pct}"
