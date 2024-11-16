@@ -2,11 +2,13 @@
 
 import argparse
 import difflib
+import json
 import os
 import pathlib
 import re
 import subprocess
 import sys
+from collections import defaultdict
 
 try:
     import colorama
@@ -15,10 +17,14 @@ try:
 
     C_RED = colorama.Fore.RED
     C_GREEN = colorama.Fore.GREEN
+    C_YELLOW = colorama.Fore.YELLOW
+    C_BWHITE = f"{colorama.Style.BRIGHT}{colorama.Fore.WHITE}"
     C_END =  colorama.Style.RESET_ALL
 except Exception:  # pylint: disable=broad-exception-caught
     C_RED = ""
     C_GREEN = ""
+    C_YELLOW = ""
+    C_BWHITE = ""
     C_END = ""
 
 
@@ -41,6 +47,8 @@ class LangTool:
         self._xx_lang_path = basedir.joinpath("xx").joinpath("LC_MESSAGES")
         self._gettext_path = basedir.joinpath("pygettext.py")
         self._msgfmt_path = basedir.joinpath("msgfmt.py")
+        self._json_stats_path = self.workdir.joinpath(".github/i18n_stats.json")
+        self._po_file_pattern = "*/LC_MESSAGES/*.po"
         self._do_diff = False
 
         try:
@@ -54,6 +62,13 @@ class LangTool:
             print("Failed to get version info from git!")
             self.version = "unknown"
 
+    def __del__(self) -> None:
+        """Clean up extra bits when we shut down."""
+        if self._logs_diff_path.is_file():
+            self._logs_diff_path.unlink()
+        if self._msgs_diff_path.is_file():
+            self._msgs_diff_path.unlink()
+
     def _check_polib(self):
         """Test-load polib and fail softly."""
         try:
@@ -65,6 +80,18 @@ class LangTool:
             print("Install polib with pip or via your system package manager first.")
             sys.exit(2)
 
+    def _colorize_percent(self, percent: float, fmt: str = "") -> str:
+        """Converts the percentage to a string with colors based on the value."""
+        color = C_RED
+        if percent > 50:
+            color = C_YELLOW
+        if percent >= 100:
+            color = C_GREEN
+        if fmt:
+            percent = fmt.format(p=percent)
+            return f"{color}{percent}{C_END}"
+        return f"{color}{percent}%{C_END}"
+
     def compile(self):
         """
         Compiles all existing .po files into .mo files.
@@ -73,13 +100,21 @@ class LangTool:
         import polib
 
         print("Compiling existing PO files to MO...")
-        for po_file in self.basedir.glob("*/LC_MESSAGES/*.po"):
-            print(po_file)
+        for po_file in self.basedir.glob(self._po_file_pattern):
             mo_file = po_file.with_suffix(".mo")
             po = polib.pofile(po_file)
             po.save_as_mofile(mo_file)
+            locale = po_file.parent.parent.name
+            fname = po_file.name
+            ptl = self._colorize_percent(po.percent_translated())
+            print(
+                f"Compiled:  {C_BWHITE}{locale}{C_END} - {fname} - {ptl} translated"
+            )
 
         print("Done.")
+        print("Note:  Translation percent is calculated based on PO file contents only!")
+        print("       Use the -s option to compare translations to current source.")
+        print("")
 
     def extract(self):
         """
@@ -202,10 +237,78 @@ class LangTool:
 
             print(line)
         print("")
-
-        self._logs_diff_path.unlink()
-        self._msgs_diff_path.unlink()
         print("Done.")
+
+    def stats(self, save_json: bool = False):
+        """
+        Get statistics on each language completion level and coherence to source.
+        """
+        self._check_polib()
+        import polib
+
+        print("Gathering language statistics...")
+        self._do_diff = True
+        self.extract()
+
+        data = defaultdict(dict)
+        last_locale = ""
+        locale_set = set()
+        completed = 0
+        total = 0
+        pot_logs = polib.pofile(self._logs_diff_path)
+        pot_msgs = polib.pofile(self._msgs_diff_path)
+        for po_file in self.basedir.glob(self._po_file_pattern):
+            locale = po_file.parent.parent.name
+            locale_set.add(locale)
+
+            if locale != last_locale:
+                print(f"\nLanguage:  {locale}")
+                last_locale = locale
+
+            po = polib.pofile(po_file)
+            if po_file.name.startswith("musicbot_logs"):
+                po.merge(pot_logs)
+            elif po_file.name.startswith("musicbot_messages"):
+                po.merge(pot_msgs)
+
+            completed += po.percent_translated()
+            total += 100
+            nO = len(po.obsolete_entries())
+            nU = len(po.untranslated_entries())
+            o_color = u_color = C_RED
+            if nO < 5:
+                o_color = C_YELLOW
+            if nO == 0:
+                o_color = C_GREEN
+            if nU < 5:
+                u_color = C_YELLOW
+            if nU == 0:
+                u_color = C_GREEN
+            obs = f"{o_color}{nO}{C_END}"
+            unt = f"{u_color}{nU}{C_END}"
+            ptl = self._colorize_percent(
+                po.percent_translated(),
+                fmt="{p: >4}%",
+            )
+            print(
+                f"{ptl} Translated with {obs} obsolete and {unt} untranslated in: {C_BWHITE}{po_file.name}{C_END}"
+            )
+            data[locale][po_file.name] = {
+                "percent_done": po.percent_translated(),
+                "obsolete": nO,
+                "untranslated": nU,
+            }
+
+        pct = completed / total * 100
+        print(f"\nOverall Completion:  {pct:.1f}%\n")
+
+        if save_json:
+            data["MUSICBOT"] = {
+                "completion": pct,
+                "languages": ",".join(locale_set),
+            }
+            with open(self._json_stats_path, "w", encoding="utf-8") as fh:
+                json.dump(data, fh)
 
     def mktestlang(self):
         """
@@ -252,6 +355,37 @@ class LangTool:
             p2.save_as_mofile(self._xx_lang_path.joinpath("musicbot_messages.mo"))
         else:
             print("Skipped messages domain, no musicbot_messages.pot file found.")
+
+    def update(self):
+        """Update the POT file then run merge on existing PO files."""
+        self._check_polib()
+        import polib
+        print("Updating POT and PO files from sources...")
+        self.extract()
+
+        print("Merging POT updates...")
+        pot_logs = polib.pofile(self._logs_pot_path)
+        pot_msgs = polib.pofile(self._msgs_pot_path)
+        for po_file in self.basedir.glob(self._po_file_pattern):
+            locale = po_file.parent.parent.name
+            po = polib.pofile(po_file)
+            pre_pct = self._colorize_percent(po.percent_translated())
+            pre_obs = len(po.obsolete_entries())
+            pre_unt = len(po.untranslated_entries())
+            
+            if po_file.name.startswith("musicbot_logs"):
+                po.merge(pot_logs)
+            elif po_file.name.startswith("musicbot_messages"):
+                po.merge(pot_msgs)
+                
+            pct = self._colorize_percent(po.percent_translated())
+            obs = len(po.obsolete_entries())
+            unt = len(po.untranslated_entries())
+            po.save()
+            print(
+                f"Updated: {locale} - {po_file.name} Was {pre_pct} translated, now {pct}"
+            )
+        print("Done.")
 
 
 def main():
@@ -303,6 +437,27 @@ def main():
         help="Create or update the 'xx' test language.",
     )
 
+    ap.add_argument(
+        "-s",
+        dest="do_stats",
+        action="store_true",
+        help="Show translation stats for existing PO files, by extracting strings from sources first.",
+    )
+
+    ap.add_argument(
+        "-J",
+        dest="save_json",
+        action="store_true",
+        help="Save stats to JSON for use in the repository.",
+    )
+
+    ap.add_argument(
+        "-u",
+        dest="do_update",
+        action="store_true",
+        help="Update existing POT files and then update existing PO files.",
+    )
+
     _args = ap.parse_args()
     _basedir = pathlib.Path(__file__).parent.resolve()
 
@@ -322,12 +477,19 @@ def main():
         langtool.diff(short=not _args.do_diff_long)
         sys.exit(0)
 
+    if _args.do_stats:
+        langtool.stats(save_json=_args.save_json)
+        sys.exit(0)
+
     if _args.do_testlang:
         langtool.mktestlang()
         sys.exit(0)
 
     if _args.do_extract:
         langtool.extract()
+
+    if _args.do_update:
+        langtool.update()
 
     if _args.do_compile:
         langtool.compile()
