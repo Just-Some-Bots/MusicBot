@@ -1,15 +1,15 @@
 ---
-title: 16th Nov 2024
+title: Is this 3.0?
 type: major
 ---
 
 Many additions and changes have been made since the last change log entry in May.  
-This post will list a summary of important changes per month since then.  
+This post will list a summary of important changes per month since the last.  
 
 For an exact list of changes, review the [dev branch commit log](https://github.com/Just-Some-Bots/MusicBot/commits/dev/) for code changes and 
 commit messages by contributors.  
 
-### November 2024
+**November 2024**
 
 - Refactor of discord message handling to make behaviour of commands consistent with options.  
 - Refactor i18n with Gettext and bundled tools to enable translation and customization of MusicBot text.  
@@ -29,11 +29,11 @@ commit messages by contributors.
 - Extend python logger class rather than virtually construct it.
 - Fix CLI arg parsing logic to allow Python 3.13 to launch MusicBot.
 
-### October 2024  
+**October 2024**  
 
 - Improved Stage Channel handling with request to speak logic.  
 
-### September 2024  
+**September 2024**  
 
 - Update `install.sh` for Linux/Unix-like OS to add various command line options.
   Use `install.sh --help` to see those.
@@ -44,14 +44,14 @@ commit messages by contributors.
 - Bug fix for status message player total counting logic.
 - Bug fixes for `playnext` and `seek` command.  
 
-### August 2024  
+**August 2024**  
 
 - Adds integrated OAuth2 support for yt-dlp, and several options to configure it.
 - Updated example_options.ini file.
 - Fix bug with playback speed.
 - Changed discord.py for windows to fix issue with speed option.
 
-### July 2024  
+**July 2024**  
 
 - Adds an owner-only command `setcookies` to allow managing cookies remotely.  
 - Continue to download songs when the header check request hits a timeout.  
@@ -70,7 +70,7 @@ commit messages by contributors.
 - Added dev-only command to generate markdown from config and permissions code. A step to generating documentations from the source.  
 - General code clean up.  
 
-### May 31st 2024  
+**May 31st 2024**  
 
 - Addressed an infinite loop bug.
 - Improved error handling.
