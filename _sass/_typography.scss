@@ -12,7 +12,7 @@ html {
 body {
 	height: 100%;
 	max-height: 100%;
-	font-family: "Merriweather", serif;
+	font-family: Arial, sans-serif;
 	letter-spacing: 0.01rem;
 	font-size: 1.8em;
 	line-height: 1.75em;
@@ -32,7 +32,7 @@ label,
 select,
 textarea,
 table {
-	font-family: "Open Sans", sans-serif;
+	font-family: Arial, sans-serif;
 	text-rendering: geometricPrecision;
 }
 
