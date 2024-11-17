@@ -7284,7 +7284,7 @@ class MusicBot(discord.Client):
     @command_helper(
         usage=["{cmd} [dry]"],
         desc=_Dd(
-            "Command used for testing. It prints a list of commands which can be verified by a test suite."
+            "Command used to automate testing of commands."
         ),
     )
     async def cmd_testready(

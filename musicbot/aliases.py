@@ -124,6 +124,9 @@ class Aliases:
                 )
                 continue
 
+            # clear aliases data
+            self.aliases.clear()
+            self.cmd_aliases.clear()
             # Loop over given aliases and associate them.
             for alias in aliases:
                 alias = alias.lower()
@@ -146,7 +149,7 @@ class Aliases:
         """
         try:
             with self.aliases_file.open(mode="w") as f:
-                json.dump(self.aliases_seed, f)
+                json.dump(self.aliases_seed, f, indent=4, sort_keys=True)
         except (ValueError, TypeError, RecursionError) as e:
             raise RuntimeError("JSON could not be saved.") from e
 
@@ -184,8 +187,12 @@ class Aliases:
         Add or update an alias with the given command and args.
         """
         ct = (cmd_name, cmd_args)
+        cmd_seed = " ".join(list(ct)).strip()
         self.aliases[alias_name] = ct
-        self.aliases_seed[alias_name] = " ".join(list(ct)).strip()
+        if cmd_seed in self.aliases_seed:
+            self.aliases_seed[cmd_seed].append(alias_name)
+        else:
+            self.aliases_seed[cmd_seed] = [alias_name]
         self.cmd_aliases[cmd_name].append((alias_name, cmd_args))
 
     def remove_alias(self, alias_name: str) -> None:

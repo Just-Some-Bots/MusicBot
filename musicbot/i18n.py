@@ -311,10 +311,8 @@ class I18n:
         # return mapped translations, to avoid lookups.
         if guild_id in self._discord_langs:
             tl = self._discord_langs[guild_id]
-            lang_loaded = tl.info().get("Language", "")
-            if ssd and ssd.lang_code and lang_loaded == ssd.lang_code:
-                return tl
-            if ssd and not ssd.lang_code:
+            lang_loaded = tl.info().get("language", "")
+            if ssd and lang_loaded == ssd.lang_code:
                 return tl
             if not guild_id:
                 return tl
