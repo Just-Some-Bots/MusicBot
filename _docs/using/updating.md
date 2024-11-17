@@ -16,6 +16,7 @@ Before updating, make sure to read the [latest changes](/MusicBot/changelog), as
 ## Automatic update script  
 
 With any luck, in most cases you can update using the bundled update script.  
+On Windows, the update script will attempt to update FFmpeg.  This is optional and can be skipped.    
 
 * **Linux/MacOS**: `./update.sh` (for Mac users: run this in a Terminal)
 * **Windows**: Open `update.bat`.
@@ -43,7 +44,12 @@ python -m pip install -U -r requirements.txt
 ```
 
 For other dependencies like FFmpeg or git, you'll need to use other tools specific to your OS.  
-On Windows you may be able to use WinGet or manually use an installer package to update.
+On Windows you may be able to use `WinGet` or find and use an installer package to update these applications.  
+On mac OS you likely want to use `homebrew` or some modern package manager.  
+On Linux and Unix-likes you will of course use your system package manager for these.  
+
+> **Note:**  Updating ffmpeg and git is optional!  You should only update these if you need to, like if something is broken, vulnerable, or would perform better with a newer version. 
+MusicBot does not have recommendations for specific versions, and leaves system administration up to the user.  
 
 
 ### Common problems
