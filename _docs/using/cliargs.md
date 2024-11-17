@@ -43,4 +43,9 @@ These are the options available for use:
                         This should contain values compatible with strftime().
                         Default: .ended-%Y-%j-%H%m%S 
 
+  --write-dir GLOBAL_WRITES_BASEDIR
+                        Supply a directory under which MusicBot will store all mutable files.  
+                        Essentially treats the install directory as read-only.  
+                        MusicBot must have permission to create this directory and files within it.
+
 ```
