@@ -5514,19 +5514,20 @@ class MusicBot(discord.Client):
     @command_helper(
         # fmt: off
         usage=[
-            "{cmd} + <ALIAS> <CMD> [ARGS]\n"
+            "{cmd} add <ALIAS> <CMD> [ARGS]\n"
             + _Dd("    Add an new alias with optional arguments.\n"),
 
-            "{cmd} - <ALIAS>\n"
-            + _Dd("    Remove an alias with the given name."),
+            "{cmd} remove <ALIAS>\n"
+            + _Dd("    Remove an alias with the given name.\n"),
 
             "{cmd} <save | load>\n"
-            + _Dd("    Reload or save aliases from/to the config file."),
+            + _Dd("    Reload or save aliases from/to the config file.\n"),
         ],
         # fmt: on
         desc=_Dd(
             "Allows management of aliases from discord. To see aliases use the help command."
         ),
+        remap_subs={"+": "add", "-": "remove"},
     )
     async def cmd_setalias(
         self,
@@ -5543,7 +5544,7 @@ class MusicBot(discord.Client):
         cmd = cmd.strip()
         args = " ".join(leftover_args)
         alias = alias.strip()
-        if opt not in ["+", "-", "save", "load"]:
+        if opt not in ["add", "remove", "save", "load"]:
             raise exceptions.CommandError(
                 "Invalid option for command: `%(option)s`",
                 fmt_args={"option": opt},
@@ -5563,7 +5564,7 @@ class MusicBot(discord.Client):
                     fmt_args={"raw_error": e},
                 ) from e
 
-        if opt == "+":
+        if opt == "add":
             if not alias or not cmd:
                 raise exceptions.CommandError(
                     "You must supply an alias and a command to alias",
@@ -5578,7 +5579,7 @@ class MusicBot(discord.Client):
                 % {"alias": alias, "command": cmdstr}
             )
 
-        if opt == "-":
+        if opt == "remove":
             if not alias:
                 raise exceptions.CommandError(
                     "You must supply an alias name to remove.",
