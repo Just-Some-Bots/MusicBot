@@ -10,7 +10,7 @@ This post will list a summary of important changes per month since the last post
 
 - Refactor of discord message handling to make behaviour of commands consistent with options.  
 - Refactor i18n with Gettext and bundled tools to enable translation and customization of MusicBot text.  
-  Please see the [`./i18n/readme.md`](https://github.com/Just-Some-Bots/MusicBot/i18n/readme.md) file for more info on how translations work and how to use them.  
+  Please see the [`./i18n/readme.md`](https://github.com/Just-Some-Bots/MusicBot/blob/dev/i18n/readme.md) file for more info on how translations work and how to use them.  
 - Updates to many parts of the guides and documentation.
 - Adds `setalias` command.  
 - Adds several dev-only commands for project maintenance.  
