@@ -4,8 +4,6 @@ category: Using the bot
 order: 12
 ---
 
-potentially defunct
-
 > Discord has native support for listening to music with friends using Spotify. If you want to use the bot solely to listen to Spotify music with friends, you should use the native feature instead. For more information, see [their page](https://support.spotify.com/uk/using_spotify/app_integrations/discord/).
 
 MusicBot has limited integration with Spotify, in that it automatically converts Spotify URIs to their nearest match equivalents on YouTube. Full integration isn't possible because Spotify does not allow you to stream or download full tracks per its Terms of Service, but this is a reasonable alternative.
