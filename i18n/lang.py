@@ -340,8 +340,8 @@ class LangTool:
             tl_badge = self._mk_badge("Translations", f"{pct:.1f}%", b_color)
             badges = ""
             for locale, files in data.items():
-                p_logs = data[locale]["musicbot_logs.po"]["percent_done"]
-                p_msgs = data[locale]["musicbot_messages.po"]["percent_done"]
+                p_logs = files["musicbot_logs.po"]["percent_done"]
+                p_msgs = files["musicbot_messages.po"]["percent_done"]
                 b_color = "red"
                 if p_logs > 60 or p_msgs > 60:
                     b_color = "yellow"
