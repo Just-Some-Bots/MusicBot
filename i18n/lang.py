@@ -87,11 +87,12 @@ class LangTool:
         """
         Generate markdown for a static badge from shields.io
         """
+
         def quote(s: str) -> str:
             s = s.replace("_", "__")
             s = s.replace("-", "--")
             return urllib.parse.quote(s)
-        
+
         style = "flat-square"
         placeholder = f"{left}: {right}"
         left = quote(left)
@@ -348,7 +349,7 @@ class LangTool:
                     b_color = "green"
                 badges += self._mk_badge(locale, f"{p_logs}% • {p_msgs}%", b_color)
                 badges += "  \n"
-            
+
             badges = f"{tl_badge}  \n{badges}"
             with open(self._stats_badge_path, "w", encoding="utf-8") as fh:
                 fh.write(badges)
