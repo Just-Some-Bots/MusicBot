@@ -23,7 +23,7 @@ from typing import (
 import configupdater
 from configupdater.block import Comment, Space
 
-from . import write_path
+from . import get_write_base, write_path
 from .constants import (
     APL_FILE_HISTORY,
     DATA_FILE_COOKIES,
@@ -682,6 +682,7 @@ class Config:
                 "Replace MusicBot name/version in embed footer with custom text.\n"
                 "Only applied when UseEmbeds is enabled and it is not blank."
             ),
+            default_is_empty=True,
         )
         self.remove_embed_footer: bool = self.register.init_option(
             section="MusicBot",
@@ -805,6 +806,8 @@ class Config:
             ),
         )
 
+        # write_path not needed, used for display only.
+        hist_file = pathlib.Path(DEFAULT_PLAYLIST_DIR).joinpath(APL_FILE_HISTORY)
         self.enable_queue_history_global: bool = self.register.init_option(
             section="MusicBot",
             option="SavePlayedHistoryGlobal",
@@ -815,10 +818,8 @@ class Config:
                 "Enable saving all songs played by MusicBot to a global playlist file:  %(filename)s\n"
                 "This will contain all songs from all servers."
             ),
-            comment_args={"filename": f"{DEFAULT_PLAYLIST_DIR}{APL_FILE_HISTORY}"},
+            comment_args={"filename": hist_file},
         )
-
-        hist_file = write_path(APL_FILE_HISTORY)
         self.enable_queue_history_guilds: bool = self.register.init_option(
             section="MusicBot",
             option="SavePlayedHistoryGuilds",
@@ -830,7 +831,7 @@ class Config:
                 "Enable saving songs played per-server to a playlist file:  %(basename)s[Server ID]%(ext)s"
             ),
             comment_args={
-                "basename": f"{hist_file.parent}/{hist_file.stem}",
+                "basename": hist_file.with_name(hist_file.stem),
                 "ext": hist_file.suffix,
             },
         )
@@ -949,6 +950,7 @@ class Config:
             comment=_Dd(
                 "An optional file path to a text file listing Discord User IDs, one per line."
             ),
+            default_is_empty=True,
         )
         self.user_blocklist: UserBlocklist = UserBlocklist(self.user_blocklist_file)
 
@@ -972,6 +974,7 @@ class Config:
                 "An optional file path to a text file that lists URLs, words, or phrases one per line.\n"
                 "Any song title or URL that contains any line in the list will be blocked."
             ),
+            default_is_empty=True,
         )
         self.song_blocklist: SongBlocklist = SongBlocklist(self.song_blocklist_file)
 
@@ -985,6 +988,7 @@ class Config:
                 "An optional path to a directory containing auto playlist files.\n"
                 "Each file should contain a list of playable URLs or terms, one track per line."
             ),
+            default_is_empty=True,
         )
 
         self.media_file_dir: pathlib.Path = self.register.init_option(
@@ -1000,6 +1004,7 @@ class Config:
                 "Maps to:  %(path)s/some/folder/name/file.ext"
             ),
             comment_args={"path": "./media"},
+            default_is_empty=True,
         )
 
         # TODO: add options for default language(s)
@@ -1015,6 +1020,7 @@ class Config:
             comment=_Dd(
                 "An optional directory path where MusicBot will store long and short-term cache for playback."
             ),
+            default_is_empty=True,
         )
 
         self.logs_max_kept: int = self.register.init_option(
@@ -1580,6 +1586,7 @@ class ConfigOption:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> None:
         """
         Defines a configuration option in MusicBot and attributes used to
@@ -1594,6 +1601,7 @@ class ConfigOption:
         :param: editable:   If this option can be changed via commands.
         :param: invisible:  (Permissions only) hide from display when formatted for per-user display.
         :param: empty_display_val   Value shown when the parsed value is empty or None.
+        :param: default_is_empty    Save an empty value to INI file when the option value is default.
         """
         self.section = section
         self.option = option
@@ -1605,6 +1613,7 @@ class ConfigOption:
         self.editable = editable
         self.invisible = invisible
         self.empty_display_val = empty_display_val
+        self.default_is_empty = default_is_empty
 
     def __str__(self) -> str:
         return f"[{self.section}] > {self.option}"
@@ -1786,6 +1795,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = " ",
+        default_is_empty: bool = False,
     ) -> str:
         pass
 
@@ -1802,6 +1812,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> bool:
         pass
 
@@ -1818,6 +1829,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> int:
         pass
 
@@ -1834,6 +1846,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> float:
         pass
 
@@ -1850,6 +1863,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = " ",
+        default_is_empty: bool = False,
     ) -> Set[int]:
         pass
 
@@ -1866,6 +1880,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = " ",
+        default_is_empty: bool = False,
     ) -> Set[str]:
         pass
 
@@ -1882,6 +1897,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> DebugLevel:
         pass
 
@@ -1898,6 +1914,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> pathlib.Path:
         pass
 
@@ -1913,6 +1930,7 @@ class ConfigOptionRegistry:
         editable: bool = True,
         invisible: bool = False,
         empty_display_val: str = "",
+        default_is_empty: bool = False,
     ) -> RegTypes:
         """
         Register an option while getting its configuration value at the same time.
@@ -1947,6 +1965,7 @@ class ConfigOptionRegistry:
             editable=editable,
             invisible=invisible,
             empty_display_val=empty_display_val,
+            default_is_empty=default_is_empty,
         )
         self._option_list.append(config_opt)
         self._sections.add(section)
@@ -2035,9 +2054,14 @@ class ConfigOptionRegistry:
         Currently will print options in order they are registered.
         But prints sections in the order ConfigParser loads them.
         """
+        basedir = get_write_base()
+        if not basedir:
+            basedir = os.getcwd()
         md_sections = {}
         for opt in self.option_list:
             dval = self.to_ini(opt, use_default=True)
+            if opt.getter == "getpathlike":
+                dval = dval.replace(basedir, ".")
             if dval.strip() == "":
                 if opt.empty_display_val:
                     dval = f"<code>{opt.empty_display_val}</code>"
@@ -2096,7 +2120,11 @@ class ConfigOptionRegistry:
             adder.space()
 
             for opt in self.option_list:
-                cu[opt.section][opt.option] = self.to_ini(opt, use_default=True)
+                if opt.default_is_empty:
+                    ini_val = ""
+                else:
+                    ini_val = self.to_ini(opt, use_default=True)
+                cu[opt.section][opt.option] = ini_val
                 adder = cu[opt.section][opt.option].add_before
                 if opt.comment_args:
                     comment = opt.comment % opt.comment_args
