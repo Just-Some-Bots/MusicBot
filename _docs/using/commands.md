@@ -32,11 +32,15 @@ autoplaylist <add | remove> [URL]
 autoplaylist add all
     Adds the entire queue to the guilds playlist.
 
+autoplaylist clear [NAME]
+    Clear all songs from the named playlist file.
+    If name is omitted, the currently loaded playlist is emptied.
+
 autoplaylist show
-    Show a list of existing playlist files.
+    Show the currently selected playlist and a list of existing playlist files.
 
 autoplaylist restart
-    Reset the auto playlist queue, restarting at the first track unless randomized.
+    Reload the auto playlist queue, restarting at the first track unless randomized.
 
 autoplaylist set <NAME>
     Set a playlist as default for this guild and reloads the guild auto playlist.
@@ -169,6 +173,25 @@ karaoke
 <strong>Description:</strong><br>  
 Toggle karaoke mode on or off. While enabled, only karaoke members may queue songs.<br>
 Groups with BypassKaraokeMode permission control which members are Karaoke members.<br>
+
+</details>
+
+<details>
+  <summary>language</summary>
+<strong>Example usage:</strong><br>  
+{% highlight text %}
+language show
+    Show language codes available to use.
+
+language set [LOCALE]
+    Set the desired language for this server.
+
+language reset
+    Reset the server language to bot's default language.
+
+{% endhighlight %}
+<strong>Description:</strong><br>  
+Manage the language used for messages in the calling server.<br>
 
 </details>
 
@@ -666,13 +689,15 @@ Deprecated command, use the config command instead.<br>
   <summary>setalias</summary>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
-setalias + <ALIAS> <CMD> [ARGS]
+setalias add <ALIAS> <CMD> [ARGS]
     Add an new alias with optional arguments.
 
-setalias - <ALIAS>
+setalias remove <ALIAS>
     Remove an alias with the given name.
+
 setalias <save | load>
     Reload or save aliases from/to the config file.
+
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Allows management of aliases from discord. To see aliases use the help command.<br>
@@ -851,7 +876,7 @@ Since this method evaluates arbitrary code, it is considered dangerous like the 
 testready [dry]
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Command used for testing. It prints a list of commands which can be verified by a test suite.<br>
+Command used to automate testing of commands.<br>
 
 </details>
 

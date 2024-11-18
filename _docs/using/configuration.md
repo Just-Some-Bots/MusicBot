@@ -423,7 +423,7 @@ If enabled, MusicBot will allow commands to have multiple names using data in:  
 
 Replace MusicBot name/version in embed footer with custom text.<br>
 Only applied when UseEmbeds is enabled and it is not blank.<br>  
-<strong>Default Value:</strong> <code>Just-Some-Bots/MusicBot (release-250723-1014-gaba00dea-modded)</code>  
+<strong>Default Value:</strong> <code>Just-Some-Bots/MusicBot (release-250723-190-g7719f30f)</code>  
 </details>  
 <details>
   <summary>RemoveEmbedFooter</summary>
@@ -592,21 +592,21 @@ This option will disable UseExperimentalEqualization option as well.<br>
   <summary>UserBlocklistFile</summary>
 
 An optional file path to a text file listing Discord User IDs, one per line.<br>  
-<strong>Default Value:</strong> <code>config/blocklist_users.txt</code>  
+<strong>Default Value:</strong> <code>./config/blocklist_users.txt</code>  
 </details>  
 <details>
   <summary>SongBlocklistFile</summary>
 
 An optional file path to a text file that lists URLs, words, or phrases one per line.<br>
 Any song title or URL that contains any line in the list will be blocked.<br>  
-<strong>Default Value:</strong> <code>config/blocklist_songs.txt</code>  
+<strong>Default Value:</strong> <code>./config/blocklist_songs.txt</code>  
 </details>  
 <details>
   <summary>AutoPlaylistDirectory</summary>
 
 An optional path to a directory containing auto playlist files.<br>
 Each file should contain a list of playable URLs or terms, one track per line.<br>  
-<strong>Default Value:</strong> <code>config/playlists</code>  
+<strong>Default Value:</strong> <code>./config/playlists</code>  
 </details>  
 <details>
   <summary>MediaFileDirectory</summary>
@@ -615,13 +615,13 @@ An optional directory path where playable media files can be stored.<br>
 All files and sub-directories can then be accessed by using 'file://' as a protocol.<br>
 Example:  file://some/folder/name/file.ext<br>
 Maps to:  ./media/some/folder/name/file.ext<br>  
-<strong>Default Value:</strong> <code>media</code>  
+<strong>Default Value:</strong> <code>./media</code>  
 </details>  
 <details>
   <summary>AudioCachePath</summary>
 
 An optional directory path where MusicBot will store long and short-term cache for playback.<br>  
-<strong>Default Value:</strong> <code>audio_cache</code>  
+<strong>Default Value:</strong> <code>./audio_cache</code>  
 </details>  
 <details>
   <summary>LogsMaxKept</summary>

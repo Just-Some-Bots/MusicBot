@@ -165,7 +165,7 @@ Services/extractors supported by yt-dlp are listed here:<br>
 MusicBot also provides one custom service `spotify:musicbot` to enable or disable Spotify API extraction.<br>
 NOTICE: MusicBot might not support all services available to yt-dlp!<br>
 <br>  
-<strong>Default Value:</strong> <code>Bandcamp, youtube, spotify:musicbot, soundcloud, generic</code>  
+<strong>Default Value:</strong> <code>generic, spotify:musicbot, soundcloud, Bandcamp, youtube</code>  
 </details>
 
 ---
