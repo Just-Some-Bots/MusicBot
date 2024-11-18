@@ -8,6 +8,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import urllib.parse
 from collections import defaultdict
 
 try:
@@ -49,6 +50,7 @@ class LangTool:
         self._gettext_path = basedir.joinpath("pygettext.py")
         self._msgfmt_path = basedir.joinpath("msgfmt.py")
         self._json_stats_path = self.workdir.joinpath(".github/i18n_stats.json")
+        self._stats_badge_path = self.workdir.joinpath(".github/i18n_badges.md")
         self._po_file_pattern = "*/LC_MESSAGES/*.po"
         self._do_diff = False
 
@@ -80,6 +82,23 @@ class LangTool:
             print("Fatal error, could not load the 'polib' module.")
             print("Install polib with pip or via your system package manager first.")
             sys.exit(2)
+
+    def _mk_badge(self, left: str, right: str, color: str) -> str:
+        """
+        Generate markdown for a static badge from shields.io
+        """
+        def quote(s: str) -> str:
+            s = s.replace("_", "__")
+            s = s.replace("-", "--")
+            return urllib.parse.quote(s)
+        
+        style = "flat-square"
+        placeholder = f"{left}: {right}"
+        left = quote(left)
+        right = quote(right)
+        color = color.strip("#")
+        img_url = f"https://img.shields.io/badge/{left}-{right}-{color}?style={style}"
+        return f"![{placeholder}]({img_url})"
 
     def _colorize_percent(self, percent: float, fmt: str = "") -> str:
         """Converts the percentage to a string with colors based on the value."""
@@ -240,7 +259,7 @@ class LangTool:
         print("")
         print("Done.")
 
-    def stats(self, save_json: bool = False):
+    def stats(self, save_json: bool = False, save_badges: bool = False):
         """
         Get statistics on each language completion level and coherence to source.
         """
@@ -310,6 +329,29 @@ class LangTool:
             }
             with open(self._json_stats_path, "w", encoding="utf-8") as fh:
                 json.dump(data, fh)
+
+        if save_badges:
+            b_color = "red"
+            if pct > 60:
+                b_color = "yellow"
+            if pct >= 100:
+                b_color = "green"
+            tl_badge = self._mk_badge("Translations", f"{pct:.1f}%", b_color)
+            badges = ""
+            for locale, files in data.items():
+                p_logs = data[locale]["musicbot_logs.po"]["percent_done"]
+                p_msgs = data[locale]["musicbot_messages.po"]["percent_done"]
+                b_color = "red"
+                if p_logs > 60 or p_msgs > 60:
+                    b_color = "yellow"
+                if p_logs == 100 and p_msgs == 100:
+                    b_color = "green"
+                badges += self._mk_badge(locale, f"{p_logs}% • {p_msgs}%", b_color)
+                badges += "  \n"
+            
+            badges = f"{tl_badge}  \n{badges}"
+            with open(self._stats_badge_path, "w", encoding="utf-8") as fh:
+                fh.write(badges)
 
     def mktestlang(self):
         """
@@ -450,6 +492,13 @@ def main():
     )
 
     ap.add_argument(
+        "-B",
+        dest="save_badges",
+        action="store_true",
+        help="Save stats will save badges to use in the repository.",
+    )
+
+    ap.add_argument(
         "-u",
         dest="do_update",
         action="store_true",
@@ -476,7 +525,7 @@ def main():
         sys.exit(0)
 
     if _args.do_stats:
-        langtool.stats(save_json=_args.save_json)
+        langtool.stats(save_json=_args.save_json, save_badges=_args.save_badges)
         sys.exit(0)
 
     if _args.do_testlang:

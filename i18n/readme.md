@@ -1,12 +1,13 @@
 # MusicBot Translation Guide  
 
-[![Crowdin](https://badges.crowdin.net/notmusicbot/localized.svg)](https://crowdin.com/project/notmusicbot)
-
-Visit [Crowdin](https://crowdin.com/project/notmusicbot/) to help MusicBot with translations or download updated translation files ahead of their inclusion in MusicBot.
+![Translations: 66.2%](https://img.shields.io/badge/Translations-66.2%25-orange?style=flat-square)  
 
 MusicBot makes use of GNU Gettext for translation of display text.  
-We use the typical `.po`/`.mo` file format to enable translations.  
-Language directories in `./i18n/` should be named using language codes which mostly conform to the [Locale-Names specification](https://www.gnu.org/savannah-checkouts/gnu/gettext/manual/html_node/Locale-Names.html) by gettext.  
+We use the typical `.po`/`.mo` file format to enable translations and bundle a few 
+tools to aid contributors and users with aspects of gettext translation. 
+This readme details how we use Gettext in our code and how you can update or add translations.  
+
+The language directories you'll find or add in `./i18n/` should be named using language codes which mostly conform to the [Locale-Names specification](https://www.gnu.org/savannah-checkouts/gnu/gettext/manual/html_node/Locale-Names.html) by gettext.  
 
 By default, MusicBot will detect and use your system language, if translations are available.  
 To set a specific language, MusicBot provides these launch options:  
@@ -53,8 +54,7 @@ Here is a step by step break down of the process:
 
 ### What editor to use
 
-You can edit translations online using our [Crowdin repository](https://crowdin.com/project/notmusicbot/) which can sync with GitHub automatically.  
-For an offline editor, you might try [Poedit](https://poedit.net/), which is available on most desktop OS.  
+To edit translations you'll need an editor.  Specific to Gettext, you might try [Poedit](https://poedit.net/), which is available for free on most desktop OS.  
 Of course, the `.pot` and `.po` files are just plain text.  So you can edit them with any text editor if you understand the PO file format. (Visit the Gettext manual to [understand the PO format](https://www.gnu.org/software/gettext/manual/gettext.html#PO-Files))
 
 ### How to compile `.mo` files.
@@ -155,4 +155,10 @@ The script provides these command line flags:
   Create or update the 'xx' test language.  
   The translations are reversed source strings, used to test code changes.  
   This requires the `polib` python package.
+
+- `-s`  
+  Show translation stats for existing PO files, such as completion and number of missing translations.
+
+- `-u`  
+  Extracts strings to POT files, then updates existing PO files with new strings.  
 

@@ -270,7 +270,6 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
             "save",
         ],
     ),
-    
     CmdTest(
         "config",
         [
