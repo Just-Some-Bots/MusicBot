@@ -150,7 +150,8 @@ discord_bot_perms.speak = True
 discord_bot_perms.request_to_speak = True
 
 
-# TODO: autoplaylist remove all.
+# TODO:  add support for local file playback via indexed data.
+#  --  Using tinytag to extract meta data from files and index it.
 
 
 class MusicBot(discord.Client):
@@ -1089,7 +1090,7 @@ class MusicBot(discord.Client):
                     "Skipping next song `%(title)s` as requester `%(user)s` is not in voice!",
                     ssd_,
                 ) % {
-                    "title": entry.title,
+                    "title": _D(entry.title, ssd_),
                     "author": entry.author.name,
                 }
 
@@ -1108,7 +1109,7 @@ class MusicBot(discord.Client):
                     ssd_,
                 ) % {
                     "mention": entry.author.mention,
-                    "title": entry.title,
+                    "title": _D(entry.title, ssd_),
                     "channel": player.voice_client.channel.name,
                 }
             else:
@@ -1117,7 +1118,7 @@ class MusicBot(discord.Client):
                     ssd_,
                 ) % {
                     "channel": player.voice_client.channel.name,
-                    "title": entry.title,
+                    "title": _D(entry.title, ssd_),
                     "author": entry.author.name,
                 }
 
@@ -1127,7 +1128,7 @@ class MusicBot(discord.Client):
                 "Now playing automatically added entry `%(title)s` in %(channel)s!",
                 ssd_,
             ) % {
-                "title": entry.title,
+                "title": _D(entry.title, ssd_),
                 "channel": player.voice_client.channel.name,
             }
 
@@ -1549,8 +1550,8 @@ class MusicBot(discord.Client):
 
         # Send a message to the calling channel if we can.
         if entry and entry.channel:
-            song = entry.title or entry.url
             ssd = self.server_data[player.voice_client.guild.id]
+            song = _D(entry.title, ssd) or entry.url
             if isinstance(ex, exceptions.MusicbotException):
                 error = _D(ex.message, ssd) % ex.fmt_args
             else:
@@ -2396,15 +2397,19 @@ class MusicBot(discord.Client):
             if text_chlist:
                 log.info("Bound to text channels:")
                 for valid_ch in text_chlist:
-                    guild_name = "PrivateChannel"
+                    guild_name = _L("Private Channel")
                     if isinstance(valid_ch, discord.DMChannel):
-                        ch_name = "Unknown User DM"
+                        ch_name = _L("Unknown User DM")
                         if valid_ch.recipient:
-                            ch_name = f"DM: {valid_ch.recipient.name}"
+                            ch_name = _L("User DM: %(name)s") % {
+                                "name": valid_ch.recipient.name
+                            }
                     elif isinstance(valid_ch, discord.PartialMessageable):
-                        ch_name = "Unknown Partial Channel"
+                        ch_name = _L("Unknown Channel (Partial)")
                     else:
-                        ch_name = valid_ch.name or f"Unnamed Channel: {valid_ch.id}"
+                        ch_name = valid_ch.name or _L("Unnamed Channel: %(id)s") % {
+                            "id": valid_ch.id
+                        }
                     if valid_ch.guild:
                         guild_name = valid_ch.guild.name
                     log.info(
@@ -2722,7 +2727,7 @@ class MusicBot(discord.Client):
         event.activate()
 
         try:
-            chname = "Unknown"
+            chname = _L("Unknown Channel")
             if hasattr(guild.voice_client.channel, "name"):
                 chname = guild.voice_client.channel.name
 
@@ -2870,10 +2875,6 @@ class MusicBot(discord.Client):
         """
         Display help text for usage of MusicBot or specific commmands.
         """
-
-        # TODO:  this needs to be redone for the new command_helper decorator.
-        # this also needs to be updated for i18n but we'll take our time here.
-
         commands = []
         is_all = False
         is_emoji = False
@@ -4025,7 +4026,6 @@ class MusicBot(discord.Client):
                     "You gave a position outside the playlist size!"
                 )
 
-        # TODO:  replace this with a Response maybe.  UI stuff.
         await self.safe_send_message(
             channel,
             Response(
@@ -4339,7 +4339,7 @@ class MusicBot(discord.Client):
                     "Position in queue: %(position)s",
                     ssd_,
                 )
-                track_title = entry.title
+                track_title = _D(entry.title, ssd_)
 
             log.debug("Added song(s) at position %s", position)
             if position == 1 and player.is_stopped:
@@ -4834,7 +4834,7 @@ class MusicBot(discord.Client):
                     if streaming
                     else _D("Currently playing:", ssd_)
                 ),
-                value=entry.title,
+                value=_D(entry.title, ssd_),
                 inline=False,
             )
             content.add_field(
@@ -5180,11 +5180,12 @@ class MusicBot(discord.Client):
             if entry.channel and entry.author:
                 return Response(
                     _D("Removed entry `%(track)s` added by `%(user)s`", ssd_)
-                    % {"track": entry.title, "user": entry.author.name},
+                    % {"track": _D(entry.title, ssd_), "user": entry.author.name},
                 )
 
             return Response(
-                _D("Removed entry `%(track)s`", ssd_) % {"track": entry.title},
+                _D("Removed entry `%(track)s`", ssd_)
+                % {"track": _D(entry.title, ssd_)},
             )
 
         raise exceptions.PermissionsError(
@@ -5230,7 +5231,7 @@ class MusicBot(discord.Client):
                             "The next song `%(track)s` is downloading, please wait.",
                             ssd_,
                         )
-                        % {"track": next_entry.title},
+                        % {"track": _D(next_entry.title, ssd_)},
                     )
 
                 if next_entry.is_downloaded:
@@ -5285,7 +5286,8 @@ class MusicBot(discord.Client):
                 player.repeatsong = False
             player.skip()
             return Response(
-                _D("Force skipped `%(track)s`.", ssd_) % {"track": current_entry.title},
+                _D("Force skipped `%(track)s`.", ssd_)
+                % {"track": _D(current_entry.title, ssd_)},
             )
 
         if not permission_force_skip and force_skip:
@@ -5348,7 +5350,7 @@ class MusicBot(discord.Client):
                     ssd_,
                 )
                 % {
-                    "track": current_entry.title,
+                    "track": _D(current_entry.title, ssd_),
                     "next_up": (
                         _D(" Next song coming up!", ssd_)
                         if player.playlist.peek()
@@ -5372,7 +5374,7 @@ class MusicBot(discord.Client):
                 ssd_,
             )
             % {
-                "track": current_entry.title,
+                "track": _D(current_entry.title, ssd_),
                 "votes": skips_remaining,
             },
         )
@@ -6112,7 +6114,7 @@ class MusicBot(discord.Client):
                 "Progress: `[%(progress)s/%(total)s]`\n",
                 ssd_,
             ) % {
-                "title": player.current_entry.title,
+                "title": _D(player.current_entry.title, ssd_),
                 "user": added_by,
                 "progress": song_progress,
                 "total": song_total,
@@ -6141,7 +6143,7 @@ class MusicBot(discord.Client):
                 "Title: `%(title)s`\n"
                 "Added by: `%(user)s\n\n",
                 ssd_,
-            ) % {"index": idx, "title": item.title, "user": added_by}
+            ) % {"index": idx, "title": _D(item.title, ssd_), "user": added_by}
 
         embed = Response(
             _D(
@@ -7267,7 +7269,7 @@ class MusicBot(discord.Client):
 
         guild_name = leave_guild.name
         guild_owner = (
-            leave_guild.owner.name if leave_guild.owner else _D("Unknown", ssd_)
+            leave_guild.owner.name if leave_guild.owner else _D("Unknown Owner", ssd_)
         )
         guild_id = leave_guild.id
         # TODO: this response doesn't make sense if the command is issued

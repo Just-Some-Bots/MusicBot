@@ -26,6 +26,7 @@ from .constants import (
     MUSICBOT_EMBED_COLOR_ERROR,
     MUSICBOT_EMBED_COLOR_NORMAL,
 )
+from .i18n import _D
 from .json import Json
 from .utils import _get_variable
 
@@ -413,37 +414,57 @@ class MusicBotResponse(discord.Embed):
             return f"```{self.codeblock}\n{self.content}```"
         return self.content
 
-    def to_markdown(self) -> str:
+    def to_markdown(self, ssd_: Optional[GuildSpecificData] = None) -> str:
         """
         Converts the embed to a markdown text.
         Does not include thumbnail and image urls.
         Embeds may have more content than text messages will allow!
         """
-        out = ""
+        url = ""
+        title = ""
+        descr = ""
+        image = ""
+        fields = ""
         if self.title:
-            out += f"## {self.title}\n"
+            # TRANSLATORS: text-only format for embed title.
+            title = _D("## %(title)s\n", ssd_) % {"title": self.title}
         if self.description:
-            out += f"{self.description}\n"
+            # TRANSLATORS: text-only format for embed description.
+            descr = _D("%(content)s\n", ssd_) % {"content": self.description}
         if self.url:
-            out += f"{self.url}\n"
+            # TRANSLATORS: text-only format for embed url.
+            url = _D("%(url)s\n", ssd_) % {"url": self.url}
 
         for field in self.fields:
-            fn = f"**{field.name}**" if field.name else ""
-            fv = ""
             if field.value:
                 if field.name:
-                    fv = f" {field.value}"
+                    # TRANSLATORS: text-only format for embed field name an value.
+                    fields += _D("**%(name)s** %(value)s\n", ssd_) % {
+                        "name": field.name,
+                        "value": field.value,
+                    }
                 else:
-                    fv = field.value
-            out += f"{fn}{fv}\n"
+                    # TRANSLATORS: text-only format for embed field without a name.
+                    fields += _D("%(value)s\n", ssd_) % {"value": field.value}
 
         # only pick one image if both thumbnail and image are set,
         if self.image:
-            out += f"{self.image.url}"
+            # TRANSLATORS: text-only format for embed image or thumbnail.
+            image = _D("%(url)s", ssd_) % {"url": self.image.url}
         elif self.thumbnail:
-            out += f"{self.thumbnail.url}"
+            image = _D("%(url)s", ssd_) % {"url": self.thumbnail.url}
 
-        return out
+        return _D(
+            # TRANSLATORS: text-only format template for embeds converted to markdown.
+            "%(title)s%(content)s%(url)s%(fields)s%(image)s",
+            ssd_,
+        ) % {
+            "title": title,
+            "content": descr,
+            "url": url,
+            "fields": fields,
+            "image": image,
+        }
 
 
 class Response(MusicBotResponse):

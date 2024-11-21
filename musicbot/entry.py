@@ -15,6 +15,7 @@ from yt_dlp.utils import (  # type: ignore[import-untyped]
 from .constructs import Serializable
 from .downloader import YtdlpResponseDict
 from .exceptions import ExtractionError, InvalidDataError, MusicbotException
+from .i18n import _X
 from .spotify import Spotify
 
 if TYPE_CHECKING:
@@ -270,8 +271,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
     @property
     def title(self) -> str:
         """Gets a title string from entry info or 'Unknown'"""
-        # TODO: i18n for this at some point.
-        return self.info.title or "Unknown"
+        # TRANSLATORS: Placeholder for empty track title.
+        return self.info.title or _X("Unknown")
 
     @property
     def duration(self) -> Optional[float]:
@@ -793,8 +794,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             if dtitle and not self.info.title:
                 return str(dtitle)
 
-        # TODO: i18n for this at some point.
-        return self.info.title or "Unknown"
+        return self.info.title or _X("Unknown")
 
     @property
     def duration(self) -> Optional[float]:
@@ -1001,8 +1001,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
     @property
     def title(self) -> str:
         """Gets a title string from entry info or 'Unknown'"""
-        # TODO: i18n for this at some point.
-        return self.info.title or "Unknown"
+        return self.info.title or _X("Unknown")
 
     @property
     def duration(self) -> Optional[float]:
