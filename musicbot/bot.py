@@ -1836,7 +1836,7 @@ class MusicBot(discord.Client):
             send_kws["files"] = content.files
 
         try:
-            if self.config.embeds and not content.force_text:
+            if (self.config.embeds and not content.force_text) or content.force_embed:
                 log.debug("sending embed to: %s", dest)
                 msg = await dest.send(embed=content, **send_kws)
             else:

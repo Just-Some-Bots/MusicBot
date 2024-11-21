@@ -358,15 +358,35 @@ class MusicBotResponse(discord.Embed):
         files: Optional[List[discord.File]] = None,
         delete_after: Union[None, int, float] = None,
         force_text: bool = False,
+        force_embed: bool = False,
         no_footer: bool = False,
         **kwargs: Any,
     ) -> None:
+        """
+        Creates an embed-like response object.
+
+        :param: content:  The primary content, the description in the embed.
+        :param: codeblock:  A string used for syntax highlighter markdown.
+                            Setting this parameter will format content at display time.
+        :param: reply_to:  A message to reply to with this response.
+        :param: send_to:  A destination for the message.
+        :param: sent_from:  A channel where this response can be sent to if send_to fails.
+                            This is useful for DM with strict perms.
+        :param: color_hex:  A hex color string used only for embed accent color.
+        :param: files:      A list of discord.File objects to send.
+        :param: delete_after:   A time limit to wait before deleting the response from discord.
+                                Only used if message delete options are enabled.
+        :param: force_text:  Regardless of settings, this response should be text-only.
+        :param: force_embed: Regardless of settings, this response should be embed-only.
+        :param: no_footer:   Disable the embed footer entirely. Only used on Embeds.
+        """
         self.content = content
         self.codeblock = codeblock
         self.reply_to = reply_to
         self.send_to = send_to
         self.sent_from = sent_from
         self.force_text = force_text
+        self.force_embed = force_embed
         self.delete_after = delete_after
         self.files = files if files is not None else []
 
@@ -407,8 +427,6 @@ class MusicBotResponse(discord.Embed):
         if self.url:
             out += f"{self.url}\n"
 
-        # leaving out thumb and image urls...
-
         for field in self.fields:
             fn = f"**{field.name}**" if field.name else ""
             fv = ""
@@ -418,6 +436,12 @@ class MusicBotResponse(discord.Embed):
                 else:
                     fv = field.value
             out += f"{fn}{fv}\n"
+
+        # only pick one image if both thumbnail and image are set,
+        if self.image:
+            out += f"{self.image.url}"
+        elif self.thumbnail:
+            out += f"{self.thumbnail.url}"
 
         return out
 
