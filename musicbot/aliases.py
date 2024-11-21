@@ -93,6 +93,10 @@ class Aliases:
             self.aliases_seed = AliasesDefault.aliases_seed
             return
 
+        # clear aliases data
+        self.aliases.clear()
+        self.cmd_aliases.clear()
+
         # Create an alias-to-command map from the JSON.
         for cmd, aliases in self.aliases_seed.items():
             # ignore comments
@@ -124,9 +128,6 @@ class Aliases:
                 )
                 continue
 
-            # clear aliases data
-            self.aliases.clear()
-            self.cmd_aliases.clear()
             # Loop over given aliases and associate them.
             for alias in aliases:
                 alias = alias.lower()
@@ -179,7 +180,7 @@ class Aliases:
     def exists(self, alias_name: str) -> bool:
         """Test if the given alias exists."""
         if alias_name in ["--comment", "--comments"]:
-            return False
+            return True
         return alias_name in self.aliases
 
     def make_alias(self, alias_name: str, cmd_name: str, cmd_args: str = "") -> None:
