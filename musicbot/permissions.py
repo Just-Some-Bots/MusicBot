@@ -2,7 +2,7 @@ import configparser
 import logging
 import pathlib
 import shutil
-from typing import TYPE_CHECKING, Dict, Set, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple, Type, Union
 
 import configupdater
 import discord
@@ -219,6 +219,12 @@ class Permissions:
         Returns the first PermissionGroup a user belongs to
         :param user: A discord User or Member object
         """
+        # Only ever put Owner in the Owner group.
+        if user.id in self.owner_group.user_list:
+            return self.owner_group
+
+        # TODO: Maybe we should validate to prevent users in multiple groups...
+        # Or complicate things more by merging groups into virtual groups......
 
         # Search for the first group a member ID shows up in.
         for group in self.groups.values():
@@ -331,6 +337,8 @@ class Permissions:
 
 
 class PermissionGroup:
+    _BuiltIn: List[str] = [DEFAULT_PERMS_GROUP_NAME, DEFAULT_OWNER_GROUP_NAME]
+
     def __init__(
         self,
         name: str,
@@ -568,6 +576,11 @@ class PermissionGroup:
         # if extractors contains the all marker, blank out the list to allow all.
         if PERMS_ALLOW_ALL_EXTRACTOR_NAME in self.extractors:
             self.extractors = set()
+
+        # Make sure to clear the UserList and GrantToRoles options of built-ins.
+        if self.name in PermissionGroup._BuiltIn:
+            self.user_list.clear()
+            self.granted_to_roles.clear()
 
     def add_user(self, uid: int) -> None:
         """Add given discord User ID to the user list."""
@@ -847,7 +860,7 @@ class PermissionOptionRegistry(ConfigOptionRegistry):
                 "- Group names must be unique, and cannot be duplicated.\n"
                 "- Each group must have at least one permission option defined.\n"
                 "- [Default] is a reserved section. Users without a specific group assigned will use it.\n"
-                "- [Owner (auto)] is a reserved section that cannot be edited.\n"
+                "- [Owner (auto)] is a reserved section that cannot be removed, used by the Owner user.\n"
                 "\nAvailable Options:\n"
                 f"{docs}"
             ).strip()
@@ -858,17 +871,20 @@ class PermissionOptionRegistry(ConfigOptionRegistry):
 
             # add owner section comment
             owner_comment = (
-                "This permission group is used by the Owner only, and cannot be edited at all.\n"
-                "It grants all access to MusicBot for the user specified in 'OwnerID' config option."
+                "This permission group is used by the Owner only, it cannot be deleted or renamed.\n"
+                "It's options only apply to Owner user set in the 'OwnerID' config option.\n"
+                "You cannot set the UserList or GrantToRoles options in this group.\n"
+                "This group does not control access to owner-only commands."
             )
             for line in owner_comment.split("\n"):
                 adder.comment(line, comment_prefix=";")
 
             # add default section comment
             default_comment = (
-                "This is the default permission group. It cannot be deleted, or renamed.\n"
+                "This is the default permission group. It cannot be deleted or renamed.\n"
                 "All users without explicit group assignment will be placed in this group.\n"
-                "The options GrantToRoles and UserList are effectively ignored in this group."
+                "The options GrantToRoles and UserList are effectively ignored in this group.\n"
+                "If you want to use the above options, add a new [Group] to the file."
             )
             adder = cu[DEFAULT_PERMS_GROUP_NAME].add_before
             adder.space()
