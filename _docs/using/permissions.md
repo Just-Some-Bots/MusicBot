@@ -4,31 +4,66 @@ category: Using the bot
 order: 2
 ---
 
-This page gives information on how to setup **permissions**. When you install the bot, you will get a file inside the `config` folder named `example_permissions.ini`. This option contains an **example set** of permissions. Edit it, and then **save it as a new file** called `permissions.ini`.
+This page gives information on how to setup MusicBot **permissions** file, which controls what users are allowed to do with MusicBot.  
 
-> For Windows users, please note that file extensions are **hidden by default**, so you may just need to save the file as `permissions` if you are having difficulties as the `.ini` may be hidden.
+When you install the bot, you will get a file inside the `config` folder named `example_permissions.ini`.  The example file contains the default/built-in permission groups as well as commentary to explain each option you can use in the permission groups.  
+Edit the `example_permission.ini`, and then **save it as a new file** called `permissions.ini`.  
 
-> Do not edit any configuration file using Notepad or other basic text editors, otherwise it will break. Use something like [Notepad++](https://notepad-plus-plus.org/download/).
+> On Windows, file extensions are hidden by default. If you do not see the `.ini` at the end of the file name, you should enable file extensions in Explorer settings.
 
-The permissions file contains **multiple sections**. The `[Default]` section should **not be renamed**. It contains the default permissions for users of the bot that are not the owner. **Each section is a group**. A user's roles do not allow them to have full permissions to use the bot, **this file does**.
+> **Notice:** Earlier versions of Windows Notepad may break the `.ini` and other configuration files when saved, due to ignoring file encoding and line endings.  You are encouraged to use an editor like Notepad++ or other editor with code editing features.
 
-#### Control what commands a group can use
-**Add the command** in the `CommandWhitelist` section of the group. Each command should be separated by **spaces**. For example, to allow a group to use `!play` and `!skip` only:
+## The basics of permissions.ini
 
-    CommandWhitelist = play skip
+The permissions file contains only two required sections, but you can add as many sections as you like!  
 
-#### Add a user to a group
-**Add a user's ID** in the `UserList` section of the group. Each user ID should be separated by **spaces**. For example:
+As per the INI file format, each `[section]` is used as the name of a specific permission group.  The `[Default]` and `[Owner (auto)]` groups should **not be removed or renamed** as they are required.  
+These two built-in groups will ignore the `GrantToRoles` and `UserList` options. 
 
-    UserList = 154748625350688768 104766296687656960
+The `[Default]` group contains the default permissions set for users of the bot that are not the owner, and have not been assigned a group via `UserList` or `GrantToRoles` options in other groups.  
 
-#### Add a role to a group
+The `[Owner (auto)]` group contains options applied only to the user set as the `OwnerID` in the `options.ini` file. It provides mostly unrestricted access but some options can still be configured to suit your needs.  This group **does not** grant access to owner-only commands.  
 
-**Add a role's ID** in the `GrantToRoles` section of the group. Each role ID should be separated by **spaces**. For example:
+### Control command access
 
-    GrantToRoles = 173129876679688192 183343083063214081
+The options `CommandWhitelist`, `CommandBlacklist` and  `AdvancedCommandLists` allow you to control command access per-group.  
 
-However, **don't add an ID to the Default group!** This group is assigned to everyone that doesn't have any other groups assigned and therefore needs no ID.
+The `AdvancedCommandLists` option enables mixing `CommandWhitelist` and `CommandBlacklist` together which allows you to grant access to a command but revoke access to a sub-command.  
+For example, to allow all `autoplaylist` commands except for the `autoplaylist clear` sub-command:  
+
+```ini
+[Group]
+CommandWhitelist = autoplaylist play skip ...
+CommandBlacklist = autoplaylist_clear
+AdvancedCommandLists = yes
+```
+
+However, if `AdvancedCommandLists` is disabled (which is the default) the whitelist and blacklist options cannot be used together.  
+If **both** options are empty or missing, all commands are allowed.  
+If `CommandWhitelist` is set, it will deny access to all commands but those which are listed, ignoring anything in `CommandBlacklist`.  
+If `CommandBlacklist` is used, it will allow access to all commands but those which are listed.  
+
+After the November 2024 updates, you may specify sub-commands by using the underscore `_` character between a top-level command name and its sub-command name.  For example, to allow a user to only use the `autoplaylist add` sub-command, use the option:  
+`CommandWhiteList = autoplaylist_add`  
+
+### Assigned Groups
+
+When you add extra groups, you need to assign those groups using one or both of `UserList` or `GrantToRoles` options.  
+
+The `UserList` option lets you assign individual discord users by using their numeric User ID.  
+The `GrantToRoles` option uses Role IDs, so any Member with the identified Role(s) will be assigned the permission group.  
+
+Both options may be used, however the `UserList` option is consulted first, and `GrantToRoles` may not be checked if the User ID is found in any group.  
+
+Here is an example that adds two fictional Users and a single Role to a permission group:  
+```ini
+[Group2]
+MaxSongs = 200
+UserList = 154748625350688768 104766296687656960
+GrantToRoles = 173129876679688192
+```
+
+> **Note:** You MUST use a numerical ID for these options. To find the appropriate ID, enable the `Settings > Advanced > Developer Mode` option in your Discord client or use the `id` and `listids` commands to get the IDs you need.  
 
 ### Available Permission Options  
 
