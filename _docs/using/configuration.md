@@ -54,7 +54,7 @@ MusicBot provides a collection of scripts to start the bot.<br>
 For Windows you'll usually use <code>run.bat</code> to start the bot.<br>  
 For various Linux-like OS, use <code>run.sh</code> instead.<br>  
 You may also launch <code>run.py</code> by passing it to python directly.<br>
-All of these scripts support the same <a href="{{ site.baseurl }}/using/cliargs/">command line arguments</a>.<br>  
+All of these scripts support the same <a href="{{ site.baseurl }}/using/running/#flags">command line arguments</a>.<br>  
 
 </details>
 
