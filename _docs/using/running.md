@@ -4,6 +4,8 @@ category: Using the bot
 order: 13
 ---
 
+> **Notice:** MusicBot is provided under an [MIT License](https://github.com/Just-Some-Bots/MusicBot/blob/master/LICENSE). By using the software you agree to the terms of the License. 
+
 ## How to Run
 
 First, make sure you have properly installed MusicBot by following one of the install 
@@ -25,15 +27,39 @@ You can either remove un-needed versions or simply copy, edit, and rename
 the `run.bat` or `run.sh` scripts to make use of a specific python version.  
 
 Ultimately, the simplest way to run MusicBot is to change directory to the MusicBot 
-folder where `run.py` file is, and then run `python run.py` replacing "python" as needed 
-for your OS or specific version / python install.  
+folder where `run.py` file is, and then run the command:
+```bash
+python run.py
+``` 
+Replace "python" as needed for your OS or python version.  
 On Windows this might be `py.exe -3.X` (replace "3.x" with a real version like 3.10) 
 or simply `python.exe` on the command line.  
 On Linux / Unix-likes this is typically something like `python3`.  
 
-> **Notice:** MusicBot is provided under an [MIT License](https://github.com/Just-Some-Bots/MusicBot/blob/master/LICENSE). By using the software you agree to the terms of the License. 
+## Using Python Venv <a name="venv"></a>
 
-## How to Auto Start
+Using a Python Virtual Environment is required on some modern Linux and Unix-like OS.  
+But you can optionally use the `venv` module on just about any system.  
+
+To use it, some systems or versions of python may require you to install a `python-venv` 
+or similar package via your system's package management tool (apt, pacman, etc.).  
+Some install guides cover this process and may contain the correct package name, 
+however finding the appropriate package(s) for your system is up to you.  
+
+To set up and use a Venv for MusicBot, follow these steps:  
+
+1. Create a the environment by running:  `python -m venv ~/MusicBotVenv` or similar.  
+2. Move or Clone the MusicBot source inside of `~/MusicBotVenv` from step 1.  
+3. Activate the Venv by running: `source ~/MusicBotVenv/bin/activate` or similar.  
+4. Install pip packages to the Venv running: `python -m pip install -U -r ~/MusicBotVenv/MusicBot/requirements.txt` or similar if you changed path names.  
+5. Deactivate the Venv running the `deactivate` command.  
+
+Assuming you have installed the other system dependencies, you should be good to run.  
+The bundled `run.sh` will look for and load the Venv as long as the MusicBot cloned
+directory is inside of the Venv directory.  
+
+
+## How to Auto Start <a name="auto"></a>
 
 MusicBot can be made into a "service" by using a number of different methods.  
 For Windows, the [Non-Sucking Service Manager]({{ site.baseurl }}/using/nssm/) application is recommended.  
