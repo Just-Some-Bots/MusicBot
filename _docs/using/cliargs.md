@@ -37,10 +37,10 @@ On Linux / Unix-likes this is typically something like `python3`.
 
 MusicBot can be made into a "service" by using a number of different methods.  
 For Windows, the [Non-Sucking Service Manager]({{ site.baseurl }}/using/nssm/) application is recommended.  
-For macOS, newer versions may be able to use [`SystemD`]({{ site.baseurl }}/using/systemd/) while older versions might use `launchd` or install and use `pm2` instead.
+For macOS, newer versions may be able to use [SystemD]({{ site.baseurl }}/using/systemd/) while older versions might use `launchd` or install and use `pm2` instead.  
 For Linux-like OS, the automation of choice depends on your distribution, but currently we have guides for `SystemD` and `pm2` which you can use or take inspiration from.
 
-## CLI Flags
+## CLI Flags <a name="flags"></a>  
 
 This section describes the command line arguments (aka flags) available to use with 
 any of the bundled run scripts (`run.sh`, `run.bat`, and `run.py`) provided by MusicBot.  
