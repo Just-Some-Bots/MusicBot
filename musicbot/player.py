@@ -9,7 +9,13 @@ from enum import Enum
 from threading import Thread
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-from discord import AudioSource, FFmpegPCMAudio, PCMVolumeTransformer, VoiceClient
+from discord import (
+    AudioSource,
+    FFmpegOpusAudio,
+    FFmpegPCMAudio,
+    PCMVolumeTransformer,
+    VoiceClient,
+)
 
 from .constructs import Serializable, Serializer, SkipState
 from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
@@ -26,6 +32,7 @@ else:
 
 # Type alias
 EntryTypes = Union[URLPlaylistEntry, StreamPlaylistEntry, LocalFilePlaylistEntry]
+FFmpegSources = Union[PCMVolumeTransformer[FFmpegPCMAudio], FFmpegOpusAudio]
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +53,7 @@ class MusicPlayerState(Enum):
 class SourcePlaybackCounter(AudioSource):
     def __init__(
         self,
-        source: PCMVolumeTransformer[FFmpegPCMAudio],
+        source: FFmpegSources,
         start_time: float = 0,
         playback_speed: float = 1.0,
     ) -> None:
@@ -62,6 +69,10 @@ class SourcePlaybackCounter(AudioSource):
         self._num_reads: int = 0
         self._start_time: float = start_time
         self._playback_speed: float = playback_speed
+        self._is_opus_audio: bool = isinstance(source, FFmpegOpusAudio)
+
+    def is_opus(self) -> bool:
+        return self._is_opus_audio
 
     def read(self) -> bytes:
         res = self._source.read()
@@ -112,12 +123,12 @@ class MusicPlayer(EventEmitter, Serializable):
         :param: playlist:  a collection of playable entries to be played.
         """
         super().__init__()
-        self.bot: "MusicBot" = bot
+        self.bot: MusicBot = bot
         self.loop: asyncio.AbstractEventLoop = bot.loop
         self.loopqueue: bool = False
         self.repeatsong: bool = False
         self.voice_client: VoiceClient = voice_client
-        self.playlist: "Playlist" = playlist
+        self.playlist: Playlist = playlist
         self.autoplaylist: List[str] = []
         self.state: MusicPlayerState = MusicPlayerState.STOPPED
         self.skip_state: SkipState = SkipState()
@@ -149,7 +160,9 @@ class MusicPlayer(EventEmitter, Serializable):
         """
         self._volume = value
         if self._source:
-            self._source._source.volume = value
+            if isinstance(self._source._source, PCMVolumeTransformer):
+                self._source._source.volume = value
+            # if isinstance(self._source._source, FFmpegOpusAudio):
 
     def on_entry_added(
         self, playlist: "Playlist", entry: EntryTypes, defer_serialize: bool = False
@@ -399,26 +412,29 @@ class MusicPlayer(EventEmitter, Serializable):
                 self._kill_current_player()
 
                 boptions = "-nostdin"
-                # aoptions = "-vn -b:a 192k"
+                aoptions = "-vn -sn -dn"  # "-b:a 192k"
                 if isinstance(entry, (URLPlaylistEntry, LocalFilePlaylistEntry)):
-                    aoptions = entry.aoptions
+                    # check for after-options, usually filters for speed and EQ.
+                    if entry.aoptions and not self.bot.config.use_opus_probe:
+                        aoptions += f" {entry.aoptions}"
                     # check for before options, currently just -ss here.
                     if entry.boptions:
                         boptions += f" {entry.boptions}"
-                else:
-                    aoptions = "-vn"
-
-                log.ffmpeg(  # type: ignore[attr-defined]
-                    "Creating player with options: %s %s %s",
-                    boptions,
-                    aoptions,
-                    entry.filename,
-                )
 
                 stderr_io = io.BytesIO()
 
-                self._source = SourcePlaybackCounter(
-                    PCMVolumeTransformer(
+                if self.bot.config.use_opus_probe:
+                    # Note: volume adjustment is not easily supported with Opus.
+                    # ffmpeg volume filter seems to require encoding audio to work.
+                    source: FFmpegSources = await FFmpegOpusAudio.from_probe(
+                        entry.filename,
+                        method="native",
+                        before_options=boptions,
+                        options=aoptions,
+                        stderr=stderr_io,
+                    )
+                else:
+                    source = PCMVolumeTransformer(
                         FFmpegPCMAudio(
                             entry.filename,
                             before_options=boptions,
@@ -426,12 +442,20 @@ class MusicPlayer(EventEmitter, Serializable):
                             stderr=stderr_io,
                         ),
                         self.volume,
-                    ),
+                    )
+
+                self._source = SourcePlaybackCounter(
+                    source,
                     start_time=entry.start_time,
                     playback_speed=entry.playback_speed,
                 )
+                log.ffmpeg(  # type: ignore[attr-defined]
+                    "Creating player with options: ffmpeg %(before)s -i %(input)s %(after)s",
+                    {"before": boptions, "input": entry.filename, "after": aoptions},
+                )
                 log.voicedebug(  # type: ignore[attr-defined]
-                    "Playing %r using %r", self._source, self.voice_client
+                    "Playing %(source)r using %(client)r",
+                    {"source": self._source, "client": self.voice_client},
                 )
                 self.voice_client.play(self._source, after=self._playback_finished)
 
@@ -477,7 +501,7 @@ class MusicPlayer(EventEmitter, Serializable):
                             log.warning("Cannot delete file, it is currently in use.")
                         else:
                             log.warning(
-                                "Cannot delete file due to a permissions error.",
+                                "Cannot delete file due to a permission error.",
                                 exc_info=True,
                             )
                     except FileNotFoundError:
@@ -493,9 +517,7 @@ class MusicPlayer(EventEmitter, Serializable):
                         )
                         break
                 else:
-                    log.debug(
-                        "[Config:SaveVideos] Could not delete file, giving up and moving on"
-                    )
+                    log.debug("Could not delete file, giving up and moving on")
 
     def __json__(self) -> Dict[str, Any]:
         return self._enclose_json(
@@ -556,7 +578,7 @@ class MusicPlayer(EventEmitter, Serializable):
             if isinstance(obj, MusicPlayer):
                 return obj
             log.error(
-                "Deserialize returned a non-MusicPlayer:  %s",
+                "Deserialize returned an object that is not a MusicPlayer:  %s",
                 type(obj),
             )
             return None

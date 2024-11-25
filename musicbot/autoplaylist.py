@@ -6,6 +6,7 @@ import time
 from collections import UserList
 from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
+from . import write_path
 from .constants import (
     APL_FILE_APLCOPY,
     APL_FILE_DEFAULT,
@@ -13,6 +14,7 @@ from .constants import (
     OLD_BUNDLED_AUTOPLAYLIST_FILE,
     OLD_DEFAULT_AUTOPLAYLIST_FILE,
 )
+from .exceptions import MusicbotException
 
 if TYPE_CHECKING:
     from .bot import MusicBot
@@ -28,7 +30,7 @@ class AutoPlaylist(StrUserList):
     def __init__(self, filename: pathlib.Path, bot: "MusicBot") -> None:
         super().__init__()
 
-        self._bot: "MusicBot" = bot
+        self._bot: MusicBot = bot
         self._file: pathlib.Path = filename
         self._removed_file = filename.with_name(f"{filename.stem}.removed.log")
 
@@ -96,6 +98,65 @@ class AutoPlaylist(StrUserList):
                 playlist.append(line)
         return playlist
 
+    async def clear_all_tracks(self, log_msg: str) -> None:
+        """
+        Remove all tracks from the current playlist.
+        Functions much like remove_track but does all the I/O stuff in bulk.
+
+        :param: log_msg:  A reason for clearing, usually states the user.
+        """
+        async with self._update_lock:
+            all_tracks = list(self.data)
+            song_subject = "[Removed all tracks]"
+
+            for track in all_tracks:
+                self.data.remove(track)
+
+            if not self._removed_file.is_file():
+                self._removed_file.touch(exist_ok=True)
+
+            try:
+                with open(self._removed_file, "a", encoding="utf8") as f:
+                    ctime = time.ctime()
+                    # add 10 spaces to line up with # Reason:
+                    e_str = log_msg.replace("\n", "\n#" + " " * 10)
+                    sep = "#" * 32
+                    f.write(
+                        f"# Entry removed {ctime}\n"
+                        f"# Track:  {song_subject}\n"
+                        f"# Reason: {e_str}\n"
+                        f"\n{sep}\n\n"
+                    )
+            except (OSError, PermissionError, FileNotFoundError, IsADirectoryError):
+                log.exception(
+                    "Could not log information about the playlist URL removal."
+                )
+
+            log.info("Updating playlist file...")
+
+            def _filter_replace(line: str, url: str) -> str:
+                target = line.strip()
+                if target == url:
+                    return f"# Removed # {url}"
+                return line
+
+            # read the original file in and update lines with the URL.
+            # this is done to preserve the comments and formatting.
+            try:
+                data = self._file.read_text(encoding="utf8").split("\n")
+                last_track = len(all_tracks) - 1
+                self._bot.filecache.cachemap_defer_write = True
+                for idx, track in enumerate(all_tracks):
+                    data = [_filter_replace(x, track) for x in data]
+                    if idx == last_track:
+                        self._bot.filecache.cachemap_defer_write = False
+                    self._bot.filecache.remove_autoplay_cachemap_entry_by_url(track)
+
+                text = "\n".join(data)
+                self._file.write_text(text, encoding="utf8")
+            except (OSError, PermissionError, FileNotFoundError):
+                log.exception("Failed to save playlist file:  %s", self._file)
+
     async def remove_track(
         self,
         song_subject: str,
@@ -115,12 +176,16 @@ class AutoPlaylist(StrUserList):
 
         async with self._update_lock:
             self.data.remove(song_subject)
-            log.info(
-                "Removing%s song from playlist, %s: %s",
-                " unplayable" if ex and not isinstance(ex, UserWarning) else "",
-                self._file.name,
-                song_subject,
-            )
+            if ex and not isinstance(ex, UserWarning):
+                log.info(
+                    "Removing unplayable song from playlist, %(playlist)s: %(track)s",
+                    {"playlist": self._file.name, "track": song_subject},
+                )
+            else:
+                log.info(
+                    "Removing song from playlist, %(playlist)s: %(track)s",
+                    {"playlist": self._file.name, "track": song_subject},
+                )
 
             if not self._removed_file.is_file():
                 self._removed_file.touch(exist_ok=True)
@@ -128,8 +193,12 @@ class AutoPlaylist(StrUserList):
             try:
                 with open(self._removed_file, "a", encoding="utf8") as f:
                     ctime = time.ctime()
+                    if isinstance(ex, MusicbotException):
+                        error = ex.message % ex.fmt_args
+                    else:
+                        error = str(ex)
                     # add 10 spaces to line up with # Reason:
-                    e_str = str(ex).replace("\n", "\n#" + " " * 10)
+                    e_str = error.replace("\n", "\n#" + " " * 10)
                     sep = "#" * 32
                     f.write(
                         f"# Entry removed {ctime}\n"
@@ -175,9 +244,8 @@ class AutoPlaylist(StrUserList):
             # Note, this does not update the player's copy of the list.
             self.data.append(song_subject)
             log.info(
-                "Adding new URL to playlist, %s: %s",
-                self._file.name,
-                song_subject,
+                "Adding new URL to playlist, %(playlist)s: %(track)s",
+                {"playlist": self._file.name, "track": song_subject},
             )
 
             try:
@@ -207,7 +275,7 @@ class AutoPlaylistManager:
         """
         Initialize the manager, checking the file system for usable playlists.
         """
-        self._bot: "MusicBot" = bot
+        self._bot: MusicBot = bot
         self._apl_dir: pathlib.Path = bot.config.auto_playlist_dir
         self._apl_file_default = self._apl_dir.joinpath(APL_FILE_DEFAULT)
         self._apl_file_history = self._apl_dir.joinpath(APL_FILE_HISTORY)
@@ -226,8 +294,8 @@ class AutoPlaylistManager:
             self._apl_dir.mkdir(parents=True, exist_ok=True)
 
         # Files from previous versions of MusicBot
-        old_usercopy = pathlib.Path(OLD_DEFAULT_AUTOPLAYLIST_FILE)
-        old_bundle = pathlib.Path(OLD_BUNDLED_AUTOPLAYLIST_FILE)
+        old_usercopy = write_path(OLD_DEFAULT_AUTOPLAYLIST_FILE)
+        old_bundle = write_path(OLD_BUNDLED_AUTOPLAYLIST_FILE)
 
         # Copy or rename the old auto-playlist files if new files don't exist yet.
         if old_usercopy.is_file() and not self._apl_file_usercopy.is_file():

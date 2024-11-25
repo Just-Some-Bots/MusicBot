@@ -26,6 +26,7 @@ from yt_dlp.extractor.youtube import (  # type: ignore[import-untyped]
 )
 from yt_dlp.utils.traversal import traverse_obj  # type: ignore[import-untyped]
 
+from . import write_path
 from .constants import (
     DATA_FILE_YTDLP_OAUTH2,
     DEFAULT_DATA_DIR,
@@ -50,7 +51,7 @@ class YtdlpOAuth2Exception(Exception):
 
 class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
     # pylint: disable=W0223
-    _oauth2_token_path: pathlib.Path = pathlib.Path(DEFAULT_DATA_DIR).joinpath(
+    _oauth2_token_path: pathlib.Path = write_path(DEFAULT_DATA_DIR).joinpath(
         DATA_FILE_YTDLP_OAUTH2
     )
     _client_token_data: TokenDict = {}
@@ -88,7 +89,7 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         Handles loading token data as JSON from file system.
         """
         log.everything(  # type: ignore[attr-defined]
-            "Loading Youtube TV OAuth2 token data."
+            "Loading YouTube TV OAuth2 token data."
         )
         d: TokenDict = {}
         if not self._oauth2_token_path.is_file():
@@ -106,7 +107,7 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         Saves token data to cache.
         """
         log.everything(  # type: ignore[attr-defined]
-            "Storing Youtube TV OAuth2 token data"
+            "Storing YouTube TV OAuth2 token data"
         )
         self._save_token_data(token_data)
         self._client_token_data = token_data
@@ -124,7 +125,6 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         """
         Validate required token data exists.
         """
-        log.everything("validate ytdlp token...")  # type: ignore[attr-defined]
         return all(
             key in token_data
             for key in ("access_token", "expires", "refresh_token", "token_type")
@@ -134,7 +134,6 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         """
         Validates existing OAuth2 data or triggers authorization flow.
         """
-        log.everything("init oauth for ytdlp")  # type: ignore[attr-defined]
         token_data = self.get_token()
 
         if token_data and not self.validate_token_data(token_data):
@@ -164,7 +163,6 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         """
         Fix up request to include proper OAuth2 data.
         """
-        log.everything("handling oauth2")  # type: ignore[attr-defined]
         if not urllib.parse.urlparse(request.url).netloc.endswith("youtube.com"):
             return
 
@@ -175,8 +173,8 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         # In case user tries to use cookies at the same time
         if "Authorization" in request.headers:
             log.warning(
-                "Youtube cookies have been provided, but OAuth2 is being used. "
-                "If you encounter problems, stop providing Youtube cookies to yt-dlp."
+                "YouTube cookies have been provided, but OAuth2 is being used. "
+                "If you encounter problems, stop providing YouTube cookies to yt-dlp."
             )
             request.headers.pop("Authorization", None)
             request.headers.pop("X-Origin", None)
@@ -193,7 +191,7 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
         """
         Refresh authorization using refresh data or restarting auth flow.
         """
-        log.info("refreshing oauth2 token")
+        log.info("Refreshing YouTube TV oauth2 token...")
         token_response = self._download_json(
             "https://www.youtube.com/o/oauth2/token",
             video_id="oauth2",
@@ -266,7 +264,7 @@ class YouTubeOAuth2Handler(InfoExtractor):  # type: ignore[misc]
                 log.error("Timed out while waiting for OAuth2 token.")
                 raise YtdlpOAuth2Exception(
                     "OAuth2 is enabled but authorization was not given in time.\n"
-                    "The owner must authorize youtube before you can play from it."
+                    "The owner must authorize YouTube before you can play from it."
                 )
 
             token_response = self._download_json(
@@ -340,8 +338,8 @@ def enable_ytdlp_oauth2_plugin(config: "Config") -> None:
             _NETRC_MACHINE = "youtube"
             _use_oauth2 = False
 
-            def _perform_login(self, username: str, password: str) -> None:
-                if username == "oauth2":
+            def _perform_login(self, username: str, password: str) -> Any:
+                if username == "mb_oauth2":
                     # Ensure clients are supported.
                     self._DEFAULT_CLIENTS = tuple(
                         c
@@ -354,6 +352,8 @@ def enable_ytdlp_oauth2_plugin(config: "Config") -> None:
 
                     self._use_oauth2 = True
                     self.initialize_oauth()
+                    return None
+                return super()._perform_login(username, password)
 
             def _create_request(self, *args, **kwargs):  # type: ignore[no-untyped-def]
                 request = super()._create_request(*args, **kwargs)
