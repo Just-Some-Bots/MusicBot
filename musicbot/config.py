@@ -5,11 +5,13 @@ import os
 import pathlib
 import shutil
 import sys
+import time
 from typing import (
     TYPE_CHECKING,
-    Dict,
+    Any,
     Iterable,
     List,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -20,7 +22,9 @@ from typing import (
 import configupdater
 
 from .constants import (
+    DATA_FILE_COOKIES,
     DATA_FILE_SERVERS,
+    DATA_FILE_YTDLP_OAUTH2,
     DEFAULT_AUDIO_CACHE_DIR,
     DEFAULT_DATA_DIR,
     DEFAULT_FOOTER_TEXT,
@@ -54,7 +58,7 @@ if TYPE_CHECKING:
     from .permissions import Permissions
 
 # Type for ConfigParser.get(... vars) argument
-ConfVars = Optional[Dict[str, str]]
+ConfVars = Optional[Mapping[str, str]]
 # Types considered valid for config options.
 DebugLevel = Tuple[str, int]
 RegTypes = Union[str, int, bool, float, Set[int], Set[str], DebugLevel, pathlib.Path]
@@ -425,6 +429,17 @@ class Config:
             getter="getboolean",
             comment="Allow MusicBot to save the song queue, so they will survive restarts.",
         )
+        self.pre_download_next_song: bool = self.register.init_option(
+            section="MusicBot",
+            option="PreDownloadNextSong",
+            dest="pre_download_next_song",
+            default=ConfigDefaults.pre_download_next_song,
+            getter="getboolean",
+            comment=(
+                "Enable MusicBot to download the next song in the queue while a song is playing.\n"
+                "Currently this option does not apply to auto-playlist or songs added to an empty queue."
+            ),
+        )
         self.status_message: str = self.register.init_option(
             section="MusicBot",
             option="StatusMessage",
@@ -444,6 +459,14 @@ class Config:
                 " {p0_title}    = The track title for the currently playing track.\n"
                 " {p0_url}      = The track url for the currently playing track."
             ),
+        )
+        self.status_include_paused: bool = self.register.init_option(
+            section="MusicBot",
+            option="StatusIncludePaused",
+            dest="status_include_paused",
+            default=ConfigDefaults.status_include_paused,
+            getter="getboolean",
+            comment="If enabled, status messages will report info on paused players.",
         )
         self.write_current_song: bool = self.register.init_option(
             section="MusicBot",
@@ -655,6 +678,101 @@ class Config:
             ),
         )
 
+        self.auto_unpause_on_play: bool = self.register.init_option(
+            section="MusicBot",
+            option="UnpausePlayerOnPlay",
+            dest="auto_unpause_on_play",
+            default=ConfigDefaults.auto_unpause_on_play,
+            getter="getboolean",
+            comment="Allow MusicBot to automatically unpause when play commands are used.",
+        )
+
+        # This is likely to turn into one option for each separate part.
+        # Due to how the support for protocols differs from part to part.
+        # ytdlp has its own option that uses requests.
+        # aiohttp requires per-call proxy parameter be set.
+        # and ffmpeg with stream mode also makes its own direct connections.
+        # top it off with proxy for the API. Once we tip the proxy iceberg...
+        # In some cases, users might get away with setting environment variables,
+        # HTTP_PROXY, HTTPS_PROXY, and others for ytdlp and ffmpeg.
+        # While aiohttp would require some other param or config file for that.
+        self.ytdlp_proxy: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpProxy",
+            dest="ytdlp_proxy",
+            default=ConfigDefaults.ytdlp_proxy,
+            comment=(
+                "Experimental, HTTP/HTTPS proxy settings to use with ytdlp media downloader.\n"
+                "The value set here is passed to `ytdlp --proxy` and aiohttp header checking.\n"
+                "Leave blank to disable."
+            ),
+        )
+        self.ytdlp_user_agent: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpUserAgent",
+            dest="ytdlp_user_agent",
+            default=ConfigDefaults.ytdlp_user_agent,
+            comment=(
+                "Experimental option to set a static User-Agent header in yt-dlp.\n"
+                "It is not typically recommended by yt-dlp to change the UA string.\n"
+                "For examples of what you might put here, check the following two links:\n"
+                "   https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/User-Agent \n"
+                "   https://www.useragents.me/ \n"
+                "Leave blank to use default, dynamically generated UA strings."
+            ),
+        )
+        self.ytdlp_use_oauth2: bool = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpUseOAuth2",
+            dest="ytdlp_use_oauth2",
+            default=ConfigDefaults.ytdlp_use_oauth2,
+            getter="getboolean",
+            comment=(
+                "Experimental option to enable yt-dlp to use a YouTube account via OAuth2.\n"
+                "When enabled, you must use the generated URL and code to authorize an account.\n"
+                "The authorization token is then stored in the "
+                f"`{DEFAULT_DATA_DIR}/{DATA_FILE_YTDLP_OAUTH2}` file.\n"
+                "This option should not be used when cookies are enabled.\n"
+                "Using a personal account may not be recommended.\n"
+                "Set yes to enable or no to disable."
+            ),
+        )
+        self.ytdlp_oauth2_client_id: str = self.register.init_option(
+            section="Credentials",
+            option="YtdlpOAuth2ClientID",
+            dest="ytdlp_oauth2_client_id",
+            getter="getstr",
+            default=ConfigDefaults.ytdlp_oauth2_client_id,
+            comment=(
+                "Sets the YouTube API Client ID, used by Yt-dlp OAuth2 plugin.\n"
+                "Optional, unless built-in credentials are not working."
+            ),
+        )
+        self.ytdlp_oauth2_client_secret: str = self.register.init_option(
+            section="Credentials",
+            option="YtdlpOAuth2ClientSecret",
+            dest="ytdlp_oauth2_client_secret",
+            getter="getstr",
+            default=ConfigDefaults.ytdlp_oauth2_client_secret,
+            comment=(
+                "Sets the YouTube API Client Secret key, used by Yt-dlp OAuth2 plugin.\n"
+                "Optional, unless YtdlpOAuth2ClientID is set."
+            ),
+        )
+        self.ytdlp_oauth2_url: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpOAuth2URL",
+            dest="ytdlp_oauth2_url",
+            getter="getstr",
+            default=ConfigDefaults.ytdlp_oauth2_url,
+            comment=(
+                "Optional youtube video URL used at start-up for triggering OAuth2 authorization.\n"
+                "This starts the OAuth2 prompt early, rather than waiting for a song request.\n"
+                "The URL set here should be an accessible youtube video URL.\n"
+                "Authorization must be completed before start-up will continue when this is set."
+            ),
+        )
+
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
             option="EnableUserBlocklist",
@@ -671,7 +789,7 @@ class Config:
             getter="getpathlike",
             comment="An optional file path to a text file listing Discord User IDs, one per line.",
         )
-        self.user_blocklist: "UserBlocklist" = UserBlocklist(self.user_blocklist_file)
+        self.user_blocklist: UserBlocklist = UserBlocklist(self.user_blocklist_file)
 
         self.song_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
@@ -692,7 +810,7 @@ class Config:
                 "Any song title or URL that contains any line in the list will be blocked."
             ),
         )
-        self.song_blocklist: "SongBlocklist" = SongBlocklist(self.song_blocklist_file)
+        self.song_blocklist: SongBlocklist = SongBlocklist(self.song_blocklist_file)
 
         self.auto_playlist_dir: pathlib.Path = self.register.init_option(
             section="Files",
@@ -771,6 +889,10 @@ class Config:
         # Convert all path constants into config as pathlib.Path objects.
         self.data_path = pathlib.Path(DEFAULT_DATA_DIR).resolve()
         self.server_names_path = self.data_path.joinpath(DATA_FILE_SERVERS)
+        self.cookies_path = self.data_path.joinpath(DATA_FILE_COOKIES)
+        self.disabled_cookies_path = self.cookies_path.parent.joinpath(
+            f"_{self.cookies_path.name}"
+        )
 
         # Validate the config settings match destination values.
         self.register.validate_register_destinations()
@@ -908,6 +1030,17 @@ class Config:
 
         if self.enable_local_media and not self.media_file_dir.is_dir():
             self.media_file_dir.mkdir(exist_ok=True)
+
+        if self.cookies_path.is_file():
+            log.warning(
+                "Cookies TXT file detected. MusicBot will pass them to yt-dlp.\n"
+                "Cookies are not recommended, may not be supported, and may totally break.\n"
+                "Copying cookies from your web-browser risks exposing personal data and \n"
+                "in the best case can result in your accounts being banned!\n\n"
+                "You have been warned!  Good Luck!  \U0001F596\n"
+            )
+            # make sure the user sees this.
+            time.sleep(3)
 
     async def async_validate(self, bot: "MusicBot") -> None:
         """
@@ -1140,6 +1273,7 @@ class ConfigDefaults:
     delete_invoking: bool = False
     persistent_queue: bool = True
     status_message: str = ""
+    status_include_paused: bool = False
     write_current_song: bool = False
     allow_author_skip: bool = True
     use_experimental_equalization: bool = False
@@ -1164,6 +1298,21 @@ class ConfigDefaults:
     enable_local_media: bool = False
     enable_queue_history_global: bool = False
     enable_queue_history_guilds: bool = False
+    auto_unpause_on_play: bool = False
+    ytdlp_proxy: str = ""
+    ytdlp_user_agent: str = ""
+    ytdlp_oauth2_url: str = ""
+    # These client details are taken from the original plugin code.
+    # Likely that they wont work forever, should be removed, but testing for now.
+    # PR #21 to get these from YT-TV seems broken already.  Maybe I am stupid.
+    # TODO: remove these when a working method to reliably extract them is available.
+    ytdlp_oauth2_client_id: str = (
+        "861556708454-d6dlm3lh05idd8npek18k6be8ba3oc68.apps.googleusercontent.com"
+    )
+    ytdlp_oauth2_client_secret: str = "SboVhoG9s0rNafixCSGGKXAT"
+
+    ytdlp_use_oauth2: bool = False
+    pre_download_next_song: bool = True
 
     song_blocklist: Set[str] = set()
     user_blocklist: Set[int] = set()
@@ -1633,11 +1782,53 @@ class ConfigOptionRegistry:
         if getter == "getpathlike":
             return str(conf_value)
 
-        # NOTE: Added for completeness but unused as debug_level is not editable.
-        if getter == "getdebuglevel" and isinstance(conf_value, int):
-            return str(logging.getLevelName(conf_value))
+        # NOTE: debug_level is not editable, but can be displayed.
+        if (
+            getter == "getdebuglevel"
+            and isinstance(conf_value, tuple)
+            and isinstance(conf_value[0], str)
+            and isinstance(conf_value[1], int)
+        ):
+            return str(logging.getLevelName(conf_value[1]))
 
         return str(conf_value)
+
+    def export_markdown(self) -> str:
+        """
+        Transform registered config options into markdown.
+        This is intended to generate documentation from the code.
+        Currently will print options in order they are registered.
+        But prints sections in the order ConfigParser loads them.
+        """
+        md_sections = {}
+        for opt in self.option_list:
+            dval = self.to_ini(opt, use_default=True)
+            if dval.strip() == "":
+                if opt.empty_display_val:
+                    dval = f"`{opt.empty_display_val}`"
+                else:
+                    dval = "*empty*"
+            else:
+                dval = f"`{dval}`"
+
+            # fmt: off
+            md_option = (
+                f"#### {opt.option}\n"
+                f"{opt.comment}  \n"
+                f"**Default Value:** {dval}  \n\n"
+            )
+            # fmt: on
+            if opt.section not in md_sections:
+                md_sections[opt.section] = [md_option]
+            else:
+                md_sections[opt.section].append(md_option)
+
+        markdown = ""
+        for sect in self._parser.sections():
+            opts = md_sections[sect]
+            markdown += f"### [{sect}]\n{''.join(opts)}"
+
+        return markdown
 
 
 class ExtendedConfigParser(configparser.ConfigParser):
@@ -1671,6 +1862,40 @@ class ExtendedConfigParser(configparser.ConfigParser):
             s = sects[k]
             keys += list(s.keys())
         return keys
+
+    def getstr(
+        self,
+        section: str,
+        key: str,
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        fallback: str = "",
+    ) -> str:
+        """A version of get which strips spaces and uses fallback / default for empty values."""
+        val = self.get(section, key, fallback=fallback, raw=raw, vars=vars).strip()
+        if not val:
+            return fallback
+        return val
+
+    def getboolean(  # type: ignore[override]
+        self,
+        section: str,
+        option: str,
+        *,
+        raw: bool = False,
+        vars: ConfVars = None,  # pylint: disable=redefined-builtin
+        fallback: bool = False,
+        **kwargs: Optional[Mapping[str, Any]],
+    ) -> bool:
+        """Make getboolean less bitchy about empty values, so it uses fallback instead."""
+        val = self.get(section, option, fallback="", raw=raw, vars=vars).strip()
+        if not val:
+            return fallback
+
+        try:
+            return super().getboolean(section, option, fallback=fallback)
+        except ValueError:
+            return fallback
 
     def getownerid(
         self,

@@ -1,3 +1,12 @@
+# This is an example of a systemd service file for MusicBot.
+#
+# You should copy and rename this file before you edit it!
+#
+# For details about systemd service files, see the following links:
+#   https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html
+#   https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html
+
+
 [Unit]
 Description=Just-Some-Bots/MusicBot a discord.py bot that plays music.
 

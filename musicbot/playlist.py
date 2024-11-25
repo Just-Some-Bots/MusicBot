@@ -18,6 +18,7 @@ from typing import (
 
 import discord
 
+from .constants import DEFAULT_PRE_DOWNLOAD_DELAY
 from .constructs import Serializable
 from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
 from .exceptions import ExtractionError, InvalidDataError, WrongEntryTypeError
@@ -186,7 +187,7 @@ class Playlist(EventEmitter, Serializable):
             )
 
         # TODO: Extract this to its own function
-        if info.extractor in ["generic", "Dropbox"]:
+        if any(info.extractor.startswith(x) for x in ["generic", "Dropbox"]):
             content_type = info.http_header("content-type", None)
 
             if content_type:
@@ -214,7 +215,7 @@ class Playlist(EventEmitter, Serializable):
                     )
 
         log.noise(  # type: ignore[attr-defined]
-            f"Adding URLPlaylistEntry for: {info.get('__input_subject')}"
+            f"Adding URLPlaylistEntry for: {info.input_subject}"
         )
         entry = URLPlaylistEntry(self, info, author=author, channel=channel)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -233,7 +234,7 @@ class Playlist(EventEmitter, Serializable):
         Adds a local media file entry to the playlist.
         """
         log.noise(  # type: ignore[attr-defined]
-            f"Adding LocalFilePlaylistEntry for: {info.get('__input_subject')}"
+            f"Adding LocalFilePlaylistEntry for: {info.input_subject}"
         )
         entry = LocalFilePlaylistEntry(self, info, author=author, channel=channel)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -384,6 +385,9 @@ class Playlist(EventEmitter, Serializable):
         request_counter = 0
         song: Optional[EntryTypes] = None
         while self.entries:
+            log.everything(  # type: ignore[attr-defined]
+                "Reorder looping over entries."
+            )
             # Do not continue if we have no more authors.
             if len(all_authors) == 0:
                 break
@@ -427,41 +431,7 @@ class Playlist(EventEmitter, Serializable):
             "entry-added", playlist=self, entry=entry, defer_serialize=defer_serialize
         )
 
-        if self.peek() is entry:
-            entry.get_ready_future()
-
-    async def _try_get_entry_future(
-        self, entry: EntryTypes, predownload: bool = False
-    ) -> Any:
-        """gracefully try to get the entry ready future, or start pre-downloading one."""
-        moving_on = " Moving to the next entry..."
-        if predownload:
-            moving_on = ""
-
-        try:
-            if predownload:
-                entry.get_ready_future()
-            else:
-                return await entry.get_ready_future()
-
-        except ExtractionError as e:
-            log.warning("Extraction failed for a playlist entry.%s", moving_on)
-            self.emit("entry-failed", entry=entry, error=e)
-            if not predownload:
-                return await self.get_next_entry()
-
-        except AttributeError as e:
-            log.warning(
-                "Deserialize probably failed for a playlist entry.%s",
-                moving_on,
-            )
-            self.emit("entry-failed", entry=entry, error=e)
-            if not predownload:
-                return await self.get_next_entry()
-
-        return None
-
-    async def get_next_entry(self, predownload_next: bool = True) -> Any:
+    async def get_next_entry(self) -> Any:
         """
         A coroutine which will return the next song or None if no songs left to play.
 
@@ -472,13 +442,34 @@ class Playlist(EventEmitter, Serializable):
             return None
 
         entry = self.entries.popleft()
+        self.bot.create_task(
+            self._pre_download_entry_after_next(entry),
+            name="MB_PreDownloadNextUp",
+        )
 
-        if predownload_next:
-            next_entry = self.peek()
-            if next_entry:
-                await self._try_get_entry_future(next_entry, predownload_next)
+        return await entry.get_ready_future()
 
-        return await self._try_get_entry_future(entry)
+    async def _pre_download_entry_after_next(self, last_entry: EntryTypes) -> None:
+        """
+        Enforces a delay before doing pre-download of the "next" song.
+        Should only be called from get_next_entry() after pop.
+        """
+        if not self.bot.config.pre_download_next_song:
+            return
+
+        if not self.entries:
+            return
+
+        # get the next entry to pre-download before we wait.
+        next_entry = self.peek()
+
+        await asyncio.sleep(DEFAULT_PRE_DOWNLOAD_DELAY)
+
+        if next_entry and next_entry != last_entry:
+            log.everything(  # type: ignore[attr-defined]
+                "Pre-downloading next track:  %r", next_entry
+            )
+            next_entry.get_ready_future()
 
     def peek(self) -> Optional[EntryTypes]:
         """
