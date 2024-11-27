@@ -1,7 +1,7 @@
 ---
 title: Spotify
 category: Using the bot
-order: 5
+order: 12
 ---
 
 > Discord has native support for listening to music with friends using Spotify. If you want to use the bot solely to listen to Spotify music with friends, you should use the native feature instead. For more information, see [their page](https://support.spotify.com/uk/using_spotify/app_integrations/discord/).

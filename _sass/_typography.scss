@@ -3,20 +3,21 @@ html {
 	max-height: 100%;
 	font-size: 10px;
 	-webkit-tap-highlight-color: transparent;
+	
+	@media (prefers-color-scheme: dark) {
+		filter: hue-rotate(180deg) invert(100%);
+	}
 }
 
 body {
 	height: 100%;
 	max-height: 100%;
-	font-family: "Merriweather", serif;
+	font-family: Arial, sans-serif;
 	letter-spacing: 0.01rem;
 	font-size: 1.8em;
 	line-height: 1.75em;
 	color: #3A4145;
 	font-weight: 400;
-	-webkit-font-feature-settings: 'kern' 1;
-	-moz-font-feature-settings: 'kern' 1;
-	-o-font-feature-settings: 'kern' 1;
 	text-rendering: geometricPrecision;
 }
 
@@ -31,10 +32,7 @@ label,
 select,
 textarea,
 table {
-	-webkit-font-feature-settings: 'dlig' 1, 'liga' 1, 'lnum' 1, 'kern' 1;
-	-moz-font-feature-settings: 'dlig' 1, 'liga' 1, 'lnum' 1, 'kern' 1;
-	-o-font-feature-settings: 'dlig' 1, 'liga' 1, 'lnum' 1, 'kern' 1;
-	font-family: "Open Sans", sans-serif;
+	font-family: Arial, sans-serif;
 	text-rendering: geometricPrecision;
 }
 
@@ -78,12 +76,13 @@ h6 {
 }
 
 a {
-	color: #4A4A4A;
+	color: #3583d6;
 	transition: color 0.2s ease;
+	cursor: pointer;
 }
 
 a:hover {
-	color: #111;
+	color: #4ca3ff;
 }
 
 p,
@@ -91,9 +90,6 @@ ul,
 ol,
 dl,
 figure {
-	-webkit-font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
-	-moz-font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
-	-o-font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1;
 	margin: 0 0 1.75em 0;
 	text-rendering: geometricPrecision;
 }
