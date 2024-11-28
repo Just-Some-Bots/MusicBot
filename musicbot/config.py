@@ -1050,15 +1050,28 @@ class Config:
             ),
         )
 
-        self.use_opus_probe: bool = self.register.init_option(
+        self.use_opus_audio: bool = self.register.init_option(
             section="MusicBot",
             option="UseOpusAudio",
+            dest="use_opus_audio",
+            default=ConfigDefaults.use_opus_audio,
+            getter="getboolean",
+            comment=_Dd(
+                "May reduce CPU usage by avoiding PCM-to-Opus encoding in python.\n"
+                "When enabled, volume is controlled via FFmpeg filter instead of python.\n"
+                "May cause a short delay when tracks first start for bitrate discovery."
+            ),
+        )
+        self.use_opus_probe: bool = self.register.init_option(
+            section="MusicBot",
+            option="UseOpusProbe",
             dest="use_opus_probe",
             default=ConfigDefaults.use_opus_probe,
             getter="getboolean",
             comment=_Dd(
-                "Potentially reduces CPU usage, but disables volume and speed controls.\n"
-                "This option will disable UseExperimentalEqualization option as well."
+                "Similar to UseOpusAudio, but reduces CPU usage even more where possible.\n"
+                "If the media is already Opus encoded (like YouTube) no re-encoding is done.\n"
+                "This option will disable speed, volume, and UseExperimentalEqualization options."
             ),
         )
 
@@ -1505,6 +1518,7 @@ class ConfigDefaults:
     status_include_paused: bool = False
     write_current_song: bool = False
     allow_author_skip: bool = True
+    use_opus_audio: bool = False
     use_opus_probe: bool = False
     use_experimental_equalization: bool = False
     embeds: bool = True

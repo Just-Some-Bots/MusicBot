@@ -88,7 +88,7 @@ APL_FILE_APLCOPY: str = "autoplaylist.txt"
 DEFAULT_MUSICBOT_LOG_FILE: str = "logs/musicbot.log"
 DEFAULT_DISCORD_LOG_FILE: str = "logs/discord.log"
 # Default is 0, for no rotation at all.
-DEFAULT_LOGS_KEPT: int = 0
+DEFAULT_LOGS_KEPT: int = 3
 MAXIMUM_LOGS_LIMIT: int = 100
 # This value is run through strftime() and then sandwiched between
 DEFAULT_LOGS_ROTATE_FORMAT: str = ".ended-%Y-%j-%H%m%S"
@@ -148,6 +148,9 @@ YTDLP_OAUTH2_CLIENTS: List[str] = ["mweb"]
 
 # Discord and other API constants
 DISCORD_MSG_CHAR_LIMIT: int = 2000
+
+# Limit bitrate to this value if per-channel bitrate is higher than this.
+MUSICBOT_VOICE_MAX_KBITRATE: int = 512
 
 # Embed specifics
 MUSICBOT_EMBED_COLOR_NORMAL: str = "#7289DA"

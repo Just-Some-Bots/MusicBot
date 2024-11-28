@@ -60,6 +60,29 @@ class BasePlaylistEntry(Serializable):
         self._is_downloaded: bool = False
         self._waiting_futures: List[AsyncFuture] = []
         self._task_pool: Set[AsyncTask] = set()
+        self._probed_codec: Optional[str] = ""
+        self._probed_bitrate: int = 0
+        self._a_filters: Dict[str, str] = {}
+
+    @property
+    def probed_codec(self) -> Optional[str]:
+        """Get the previously probed codec. This is set by the MusicPlayer."""
+        return self._probed_codec
+
+    @probed_codec.setter
+    def probed_codec(self, codec: Optional[str]) -> None:
+        """Set the probed codec."""
+        self._probed_codec = codec
+
+    @property
+    def probed_bitrate(self) -> int:
+        """Get the probed bitrate. Only set by MusicPlayer"""
+        return self._probed_bitrate
+
+    @probed_bitrate.setter
+    def probed_bitrate(self, value: int) -> None:
+        """Set the probed bitrate."""
+        self._probed_bitrate = value
 
     @property
     def start_time(self) -> float:
@@ -166,6 +189,17 @@ class BasePlaylistEntry(Serializable):
     def __repr__(self) -> str:
         return f"<{type(self).__name__}(url='{self.url}', title='{self.title}' file='{self.filename}')>"
 
+    def set_audio_filter(self, name: str, args: str) -> None:
+        """Add or update an audio filter."""
+        self._a_filters[name] = args
+
+    def get_audio_filters(self) -> str:
+        """Convert audio filters into ffmpeg -af option string."""
+        if self._a_filters:
+            filters = ",".join(f"{f}={a}" for f, a in self._a_filters.items())
+            return f"-af {filters}"
+        return ""
+
 
 async def run_command(command: List[str]) -> bytes:
     """
@@ -230,24 +264,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
         self.author: Optional[discord.Member] = author
         self.channel: Optional[GuildMessageableChannels] = channel
 
-        self._aopt_eq: str = ""
-
     @property
     def aoptions(self) -> str:
         """After input options for ffmpeg to use with this entry."""
-        aopts = f"{self._aopt_eq}"
         # Set playback speed options if needed.
         if self._playback_rate is not None or self.playback_speed != 1.0:
-            # Append to the EQ options if they are set.
-            if self._aopt_eq:
-                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
-            else:
-                aopts = f"-af atempo={self.playback_speed:.3f}"
+            self.set_audio_filter("atempo", f"{self.playback_speed:.3f}")
 
-        if aopts:
-            return aopts
-
-        return ""
+        return self.get_audio_filters()
 
     @property
     def boptions(self) -> str:
@@ -522,7 +546,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    self._aopt_eq = await self.get_mean_volume(self.filename)
+                    await self.get_mean_volume(self.filename)
 
                 # Unfortunate evil that we abide for now...
                 except Exception:  # pylint: disable=broad-exception-caught
@@ -594,7 +618,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         return None
 
-    async def get_mean_volume(self, input_file: str) -> str:
+    async def get_mean_volume(self, input_file: str) -> None:
         """
         Attempt to calculate the mean volume of the `input_file` by using
         output from ffmpeg to provide values which can be used by command
@@ -604,7 +628,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         ffmpeg_bin = shutil.which("ffmpeg")
         if not ffmpeg_bin:
             log.error("Could not locate ffmpeg on your path!")
-            return ""
+            return
 
         # NOTE: this command should contain JSON, but I have no idea how to make
         # ffmpeg spit out only the JSON.
@@ -665,14 +689,14 @@ class URLPlaylistEntry(BasePlaylistEntry):
             offset = float(0)
 
         loudnorm_opts = (
-            "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
+            "I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
             f"measured_I={i_value}:"
             f"measured_LRA={lra_value}:"
             f"measured_TP={tp_value}:"
             f"measured_thresh={thresh}:"
             f"offset={offset}"
         )
-        return loudnorm_opts
+        self.set_audio_filter("loudnorm", loudnorm_opts)
 
     async def _really_download(self) -> None:
         """
@@ -965,19 +989,11 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
     @property
     def aoptions(self) -> str:
         """After input options for ffmpeg to use with this entry."""
-        aopts = f"{self._aopt_eq}"
         # Set playback speed options if needed.
         if self._playback_rate is not None or self.playback_speed != 1.0:
-            # Append to the EQ options if they are set.
-            if self._aopt_eq:
-                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
-            else:
-                aopts = f"-af atempo={self.playback_speed:.3f}"
+            self.set_audio_filter("atempo", f"{self.playback_speed:.3f}")
 
-        if aopts:
-            return aopts
-
-        return ""
+        return self.get_audio_filters()
 
     @property
     def boptions(self) -> str:
@@ -1200,7 +1216,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    self._aopt_eq = await self.get_mean_volume(self.filename)
+                    await self.get_mean_volume(self.filename)
 
                 # Unfortunate evil that we abide for now...
                 except Exception:  # pylint: disable=broad-exception-caught
@@ -1273,7 +1289,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
         return None
 
-    async def get_mean_volume(self, input_file: str) -> str:
+    async def get_mean_volume(self, input_file: str) -> None:
         """
         Attempt to calculate the mean volume of the `input_file` by using
         output from ffmpeg to provide values which can be used by command
@@ -1283,7 +1299,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
         ffmpeg_bin = shutil.which("ffmpeg")
         if not ffmpeg_bin:
             log.error("Could not locate ffmpeg on your path!")
-            return ""
+            return
 
         # NOTE: this command should contain JSON, but I have no idea how to make
         # ffmpeg spit out only the JSON.
@@ -1344,11 +1360,11 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             offset = float(0)
 
         loudnorm_opts = (
-            "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
+            "I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
             f"measured_I={i_value}:"
             f"measured_LRA={lra_value}:"
             f"measured_TP={tp_value}:"
             f"measured_thresh={thresh}:"
             f"offset={offset}"
         )
-        return loudnorm_opts
+        self.set_audio_filter("loudnorm", loudnorm_opts)

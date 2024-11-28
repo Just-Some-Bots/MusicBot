@@ -58,6 +58,7 @@ from .constants import (
     FALLBACK_PING_SLEEP,
     FALLBACK_PING_TIMEOUT,
     MUSICBOT_USER_AGENT_AIOHTTP,
+    MUSICBOT_VOICE_MAX_KBITRATE,
 )
 from .constants import VERSION as BOTVERSION
 from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
@@ -704,6 +705,17 @@ class MusicBot(discord.Client):
                     {"guild": channel.guild.name, "channel": channel.name},
                 )
         log.info("Finished joining configured channels.")
+
+        # Rough estimate for bandwidth use based on Max kbps & number of guilds.
+        bw_usage: float = len(self.guilds) * MUSICBOT_VOICE_MAX_KBITRATE
+        suffix = "kbps"
+        if bw_usage > 1000:
+            suffix = "mbps"
+            bw_usage /= 1000
+        log.info(
+            "MusicBot may use up to %(rate).2f %(suffix)s of bandwidth.",
+            {"rate": bw_usage, "suffix": suffix},
+        )
 
     async def _check_ignore_non_voice(self, msg: discord.Message) -> bool:
         """Check used by on_message to determine if caller is in a VoiceChannel."""
@@ -2677,6 +2689,15 @@ class MusicBot(discord.Client):
             "  Round Robin Queue: %s",
             on_or_off(self.config.round_robin_queue),
         )
+
+        if self.config.use_opus_audio and not self.config.use_opus_probe:
+            audio_out = "Opus"
+        elif self.config.use_opus_probe:
+            audio_out = "Copy"
+        else:
+            audio_out = "PCM"
+        log.info("  Audio Codec: %s", audio_out)
+        # log.info("  Max Bitrate: %s kbps (per channel)", MUSICBOT_VOICE_MAX_KBITRATE)
         print(flush=True)
 
     def _get_song_url_or_none(
@@ -5426,6 +5447,26 @@ class MusicBot(discord.Client):
         if 0 < int_volume <= 100:
             player.volume = int_volume / 100.0
 
+            if (
+                self.config.use_opus_audio
+                and player.current_entry
+                and player.is_playing
+            ):
+                # Set current playback progress and restart playback.
+                entry = player.current_entry
+                if isinstance(entry, (URLPlaylistEntry, LocalFilePlaylistEntry)):
+                    entry.set_start_time(player.progress)
+                player.playlist.insert_entry_at_index(0, entry)
+
+                # handle history playlist updates.
+                if ssd_ and (
+                    self.config.enable_queue_history_global
+                    or self.config.enable_queue_history_guilds
+                ):
+                    ssd_.current_playing_url = ""
+
+                player.skip()
+
             return Response(
                 _D("Updated volume from **%(old)d** to **%(new)d**", ssd_)
                 % {"old": old_volume, "new": int_volume},
@@ -7726,6 +7767,7 @@ class MusicBot(discord.Client):
         Command botlatency Prints latency info for everything.
         """
         vclats = ""
+        cur_bw: float = 0
         for vc in self.voice_clients:
             if not isinstance(vc, discord.VoiceClient) or not hasattr(
                 vc.channel, "rtc_region"
@@ -7733,26 +7775,33 @@ class MusicBot(discord.Client):
                 log.debug("Got a strange voice client entry.")
                 continue
 
+            kbitrate = int(vc.channel.bitrate / 1000)
+            cur_bw += kbitrate
             vl = vc.latency * 1000
             vla = vc.average_latency * 1000
             # Display Auto for region instead of None
             region = vc.channel.rtc_region or "auto"
             vclats += _D(
-                "- `%(delay).0f ms` (`%(avg).0f ms` Avg.) in region: `%(region)s`\n",
+                "- `%(delay).0f ms` (`%(avg).0f ms` Avg.) in region: `%(region)s` using %(bitrate)s kbps.\n",
                 ssd_,
-            ) % {"delay": vl, "avg": vla, "region": region}
+            ) % {"delay": vl, "avg": vla, "region": region, "bitrate": kbitrate}
 
         if not vclats:
             vclats = _D("No voice clients connected.\n", ssd_)
 
         sl = self.latency * 1000
+        cur_suffix = "kbps"
+        if cur_bw > 1000:
+            cur_bw /= 1000
+            cur_suffix = "mbps"
         return Response(
             _D(
                 "**API Latency:** `%(delay).0f ms`\n"
-                "**VoiceClient Latency:**\n%(voices)s",
+                "**VoiceClient Latency:**\n%(voices)s\n"
+                "Using approximately %(rate).2f %(suffix)s of bandwidth total.",
                 ssd_,
             )
-            % {"delay": sl, "voices": vclats}
+            % {"delay": sl, "voices": vclats, "rate": cur_bw, "suffix": cur_suffix}
         )
 
     @command_helper(
@@ -7769,14 +7818,15 @@ class MusicBot(discord.Client):
         if guild.id in self.players:
             vc = self.players[guild.id].voice_client
             if vc:
+                bitrate = int(vc.channel.bitrate / 1000)
                 vl = vc.latency * 1000
                 vla = vc.average_latency * 1000
                 # TRANSLATORS: short for automatic, displayed when voice region is not selected.
                 vcr = vc.channel.rtc_region or _D("auto", ssd_)
                 voice_lat = _D(
-                    "\n**Voice Latency:** `%(delay).0f ms` (`%(average).0f ms` Avg.) in region `%(region)s`",
+                    "\n**Voice Latency:** `%(delay).0f ms` (`%(average).0f ms` Avg.) in region `%(region)s` using %(bitrate)s kbps",
                     ssd_,
-                ) % {"delay": vl, "average": vla, "region": vcr}
+                ) % {"delay": vl, "average": vla, "region": vcr, "bitrate": bitrate}
         sl = self.latency * 1000
         return Response(
             _D("**API Latency:** `%(delay).0f ms`%(voice)s", ssd_)
@@ -8819,6 +8869,25 @@ class MusicBot(discord.Client):
                 changes += f" voice-region = {after.rtc_region}"
             if before.bitrate != after.bitrate:
                 changes += f" bitrate = {after.bitrate}"
+
+                # if we have a player playing we should update bitrate.
+                player = self.get_player_in(after.guild)
+                if player and player.is_playing and player.current_entry:
+                    # Set current playback progress and restart playback.
+                    entry = player.current_entry
+                    if isinstance(entry, (URLPlaylistEntry, LocalFilePlaylistEntry)):
+                        entry.set_start_time(player.progress)
+                    player.playlist.insert_entry_at_index(0, entry)
+
+                    # handle history playlist updates.
+                    if (
+                        self.config.enable_queue_history_global
+                        or self.config.enable_queue_history_guilds
+                    ):
+                        self.server_data[after.guild.id].current_playing_url = ""
+
+                    player.skip()
+
             if before.user_limit != after.user_limit:
                 changes += f" user-limit = {after.user_limit}"
         # The chat delay is not currently respected by MusicBot. Is this a problem?

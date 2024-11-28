@@ -17,6 +17,7 @@ from discord import (
     VoiceClient,
 )
 
+from .constants import MUSICBOT_VOICE_MAX_KBITRATE
 from .constructs import Serializable, Serializer, SkipState
 from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
 from .exceptions import FFmpegError, FFmpegWarning
@@ -414,21 +415,52 @@ class MusicPlayer(EventEmitter, Serializable):
                 boptions = "-nostdin"
                 aoptions = "-vn -sn -dn"  # "-b:a 192k"
                 if isinstance(entry, (URLPlaylistEntry, LocalFilePlaylistEntry)):
+                    if self.bot.config.use_opus_audio:
+                        entry.set_audio_filter("volume", f"{self.volume:.2f}")
                     # check for after-options, usually filters for speed and EQ.
                     if entry.aoptions and not self.bot.config.use_opus_probe:
                         aoptions += f" {entry.aoptions}"
                     # check for before options, currently just -ss here.
                     if entry.boptions:
                         boptions += f" {entry.boptions}"
+                elif (
+                    isinstance(entry, StreamPlaylistEntry)
+                    and self.bot.config.use_opus_audio
+                ):
+                    entry.set_audio_filter("volume", f"{self.volume:.2f}")
+                    aoptions += f" {entry.get_audio_filters()}"
 
                 stderr_io = io.BytesIO()
 
-                if self.bot.config.use_opus_probe:
-                    # Note: volume adjustment is not easily supported with Opus.
-                    # ffmpeg volume filter seems to require encoding audio to work.
-                    source: FFmpegSources = await FFmpegOpusAudio.from_probe(
+                if self.bot.config.use_opus_probe or self.bot.config.use_opus_audio:
+                    # Note: ffmpeg filters require encoding to work.
+                    # So copy codec will not allow speed, volume or other filters.
+                    if (
+                        self.bot.config.use_opus_probe and not entry.probed_codec
+                    ) or not entry.probed_bitrate:
+                        codec, bitrate = await FFmpegOpusAudio.probe(
+                            entry.filename,
+                            method="native",
+                        )
+                        log.everything(  # type: ignore[attr-defined]
+                            "Probed codec and bitrate: %(name)s at %(rate)s kbps",
+                            {"name": codec, "rate": bitrate},
+                        )
+                    if self.bot.config.use_opus_probe and not entry.probed_codec:
+                        # If the probe returned opus, libopus, or copy, copy is used.
+                        entry.probed_codec = codec
+
+                    if not entry.probed_bitrate:
+                        entry.probed_bitrate = bitrate
+
+                    # Determine bitrate to use based on probe, channel setting, and bot limit.
+                    vc_kbitrate = self.voice_client.channel.bitrate / 1000
+                    kbitrate = min(vc_kbitrate, entry.probed_bitrate)
+                    kbitrate = min(kbitrate, MUSICBOT_VOICE_MAX_KBITRATE)
+                    source: FFmpegSources = FFmpegOpusAudio(
                         entry.filename,
-                        method="native",
+                        codec=entry.probed_codec,
+                        bitrate=kbitrate,
                         before_options=boptions,
                         options=aoptions,
                         stderr=stderr_io,
@@ -557,7 +589,12 @@ class MusicPlayer(EventEmitter, Serializable):
                 entry, (URLPlaylistEntry, LocalFilePlaylistEntry)
             ):
                 entry.set_start_time(progress)
-            player.playlist.entries.appendleft(current_entry_data["entry"])
+
+            # Check if user disabled autoplaylist before re-adding.
+            if (
+                entry.from_auto_playlist and bot.config.auto_playlist
+            ) or not entry.from_auto_playlist:
+                player.playlist.entries.appendleft(entry)
         return player
 
     @classmethod
