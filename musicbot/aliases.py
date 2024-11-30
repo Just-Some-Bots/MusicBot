@@ -113,7 +113,7 @@ class Aliases:
                 cmd = cmd.strip()
 
             # ensure command name is valid.
-            if cmd not in self.nat_cmds:
+            if self.nat_cmds and cmd not in self.nat_cmds:
                 log.error(
                     "Aliases skipped for non-existent command:  %(command)s  ->  %(aliases)s",
                     {"command": cmd, "aliases": aliases},
@@ -189,11 +189,21 @@ class Aliases:
         """
         ct = (cmd_name, cmd_args)
         cmd_seed = " ".join(list(ct)).strip()
-        self.aliases[alias_name] = ct
+
+        if self.exists(alias_name):
+            existing_seed = " ".join(list(self.aliases[alias_name])).strip()
+            masks = list(self.aliases_seed[existing_seed])
+            if len(masks) == 1:
+                del self.aliases_seed[existing_seed]
+            elif len(masks) > 1:
+                self.aliases_seed[existing_seed].remove(alias_name)
+
         if cmd_seed in self.aliases_seed:
             self.aliases_seed[cmd_seed].append(alias_name)
         else:
             self.aliases_seed[cmd_seed] = [alias_name]
+
+        self.aliases[alias_name] = ct
         self.cmd_aliases[cmd_name].append((alias_name, cmd_args))
 
     def remove_alias(self, alias_name: str) -> None:
