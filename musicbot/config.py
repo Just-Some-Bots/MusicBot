@@ -116,6 +116,7 @@ class Config:
         config = ExtendedConfigParser()
         if self.config_file.is_file():
             config.read(config_file, encoding="utf-8")
+        self.parser = config
         self.register = ConfigOptionRegistry(self, config)
 
         # DebugLevel is important for feedback, so we load it first.
@@ -501,7 +502,7 @@ class Config:
         self.delete_delay_short: float = self.register.init_option(
             section="MusicBot",
             option="DeleteDelayShort",
-            dest="delete_invoking",
+            dest="delete_delay_short",
             default=ConfigDefaults.delete_delay_short,
             getter="getduration",
             comment=_Dd(
@@ -512,7 +513,7 @@ class Config:
         self.delete_delay_long: float = self.register.init_option(
             section="MusicBot",
             option="DeleteDelayLong",
-            dest="delete_invoking",
+            dest="delete_delay_long",
             default=ConfigDefaults.delete_delay_long,
             getter="getduration",
             comment=_Dd(
@@ -1753,7 +1754,7 @@ class ConfigOptionRegistry:
                 return opt
         return None
 
-    def get_values(self, opt: ConfigOption) -> Tuple[RegTypes, str, str]:
+    def get_values(self, opt: ConfigOption) -> Tuple[RegTypes, RegTypes, str]:
         """
         Get the values in Config and *ConfigParser for this config option.
         Returned tuple contains parsed value, ini-string, and a display string
