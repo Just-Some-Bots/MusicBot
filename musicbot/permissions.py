@@ -566,6 +566,7 @@ class PermissionGroup:
         )
 
         self.validate()
+        self._mgr.register.update_missing_config()
 
     def validate(self) -> None:
         """Validate permission values are within acceptable limits"""
