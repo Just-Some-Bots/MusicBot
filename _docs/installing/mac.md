@@ -1,7 +1,7 @@
 ---
 title: MacOS
 category: Installing the bot
-order: 3
+order: 4
 ---
 <img class="doc-img" src="{{ site.baseurl }}/images/mac.png" alt="Mac" style="width: 75px; float: right;"/>
 

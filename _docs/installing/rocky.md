@@ -1,7 +1,7 @@
 ---
 title: Rocky
 category: Installing the bot
-order: 11
+order: 12
 ---
 
 <img class="doc-img" src="{{ site.baseurl }}/images/rocky.png" alt="rocky" style="width: 75px; float: right;"/>

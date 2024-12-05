@@ -1,5 +1,4 @@
 ---
----
 title: Troubleshooting
 category: Using the bot
 order: 6
