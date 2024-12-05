@@ -12,14 +12,20 @@ import signal
 import ssl
 import subprocess
 import sys
-import textwrap
 import time
 from base64 import b64decode
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple, Union
 
+import musicbot.logs
+from musicbot import get_write_base, parse_write_base_arg, write_path
 from musicbot.constants import (
+    DEFAULT_AUDIO_CACHE_DIR,
+    DEFAULT_DATA_DIR,
+    DEFAULT_I18N_LANG,
     DEFAULT_LOGS_KEPT,
     DEFAULT_LOGS_ROTATE_FORMAT,
+    DEFAULT_MEDIA_FILE_DIR,
+    DEFAULT_OPTIONS_FILE,
     MAXIMUM_LOGS_LIMIT,
 )
 from musicbot.constants import VERSION as BOTVERSION
@@ -29,7 +35,8 @@ from musicbot.exceptions import (
     RestartSignal,
     TerminateSignal,
 )
-from musicbot.utils import (
+from musicbot.i18n import _L, I18n
+from musicbot.logs import (
     rotate_log_files,
     set_logging_level,
     set_logging_max_kept_logs,
@@ -48,6 +55,9 @@ except ImportError:
         pass
 
 
+I18n()
+parse_write_base_arg()
+musicbot.logs.install_logger()
 log = logging.getLogger("musicbot.launcher")
 
 
@@ -166,7 +176,7 @@ class PIP:
         Given `command` is split before it is passed, so quoted items will not work.
         """
         if not cls.works():
-            raise RuntimeError("Cannot execute pip.")
+            raise RuntimeError(_L("Cannot execute pip."))
 
         try:
             return cls.run_python_m(command.split(), check_output=check_output)
@@ -222,7 +232,7 @@ class PIP:
             log.exception("PIP failed while calling sub-process.")
             return False
         except PermissionError:
-            log.exception("PIP failed due to Permissions Error.")
+            log.exception("PIP failed due to Permission Error.")
             return False
         except FileNotFoundError:
             log.exception(
@@ -274,10 +284,11 @@ class PIP:
         :returns:  process exit code, where 0 is assumed success.
         """
         if not cls.works():
-            raise RuntimeError("Cannot locate or execute python -m pip")
+            raise RuntimeError(_L("Cannot locate or execute python -m pip"))
 
         log.info(
-            "Attempting to upgrade with `pip install --upgrade -r requirements.txt` on current path..."
+            "Attempting to upgrade with `%s` on current path...",
+            "pip install --upgrade -r requirements.txt",
         )
         try:
             raw_data = cls.run_python_m(
@@ -317,7 +328,8 @@ class PIP:
                 "Upgrade failed to execute or we could not understand the output"
             )
             log.warning(
-                "You may need to run `pip install --upgrade -r requirements.txt` manually."
+                "You may need to run `%s` manually.",
+                "pip install --upgrade -r requirements.txt",
             )
 
             if get_output:
@@ -325,7 +337,7 @@ class PIP:
             return -255
 
 
-def bugger_off(msg: str = "Press enter to continue . . .", code: int = 1) -> None:
+def bugger_off(msg: str = _L("Press enter to continue . . ."), code: int = 1) -> None:
     """Make the console wait for the user to press enter/return."""
     input(msg)
     sys.exit(code)
@@ -345,9 +357,6 @@ def sanity_checks(args: argparse.Namespace) -> None:
 
     # Make sure we're in a writable env
     req_ensure_env()
-
-    # Make our folders if needed
-    pathlib.Path("data").mkdir(exist_ok=True)
 
     # For rewrite only
     req_check_deps()
@@ -434,8 +443,6 @@ def req_ensure_py3() -> None:
             "Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
         )
         bugger_off()
-    else:
-        log.info("Python version:  %s", sys.version)
 
 
 def req_check_deps() -> None:
@@ -447,8 +454,10 @@ def req_check_deps() -> None:
 
         if discord.version_info.major < 2:
             log.critical(
-                "This version of MusicBot requires a newer version of discord.py. "
-                "Your version is %s. Try running update.py.",
+                (
+                    "This version of MusicBot requires a newer version of discord.py. "
+                    "Your version is %s. Try running the update.py script."
+                ),
                 discord.__version__,
             )
             bugger_off()
@@ -476,10 +485,8 @@ def req_ensure_env() -> None:
         )
         bugger_off()
 
+    # Make sure musicbot exists and test if it can be imported.
     try:
-        if not os.path.isdir("config"):
-            raise RuntimeError('folder "config" not found')
-
         if not os.path.isdir("musicbot"):
             raise RuntimeError('folder "musicbot" not found')
 
@@ -492,19 +499,39 @@ def req_ensure_env() -> None:
         log.critical("Failed environment check, %s", e)
         bugger_off()
 
+    # test we have permissions to write files.
+    # if so, make all our write-enabled directories if needed.
+    test_path: pathlib.Path = write_path("musicbot-test-folder")
     try:
-        os.mkdir("musicbot-test-folder")
+        os.mkdir(test_path)
+        # Make our write-enabled folders if needed.
+        write_path(DEFAULT_DATA_DIR).mkdir(parents=True, exist_ok=True)
+        write_path(DEFAULT_OPTIONS_FILE).parent.mkdir(parents=True, exist_ok=True)
+        write_path(DEFAULT_MEDIA_FILE_DIR).mkdir(parents=True, exist_ok=True)
+        write_path(DEFAULT_AUDIO_CACHE_DIR).mkdir(parents=True, exist_ok=True)
     except (
         OSError,
         FileExistsError,
         PermissionError,
         IsADirectoryError,
     ):
-        log.critical("Current working directory does not seem to be writable")
-        log.critical("Please move the bot to a folder that is writable")
+        basedir = get_write_base()
+        if not basedir:
+            basedir = os.getcwd()
+
+        log.critical(
+            "MusicBot could not write files in the following directory:\n%(dir)s",
+            {"dir": basedir},
+        )
+        log.critical(
+            "Please make sure MusicBot can read and write in the above directory."
+        )
         bugger_off()
     finally:
-        shutil.rmtree("musicbot-test-folder", True)
+        try:
+            shutil.rmtree(test_path, ignore_errors=True)
+        except Exception:  # pylint: disable=broad-exception-caught
+            log.exception("Failed to clean up write-test path.")
 
     # this actually does an access check as well.
     ffmpeg_bin = shutil.which("ffmpeg")
@@ -565,9 +592,11 @@ def opt_check_updates() -> None:
         commit_at, commit_to = GIT.check_updates()
         if commit_at and commit_to:
             log.warning(
-                "MusicBot updates are available through `git` command.\n"
-                "Your current branch is:  %s\n"
-                "The latest commit ID is:  %s",
+                (
+                    "MusicBot updates are available through `git` command.\n"
+                    "Your current branch is:  %s\n"
+                    "The latest commit ID is:  %s"
+                ),
                 git_branch,
                 commit_to,
             )
@@ -583,16 +612,18 @@ def opt_check_updates() -> None:
         install_pkgs = PIP.check_updates()
         package_count = len(install_pkgs)
         if package_count:
-            pkg_list = "The following packages can be updated:\n"
+            pkg_list = _L("The following packages can be updated:\n")
             for pkg in install_pkgs:
                 pkg_meta = pkg.get("metadata", {})
                 pkg_name = pkg_meta.get("name", "")
                 pkg_ver = pkg_meta.get("version", "")
                 if pkg_name:
-                    pkg_list += f"  {pkg_name}  to version:  {pkg_ver}\n"
+                    pkg_list += _L("  %s  to version:  %s\n") % (pkg_name, pkg_ver)
             log.warning(
-                "There may be updates for dependency packages. "
-                "PIP reports %s package(s) could be installed.\n%s",
+                (
+                    "There may be updates for dependency packages. "
+                    "PIP reports %s package(s) could be installed.\n%s"
+                ),
                 package_count,
                 pkg_list,
             )
@@ -623,13 +654,14 @@ def parse_cli_args() -> argparse.Namespace:
         try:
             val = int(value)
             if val > MAXIMUM_LOGS_LIMIT:
-                raise ValueError("Value is above the maximum limit.")
+                raise ValueError(_L("Value is above the maximum limit."))
             if val <= -1:
-                raise ValueError("Value must not be negative.")
+                raise ValueError(_L("Value must not be negative."))
             return val
         except (TypeError, ValueError) as e:
             raise argparse.ArgumentTypeError(
-                f"Value for Max Logs Kept must be a number from 0 to {MAXIMUM_LOGS_LIMIT}",
+                _L("Value for Max Logs Kept must be a number from 0 to %s")
+                % (MAXIMUM_LOGS_LIMIT),
             ) from e
 
     def log_levels_int(level_name: str) -> int:
@@ -638,31 +670,63 @@ def parse_cli_args() -> argparse.Namespace:
         try:
             val = getattr(logging, level_name, None)
             if not isinstance(val, int):
-                raise TypeError(f"Log level '{level_name}' is not available.")
+                raise TypeError(_L("Log level '%s' is not available.") % (level_name))
             return val
         except (TypeError, ValueError) as e:
             raise argparse.ArgumentTypeError(
-                "Log Level must be one of:  CRITICAL, ERROR, WARNING, INFO, DEBUG, "
-                "VOICEDEBUG, FFMPEG, NOISY, or EVERYTHING",
+                _L("Log Level must be one of:  %s")
+                % (
+                    "CRITICAL, ERROR, WARNING, INFO, DEBUG, VOICEDEBUG, FFMPEG, NOISY, EVERYTHING"
+                ),
             ) from e
 
     ap = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent(
-            """\
-        Launch a music playing discord bot built using discord.py, youtubeDL, and ffmpeg.
-        Available via Github:
-          https://github.com/Just-Some-Bots/MusicBot
-        """
+        description=(
+            _L(
+                "Launch a music playing discord bot built using discord.py, youtubeDL, and ffmpeg."
+            )
+            + "\n"
+            + _L("Available via Github:")
+            + "\n  https://github.com/Just-Some-Bots/MusicBot"
         ),
-        epilog=textwrap.dedent(
-            """\
-        For more help and support with this bot, join our discord:
-          https://discord.gg/bots
+        epilog=(
+            _L("For more help and support with this bot, join our discord:")
+            + "\n  https://discord.gg/bots\n\n"
+            + _L("This software is provided under the MIT License.")
+            + "\n"
+            + _L("See the `LICENSE` text file for complete details.")
+        ),
+    )
 
-        This software is provided under the MIT License.
-        See the `LICENSE` text file for complete details.
-        """
+    # Allow language settings for logs and discord default.
+    # Both domains in one
+    ap.add_argument(
+        "--lang",
+        dest="lang_both",
+        default=DEFAULT_I18N_LANG,
+        type=str,
+        help=_L(
+            "Override the default / system detected language for all text in MusicBot."
+        ),
+    )
+    # Lang in log domain.
+    ap.add_argument(
+        "--log_lang",
+        dest="lang_logs",
+        default=DEFAULT_I18N_LANG,
+        type=str,
+        help=_L("Use this language for all server-side log messages from MusicBot."),
+    )
+    # Lang in discord message domain.
+    ap.add_argument(
+        "--msg_lang",
+        dest="lang_msgs",
+        default=DEFAULT_I18N_LANG,
+        type=str,
+        help=_L(
+            "Use this language for all messages sent to discord from MusicBot.\n"
+            "This does not prevent per-guild language selection."
         ),
     )
 
@@ -672,7 +736,7 @@ def parse_cli_args() -> argparse.Namespace:
         "--version",
         dest="show_version",
         action="store_true",
-        help="Print the MusicBot version information and exit.",
+        help=_L("Print the MusicBot version information and exit."),
     )
 
     # No Startup Checks option.
@@ -680,7 +744,7 @@ def parse_cli_args() -> argparse.Namespace:
         "--no-checks",
         dest="do_start_checks",
         action="store_false",
-        help="Skip all optional startup checks, including the update check.",
+        help=_L("Skip all optional startup checks, including the update check."),
     )
 
     # Skip disk checks option.
@@ -688,7 +752,7 @@ def parse_cli_args() -> argparse.Namespace:
         "--no-disk-check",
         dest="no_disk_check",
         action="store_true",
-        help="Skip only the disk space check at startup.",
+        help=_L("Skip only the disk space check at startup."),
     )
 
     # Skip update checks option.
@@ -696,7 +760,7 @@ def parse_cli_args() -> argparse.Namespace:
         "--no-update-check",
         dest="no_update_check",
         action="store_true",
-        help="Skip only the update check at startup.",
+        help=_L("Skip only the update check at startup."),
     )
 
     # Disable dependency install on error option.
@@ -704,7 +768,9 @@ def parse_cli_args() -> argparse.Namespace:
         "--no-install-deps",
         dest="no_install_deps",
         action="store_true",
-        help="Disable MusicBot from trying to install dependencies when it cannot import them.",
+        help=_L(
+            "Disable MusicBot from trying to install dependencies when it cannot import them."
+        ),
     )
 
     # Log related options.
@@ -713,37 +779,52 @@ def parse_cli_args() -> argparse.Namespace:
         dest="keep_n_logs",
         default=DEFAULT_LOGS_KEPT,
         type=kept_logs_int,
-        help=f"Specify how many log files to keep, between 0 and {MAXIMUM_LOGS_LIMIT} inclusive."
-        f" (Default: {DEFAULT_LOGS_KEPT})",
+        help=_L(
+            "Specify how many log files to keep, between 0 and %s inclusive."
+            " (Default: %s)"
+        )
+        % (MAXIMUM_LOGS_LIMIT, DEFAULT_LOGS_KEPT),
     )
     ap.add_argument(
         "--log-level",
         dest="log_level",
         default="NOTSET",
         type=log_levels_int,
-        help="Override the log level settings set in config. Must be one of: "
-        "CRITICAL, ERROR, WARNING, INFO, DEBUG, VOICEDEBUG, FFMPEG, "
-        "NOISY, or EVERYTHING   (Default: NOTSET)",
+        help=_L("Override the log level settings set in config. Must be one of: %s")
+        % (
+            "CRITICAL, ERROR, WARNING, INFO, DEBUG, VOICEDEBUG, FFMPEG, NOISY, EVERYTHING"
+        ),
     )
     ap.add_argument(
         "--log-rotate-fmt",
         dest="old_log_fmt",
         default=DEFAULT_LOGS_ROTATE_FORMAT,
         type=str,
-        help="Override the default date format used when rotating log files. "
-        "This should contain values compatible with strftime().  "
-        f"(Default:  '{DEFAULT_LOGS_ROTATE_FORMAT.replace('%', '%%')}')",
+        help=_L(
+            "Override the default date format used when rotating log files. "
+            "This should contain values compatible with strftime().  "
+            "(Default:  '%s')"
+        )
+        % (DEFAULT_LOGS_ROTATE_FORMAT.replace("%", "%%")),
     )
 
-    # TODO: maybe more arguments for other things:
-    # --config-dir      force this directory for config data (all files)
-    # --config-file     load config from this file, but default for other configs.
+    ap.add_argument(
+        "--write-dir",
+        dest="global_writes_basedir",
+        default="",
+        type=str,
+        help=_L(
+            "Supply a directory where MusicBot can store all mutable files.\n"
+            "Essentially treats the install directory as read-only.\n"
+            "MusicBot must have permission to create this directory.\n"
+        ),
+    )
 
     args = ap.parse_args()
 
     # Show version and exit.
     if args.show_version:
-        print(f"Just-Some-Bots/MusicBot\nVersion:  {BOTVERSION}\n")
+        print("Just-Some-Bots/MusicBot\n" + _L("Version:  %s") % (BOTVERSION) + "\n")
         sys.exit(0)
 
     if -1 < args.keep_n_logs <= MAXIMUM_LOGS_LIMIT:
@@ -818,7 +899,7 @@ def respawn_bot_process() -> None:
             exec_args,
             creationflags=subprocess.CREATE_NEW_CONSOLE,  # type: ignore[attr-defined]
         )
-        print("Opened a new MusicBot instance. This terminal can be safely closed!")
+        print(_L("Opened a new MusicBot instance. This terminal can be safely closed!"))
         sys.exit(0)
     else:
         # On Unix/Linux/Mac this should immediately replace the current program.
@@ -891,6 +972,7 @@ def main() -> None:
     # Log file creation is deferred until this first write.
     log.info("Loading MusicBot version:  %s", BOTVERSION)
     log.info("Log opened:  %s", time.ctime())
+    log.info("Python version:  %s", sys.version)
 
     # Check if run.py is in the current working directory.
     run_py_dir = os.path.dirname(os.path.realpath(__file__))
@@ -942,7 +1024,9 @@ def main() -> None:
             asyncio.set_event_loop(event_loop)
 
             # init some of bot, but don't run it yet.
-            m = MusicBot(use_certifi=use_certifi)
+            m = MusicBot(  # pylint: disable=possibly-used-before-assignment
+                use_certifi=use_certifi
+            )
 
             # register system signal handlers with the event loop.
             if not getattr(event_loop, "_sig_handler_set", False):
@@ -971,8 +1055,10 @@ def main() -> None:
             if e.verify_code == 20:  # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
                 if use_certifi:  # already tried it.
                     log.exception(
-                        "Could not get Issuer Certificate even with certifi!\n"
-                        "Try running:  %s -m pip install --upgrade certifi ",
+                        (
+                            "Could not get Issuer Certificate even with certifi!\n"
+                            "Try running:  %s -m pip install --upgrade certifi "
+                        ),
                         sys.executable,
                     )
                     log.warning(
@@ -990,7 +1076,9 @@ def main() -> None:
 
         except SyntaxError:
             if "-modded" in BOTVERSION:
-                log.exception("Syntax error (version is dirty, did you edit the code?)")
+                log.exception(
+                    "Syntax error (modification detected, did you edit the code?)"
+                )
             else:
                 log.exception("Syntax error (this is a bug, not your fault)")
             break
@@ -1002,33 +1090,33 @@ def main() -> None:
                     raise
 
             if cli_args.no_install_deps:
-                helpfulerr = HelpfulError(
-                    preface="Cannot start MusicBot due to an error!",
-                    issue=(
-                        f"Error: {str(e)}\n"
-                        "This is an error importing MusicBot or a dependency package."
-                    ),
-                    solution=(
-                        "You need to manually install dependency packages via pip.\n"
-                        "Or launch without `--no-install-deps` and MusicBot will try to install them for you."
-                    ),
-                    footnote=(
-                        "You have the `--no-install-deps` option set."
-                        "Normally MusicBot attempts "
-                    ),
+                log.error(
+                    # fmt: off
+                    "Cannot start MusicBot due to an error!\n"
+                    "\n"
+                    "Problem:\n"
+                    "  There was an error importing MusicBot or a dependency package.\n"
+                    "\n"
+                    "Solution:\n"
+                    "  You need to manually install pip packages for MusicBot\n"
+                    "  or launch without `--no-install-deps` and MusicBot will try to install them for you."
+                    # fmt: on
                 )
-                log.error(str(helpfulerr))
                 break
 
             if not PIP.works():
                 log.critical(
-                    "MusicBot could not import dependency modules and we cannot run `pip` automatically!\n"
-                    "You will need to manually install `pip` package for your version of python.\n"
+                    (
+                        "MusicBot could not import dependency modules and we cannot run `pip` automatically!\n"
+                        "You will need to manually install `pip` package for your version of python.\n"
+                    )
                 )
                 log.warning(
-                    "If you already installed `pip` but still get this error:\n"
-                    " - Check that you installed it for this python version: %s\n"
-                    " - Check installed packages are accessible to the user running MusicBot",
+                    (
+                        "If you already installed `pip` but still get this error:\n"
+                        " - Check that you installed it for this python version: %s\n"
+                        " - Check installed packages are accessible to the user running MusicBot"
+                    ),
                     sys.version.split(maxsplit=1)[0],
                 )
                 break
@@ -1044,21 +1132,30 @@ def main() -> None:
                 # If pip ran without issue, it should return 0 status code.
                 if pip_exit_code:
                     print()
-                    dep_error = HelpfulError(
-                        preface="MusicBot dependencies may not be installed!",
-                        issue="We didn't get a clean exit code from `pip` install.",
-                        solution=(
-                            "You will need to manually install dependency packages.\n"
-                            "MusicBot tries to use the following command, so modify as needed:\n"
-                            "  pip install -U -r ./requirements.txt"
-                        ),
-                        footnote="You can also ask for help in MusicBot support server:  https://discord.gg/bots",
+                    log.critical(
+                        # fmt: off
+                        "MusicBot dependencies may not be installed!\n"
+                        "\n"
+                        "Problem:\n"
+                        "  The pip install process ended with a possible error.\n"
+                        "  Some or all of the the dependencies may be missing.\n"
+                        "\n"
+                        "Solution:\n"
+                        "  You must manually install dependency packages.\n"
+                        "  Open a CMD prompt / terminal to the MusicBot directory.\n"
+                        "  You can try using the update scripts install packages.\n"
+                        "  Or try this manual command:\n"
+                        "    %(py_bin)s -m pip install -U -r ./requirements.txt\n"
+                        "\n"
+                        "You can also ask for help in MusicBot's support discord:\n"
+                        "  https://discord.gg/bots",
+                        # fmt: on
+                        {"py_bin": sys.executable}
                     )
-                    log.critical(str(dep_error))
                     break
 
                 print()
-                log.info("OK, lets hope that worked!")
+                log.info("OK, lets hope installing dependencies worked!")
                 print()
 
                 retries += 1
@@ -1078,7 +1175,10 @@ def main() -> None:
             break
 
         except HelpfulError as e:
-            log.info(e.message)
+            if e.fmt_args:
+                log.error(_L(e.message), e.fmt_args)
+            else:
+                log.error(_L(e.message))
             break
 
         except TerminateSignal as e:
@@ -1141,7 +1241,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("OK, we're closing!")
+        print(_L("OK, we're closing!"))
         shutdown_loggers()
         rotate_log_files()
 
