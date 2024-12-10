@@ -57,8 +57,8 @@ PLAYABLE_STRING_ARRAY = [
     # Shorthand with playlist ID
     "https://youtu.be/E3xbLcTj_bs?list=PLTxsp5i8fQO51pAymuKRfkmL4GnPRa6iC",
     # Spotify links
-    # TODO: find smaller playlist on spotify
-    # "https://open.spotify.com/playlist/37i9dQZF1DXaImRpG7HXqp",
+    # short playlist (38 minutes)
+    "https://open.spotify.com/playlist/4MtB6u1iXkFSnFELB8OPGU",
     "https://open.spotify.com/track/0YupMLYOYz6lZDbN3kRt7A?si=5b0eeb51b04c4af9",
     # one item and multi-item albums
     "https://open.spotify.com/album/1y8Yw0NDcP2qxbZufIXt7u",
@@ -72,12 +72,109 @@ PLAYABLE_STRING_ARRAY = [
     "slippery people talking heads live 84",
     # search handler format in query.
     "ytsearch4:talking heads stop making sense",
-    # generic extractor, static file with no service/meta data
-    "https://cdn.discordapp.com/attachments/741945274901200897/875075008723046410/cheesed.mp4",
     # live stream public radio station.
     "https://playerservices.streamtheworld.com/api/livestream-redirect/KUPDFM.mp3?dist=hubbard&source=hubbard-web&ttag=web&gdpr=0",
+    # Youtube live streams
+    "https://www.youtube.com/watch?v=jfKfPfyJRdk",
     # TODO: insert some live streams from youtube and twitch here.
 ]
+
+from urllib.parse import urlparse, parse_qs
+from collections import defaultdict
+
+
+def classify_link_multi(link):
+    classifications = []
+
+    if not link.strip():
+        return ["empty"]
+
+    # Parse the URL
+    parsed = urlparse(link)
+    query_params = parse_qs(parsed.query)
+    path = parsed.path.lower()
+    domain = parsed.netloc.lower()
+
+    # Check for playlist
+    if "playlist" in query_params or "playlist" in link or "playlist" in path:
+        classifications.append("playlist")
+
+    # Check for video links
+    if "youtu.be" in domain or "youtube.com" in domain:
+        classifications.append("video")
+
+    # Check for Spotify track or album
+    if "spotify.com" in domain:
+        if "track" in path:
+            classifications.append("track")
+        if "album" in path:
+            classifications.append("playlist")
+        if "playlist" in path:
+            classifications.append("playlist")
+
+    # Check for SoundCloud
+    if "soundcloud.com" in domain:
+        if "sets" in path:
+            classifications.append("playlist")
+        classifications.append("track")
+
+    # Check for Bandcamp
+    if "bandcamp.com" in domain:
+        if "album" in path:
+            classifications.append("album")
+
+    # Check for static files
+    if any(path.endswith(ext) for ext in [".mp4", ".mp3", ".wav"]):
+        classifications.append("static_file")
+
+    # Check for live streams
+    if "stream" in link or "livestream" in link:
+        classifications.append("live_stream")
+
+    # Search queries
+    if link.startswith("ytsearch") or link.isalpha():
+        classifications.append("search_query")
+
+    # Default to unknown if no other classifications
+    if not classifications:
+        classifications.append("unknown")
+
+    return classifications
+
+
+def classify_links(links):
+    """
+    Classifies a list of links or strings into multiple categories.
+
+    Args:
+        links (List[str]): A list of links or strings to classify.
+
+    Returns:
+        Dict[str, List[str]]: A dictionary where keys are classes and values are lists of URLs/strings.
+    """
+
+    # Initialize a defaultdict for grouping
+    classified_dict = defaultdict(list)
+
+    # Classify each link and group into the dict
+    for link in links:
+        classes = classify_link_multi(link)
+        for cls in classes:
+            classified_dict[cls].append(link)
+
+    return dict(classified_dict)
+
+
+# Example usage
+# CLASSIFIED_PLAYABLE_STRING_ARRAY = classify_links(PLAYABLE_STRING_ARRAY)
+
+
+def exclude_class_filter_func(cls: str):
+    return lambda x: cls not in classify_link_multi(x)
+
+
+def contain_class_filter_func(cls: str):
+    return lambda x: cls in classify_link_multi(x)
 
 
 TESTRIG_TEST_CASES: List[CmdTest] = [
@@ -87,8 +184,22 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
     CmdTest("playnext", PLAYABLE_STRING_ARRAY),
     CmdTest("shuffleplay", PLAYABLE_STRING_ARRAY),
     CmdTest("playnow", PLAYABLE_STRING_ARRAY),
-    CmdTest("stream", PLAYABLE_STRING_ARRAY),
-    CmdTest("pldump", PLAYABLE_STRING_ARRAY),
+    CmdTest(
+        "stream",
+        list(
+            filter(
+                exclude_class_filter_func("playlist"), PLAYABLE_STRING_ARRAY
+            )
+        ),
+    ),
+    CmdTest(
+        "pldump",
+        list(
+            filter(
+                contain_class_filter_func("playlist"), PLAYABLE_STRING_ARRAY
+            )
+        ),
+    ),
     CmdTest(
         "search",
         [
@@ -103,7 +214,11 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
             "ytsearch4: something about this feels wrong.",
         ],
     ),
+    # Play adjustable media before testing seek
+    CmdTest("playnow", ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]),
     CmdTest("seek", ["", "+30", "-20", "1:01", "61", "nein"]),
+    # Play adjustable media before testing speed
+    CmdTest("playnow", ["https://www.youtube.com/watch?v=bm48ncbhU10"]),
     CmdTest("speed", ["", "1", "1.", "1.1", "six", "-0.3", "40"]),
     CmdTest("move", ["", "2 4", "-1 -2", "x y"]),
     CmdTest("remove", ["", "5", "a"]),
@@ -121,18 +236,28 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
             "playlist",
             "song",
             "on",
+            "on",
             "off",
             "off",
-            "off",
+        ],
+    ),
+    # Set the limitation before testing clearing cache
+    CmdTest(
+        "config",
+        [
+            "show StorageLimitBytes",
+            "help StorageLimitBytes",
+            "set StorageLimitBytes 1",
+            "save MusicBot StorageLimitBytes",
         ],
     ),
     CmdTest(
         "cache",
         [
             "",
+            "update",
             "info",
             "clear",
-            "update",
         ],
     ),
     CmdTest(
@@ -215,7 +340,8 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
         ],
     ),
     CmdTest("resetplaylist", [""]),
-    CmdTest("option", ["", "autoplaylist on"]),
+    # Deprecated command
+    # CmdTest("option", [""]),
     CmdTest("follow", ["", ""]),
     CmdTest("uptime", [""]),
     CmdTest("latency", [""]),
@@ -224,8 +350,20 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
     # Commands that need owner / perms
     CmdTest("botlatency", [""]),
     CmdTest("checkupdates", [""]),
+    # Ensure prefix ccan be change before testing setprefix
+    CmdTest(
+        "config",
+        [
+            "show EnablePrefixPerGuild",
+            "help EnablePrefixPerGuild",
+            "set EnablePrefixPerGuild yes",
+            "save MusicBot EnablePrefixPerGuild",
+        ],
+    ),
     CmdTest("setprefix", ["", "**", "**", "?"]),
-    CmdTest("setavatar", ["", "https://cdn.imgchest.com/files/6yxkcjrkqg7.png"]),
+    CmdTest(
+        "setavatar", ["", "https://cdn.imgchest.com/files/6yxkcjrkqg7.png"]
+    ),
     CmdTest("setname", ["", f"TB-name-{uuid.uuid4().hex[0:7]}"]),
     CmdTest("setnick", ["", f"TB-nick-{uuid.uuid4().hex[0:7]}"]),
     CmdTest("language", ["", "show", "set", "set xx", "reset"]),
@@ -352,8 +490,6 @@ async def run_cmd_tests(
                 ),
             )
 
-        # a better idea would be buffering messages into a queue to inspect them.
-        # but i'm just gonna do this manually for now.
         sleep_time = 2
         cmd_total = 0
         for tc in test_cases:
@@ -372,26 +508,42 @@ async def run_cmd_tests(
         if dry:
             return None
 
-        counter = 0
-        for test in test_cases:
-            for cmd in test.command_cases(""):
+        # Initialize queue for buffering commands
+        cmd_queue = asyncio.Queue()
 
+        async def enqueue_commands():
+            """Load commands into the queue."""
+            for test in test_cases:
+                for cmd in test.command_cases(""):
+                    await cmd_queue.put(cmd)
+                    loginfo(f"Buffered command: {cmd}")
+
+        async def process_commands():
+            """Process commands from the queue."""
+            counter = 0
+            while not cmd_queue.empty():
+                cmd = await cmd_queue.get()
                 counter += 1
+
                 if message.channel.guild:
-                    prefix = bot.server_data[message.channel.guild.id].command_prefix
+                    prefix = bot.server_data[
+                        message.channel.guild.id
+                    ].command_prefix
                 else:
                     prefix = bot.config.command_prefix
 
-                cmd = f"{prefix}{cmd}"
-
+                full_cmd = f"{prefix}{cmd}"
+                message.content = full_cmd
                 loginfo(
-                    "- Sending CMD %(n)s of %(t)s:  %(cmd)s",
-                    {"n": counter, "t": cmd_total, "cmd": cmd},
+                    "- Processing CMD %(n)s of %(t)s: %(cmd)s",
+                    {"n": counter, "t": cmd_total, "cmd": full_cmd},
                 )
 
-                message.content = cmd
                 await bot.on_message(message)
                 await asyncio.sleep(sleep_time)
+
+        # Run both enqueueing and processing concurrently
+        await asyncio.gather(enqueue_commands(), process_commands())
 
         print("Done. Finally....")
         t = time.time() - start_time

@@ -3,6 +3,7 @@
 ~*/
 .vscode/
 *.service
+*.coverage
 
 audio_cache/
 dectalk/
@@ -24,3 +25,5 @@ config/playlists/
 media/
 
 docker-compose.yml
+
+/env*/
