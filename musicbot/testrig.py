@@ -2,7 +2,9 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import TYPE_CHECKING, Generator, List
+from collections import defaultdict
+from typing import TYPE_CHECKING, Callable, Dict, Generator, List
+from urllib.parse import parse_qs, urlparse
 
 import discord
 
@@ -17,7 +19,6 @@ log = logging.getLogger(__name__)
 
 # Mask these to prevent these strings from being extracted by gettext.
 TestCommandError = CommandError
-loginfo = log.info
 
 
 class CmdTest:
@@ -79,11 +80,9 @@ PLAYABLE_STRING_ARRAY = [
     # TODO: insert some live streams from youtube and twitch here.
 ]
 
-from urllib.parse import urlparse, parse_qs
-from collections import defaultdict
 
-
-def classify_link_multi(link):
+def classify_link_multi(link: str) -> List[str]:
+    """Build a list of classifications for the given link."""
     classifications = []
 
     if not link.strip():
@@ -142,7 +141,7 @@ def classify_link_multi(link):
     return classifications
 
 
-def classify_links(links):
+def classify_links(links: List[str]) -> Dict[str, List[str]]:
     """
     Classifies a list of links or strings into multiple categories.
 
@@ -169,11 +168,13 @@ def classify_links(links):
 # CLASSIFIED_PLAYABLE_STRING_ARRAY = classify_links(PLAYABLE_STRING_ARRAY)
 
 
-def exclude_class_filter_func(cls: str):
+def exclude_class_filter_func(cls: str) -> Callable[..., bool]:
+    """Filter to exclude links in the given class."""
     return lambda x: cls not in classify_link_multi(x)
 
 
-def contain_class_filter_func(cls: str):
+def contain_class_filter_func(cls: str) -> Callable[..., bool]:
+    """Filter to include only links from the given class."""
     return lambda x: cls in classify_link_multi(x)
 
 
@@ -186,19 +187,11 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
     CmdTest("playnow", PLAYABLE_STRING_ARRAY),
     CmdTest(
         "stream",
-        list(
-            filter(
-                exclude_class_filter_func("playlist"), PLAYABLE_STRING_ARRAY
-            )
-        ),
+        list(filter(exclude_class_filter_func("playlist"), PLAYABLE_STRING_ARRAY)),
     ),
     CmdTest(
         "pldump",
-        list(
-            filter(
-                contain_class_filter_func("playlist"), PLAYABLE_STRING_ARRAY
-            )
-        ),
+        list(filter(contain_class_filter_func("playlist"), PLAYABLE_STRING_ARRAY)),
     ),
     CmdTest(
         "search",
@@ -361,9 +354,7 @@ TESTRIG_TEST_CASES: List[CmdTest] = [
         ],
     ),
     CmdTest("setprefix", ["", "**", "**", "?"]),
-    CmdTest(
-        "setavatar", ["", "https://cdn.imgchest.com/files/6yxkcjrkqg7.png"]
-    ),
+    CmdTest("setavatar", ["", "https://cdn.imgchest.com/files/6yxkcjrkqg7.png"]),
     CmdTest("setname", ["", f"TB-name-{uuid.uuid4().hex[0:7]}"]),
     CmdTest("setnick", ["", f"TB-nick-{uuid.uuid4().hex[0:7]}"]),
     CmdTest("language", ["", "show", "set", "set xx", "reset"]),
@@ -468,7 +459,7 @@ async def run_cmd_tests(
         raise TestCommandError("Command Tests are already running!")
 
     async with bot.aiolocks[_func_()]:
-        loginfo("Starting Command Tests...")
+        log.info("Starting Command Tests...")
         start_time = time.time()
         # create a list of help commands to run using input command list and custom tests.
         help_cmd_list = ["", "-missing-", "all"] + command_list
@@ -509,16 +500,16 @@ async def run_cmd_tests(
             return None
 
         # Initialize queue for buffering commands
-        cmd_queue = asyncio.Queue()
+        cmd_queue: asyncio.Queue[str] = asyncio.Queue()
 
-        async def enqueue_commands():
+        async def enqueue_commands() -> None:
             """Load commands into the queue."""
             for test in test_cases:
                 for cmd in test.command_cases(""):
                     await cmd_queue.put(cmd)
-                    loginfo(f"Buffered command: {cmd}")
+                    log.info("Buffered command: %(cmd)s", {"cmd": cmd})
 
-        async def process_commands():
+        async def process_commands() -> None:
             """Process commands from the queue."""
             counter = 0
             while not cmd_queue.empty():
@@ -526,15 +517,13 @@ async def run_cmd_tests(
                 counter += 1
 
                 if message.channel.guild:
-                    prefix = bot.server_data[
-                        message.channel.guild.id
-                    ].command_prefix
+                    prefix = bot.server_data[message.channel.guild.id].command_prefix
                 else:
                     prefix = bot.config.command_prefix
 
                 full_cmd = f"{prefix}{cmd}"
                 message.content = full_cmd
-                loginfo(
+                log.info(
                     "- Processing CMD %(n)s of %(t)s: %(cmd)s",
                     {"n": counter, "t": cmd_total, "cmd": full_cmd},
                 )
