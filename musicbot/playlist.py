@@ -53,7 +53,7 @@ class Playlist(EventEmitter, Serializable):
         of validated extraction information.
         """
         super().__init__()
-        self.bot: "MusicBot" = bot
+        self.bot: MusicBot = bot
         self.loop: asyncio.AbstractEventLoop = bot.loop
         self.entries: Deque[EntryTypes] = deque()
 
@@ -118,7 +118,8 @@ class Playlist(EventEmitter, Serializable):
         """
 
         log.noise(  # type: ignore[attr-defined]
-            f"Adding stream entry for URL:  {info.url}"
+            "Adding stream entry for URL:  %(url)s",
+            {"url": info.url},
         )
         entry = StreamPlaylistEntry(
             self,
@@ -159,11 +160,7 @@ class Playlist(EventEmitter, Serializable):
 
         # this should, in theory, never happen.
         if info.ytdl_type == "playlist":
-            raise WrongEntryTypeError(
-                "This is a playlist.",
-                True,
-                info.webpage_url or info.url,
-            )
+            raise WrongEntryTypeError("This is a playlist.")
 
         # check if this is a local file entry.
         if info.ytdl_type == "local":
@@ -195,7 +192,8 @@ class Playlist(EventEmitter, Serializable):
                     if not any(x in content_type for x in ("/ogg", "/octet-stream")):
                         # How does a server say `application/ogg` what the actual fuck
                         raise ExtractionError(
-                            f'Invalid content type "{content_type}" for url: {info.url}'
+                            "Invalid content type `%(type)s` for URL: %(url)s",
+                            fmt_args={"type": content_type, "url": info.url},
                         )
 
                 elif (
@@ -209,13 +207,13 @@ class Playlist(EventEmitter, Serializable):
 
                 elif not content_type.startswith(("audio/", "video/")):
                     log.warning(
-                        'Questionable content-type "%s" for url:  %s',
-                        content_type,
-                        info.url,
+                        'Questionable content-type "%(type)s" for url:  %(url)s',
+                        {"type": content_type, "url": info.url},
                     )
 
         log.noise(  # type: ignore[attr-defined]
-            f"Adding URLPlaylistEntry for: {info.input_subject}"
+            "Adding URLPlaylistEntry for: %(subject)s",
+            {"subject": info.input_subject},
         )
         entry = URLPlaylistEntry(self, info, author=author, channel=channel)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -234,7 +232,8 @@ class Playlist(EventEmitter, Serializable):
         Adds a local media file entry to the playlist.
         """
         log.noise(  # type: ignore[attr-defined]
-            f"Adding LocalFilePlaylistEntry for: {info.input_subject}"
+            "Adding LocalFilePlaylistEntry for: %(subject)s",
+            {"subject": info.input_subject},
         )
         entry = LocalFilePlaylistEntry(self, info, author=author, channel=channel)
         self._add_entry(entry, head=head, defer_serialize=defer_serialize)
@@ -290,9 +289,8 @@ class Playlist(EventEmitter, Serializable):
                 or self.bot.config.song_blocklist.is_blocked(item.title)
             ):
                 log.info(
-                    "Not allowing entry that is in song block list:  %s  URL: %s",
-                    item.title,
-                    item.url,
+                    "Not allowing entry that is in song block list:  %(title)s  URL: %(url)s",
+                    {"title": item.title, "url": item.url},
                 )
                 baditems += 1
                 continue
@@ -316,7 +314,7 @@ class Playlist(EventEmitter, Serializable):
                 or "[deleted video]" == item.get("title", "").lower()
             ):
                 log.warning(
-                    "Not adding youtube video because it is marked private or deleted:  %s",
+                    "Not adding YouTube video because it is marked private or deleted:  %s",
                     item.get_playable_url(),
                 )
                 baditems += 1
@@ -369,7 +367,7 @@ class Playlist(EventEmitter, Serializable):
         Entries added by the auto playlist will be removed.
         """
         new_queue: Deque[EntryTypes] = deque()
-        all_authors: List["discord.abc.User"] = []
+        all_authors: List[discord.abc.User] = []
 
         # Make a list of unique authors from the current queue.
         for entry in self.entries:
@@ -388,6 +386,7 @@ class Playlist(EventEmitter, Serializable):
             log.everything(  # type: ignore[attr-defined]
                 "Reorder looping over entries."
             )
+
             # Do not continue if we have no more authors.
             if len(all_authors) == 0:
                 break
