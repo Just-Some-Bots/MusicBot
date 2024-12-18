@@ -2604,6 +2604,10 @@ class MusicBot(discord.Client):
         log.info("Options:")
 
         log.info("  Command prefix: %s", self.config.command_prefix)
+        log.info(
+            "  Command by @mention: %s", on_or_off(self.config.commands_via_mention)
+        )
+        log.info("  Command aliases: %s", on_or_off(self.config.usealias))
         log.info("  Default volume: %d%%", int(self.config.default_volume * 100))
         log.info(
             "  Skip threshold: %(num)d votes or %(percent).0f%%",
@@ -2612,11 +2616,18 @@ class MusicBot(discord.Client):
                 "percent": (self.config.skip_ratio_required * 100),
             },
         )
+        log.info("    Legacy skip: %s", on_or_off(self.config.legacy_skip))
+        log.info(
+            "    Author insta-skip: %s",
+            on_or_off(self.config.allow_author_skip),
+        )
         log.info(
             "  Now Playing @mentions: %s",
             on_or_off(self.config.now_playing_mentions),
         )
-        log.info("  Auto-Summon: %s", on_or_off(self.config.auto_summon))
+        log.info(
+            "  Auto-join Owner's voice channel: %s", on_or_off(self.config.auto_summon)
+        )
         log.info(
             "  Auto-Playlist: %(status)s (order: %(order)s)",
             {
@@ -2625,6 +2636,21 @@ class MusicBot(discord.Client):
                     self.config.auto_playlist_random
                 ],
             },
+        )
+        log.info(
+            "    Save per-server queue history: %s",
+            on_or_off(self.config.enable_queue_history_guilds),
+        )
+        log.info(
+            "    Save global queue history: %s",
+            on_or_off(self.config.enable_queue_history_global),
+        )
+        log.info(
+            "    Remove URLs on extraction error: %s", on_or_off(self.config.remove_ap)
+        )
+        log.info(
+            "    Skip playlist for user requests: %s",
+            on_or_off(self.config.auto_playlist_autoskip),
         )
         log.info("  Auto-Pause: %s", on_or_off(self.config.auto_pause))
         log.info(
@@ -2641,6 +2667,8 @@ class MusicBot(discord.Client):
                 on_or_off(self.config.delete_nowplaying),
             )
         log.info("  Debug Mode: %s", on_or_off(self.config.debug_mode))
+        log.info("  Songs blocklist: %s", on_or_off(self.config.song_blocklist_enabled))
+        log.info("  Users blocklist: %s", on_or_off(self.config.user_blocklist_enabled))
         log.info(
             "  Downloaded songs will be %s",
             ["deleted", "saved"][self.config.save_videos],
@@ -2649,30 +2677,35 @@ class MusicBot(discord.Client):
             log.info("    Delete if unused for %d days", self.config.storage_limit_days)
         if self.config.save_videos and self.config.storage_limit_bytes:
             size = format_size_from_bytes(self.config.storage_limit_bytes)
-            log.info("    Delete if size exceeds %s", size)
+            log.info("    Delete if cache exceeds %s", size)
+
+        log.info(
+            "  Pre-download next track: %s",
+            on_or_off(self.config.pre_download_next_song),
+        )
 
         if self.config.status_message:
             log.info("  Status message: %s", self.config.status_message)
         log.info(
-            "  Write current songs to file: %s",
+            "  Write current song title to file: %s",
             on_or_off(self.config.write_current_song),
         )
-        log.info(
-            "  Author insta-skip: %s",
-            on_or_off(self.config.allow_author_skip),
-        )
-        log.info("  Embeds: %s", on_or_off(self.config.embeds))
+        log.info("  Respond with Embeds: %s", on_or_off(self.config.embeds))
+        if self.config.embeds:
+            if self.config.remove_embed_footer:
+                log.info("    Footer Text Disabled")
+            else:
+                log.info("    Footer Text:  %s", self.config.footer_text)
         log.info(
             "  Spotify integration: %s",
             on_or_off(self.config.spotify_enabled),
         )
-        log.info("  Legacy skip: %s", on_or_off(self.config.legacy_skip))
         log.info(
-            "  Leave non owners: %s",
+            "  Leave servers where Owner is not a member: %s",
             on_or_off(self.config.leavenonowners),
         )
         log.info(
-            "  Leave inactive VC: %s",
+            "  Disconnect from inactive channel: %s",
             on_or_off(self.config.leave_inactive_channel),
         )
         if self.config.leave_inactive_channel:
@@ -2681,11 +2714,11 @@ class MusicBot(discord.Client):
                 self.config.leave_inactive_channel_timeout,
             )
         log.info(
-            "  Leave at song end/empty queue: %s",
+            "  Disconnect at end of queue: %s",
             on_or_off(self.config.leave_after_queue_empty),
         )
         log.info(
-            "  Leave when player idles: %s",
+            "  Disconnect when player idles: %s",
             "Disabled" if self.config.leave_player_inactive_for == 0 else "Enabled",
         )
         if self.config.leave_player_inactive_for:
@@ -2695,10 +2728,17 @@ class MusicBot(discord.Client):
             "  Per-server command prefix: %s",
             on_or_off(self.config.enable_options_per_guild),
         )
-        log.info("  Search List: %s", on_or_off(self.config.searchlist))
+        log.info("  Search using reactions: %s", on_or_off(not self.config.searchlist))
+        log.info("    Results per search: %d", self.config.defaultsearchresults)
         log.info(
             "  Round Robin Queue: %s",
             on_or_off(self.config.round_robin_queue),
+        )
+        log.info("  Local media files: %s", on_or_off(self.config.enable_local_media))
+
+        log.info(
+            "  Network checking ping tests: %s",
+            on_or_off(self.config.enable_network_checker),
         )
 
         if self.config.use_opus_audio and not self.config.use_opus_probe:
@@ -2707,7 +2747,17 @@ class MusicBot(discord.Client):
             audio_out = "Copy"
         else:
             audio_out = "PCM"
-        log.info("  Audio Codec: %s", audio_out)
+        log.info("  Audio processed with: %s", audio_out)
+
+        log.info(
+            "  Equalize audio level per-track: %s",
+            on_or_off(self.config.use_experimental_equalization),
+        )
+
+        if self.config.ytdlp_proxy:
+            log.info("  HTTP Proxy set to:  %s", self.config.ytdlp_proxy)
+        if self.config.ytdlp_user_agent:
+            log.info("  User Agent set to:  %s", self.config.ytdlp_user_agent)
         # log.info("  Max Bitrate: %s kbps (per channel)", MUSICBOT_VOICE_MAX_KBITRATE)
         print(flush=True)
 
@@ -8089,13 +8139,24 @@ class MusicBot(discord.Client):
             and message.guild
             and message.channel.id not in self.config.bound_channels
         ):
+            log.debug(
+                "MusicBot has bound channel config and caller channel is not in bound channels."
+            )
             if self.config.unbound_servers:
                 if any(
                     c.id in self.config.bound_channels for c in message.guild.channels
                 ):
+                    log.debug(
+                        "Caller server has a bound channel, caller channel ignored."
+                    )
                     return
+                log.debug("Caller server has no bound channel, caller allowed.")
             else:
-                # log.everything("Unbound channel (%s) in server:  %s", message.channel, message.guild)
+                log.debug(
+                    "Unbound channel (%s) in server:  %s",
+                    message.channel,
+                    message.guild,
+                )
                 return
 
         # check for user id or name in blacklist.
