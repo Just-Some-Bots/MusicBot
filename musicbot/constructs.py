@@ -21,8 +21,6 @@ import discord
 
 from .constants import (
     DATA_GUILD_FILE_OPTIONS,
-    DEFAULT_BOT_ICON,
-    DEFAULT_FOOTER_TEXT,
     MUSICBOT_EMBED_COLOR_ERROR,
     MUSICBOT_EMBED_COLOR_NORMAL,
 )
@@ -360,7 +358,6 @@ class MusicBotResponse(discord.Embed):
         delete_after: Union[None, int, float] = None,
         force_text: bool = False,
         force_embed: bool = False,
-        no_footer: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -379,7 +376,6 @@ class MusicBotResponse(discord.Embed):
                                 Only used if message delete options are enabled.
         :param: force_text:  Regardless of settings, this response should be text-only.
         :param: force_embed: Regardless of settings, this response should be embed-only.
-        :param: no_footer:   Disable the embed footer entirely. Only used on Embeds.
         """
         self.content = content
         self.codeblock = codeblock
@@ -396,11 +392,6 @@ class MusicBotResponse(discord.Embed):
             color=discord.Colour.from_str(color_hex),
             **kwargs,
         )
-        if not no_footer:
-            self.set_footer(
-                text=DEFAULT_FOOTER_TEXT,
-                icon_url=DEFAULT_BOT_ICON,
-            )
         # overload the original description with our formatting property.
         # yes, this is cursed and I don't like doing it, but it defers format.
         setattr(self, "description", getattr(self, "overload_description"))
@@ -417,7 +408,6 @@ class MusicBotResponse(discord.Embed):
     def to_markdown(self, ssd_: Optional[GuildSpecificData] = None) -> str:
         """
         Converts the embed to a markdown text.
-        Does not include thumbnail and image urls.
         Embeds may have more content than text messages will allow!
         """
         url = ""

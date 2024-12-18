@@ -32,7 +32,9 @@ from .constants import (
     DATA_FILE_SERVERS,
     DATA_GUILD_FILE_CUR_SONG,
     DATA_GUILD_FILE_QUEUE,
+    DEFAULT_BOT_ICON,
     DEFAULT_BOT_NAME,
+    DEFAULT_FOOTER_TEXT,
     DEFAULT_I18N_DIR,
     DEFAULT_I18N_LANG,
     DEFAULT_OWNER_GROUP_NAME,
@@ -1840,6 +1842,15 @@ class MusicBot(discord.Client):
         ch_name = "DM-Channel"
         if hasattr(dest, "name"):
             ch_name = str(dest.name)
+
+        if not self.config.remove_embed_footer:
+            footer_text = DEFAULT_FOOTER_TEXT
+            if self.config.footer_text:
+                footer_text = self.config.footer_text
+            content.set_footer(
+                text=footer_text,
+                icon_url=DEFAULT_BOT_ICON,
+            )
 
         if reply_to and reply_to.channel == dest:
             send_kws["reference"] = reply_to.to_reference(fail_if_not_exists=False)
@@ -8283,10 +8294,6 @@ class MusicBot(discord.Client):
                 # always reply to the caller, no reason not to.
                 response.reply_to = message
 
-                # remove footer if configured.
-                if self.config.remove_embed_footer:
-                    response.remove_footer()
-
                 await self.safe_send_message(send_to, response, **send_kwargs)
 
         except (
@@ -8309,7 +8316,6 @@ class MusicBot(discord.Client):
                 codeblock="text",
                 title="Error",
                 reply_to=message,
-                no_footer=self.config.remove_embed_footer,
             )
             await self.safe_send_message(message.channel, er)
 
@@ -8330,7 +8336,6 @@ class MusicBot(discord.Client):
                     codeblock="text",
                     title=_D("Exception Error", ssd),
                     reply_to=message,
-                    no_footer=self.config.remove_embed_footer,
                 )
                 await self.safe_send_message(message.channel, er)
 
