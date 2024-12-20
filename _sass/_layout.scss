@@ -253,7 +253,8 @@ nav > ul {
 	&.current > a,
 	> a:active,
 	> a:hover {
-		color: #111;
+		color: rgb(0, 0, 0);
+		background-color: #3583d6;
 	}
 
 	&.top-level > a {
@@ -307,6 +308,10 @@ h3 + .warning {
 	margin-top: 1.75em;
 }
 
+
+h4 {
+	margin-top: 1.5em;
+}
 
 h4 code {
 	background: $nav-background-color;
@@ -396,7 +401,7 @@ h4 svg {
 }
 
 .badge {
-	font-family: "Open Sans", sans-serif;
+	font-family: Arial, sans-serif;
 	padding: 2px 5px;
 	text-transform: uppercase;
 	font-size: 0.8rem;
@@ -436,6 +441,10 @@ blockquote {
 img {
 	max-width: 100%;
 	height: auto;
+
+	@media (prefers-color-scheme: dark) {
+		filter: invert(100%) hue-rotate(180deg);
+	}
 }
 
 .editor-link {
@@ -468,4 +477,34 @@ img {
 
 .cms-editor-active .editor-link {
 	display: block;
+}
+
+details {
+	border: 1px solid rgba(0,0,0,0.14);
+	padding: 0.2em;
+
+	> summary {
+		text-decoration: underline;
+		cursor: pointer;
+	}
+	
+	> summary::before {
+		content: "\27A4";
+		width: 24px;
+		display: inline-block;
+		text-align: center;
+	}
+	
+	h3::before { margin: 12px 0 !important; }
+	h4::before { margin: 12px 0 !important; }
+}
+details[open] {
+	padding-bottom: 2em;
+
+	summary {
+		margin-bottom: 1em;
+	}
+}
+details[open] summary::before {
+	content: "\25BC";
 }

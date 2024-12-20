@@ -16,11 +16,35 @@ The bot was developed to support YouTube and SoundCloud URLs, but it can theoret
 
 Currently, the bot can't play music that is saved on your computer locally, though it is a [planned feature](https://github.com/Just-Some-Bots/MusicBot/issues/168).
 
+#### How can I sign into youtube?
+
+By using the experimental OAuth2 integration, you can use a youtube/google account to sign in.  
+First enable `YtdlpUseOauth2` in your options file.  
+Next, update the `YtdlpOauth2URL` option with a youtube video URL.  
+While the URL is set, you should be prompted to verify at MusicBot startup.  Otherwise MusicBot will prompt when a youtube video is requested.  
+
+In most cases you should only need to verify once.  MusicBot will update the oauth token as needed while making requests to youtube.  
+
 #### Can I modify the bot?
 
-MusicBot is licensed under MIT. If you want to modify it, you can. Please bare in mind that we won't give any support for you doing this. If you don't know how to write asynchronous code in Python, don't even attempt this.
+MusicBot is provided under an MIT License.  
+Under this license you are allowed to modify the source code as you please!  
+Understand that you may be on your own getting support for MusicBot with modifications.  
+It is recommended that you are familiar with Python and the Asyncio library first.  
+
+If your modifications are general improvements, please consider contributing your changes to improve MusicBot for everyone.  
 
 #### Can I change the bot's responses?
+
+Short answer is yes!  
+
+##### After the UI/i18n PR #2436
+
+MusicBot is almost fully translation ready, allowing you to translate or modify 
+text used by MusicBot in both Discord messages and MusicBot logs.  
+Translations use the Gettext format.  For more information, see the [i18n readme](https://github.com/Just-Some-Bots/MusicBot/blob/dev/i18n/readme.md).
+
+##### Before the UI/i18n PR #2436
 
 If you would like to change the bot's responses, perhaps because your users have a different native language, it is possible without editing the bot's source code. As long as you have a basic understanding of JSON, you can create a new i18n file. Open up the `config/i18n` folder, copy `en.json` to `whatever.json`, and then open it up with a code editor (such as Notepad++, Atom, or Visual Studio Code).
 

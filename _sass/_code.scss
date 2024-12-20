@@ -1,6 +1,6 @@
 pre, code, tt {
-	font-family: Inconsolata, Consolas, Courier, "Courier New", "Liberation Mono", monospace;
-	font-size: 0.85em;
+	font-family: "Envy Code R", Courier, "Courier New", monospace;
+	font-size: 1em;
 	white-space: pre-wrap;
 	border-radius: 2px;
 	line-height: 1.4;
@@ -31,7 +31,12 @@ pre {
 
 blockquote > code,
 li > code,
-p > code {
-	padding: 4px 6px;
-	white-space: nowrap;
+p > code, 
+details > code {
+    white-space: nowrap;
+    font-size: 1em;
+    display: inline-block;
+    border-radius: 6px;
+    border: 1px solid black;
+    padding: 2px 6px;
 }

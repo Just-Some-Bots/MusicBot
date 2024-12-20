@@ -8,7 +8,6 @@
 		{% seo %}
 		{% feed_meta %}
 
-		<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400,400italic,700,700italic|Open+Sans:400,400italic,600,600italic,700,700italic|Inconsolata:400,700">
 		<link rel="stylesheet" href="{{ site.baseurl }}/css/main.css">
 		<link rel="apple-touch-icon" href="{{ site.baseurl }}/apple-touch-icon.png">
 		<link rel="icon" type="image/png" href="{{ site.baseurl }}/touch-icon.png" sizes="192x192">
@@ -24,7 +23,7 @@
 		{% endif %}
 	</head>
 
-	<body>
+	<body class="{{ page.name | downcase | replace: ' ', '_' | remove: '.md' }}">
 		<header>
 			<h1>
 				<a href="{{ site.baseurl }}/"><img src="{{ site.baseurl }}/images/emblem.svg" width="40" height="40" alt="{{ site.title }} logo"></a>
@@ -86,6 +85,34 @@
 		<script>
 			document.getElementById("open-nav").addEventListener("click", function () {
 				document.body.classList.toggle("nav-open");
+			});
+			
+			function listenerByClass(className, eventName, funct) {
+				var elms = document.getElementsByClassName(className);
+				for (var i=0; i < elms.length; i++) {
+					elms[i].addEventListener(eventName, funct);
+				}
+			}
+			
+			var DeetsOpen = false;
+			listenerByClass("expand-all-details", "click", function () {
+				var deets = document.getElementsByTagName("details");
+				for (var i=0; i < deets.length; i++) {
+					if (DeetsOpen) {
+						if (deets[i].hasAttribute("open")) {
+							deets[i].removeAttribute("open");
+						}
+					} else {
+						if ( ! deets[i].hasAttribute("open")) {
+							deets[i].setAttribute("open","");
+						}
+					}
+				}
+				if (DeetsOpen) {
+					DeetsOpen = false;
+				} else {
+					DeetsOpen = true;
+				}
 			});
 		</script>
 	</body>
