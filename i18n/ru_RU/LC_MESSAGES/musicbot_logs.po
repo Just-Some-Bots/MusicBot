@@ -1,0 +1,4871 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: notmusicbot\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-11-11 16:38-0800\n"
+"PO-Revision-Date: 2024-11-12 00:39\n"
+"Last-Translator: \n"
+"Language-Team: Russian\n"
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=((n%10==1 && n%100!=11) ? 0 : ((n%10 >= 2 && n%10 <=4 && (n%100 < 12 || n%100 > 14)) ? 1 : ((n%10 == 0 || (n%10 >= 5 && n%10 <=9)) || (n%100 >= 11 && n%100 <= 14)) ? 2 : 3));\n"
+"X-Crowdin-File: /fae/i18n/musicbot_logs.pot\n"
+"X-Crowdin-File-ID: 26\n"
+"X-Crowdin-Language: ru\n"
+"X-Crowdin-Project: notmusicbot\n"
+"X-Crowdin-Project-ID: 734017\n"
+"X-Generated-By: pygettext.py 1.5-mb01\n"
+
+#: musicbot/aliases.py:52
+msgid "Aliases file not found, copying example_aliases.json"
+msgstr "Файл псевдонимов не найден, копирование example_aliases.json"
+
+#: musicbot/aliases.py:56
+msgid ""
+"Error while loading aliases.\n"
+"\n"
+"Problem:\n"
+"  Your aliases files (aliases.json & example_aliases.json) are missing.\n"
+"\n"
+"Solution:\n"
+"  Replace the alias config file(s) or copy them from:\n"
+"    https://github.com/Just-Some-Bots/MusicBot/"
+msgstr ""
+
+#: musicbot/aliases.py:80
+#, python-format
+msgid "Failed to load aliases file:  %s"
+msgstr "Не удалось загрузить файл псевдонимов:  %s"
+
+#: musicbot/aliases.py:88
+#, python-format
+msgid ""
+"Failed to parse aliases file:  %s\n"
+"Ensure the file contains valid JSON and restart the bot."
+msgstr ""
+"Не удалось разобрать файл псевдонимов:  %s\n"
+"Убедитесь, что файл содержит корректный JSON и перезапустите бот."
+
+#: musicbot/aliases.py:118
+#, python-format
+msgid ""
+"Aliases skipped for non-existent command:  %(command)s  ->  %(aliases)s"
+msgstr ""
+"Псевдонимы пропущены для несуществующей команды:  %(command)s  ->  "
+"%(aliases)s"
+
+#: musicbot/aliases.py:126
+#, python-format
+msgid ""
+"Alias(es) skipped for invalid alias data:  %(command)s  ->  %(aliases)s"
+msgstr ""
+"Алиас(ы) пропущены для недопустимых данных алиаса:  %(command)s  ->  "
+"%(aliases)s"
+
+#: musicbot/aliases.py:136
+#, python-format
+msgid "Alias `%(alias)s` skipped as already exists on command:  %(command)s"
+msgstr ""
+"Псевдоним `%(alias)s` пропущен как уже существует в команде:  %(command)s"
+
+#: musicbot/autoplaylist.py:77
+#, python-format
+msgid "Error loading auto playlist file:  %s"
+msgstr "Ошибка загрузки файла автоплейлиста:  %s"
+
+#: musicbot/autoplaylist.py:181
+#, python-format
+msgid "Removing unplayable song from playlist, %(playlist)s: %(track)s"
+msgstr ""
+"Удаление невоспроизводимой песни из плейлиста, %(playlist)s: %(track)s"
+
+#: musicbot/autoplaylist.py:186
+#, python-format
+msgid "Removing song from playlist, %(playlist)s: %(track)s"
+msgstr "Удаление песни из плейлиста, %(playlist)s: %(track)s"
+
+#: musicbot/autoplaylist.py:132 musicbot/autoplaylist.py:211
+msgid "Could not log information about the playlist URL removal."
+msgstr "Не удалось зарегистрировать информацию о удалении URL плейлиста."
+
+#: musicbot/autoplaylist.py:135 musicbot/autoplaylist.py:215
+msgid "Updating playlist file..."
+msgstr "Обновление файла плейлиста..."
+
+#: musicbot/autoplaylist.py:158 musicbot/autoplaylist.py:231
+#: musicbot/autoplaylist.py:268
+#, python-format
+msgid "Failed to save playlist file:  %s"
+msgstr "Не удалось сохранить файл плейлиста:  %s"
+
+#: musicbot/autoplaylist.py:240
+#, python-format
+msgid "URL already in playlist %s, ignoring"
+msgstr "URL-адрес уже в плейлисте %s, игнорируется"
+
+#: musicbot/autoplaylist.py:247
+#, python-format
+msgid "Adding new URL to playlist, %(playlist)s: %(track)s"
+msgstr "Добавление нового URL в плейлист, %(playlist)s: %(track)s"
+
+#: musicbot/bot.py:168
+#, python-format
+msgid "Initializing MusicBot %s"
+msgstr "Инициализация MusicBot %s"
+
+#: musicbot/bot.py:251
+#, python-format
+msgid "Loop is closed, cannot create task for: %r"
+msgstr "Цикл закрыт, невозможно создать задачу для: %r"
+
+#: musicbot/bot.py:267
+#, python-format
+msgid "Unhandled exception for task:  %r"
+msgstr "Необработанное исключение для задачи:  %r"
+
+#: musicbot/bot.py:271
+#, python-format
+msgid "Unhandled exception for task:  %(task)r  --  %(raw_error)s"
+msgstr "Необработанное исключение для задачи:  %(task)r --  %(raw_error)s"
+
+#: musicbot/bot.py:316 musicbot/bot.py:338
+msgid "Spotify did not provide us with a token. Disabling."
+msgstr "Spotify не предоставил нам токен. Отключен."
+
+#: musicbot/bot.py:320
+msgid "Authenticated with Spotify successfully using client ID and secret."
+msgstr ""
+"Аутентификация в Spotify прошла успешно с использованием ID клиента и "
+"секрета."
+
+#: musicbot/bot.py:324
+#, python-format
+msgid ""
+"Could not start Spotify client. Is your client ID and secret correct? "
+"Details: %s. Continuing anyway in 5 seconds..."
+msgstr ""
+"Не удалось запустить клиент Spotify. ID вашего клиента и секретные данные? "
+"Подробности: %s. Продолжиться все равно через 5 секунд..."
+
+#: musicbot/bot.py:332
+msgid ""
+"The config did not have Spotify app credentials, attempting to use guest "
+"mode."
+msgstr ""
+"В конфигурации нет учетных данных приложения Spotify, пытаясь использовать "
+"гостевой режим."
+
+#: musicbot/bot.py:342
+msgid "Authenticated with Spotify successfully using guest mode."
+msgstr "Аутентификация в Spotify прошла успешно в гостевом режиме."
+
+#: musicbot/bot.py:347
+#, python-format
+msgid "Could not start Spotify client using guest mode. Details: %s."
+msgstr ""
+"Невозможно запустить клиент Spotify в гостевом режиме. Подробности: %s."
+
+#: musicbot/bot.py:355
+msgid ""
+"Experimental Yt-dlp OAuth2 plugin is enabled. This might break at any point!"
+msgstr ""
+"Экспериментальный Yt-dlp OAuth2 плагин включен. Это может сломать в любой "
+"точке!"
+
+#: musicbot/bot.py:362
+msgid "Initialized, now connecting to discord."
+msgstr "Инициализирован, теперь подключаемся к discord."
+
+#: musicbot/bot.py:373
+msgid "Network ping test is disabled via config."
+msgstr "Тест сетевого пинга отключён через config."
+
+#: musicbot/bot.py:377
+msgid "Network ping test is closing down."
+msgstr "Тест сетевого пинга закрывается вниз."
+
+#: musicbot/bot.py:388
+msgid "Could not resolve ping target."
+msgstr "Не удалось определить цель"
+
+#: musicbot/bot.py:418
+msgid "Network ping test cancelled."
+msgstr "Тест сетевого пинга отменен."
+
+#: musicbot/bot.py:432
+msgid "Network testing via HTTP does not have a session to borrow."
+msgstr "Сетевое тестирование через HTTP не имеет сеанса для заимствования."
+
+#: musicbot/bot.py:457
+msgid "Could not locate `ping` executable in your environment."
+msgstr "Не удалось найти исполняемый файл `ping` в вашей среде."
+
+#: musicbot/bot.py:483
+#, python-format
+msgid ""
+"MusicBot could not locate a `ping` command path.  Will attempt to use HTTP ping instead.\n"
+"MusicBot tried the following command:   %s\n"
+"You should enable ping in your system or container environment for best results.\n"
+"Alternatively disable network checking via config."
+msgstr ""
+"MusicBot не может найти путь к команде `ping`. Вместо этого попытается использовать HTTP ping.\n"
+"MusicBot выполнил следующую команду:   %s\n"
+"Вы должны включить ping в системе или контейнерном окружении для получения наилучшего результата.\n"
+"Или отключите проверку сети через конфигурацию."
+
+#: musicbot/bot.py:493
+#, python-format
+msgid ""
+"MusicBot was denied permission to execute the `ping` command.  Will attempt to use HTTP ping instead.\n"
+"MusicBot tried the following command:   %s\n"
+"You should enable ping in your system or container environment for best results.\n"
+"Alternatively disable network checking via config."
+msgstr ""
+"MusicBot отказано в разрешении на выполнение команды `ping`. Вместо этого попытается использовать HTTP ping .\n"
+"MusicBot выполнил следующую команду:   %s\n"
+"Вы должны включить ping в системе или контейнерном окружении для получения наилучшего результата.\n"
+"Или отключите проверку сети через конфигурацию."
+
+#: musicbot/bot.py:503
+#, python-format
+msgid ""
+"Your environment may not allow the `ping` system command.  Will attempt to use HTTP ping instead.\n"
+"MusicBot tried the following command:   %s\n"
+"You should enable ping in your system or container environment for best results.\n"
+"Alternatively disable network checking via config."
+msgstr ""
+"Ваша среда может не разрешать системную команду `ping`. Вместо этого попытается использовать HTTP ping.\n"
+"MusicBot выполнил следующую команду:   %s\n"
+"Вы должны включить ping в системе или контейнерном окружении для получения наилучшего результата.\n"
+"Или отключите проверку сети через конфигурацию."
+
+#: musicbot/bot.py:518
+msgid "MusicBot detected network is available again."
+msgstr "Обнаруженная сеть MusicBot снова доступна."
+
+#: musicbot/bot.py:523
+msgid "VoiceClient is not connected, waiting to resume MusicPlayer..."
+msgstr "VoiceClient не подключен, ожидается возобновление MusicPlayer..."
+
+#: musicbot/bot.py:527
+#, python-format
+msgid "Resuming playback of player:  (%(guild_id)s) %(player)r"
+msgstr "Возобновление воспроизведения игрока: (%(guild_id)s) %(player)r"
+
+#: musicbot/bot.py:538
+msgid "MusicBot detected a network outage."
+msgstr "MusicBot обнаружил ошибки в сети."
+
+#: musicbot/bot.py:542
+#, python-format
+msgid ""
+"Pausing MusicPlayer due to network availability:  (%(guild_id)s) %(player)r"
+msgstr "Пауза MusicPlayer из-за доступности сети: (%(guild_id)s) %(player)r"
+
+#: musicbot/bot.py:563
+#, python-format
+msgid ""
+"Looking for owner in guild: %(guild)s (required voice: %(required)s) and "
+"got:  %(owner)s"
+msgstr ""
+"Ищете владельца в гильдии: %(guild)s (требуется голос: %(required)s) и "
+"получили:  %(owner)s"
+
+#: musicbot/bot.py:577
+msgid "Checking for channels to auto-join or resume..."
+msgstr ""
+"Проверка каналов для автоматического подключения или возобновления "
+"доступа..."
+
+#: musicbot/bot.py:589
+#, python-format
+msgid "Guild not available, cannot auto join:  %(id)s/%(name)s"
+msgstr ""
+"Гильдия недоступна, невозможно автоматически присоединиться:  "
+"%(id)s/%(name)s"
+
+#: musicbot/bot.py:597
+#, python-format
+msgid "Found resumable voice channel:  %(channel)s  in guild:  %(guild)s"
+msgstr ""
+"Найден восходящий голосовой канал:  %(channel)s  в гильдии:  %(guild)s"
+
+#: musicbot/bot.py:610
+#, python-format
+msgid "Will try resuming voice session instead of Auto-Joining channel:  %s"
+msgstr ""
+"Попробует возобновить голосовую сессию вместо автоподключения к каналу:  %s"
+
+#: musicbot/bot.py:627
+#, python-format
+msgid "Found owner in voice channel:  %s"
+msgstr "Найден владелец в голосовом канале:  %s"
+
+#: musicbot/bot.py:632
+#, python-format
+msgid "Ignoring resumable channel, AutoSummon to owner in channel:  %s"
+msgstr "Игнорирование восходящего канала, автодайвинг владельцу в канале:  %s"
+
+#: musicbot/bot.py:637
+#, python-format
+msgid "Ignoring Auto-Join channel, AutoSummon to owner in channel:  %s"
+msgstr ""
+"Игнорирование автоподключения канала AutoSummon для владельца канала:  %s"
+
+#: musicbot/bot.py:649
+#, python-format
+msgid "Already connected to channel:  %(channel)s  in guild:  %(guild)s"
+msgstr "Уже подключен к каналу:  %(channel)s  в гильдии:  %(guild)s"
+
+#: musicbot/bot.py:658
+#, python-format
+msgid "Attempting to join channel:  %(channel)s  in guild:  %(guild)s"
+msgstr "Попытка присоединиться к каналу:  %(channel)s  в гильдии:  %(guild)s"
+
+#: musicbot/bot.py:665
+msgid "Discarding MusicPlayer and making a new one..."
+msgstr "Отмена Музыкального Игрока и создание нового..."
+
+#: musicbot/bot.py:685
+msgid "MusicBot will make a new MusicPlayer now..."
+msgstr "MusicBot теперь создаст новый музыкальный плеер..."
+
+#: musicbot/bot.py:706
+#, python-format
+msgid "Not joining %(guild)s/%(channel)s, it isn't a supported voice channel."
+msgstr ""
+"Не присоединяйтесь к %(guild)s/%(channel)s, это не поддерживаемый голосовой "
+"канал."
+
+#: musicbot/bot.py:709
+msgid "Finished joining configured channels."
+msgstr "Подключение к настроенным каналам завершено."
+
+#: musicbot/bot.py:732
+msgid "Member is not voice-enabled and cannot use this command."
+msgstr ""
+"Участник не включен голосовым путем и не может использовать эту команду."
+
+#: musicbot/bot.py:740
+msgid "You cannot use this command when not in the voice channel."
+msgstr "Вы не можете использовать эту команду, если не в голосовом канале."
+
+#: musicbot/bot.py:754
+msgid "Getting bot Application Info."
+msgstr "Получение информации о приложении бота."
+
+#: musicbot/bot.py:779
+#, python-format
+msgid "MusicBot does not have permission to Connect in channel:  %s"
+msgstr "Музыкабот не имеет разрешения на подключение в канале:  %s"
+
+#: musicbot/bot.py:783
+#, python-format
+msgid "MusicBot does not have permission to Connect in channel:  `%(name)s`"
+msgstr "У Музыкабота нет прав подключаться в канале: `%(name)s`"
+
+#: musicbot/bot.py:788
+#, python-format
+msgid "MusicBot does not have permission to Speak in channel:  %s"
+msgstr "У Музыкабота нет прав говорить в канале:  %s"
+
+#: musicbot/bot.py:792
+#, python-format
+msgid "MusicBot does not have permission to Speak in channel:  `%(name)s`"
+msgstr "У Музыкабота нет прав говорить в канале: `%(name)s`"
+
+#: musicbot/bot.py:802
+#, python-format
+msgid "Reusing bots VoiceClient from guild:  %s"
+msgstr "Повторное использование ботов VoiceClient от гильдии:  %s"
+
+#: musicbot/bot.py:807
+#, python-format
+msgid "Forcing disconnect on stale VoiceClient in guild:  %s"
+msgstr "Принудительное отключение от устаревшего VoiceClient в гильдии:  %s"
+
+#: musicbot/bot.py:813
+msgid "Disconnect failed or was cancelled?"
+msgstr "Отключение не удалось или было отменено?"
+
+#: musicbot/bot.py:821
+#, python-format
+msgid "MusicBot is unable to connect to the channel right now:  %(channel)s"
+msgstr "Музыкабот не может подключиться к каналу прямо сейчас:  %(channel)s"
+
+#: musicbot/bot.py:825
+msgid ""
+"MusicBot could not connect to the channel.\n"
+"Try again later, or restart the bot if this continues."
+msgstr ""
+
+#: musicbot/bot.py:836
+msgid "MusicBot has a VoiceClient now..."
+msgstr "У MusicBot есть VoiceClient сейчас..."
+
+#: musicbot/bot.py:841
+#, python-format
+msgid ""
+"Retrying connection after a timeout error (%(attempt)s) while trying to "
+"connect to:  %(channel)s"
+msgstr ""
+"Повторная попытка подключения после ошибки таймаута (%(attempt)s) при "
+"попытке подключиться к  %(channel)s"
+
+#: musicbot/bot.py:846
+msgid "MusicBot VoiceClient connection attempt was cancelled. No retry."
+msgstr ""
+"Попытка соединения с MusicBot VoiceClient отменена. Повторите попытку."
+
+#: musicbot/bot.py:849
+msgid ""
+"MusicBot connection to voice was cancelled. This is odd. Maybe restart?"
+msgstr ""
+"Подключение MusicBot к голосу было отменено. Это странно. Может быть "
+"перезапустить?"
+
+#: musicbot/bot.py:855 musicbot/bot.py:8658
+#, python-format
+msgid "MusicBot is requesting to speak in channel: %s"
+msgstr "Музыкальный робот просит говорить в канале: %s"
+
+#: musicbot/bot.py:860 musicbot/bot.py:8664
+msgid "MusicBot does not have permission to speak."
+msgstr "У MusicBot нет разрешения на чтение."
+
+#: musicbot/bot.py:864 musicbot/bot.py:8666
+msgid "MusicBot could not request to speak."
+msgstr "MusicBot не может просить говорить."
+
+#: musicbot/bot.py:877
+#, python-format
+msgid "Disconnecting a MusicPlayer in guild:  %s"
+msgstr "Отключение MusicPlayer в гильдии:  %s"
+
+#: musicbot/bot.py:889
+msgid "Disconnecting VoiceClient before we kill the MusicPlayer."
+msgstr "Отключение VoiceClient до того, как мы убьем MusicPlayer."
+
+#: musicbot/bot.py:897 musicbot/bot.py:916 musicbot/bot.py:928
+#: musicbot/bot.py:951
+msgid "The disconnect failed or was cancelled."
+msgstr "Отключение не удалось или было отменено."
+
+#: musicbot/bot.py:907
+msgid ""
+"MusicBot has a VoiceProtocol that is not a VoiceClient. Disconnecting "
+"anyway..."
+msgstr "У MusicBot есть VoiceProtocol который не является VoiceClient."
+
+#: musicbot/bot.py:920
+#, python-format
+msgid "Disconnecting a rogue VoiceClient in guild:  %s"
+msgstr "Отключение неточного VoiceClient в гильдии:  %s"
+
+#: musicbot/bot.py:944
+msgid "Disconnecting a non-guild VoiceClient..."
+msgstr "Отключение VoiceClient, не являющийся гильдией..."
+
+#: musicbot/bot.py:954
+#, python-format
+msgid ""
+"MusicBot.voice_clients list contains a non-VoiceClient object?\n"
+"The object is actually of type:  %s"
+msgstr ""
+"Список MusicBot.voice_clients содержит объект, отличный от VoiceClient?\n"
+"На самом деле тип объекта:  %s"
+
+#: musicbot/bot.py:964
+#, python-format
+msgid "We still have a MusicPlayer ref in guild (%(guild_id)s):  %(player)r"
+msgstr ""
+"У нас все еще есть отзыв MusicPlayer в гильдии (%(guild_id)s):  %(player)r"
+
+#: musicbot/bot.py:977
+#, python-format
+msgid "Guild (%(guild)s) wants a player, optional:  %(player)r"
+msgstr "Гильдия (%(guild)s) хочет игрока, опционально:  %(player)r"
+
+#: musicbot/bot.py:984
+msgid ""
+"[BUG] MusicPlayer is missing a VoiceClient somehow.  You should probably "
+"restart the bot."
+msgstr ""
+"[BUG] В MusicPlayer отсутствует VoiceClient, скорее всего вам следует "
+"перезапустить бота."
+
+#: musicbot/bot.py:989
+msgid "MusicPlayer has a VoiceClient that is not connected."
+msgstr "У MusicPlayer есть VoiceClient который не подключен."
+
+#: musicbot/bot.py:990
+#, python-format
+msgid "MusicPlayer obj:  %r"
+msgstr "Музыкальный проигрыватель:  %r"
+
+#: musicbot/bot.py:991
+#, python-format
+msgid "VoiceClient obj:  %r"
+msgstr "VoiceClient obj:  %r"
+
+#: musicbot/bot.py:1011
+#, python-format
+msgid ""
+"Getting a MusicPlayer for guild:  %(guild)s  In Channel:  %(channel)s  "
+"Create: %(create)s  Deserialize:  %(serial)s"
+msgstr ""
+"Получение Музыкального Игрока для гильдии:  %(guild)s  В Канале:  "
+"%(channel)s  Создать: %(create)s  Дестрализация:  %(serial)s"
+
+#: musicbot/bot.py:1027
+#, python-format
+msgid ""
+"Created player via deserialization for guild %(guild_id)s with %(number)s "
+"entries"
+msgstr ""
+"Создан игрок посредством десериализации для гильдии %(guild_id)s с записями "
+"%(number)s"
+
+#: musicbot/bot.py:1036
+msgid ""
+"The bot is not in a voice channel.\n"
+"Use the summon command to bring the bot to your voice channel."
+msgstr ""
+
+#: musicbot/bot.py:1048
+msgid "Something is wrong, we didn't get the VoiceClient."
+msgstr "Что-то не так, мы не получили VoiceClient."
+
+#: musicbot/bot.py:1081
+msgid "Running on_player_play"
+msgstr "Выполняется на _плеере"
+
+#: musicbot/bot.py:1156
+#, python-format
+msgid "Setting URL history guild %(guild_id)s == %(url)s"
+msgstr "Установка истории URL гильдии %(guild_id)s == %(url)s"
+
+#: musicbot/bot.py:1192 musicbot/bot.py:4937
+#, python-format
+msgid "No thumbnail set for entry with URL: %s"
+msgstr "Нет миниатюры для записи с URL: %s"
+
+#: musicbot/bot.py:1204
+msgid "no channel to put now playing message into"
+msgstr "нет канала для воспроизведения сообщения"
+
+#: musicbot/bot.py:1216
+msgid "ignored now-playing message as it was already posted."
+msgstr ""
+"проигнорировал сейчас воспроизводимое сообщение, поскольку оно уже было "
+"опубликовано."
+
+#: musicbot/bot.py:1240
+msgid "Running on_player_resume"
+msgstr "Выполняется на плеер_возобновление"
+
+#: musicbot/bot.py:1253
+msgid "Running on_player_pause"
+msgstr "Пауза"
+
+#: musicbot/bot.py:1269
+msgid "Running on_player_stop"
+msgstr "Выполняется по игроку_стопу"
+
+#: musicbot/bot.py:1279
+msgid "Running on_player_finished_playing"
+msgstr "Выполняется на игровом автомате"
+
+#: musicbot/bot.py:1281 musicbot/bot.py:1327 musicbot/bot.py:1398
+msgid "Event loop is closed, nothing else to do here."
+msgstr "Цикл события закрыт, здесь нет ничего другого."
+
+#: musicbot/bot.py:1285 musicbot/bot.py:1331 musicbot/bot.py:1402
+msgid "Logout under way, ignoring this event."
+msgstr "Выход из системы, игнорирует это событие."
+
+#: musicbot/bot.py:1302
+msgid "VoiceClient says it is not connected, nothing else we can do here."
+msgstr ""
+"VoiceClient говорит, что он не подключен, ничего другого мы можем сделать "
+"здесь."
+
+#: musicbot/bot.py:1309
+msgid "Player finished and queue is empty, leaving voice channel..."
+msgstr "Плеер завершён и очередь пуста, покидая голосовой канал..."
+
+#: musicbot/bot.py:1323
+msgid "Looping over queue to expunge songs with missing author..."
+msgstr ""
+"Зацикливание над очередью для исключения песен с недостающим автором..."
+
+#: musicbot/bot.py:1362
+#, python-format
+msgid ""
+"Author `%(user)s` absent, skipped (deleted) entry from queue:  %(song)s"
+msgstr ""
+"Автор `%(user)s` отсутствует, пропущен (удален) запись из очереди:  %(song)s"
+
+#: musicbot/bot.py:1381
+msgid "No playable songs in the Guild autoplaylist, disabling."
+msgstr "Нет воспроизводимых песен в автомате гильдии, отключается."
+
+#: musicbot/bot.py:1386
+msgid "No content in current autoplaylist. Filling with new music..."
+msgstr "Нет содержимого в текущем автомате. Заполнение новой музыкой..."
+
+#: musicbot/bot.py:1394
+msgid "Looping over player autoplaylist..."
+msgstr "Зацикливание автоматов игрока..."
+
+#: musicbot/bot.py:1435
+#, python-format
+msgid "Error while processing song \"%(url)s\":  %(raw_error)s"
+msgstr "Ошибка при обработке песни \"%(url)s\":  %(raw_error)s"
+
+#: musicbot/bot.py:1446
+#, python-format
+msgid "Error extracting song \"%(url)s\": %(raw_error)s"
+msgstr "Ошибка распаковки песни \"%(url)s\": %(raw_error)s"
+
+#: musicbot/bot.py:1461
+msgid "MusicBot needs to stop the auto playlist extraction and bail."
+msgstr "MusicBot должен остановить извлечение автоплейлиста и залог."
+
+#: musicbot/bot.py:1466
+msgid "MusicBot got an unhandled exception in player finished event."
+msgstr ""
+"MusicBot получил необработанное исключение в игроке законченное событие."
+
+#: musicbot/bot.py:1472
+#, python-format
+msgid "Expanding auto playlist with entries extracted from:  %s"
+msgstr "Развертывание автоплейлиста с записями, извлеченными из:  %s"
+
+#: musicbot/bot.py:1496
+#, python-format
+msgid "Error adding song from autoplaylist: %s"
+msgstr "Ошибка добавления трека из автомата: %s"
+
+#: musicbot/bot.py:1499
+msgid "Exception data for above error:"
+msgstr "Данные об исключении для вышеописанной ошибки:"
+
+#: musicbot/bot.py:1505
+msgid "No playable songs in the autoplaylist, disabling."
+msgstr "Нет воспроизводимых песен в автомате, отключается."
+
+#: musicbot/bot.py:1525
+msgid "Running on_player_entry_added"
+msgstr "Выполняется по игроку_entry_added"
+
+#: musicbot/bot.py:1535
+msgid "Automatically skipping auto-playlist entry for queued entry."
+msgstr ""
+"Автоматически пропускать запись в список автовоспроизведения для записи в "
+"очереди."
+
+#: musicbot/bot.py:1555
+#, python-format
+msgid "MusicPlayer exception for entry: %r"
+msgstr "Исключение из музыкального плеера для записи: %r"
+
+#: musicbot/bot.py:1561
+msgid "MusicPlayer exception."
+msgstr "Исключение из музыкального плеера."
+
+#: musicbot/bot.py:1585
+#, python-format
+msgid "Auto playlist track could not be played:  %r"
+msgstr "Не удалось воспроизвести трек автоплейлиста:  %r"
+
+#: musicbot/bot.py:1624
+msgid "Logout under way, ignoring status update event."
+msgstr "Идет выход из системы, проигнорировано событие обновления статуса."
+
+#: musicbot/bot.py:1725
+#, python-format
+msgid "Update bot status:  %(status)s -- %(activity)r"
+msgstr "Статус бота:  %(status)s -- %(activity)r"
+
+#: musicbot/bot.py:1753
+#, python-format
+msgid "Serializing queue for %s"
+msgstr "Сериализация очереди для %s"
+
+#: musicbot/bot.py:1779
+#, python-format
+msgid "Deserializing queue for %s"
+msgstr "Десериализация очереди для %s"
+
+#: musicbot/bot.py:1797
+#, python-format
+msgid "Writing current song for %s"
+msgstr "Запись текущей песни для %s"
+
+#: musicbot/bot.py:1822
+#, python-format
+msgid "Cannot send non-response object:  %r"
+msgstr "Не удается отправить объект без ответа:  %r"
+
+#: musicbot/bot.py:1827
+msgid "[Dev Bug] Tried sending an invalid response object."
+msgstr "[Dev Bug] Попытка отправить некорректный объект ответа."
+
+#: musicbot/bot.py:1864
+#, python-format
+msgid "sending embed to: %s"
+msgstr "отправка вставки на: %s"
+
+#: musicbot/bot.py:1867
+#, python-format
+msgid "sending text to: %s"
+msgstr "отправка текста в: %s"
+
+#: musicbot/bot.py:1872
+#, python-format
+msgid "Cannot send message to \"%s\", no permission"
+msgstr "Не удается отправить сообщение \"%s\", нет разрешения"
+
+#: musicbot/bot.py:1879
+#, python-format
+msgid "Cannot send message to \"%s\", invalid or deleted channel"
+msgstr "Не удается отправить сообщение \"%s\", недопустимый или удаленный канал"
+
+#: musicbot/bot.py:1887
+#, python-format
+msgid "Message is over the message size limit (%s)"
+msgstr "Сообщение превышает предел размера сообщения (%s)"
+
+#: musicbot/bot.py:1895
+msgid "Could not send private message, sending in fallback channel instead."
+msgstr ""
+"Не удалось отправить личное сообщение, вместо этого отправка в резервный "
+"канал."
+
+#: musicbot/bot.py:1913
+#, python-format
+msgid "Rate limited send message, retrying in %s seconds."
+msgstr ""
+"Оценить ограниченное количество отправленных сообщений, повторить попытку "
+"через %s секунд."
+
+#: musicbot/bot.py:1919
+#, python-format
+msgid "Cancelled message retry for:  %s"
+msgstr "Отменено сообщение повторно:  %s"
+
+#: musicbot/bot.py:1924
+msgid "Rate limited send message, but cannot retry!"
+msgstr ""
+"Оцените ограниченное количество отправленных сообщений, но не удается "
+"повторить попытку!"
+
+#: musicbot/bot.py:1930
+msgid "Failed to send message in fallback channel."
+msgstr "Не удалось отправить сообщение в запасном канале."
+
+#: musicbot/bot.py:1935 musicbot/bot.py:1999 musicbot/bot.py:2069
+msgid "Failed to send due to an HTTP error."
+msgstr "Не удалось отправить из-за ошибки HTTP."
+
+#: musicbot/bot.py:1961
+#, python-format
+msgid "Cannot delete message \"%s\", no permission"
+msgstr "Невозможно удалить сообщение \"%s\", нет разрешения"
+
+#: musicbot/bot.py:1966
+#, python-format
+msgid "Cannot delete message \"%s\", message not found"
+msgstr "Невозможно удалить сообщение \"%s\", сообщение не найдено"
+
+#: musicbot/bot.py:1984
+#, python-format
+msgid "Rate limited message delete, retrying in %s seconds."
+msgstr ""
+"Оцените ограниченное удаление сообщения, повторная попытка через %s секунд."
+
+#: musicbot/bot.py:1989
+msgid "Rate limited message delete, but cannot retry!"
+msgstr ""
+"Оцените ограниченное сообщение удаления, но не могу повторить попытку!"
+
+#: musicbot/bot.py:1992
+msgid "Failed to delete message"
+msgstr "Не удалось удалить сообщение"
+
+#: musicbot/bot.py:1994
+#, python-format
+msgid "Got HTTPException trying to delete message: %s"
+msgstr "Получено HTTPException пытается удалить сообщение: %s"
+
+#: musicbot/bot.py:2029
+#, python-format
+msgid "Cannot edit message \"%s\", message not found"
+msgstr "Невозможно изменить сообщение \"%s\", сообщение не найдено"
+
+#: musicbot/bot.py:2033
+msgid "Sending message instead"
+msgstr "Отправка сообщения"
+
+#: musicbot/bot.py:2050
+#, python-format
+msgid "Rate limited edit message, retrying in %s seconds."
+msgstr ""
+"Оценить ограниченное сообщение редактирования, повторная попытка через %s "
+"секунд."
+
+#: musicbot/bot.py:2056
+#, python-format
+msgid "Cancelled message edit for:  %s"
+msgstr "Отменено изменение сообщения для:  %s"
+
+#: musicbot/bot.py:2062
+msgid "Failed to edit message"
+msgstr "Не удалось изменить сообщение"
+
+#: musicbot/bot.py:2064
+#, python-format
+msgid "Got HTTPException trying to edit message %s to: %s"
+msgstr "Принято HTTPException, пытающееся редактировать сообщение %s в: %s"
+
+#: musicbot/bot.py:2086
+#, python-format
+msgid "Cancelled delete for message (ID: %(id)s):  %(content)s"
+msgstr "Отменено удаление сообщения (ID: %(id)s):  %(content)s"
+
+#: musicbot/bot.py:2148
+#, python-format
+msgid "Caught a signal from the OS: %s"
+msgstr "Получен сигнал от ОС: %s"
+
+#: musicbot/bot.py:2152
+msgid "Disconnecting and closing down MusicBot..."
+msgstr "Отключение и включение MusicBot..."
+
+#: musicbot/bot.py:2155
+msgid "Exception thrown while handling interrupt signal!"
+msgstr "Исключение выбрасывается при обработке сигнала прерывания!"
+
+#: musicbot/bot.py:2170
+msgid "MusicBot is now doing shutdown steps..."
+msgstr "MusicBot теперь делает шаги выключения..."
+
+#: musicbot/bot.py:2178
+msgid ""
+"Failed Discord API Login!\n"
+"\n"
+"Problem:\n"
+"  MusicBot could not log into Discord API.\n"
+"  Your Token may be incorrect or there may be an API outage.\n"
+"\n"
+"Solution:\n"
+"  Make sure you have the correct Token set in your config.\n"
+"  Check API status at the official site: discordstatus.com"
+msgstr ""
+"Ошибка входа в Discord API!\n"
+"\n"
+"Проблема:\n"
+"  MusicBot не смог войти в Discord API.\n"
+"  Ваш токен может быть неправильным или может возникнуть ошибка API.\n"
+"\n"
+"Решение:\n"
+"  Убедитесь, что в конфигурации установлен правильный токен.\n"
+"  Проверка статуса API на официальном сайте: discordstatus.com"
+
+#: musicbot/bot.py:2192
+msgid "Waiting for download threads to finish up..."
+msgstr "Ожидание окончания потоков загрузки..."
+
+#: musicbot/bot.py:2218
+#, python-format
+msgid "Will wait for task:  %(name)s  (%(func)s)"
+msgstr "Подождите задачи:  %(name)s  (%(func)s)"
+
+#: musicbot/bot.py:2225
+#, python-format
+msgid "Will try to cancel task:  %(name)s  (%(func)s)"
+msgstr "Попробует отменить задачу:  %(name)s  (%(func)s)"
+
+#: musicbot/bot.py:2233
+msgid "Awaiting pending tasks..."
+msgstr "Ожидается ожидание задач..."
+
+#: musicbot/bot.py:2239
+msgid "Closing HTTP Connector."
+msgstr "Закрытие HTTP-коннектора."
+
+#: musicbot/bot.py:2245
+msgid "Closing aiohttp session."
+msgstr "Завершение сеанса aiohttp."
+
+#: musicbot/bot.py:2257
+msgid "Logout has been called."
+msgstr "Выход был вызван."
+
+#: musicbot/bot.py:2269
+#, python-format
+msgid ""
+"Exception in %(event)s:\n"
+"%(error)s"
+msgstr ""
+"Исключение в %(event)s:\n"
+"%(error)s"
+
+#: musicbot/bot.py:2285
+#, python-format
+msgid "Exception in %s"
+msgstr "Исключение в %s"
+
+#: musicbot/bot.py:2292
+msgid "MusicBot resumed a session with discord."
+msgstr "Музыкальный робот возобновил сессию с дискордом."
+
+#: musicbot/bot.py:2309
+msgid "Finish on_ready"
+msgstr "Завершить _готовое"
+
+#: musicbot/bot.py:2316
+msgid "Logged in, now getting MusicBot ready..."
+msgstr "Вход выполнен, теперь MusicBot готов..."
+
+#: musicbot/bot.py:2319
+msgid "ClientUser is somehow none, we gotta bail..."
+msgstr "Клиент как-то нет, мы должны забрать гвозд..."
+
+#: musicbot/bot.py:2328
+#, python-format
+msgid "MusicBot:  %(id)s/%(name)s#%(desc)s"
+msgstr "Музыкабот:  %(id)s/%(name)s#%(desc)s"
+
+#: musicbot/bot.py:2339
+#, python-format
+msgid "Owner:     %(id)s/%(name)s#%(desc)s\n"
+msgstr "Владелец:     %(id)s/%(name)s#%(desc)s\n"
+
+#: musicbot/bot.py:2347 musicbot/bot.py:2374
+msgid "Guild List:"
+msgstr "Список гильдий:"
+
+#: musicbot/bot.py:2351 musicbot/bot.py:2377 musicbot/bot.py:8850
+#, python-format
+msgid " - %s"
+msgstr " - %s"
+
+#: musicbot/bot.py:2360
+#, python-format
+msgid "Left %s due to bot owner not found"
+msgstr "Лев. %s из-за того, что владелец бота не найден"
+
+#: musicbot/bot.py:2365
+#, python-format
+msgid "Not proceeding with checks in %s servers due to unavailability"
+msgstr "Не выполняется проверка на серверах %s из-за недоступности"
+
+#: musicbot/bot.py:2371
+#, python-format
+msgid "Owner could not be found on any guild (id: %s)\n"
+msgstr "Владелец не найден ни в одной гильдии (id: %s)\n"
+
+#: musicbot/bot.py:2380
+msgid "Owner unknown, bot is not on any guilds."
+msgstr "Владелец неизвестен, бот не на гильдиях."
+
+#: musicbot/bot.py:2384
+#, python-format
+msgid ""
+"To make the bot join a guild, paste this link in your browser. \n"
+"Note: You should be logged into your main account and have \n"
+"manage server permissions on the guild you want the bot to join.\n"
+"  %s"
+msgstr ""
+"Чтобы сделать бота присоединится к гильдии, вставьте эту ссылку в браузер. \n"
+"Примечание: Вы должны войти в свою главную учетную запись и иметь \n"
+"управлять разрешениями сервера в гильдии, которую вы хотите, чтобы бот присоединился.\n"
+"  %s"
+
+#: musicbot/bot.py:2401
+#, python-format
+msgid "Got None for bound channel with ID:  %d"
+msgstr "Нет привязки канала с ID:  %d"
+
+#: musicbot/bot.py:2407
+#, python-format
+msgid "Cannot bind to non Messageable channel with ID:  %d"
+msgstr "Не удается привязать к каналу без сообщения с ID:  %d"
+
+#: musicbot/bot.py:2421
+msgid "Bound to text channels:"
+msgstr "Привязано к текстовым каналам:"
+
+#: musicbot/bot.py:2439 musicbot/bot.py:2489
+#, python-format
+msgid " - %(guild)s/%(channel)s"
+msgstr " - %(guild)s/%(channel)s"
+
+#: musicbot/bot.py:2443 musicbot/bot.py:2445
+msgid "Not bound to any text channels"
+msgstr "Нет привязки к текстовым каналам"
+
+#: musicbot/bot.py:2456
+#, python-format
+msgid "Got None for auto join channel with ID:  %d"
+msgstr "Нет для автоподключения к каналу с ID:  %d"
+
+#: musicbot/bot.py:2462
+#, python-format
+msgid "Cannot auto join a Private/Non-Guild channel with ID:  %d"
+msgstr ""
+"Невозможно автоматически присоединиться к частному каналу негильдии с ID:  "
+"%d"
+
+#: musicbot/bot.py:2470
+#, python-format
+msgid "Cannot auto join to non-connectable channel with ID:  %d"
+msgstr ""
+"Невозможно автоматически подключиться к каналу без подключения с ID:  %d"
+
+#: musicbot/bot.py:2486
+msgid "Auto joining voice channels:"
+msgstr "Автоподсоединение к голосовым каналам:"
+
+#: musicbot/bot.py:2494 musicbot/bot.py:2497
+msgid "Not auto joining any voice channels"
+msgstr "Не подключаться к голосовым каналам"
+
+#: musicbot/bot.py:2510
+#, python-format
+msgid ""
+"Detected missing config options!\n"
+"\n"
+"Problem:\n"
+"  You config options file is missing some options.\n"
+"  Default settings will be used for these options.\n"
+"  Here is a list of options we didn't find:\n"
+"  %(missing)s\n"
+"\n"
+"Solution:\n"
+"  Copy new options from the example options file.\n"
+"  Or use the config command to set and save them.\n"
+"\n"
+msgstr ""
+
+#: musicbot/bot.py:2539
+#, python-format
+msgid "Event on_ready has fired %s times"
+msgstr ""
+
+#: musicbot/bot.py:2555
+msgid "Getting application info."
+msgstr "Получение информации о приложении."
+
+#: musicbot/bot.py:2573
+msgid "Ensuring data folders exist"
+msgstr "Обеспечение наличия папок данных существует"
+
+#: musicbot/bot.py:2588
+msgid "Validating config"
+msgstr "Проверка конфигурации"
+
+#: musicbot/bot.py:2591
+msgid "Validating permissions config"
+msgstr "Проверка конфигурации прав доступа"
+
+#: musicbot/bot.py:2601
+msgid "Disabled"
+msgstr "Отключено"
+
+#: musicbot/bot.py:2601
+msgid "Enabled"
+msgstr "Включено"
+
+#: musicbot/bot.py:2604
+msgid "Options:"
+msgstr "Параметры:"
+
+#: musicbot/bot.py:2606
+#, python-format
+msgid "  Command prefix: %s"
+msgstr "  Префикс команды: %s"
+
+#: musicbot/bot.py:2611
+#, python-format
+msgid "  Default volume: %d%%"
+msgstr "  По умолчанию: %d%%"
+
+#: musicbot/bot.py:2613
+#, python-format
+msgid "  Skip threshold: %(num)d votes or %(percent).0f%%"
+msgstr "  Пропустить порог: %(num)d голосов или %(percent).0f%%"
+
+#: musicbot/bot.py:2625
+#, python-format
+msgid "  Now Playing @mentions: %s"
+msgstr "  Играет в @mentions: %s"
+
+#: musicbot/bot.py:2632
+#, python-format
+msgid "  Auto-Playlist: %(status)s (order: %(order)s)"
+msgstr "  Автоплейлист: %(status)s (заказ: %(order)s)"
+
+#: musicbot/bot.py:2635
+msgid "random"
+msgstr "случайный"
+
+#: musicbot/bot.py:2635
+msgid "sequential"
+msgstr "последовательный"
+
+#: musicbot/bot.py:2655
+#, python-format
+msgid "  Auto-Pause: %s"
+msgstr "  Автопауза: %s"
+
+#: musicbot/bot.py:2657
+#, python-format
+msgid "  Delete Messages: %s"
+msgstr "  Удалить сообщения: %s"
+
+#: musicbot/bot.py:2662
+#, python-format
+msgid "    Delete Invoking: %s"
+msgstr "    Удалить вызов: %s"
+
+#: musicbot/bot.py:2666
+#, python-format
+msgid "    Delete Now Playing: %s"
+msgstr "    Удалить сейчас Играет: %s"
+
+#: musicbot/bot.py:2669
+#, python-format
+msgid "  Debug Mode: %s"
+msgstr "  Режим отладки: %s"
+
+#: musicbot/bot.py:2673
+#, python-format
+msgid "  Downloaded songs will be %s"
+msgstr "  Загруженные песни будут %s"
+
+#: musicbot/bot.py:2677
+#, python-format
+msgid "    Delete if unused for %d days"
+msgstr "    Удалить если не использовано для %d дней"
+
+#: musicbot/bot.py:2688
+#, python-format
+msgid "  Status message: %s"
+msgstr "  Сообщение статуса: %s"
+
+#: musicbot/bot.py:2700
+#, python-format
+msgid "  Spotify integration: %s"
+msgstr "  Интеграция Spotify: %s"
+
+#: musicbot/bot.py:2713
+#, python-format
+msgid "    Timeout: %s seconds"
+msgstr "    Таймаут: %s секунд"
+
+#: musicbot/bot.py:2725
+#, python-format
+msgid "    Timeout: %d seconds"
+msgstr "    Таймаут: %d секунд"
+
+#: musicbot/bot.py:2726
+#, python-format
+msgid "  Self Deafen: %s"
+msgstr "  Самоглушено: %s"
+
+#: musicbot/bot.py:2728
+#, python-format
+msgid "  Per-server command prefix: %s"
+msgstr "  Префикс команды на сервер: %s"
+
+#: musicbot/bot.py:2734
+#, python-format
+msgid "  Round Robin Queue: %s"
+msgstr "  Очередь грабинов: %s"
+
+#: musicbot/bot.py:2789
+#, python-format
+msgid "The requested song `%(subject)s` is blocked by the song block list."
+msgstr "Запрошенная песня `%(subject)s` заблокирована списком блоков песен."
+
+#: musicbot/bot.py:2800
+msgid ""
+"Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
+msgstr "Пытался работать с 'Голосовым каналом', но бот не в голосе..."
+
+#: musicbot/bot.py:2807
+#, python-format
+msgid "Channel activity already waiting in guild: %s"
+msgstr "Активность канала уже ожидается в гильдии: %s"
+
+#: musicbot/bot.py:2817
+#, python-format
+msgid ""
+"Channel activity waiting %(time)d seconds to leave channel: %(channel)s"
+msgstr ""
+"Действия канала ожидают %(time)d секунд, чтобы покинуть канал: %(channel)s"
+
+#: musicbot/bot.py:2832
+#, python-format
+msgid "Channel activity timer for %s has expired. Disconnecting."
+msgstr "Таймер активности канала для %s истек. Отсоединение."
+
+#: musicbot/bot.py:2838
+#, python-format
+msgid "Channel activity timer canceled for: %(channel)s in %(guild)s"
+msgstr "Таймер активности канала отменен для: %(channel)s в %(guild)s"
+
+#: musicbot/bot.py:2866
+#, python-format
+msgid "Ignoring player inactivity in auto-joined channel:  %s"
+msgstr "Игнорирование бездействия игрока в автоподключенном канале:  %s"
+
+#: musicbot/bot.py:2873
+#, python-format
+msgid "Player activity timer already waiting in guild: %s"
+msgstr "Таймер активности игрока уже ждет гильдии: %s"
+
+#: musicbot/bot.py:2881
+#, python-format
+msgid ""
+"Player activity timer waiting %(time)d seconds to leave channel: %(channel)s"
+msgstr ""
+"Таймер активности игрока, ожидающий %(time)d секунд, чтобы покинуть канал: "
+"%(channel)s"
+
+#: musicbot/bot.py:2893
+#, python-format
+msgid "Player activity timer for %s has expired. Disconnecting."
+msgstr "Таймер активности игрока %s истек. Отсоединение."
+
+#: musicbot/bot.py:2899 musicbot/bot.py:2904
+#, python-format
+msgid "Player activity timer canceled for: %(channel)s in %(guild)s"
+msgstr "Таймер активности игрока отменен для: %(channel)s в %(guild)s"
+
+#: musicbot/bot.py:2921
+msgid "Player activity timer is being reset."
+msgstr "Таймер активности игрока восстанавливается."
+
+#: musicbot/bot.py:3030
+msgid "No such command"
+msgstr "Нет такой команды"
+
+#: musicbot/bot.py:3106
+msgid "You must mention a user or provide their ID number."
+msgstr ""
+"Вы должны указать пользователя или указать его идентификационный номер."
+
+#: musicbot/bot.py:3111
+msgid "Invalid sub-command given. Use `help blockuser` for usage examples."
+msgstr ""
+"Неверная субкоманда. Для примеров использования используйте `help "
+"blockuser`."
+
+#: musicbot/bot.py:3122
+msgid "MusicBot could not find the user(s) you specified."
+msgstr "MusicBot не может найти указанного пользователя."
+
+#: musicbot/bot.py:3129
+msgid "The owner cannot be added to the block list."
+msgstr "Владелец не может быть добавлен в заблокированный список."
+
+#: musicbot/bot.py:3133
+#, python-format
+msgid "Not adding user to block list, already blocked:  %(id)s/%(name)s"
+msgstr ""
+"Не добавляет пользователя в чёрный список, уже заблокирован:  "
+"%(id)s/%(name)s"
+
+#: musicbot/bot.py:3142
+#, python-format
+msgid "Not removing user from block list, not listed:  %(id)s/%(name)s"
+msgstr ""
+"Не удаляется пользователь из черного списка, не в списке:  %(id)s/%(name)s"
+
+#: musicbot/bot.py:3159
+msgid "Cannot add the users you listed, they are already added."
+msgstr ""
+"Не удается добавить пользователей, которые вы указали, они уже добавлены."
+
+#: musicbot/bot.py:3236
+msgid "You must provide a song subject if no song is currently playing."
+msgstr ""
+"Вы должны предоставить тему песни, если песня в настоящее время не "
+"воспроизводится."
+
+#: musicbot/bot.py:3242
+msgid "Invalid sub-command given. Use `help blocksong` for usage examples."
+msgstr ""
+"Неверная субкоманда. Используйте `help blocksong` для примеров "
+"использования."
+
+#: musicbot/bot.py:3254
+#, python-format
+msgid "Subject `%(subject)s` is already in the song block list."
+msgstr "Тема `%(subject)s` уже находится в списке блоков песен."
+
+#: musicbot/bot.py:3286
+msgid "The subject is not in the song block list and cannot be removed."
+msgstr "Тема отсутствует в списке блоков песни и не может быть удалена."
+
+#: musicbot/bot.py:3358
+msgid "Invalid sub-command given. Use `help autoplaylist` for usage examples."
+msgstr ""
+"Неверная субкоманда. Используйте `help autoplaylist` для примеров "
+"использования."
+
+#: musicbot/bot.py:3365
+msgid "The supplied song link is invalid"
+msgstr "Недействительная ссылка на песню"
+
+#: musicbot/bot.py:3371
+msgid "The queue is empty. Add some songs with a play command!"
+msgstr ""
+"Очередь пуста. Добавьте несколько песен с помощью команды воспроизведения!"
+
+#: musicbot/bot.py:3399
+msgid "This song is already in the autoplaylist."
+msgstr "Эта песня уже есть в автомате."
+
+#: musicbot/bot.py:3416
+msgid "This song is not yet in the autoplaylist."
+msgstr "Эта песня еще не находится в автомате."
+
+#: musicbot/bot.py:3450
+msgid "You must provide a playlist filename."
+msgstr "Вы должны указать имя файла плейлиста."
+
+#: musicbot/bot.py:3560
+msgid "You are not allowed to request playlists"
+msgstr "Вам не разрешено запрашивать плейлисты"
+
+#: musicbot/bot.py:3568
+#, python-format
+msgid "Playlist has too many entries (%(songs)s but max is %(max)s)"
+msgstr ""
+"Плейлист имеет слишком много записей (%(songs)s , но максимум %(max)s)"
+
+#: musicbot/bot.py:3579
+#, python-format
+msgid ""
+"The playlist entries will exceed your queue limit.\n"
+"There are %(songs)s in the list, and %(queued)s already in queue.\n"
+"The limit is %(max)s for your group."
+msgstr ""
+
+#: musicbot/bot.py:3603
+msgid "Ignoring auto-pause due to network outage."
+msgstr "Игнорирование автопаузы из-за отключения сети."
+
+#: musicbot/bot.py:3608
+msgid ""
+"MusicPlayer has no VoiceClient or has no channel data, cannot process auto-"
+"pause."
+msgstr ""
+"У MusicPlayer нет VoiceClient или нет данных о каналах, не может работать с "
+"автопаузами."
+
+#: musicbot/bot.py:3619
+msgid "Already processing auto-pause, ignoring this event."
+msgstr "Уже обрабатывается автопауза, игнорируется это событие."
+
+#: musicbot/bot.py:3627
+#, python-format
+msgid ""
+"%sVoiceClient not connected, waiting %s seconds to handle auto-pause in "
+"guild:  %s"
+msgstr ""
+"%sVoiceClient не подключен, ожидание %s секунд для обработки автопаузы в "
+"гильдии:  %s"
+
+#: musicbot/bot.py:3635
+msgid "Auto-pause waiting was cancelled."
+msgstr "Ожидание автопаузы было отменено."
+
+#: musicbot/bot.py:3642
+msgid "A new MusicPlayer is being connected, ignoring old auto-pause event."
+msgstr ""
+"Подключается новый музыкальный плеер, игнорируя старое событие автопаузы."
+
+#: musicbot/bot.py:3658
+#, python-format
+msgid "Playing in an empty voice channel, running auto pause for guild: %s"
+msgstr ""
+"Проигрывание в пустом голосовом канале, запуск автопаузы для гильдии: %s"
+
+#: musicbot/bot.py:3665
+#, python-format
+msgid "Previously auto paused player is unpausing for guild: %s"
+msgstr "Ранее автопауза игрока не приостанавливается для гильдии: %s"
+
+#: musicbot/bot.py:3896
+msgid "Cannot use seek if there is nothing playing."
+msgstr "Невозможно использовать поиск, если нет проигрывания."
+
+#: musicbot/bot.py:3901
+msgid "Cannot use seek on current track, it has an unknown duration."
+msgstr ""
+"Невозможно использовать поиск по текущему треку, он имеет неизвестную "
+"длительность."
+
+#: musicbot/bot.py:3907
+msgid "Seeking is not supported for streams."
+msgstr "Поиск не поддерживается для потоков."
+
+#: musicbot/bot.py:3917
+msgid "Cannot use seek without a time to position playback."
+msgstr ""
+"Невозможно использовать переключение без времени для размещения "
+"воспроизведения."
+
+#: musicbot/bot.py:3935
+#, python-format
+msgid "Could not convert `%(input)s` to a valid time in seconds."
+msgstr "Не удалось преобразовать `%(input)s` в допустимое время в секундах."
+
+#: musicbot/bot.py:3948
+#, python-format
+msgid ""
+"Cannot seek to `%(input)s` (`%(seconds)s` seconds) in the current track with"
+" a length of `%(progress)s / %(total)s`"
+msgstr ""
+"Не удается переключиться в `%(input)s` (`%(seconds)s` секунд) в текущем "
+"треке длиной `%(progress)s / %(total)s`"
+
+#: musicbot/bot.py:4009
+msgid "Invalid sub-command. Use the command `help repeat` for usage examples."
+msgstr ""
+"Неверная субкоманда. Используйте команду `help repeat` для примеров "
+"использования."
+
+#: musicbot/bot.py:4047
+msgid "The player is not currently looping."
+msgstr "Игрок в данный момент не зацикливается."
+
+#: musicbot/bot.py:4103
+msgid "Song positions must be integers!"
+msgstr "Позиции песни должны быть целыми!"
+
+#: musicbot/bot.py:4108
+msgid "You gave a position outside the playlist size!"
+msgstr "Вы поставили позицию за пределами плейлиста!"
+
+#: musicbot/bot.py:4156
+msgid ""
+"Could not prompt for playlist playback, no message to add reactions to."
+msgstr ""
+"Не удалось запросить воспроизведение плейлиста, нет сообщений для добавления"
+" реакций."
+
+#: musicbot/bot.py:4245
+msgid "Local media playback is not enabled."
+msgstr "Воспроизведение локального медиа не включено."
+
+#: musicbot/bot.py:4286
+msgid "Spotify URL is invalid or not currently supported."
+msgstr ""
+"URL-адрес Spotify недействителен или в настоящее время не поддерживается."
+
+#: musicbot/bot.py:4290
+msgid "Detected a Spotify URL, but Spotify is not enabled."
+msgstr "Обнаружен URL-адрес Spotify, но Spotify не включен."
+
+#: musicbot/bot.py:4300 musicbot/bot.py:4505
+#, python-format
+msgid "You have reached your enqueued song limit (%(max)s)"
+msgstr "Вы достигли лимита на добавленные песни (%(max)s)"
+
+#: musicbot/bot.py:4306 musicbot/bot.py:4511 musicbot/bot.py:4605
+msgid "Karaoke mode is enabled, please try again when its disabled!"
+msgstr "Караоке-режим включен, попробуйте еще раз, когда он отключен!"
+
+#: musicbot/bot.py:4318
+msgid "Issue with extract_info(): "
+msgstr "Проблема с extract_info(): "
+
+#: musicbot/bot.py:4322 musicbot/bot.py:4527
+#, python-format
+msgid ""
+"Failed to extract info due to error:\n"
+"%(raw_error)s"
+msgstr ""
+"Не удалось извлечь информацию из-за ошибки:\n"
+"%(raw_error)s"
+
+#: musicbot/bot.py:4328
+msgid "That video cannot be played. Try using the stream command."
+msgstr ""
+"Это видео не может быть воспроизведено. Попробуйте использовать команду "
+"трансляции."
+
+#: musicbot/bot.py:4339
+#, python-format
+msgid "YouTube search returned no results for:  %(url)s"
+msgstr "Поиск YouTube не дал результатов по запросу:  %(url)s"
+
+#: musicbot/bot.py:4369
+#, python-format
+msgid ""
+"Processed %(number)d of %(total)d songs in %(time).3f seconds at "
+"%(time_per).2f s/song"
+msgstr ""
+"Обработано %(number)d из %(total)d песен в %(time).3f секунд на "
+"%(time_per).2f / песню"
+
+#: musicbot/bot.py:4380
+#, python-format
+msgid ""
+"No songs were added, all songs were over max duration (%(max)s seconds)"
+msgstr ""
+"Не было добавлено треков, все песни были больше длительности (%(max)s "
+"секунд)"
+
+#: musicbot/bot.py:4396
+msgid "Extracted an entry with 'youtube:playlist' as extractor key"
+msgstr "Извлечь запись с помощью клавиши 'youtube:playlist'"
+
+#: musicbot/bot.py:4408
+#, python-format
+msgid "Song duration exceeds limit (%(length)s > %(max)s)"
+msgstr "Длительность песни превышает предел (%(length)s > %(max)s)"
+
+#: musicbot/bot.py:4426
+#, python-format
+msgid "Added song(s) at position %s"
+msgstr "Добавлена песня(и) на позиции %s"
+
+#: musicbot/bot.py:4463
+#, python-format
+msgid "Cannot estimate time until playing for position: %d"
+msgstr "Не удается оценить время до игры за позицию: %d"
+
+#: musicbot/bot.py:4524
+#, python-format
+msgid "Failed to get info from the stream request: %s"
+msgstr "Не удалось получить информацию из запроса потока: %s"
+
+#: musicbot/bot.py:4533
+msgid "Streaming playlists is not yet supported."
+msgstr "Потоковые плейлисты еще не поддерживаются."
+
+#: musicbot/bot.py:4599
+#, python-format
+msgid "You have reached your playlist item limit (%(max)s)"
+msgstr "Вы достигли предела в плейлисте (%(max)s)"
+
+#: musicbot/bot.py:4611
+msgid ""
+"Please specify a search query.  Use `help search` for more information."
+msgstr ""
+"Пожалуйста, укажите поисковый запрос. Используйте `help search` для "
+"получения дополнительной информации."
+
+#: musicbot/bot.py:4640
+#, python-format
+msgid "You cannot search for more than %(max)s videos"
+msgstr "Вы не можете искать более чем %(max)s видео"
+
+#: musicbot/bot.py:4965
+#, python-format
+msgid "Waiting for summon lock: %s"
+msgstr "Ожидание вызова: %s"
+
+#: musicbot/bot.py:4968
+#, python-format
+msgid "Summon lock acquired for: %s"
+msgstr "Призвать замок для: %s"
+
+#: musicbot/bot.py:4972
+msgid "You are not connected to voice. Try joining a voice channel!"
+msgstr ""
+"Вы не подключены к голосу. Попробуйте подключиться к голосовому каналу!"
+
+#: musicbot/bot.py:4997
+#, python-format
+msgid "Joining %(guild)s/%(channel)s"
+msgstr "Присоединение к %(guild)s/%(channel)s"
+
+#: musicbot/bot.py:5059
+msgid "MusicBot cannot follow a user that is not a member of the server."
+msgstr ""
+"MusicBot не может следить за пользователем, не являющимся членом сервера."
+
+#: musicbot/bot.py:5087
+msgid "Player is not playing."
+msgstr "Плеер не играет."
+
+#: musicbot/bot.py:5212
+msgid "Nothing in the queue to remove!"
+msgstr "Нечего удалять в очереди!"
+
+#: musicbot/bot.py:5233
+#, python-format
+msgid "Nothing found in the queue from user `%(user)s`"
+msgstr "В очереди у пользователя `%(user)s ничего не найдено"
+
+#: musicbot/bot.py:5238 musicbot/bot.py:5274
+msgid ""
+"You do not have the permission to remove that entry from the queue.\n"
+"You must be the one who queued it or have instant skip permissions."
+msgstr ""
+"У вас недостаточно прав для удаления этой записи из очереди.\n"
+"Вы должны быть тот, кто поставил его в очередь или имеет мгновенные пропуска."
+
+#: musicbot/bot.py:5249 musicbot/bot.py:5254
+msgid "Invalid entry number. Use the queue command to find queue positions."
+msgstr ""
+"Неверный номер записи. Используйте команду очереди для поиска позиций."
+
+#: musicbot/bot.py:5305
+msgid "Can't skip! The player is not playing!"
+msgstr "Нельзя пропустить! Игрок не играет!"
+
+#: musicbot/bot.py:5357
+msgid "You do not have permission to force skip a looped song."
+msgstr ""
+"У вас недостаточно прав для принудительного пропуска циклической песни."
+
+#: musicbot/bot.py:5377
+msgid "You do not have permission to force skip."
+msgstr "У вас нет разрешения на принудительный пропуск."
+
+#: musicbot/bot.py:5414 musicbot/bot.py:5447
+msgid "You do not have permission to skip a looped song."
+msgstr "У вас нет разрешения на пропуск зацикливаемой песни."
+
+#: musicbot/bot.py:5497
+#, python-format
+msgid "`%(new_volume)s` is not a valid number"
+msgstr "`%(new_volume)s` не является допустимым числом"
+
+#: musicbot/bot.py:5538
+#, python-format
+msgid ""
+"Unreasonable volume change provided: %(old_volume)s%(adjustment)s is %(new_volume)s.\n"
+"Volume can only be set from 1 to 100."
+msgstr ""
+"Неприемлемое изменение объема предусматривается: %(old_volume)s%(adjustment)s является %(new_volume)s.\n"
+"Том может быть установлен только от 1 до 100."
+
+#: musicbot/bot.py:5548
+#, python-format
+msgid ""
+"Unreasonable volume provided: %(volume)s. Provide a value between 1 and 100."
+msgstr "Неприемлемый объём: %(volume)s. Предоставьте значение от 1 до 100."
+
+#: musicbot/bot.py:5572
+msgid ""
+"No track is playing, cannot set speed.\n"
+"Use the config command to set a default playback speed."
+msgstr ""
+
+#: musicbot/bot.py:5580
+msgid "Speed cannot be applied to streamed media."
+msgstr "Скорость не может быть применена к потоковым носителям."
+
+#: musicbot/bot.py:5585
+msgid "You must provide a speed to set."
+msgstr "Вы должны предоставить скорость для установки."
+
+#: musicbot/bot.py:5594
+msgid "The speed you provided is invalid. Use a number between 0.5 and 100."
+msgstr ""
+"Предоставленная вами скорость является недопустимой. Используйте число в "
+"диапазоне от 0.5 до 100."
+
+#: musicbot/bot.py:5653 musicbot/bot.py:5769 musicbot/bot.py:6699
+#, python-format
+msgid "Invalid option for command: `%(option)s`"
+msgstr "Недопустимый параметр для команды: `%(option)s`"
+
+#: musicbot/bot.py:5667
+#, python-format
+msgid ""
+"Failed to save aliases due to error:\n"
+"`%(raw_error)s`"
+msgstr ""
+"Не удалось сохранить псевдонимы из-за ошибки:\n"
+"`%(raw_error)s`"
+
+#: musicbot/bot.py:5674
+msgid "You must supply an alias and a command to alias"
+msgstr "Вы должны указать псевдоним и команду для псевдонима"
+
+#: musicbot/bot.py:5689
+msgid "You must supply an alias name to remove."
+msgstr "Вы должны указать имя псевдонима для удаления."
+
+#: musicbot/bot.py:5694
+#, python-format
+msgid "The alias `%(alias)s` does not exist."
+msgstr "Псевдоним `%(alias)s` не существует."
+
+#: musicbot/bot.py:5752
+msgid "Config cannot use channel and user mentions at the same time."
+msgstr ""
+"Конфигурация не может использовать канал и упоминания пользователя "
+"одновременно."
+
+#: musicbot/bot.py:5855
+#, python-format
+msgid ""
+"Unable to reload Config due to the following error:\n"
+"%(raw_error)s"
+msgstr ""
+"Не удалось перезагрузить конфигурацию из-за следующей ошибки:\n"
+"%(raw_error)s"
+
+#: musicbot/bot.py:5873
+msgid ""
+"Could not resolve section name from option name. Please provide a valid "
+"section and option name."
+msgstr ""
+"Не удалось определить название секции с названием опции. Пожалуйста, укажите"
+" корректный раздел и название опции."
+
+#: musicbot/bot.py:5877
+msgid "The option given is ambiguous, please provide a section name."
+msgstr "Указанная опция является неоднозначной, укажите название раздела."
+
+#: musicbot/bot.py:5883
+msgid "You must provide a section name and option name for this command."
+msgstr ""
+"Вы должны указать название раздела и название параметра для этой команды."
+
+#: musicbot/bot.py:5899
+#, python-format
+msgid ""
+"The section `%(section)s` is not available.\n"
+"The available sections are:  %(sections)s"
+msgstr ""
+"Раздел `%(section)s` недоступен.\n"
+"Доступные разделы:  %(sections)s"
+
+#: musicbot/bot.py:5907
+#, python-format
+msgid "The option `%(option)s` is not available."
+msgstr "Опция `%(option)s` недоступна."
+
+#: musicbot/bot.py:5935
+#, python-format
+msgid "Option `%(option)s` is not editable. Cannot save to disk."
+msgstr "Параметр `%(option)s` не редактируется. Невозможно сохранить на диск."
+
+#: musicbot/bot.py:5944
+#, python-format
+msgid "Failed to save the option:  `%(option)s`"
+msgstr "Не удалось сохранить опцию: `%(option)s`"
+
+#: musicbot/bot.py:5959
+#, python-format
+msgid "Option `%(option)s` is not editable, value cannot be displayed."
+msgstr ""
+"Параметр `%(option)s` не может быть отредактирован, значение не "
+"отображается."
+
+#: musicbot/bot.py:5982
+#, python-format
+msgid "Option `%(option)s` is not editable. Cannot update setting."
+msgstr "Параметр `%(option)s` не редактируется. Не удается обновить параметр."
+
+#: musicbot/bot.py:5988 musicbot/bot.py:6912
+msgid "You must provide a section, option, and value for this sub command."
+msgstr "Вы должны указать раздел, параметр и значение для этой подкоманды."
+
+#: musicbot/bot.py:5992
+#, python-format
+msgid "Doing set with on %(config)s == %(value)s"
+msgstr "Выполнение установлено с помощью %(config)s == %(value)s"
+
+#: musicbot/bot.py:5999
+#, python-format
+msgid "Option `%(option)s` was not updated!"
+msgstr "Опция `%(option)s` не была обновлена!"
+
+#: musicbot/bot.py:6015
+#, python-format
+msgid "Option `%(option)s` is not editable. Cannot reset to default."
+msgstr ""
+"Параметр `%(option)s` не является редактируемым. Невозможно сбросить к "
+"значению по умолчанию."
+
+#: musicbot/bot.py:6027
+#, python-format
+msgid "Resetting %(config)s to default %(value)s"
+msgstr "Сброс %(config)s на стандартный %(value)s"
+
+#: musicbot/bot.py:6034
+#, python-format
+msgid "Option `%(option)s` was not reset to default!"
+msgstr "Параметр `%(option)s` не был сброшен до значения по умолчанию!"
+
+#: musicbot/bot.py:6067
+msgid "The option command is deprecated, use the config command instead."
+msgstr "Команда опции является устаревшим, используйте команду config."
+
+#: musicbot/bot.py:6087
+msgid "Invalid option specified, use: info, update, or clear"
+msgstr ""
+"Указан неверный параметр, используйте информацию: info, update, or clear"
+
+#: musicbot/bot.py:6144
+msgid "**Failed** to delete cache, check logs for more info..."
+msgstr ""
+"**Не удалось** удалить кэш, проверьте журналы для получения дополнительной "
+"информации..."
+
+#: musicbot/bot.py:6179
+msgid "Queue page argument must be a whole number."
+msgstr "Аргумент очереди страницы должен быть целым числом."
+
+#: musicbot/bot.py:6186
+msgid "There are no songs queued! Queue something with a play command."
+msgstr ""
+"Нет песен в очереди! Очередь что-то с помощью команды воспроизведения."
+
+#: musicbot/bot.py:6193
+#, python-format
+msgid ""
+"Requested page number is out of bounds.\n"
+"There are **%(total)s** pages."
+msgstr ""
+
+#: musicbot/bot.py:6236
+msgid "Skipped the current playlist entry."
+msgstr "Текущий элемент плейлиста пропущен."
+
+#: musicbot/bot.py:6279
+msgid "Not enough entries to paginate the queue."
+msgstr "Недостаточно записей для создания нужной очереди."
+
+#: musicbot/bot.py:6283
+msgid "Could not post queue message, no message to add reactions to."
+msgstr ""
+"Не удалось отправить сообщение в очередь. Нет сообщений для добавления "
+"реакций."
+
+#: musicbot/bot.py:6285
+msgid ""
+"Try that again. MusicBot couldn't make or get a reference to the queue message.\n"
+"If the issue persists, file a bug report."
+msgstr ""
+
+#: musicbot/bot.py:6395
+msgid "Cannot use purge on private DM channel."
+msgstr "Нельзя использовать очистку в приватном ЛС канале."
+
+#: musicbot/bot.py:6427
+msgid "The given URL was not a valid URL."
+msgstr "Указанный URL не является допустимым URL."
+
+#: musicbot/bot.py:6437
+#, python-format
+msgid ""
+"Could not extract info from input url\n"
+"%(raw_error)s\n"
+msgstr ""
+"Не удалось извлечь информацию из входного url\n"
+"%(raw_error)s\n"
+
+#: musicbot/bot.py:6442
+msgid "This does not seem to be a playlist."
+msgstr "Похоже, что это не плейлист."
+
+#: musicbot/bot.py:6605
+msgid ""
+"Invalid user ID or server nickname, please double-check the ID and try "
+"again."
+msgstr ""
+"Неверный ID пользователя или имя сервера, проверьте ID и повторите попытку."
+
+#: musicbot/bot.py:6612
+msgid "Could not determine the discord User.  Try again."
+msgstr "Не удалось определить пользователя discord. Попробуйте еще раз."
+
+#: musicbot/bot.py:6683
+msgid "Permissions cannot use channel and user mentions at the same time."
+msgstr ""
+"Права доступа не могут использовать каналы и упоминания пользователей "
+"одновременно."
+
+#: musicbot/bot.py:6718
+#, python-format
+msgid ""
+"Unable to reload Permissions due to an error:\n"
+"%(raw_error)s"
+msgstr ""
+"Не удается перезагрузить разрешения из-за ошибки:\n"
+"%(raw_error)s"
+
+#: musicbot/bot.py:6755
+msgid "You must provide a group or option name for this command."
+msgstr "Вы должны указать название группы или опции для этой команды."
+
+#: musicbot/bot.py:6759
+msgid "You must provide a group, option, and value to set for this command."
+msgstr "Вы должны указать группу, опцию и значение для этой команды."
+
+#: musicbot/bot.py:6773
+#, python-format
+msgid "The %(option)s sub-command requires a group and permission name."
+msgstr "Субкоманда %(option)s требует имя группы и прав доступа."
+
+#: musicbot/bot.py:6785
+#, python-format
+msgid ""
+"The group `%(group)s` is not available.\n"
+"The available groups are:  %(sections)s"
+msgstr ""
+"Группа `%(group)s` недоступна.\n"
+"Доступные группы:  %(sections)s"
+
+#: musicbot/bot.py:6796
+#, python-format
+msgid "The permission `%(option)s` is not available."
+msgstr "Разрешение `%(option)s` недоступно."
+
+#: musicbot/bot.py:6832
+#, python-format
+msgid "Cannot add group `%(group)s` it already exists."
+msgstr "Невозможно добавить группу `%(group)s`, она уже существует."
+
+#: musicbot/bot.py:6850
+msgid "Cannot remove built-in group."
+msgstr "Невозможно удалить встроенную группу."
+
+#: musicbot/bot.py:6868 musicbot/bot.py:6907
+msgid "The owner group is not editable."
+msgstr "Группа владельцев не редактируется."
+
+#: musicbot/bot.py:6876
+#, python-format
+msgid "Failed to save the group:  `%(group)s`"
+msgstr "Не удалось сохранить группу: `%(group)s`"
+
+#: musicbot/bot.py:6916
+#, python-format
+msgid "Doing set on %(option)s with value: %(value)s"
+msgstr "Выполнение установлено на %(option)s со значением: %(value)s"
+
+#: musicbot/bot.py:6923
+#, python-format
+msgid "Permission `%(option)s` was not updated!"
+msgstr "Разрешение `%(option)s` не было обновлено!"
+
+#: musicbot/bot.py:6964
+msgid ""
+"Failed to change username. Did you change names too many times?\n"
+"Remember name changes are limited to twice per hour.\n"
+msgstr ""
+"Не удалось изменить имя пользователя. Вы изменили имена слишком много раз?\n"
+"Запомнить, что изменения имени ограничены дважды в час.\n"
+
+#: musicbot/bot.py:6970
+#, python-format
+msgid ""
+"Failed to change username due to error:  \n"
+"%(raw_error)s"
+msgstr ""
+"Не удалось изменить имя пользователя из-за ошибки:  \n"
+"%(raw_error)s"
+
+#: musicbot/bot.py:6992
+msgid "Unable to change nickname: no permission."
+msgstr "Невозможно изменить никнейм: нет разрешения."
+
+#: musicbot/bot.py:7000
+#, python-format
+msgid ""
+"Failed to set nickname due to error:  \n"
+"%(raw_error)s"
+msgstr ""
+"Не удалось задать псевдоним из-за ошибки:  \n"
+"%(raw_error)s"
+
+#: musicbot/bot.py:7040
+msgid "Custom emoji must be from this server to use as a prefix."
+msgstr ""
+"Пользовательские эмодзи должны быть с этого сервера, чтобы использовать в "
+"качестве префикса."
+
+#: musicbot/bot.py:7057
+msgid ""
+"Prefix per server is not enabled!\n"
+"Use the config command to update the prefix instead."
+msgstr ""
+"Префикс на сервер не включен!\n"
+"Используйте команду конфигурации для обновления префикса."
+
+#: musicbot/bot.py:7087
+msgid "This command can only be used in guilds."
+msgstr "Эта команда может быть использована только в гильдиях."
+
+#: musicbot/bot.py:7092
+msgid "Invalid sub-command given. Use the help command for more information."
+msgstr ""
+"Неверная субкоманда. Используйте команду справки для получения "
+"дополнительной информации."
+
+#: musicbot/bot.py:7113
+#, python-format
+msgid "Cannot set language to `%(locale)s` it is not available."
+msgstr "Не удается установить язык в `%(locale)s`, он недоступен."
+
+#: musicbot/bot.py:7158
+msgid "You must provide a URL or attach a file."
+msgstr "Вы должны указать URL или прикрепить файл."
+
+#: musicbot/bot.py:7168
+#, python-format
+msgid ""
+"Unable to change avatar due to error:  \n"
+"%(raw_error)s"
+msgstr ""
+"Невозможно изменить аватар из-за ошибки:  \n"
+"%(raw_error)s"
+
+#: musicbot/bot.py:7193
+#, python-format
+msgid "MusicBot found a %s with no guild!  This could be a problem."
+msgstr "MusicBot обнаружил %s без гильдии! Это может быть проблемой."
+
+#: musicbot/bot.py:7205
+#, python-format
+msgid "Not currently connected to server `%(guild)s`"
+msgstr "Сейчас не подключен к серверу`%(guild)s`"
+
+#: musicbot/bot.py:7246
+msgid ""
+"Invalid option given, use one of:  soft, full, upgrade, uppip, or upgit"
+msgstr ""
+"Недопустимый параметр, используйте один из: мягкий, полный, обновление, "
+"uppip, или upgit"
+
+#: musicbot/bot.py:7355
+msgid "You must provide an ID or name."
+msgstr "Вы должны указать ID или имя."
+
+#: musicbot/bot.py:7366
+#, python-format
+msgid "No guild was found with the ID or name `%(input)s`"
+msgstr "Не найдено ни одной гильдии с ID или именем `%(input)s`"
+
+#: musicbot/bot.py:7423
+#, python-format
+msgid "Activating debug breakpoint ID: %(uuid)s"
+msgstr "Активация точки останова ID: %(uuid)s"
+
+#: musicbot/bot.py:7463
+msgid "Could not import `objgraph`, is it installed?"
+msgstr "Не удалось импортировать `objgraph`, он установлен?"
+
+#: musicbot/bot.py:7538
+msgid "Debug code ran with eval()."
+msgstr "Код отладки запускался с помощью eval()."
+
+#: musicbot/bot.py:7548
+msgid "Debug code ran with exec()."
+msgstr "Код отладки запускался с exec()."
+
+#: musicbot/bot.py:7551
+msgid "Debug code failed to execute."
+msgstr "Не удалось выполнить код отладки."
+
+#: musicbot/bot.py:7553
+#, python-format
+msgid ""
+"Failed to execute debug code:\n"
+"%(py_code)s\n"
+"Exception: ```\n"
+"%(ex_name)s:\n"
+"%(ex_text)s```"
+msgstr ""
+"Не удалось выполнить отладочный код:\n"
+"%(py_code)s\n"
+"Exception: ```\n"
+"%(ex_name)s:\n"
+"%(ex_text)s```"
+
+#: musicbot/bot.py:7588 musicbot/bot.py:7649
+#, python-format
+msgid "Sub-command must be one of: %(options)s"
+msgstr "Подкоманда должна быть одной из %(options)s"
+
+#: musicbot/bot.py:7688
+msgid "Could not locate git executable."
+msgstr "Не удалось найти исполняемый файл git."
+
+#: musicbot/bot.py:7732
+msgid "Failed while checking for updates via git command."
+msgstr "Не удалось проверить наличие обновлений по команде git."
+
+#: musicbot/bot.py:7761
+msgid "Package missing meta in pip report."
+msgstr "Пакет отсутствует в отчете pip."
+
+#: musicbot/bot.py:7775
+msgid "Failed to get pip update status due to some error."
+msgstr "Не удалось получить статус обновления pip из-за некоторой ошибки."
+
+#: musicbot/bot.py:7836
+msgid "Got a strange voice client entry."
+msgstr "Получена запись о странном голосовом клиенте."
+
+#: musicbot/bot.py:7946
+msgid "Cookies already enabled."
+msgstr "Cookies уже включены."
+
+#: musicbot/bot.py:7953
+msgid "Cookies must be uploaded to be enabled. (Missing cookies file.)"
+msgstr "Cookies должны быть загружены для включения. (issing cookies файл.)"
+
+#: musicbot/bot.py:7966
+#, python-format
+msgid "Could not enable cookies due to error:  %(raw_error)s"
+msgstr "Не удалось включить куки из-за ошибки:  %(raw_error)s"
+
+#: musicbot/bot.py:7980
+#, python-format
+msgid ""
+"Could not rename cookies file due to error:  %(raw_error)s\n"
+"Cookies temporarily disabled and will be re-enabled on next restart."
+msgstr ""
+"Не удалось переименовать файл cookies из-за ошибки:  %(raw_error)s\n"
+"Cookies временно отключены и будут повторно включены при следующем перезапуске."
+
+#: musicbot/bot.py:7989
+msgid ""
+"No attached uploads were found, try again while uploading a cookie file."
+msgstr ""
+"Не найдено приложенных загрузок, попробуйте еще раз при загрузке файла "
+"cookie."
+
+#: musicbot/bot.py:7998
+#, python-format
+msgid "Could not remove old, disabled cookies file:  %(raw_error)s"
+msgstr "Не удалось удалить старый, отключен файл cookie:  %(raw_error)s"
+
+#: musicbot/bot.py:8007
+#, python-format
+msgid "Error downloading the cookies file from discord:  %(raw_error)s"
+msgstr "Ошибка при загрузке файла cookie с дискода:  %(raw_error)s"
+
+#: musicbot/bot.py:8012
+#, python-format
+msgid "Could not save cookies to disk:  %(raw_error)s"
+msgstr "Не удалось сохранить куки на диске:  %(raw_error)s"
+
+#: musicbot/bot.py:8030
+#, python-format
+msgid "Got a message with no channel, somehow:  %s"
+msgstr "Получено сообщение без канала, как-то  %s"
+
+#: musicbot/bot.py:8058
+#, python-format
+msgid "Ignoring command from myself (%s)"
+msgstr "Игнорирование команды от себя (%s)"
+
+#: musicbot/bot.py:8066
+#, python-format
+msgid "Ignoring command from other bot (%s)"
+msgstr "Игнорирование команды от другого бота (%s)"
+
+#: musicbot/bot.py:8074
+#, python-format
+msgid "Ignoring command from channel of type:  %s"
+msgstr "Игнорирование команды из канала типа:  %s"
+
+#: musicbot/bot.py:8169
+#, python-format
+msgid "User in block list: %(id)s/%(name)s  tried command: %(command)s"
+msgstr ""
+"Пользователь в блочном списке: %(id)s/%(name)s  попробовала команду: "
+"%(command)s"
+
+#: musicbot/bot.py:8176
+#, python-format
+msgid "Message from %(id)s/%(name)s: %(message)s"
+msgstr "Сообщение от %(id)s/%(name)s: %(message)s"
+
+#: musicbot/bot.py:8210
+#, python-format
+msgid "This command is not allowed for your permissions group:  %(group)s"
+msgstr "Эта команда не разрешена для вашей группы прав:  %(group)s"
+
+#: musicbot/bot.py:8245
+msgid "This command requires you to be in a Voice channel."
+msgstr "Эта команда требует, чтобы вы были в голосовом канале."
+
+#: musicbot/bot.py:8329
+#, python-format
+msgid "Invalid command usage, missing values for params: %(params)r"
+msgstr ""
+"Неверное использование команды, отсутствуют значения для параметров: "
+"%(params)r"
+
+#: musicbot/bot.py:8367
+#, python-format
+msgid "Error in %(command)s: %(err_name)s: %(err_text)s"
+msgstr "Ошибка в %(command)s: %(err_name)s: %(err_text)s"
+
+#: musicbot/bot.py:8390
+#, python-format
+msgid "Exception while handling command: %(command)s"
+msgstr "Исключение при обработке команды: %(command)s"
+
+#: musicbot/bot.py:8421
+#, python-format
+msgid "Cannot generate help for missing command:  %s"
+msgstr "Невозможно сгенерировать справку для отсутствующей команды:  %s"
+
+#: musicbot/bot.py:8425
+#, python-format
+msgid "Missing help data for command:  %s"
+msgstr "Отсутствуют вспомогательные данные для команды:  %s"
+
+#: musicbot/bot.py:8542
+#, python-format
+msgid "Leaving voice channel %s in %s due to inactivity."
+msgstr "Выход голосового канала %s в %s из-за отсутствия активности."
+
+#: musicbot/bot.py:8551
+msgid "MusicBot has become connected."
+msgstr "Музыкабот подключен."
+
+#: musicbot/bot.py:8555
+msgid "MusicBot has become disconnected."
+msgstr "Музыкабот был разорван."
+
+#: musicbot/bot.py:8560
+#, python-format
+msgid "Got a Socket Event:  %s"
+msgstr "Получено событие сокета:  %s"
+
+#: musicbot/bot.py:8576
+msgid "VoiceState updated before on_ready finished"
+msgstr "VoiceState обновляется до окончания on_ready"
+
+#: musicbot/bot.py:8589
+#, python-format
+msgid "Ignoring %s in %s as it is a bound voice channel."
+msgstr "Игнорирование %s в %s , как это связанный голосовой канал."
+
+#: musicbot/bot.py:8598
+#, python-format
+msgid "%s has been detected as empty. Handling timeouts."
+msgstr "%s был обнаружен как пустой. Тайм-аут обработки."
+
+#: musicbot/bot.py:8609
+#, python-format
+msgid "A user joined %s, cancelling timer."
+msgstr "Пользователь присоединился к %s, время отмены таймера."
+
+#: musicbot/bot.py:8622
+#, python-format
+msgid ""
+"The bot got moved and the voice channel %s is empty. Handling timeouts."
+msgstr "Бот перемещен, голосовой канал %s пуст. Тайм-аут обработки."
+
+#: musicbot/bot.py:8631
+#, python-format
+msgid "The bot got moved and the voice channel %s is not empty."
+msgstr "Бот был перемещен и голосовой канал %s не пуст."
+
+#: musicbot/bot.py:8680
+#, python-format
+msgid "No longer following user %s"
+msgstr "Больше не следует за пользователем %s"
+
+#: musicbot/bot.py:8702
+#, python-format
+msgid "Following user `%(user)s` to channel:  %(channel)s"
+msgstr "Следовать за пользователем `%(user)s` на канал:  %(channel)s"
+
+#: musicbot/bot.py:8722
+msgid "VoiceState disconnect before.channel is None."
+msgstr "VoiceState отключает before.channel не подключен."
+
+#: musicbot/bot.py:8749
+#, python-format
+msgid ""
+"Disconnected from voice by Discord API in: %(guild)s/%(channel)s (Code: "
+"%(code)s) [S:%(state)s]"
+msgstr ""
+"Отключено от голоса Discord API в: %(guild)s/%(channel)s (Код: %(code)s) "
+"[S:%(state)s]"
+
+#: musicbot/bot.py:8771
+#, python-format
+msgid "Cannot use auto-join channel with type: %(type)s  in guild:  %(guild)s"
+msgstr ""
+"Невозможно использовать автовход с типом канала: %(type)s  в гильдии:  "
+"%(guild)s"
+
+#: musicbot/bot.py:8778
+#, python-format
+msgid "Cannot find the auto-joined channel, was it deleted?  Guild:  %s"
+msgstr "Не удается найти канал автоподключения, он был удален? Гильдия:  %s"
+
+#: musicbot/bot.py:8784
+#, python-format
+msgid "Reconnecting to auto-joined guild on channel:  %s"
+msgstr ""
+"Повторное подключение к автоматически подключенной гильдии на канале:  %s"
+
+#: musicbot/bot.py:8797
+#, python-format
+msgid "Cannot auto join channel:  %s"
+msgstr "Невозможно автоматически присоединиться к каналу:  %s"
+
+#: musicbot/bot.py:8813
+#, python-format
+msgid "Bot has been added to guild: %s"
+msgstr "Бот был добавлен в гильдию: %s"
+
+#: musicbot/bot.py:8825
+#, python-format
+msgid "Left guild '%s' due to bot owner not found."
+msgstr "Левая гильдия '%s' из-за не найден владелец бота."
+
+#: musicbot/bot.py:8839
+#, python-format
+msgid "Creating data folder for guild %s"
+msgstr "Создание папки данных для гильдии %s"
+
+#: musicbot/bot.py:8847
+#, python-format
+msgid "Bot has been removed from guild: %s"
+msgstr "Бот был удален из гильдии: %s"
+
+#: musicbot/bot.py:8848
+msgid "Updated guild list:"
+msgstr "Обновленный список гильдий:"
+
+#: musicbot/bot.py:8863
+#, python-format
+msgid "Guild \"%s\" has become available."
+msgstr "Гильдия \"%s\" стала доступна."
+
+#: musicbot/bot.py:8869
+#, python-format
+msgid "Resuming player in \"%s\" due to availability."
+msgstr "Возобновление доступа игрока в \"%s\" из-за доступности."
+
+#: musicbot/bot.py:8886
+#, python-format
+msgid "Guild \"%s\" has become unavailable."
+msgstr "Гильдия \"%s\" недоступна."
+
+#: musicbot/bot.py:8892
+#, python-format
+msgid "Pausing player in \"%s\" due to unavailability."
+msgstr "Пауза игрока в \"%s\" из-за недоступности."
+
+#: musicbot/bot.py:8908
+#, python-format
+msgid "Guild update for:  %s"
+msgstr "Обновление гильдии для:  %s"
+
+#: musicbot/bot.py:8914
+#, python-format
+msgid "Guild attribute %(attr)s is now: %(new)s  -- Was: %(old)s"
+msgstr "Атрибут гильдии %(attr)s сейчас: %(new)s  -- Was: %(old)s"
+
+#: musicbot/bot.py:8965
+#, python-format
+msgid "Channel update for:  %(channel)s  --  %(changes)s"
+msgstr "Обновление канала для:  %(channel)s  --  %(changes)s"
+
+#: musicbot/config.py:87
+#, python-format
+msgid "Creating %s"
+msgstr "Создание %s"
+
+#: musicbot/config.py:108
+#, python-format
+msgid "Loading config from:  %s"
+msgstr "Загрузка конфигурации из:  %s"
+
+#: musicbot/config.py:1128
+#, python-format
+msgid ""
+"Error while reading config.\n"
+"\n"
+"Problem:\n"
+"  One or more required config option sections are missing.\n"
+"  The missing sections are:\n"
+"  %(sections)s\n"
+"\n"
+"Solution:\n"
+"  Repair your config options file.\n"
+"  Each [Section] must appear only once, with no other text on the same line.\n"
+"  Each section must have at least one option.\n"
+"  Use the example options as a template or copy it from the repository."
+msgstr ""
+
+#: musicbot/config.py:1158
+#, python-format
+msgid ""
+"Cannot store more than %s log files. Option LogsMaxKept will be limited "
+"instead."
+msgstr ""
+"Невозможно хранить больше файлов журнала %s . Опция LogsMaxKept будет "
+"ограничена."
+
+#: musicbot/config.py:1166
+msgid ""
+"Config option LogsDateFormat is empty and this will break log file rotation."
+" Using default instead."
+msgstr ""
+"Параметр LogsDateFormat пуст и это нарушит поворот файла журнала. Вместо "
+"него будет использоваться значение по умолчанию."
+
+#: musicbot/config.py:1177
+msgid ""
+"Error while validating config options.\n"
+"\n"
+"Problem:\n"
+"  Config option AudioCachePath is not a directory.\n"
+"\n"
+"Solution:\n"
+"  Make sure the path you configured is a path to a folder / directory."
+msgstr ""
+
+#: musicbot/config.py:1194
+msgid "An exception was thrown while validating AudioCachePath."
+msgstr "Исключение было вызвано при проверке AudioCachePath."
+
+#: musicbot/config.py:1198
+#, python-format
+msgid ""
+"Error while validating config options.\n"
+"\n"
+"Problem:\n"
+"  AudioCachePath config option could not be set due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Double check the setting is a valid, accessible directory path."
+msgstr ""
+"Ошибка при проверке параметров конфигурации.\n"
+"\n"
+"Проблема:\n"
+"  Опция конфигурации AudioCachePath не может быть установлена из-за ошибки:\n"
+"  %(raw_error)s\n"
+"\n"
+"Решение:\n"
+"  Двойная проверка правильности, доступный путь к каталогу."
+
+#: musicbot/config.py:1210
+#, python-format
+msgid "Audio Cache will be stored in:  %s"
+msgstr "Кэш аудио будет храниться в:  %s"
+
+#: musicbot/config.py:1221
+#, python-format
+msgid ""
+"Error while reading config options.\n"
+"\n"
+"Problem:\n"
+"  No bot Token was specified in the config options or environment.\n"
+"\n"
+"Solution:\n"
+"  Set the Token config option or set environment variable %(env_var)s with an App token."
+msgstr ""
+
+#: musicbot/config.py:1242
+msgid ""
+"StatusMessage config option is too long, it will be limited to 128 "
+"characters."
+msgstr ""
+"Опция StatusMessage слишком длинная, она будет ограничена 128 символов."
+
+#: musicbot/config.py:1251
+#, python-format
+msgid ""
+"The default playback speed must be between 0.5 and 100.0. The option value "
+"of %.3f will be limited instead."
+msgstr ""
+"Скорость воспроизведения по умолчанию должна быть между 0.5 и 100.0. Вместо "
+"этого значение параметра %.3f будет ограничено."
+
+#: musicbot/config.py:1261
+msgid ""
+"Cookies TXT file detected. MusicBot will pass them to yt-dlp.\n"
+"Cookies are not recommended, may not be supported, and may totally break.\n"
+"Copying cookies from your web-browser risks exposing personal data and \n"
+"in the best case can result in your accounts being banned!\n"
+"\n"
+"You have been warned!  Good Luck!  \\U0001F596\n"
+msgstr ""
+
+#: musicbot/config.py:1279
+msgid "Validating options with service data..."
+msgstr "Проверка параметров с данными сервиса..."
+
+#: musicbot/config.py:1285
+msgid "Acquired owner ID via API"
+msgstr "Приобретенный ID владельца через API"
+
+#: musicbot/config.py:1289
+msgid ""
+"Error while fetching 'OwnerID' automatically.\n"
+"\n"
+"Problem:\n"
+"  Discord App info is not available.\n"
+"  This could be a temporary API outage or a bug.\n"
+"\n"
+"Solution:\n"
+"  Manually set the 'OwnerID' config option or try again later."
+msgstr ""
+
+#: musicbot/config.py:1301
+msgid "MusicBot does not have a user instance, cannot proceed."
+msgstr "У MusicBot нет экземпляра пользователя, невозможно продолжить."
+
+#: musicbot/config.py:1307
+msgid ""
+"Error validating config options.\n"
+"\n"
+"Problem:\n"
+"  The 'OwnerID' config is the same as your Bot / App ID.\n"
+"\n"
+"Solution:\n"
+"  Do not use the Bot or App ID in the 'OwnerID' field."
+msgstr ""
+
+#: musicbot/config.py:1331
+msgid "Config options file not found. Checking for alternatives..."
+msgstr "Файл параметров конфигурации не найден. Проверка альтернативы..."
+
+#: musicbot/config.py:1344
+#, python-format
+msgid ""
+"Renaming %(ini_file)s to %(option_file)s, you should probably turn file "
+"extensions on."
+msgstr ""
+"Переименование %(ini_file)s на %(option_file)s, скорее всего, вам следует "
+"включить расширения."
+
+#: musicbot/config.py:1352
+#, python-format
+msgid "Copying existing example options file:  %(example_file)s"
+msgstr "Копирование существующего файла параметров примера:  %(example_file)s"
+
+#: musicbot/config.py:1366
+msgid "Something went wrong while trying to find a config option file."
+msgstr "Что-то пошло не так при попытке найти файл конфигурации."
+
+#: musicbot/config.py:1370
+#, python-format
+msgid ""
+"Error locating config.\n"
+"\n"
+"Problem:\n"
+"  Could not find or create a config file due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Verify the config folder and files exist and can be read by MusicBot."
+msgstr ""
+"Ошибка поиска конфигурации.\n"
+"\n"
+"Проблема:\n"
+"  Не удалось найти или создать файл конфигурации из-за ошибки:\n"
+"  %(raw_error)s\n"
+"\n"
+"Решение:\n"
+"  Проверьте папку конфигурации и файлы существуют и могут быть прочитаны MusicBot."
+
+#: musicbot/config.py:1388
+#, python-format
+msgid ""
+"Error loading config.\n"
+"\n"
+"Problem:\n"
+"  MusicBot could not read config file due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Make sure the file is accessible and error free.\n"
+"  Copy the example file from the repo if all else fails."
+msgstr ""
+"Ошибка загрузки конфигурации.\n"
+"\n"
+"Проблема:\n"
+"  MusicBot не смог прочитать конфигурационный файл из-за ошибки:\n"
+"  %(raw_error)s\n"
+"\n"
+"Решение:\n"
+"  Убедитесь, что файл доступен и ошибки бесплатны.\n"
+"  Скопируйте файл примера из репозитория, если все остальное не удалось."
+
+#: musicbot/config.py:1412
+msgid "Dev Bug! Config option has getter that is not available."
+msgstr "Dev Bug! Параметр конфигурации имеет getter, который не доступен."
+
+#: musicbot/config.py:1417
+msgid ""
+"Dev Bug! Config option has invalid type, getter and default must be the same"
+" type."
+msgstr ""
+"Dev Bug! Параметр конфигурации имеет недопустимый тип, getter и по умолчанию"
+" должен быть одинаковым."
+
+#: musicbot/config.py:1437
+msgid "Option was missing previously."
+msgstr "Ранее отсутствовал вариант."
+
+#: musicbot/config.py:1452
+#, python-format
+msgid "Config section not in parsed config! Missing: %s"
+msgstr "Раздел конфигурации не в анализируемой конфигурации! Отсутствует: %s"
+
+#: musicbot/config.py:1457
+#, python-format
+msgid "Saved config option: %(config)s  =  %(value)s"
+msgstr "Сохраненная конфигурация: %(config)s  =  %(value)s"
+
+#: musicbot/config.py:1470
+#, python-format
+msgid "Failed to save config:  %s"
+msgstr "Не удалось сохранить конфигурацию:  %s"
+
+#: musicbot/config.py:1989
+msgid ""
+"Option names are not unique between INI sections!  Resolver is disabled."
+msgstr "Имена опций не уникальны между INI-разделами! Резольвер отключен."
+
+#: musicbot/config.py:2166 musicbot/permissions.py:906
+#, python-format
+msgid "Failed to save default INI file at:  %s"
+msgstr "Не удалось сохранить INI-файл по умолчанию в:  %s"
+
+#: musicbot/config.py:2256
+#, python-format
+msgid ""
+"Error loading config value.\n"
+"\n"
+"Problem:\n"
+"  The owner ID in [%(section)s] > %(option)s is not valid.\n"
+"\n"
+"Solution:\n"
+"  Set %(option)s to a numerical ID or set it to `auto` or `0` for automatic owner binding."
+msgstr ""
+"Ошибка загрузки значения конфигурации.\n"
+"\n"
+"Проблема:\n"
+"  ID владельца в [%(section)s] > %(option)s недопустим.\n"
+"\n"
+"Решение:\n"
+"  Установите %(option)s на числовой ID или установите его в `auto` или `0` для автоматической привязки владельца."
+
+#: musicbot/config.py:2292
+#, python-format
+msgid ""
+"Error loading config value.\n"
+"\n"
+"Problem:\n"
+"  The config option [%(section)s] > %(option)s is not a valid file location.\n"
+"\n"
+"Solution:\n"
+"  Check the path setting and make sure the file exists and is accessible to MusicBot."
+msgstr ""
+"Ошибка загрузки значения конфигурации.\n"
+"\n"
+"Проблема:\n"
+"  Параметр конфигурации [%(section)s] > %(option)s не является допустимым местоположением файла.\n"
+"\n"
+"Решение:\n"
+"  Проверьте настройки пути и убедитесь, что файл существует и доступен для MusicBot."
+
+#: musicbot/config.py:2322
+#, python-format
+msgid ""
+"Error loading config value.\n"
+"\n"
+"Problem:\n"
+"  One of the IDs in option [%(section)s] > %(option)s is invalid.\n"
+"\n"
+"Solution:\n"
+"  Ensure all IDs are numerical, and separated only by spaces or commas."
+msgstr ""
+"Ошибка загрузки значения конфигурации.\n"
+"\n"
+"Проблема:\n"
+"  Один из идентификаторов в опции [%(section)s] > %(option)s является недопустимым.\n"
+"\n"
+"Решение:\n"
+"  Убедитесь, что все ID числовые и разделены только пробелами или запятыми."
+
+#: musicbot/config.py:2358
+#, python-format
+msgid ""
+"Invalid DebugLevel option \"%(value)s\" given, falling back to level: "
+"%(fallback)s"
+msgstr ""
+"Недопустимый параметр уровня отладки \"%(value)s\" указан, падающий обратно "
+"на уровень: %(fallback)s"
+
+#: musicbot/config.py:2379
+#, python-format
+msgid ""
+"Option [%(section)s] > %(option)s has invalid config value '%(value)s' using"
+" default instead."
+msgstr ""
+"Опция [%(section)s] > %(option)s имеет неверное значение конфигурации "
+"'%(value)s' вместо значения по умолчанию."
+
+#: musicbot/config.py:2428
+#, python-format
+msgid ""
+"Option [%(section)s] > %(option)s has a value greater than 100 %% "
+"(%(value)s) and will be set to %(fallback)s instead."
+msgstr ""
+"Вариант [%(section)s] > %(option)s имеет значение больше 100 %% (%(value)s) "
+"и вместо него будет установлен %(fallback)s."
+
+#: musicbot/config.py:2512
+#, python-format
+msgid ""
+"Renaming INI file entry [%(old_s)s] > %(old_o)s  to  [%(new_s)s] > %(new_o)s"
+msgstr ""
+"Переименование INI-файла [%(old_s)s] > %(old_o)s  на [%(new_s)s] > %(new_o)s"
+
+#: musicbot/config.py:2568
+msgid "Upgrading config file with renamed options..."
+msgstr "Обновление конфигурационного файла с переименованными опциями..."
+
+#: musicbot/config.py:2585
+msgid "Failed to upgrade config.  You'll need to upgrade it manually."
+msgstr "Не удалось обновить конфигурацию. Вам нужно обновить ее вручную."
+
+#: musicbot/config.py:2626
+#, python-format
+msgid "Block list file not found:  %s"
+msgstr "Файл блока списка не найден:  %s"
+
+#: musicbot/config.py:2647
+#, python-format
+msgid "Could not load block list from file:  %s"
+msgstr "Не удалось загрузить список блокировок из файла:  %s"
+
+#: musicbot/config.py:2685 musicbot/config.py:2718
+#, python-format
+msgid "Could not update the block list file:  %s"
+msgstr "Не удалось обновить файл списка блоков:  %s"
+
+#: musicbot/config.py:2745
+#, python-format
+msgid "Loaded User Block list with %s entries."
+msgstr "Загружен блокированный список пользователей с записями %s."
+
+#: musicbot/config.py:2756
+#, python-format
+msgid "We found a legacy blacklist file, it will be renamed to:  %s"
+msgstr ""
+"Мы нашли устаревший файл в черном списке, он будет переименован на:  %s"
+
+#: musicbot/config.py:2802
+#, python-format
+msgid "Loaded a Song Block list with %s entries."
+msgstr "Загружен Блок песни с записями %s."
+
+#: musicbot/constructs.py:220
+msgid ""
+"Cannot load data for guild with ID 0. This is likely a bug in the code!"
+msgstr ""
+"Не удается загрузить данные для гильдии с ID 0. Вероятно, это ошибка в коде!"
+
+#: musicbot/constructs.py:229
+#, python-format
+msgid "No file for guild %(id)s/%(name)s"
+msgstr "Нет файла для гильдии %(id)s/%(name)s"
+
+#: musicbot/constructs.py:238
+#, python-format
+msgid "Loading guild data for guild with ID:  %(id)s/%(name)s"
+msgstr "Загрузка данных гильдии с ID:  %(id)s/%(name)s"
+
+#: musicbot/constructs.py:245
+#, python-format
+msgid "An OS error prevented reading guild data file:  %s"
+msgstr "Ошибка ОС не удалось прочитать файл данных гильдии:  %s"
+
+#: musicbot/constructs.py:256
+#, python-format
+msgid "Guild %(id)s/%(name)s has custom command prefix: %(prefix)s"
+msgstr ""
+"У гильдии %(id)s/%(name)s есть пользовательский префикс команд: %(prefix)s"
+
+#: musicbot/constructs.py:276
+msgid ""
+"Cannot save data for guild with ID 0. This is likely a bug in the code!"
+msgstr ""
+"Невозможно сохранить данные для гильдии с ID 0. Возможно, это ошибка в коде!"
+
+#: musicbot/constructs.py:300
+msgid "Could not save guild specific data due to OS Error."
+msgstr "Не удалось сохранить данные конкретной гильдии из-за ошибки ОС."
+
+#: musicbot/constructs.py:303
+msgid "Failed to serialize guild specific data due to invalid data."
+msgstr ""
+"Не удалось сериализовать данные для конкретной гильдии из-за некорректных "
+"данных."
+
+#: musicbot/downloader.py:94
+#, python-format
+msgid "Forcing YTDLP to use User Agent:  %s"
+msgstr "Принудительное YTDLP использовать User Agent:  %s"
+
+#: musicbot/downloader.py:105
+#, python-format
+msgid "MusicBot will use cookies for yt-dlp from:  %s"
+msgstr "Музыкабот будет использовать cookies для yt-dlp от:  %s"
+
+#: musicbot/downloader.py:111
+msgid "Yt-dlp will use your configured proxy server."
+msgstr "Yt-dlp будет использовать настроенный прокси сервер."
+
+#: musicbot/downloader.py:134
+msgid ""
+"Original OAuth2 plugin is installed and will be used instead.\n"
+"This may cause MusicBot to not close completely, or hang pending authorization!\n"
+"To close MusicBot, you must manually Kill the MusicBot process!\n"
+"Yt-dlp is being set to show warnings and other log messages, to show the Auth code.\n"
+"Uninstall the yt-dlp-youtube-oauth2 package to use integrated OAuth2 features instead."
+msgstr ""
+"Оригинальный плагин OAuth2 установлен и будет использован вместо него.\n"
+"Это может привести к тому, что MusicBot не будет закрыт полностью!\n"
+"Чтобы закрыть MusicBot, вы должны вручную убить процесс MusicBot!\n"
+"Yt-dlp имеет значение для отображения предупреждений и других сообщений журнала, чтобы показать код аутентификации.\n"
+"Удалите пакет yt-dlp-youtube-oauth2 для использования интегрированных функций OAuth2."
+
+#: musicbot/downloader.py:232
+msgid "HEAD seems to have no headers..."
+msgstr "HEAD не имеет заголовков..."
+
+#: musicbot/downloader.py:243
+msgid "Checking media headers failed due to timeout."
+msgstr "Проверка заголовков медиа не выполнена из-за таймаута."
+
+#: musicbot/downloader.py:246
+#, python-format
+msgid "Failed HEAD request for:  %s"
+msgstr "Ошибка запроса HEAD для:  %s"
+
+#: musicbot/downloader.py:247
+msgid "HEAD Request exception: "
+msgstr "HEAD запрос исключения: "
+
+#: musicbot/downloader.py:315
+#, python-format
+msgid ""
+"Sanitized YTDL Extraction Info (not JSON):\n"
+"%s"
+msgstr ""
+"Санитированная информация о извлечении YTDL (не JSON):\n"
+"%s"
+
+#: musicbot/downloader.py:317
+#, python-format
+msgid "Sanitized YTDL Extraction Info (not JSON):  %s"
+msgstr "Ранизированная информация о извлечении YTDL (не JSON):  %s"
+
+#: musicbot/downloader.py:381
+msgid "Song info extraction returned no data."
+msgstr "Извлечение информации о треке не дало никаких данных."
+
+#: musicbot/downloader.py:437
+#, python-format
+msgid "Called extract_info with:  '%(subject)s', %(args)s, %(kws)s"
+msgstr "Вызвал extract_info с: '%(subject)s', %(args)s, %(kws)s"
+
+#: musicbot/downloader.py:445
+msgid "Cannot run extraction, loop is closed. (This is normal on shutdowns.)"
+msgstr ""
+"Невозможно запустить распаковку, цикл закрыт. (нормальный при выключении)"
+
+#: musicbot/downloader.py:447
+msgid "Cannot continue extraction, event loop is closed."
+msgstr "Невозможно продолжить извлечение. Цикл события закрыт."
+
+#: musicbot/downloader.py:456
+msgid "Spotify URL is invalid or not supported."
+msgstr "URL-адрес Spotify недействителен или не поддерживается."
+
+#: musicbot/downloader.py:489 musicbot/downloader.py:510
+#, python-format
+msgid "Error in yt-dlp while downloading data: %(raw_error)s"
+msgstr "Ошибка yt-dlp при загрузке данных: %(raw_error)s"
+
+#: musicbot/downloader.py:493
+msgid "Download Error with stream URL"
+msgstr "Ошибка загрузки с URL потока"
+
+#: musicbot/downloader.py:498
+msgid "Assuming content is a direct stream"
+msgstr "Предположим, что содержимое является прямым потоком"
+
+#: musicbot/downloader.py:506
+msgid "Cannot stream an invalid URL."
+msgstr "Невозможно провести некорректный URL-адрес."
+
+#: musicbot/downloader.py:517
+msgid ""
+"Caught NoSupportingHandlers, trying again after replacing colon with space."
+msgstr ""
+"Найдено NoSupportingHandlers, попробуйте снова после замены двоеточия на "
+"пространство."
+
+#: musicbot/downloader.py:544
+msgid ""
+"Extractor youtube:search returned single-entry result, replacing base info "
+"with entry info."
+msgstr ""
+"Extractor youtube:search returned single-entry result replacing base info "
+"with entry info."
+
+#: musicbot/downloader.py:560
+#, python-format
+msgid "Called safe_extract_info with:  %(args)s, %(kws)s"
+msgstr "Вызвал safe_extract_info с:  %(args)s, %(kws)s"
+
+#: musicbot/downloader.py:580
+msgid "The local media file could not be found."
+msgstr "Локальный медиа-файл не найден."
+
+#: musicbot/downloader.py:618
+msgid "Missing __input_subject from YtdlpResponseDict"
+msgstr "Отсутствует __input_subject из YtdlpResponseDict"
+
+#: musicbot/downloader.py:623
+msgid ""
+"Entries is not a list in YtdlpResponseDict, set process=True to avoid this."
+msgstr ""
+"Записи не являются списком в YtdlpResponseDict, задайте process=True, чтобы "
+"избежать этого."
+
+#: musicbot/downloader.py:852
+#, python-format
+msgid "Warning, duration error for: %(url)s"
+msgstr "Внимание, ошибка продолжительности для: %(url)s"
+
+#: musicbot/entry.py:46
+msgid "module 'pymediainfo' not found, will fall back to ffprobe."
+msgstr "модуль 'pymediainfo' не найден, вернется в ffprobe."
+
+#: musicbot/entry.py:159
+#, python-format
+msgid "Created future for %r"
+msgstr "Создано будущее для %r"
+
+#: musicbot/entry.py:171
+#, python-format
+msgid "Completed futures for %(entry)r with %(callback)r"
+msgstr "Завершенные фьючерсы для %(entry)r с %(callback)r"
+
+#: musicbot/entry.py:181
+msgid "Unhandled exception in _for_each_future callback."
+msgstr "Необработанное исключение в _for_each_future callback."
+
+#: musicbot/entry.py:223
+#, python-format
+msgid "Starting asyncio subprocess (%(process)s) with command: %(run)s"
+msgstr "Запуск подпроцесса асиньо (%(process)s) с командой: %(run)s"
+
+#: musicbot/entry.py:258
+#, python-format
+msgid ""
+"Extraction did not provide a duration for this entry.\n"
+"MusicBot cannot estimate queue times until it is downloaded.\n"
+"Entry name:  %s"
+msgstr ""
+
+#: musicbot/entry.py:364 musicbot/entry.py:874 musicbot/entry.py:1084
+msgid "Entry data is missing version number, cannot deserialize."
+msgstr "Отсутствует номер версии входных данных, невозможно десериализовать."
+
+#: musicbot/entry.py:367 musicbot/entry.py:877 musicbot/entry.py:1087
+msgid "Entry data has the wrong version number, cannot deserialize."
+msgstr ""
+"Данные записи имеют неверный номер версии, невозможно десериализовать."
+
+#: musicbot/entry.py:383
+#, python-format
+msgid "Deserialized URLPlaylistEntry cannot find channel with ID:  %s"
+msgstr "Десериализованный URLPlaylistEntry не может найти канал с ID:  %s"
+
+#: musicbot/entry.py:399
+#, python-format
+msgid "Deserialized URLPlaylistEntry has the wrong channel type:  %s"
+msgstr "Десериализованный URLPlaylistEntry имеет неверный тип канала:  %s"
+
+#: musicbot/entry.py:421
+#, python-format
+msgid "Deserialized URLPlaylistEntry cannot find author with ID:  %s"
+msgstr "Десериализованный URLPlaylistEntry не может найти автора с ID:  %s"
+
+#: musicbot/entry.py:427
+msgid ""
+"Deserialized URLPlaylistEntry has an author ID but no channel for lookup!"
+msgstr ""
+"Десериализованный URLPlaylistEntry имеет ID автора, но нет канала для "
+"поиска!"
+
+#: musicbot/entry.py:437 musicbot/entry.py:943 musicbot/entry.py:1157
+#, python-format
+msgid "Could not load %s"
+msgstr "Не удалось загрузить %s"
+
+#: musicbot/entry.py:474
+#, python-format
+msgid "Cannot download Spotify links, processing error with type: %(type)s"
+msgstr "Не удается загрузить ссылки Spotify, ошибка обработки типа %(type)s"
+
+#: musicbot/entry.py:486 musicbot/entry.py:948 musicbot/entry.py:1190
+#, python-format
+msgid "Getting ready for entry:  %r"
+msgstr "Готово к записи:  %r"
+
+#: musicbot/entry.py:503
+msgid "Download cached with different extension..."
+msgstr "Скачать кэш с различным расширением..."
+
+#: musicbot/entry.py:512
+msgid "Local size different from remote size. Re-downloading..."
+msgstr ""
+"Локальный размер отличается от удаленного размера. Повторите загрузку..."
+
+#: musicbot/entry.py:516
+#, python-format
+msgid "Download already cached at:  %s"
+msgstr "Скачивание уже кэшировано:  %s"
+
+#: musicbot/entry.py:536 musicbot/entry.py:1206
+#, python-format
+msgid ""
+"MusicBot could not get duration data for this entry.\n"
+"Queue time estimation may be unavailable until this track is cleared.\n"
+"Entry file: %s"
+msgstr ""
+"MusicBot не может получить данные о продолжительности для этой записи.\n"
+"Оценка времени может быть недоступна до тех пор, пока трек не будет очищен.\n"
+"Файл записи: %s"
+
+#: musicbot/entry.py:543
+#, python-format
+msgid "Got duration of %(time)s seconds for file:  %(file)s"
+msgstr "Получена длительность %(time)s секунд для файла:  %(file)s"
+
+#: musicbot/entry.py:554 musicbot/entry.py:1224
+msgid ""
+"There as a problem with working out EQ, likely caused by a strange "
+"installation of FFmpeg. This has not impacted the ability for the bot to "
+"work, but will mean your tracks will not be equalized."
+msgstr ""
+"Возникла проблема с разработкой EQ, вероятно, вызвана странной установкой "
+"FFmpeg. Это не повлияло на способность бота работать, но означает, что ваши "
+"треки не будут выравниваться."
+
+#: musicbot/entry.py:566 musicbot/entry.py:1237
+msgid "Exception while checking entry data."
+msgstr "Исключение при проверке входных данных."
+
+#: musicbot/entry.py:577 musicbot/entry.py:1248
+#, python-format
+msgid "Trying to get duration via pymediainfo for:  %s"
+msgstr "Попытка получить длительность через pymediainfo для:  %s"
+
+#: musicbot/entry.py:583 musicbot/entry.py:1254
+msgid "Failed to get duration via pymediainfo."
+msgstr "Не удалось получить длительность через pymediainfo."
+
+#: musicbot/entry.py:590 musicbot/entry.py:1261
+#, python-format
+msgid "Trying to get duration via ffprobe for:  %s"
+msgstr "Пытаемся получить длительность через ffprobe для:  %s"
+
+#: musicbot/entry.py:593 musicbot/entry.py:1264
+msgid "Could not locate ffprobe in your path!"
+msgstr "Не удалось найти ffprobe в вашем пути!"
+
+#: musicbot/entry.py:614 musicbot/entry.py:1285
+msgid "ffprobe returned something that could not be used."
+msgstr "ffprobe возвращает то, что не может быть использован."
+
+#: musicbot/entry.py:617 musicbot/entry.py:1288
+msgid "ffprobe could not be executed for some reason."
+msgstr "ffprobe не может быть выполнен по той или иной причине."
+
+#: musicbot/entry.py:627 musicbot/entry.py:1298
+#, python-format
+msgid "Calculating mean volume of:  %s"
+msgstr "Расчет среднего объёма:  %s"
+
+#: musicbot/entry.py:630 musicbot/entry.py:1301
+msgid "Could not locate ffmpeg on your path!"
+msgstr "Не удалось найти ffmpeg на вашем пути!"
+
+#: musicbot/entry.py:656 musicbot/entry.py:1327
+msgid "Could not parse 'I' in normalize json."
+msgstr "Не удалось разобрать «I» в нормализации json."
+
+#: musicbot/entry.py:664 musicbot/entry.py:1335
+msgid "Could not parse 'LRA' in normalize json."
+msgstr "Не удалось разобрать 'LRA' в нормализации json."
+
+#: musicbot/entry.py:672 musicbot/entry.py:1343
+msgid "Could not parse 'TP' in normalize json."
+msgstr "Не удалось разобрать 'TP' в нормализации json."
+
+#: musicbot/entry.py:680 musicbot/entry.py:1351
+msgid "Could not parse 'thresh' in normalize json."
+msgstr "Не удалось разобрать 'thresh' в нормализации json."
+
+#: musicbot/entry.py:688 musicbot/entry.py:1359
+msgid "Could not parse 'offset' in normalize json."
+msgstr "Не удалось разобрать 'offset' в нормализации json."
+
+#: musicbot/entry.py:705
+#, python-format
+msgid "Download started:  %r"
+msgstr "Загрузка начата:  %r"
+
+#: musicbot/entry.py:710
+#, python-format
+msgid "Download attempt %s of 3..."
+msgstr "Попытка загрузить %s из 3..."
+
+#: musicbot/entry.py:722
+#, python-format
+msgid ""
+"Download incomplete, retrying in %(time).1f seconds.  Reason: %(raw_error)s"
+msgstr ""
+"Загрузка не завершена, повторная попытка через %(time).1f секунд. Причина: "
+"%(raw_error)s"
+
+#: musicbot/entry.py:730
+#, python-format
+msgid "Download failed, not retrying! Reason:  %(raw_error)s"
+msgstr "Ошибка загрузки, не повтора! Причина:  %(raw_error)s"
+
+#: musicbot/entry.py:735
+#, python-format
+msgid "Download did not complete due to an error: %(raw_error)s"
+msgstr "Загрузка не завершена из-за ошибки: %(raw_error)s"
+
+#: musicbot/entry.py:741
+#, python-format
+msgid "Download failed due to a yt-dlp error: %(raw_error)s"
+msgstr "Загрузка не удалась из-за ошибки yt-dlp: %(raw_error)s"
+
+#: musicbot/entry.py:747
+msgid "Extraction encountered an unhandled exception."
+msgstr "В извлечении обнаружено необработанное исключение."
+
+#: musicbot/entry.py:751
+#, python-format
+msgid "Download failed due to an unhandled exception: %(raw_error)s"
+msgstr "Загрузка не удалась из-за необработанного исключения: %(raw_error)s"
+
+#: musicbot/entry.py:756
+#, python-format
+msgid "Download failed:  %r"
+msgstr "Ошибка загрузки:  %r"
+
+#: musicbot/entry.py:757
+msgid "Failed to extract data for the requested media."
+msgstr "Не удалось извлечь данные для запрошенного носителя."
+
+#: musicbot/entry.py:759
+#, python-format
+msgid "Download complete:  %r"
+msgstr "Загрузка завершена:  %r"
+
+#: musicbot/entry.py:890
+#, python-format
+msgid "Deserialized StreamPlaylistEntry cannot find channel with ID:  %s"
+msgstr "Десериализованный StreamPlaylistEntry не может найти канал с ID:  %s"
+
+#: musicbot/entry.py:906
+#, python-format
+msgid "Deserialized StreamPlaylistEntry has the wrong channel type:  %s"
+msgstr "Десериализованный StreamPlaylistEntry имеет неверный тип канала:  %s"
+
+#: musicbot/entry.py:928
+#, python-format
+msgid "Deserialized StreamPlaylistEntry cannot find author with ID:  %s"
+msgstr "Десериализованный StreamPlaylistEntry не может найти автора с ID:  %s"
+
+#: musicbot/entry.py:934
+msgid ""
+"Deserialized StreamPlaylistEntry has an author ID but no channel for lookup!"
+msgstr ""
+"Десериализованный StreamPlaylistEntry имеет ID автора, но нет канала для "
+"поиска!"
+
+#: musicbot/entry.py:1103
+#, python-format
+msgid "Deserialized LocalFilePlaylistEntry cannot find channel with ID:  %s"
+msgstr ""
+"Десериализованный LocalFilePlaylistEntry не может найти канал с ID:  %s"
+
+#: musicbot/entry.py:1119
+#, python-format
+msgid "Deserialized LocalFilePlaylistEntry has the wrong channel type:  %s"
+msgstr ""
+"Десериализованный LocalFilePlaylistEntry имеет неверный тип канала:  %s"
+
+#: musicbot/entry.py:1141
+#, python-format
+msgid "Deserialized LocalFilePlaylistEntry cannot find author with ID:  %s"
+msgstr ""
+"Десериализованный LocalFilePlaylistEntry не может найти автора с ID:  %s"
+
+#: musicbot/entry.py:1147
+msgid ""
+"Deserialized LocalFilePlaylistEntry has an author ID but no channel for "
+"lookup!"
+msgstr ""
+"Десериализованный LocalFilePlaylistEntry имеет идентификатор автора, но нет "
+"канала для поиска!"
+
+#: musicbot/entry.py:1213
+#, python-format
+msgid "Got duration of %(seconds)s seconds for file:  %(file)s"
+msgstr "Получена длительность %(seconds)s секунд для файла:  %(file)s"
+
+#: musicbot/filecache.py:120
+#, python-format
+msgid "Failed to delete cache file:  %s"
+msgstr "Не удалось удалить файл кэша:  %s"
+
+#: musicbot/filecache.py:131
+msgid "Audio cache directory has been removed."
+msgstr "Директория кэша аудио удалена."
+
+#: musicbot/filecache.py:138
+msgid "Audio cache directory could not be removed or renamed."
+msgstr "Каталог кэша аудио не может быть удален или переименован."
+
+#: musicbot/filecache.py:145
+msgid "Audio cache directory could not be removed."
+msgstr "Не удалось удалить директорию кэша звука."
+
+#: musicbot/filecache.py:154
+msgid "Audio cache has no limits set, nothing to delete."
+msgstr "Кэш аудио не имеет ограничений для удаления."
+
+#: musicbot/filecache.py:217
+#, python-format
+msgid "Audio cache deleted %(number)s file(s), total of %(size)s removed."
+msgstr "Кэш аудио удалён %(number)s файл(ы), всего %(size)s удален."
+
+#: musicbot/filecache.py:225
+#, python-format
+msgid ""
+"Audio cached retained %(number)s file(s) from autoplaylist, total of "
+"%(size)s retained."
+msgstr ""
+"Аудио кэш сохранён %(number)s файл(ы) из автомата, в общей сложности "
+"%(size)s сохранен."
+
+#: musicbot/filecache.py:234
+#, python-format
+msgid "Audio cache is now %(size)s over %(number)s file(s)."
+msgstr "Кэш аудио теперь %(size)s над файлом(ями) %(number)s."
+
+#: musicbot/filecache.py:250
+msgid "Audio cache directory is missing, nothing to delete."
+msgstr "Директория кэша аудио отсутствует, нечего удалять."
+
+#: musicbot/filecache.py:269
+msgid ""
+"Audio cache file is from autoplaylist but marked as busted, ignoring it."
+msgstr "Файл кэша звука из автомата, но помечен как занятый, игнорируя его."
+
+#: musicbot/filecache.py:280
+#, python-format
+msgid "Cache level requires cleanup. %s"
+msgstr "Уровень кэша требует очистки. %s"
+
+#: musicbot/filecache.py:304
+msgid "Auto playlist has no cache map, moving on."
+msgstr "Автоматический плейлист не имеет карты кэша, перемещаясь вперёд."
+
+#: musicbot/filecache.py:312
+#, python-format
+msgid "Loaded auto playlist cache map with %s entries."
+msgstr "Карта кэша автоматически загружена с записями %s."
+
+#: musicbot/filecache.py:316
+msgid "Failed to load auto playlist cache map."
+msgstr "Не удалось загрузить карту кэша плейлиста."
+
+#: musicbot/filecache.py:341
+#, python-format
+msgid "Saved auto playlist cache map with %s entries."
+msgstr "Кэш автоматического списка воспроизведения сохранен с записями %s."
+
+#: musicbot/filecache.py:345
+msgid "Failed to save auto playlist cache map."
+msgstr "Не удалось сохранить карту кэша плейлиста."
+
+#: musicbot/filecache.py:363
+#, python-format
+msgid ""
+"Auto playlist cache map conflict on Key: %(file)s  Old: %(old)s  New: "
+"%(new)s"
+msgstr ""
+"Автоматический конфликт кэша карты плейлиста с ключом: %(file)s  Старые: "
+"%(old)s  Новый: %(new)s"
+
+#: musicbot/i18n.py:229
+#, python-format
+msgid "Lang Argument Error:  %s"
+msgstr "Ошибка аргумента языка:  %s"
+
+#: musicbot/i18n.py:290
+#, python-format
+msgid "Failed to load log translations for any of:  [%s]  in:  %s"
+msgstr ""
+
+#: musicbot/i18n.py:338
+#, python-format
+msgid ""
+"Failed to load discord translations for any of:  [%s]  guild:  %s  in:  %s"
+msgstr ""
+"Не удалось загрузить discord перевод для любой из:  [%s]  гильдии:  %s  in:"
+"  %s"
+
+#: musicbot/json.py:14
+#, python-format
+msgid "Loading JSON file: %s"
+msgstr "Загрузка JSON-файла: %s"
+
+#: musicbot/json.py:27
+#, python-format
+msgid "Error parsing %s as JSON"
+msgstr "Ошибка разбора %s как JSON"
+
+#: musicbot/json.py:36
+#, python-format
+msgid "Could not grab data from JSON key: %s"
+msgstr "Не удалось получить данные из ключа JSON: %s"
+
+#: musicbot/logs.py:131
+msgid "Skipping logger setup, already set up"
+msgstr "Пропуск настроек логгера, уже настроен"
+
+#: musicbot/logs.py:283
+#, python-format
+msgid "Log level was previously set via override to: %s"
+msgstr "Уровень журнала ранее был установлен переопределение: %s"
+
+#: musicbot/logs.py:292
+#, python-format
+msgid "Changing log level to:  %s"
+msgstr "Изменение уровня журнала на:  %s"
+
+#: musicbot/logs.py:321
+msgid "MusicBot loggers have been called to shut down."
+msgstr "Логгеры MusicBot были вызваны для отключения."
+
+#: musicbot/permissions.py:120
+#, python-format
+msgid "Permissions file not found, copying from:  %s"
+msgstr "Файл разрешений не найден, копирование из:  %s"
+
+#: musicbot/permissions.py:129
+#, python-format
+msgid "Error copying example permissions file:  %s"
+msgstr "Ошибка копирования образца файла разрешений:  %s"
+
+#: musicbot/permissions.py:195
+msgid "Config 'OwnerID' is set auto, will set correctly later."
+msgstr ""
+"Конфигурация 'OwnerID' установлена автоматически, правильно настроена позже."
+
+#: musicbot/permissions.py:212
+msgid "Validating permissions..."
+msgstr "Проверка прав доступа..."
+
+#: musicbot/permissions.py:214
+msgid "Setting auto 'OwnerID' for owner permissions group."
+msgstr "Установка автоматического 'ID владельца' для группы прав владельца."
+
+#: musicbot/permissions.py:274
+#, python-format
+msgid "Updating group in permissions file:  %s"
+msgstr "Обновление группы в файле разрешений:  %s"
+
+#: musicbot/permissions.py:280
+#, python-format
+msgid "Deleting group from permissions file:  %s"
+msgstr "Удаление группы из файла разрешений:  %s"
+
+#: musicbot/permissions.py:285
+#, python-format
+msgid "Adding new group to permissions file:  %s"
+msgstr "Добавление новой группы в файл разрешений:  %s"
+
+#: musicbot/permissions.py:300
+msgid "Saving permissions file now."
+msgstr "Сохранение файла разрешений сейчас."
+
+#: musicbot/permissions.py:306
+msgid "ConfigUpdater could not parse the permissions file!"
+msgstr "ConfigUpdater не смог разобрать файл разрешений!"
+
+#: musicbot/permissions.py:308
+msgid "You have a duplicate section, fix your Permissions file!"
+msgstr "У вас есть дублирующий раздел, исправьте ваш файл прав!"
+
+#: musicbot/permissions.py:310
+#, python-format
+msgid "Failed to save permissions group:  %s"
+msgstr "Не удалось сохранить группу прав:  %s"
+
+#: musicbot/permissions.py:325
+msgid "Dev Bug! Permission has getter that is not available."
+msgstr "Dev Bug! Разрешение получилось, что недоступно."
+
+#: musicbot/permissions.py:330
+msgid ""
+"Dev Bug! Permission has invalid type, getter and default must be the same "
+"type."
+msgstr ""
+"Dev Bug! Разрешение имеет недопустимый тип, getter и по умолчанию должны "
+"быть одинаковыми."
+
+#: musicbot/permissions.py:574
+msgid "Max search items can't be larger than 100. Setting to 100."
+msgstr ""
+"Максимальное количество элементов для поиска не может быть больше 100. "
+"Параметр 100."
+
+#: musicbot/permissions.py:657
+#, python-format
+msgid ""
+"You do not have permission to play the requested media.\n"
+"The yt-dlp extractor `%(extractor)s` is not permitted in your group."
+msgstr ""
+
+#: musicbot/player.py:86
+#, python-format
+msgid "Cleanup got called on the audio source:  %r"
+msgstr "Очистка вызвана на источнике звука:  %r"
+
+#: musicbot/player.py:191
+#, python-format
+msgid "MusicPlayer.skip() is called:  %s"
+msgstr "MusicPlayer.skip() вызывается:  %s"
+
+#: musicbot/player.py:201
+#, python-format
+msgid "MusicPlayer.stop() is called:  %s"
+msgstr "MusicPlayer.stop() вызывается:  %s"
+
+#: musicbot/player.py:216
+msgid "Guild or network unavailable, cannot resume playback."
+msgstr "Гильдия или сеть недоступны, невозможно возобновить воспроизведение."
+
+#: musicbot/player.py:220
+#, python-format
+msgid "MusicPlayer.resume() is called:  %s"
+msgstr "MusicPlayer.resume() вызывается:  %s"
+
+#: musicbot/player.py:240
+#, python-format
+msgid "MusicPlayer.pause() is called:  %s"
+msgstr "MusicPlayer.pause() вызывается:  %s"
+
+#: musicbot/player.py:262
+#, python-format
+msgid "MusicPlayer.kill() is called:  %s"
+msgstr "MusicPlayer.kill() вызывается:  %s"
+
+#: musicbot/player.py:288
+msgid "Playback finished, but _current_entry is None."
+msgstr "Воспроизведение завершено, но _current_entry пуст."
+
+#: musicbot/player.py:343
+msgid "Possible Warning from kill_current_player()"
+msgstr "Возможно предупреждение об убийстве_current_player()"
+
+#: musicbot/player.py:362
+#, python-format
+msgid "MusicPlayer.play() is called:  %s"
+msgstr "MusicPlayer.play() вызывается:  %s"
+
+#: musicbot/player.py:372
+msgid "MusicPlayer is dead, cannot play."
+msgstr "Музыкальный плеер мертв, воспроизведение невозможно."
+
+#: musicbot/player.py:377
+msgid "Guild or network unavailable, cannot start playback."
+msgstr "Гильдия или сеть недоступна, невозможно начать воспроизведение."
+
+#: musicbot/player.py:382
+msgid "MusicPlayer was previously paused, resuming current player."
+msgstr "Музыкальный плеер был ранее приостановлен, возобновить текущий плеер."
+
+#: musicbot/player.py:388
+msgid "MusicPlayer already locked for playback, this call is ignored."
+msgstr ""
+"Музыкальный плеер уже заблокирован для воспроизведения, этот вызов "
+"игнорируется."
+
+#: musicbot/player.py:399
+msgid "Failed to get next entry."
+msgstr "Не удалось получить следующую запись."
+
+#: musicbot/player.py:403
+msgid "Failed to process entry for playback."
+msgstr "Не удалось обработать запись для проигрывания."
+
+#: musicbot/player.py:485
+#, python-format
+msgid "Creating player with options: ffmpeg %(before)s -i %(input)s %(after)s"
+msgstr "Создание игрока с опциями: ffmpeg %(before)s -i %(input)s %(after)s"
+
+#: musicbot/player.py:489
+#, python-format
+msgid "Playing %(source)r using %(client)r"
+msgstr "Играет в %(source)используя %(client)r"
+
+#: musicbot/player.py:520
+#, python-format
+msgid "Skipping deletion of '%s', found song in queue"
+msgstr "Пропуск удаления '%s', найдено песню в очереди"
+
+#: musicbot/player.py:524
+#, python-format
+msgid "Deleting file:  %s"
+msgstr "Удаление файла:  %s"
+
+#: musicbot/player.py:529
+#, python-format
+msgid "File deleted:  %s"
+msgstr "Файл удален:  %s"
+
+#: musicbot/player.py:533
+msgid "Cannot delete file, it is currently in use."
+msgstr "Не удается удалить файл, он в настоящее время используется."
+
+#: musicbot/player.py:536
+msgid "Cannot delete file due to a permission error."
+msgstr "Невозможно удалить файл из-за ошибки прав доступа."
+
+#: musicbot/player.py:541
+msgid "Cannot delete file, it was not found."
+msgstr "Невозможно удалить файл, он не найден."
+
+#: musicbot/player.py:547
+msgid "Error while trying to delete file."
+msgstr "Ошибка при попытке удалить файл."
+
+#: musicbot/player.py:552
+msgid "Could not delete file, giving up and moving on"
+msgstr "Не удалось удалить файл, отправка и перемещение"
+
+#: musicbot/player.py:618
+#, python-format
+msgid "Deserialize returned an object that is not a MusicPlayer:  %s"
+msgstr "Десериализация вернула объект, который не является MusicPlayer:  %s"
+
+#: musicbot/player.py:623
+msgid "Failed to deserialize player"
+msgstr "Не удалось десериализовать игрока"
+
+#: musicbot/player.py:685
+#, python-format
+msgid "Data from ffmpeg: %s"
+msgstr "Данные из ffmpeg: %s"
+
+#: musicbot/player.py:695
+#, python-format
+msgid "Error from ffmpeg: %s"
+msgstr "Ошибка из ffmpeg: %s"
+
+#: musicbot/player.py:703
+#, python-format
+msgid "Warning from ffmpeg:  %s"
+msgstr "Предупреждение от ffmpeg:  %s"
+
+#: musicbot/player.py:732
+msgid "Unknown error decoding message from ffmpeg"
+msgstr "Неизвестная ошибка декодирования сообщения от ffmpeg"
+
+#: musicbot/player.py:736
+#, python-format
+msgid "Decoded data from ffmpeg: %s"
+msgstr "Декодированные данные из ffmpeg: %s"
+
+#: musicbot/playlist.py:121
+#, python-format
+msgid "Adding stream entry for URL:  %(url)s"
+msgstr "Добавление записи потока для URL:  %(url)s"
+
+#: musicbot/playlist.py:159
+msgid "Could not extract information"
+msgstr "Не удалось извлечь информацию"
+
+#: musicbot/playlist.py:163
+msgid "This is a playlist."
+msgstr "Это плейлист."
+
+#: musicbot/playlist.py:177
+msgid "Entry info appears to be a stream, adding stream entry..."
+msgstr "Информация о записи похожа на поток, добавление записи на поток..."
+
+#: musicbot/playlist.py:195
+#, python-format
+msgid "Invalid content type `%(type)s` for URL: %(url)s"
+msgstr "Недопустимый тип содержимого `%(type)s` для URL: %(url)s"
+
+#: musicbot/playlist.py:203
+msgid "Got text/html for content-type, this might be a stream."
+msgstr "Получен текстовый/html для типа содержимого, это может быть поток."
+
+#: musicbot/playlist.py:210
+#, python-format
+msgid "Questionable content-type \"%(type)s\" for url:  %(url)s"
+msgstr "Сомнительный тип содержимого \"%(type)s\" для url:  %(url)s"
+
+#: musicbot/playlist.py:215
+#, python-format
+msgid "Adding URLPlaylistEntry for: %(subject)s"
+msgstr "Добавление URLPlaylistList для: %(subject)s"
+
+#: musicbot/playlist.py:235
+#, python-format
+msgid "Adding LocalFilePlaylistEntry for: %(subject)s"
+msgstr "Добавление LocalFilePlaylistEntry для: %(subject)s"
+
+#: musicbot/playlist.py:280
+#, python-format
+msgid "Ignored video from compound playlist link with ID:  %s"
+msgstr "Игнорировать видео из составного плейлиста с ID:  %s"
+
+#: musicbot/playlist.py:292
+#, python-format
+msgid ""
+"Not allowing entry that is in song block list:  %(title)s  URL: %(url)s"
+msgstr "Не разрешается запись в списке блоков песни:  %(title)s  URL: %(url)s"
+
+#: musicbot/playlist.py:305
+#, python-format
+msgid ""
+"Ignoring song in entries by '%s', duration longer than permitted maximum."
+msgstr "Игнорирование песни в записях '%s', длиннее допустимого максимума."
+
+#: musicbot/playlist.py:317
+#, python-format
+msgid "Not adding YouTube video because it is marked private or deleted:  %s"
+msgstr ""
+"Видео YouTube не добавлено, потому что оно помечено как приватное или "
+"удалено:  %s"
+
+#: musicbot/playlist.py:342
+msgid "Could not add item"
+msgstr "Не удалось добавить элемент"
+
+#: musicbot/playlist.py:343
+#, python-format
+msgid "Item: %s"
+msgstr "Предмет: %s"
+
+#: musicbot/playlist.py:346
+#, python-format
+msgid "Skipped %s bad entries"
+msgstr "Пропущенные %s плохие записи"
+
+#: musicbot/playlist.py:387
+msgid "Reorder looping over entries."
+msgstr "Переупорядочить циклы поверх записей."
+
+#: musicbot/playlist.py:469
+#, python-format
+msgid "Pre-downloading next track:  %r"
+msgstr "Предзагрузка следующего трека:  %r"
+
+#: musicbot/playlist.py:495
+msgid "no duration data"
+msgstr "нет длительности данных"
+
+#: musicbot/playlist.py:504
+msgid "no duration data in current entry"
+msgstr "нет данных о продолжительности в текущей записи"
+
+#: musicbot/spotify.py:119
+#, python-format
+msgid "Invalid track_data, must be of type `track` got `%(type)s`"
+msgstr "Недопустимые track_data, должны быть типа `track` получен `%(type)s`"
+
+#: musicbot/spotify.py:301
+#, python-format
+msgid "Ignored non-track entry in playlist with type:  %s"
+msgstr "Игнорируется запись нетрека в плейлисте с типом  %s"
+
+#: musicbot/spotify.py:487
+#, python-format
+msgid "Spotify Album total tacks:  %(total)s  Next URL: %(url)s"
+msgstr ""
+
+#: musicbot/spotify.py:492
+#, python-format
+msgid "Getting Spotify Album Next URL:  %s"
+msgstr "Получение URL-адреса альбома Spotify:  %s"
+
+#: musicbot/spotify.py:503
+#, python-format
+msgid ""
+"Spotify Album Object may not be complete, expected %(total)s tracks but got "
+"%(number)s"
+msgstr ""
+"Альбом Spotify может не быть завершён, ожидается %(total)s треков, но "
+"получено %(number)s"
+
+#: musicbot/spotify.py:507
+msgid "Spotify Album has more tracks than initial total."
+msgstr "Альбом Spotify содержит больше треков, чем начальная сумма."
+
+#: musicbot/spotify.py:530
+#, python-format
+msgid "Spotify Playlist total tacks: %(total)s  Next URL: %(url)s"
+msgstr ""
+
+#: musicbot/spotify.py:535
+#, python-format
+msgid "Getting Spotify Playlist Next URL:  %s"
+msgstr "Получение плейлиста Spotify:  %s"
+
+#: musicbot/spotify.py:546
+#, python-format
+msgid ""
+"Spotify Playlist Object may not be complete, expected %(total)s tracks but "
+"got %(number)s"
+msgstr ""
+"Spotify Playlist Object не может быть завершен, ожидается %(total)s треков, "
+"но получено %(number)s"
+
+#: musicbot/spotify.py:550
+msgid "Spotify Playlist has more tracks than initial total."
+msgstr "Плейлист Spotify больше треков, чем начальный итог."
+
+#: musicbot/spotify.py:555
+#, python-format
+msgid "Spotify Playlist contained %s usable tracks."
+msgstr "Spotify Playlist содержит %s дорожки, пригодные для использования."
+
+#: musicbot/spotify.py:581 musicbot/spotify.py:617
+#, python-format
+msgid "Response status is not OK: [%(status)s] %(reason)s"
+msgstr "Нет статуса ответа: [%(status)s] %(reason)s"
+
+#: musicbot/spotify.py:587 musicbot/spotify.py:623 musicbot/spotify.py:733
+msgid "Response JSON did not decode to a dict!"
+msgstr "Ответ JSON не декодировал немного!"
+
+#: musicbot/spotify.py:596
+#, python-format
+msgid "Failed making GET request to url:  %s"
+msgstr "Не удалось сделать запрос GET url:  %s"
+
+#: musicbot/spotify.py:602
+#, python-format
+msgid "Could not make GET to URL:  %(url)s  Reason:  %(raw_error)s"
+msgstr "Не удалось сделать GET по URL:  %(url)s  Причина:  %(raw_error)s"
+
+#: musicbot/spotify.py:632
+#, python-format
+msgid "Failed making POST request to url:  %s"
+msgstr "Не удалось сделать запрос POST на url:  %s"
+
+#: musicbot/spotify.py:638
+#, python-format
+msgid "Could not make POST to URL:  %(url)s  Reason:  %(raw_error)s"
+msgstr "Не удалось сделать POST по URL:  %(url)s  Причина:  %(raw_error)s"
+
+#: musicbot/spotify.py:672
+msgid ""
+"Failed to get a guest token from Spotify, please try specifying client ID "
+"and client secret"
+msgstr ""
+"Не удалось получить токен гостя из Spotify, попробуйте указать ID клиента и "
+"секретный ключ клиента"
+
+#: musicbot/spotify.py:679
+msgid "Created a new Guest Mode access token."
+msgstr "Создан новый маркер доступа к гостевому режиму."
+
+#: musicbot/spotify.py:683
+#, python-format
+msgid ""
+"API response did not contain the expected data. Missing key: %(raw_error)s"
+msgstr ""
+"Ответ API не содержит ожидаемых данных. Отсутствует ключ: %(raw_error)s"
+
+#: musicbot/spotify.py:689
+#, python-format
+msgid ""
+"API response contained unexpected data.\n"
+"%(raw_error)s"
+msgstr ""
+"Ответ API содержит неожиданные данные.\n"
+"%(raw_error)s"
+
+#: musicbot/spotify.py:696
+msgid "Requested a token from Spotify, did not end up getting one"
+msgstr "Запрашиваемый токен из Spotify, не получается"
+
+#: musicbot/spotify.py:700
+msgid "Created a new Client Mode access token."
+msgstr "Создан новый маркер доступа к режиму клиента."
+
+#: musicbot/spotify.py:727
+#, python-format
+msgid "API response status is not OK: [%(status)s]  %(reason)s"
+msgstr "Неправильный статус ответа от API: [%(status)s]  %(reason)s"
+
+#: musicbot/spotify.py:743
+msgid "Failed to get Spotify Guest Token."
+msgstr "Не удалось получить гостевой токен Spotify."
+
+#: musicbot/spotify.py:750
+#, python-format
+msgid "Failed to get Guest Token due to: %(raw_error)s"
+msgstr "Не удалось получить Жетон гостя из-за этого: %(raw_error)s"
+
+#: musicbot/utils.py:174
+msgid "Only the owner can use this command."
+msgstr "Только владелец может использовать эту команду."
+
+#: musicbot/utils.py:194
+msgid "Only dev users can use this command."
+msgstr "Только пользователи dev могут использовать эту команду."
+
+#: musicbot/utils.py:280 musicbot/utils.py:322
+msgid "Cannot count members when voice_channel is None."
+msgstr "Нельзя посчитать участников, если голосовой канал пуст."
+
+#: musicbot/ytdlp_oauth2_plugin.py:85
+#, python-format
+msgid "Failed to save ytdlp oauth2 token data due to:  %s"
+msgstr "Не удалось сохранить данные токена ytdlp oauth2 из-за этого:  %s"
+
+#: musicbot/ytdlp_oauth2_plugin.py:92
+msgid "Loading YouTube TV OAuth2 token data."
+msgstr "Загрузка данных токена YouTube TV OAuth2."
+
+#: musicbot/ytdlp_oauth2_plugin.py:102
+#, python-format
+msgid "Failed to load ytdlp oauth2 token data due to:  %s"
+msgstr "Не удалось загрузить данные токена ytdlp oauth2 из-за этого:  %s"
+
+#: musicbot/ytdlp_oauth2_plugin.py:110
+msgid "Storing YouTube TV OAuth2 token data"
+msgstr "Хранение данных токена OAuth2 YouTube TV"
+
+#: musicbot/ytdlp_oauth2_plugin.py:140
+msgid "Invalid cached OAuth2 token data."
+msgstr "Недопустимые кэшированные данные токена OAuth2."
+
+#: musicbot/ytdlp_oauth2_plugin.py:155
+msgid "Access token expired, refreshing"
+msgstr "Маркер доступа истек, обновление"
+
+#: musicbot/ytdlp_oauth2_plugin.py:176
+msgid ""
+"YouTube cookies have been provided, but OAuth2 is being used. If you "
+"encounter problems, stop providing YouTube cookies to yt-dlp."
+msgstr ""
+"Предоставлены cookies YouTube, но используется OAuth2. Если вы сталкиваетесь"
+" с проблемами, перестаньте предоставлять YouTube cookies yt-dlp."
+
+#: musicbot/ytdlp_oauth2_plugin.py:194
+msgid "Refreshing YouTube TV oauth2 token..."
+msgstr "Обновление ТВ YouTube oauth2 токена..."
+
+#: musicbot/ytdlp_oauth2_plugin.py:212
+#, python-format
+msgid ""
+"Failed to refresh OAuth2 access token due to:  %s\n"
+"Restarting authorization flow..."
+msgstr ""
+"Не удалось обновить токен доступа OAuth2 из-за использования:  %s\n"
+"Перезапуск потока авторизации..."
+
+#: musicbot/ytdlp_oauth2_plugin.py:230
+msgid "Starting oauth2 flow..."
+msgstr "Запуск oauth2 потока..."
+
+#: musicbot/ytdlp_oauth2_plugin.py:249
+#, python-format
+msgid ""
+"\n"
+"NOTICE:\n"
+"To give yt-dlp access to your account, visit:\n"
+"  %s\n"
+"Then enter this authorization code:  %s\n"
+"You have %s seconds to complete authorization.\n"
+msgstr ""
+
+#: musicbot/ytdlp_oauth2_plugin.py:258
+msgid ""
+"The application may hang until authorization time out if closed at this "
+"point. This is normal."
+msgstr ""
+"Приложение может зависнуть до истечения времени авторизации, если оно "
+"закрыто. Это нормально."
+
+#: musicbot/ytdlp_oauth2_plugin.py:264
+msgid "Timed out while waiting for OAuth2 token."
+msgstr "Истекло время ожидания токена OAuth2."
+
+#: musicbot/ytdlp_oauth2_plugin.py:292
+msgid "The device code has expired, restarting authorization flow for yt-dlp."
+msgstr ""
+"Срок действия кода устройства истек, перезапустив поток авторизации для yt-"
+"dlp."
+
+#: musicbot/ytdlp_oauth2_plugin.py:298
+msgid "Yt-dlp OAuth2 authorization successful."
+msgstr "Yt-dlp OAuth2 авторизация успешна."
+
+#: musicbot/ytdlp_oauth2_plugin.py:328
+#, python-format
+msgid "Adding OAuth2 Plugin to Yt-dlp IE:  %s"
+msgstr "Добавление OAuth2 плагина к Yt-dlp IE:  %s"
+
+#: musicbot/ytdlp_oauth2_plugin.py:350
+#, python-format
+msgid "Default Yt-dlp Clients:  %s"
+msgstr "Клиенты Yt-dlp по умолчанию:  %s"
+
+#: run.py:105
+msgid "Could not find git executable."
+msgstr "Не удалось найти исполняемый файл git."
+
+#: run.py:154
+msgid "Attempting to upgrade with `git pull` on current path."
+msgstr "Попытка обновить с помощью `git pull` на текущем пути."
+
+#: run.py:161
+#, python-format
+msgid "Result of git pull:  %s"
+msgstr "Результат git pull:  %s"
+
+#: run.py:169
+msgid "Upgrade failed, you need to run `git pull` manually."
+msgstr "Обновление не удалось, вам нужно запустить `git pull` вручную."
+
+#: run.py:179
+msgid "Cannot execute pip."
+msgstr "Невозможно выполнить путь."
+
+#: run.py:186
+msgid "Error using -m method"
+msgstr "Ошибка при использовании метода -m"
+
+#: run.py:232
+msgid "PIP failed while calling sub-process."
+msgstr "Ошибка PIP при вызове подпроцесса."
+
+#: run.py:235
+msgid "PIP failed due to Permission Error."
+msgstr "PIP не удался из-за ошибки разрешения."
+
+#: run.py:239
+#, python-format
+msgid "PIP failed due to missing Python executable?  (%s)"
+msgstr "PIP не удалось из-за отсутствия исполняемого файла Python? (%s)"
+
+#: run.py:244
+msgid "PIP failed due to OSError."
+msgstr "PIP не удалось из-за ошибки OS."
+
+#: run.py:265
+msgid "Could not decode pip update report JSON."
+msgstr "Не удалось декодировать pip доклад обновления JSON."
+
+#: run.py:287
+msgid "Cannot locate or execute python -m pip"
+msgstr "Не удается найти или выполнить python -m pip"
+
+#: run.py:290
+#, python-format
+msgid "Attempting to upgrade with `%s` on current path..."
+msgstr "Попытка обновить с помощью `%s` на текущем пути..."
+
+#: run.py:308
+#, python-format
+msgid ""
+"Result of pip upgrade:\n"
+"%s"
+msgstr ""
+"Результат улучшения Pip:\n"
+"%s"
+
+#: run.py:313
+#, python-format
+msgid "Result exit code from pip upgrade: %s"
+msgstr "Результат выхода из обновления Pip: %s"
+
+#: run.py:328
+msgid "Upgrade failed to execute or we could not understand the output"
+msgstr "Обновление не удалось выполнить или мы не смогли понять вывод"
+
+#: run.py:331
+#, python-format
+msgid "You may need to run `%s` manually."
+msgstr "Возможно вам нужно запустить `%s` вручную."
+
+#: run.py:340
+msgid "Press enter to continue . . ."
+msgstr "Нажмите Enter, чтобы продолжить. . ."
+
+#: run.py:353
+msgid "Starting sanity checks"
+msgstr "Начало проверки санитарии"
+
+#: run.py:364
+msgid "Required checks passed."
+msgstr "Проведены необходимые проверки."
+
+#: run.py:377
+msgid "Skipped checking for updates."
+msgstr "Пропущена проверка обновлений."
+
+#: run.py:379
+msgid "Optional checks passed."
+msgstr "Необязательные проверки пройдены."
+
+#: run.py:387
+msgid "Checking for Python 3.8+"
+msgstr "Проверка Python 3.8+"
+
+#: run.py:391
+#, python-format
+msgid "Python 3.8+ is required. This version is %s"
+msgstr "Требуется Python 3.8+ версия %s"
+
+#: run.py:393
+msgid "Attempting to locate Python 3.8..."
+msgstr "Попытка найти Python 3.8..."
+
+#: run.py:401
+msgid "Could not locate py.exe"
+msgstr "Не удалось найти py.exe"
+
+#: run.py:412
+msgid "Could not execute `py.exe -3.8` "
+msgstr "Не удалось выполнить `py.exe -3.8` "
+
+#: run.py:416
+msgid "Python 3 found.  Launching bot..."
+msgstr "Найден Python 3. Запуск бота..."
+
+#: run.py:421
+msgid "Trying \"python3.8\""
+msgstr "Попытка \"python3.8\""
+
+#: run.py:424
+msgid "Could not locate python3.8 on path."
+msgstr "Не удалось найти python3.8 на пути."
+
+#: run.py:438
+#, python-format
+msgid ""
+"\n"
+"Python 3.8 found.  Re-launching bot using: %s run.py\n"
+msgstr ""
+
+#: run.py:443
+msgid ""
+"Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
+msgstr ""
+"Не удалось найти Python 3.8 или выше. Пожалуйста, запустите бота с помощью "
+"Python 3.8"
+
+#: run.py:476
+msgid "Ensuring we're in the right environment"
+msgstr "Обеспечение того, что мы находимся в правильной среде"
+
+#: run.py:499
+#, python-format
+msgid "Failed environment check, %s"
+msgstr "Ошибка проверки окружения, %s"
+
+#: run.py:540
+#, python-format
+msgid "Detected FFmpeg is installed at:  %s"
+msgstr "Обнаружен FFmpeg установлен в:  %s"
+
+#: run.py:542
+msgid "Adding local bins/ folder environment PATH for bundled ffmpeg..."
+msgstr "Добавление локальной среды bins/ папок PATH для комплекта ffmpeg..."
+
+#: run.py:551
+msgid ""
+"MusicBot could not locate FFmpeg binary in your environment.\n"
+"Please install FFmpeg so it is available in your environment PATH variable."
+msgstr ""
+
+#: run.py:556
+msgid ""
+"On Windows, you can add a pre-compiled EXE to the MusicBot `bin` folder,\n"
+"or you can install FFmpeg system-wide using WinGet or by running the install.bat file."
+msgstr ""
+"В Windows вы можете добавить предварительно скомпилированный EXE в папку MusicBot `bin`,\n"
+"или вы можете установить FFmpeg в системе с помощью WinGet или с помощью установки. в файл."
+
+#: run.py:561
+msgid ""
+"On MacOS, you may be able to install FFmpeg via homebrew.\n"
+"Otherwise, check the official FFmpeg site for build or install steps."
+msgstr ""
+
+#: run.py:566
+msgid ""
+"On Linux, many distros make FFmpeg available via system package managers.\n"
+"Check for ffmpeg with your system package manager or build from sources."
+msgstr ""
+
+#: run.py:579
+#, python-format
+msgid "Less than %sMB of free space remains on this device"
+msgstr "На этом устройстве осталось меньше %sМБ свободного места"
+
+#: run.py:588
+msgid ""
+"\n"
+"Checking for updates to MusicBot or dependencies..."
+msgstr ""
+"\n"
+"Проверка обновлений для MusicBot или зависимостей..."
+
+#: run.py:605
+msgid "No MusicBot updates available via `git` command."
+msgstr "Нет доступных обновлений MusicBot с помощью команды `git`."
+
+#: run.py:608
+msgid ""
+"Could not check for updates using `git` commands.  You should check "
+"manually."
+msgstr ""
+"Не удалось проверить наличие обновлений с помощью команд `git`. Проверьте "
+"вручную."
+
+#: run.py:615
+msgid "The following packages can be updated:\n"
+msgstr "Следующие пакеты могут быть обновлены:\n"
+
+#: run.py:621
+#, python-format
+msgid "  %s  to version:  %s\n"
+msgstr "  %s  к версии:  %s\n"
+
+#: run.py:632
+msgid "No dependency updates available via `pip` command."
+msgstr "Нет доступных обновлений зависимостей с помощью команды `pip`."
+
+#: run.py:635
+msgid ""
+"Could not check for updates using `pip` commands.  You should check "
+"manually."
+msgstr ""
+"Не удалось проверить наличие обновлений с помощью команд `pip`. Проверьте "
+"вручную."
+
+#: run.py:639
+#, python-format
+msgid ""
+"You can run a guided update by using the command:\n"
+"    %s ./update.py"
+msgstr ""
+"Вы можете запустить обновление руководства, используя команду:\n"
+"    %s ./update.py"
+
+#: run.py:657
+msgid "Value is above the maximum limit."
+msgstr "Значение превышает максимальный лимит."
+
+#: run.py:659
+msgid "Value must not be negative."
+msgstr "Значение не должно быть отрицательным."
+
+#: run.py:663
+#, python-format
+msgid "Value for Max Logs Kept must be a number from 0 to %s"
+msgstr "Значение максимального числа журналов должно быть числом от 0 до %s"
+
+#: run.py:673
+#, python-format
+msgid "Log level '%s' is not available."
+msgstr "Уровень журнала '%s' недоступен."
+
+#: run.py:677
+#, python-format
+msgid "Log Level must be one of:  %s"
+msgstr "Уровень журнала должен быть одним из:  %s"
+
+#: run.py:687
+msgid ""
+"Launch a music playing discord bot built using discord.py, youtubeDL, and "
+"ffmpeg."
+msgstr ""
+"Запустите музыкальный дискорд с помощью discord.py, youtubeDL и ffmpeg."
+
+#: run.py:690
+msgid "Available via Github:"
+msgstr "Доступно через Github:"
+
+#: run.py:694
+msgid "For more help and support with this bot, join our discord:"
+msgstr ""
+"Для получения дополнительной помощи и поддержки с этим ботом, "
+"присоединяйтесь к нашему разногласию:"
+
+#: run.py:696
+msgid "This software is provided under the MIT License."
+msgstr "Это программное обеспечение предоставляется по лицензии MIT."
+
+#: run.py:698
+msgid "See the `LICENSE` text file for complete details."
+msgstr "Полную информацию см. в текстовом файле `LICENSE`."
+
+#: run.py:710
+msgid ""
+"Override the default / system detected language for all text in MusicBot."
+msgstr ""
+"Переопределить язык по умолчанию / система для всего текста в MusicBot."
+
+#: run.py:719
+msgid "Use this language for all server-side log messages from MusicBot."
+msgstr "Используйте этот язык для всех серверных журналов от MusicBot."
+
+#: run.py:728
+msgid ""
+"Use this language for all messages sent to discord from MusicBot.\n"
+"This does not prevent per-guild language selection."
+msgstr ""
+"Используйте этот язык для всех сообщений, отправленных на дискорд от MusicBot.\n"
+"Это не предотвращает выбор языка для каждой гильдии."
+
+#: run.py:739
+msgid "Print the MusicBot version information and exit."
+msgstr "Печатайте информацию о версии MusicBot и выходите."
+
+#: run.py:747
+msgid "Skip all optional startup checks, including the update check."
+msgstr ""
+"Пропустить все опциональные проверки запуска, включая проверку обновления."
+
+#: run.py:755
+msgid "Skip only the disk space check at startup."
+msgstr "Пропустить проверку только дискового пространства при запуске."
+
+#: run.py:763
+msgid "Skip only the update check at startup."
+msgstr "Пропустить проверку обновлений только при запуске."
+
+#: run.py:772
+msgid ""
+"Disable MusicBot from trying to install dependencies when it cannot import "
+"them."
+msgstr ""
+"Отключите MusicBot от попытки установки зависимостей, когда он не может "
+"импортировать их."
+
+#: run.py:783
+#, python-format
+msgid ""
+"Specify how many log files to keep, between 0 and %s inclusive. (Default: "
+"%s)"
+msgstr ""
+"Укажите, сколько файлов журнала нужно хранить между 0 и %s включительно. (По"
+" умолчанию: %s)"
+
+#: run.py:793
+#, python-format
+msgid "Override the log level settings set in config. Must be one of: %s"
+msgstr ""
+"Переопределить уровень журнала, установленный в настройках. Должно быть одно"
+" из: %s"
+
+#: run.py:804
+#, python-format
+msgid ""
+"Override the default date format used when rotating log files. This should "
+"contain values compatible with strftime().  (Default:  '%s')"
+msgstr ""
+"Переопределить формат даты по умолчанию, используемый при повороте лог "
+"файлов. Это должно содержать значения, совместимые с strftime(). (По "
+"умолчанию: '%s')"
+
+#: run.py:827
+#, python-format
+msgid "Version:  %s"
+msgstr "Версия:  %s"
+
+#: run.py:902
+msgid "Opened a new MusicBot instance. This terminal can be safely closed!"
+msgstr ""
+"Открыт новый экземпляр MusicBot. Этот терминал может быть безопасно закрыт!"
+
+#: run.py:973
+#, python-format
+msgid "Loading MusicBot version:  %s"
+msgstr "Загрузка версии MusicBot:  %s"
+
+#: run.py:974
+#, python-format
+msgid "Log opened:  %s"
+msgstr "Открыт журнал:  %s"
+
+#: run.py:975
+#, python-format
+msgid "Python version:  %s"
+msgstr "Python version:  %s"
+
+#: run.py:984
+#, python-format
+msgid "Changing working directory to:  %s"
+msgstr "Изменение рабочего каталога на:  %s"
+
+#: run.py:988
+msgid ""
+"Cannot start the bot!  You started `run.py` in the wrong directory and we "
+"could not locate `musicbot` and `.git` folders to verify a new directory "
+"location."
+msgstr ""
+"Не удается запустить бота! Вы начали `run.py` в неправильном каталоге, и мы "
+"не смогли найти `musicbot` и `. это папки, чтобы проверить новое "
+"расположение каталога."
+
+#: run.py:993
+msgid ""
+"For best results, start `run.py` from the same folder you cloned MusicBot into.\n"
+"If you did not use git to clone the repository, you are strongly urged to."
+msgstr ""
+"Для получения наилучших результатов запустите `run.py` из той же папки, в которую вы клонировали MusicBot.\n"
+"Если вы не использовали git для клонирования репозитория, вам настоятельно рекомендуется это сделать."
+
+#: run.py:1047
+msgid ""
+"Certificate error is not a verification error, not trying certifi and "
+"exiting."
+msgstr ""
+"Ошибка сертификата не является ошибкой проверки, не пытайтесь certifi и "
+"выйти."
+
+#: run.py:1049
+msgid "Here is the exact error, it could be a bug."
+msgstr "Вот точная ошибка, это может быть ошибка."
+
+#: run.py:1065
+msgid ""
+"To easily add a certificate to Windows trust store, \n"
+"you can open the failing site in Microsoft Edge or IE...\n"
+msgstr ""
+"Чтобы легко добавить сертификат в хранилище доверия Windows, \n"
+"вы можете открыть сайт с ошибками в Microsoft Edge или IE...\n"
+
+#: run.py:1071
+msgid ""
+"Could not get Issuer Certificate from default trust store, trying certifi "
+"instead."
+msgstr ""
+"Не удалось получить сертификат эмитента из магазина доверия по умолчанию, "
+"вместо этого попробуйте certifi."
+
+#: run.py:1080
+msgid "Syntax error (modification detected, did you edit the code?)"
+msgstr "Ошибка синтаксиса (обнаружена модификация, вы отредактировали код?)"
+
+#: run.py:1083
+msgid "Syntax error (this is a bug, not your fault)"
+msgstr "Ошибка синтаксиса (это ошибка, не ваша вина)"
+
+#: run.py:1095
+msgid ""
+"Cannot start MusicBot due to an error!\n"
+"\n"
+"Problem:\n"
+"  There was an error importing MusicBot or a dependency package.\n"
+"\n"
+"Solution:\n"
+"  You need to manually install pip packages for MusicBot\n"
+"  or launch without `--no-install-deps` and MusicBot will try to install them for you."
+msgstr ""
+"Невозможно запустить MusicBot из-за ошибки!\n"
+"\n"
+"Проблема:\n"
+"  Возникла ошибка при импорте MusicBot или пакета зависимостей.\n"
+"\n"
+"Решение:\n"
+"  Вам нужно вручную установить pip пакеты для MusicBot\n"
+"  или запустить без `--no-install-deps` и MusicBot попытается установить их для вас."
+
+#: run.py:1128
+msgid "Attempting to install MusicBot dependency packages automatically...\n"
+msgstr ""
+"Попытка автоматической установки пакетов с зависимостью от MusicBot...\n"
+
+#: run.py:1137
+#, python-format
+msgid ""
+"MusicBot dependencies may not be installed!\n"
+"\n"
+"Problem:\n"
+"  The pip install process ended with a possible error.\n"
+"  Some or all of the the dependencies may be missing.\n"
+"\n"
+"Solution:\n"
+"  You must manually install dependency packages.\n"
+"  Open a CMD prompt / terminal to the MusicBot directory.\n"
+"  You can try using the update scripts install packages.\n"
+"  Or try this manual command:\n"
+"    %(py_bin)s -m pip install -U -r ./requirements.txt\n"
+"\n"
+"You can also ask for help in MusicBot's support discord:\n"
+"  https://discord.gg/bots"
+msgstr ""
+
+#: run.py:1158
+msgid "OK, lets hope installing dependencies worked!"
+msgstr "OK, позволяет надеяться, что зависимости работают!"
+
+#: run.py:1170
+msgid ""
+"MusicBot got an ImportError after trying to install packages. MusicBot must "
+"exit..."
+msgstr ""
+"У MusicBot возникла ошибка при попытке установить пакеты. MusicBot должен "
+"выйти..."
+
+#: run.py:1172
+msgid "The exception which caused the above error: "
+msgstr "Исключение, вызвавшее указанную ошибку: "
+
+#: run.py:1191
+msgid "MusicBot is doing a soft restart..."
+msgstr "MusicBot делает мягкий перезапуск..."
+
+#: run.py:1195
+msgid "MusicBot is doing a full process restart..."
+msgstr "MusicBot выполняет полный перезапуск процесса..."
+
+#: run.py:1201
+msgid "Error starting bot"
+msgstr "Ошибка при запуске бота"
+
+#: run.py:1206
+msgid "Closing event loop."
+msgstr "Цикл закрытия событий."
+
+#: run.py:1211
+#, python-format
+msgid "Restarting in %s seconds..."
+msgstr "Перезапуск через %s секунд..."
+
+#: run.py:1215
+msgid "All done."
+msgstr "Всё готово."
+
+#: run.py:1244
+msgid "OK, we're closing!"
+msgstr "ОК, мы закрываем!"
+
+#: musicbot/bot.py:2168
+msgid "MusicBot is now doing start up steps..."
+msgstr ""
+
+#: musicbot/bot.py:2175
+msgid "Start up failed at login."
+msgstr ""
+
+#: musicbot/bot.py:3490
+#, python-format
+msgid "No playlist file exists with the name: `%(playlist)s`"
+msgstr ""
+
+#: musicbot/bot.py:5162
+msgid ""
+"There is nothing currently playing. Play something with a play command."
+msgstr ""
+
+#: musicbot/bot.py:5176
+#, python-format
+msgid ""
+"Missing permissions to delete queue file for %(guild)s(%(id)s) at: %(path)s"
+msgstr ""
+
+#: musicbot/bot.py:5181
+#, python-format
+msgid "OS level error while trying to delete queue file: %(path)s"
+msgstr ""
+
+#: musicbot/config.py:1084
+msgid "Generating new config options files..."
+msgstr ""
+
+#: musicbot/config.py:1094
+#, python-format
+msgid ""
+"Error creating default config options file.\n"
+"\n"
+"Problem:\n"
+"  MusicBot attempted to generate the config files but failed due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Make sure MusicBot can read and write to your config files.\n"
+msgstr ""
+
+#: musicbot/config.py:1359
+#, python-format
+msgid ""
+"Could not locate config options or example options files.\n"
+"MusicBot will generate the config files at the location:\n"
+"  %(cfg_file)s"
+msgstr ""
+
+#: musicbot/filecache.py:332
+msgid "Cachemap defer flag is set, not yet saving to disk..."
+msgstr ""
+
+#: musicbot/permissions.py:136
+#, python-format
+msgid ""
+"Could not locate config permissions or example permissions files.\n"
+"MusicBot will generate the config files at the location:\n"
+"  %(perms_file)s"
+msgstr ""
+
+#: musicbot/permissions.py:163
+msgid "Generating new config permissions files..."
+msgstr ""
+
+#: musicbot/permissions.py:172
+#, python-format
+msgid ""
+"Error creating default config permissions file.\n"
+"\n"
+"Problem:\n"
+"  MusicBot attempted to generate the config files but failed due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Make sure MusicBot can read and write to your config files.\n"
+msgstr ""
+
+#: run.py:523
+#, python-format
+msgid ""
+"MusicBot could not write files in the following directory:\n"
+"%(dir)s"
+msgstr ""
+
+#: run.py:527
+msgid "Please make sure MusicBot can read and write in the above directory."
+msgstr ""
+
+#: run.py:534
+msgid "Failed to clean up write-test path."
+msgstr ""
+
+#: run.py:817
+msgid ""
+"Supply a directory where MusicBot can store all mutable files.\n"
+"Essentially treats the install directory as read-only.\n"
+"MusicBot must have permission to create this directory.\n"
+msgstr ""
+
+#: musicbot/bot.py:2423
+msgid "Private Channel"
+msgstr ""
+
+#: musicbot/bot.py:2425
+msgid "Unknown User DM"
+msgstr ""
+
+#: musicbot/bot.py:2427
+#, python-format
+msgid "User DM: %(name)s"
+msgstr ""
+
+#: musicbot/bot.py:2431
+msgid "Unknown Channel (Partial)"
+msgstr ""
+
+#: musicbot/bot.py:2433
+#, python-format
+msgid "Unnamed Channel: %(id)s"
+msgstr ""
+
+#: musicbot/bot.py:2812
+msgid "Unknown Channel"
+msgstr ""
+
+#. TRANSLATORS: Placeholder for empty track title.
+#: musicbot/entry.py:299 musicbot/entry.py:821 musicbot/entry.py:1020
+msgid "Unknown"
+msgstr ""
+
+#: musicbot/bot.py:718
+#, python-format
+msgid "MusicBot may use up to %(rate).2f %(suffix)s of bandwidth."
+msgstr ""
+
+#: musicbot/player.py:446
+#, python-format
+msgid "Probed codec and bitrate: %(name)s at %(rate)s kbps"
+msgstr ""
+
+#: musicbot/bot.py:2608
+#, python-format
+msgid "  Command by @mention: %s"
+msgstr ""
+
+#: musicbot/bot.py:2610
+#, python-format
+msgid "  Command aliases: %s"
+msgstr ""
+
+#: musicbot/bot.py:2619
+#, python-format
+msgid "    Legacy skip: %s"
+msgstr ""
+
+#: musicbot/bot.py:2621
+#, python-format
+msgid "    Author insta-skip: %s"
+msgstr ""
+
+#: musicbot/bot.py:2629
+#, python-format
+msgid "  Auto-join Owner's voice channel: %s"
+msgstr ""
+
+#: musicbot/bot.py:2641
+#, python-format
+msgid "    Save per-server queue history: %s"
+msgstr ""
+
+#: musicbot/bot.py:2645
+#, python-format
+msgid "    Save global queue history: %s"
+msgstr ""
+
+#: musicbot/bot.py:2649
+#, python-format
+msgid "    Remove URLs on extraction error: %s"
+msgstr ""
+
+#: musicbot/bot.py:2652
+#, python-format
+msgid "    Skip playlist for user requests: %s"
+msgstr ""
+
+#: musicbot/bot.py:2670
+#, python-format
+msgid "  Songs blocklist: %s"
+msgstr ""
+
+#: musicbot/bot.py:2671
+#, python-format
+msgid "  Users blocklist: %s"
+msgstr ""
+
+#: musicbot/bot.py:2680
+#, python-format
+msgid "    Delete if cache exceeds %s"
+msgstr ""
+
+#: musicbot/bot.py:2683
+#, python-format
+msgid "  Pre-download next track: %s"
+msgstr ""
+
+#: musicbot/bot.py:2690
+#, python-format
+msgid "  Write current song title to file: %s"
+msgstr ""
+
+#: musicbot/bot.py:2693
+#, python-format
+msgid "  Respond with Embeds: %s"
+msgstr ""
+
+#: musicbot/bot.py:2696
+msgid "    Footer Text Disabled"
+msgstr ""
+
+#: musicbot/bot.py:2698
+#, python-format
+msgid "    Footer Text:  %s"
+msgstr ""
+
+#: musicbot/bot.py:2704
+#, python-format
+msgid "  Leave servers where Owner is not a member: %s"
+msgstr ""
+
+#: musicbot/bot.py:2708
+#, python-format
+msgid "  Disconnect from inactive channel: %s"
+msgstr ""
+
+#: musicbot/bot.py:2717
+#, python-format
+msgid "  Disconnect at end of queue: %s"
+msgstr ""
+
+#: musicbot/bot.py:2721
+#, python-format
+msgid "  Disconnect when player idles: %s"
+msgstr ""
+
+#: musicbot/bot.py:2731
+#, python-format
+msgid "  Search using reactions: %s"
+msgstr ""
+
+#: musicbot/bot.py:2732
+#, python-format
+msgid "    Results per search: %d"
+msgstr ""
+
+#: musicbot/bot.py:2737
+#, python-format
+msgid "  Local media files: %s"
+msgstr ""
+
+#: musicbot/bot.py:2740
+#, python-format
+msgid "  Network checking ping tests: %s"
+msgstr ""
+
+#: musicbot/bot.py:2750
+#, python-format
+msgid "  Audio processed with: %s"
+msgstr ""
+
+#: musicbot/bot.py:2753
+#, python-format
+msgid "  Equalize audio level per-track: %s"
+msgstr ""
+
+#: musicbot/bot.py:2758
+#, python-format
+msgid "  HTTP Proxy set to:  %s"
+msgstr ""
+
+#: musicbot/bot.py:2760
+#, python-format
+msgid "  User Agent set to:  %s"
+msgstr ""
+
+#: musicbot/bot.py:8143
+msgid ""
+"MusicBot has bound channel config and caller channel is not in bound "
+"channels."
+msgstr ""
+
+#: musicbot/bot.py:8150
+msgid "Caller server has a bound channel, caller channel ignored."
+msgstr ""
+
+#: musicbot/bot.py:8153
+msgid "Caller server has no bound channel, caller allowed."
+msgstr ""
+
+#: musicbot/bot.py:8156
+#, python-format
+msgid "Unbound channel (%s) in server:  %s"
+msgstr ""
+
+#: musicbot/testrig.py:462
+msgid "Starting Command Tests..."
+msgstr ""
+
+#: musicbot/testrig.py:510
+#, python-format
+msgid "Buffered command: %(cmd)s"
+msgstr ""
+
+#: musicbot/testrig.py:527
+#, python-format
+msgid "- Processing CMD %(n)s of %(t)s: %(cmd)s"
+msgstr ""
+
+#, python-format
+#~ msgid "  Auto-Summon: %s"
+#~ msgstr "  Автовызов: %s"
+
+#, python-format
+#~ msgid "    Delete if size exceeds %s"
+#~ msgstr "    Удалять, если размер превышает %s"
+
+#, python-format
+#~ msgid "  Write current songs to file: %s"
+#~ msgstr "  Записать текущие песни в файл: %s"
+
+#, python-format
+#~ msgid "  Author insta-skip: %s"
+#~ msgstr "  Автор Insta-skip: %s"
+
+#, python-format
+#~ msgid "  Embeds: %s"
+#~ msgstr "  Embeds: %s"
+
+#, python-format
+#~ msgid "  Legacy skip: %s"
+#~ msgstr "  Пропуск старого: %s"
+
+#, python-format
+#~ msgid "  Leave non owners: %s"
+#~ msgstr "  Оставить невладельцев: %s"
+
+#, python-format
+#~ msgid "  Leave inactive VC: %s"
+#~ msgstr "  Оставить неактивный VC: %s"
+
+#, python-format
+#~ msgid "  Leave at song end/empty queue: %s"
+#~ msgstr "  Оставить на конец и пустую очередь: %s"
+
+#, python-format
+#~ msgid "  Leave when player idles: %s"
+#~ msgstr "  Оставь, когда игрок фармит: %s"
+
+#, python-format
+#~ msgid "  Search List: %s"
+#~ msgstr "  Список поиска: %s"
+
+#, python-format
+#~ msgid "  Audio Codec: %s"
+#~ msgstr ""
+
+#, python-format
+#~ msgid "Generated a new %(example_file)s and copied it to %(option_file)s"
+#~ msgstr ""
+#~ "Сгенерировал новый %(example_file)s и скопировал его в %(option_file)s"
+
+#~ msgid "Current working directory does not seem to be writable"
+#~ msgstr "Текущий рабочий каталог не доступен для записи"
+
+#~ msgid "Please move the bot to a folder that is writable"
+#~ msgstr "Пожалуйста, переместите бота в папку, которая доступна для записи"

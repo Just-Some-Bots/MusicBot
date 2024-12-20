@@ -1,0 +1,4851 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Just-Some-Bots/MusicBot package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Just-Some-Bots/MusicBot release-250723-203-ge75ccfed\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-12-18 06:54-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: xx\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generated-By: pygettext.py 1.5-mb01\n"
+
+#: musicbot/aliases.py:52
+msgid "Aliases file not found, copying example_aliases.json"
+msgstr "nosj.sesaila_elpmaxe gniypoc ,dnuof ton elif sesailA"
+
+#: musicbot/aliases.py:56
+msgid ""
+"Error while loading aliases.\n"
+"\n"
+"Problem:\n"
+"  Your aliases files (aliases.json & example_aliases.json) are missing.\n"
+"\n"
+"Solution:\n"
+"  Replace the alias config file(s) or copy them from:\n"
+"    https://github.com/Just-Some-Bots/MusicBot/"
+msgstr ""
+"/toBcisuM/stoB-emoS-tsuJ/moc.buhtig//:sptth    \n"
+":morf meht ypoc ro )s(elif gifnoc saila eht ecalpeR  \n"
+":noituloS\n"
+"\n"
+".gnissim era )nosj.sesaila_elpmaxe & nosj.sesaila( selif sesaila ruoY  \n"
+":melborP\n"
+"\n"
+".sesaila gnidaol elihw rorrE"
+
+#: musicbot/aliases.py:80
+#, python-format
+msgid "Failed to load aliases file:  %s"
+msgstr "%s  :elif sesaila daol ot deliaF"
+
+#: musicbot/aliases.py:88
+#, python-format
+msgid ""
+"Failed to parse aliases file:  %s\n"
+"Ensure the file contains valid JSON and restart the bot."
+msgstr ""
+".tob eht tratser dna NOSJ dilav sniatnoc elif eht erusnE\n"
+"%s  :elif sesaila esrap ot deliaF"
+
+#: musicbot/aliases.py:118
+#, python-format
+msgid ""
+"Aliases skipped for non-existent command:  %(command)s  ->  %(aliases)s"
+msgstr ""
+"%(aliases)s  >-  %(command)s  :dnammoc tnetsixe-non rof deppiks sesailA"
+
+#: musicbot/aliases.py:126
+#, python-format
+msgid ""
+"Alias(es) skipped for invalid alias data:  %(command)s  ->  %(aliases)s"
+msgstr ""
+"%(aliases)s  >-  %(command)s  :atad saila dilavni rof deppiks )se(sailA"
+
+#: musicbot/aliases.py:136
+#, python-format
+msgid "Alias `%(alias)s` skipped as already exists on command:  %(command)s"
+msgstr "%(command)s  :dnammoc no stsixe ydaerla sa deppiks `%(alias)s` sailA"
+
+#: musicbot/autoplaylist.py:77
+#, python-format
+msgid "Error loading auto playlist file:  %s"
+msgstr "%s  :elif tsilyalp otua gnidaol rorrE"
+
+#: musicbot/autoplaylist.py:132 musicbot/autoplaylist.py:211
+msgid "Could not log information about the playlist URL removal."
+msgstr ".lavomer LRU tsilyalp eht tuoba noitamrofni gol ton dluoC"
+
+#: musicbot/autoplaylist.py:135 musicbot/autoplaylist.py:215
+msgid "Updating playlist file..."
+msgstr "...elif tsilyalp gnitadpU"
+
+#: musicbot/autoplaylist.py:158 musicbot/autoplaylist.py:231
+#: musicbot/autoplaylist.py:268
+#, python-format
+msgid "Failed to save playlist file:  %s"
+msgstr "%s  :elif tsilyalp evas ot deliaF"
+
+#: musicbot/autoplaylist.py:181
+#, python-format
+msgid "Removing unplayable song from playlist, %(playlist)s: %(track)s"
+msgstr "%(track)s :%(playlist)s ,tsilyalp morf gnos elbayalpnu gnivomeR"
+
+#: musicbot/autoplaylist.py:186
+#, python-format
+msgid "Removing song from playlist, %(playlist)s: %(track)s"
+msgstr "%(track)s :%(playlist)s ,tsilyalp morf gnos gnivomeR"
+
+#: musicbot/autoplaylist.py:240
+#, python-format
+msgid "URL already in playlist %s, ignoring"
+msgstr "gnirongi ,%s tsilyalp ni ydaerla LRU"
+
+#: musicbot/autoplaylist.py:247
+#, python-format
+msgid "Adding new URL to playlist, %(playlist)s: %(track)s"
+msgstr "%(track)s :%(playlist)s ,tsilyalp ot LRU wen gniddA"
+
+#: musicbot/bot.py:168
+#, python-format
+msgid "Initializing MusicBot %s"
+msgstr "%s toBcisuM gnizilaitinI"
+
+#: musicbot/bot.py:251
+#, python-format
+msgid "Loop is closed, cannot create task for: %r"
+msgstr "%r :rof ksat etaerc tonnac ,desolc si pooL"
+
+#: musicbot/bot.py:267
+#, python-format
+msgid "Unhandled exception for task:  %r"
+msgstr "%r  :ksat rof noitpecxe deldnahnU"
+
+#: musicbot/bot.py:271
+#, python-format
+msgid "Unhandled exception for task:  %(task)r  --  %(raw_error)s"
+msgstr "%(raw_error)s  --  %(task)r  :ksat rof noitpecxe deldnahnU"
+
+#: musicbot/bot.py:316 musicbot/bot.py:338
+msgid "Spotify did not provide us with a token. Disabling."
+msgstr ".gnilbasiD .nekot a htiw su edivorp ton did yfitopS"
+
+#: musicbot/bot.py:320
+msgid "Authenticated with Spotify successfully using client ID and secret."
+msgstr ".terces dna DI tneilc gnisu yllufsseccus yfitopS htiw detacitnehtuA"
+
+#: musicbot/bot.py:324
+#, python-format
+msgid ""
+"Could not start Spotify client. Is your client ID and secret correct? "
+"Details: %s. Continuing anyway in 5 seconds..."
+msgstr ""
+"...sdnoces 5 ni yawyna gniunitnoC .%s :sliateD ?tcerroc terces dna DI tneilc"
+" ruoy sI .tneilc yfitopS trats ton dluoC"
+
+#: musicbot/bot.py:332
+msgid ""
+"The config did not have Spotify app credentials, attempting to use guest "
+"mode."
+msgstr ""
+".edom tseug esu ot gnitpmetta ,slaitnederc ppa yfitopS evah ton did gifnoc "
+"ehT"
+
+#: musicbot/bot.py:342
+msgid "Authenticated with Spotify successfully using guest mode."
+msgstr ".edom tseug gnisu yllufsseccus yfitopS htiw detacitnehtuA"
+
+#: musicbot/bot.py:347
+#, python-format
+msgid "Could not start Spotify client using guest mode. Details: %s."
+msgstr ".%s :sliateD .edom tseug gnisu tneilc yfitopS trats ton dluoC"
+
+#: musicbot/bot.py:355
+msgid ""
+"Experimental Yt-dlp OAuth2 plugin is enabled. This might break at any point!"
+msgstr ""
+"!tniop yna ta kaerb thgim sihT .delbane si nigulp 2htuAO pld-tY latnemirepxE"
+
+#: musicbot/bot.py:362
+msgid "Initialized, now connecting to discord."
+msgstr ".drocsid ot gnitcennoc won ,dezilaitinI"
+
+#: musicbot/bot.py:373
+msgid "Network ping test is disabled via config."
+msgstr ".gifnoc aiv delbasid si tset gnip krowteN"
+
+#: musicbot/bot.py:377
+msgid "Network ping test is closing down."
+msgstr ".nwod gnisolc si tset gnip krowteN"
+
+#: musicbot/bot.py:388
+msgid "Could not resolve ping target."
+msgstr ".tegrat gnip evloser ton dluoC"
+
+#: musicbot/bot.py:418
+msgid "Network ping test cancelled."
+msgstr ".dellecnac tset gnip krowteN"
+
+#: musicbot/bot.py:432
+msgid "Network testing via HTTP does not have a session to borrow."
+msgstr ".worrob ot noisses a evah ton seod PTTH aiv gnitset krowteN"
+
+#: musicbot/bot.py:457
+msgid "Could not locate `ping` executable in your environment."
+msgstr ".tnemnorivne ruoy ni elbatucexe `gnip` etacol ton dluoC"
+
+#: musicbot/bot.py:483
+#, python-format
+msgid ""
+"MusicBot could not locate a `ping` command path.  Will attempt to use HTTP ping instead.\n"
+"MusicBot tried the following command:   %s\n"
+"You should enable ping in your system or container environment for best results.\n"
+"Alternatively disable network checking via config."
+msgstr ""
+".gifnoc aiv gnikcehc krowten elbasid ylevitanretlA\n"
+".stluser tseb rof tnemnorivne reniatnoc ro metsys ruoy ni gnip elbane dluohs uoY\n"
+"%s   :dnammoc gniwollof eht deirt toBcisuM\n"
+".daetsni gnip PTTH esu ot tpmetta lliW  .htap dnammoc `gnip` a etacol ton dluoc toBcisuM"
+
+#: musicbot/bot.py:493
+#, python-format
+msgid ""
+"MusicBot was denied permission to execute the `ping` command.  Will attempt to use HTTP ping instead.\n"
+"MusicBot tried the following command:   %s\n"
+"You should enable ping in your system or container environment for best results.\n"
+"Alternatively disable network checking via config."
+msgstr ""
+".gifnoc aiv gnikcehc krowten elbasid ylevitanretlA\n"
+".stluser tseb rof tnemnorivne reniatnoc ro metsys ruoy ni gnip elbane dluohs uoY\n"
+"%s   :dnammoc gniwollof eht deirt toBcisuM\n"
+".daetsni gnip PTTH esu ot tpmetta lliW  .dnammoc `gnip` eht etucexe ot noissimrep deined saw toBcisuM"
+
+#: musicbot/bot.py:503
+#, python-format
+msgid ""
+"Your environment may not allow the `ping` system command.  Will attempt to use HTTP ping instead.\n"
+"MusicBot tried the following command:   %s\n"
+"You should enable ping in your system or container environment for best results.\n"
+"Alternatively disable network checking via config."
+msgstr ""
+".gifnoc aiv gnikcehc krowten elbasid ylevitanretlA\n"
+".stluser tseb rof tnemnorivne reniatnoc ro metsys ruoy ni gnip elbane dluohs uoY\n"
+"%s   :dnammoc gniwollof eht deirt toBcisuM\n"
+".daetsni gnip PTTH esu ot tpmetta lliW  .dnammoc metsys `gnip` eht wolla ton yam tnemnorivne ruoY"
+
+#: musicbot/bot.py:518
+msgid "MusicBot detected network is available again."
+msgstr ".niaga elbaliava si krowten detceted toBcisuM"
+
+#: musicbot/bot.py:523
+msgid "VoiceClient is not connected, waiting to resume MusicPlayer..."
+msgstr "...reyalPcisuM emuser ot gnitiaw ,detcennoc ton si tneilCecioV"
+
+#: musicbot/bot.py:527
+#, python-format
+msgid "Resuming playback of player:  (%(guild_id)s) %(player)r"
+msgstr "%(player)r )%(guild_id)s(  :reyalp fo kcabyalp gnimuseR"
+
+#: musicbot/bot.py:538
+msgid "MusicBot detected a network outage."
+msgstr ".egatuo krowten a detceted toBcisuM"
+
+#: musicbot/bot.py:542
+#, python-format
+msgid ""
+"Pausing MusicPlayer due to network availability:  (%(guild_id)s) %(player)r"
+msgstr ""
+"%(player)r )%(guild_id)s(  :ytilibaliava krowten ot eud reyalPcisuM gnisuaP"
+
+#: musicbot/bot.py:563
+#, python-format
+msgid ""
+"Looking for owner in guild: %(guild)s (required voice: %(required)s) and "
+"got:  %(owner)s"
+msgstr ""
+"%(owner)s  :tog dna )%(required)s :eciov deriuqer( %(guild)s :dliug ni renwo"
+" rof gnikooL"
+
+#: musicbot/bot.py:577
+msgid "Checking for channels to auto-join or resume..."
+msgstr "...emuser ro nioj-otua ot slennahc rof gnikcehC"
+
+#: musicbot/bot.py:589
+#, python-format
+msgid "Guild not available, cannot auto join:  %(id)s/%(name)s"
+msgstr "%(name)s/%(id)s  :nioj otua tonnac ,elbaliava ton dliuG"
+
+#: musicbot/bot.py:597
+#, python-format
+msgid "Found resumable voice channel:  %(channel)s  in guild:  %(guild)s"
+msgstr "%(guild)s  :dliug ni  %(channel)s  :lennahc eciov elbamuser dnuoF"
+
+#: musicbot/bot.py:610
+#, python-format
+msgid "Will try resuming voice session instead of Auto-Joining channel:  %s"
+msgstr "%s  :lennahc gninioJ-otuA fo daetsni noisses eciov gnimuser yrt lliW"
+
+#: musicbot/bot.py:627
+#, python-format
+msgid "Found owner in voice channel:  %s"
+msgstr "%s  :lennahc eciov ni renwo dnuoF"
+
+#: musicbot/bot.py:632
+#, python-format
+msgid "Ignoring resumable channel, AutoSummon to owner in channel:  %s"
+msgstr "%s  :lennahc ni renwo ot nommuSotuA ,lennahc elbamuser gnirongI"
+
+#: musicbot/bot.py:637
+#, python-format
+msgid "Ignoring Auto-Join channel, AutoSummon to owner in channel:  %s"
+msgstr "%s  :lennahc ni renwo ot nommuSotuA ,lennahc nioJ-otuA gnirongI"
+
+#: musicbot/bot.py:649
+#, python-format
+msgid "Already connected to channel:  %(channel)s  in guild:  %(guild)s"
+msgstr "%(guild)s  :dliug ni  %(channel)s  :lennahc ot detcennoc ydaerlA"
+
+#: musicbot/bot.py:658
+#, python-format
+msgid "Attempting to join channel:  %(channel)s  in guild:  %(guild)s"
+msgstr "%(guild)s  :dliug ni  %(channel)s  :lennahc nioj ot gnitpmettA"
+
+#: musicbot/bot.py:665
+msgid "Discarding MusicPlayer and making a new one..."
+msgstr "...eno wen a gnikam dna reyalPcisuM gnidracsiD"
+
+#: musicbot/bot.py:685
+msgid "MusicBot will make a new MusicPlayer now..."
+msgstr "...won reyalPcisuM wen a ekam lliw toBcisuM"
+
+#: musicbot/bot.py:706
+#, python-format
+msgid "Not joining %(guild)s/%(channel)s, it isn't a supported voice channel."
+msgstr ""
+".lennahc eciov detroppus a t'nsi ti ,%(channel)s/%(guild)s gninioj toN"
+
+#: musicbot/bot.py:709
+msgid "Finished joining configured channels."
+msgstr ".slennahc derugifnoc gninioj dehsiniF"
+
+#: musicbot/bot.py:718
+#, python-format
+msgid "MusicBot may use up to %(rate).2f %(suffix)s of bandwidth."
+msgstr ".htdiwdnab fo %(suffix)s %(rate).2f ot pu esu yam toBcisuM"
+
+#: musicbot/bot.py:732
+msgid "Member is not voice-enabled and cannot use this command."
+msgstr ".dnammoc siht esu tonnac dna delbane-eciov ton si rebmeM"
+
+#: musicbot/bot.py:740
+msgid "You cannot use this command when not in the voice channel."
+msgstr ".lennahc eciov eht ni ton nehw dnammoc siht esu tonnac uoY"
+
+#: musicbot/bot.py:754
+msgid "Getting bot Application Info."
+msgstr ".ofnI noitacilppA tob gnitteG"
+
+#: musicbot/bot.py:779
+#, python-format
+msgid "MusicBot does not have permission to Connect in channel:  %s"
+msgstr "%s  :lennahc ni tcennoC ot noissimrep evah ton seod toBcisuM"
+
+#: musicbot/bot.py:783
+#, python-format
+msgid "MusicBot does not have permission to Connect in channel:  `%(name)s`"
+msgstr "`%(name)s`  :lennahc ni tcennoC ot noissimrep evah ton seod toBcisuM"
+
+#: musicbot/bot.py:788
+#, python-format
+msgid "MusicBot does not have permission to Speak in channel:  %s"
+msgstr "%s  :lennahc ni kaepS ot noissimrep evah ton seod toBcisuM"
+
+#: musicbot/bot.py:792
+#, python-format
+msgid "MusicBot does not have permission to Speak in channel:  `%(name)s`"
+msgstr "`%(name)s`  :lennahc ni kaepS ot noissimrep evah ton seod toBcisuM"
+
+#: musicbot/bot.py:802
+#, python-format
+msgid "Reusing bots VoiceClient from guild:  %s"
+msgstr "%s  :dliug morf tneilCecioV stob gnisueR"
+
+#: musicbot/bot.py:807
+#, python-format
+msgid "Forcing disconnect on stale VoiceClient in guild:  %s"
+msgstr "%s  :dliug ni tneilCecioV elats no tcennocsid gnicroF"
+
+#: musicbot/bot.py:813
+msgid "Disconnect failed or was cancelled?"
+msgstr "?dellecnac saw ro deliaf tcennocsiD"
+
+#: musicbot/bot.py:821
+#, python-format
+msgid "MusicBot is unable to connect to the channel right now:  %(channel)s"
+msgstr "%(channel)s  :won thgir lennahc eht ot tcennoc ot elbanu si toBcisuM"
+
+#: musicbot/bot.py:825
+msgid ""
+"MusicBot could not connect to the channel.\n"
+"Try again later, or restart the bot if this continues."
+msgstr ""
+".seunitnoc siht fi tob eht tratser ro ,retal niaga yrT\n"
+".lennahc eht ot tcennoc ton dluoc toBcisuM"
+
+#: musicbot/bot.py:836
+msgid "MusicBot has a VoiceClient now..."
+msgstr "...won tneilCecioV a sah toBcisuM"
+
+#: musicbot/bot.py:841
+#, python-format
+msgid ""
+"Retrying connection after a timeout error (%(attempt)s) while trying to "
+"connect to:  %(channel)s"
+msgstr ""
+"%(channel)s  :ot tcennoc ot gniyrt elihw )%(attempt)s( rorre tuoemit a retfa"
+" noitcennoc gniyrteR"
+
+#: musicbot/bot.py:846
+msgid "MusicBot VoiceClient connection attempt was cancelled. No retry."
+msgstr ".yrter oN .dellecnac saw tpmetta noitcennoc tneilCecioV toBcisuM"
+
+#: musicbot/bot.py:849
+msgid ""
+"MusicBot connection to voice was cancelled. This is odd. Maybe restart?"
+msgstr ""
+"?tratser ebyaM .ddo si sihT .dellecnac saw eciov ot noitcennoc toBcisuM"
+
+#: musicbot/bot.py:855 musicbot/bot.py:8658
+#, python-format
+msgid "MusicBot is requesting to speak in channel: %s"
+msgstr "%s :lennahc ni kaeps ot gnitseuqer si toBcisuM"
+
+#: musicbot/bot.py:860 musicbot/bot.py:8664
+msgid "MusicBot does not have permission to speak."
+msgstr ".kaeps ot noissimrep evah ton seod toBcisuM"
+
+#: musicbot/bot.py:864 musicbot/bot.py:8666
+msgid "MusicBot could not request to speak."
+msgstr ".kaeps ot tseuqer ton dluoc toBcisuM"
+
+#: musicbot/bot.py:877
+#, python-format
+msgid "Disconnecting a MusicPlayer in guild:  %s"
+msgstr "%s  :dliug ni reyalPcisuM a gnitcennocsiD"
+
+#: musicbot/bot.py:889
+msgid "Disconnecting VoiceClient before we kill the MusicPlayer."
+msgstr ".reyalPcisuM eht llik ew erofeb tneilCecioV gnitcennocsiD"
+
+#: musicbot/bot.py:897 musicbot/bot.py:916 musicbot/bot.py:928
+#: musicbot/bot.py:951
+msgid "The disconnect failed or was cancelled."
+msgstr ".dellecnac saw ro deliaf tcennocsid ehT"
+
+#: musicbot/bot.py:907
+msgid ""
+"MusicBot has a VoiceProtocol that is not a VoiceClient. Disconnecting "
+"anyway..."
+msgstr ""
+"...yawyna gnitcennocsiD .tneilCecioV a ton si taht locotorPecioV a sah "
+"toBcisuM"
+
+#: musicbot/bot.py:920
+#, python-format
+msgid "Disconnecting a rogue VoiceClient in guild:  %s"
+msgstr "%s  :dliug ni tneilCecioV eugor a gnitcennocsiD"
+
+#: musicbot/bot.py:944
+msgid "Disconnecting a non-guild VoiceClient..."
+msgstr "...tneilCecioV dliug-non a gnitcennocsiD"
+
+#: musicbot/bot.py:954
+#, python-format
+msgid ""
+"MusicBot.voice_clients list contains a non-VoiceClient object?\n"
+"The object is actually of type:  %s"
+msgstr ""
+"%s  :epyt fo yllautca si tcejbo ehT\n"
+"?tcejbo tneilCecioV-non a sniatnoc tsil stneilc_eciov.toBcisuM"
+
+#: musicbot/bot.py:964
+#, python-format
+msgid "We still have a MusicPlayer ref in guild (%(guild_id)s):  %(player)r"
+msgstr "%(player)r  :)%(guild_id)s( dliug ni fer reyalPcisuM a evah llits eW"
+
+#: musicbot/bot.py:977
+#, python-format
+msgid "Guild (%(guild)s) wants a player, optional:  %(player)r"
+msgstr "%(player)r  :lanoitpo ,reyalp a stnaw )%(guild)s( dliuG"
+
+#: musicbot/bot.py:984
+msgid ""
+"[BUG] MusicPlayer is missing a VoiceClient somehow.  You should probably "
+"restart the bot."
+msgstr ""
+".tob eht tratser ylbaborp dluohs uoY  .wohemos tneilCecioV a gnissim si "
+"reyalPcisuM ]GUB["
+
+#: musicbot/bot.py:989
+msgid "MusicPlayer has a VoiceClient that is not connected."
+msgstr ".detcennoc ton si taht tneilCecioV a sah reyalPcisuM"
+
+#: musicbot/bot.py:990
+#, python-format
+msgid "MusicPlayer obj:  %r"
+msgstr "%r  :jbo reyalPcisuM"
+
+#: musicbot/bot.py:991
+#, python-format
+msgid "VoiceClient obj:  %r"
+msgstr "%r  :jbo tneilCecioV"
+
+#: musicbot/bot.py:1011
+#, python-format
+msgid ""
+"Getting a MusicPlayer for guild:  %(guild)s  In Channel:  %(channel)s  "
+"Create: %(create)s  Deserialize:  %(serial)s"
+msgstr ""
+"%(serial)s  :ezilaireseD  %(create)s :etaerC  %(channel)s  :lennahC nI  "
+"%(guild)s  :dliug rof reyalPcisuM a gnitteG"
+
+#: musicbot/bot.py:1027
+#, python-format
+msgid ""
+"Created player via deserialization for guild %(guild_id)s with %(number)s "
+"entries"
+msgstr ""
+"seirtne %(number)s htiw %(guild_id)s dliug rof noitazilairesed aiv reyalp "
+"detaerC"
+
+#: musicbot/bot.py:1036
+msgid ""
+"The bot is not in a voice channel.\n"
+"Use the summon command to bring the bot to your voice channel."
+msgstr ""
+".lennahc eciov ruoy ot tob eht gnirb ot dnammoc nommus eht esU\n"
+".lennahc eciov a ni ton si tob ehT"
+
+#: musicbot/bot.py:1048
+msgid "Something is wrong, we didn't get the VoiceClient."
+msgstr ".tneilCecioV eht teg t'ndid ew ,gnorw si gnihtemoS"
+
+#: musicbot/bot.py:1081
+msgid "Running on_player_play"
+msgstr "yalp_reyalp_no gninnuR"
+
+#: musicbot/bot.py:1156
+#, python-format
+msgid "Setting URL history guild %(guild_id)s == %(url)s"
+msgstr "%(url)s == %(guild_id)s dliug yrotsih LRU gnitteS"
+
+#: musicbot/bot.py:1192 musicbot/bot.py:4937
+#, python-format
+msgid "No thumbnail set for entry with URL: %s"
+msgstr "%s :LRU htiw yrtne rof tes lianbmuht oN"
+
+#: musicbot/bot.py:1204
+msgid "no channel to put now playing message into"
+msgstr "otni egassem gniyalp won tup ot lennahc on"
+
+#: musicbot/bot.py:1216
+msgid "ignored now-playing message as it was already posted."
+msgstr ".detsop ydaerla saw ti sa egassem gniyalp-won derongi"
+
+#: musicbot/bot.py:1240
+msgid "Running on_player_resume"
+msgstr "emuser_reyalp_no gninnuR"
+
+#: musicbot/bot.py:1253
+msgid "Running on_player_pause"
+msgstr "esuap_reyalp_no gninnuR"
+
+#: musicbot/bot.py:1269
+msgid "Running on_player_stop"
+msgstr "pots_reyalp_no gninnuR"
+
+#: musicbot/bot.py:1279
+msgid "Running on_player_finished_playing"
+msgstr "gniyalp_dehsinif_reyalp_no gninnuR"
+
+#: musicbot/bot.py:1281 musicbot/bot.py:1327 musicbot/bot.py:1398
+msgid "Event loop is closed, nothing else to do here."
+msgstr ".ereh od ot esle gnihton ,desolc si pool tnevE"
+
+#: musicbot/bot.py:1285 musicbot/bot.py:1331 musicbot/bot.py:1402
+msgid "Logout under way, ignoring this event."
+msgstr ".tneve siht gnirongi ,yaw rednu tuogoL"
+
+#: musicbot/bot.py:1302
+msgid "VoiceClient says it is not connected, nothing else we can do here."
+msgstr ".ereh od nac ew esle gnihton ,detcennoc ton si ti syas tneilCecioV"
+
+#: musicbot/bot.py:1309
+msgid "Player finished and queue is empty, leaving voice channel..."
+msgstr "...lennahc eciov gnivael ,ytpme si eueuq dna dehsinif reyalP"
+
+#: musicbot/bot.py:1323
+msgid "Looping over queue to expunge songs with missing author..."
+msgstr "...rohtua gnissim htiw sgnos egnupxe ot eueuq revo gnipooL"
+
+#: musicbot/bot.py:1362
+#, python-format
+msgid ""
+"Author `%(user)s` absent, skipped (deleted) entry from queue:  %(song)s"
+msgstr ""
+"%(song)s  :eueuq morf yrtne )deteled( deppiks ,tnesba `%(user)s` rohtuA"
+
+#: musicbot/bot.py:1381
+msgid "No playable songs in the Guild autoplaylist, disabling."
+msgstr ".gnilbasid ,tsilyalpotua dliuG eht ni sgnos elbayalp oN"
+
+#: musicbot/bot.py:1386
+msgid "No content in current autoplaylist. Filling with new music..."
+msgstr "...cisum wen htiw gnilliF .tsilyalpotua tnerruc ni tnetnoc oN"
+
+#: musicbot/bot.py:1394
+msgid "Looping over player autoplaylist..."
+msgstr "...tsilyalpotua reyalp revo gnipooL"
+
+#: musicbot/bot.py:1435
+#, python-format
+msgid "Error while processing song \"%(url)s\":  %(raw_error)s"
+msgstr "%(raw_error)s  :\"%(url)s\" gnos gnissecorp elihw rorrE"
+
+#: musicbot/bot.py:1446
+#, python-format
+msgid "Error extracting song \"%(url)s\": %(raw_error)s"
+msgstr "%(raw_error)s :\"%(url)s\" gnos gnitcartxe rorrE"
+
+#: musicbot/bot.py:1461
+msgid "MusicBot needs to stop the auto playlist extraction and bail."
+msgstr ".liab dna noitcartxe tsilyalp otua eht pots ot sdeen toBcisuM"
+
+#: musicbot/bot.py:1466
+msgid "MusicBot got an unhandled exception in player finished event."
+msgstr ".tneve dehsinif reyalp ni noitpecxe deldnahnu na tog toBcisuM"
+
+#: musicbot/bot.py:1472
+#, python-format
+msgid "Expanding auto playlist with entries extracted from:  %s"
+msgstr "%s  :morf detcartxe seirtne htiw tsilyalp otua gnidnapxE"
+
+#: musicbot/bot.py:1496
+#, python-format
+msgid "Error adding song from autoplaylist: %s"
+msgstr "%s :tsilyalpotua morf gnos gnidda rorrE"
+
+#: musicbot/bot.py:1499
+msgid "Exception data for above error:"
+msgstr ":rorre evoba rof atad noitpecxE"
+
+#: musicbot/bot.py:1505
+msgid "No playable songs in the autoplaylist, disabling."
+msgstr ".gnilbasid ,tsilyalpotua eht ni sgnos elbayalp oN"
+
+#: musicbot/bot.py:1525
+msgid "Running on_player_entry_added"
+msgstr "dedda_yrtne_reyalp_no gninnuR"
+
+#: musicbot/bot.py:1535
+msgid "Automatically skipping auto-playlist entry for queued entry."
+msgstr ".yrtne deueuq rof yrtne tsilyalp-otua gnippiks yllacitamotuA"
+
+#: musicbot/bot.py:1555
+#, python-format
+msgid "MusicPlayer exception for entry: %r"
+msgstr "%r :yrtne rof noitpecxe reyalPcisuM"
+
+#: musicbot/bot.py:1561
+msgid "MusicPlayer exception."
+msgstr ".noitpecxe reyalPcisuM"
+
+#: musicbot/bot.py:1585
+#, python-format
+msgid "Auto playlist track could not be played:  %r"
+msgstr "%r  :deyalp eb ton dluoc kcart tsilyalp otuA"
+
+#: musicbot/bot.py:1624
+msgid "Logout under way, ignoring status update event."
+msgstr ".tneve etadpu sutats gnirongi ,yaw rednu tuogoL"
+
+#: musicbot/bot.py:1725
+#, python-format
+msgid "Update bot status:  %(status)s -- %(activity)r"
+msgstr "%(activity)r -- %(status)s  :sutats tob etadpU"
+
+#: musicbot/bot.py:1753
+#, python-format
+msgid "Serializing queue for %s"
+msgstr "%s rof eueuq gnizilaireS"
+
+#: musicbot/bot.py:1779
+#, python-format
+msgid "Deserializing queue for %s"
+msgstr "%s rof eueuq gnizilaireseD"
+
+#: musicbot/bot.py:1797
+#, python-format
+msgid "Writing current song for %s"
+msgstr "%s rof gnos tnerruc gnitirW"
+
+#: musicbot/bot.py:1822
+#, python-format
+msgid "Cannot send non-response object:  %r"
+msgstr "%r  :tcejbo esnopser-non dnes tonnaC"
+
+#: musicbot/bot.py:1827
+msgid "[Dev Bug] Tried sending an invalid response object."
+msgstr ".tcejbo esnopser dilavni na gnidnes deirT ]guB veD["
+
+#: musicbot/bot.py:1864
+#, python-format
+msgid "sending embed to: %s"
+msgstr "%s :ot debme gnidnes"
+
+#: musicbot/bot.py:1867
+#, python-format
+msgid "sending text to: %s"
+msgstr "%s :ot txet gnidnes"
+
+#: musicbot/bot.py:1872
+#, python-format
+msgid "Cannot send message to \"%s\", no permission"
+msgstr "noissimrep on ,\"%s\" ot egassem dnes tonnaC"
+
+#: musicbot/bot.py:1879
+#, python-format
+msgid "Cannot send message to \"%s\", invalid or deleted channel"
+msgstr "lennahc deteled ro dilavni ,\"%s\" ot egassem dnes tonnaC"
+
+#: musicbot/bot.py:1887
+#, python-format
+msgid "Message is over the message size limit (%s)"
+msgstr ")%s( timil ezis egassem eht revo si egasseM"
+
+#: musicbot/bot.py:1895
+msgid "Could not send private message, sending in fallback channel instead."
+msgstr ".daetsni lennahc kcabllaf ni gnidnes ,egassem etavirp dnes ton dluoC"
+
+#: musicbot/bot.py:1913
+#, python-format
+msgid "Rate limited send message, retrying in %s seconds."
+msgstr ".sdnoces %s ni gniyrter ,egassem dnes detimil etaR"
+
+#: musicbot/bot.py:1919
+#, python-format
+msgid "Cancelled message retry for:  %s"
+msgstr "%s  :rof yrter egassem dellecnaC"
+
+#: musicbot/bot.py:1924
+msgid "Rate limited send message, but cannot retry!"
+msgstr "!yrter tonnac tub ,egassem dnes detimil etaR"
+
+#: musicbot/bot.py:1930
+msgid "Failed to send message in fallback channel."
+msgstr ".lennahc kcabllaf ni egassem dnes ot deliaF"
+
+#: musicbot/bot.py:1935 musicbot/bot.py:1999 musicbot/bot.py:2069
+msgid "Failed to send due to an HTTP error."
+msgstr ".rorre PTTH na ot eud dnes ot deliaF"
+
+#: musicbot/bot.py:1961
+#, python-format
+msgid "Cannot delete message \"%s\", no permission"
+msgstr "noissimrep on ,\"%s\" egassem eteled tonnaC"
+
+#: musicbot/bot.py:1966
+#, python-format
+msgid "Cannot delete message \"%s\", message not found"
+msgstr "dnuof ton egassem ,\"%s\" egassem eteled tonnaC"
+
+#: musicbot/bot.py:1984
+#, python-format
+msgid "Rate limited message delete, retrying in %s seconds."
+msgstr ".sdnoces %s ni gniyrter ,eteled egassem detimil etaR"
+
+#: musicbot/bot.py:1989
+msgid "Rate limited message delete, but cannot retry!"
+msgstr "!yrter tonnac tub ,eteled egassem detimil etaR"
+
+#: musicbot/bot.py:1992
+msgid "Failed to delete message"
+msgstr "egassem eteled ot deliaF"
+
+#: musicbot/bot.py:1994
+#, python-format
+msgid "Got HTTPException trying to delete message: %s"
+msgstr "%s :egassem eteled ot gniyrt noitpecxEPTTH toG"
+
+#: musicbot/bot.py:2029
+#, python-format
+msgid "Cannot edit message \"%s\", message not found"
+msgstr "dnuof ton egassem ,\"%s\" egassem tide tonnaC"
+
+#: musicbot/bot.py:2033
+msgid "Sending message instead"
+msgstr "daetsni egassem gnidneS"
+
+#: musicbot/bot.py:2050
+#, python-format
+msgid "Rate limited edit message, retrying in %s seconds."
+msgstr ".sdnoces %s ni gniyrter ,egassem tide detimil etaR"
+
+#: musicbot/bot.py:2056
+#, python-format
+msgid "Cancelled message edit for:  %s"
+msgstr "%s  :rof tide egassem dellecnaC"
+
+#: musicbot/bot.py:2062
+msgid "Failed to edit message"
+msgstr "egassem tide ot deliaF"
+
+#: musicbot/bot.py:2064
+#, python-format
+msgid "Got HTTPException trying to edit message %s to: %s"
+msgstr "%s :ot %s egassem tide ot gniyrt noitpecxEPTTH toG"
+
+#: musicbot/bot.py:2086
+#, python-format
+msgid "Cancelled delete for message (ID: %(id)s):  %(content)s"
+msgstr "%(content)s  :)%(id)s :DI( egassem rof eteled dellecnaC"
+
+#: musicbot/bot.py:2148
+#, python-format
+msgid "Caught a signal from the OS: %s"
+msgstr "%s :SO eht morf langis a thguaC"
+
+#: musicbot/bot.py:2152
+msgid "Disconnecting and closing down MusicBot..."
+msgstr "...toBcisuM nwod gnisolc dna gnitcennocsiD"
+
+#: musicbot/bot.py:2155
+msgid "Exception thrown while handling interrupt signal!"
+msgstr "!langis tpurretni gnildnah elihw nworht noitpecxE"
+
+#: musicbot/bot.py:2168
+msgid "MusicBot is now doing start up steps..."
+msgstr "...spets pu trats gniod won si toBcisuM"
+
+#: musicbot/bot.py:2170
+msgid "MusicBot is now doing shutdown steps..."
+msgstr "...spets nwodtuhs gniod won si toBcisuM"
+
+#: musicbot/bot.py:2175
+msgid "Start up failed at login."
+msgstr ".nigol ta deliaf pu tratS"
+
+#: musicbot/bot.py:2178
+msgid ""
+"Failed Discord API Login!\n"
+"\n"
+"Problem:\n"
+"  MusicBot could not log into Discord API.\n"
+"  Your Token may be incorrect or there may be an API outage.\n"
+"\n"
+"Solution:\n"
+"  Make sure you have the correct Token set in your config.\n"
+"  Check API status at the official site: discordstatus.com"
+msgstr ""
+"moc.sutatsdrocsid :etis laiciffo eht ta sutats IPA kcehC  \n"
+".gifnoc ruoy ni tes nekoT tcerroc eht evah uoy erus ekaM  \n"
+":noituloS\n"
+"\n"
+".egatuo IPA na eb yam ereht ro tcerrocni eb yam nekoT ruoY  \n"
+".IPA drocsiD otni gol ton dluoc toBcisuM  \n"
+":melborP\n"
+"\n"
+"!nigoL IPA drocsiD deliaF"
+
+#: musicbot/bot.py:2192
+msgid "Waiting for download threads to finish up..."
+msgstr "...pu hsinif ot sdaerht daolnwod rof gnitiaW"
+
+#: musicbot/bot.py:2218
+#, python-format
+msgid "Will wait for task:  %(name)s  (%(func)s)"
+msgstr ")%(func)s(  %(name)s  :ksat rof tiaw lliW"
+
+#: musicbot/bot.py:2225
+#, python-format
+msgid "Will try to cancel task:  %(name)s  (%(func)s)"
+msgstr ")%(func)s(  %(name)s  :ksat lecnac ot yrt lliW"
+
+#: musicbot/bot.py:2233
+msgid "Awaiting pending tasks..."
+msgstr "...sksat gnidnep gnitiawA"
+
+#: musicbot/bot.py:2239
+msgid "Closing HTTP Connector."
+msgstr ".rotcennoC PTTH gnisolC"
+
+#: musicbot/bot.py:2245
+msgid "Closing aiohttp session."
+msgstr ".noisses ptthoia gnisolC"
+
+#: musicbot/bot.py:2257
+msgid "Logout has been called."
+msgstr ".dellac neeb sah tuogoL"
+
+#: musicbot/bot.py:2269
+#, python-format
+msgid ""
+"Exception in %(event)s:\n"
+"%(error)s"
+msgstr ""
+"%(error)s\n"
+":%(event)s ni noitpecxE"
+
+#: musicbot/bot.py:2285
+#, python-format
+msgid "Exception in %s"
+msgstr "%s ni noitpecxE"
+
+#: musicbot/bot.py:2292
+msgid "MusicBot resumed a session with discord."
+msgstr ".drocsid htiw noisses a demuser toBcisuM"
+
+#: musicbot/bot.py:2309
+msgid "Finish on_ready"
+msgstr "ydaer_no hsiniF"
+
+#: musicbot/bot.py:2316
+msgid "Logged in, now getting MusicBot ready..."
+msgstr "...ydaer toBcisuM gnitteg won ,ni deggoL"
+
+#: musicbot/bot.py:2319
+msgid "ClientUser is somehow none, we gotta bail..."
+msgstr "...liab attog ew ,enon wohemos si resUtneilC"
+
+#: musicbot/bot.py:2328
+#, python-format
+msgid "MusicBot:  %(id)s/%(name)s#%(desc)s"
+msgstr "%(desc)s#%(name)s/%(id)s  :toBcisuM"
+
+#: musicbot/bot.py:2339
+#, python-format
+msgid "Owner:     %(id)s/%(name)s#%(desc)s\n"
+msgstr ""
+"\n"
+"%(desc)s#%(name)s/%(id)s     :renwO"
+
+#: musicbot/bot.py:2347 musicbot/bot.py:2374
+msgid "Guild List:"
+msgstr ":tsiL dliuG"
+
+#: musicbot/bot.py:2351 musicbot/bot.py:2377 musicbot/bot.py:8850
+#, python-format
+msgid " - %s"
+msgstr "%s - "
+
+#: musicbot/bot.py:2360
+#, python-format
+msgid "Left %s due to bot owner not found"
+msgstr "dnuof ton renwo tob ot eud %s tfeL"
+
+#: musicbot/bot.py:2365
+#, python-format
+msgid "Not proceeding with checks in %s servers due to unavailability"
+msgstr "ytilibaliavanu ot eud srevres %s ni skcehc htiw gnideecorp toN"
+
+#: musicbot/bot.py:2371
+#, python-format
+msgid "Owner could not be found on any guild (id: %s)\n"
+msgstr ""
+"\n"
+")%s :di( dliug yna no dnuof eb ton dluoc renwO"
+
+#: musicbot/bot.py:2380
+msgid "Owner unknown, bot is not on any guilds."
+msgstr ".sdliug yna no ton si tob ,nwonknu renwO"
+
+#: musicbot/bot.py:2384
+#, python-format
+msgid ""
+"To make the bot join a guild, paste this link in your browser. \n"
+"Note: You should be logged into your main account and have \n"
+"manage server permissions on the guild you want the bot to join.\n"
+"  %s"
+msgstr ""
+"%s  \n"
+".nioj ot tob eht tnaw uoy dliug eht no snoissimrep revres eganam\n"
+" evah dna tnuocca niam ruoy otni deggol eb dluohs uoY :etoN\n"
+" .resworb ruoy ni knil siht etsap ,dliug a nioj tob eht ekam oT"
+
+#: musicbot/bot.py:2401
+#, python-format
+msgid "Got None for bound channel with ID:  %d"
+msgstr "%d  :DI htiw lennahc dnuob rof enoN toG"
+
+#: musicbot/bot.py:2407
+#, python-format
+msgid "Cannot bind to non Messageable channel with ID:  %d"
+msgstr "%d  :DI htiw lennahc elbaegasseM non ot dnib tonnaC"
+
+#: musicbot/bot.py:2421
+msgid "Bound to text channels:"
+msgstr ":slennahc txet ot dnuoB"
+
+#: musicbot/bot.py:2423
+msgid "Private Channel"
+msgstr "lennahC etavirP"
+
+#: musicbot/bot.py:2425
+msgid "Unknown User DM"
+msgstr "MD resU nwonknU"
+
+#: musicbot/bot.py:2427
+#, python-format
+msgid "User DM: %(name)s"
+msgstr "%(name)s :MD resU"
+
+#: musicbot/bot.py:2431
+msgid "Unknown Channel (Partial)"
+msgstr ")laitraP( lennahC nwonknU"
+
+#: musicbot/bot.py:2433
+#, python-format
+msgid "Unnamed Channel: %(id)s"
+msgstr "%(id)s :lennahC demannU"
+
+#: musicbot/bot.py:2439 musicbot/bot.py:2489
+#, python-format
+msgid " - %(guild)s/%(channel)s"
+msgstr "%(channel)s/%(guild)s - "
+
+#: musicbot/bot.py:2443 musicbot/bot.py:2445
+msgid "Not bound to any text channels"
+msgstr "slennahc txet yna ot dnuob toN"
+
+#: musicbot/bot.py:2456
+#, python-format
+msgid "Got None for auto join channel with ID:  %d"
+msgstr "%d  :DI htiw lennahc nioj otua rof enoN toG"
+
+#: musicbot/bot.py:2462
+#, python-format
+msgid "Cannot auto join a Private/Non-Guild channel with ID:  %d"
+msgstr "%d  :DI htiw lennahc dliuG-noN/etavirP a nioj otua tonnaC"
+
+#: musicbot/bot.py:2470
+#, python-format
+msgid "Cannot auto join to non-connectable channel with ID:  %d"
+msgstr "%d  :DI htiw lennahc elbatcennoc-non ot nioj otua tonnaC"
+
+#: musicbot/bot.py:2486
+msgid "Auto joining voice channels:"
+msgstr ":slennahc eciov gninioj otuA"
+
+#: musicbot/bot.py:2494 musicbot/bot.py:2497
+msgid "Not auto joining any voice channels"
+msgstr "slennahc eciov yna gninioj otua toN"
+
+#: musicbot/bot.py:2510
+#, python-format
+msgid ""
+"Detected missing config options!\n"
+"\n"
+"Problem:\n"
+"  You config options file is missing some options.\n"
+"  Default settings will be used for these options.\n"
+"  Here is a list of options we didn't find:\n"
+"  %(missing)s\n"
+"\n"
+"Solution:\n"
+"  Copy new options from the example options file.\n"
+"  Or use the config command to set and save them.\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+".meht evas dna tes ot dnammoc gifnoc eht esu rO  \n"
+".elif snoitpo elpmaxe eht morf snoitpo wen ypoC  \n"
+":noituloS\n"
+"\n"
+"%(missing)s  \n"
+":dnif t'ndid ew snoitpo fo tsil a si ereH  \n"
+".snoitpo eseht rof desu eb lliw sgnittes tluafeD  \n"
+".snoitpo emos gnissim si elif snoitpo gifnoc uoY  \n"
+":melborP\n"
+"\n"
+"!snoitpo gifnoc gnissim detceteD"
+
+#: musicbot/bot.py:2539
+#, python-format
+msgid "Event on_ready has fired %s times"
+msgstr "semit %s derif sah ydaer_no tnevE"
+
+#: musicbot/bot.py:2555
+msgid "Getting application info."
+msgstr ".ofni noitacilppa gnitteG"
+
+#: musicbot/bot.py:2573
+msgid "Ensuring data folders exist"
+msgstr "tsixe sredlof atad gnirusnE"
+
+#: musicbot/bot.py:2588
+msgid "Validating config"
+msgstr "gifnoc gnitadilaV"
+
+#: musicbot/bot.py:2591
+msgid "Validating permissions config"
+msgstr "gifnoc snoissimrep gnitadilaV"
+
+#: musicbot/bot.py:2601
+msgid "Disabled"
+msgstr "delbasiD"
+
+#: musicbot/bot.py:2601
+msgid "Enabled"
+msgstr "delbanE"
+
+#: musicbot/bot.py:2604
+msgid "Options:"
+msgstr ":snoitpO"
+
+#: musicbot/bot.py:2606
+#, python-format
+msgid "  Command prefix: %s"
+msgstr "%s :xiferp dnammoC  "
+
+#: musicbot/bot.py:2608
+#, python-format
+msgid "  Command by @mention: %s"
+msgstr "%s :noitnem@ yb dnammoC  "
+
+#: musicbot/bot.py:2610
+#, python-format
+msgid "  Command aliases: %s"
+msgstr "%s :sesaila dnammoC  "
+
+#: musicbot/bot.py:2611
+#, python-format
+msgid "  Default volume: %d%%"
+msgstr "%%%d :emulov tluafeD  "
+
+#: musicbot/bot.py:2613
+#, python-format
+msgid "  Skip threshold: %(num)d votes or %(percent).0f%%"
+msgstr "%%%(percent).0f ro setov %(num)d :dlohserht pikS  "
+
+#: musicbot/bot.py:2619
+#, python-format
+msgid "    Legacy skip: %s"
+msgstr "%s :piks ycageL    "
+
+#: musicbot/bot.py:2621
+#, python-format
+msgid "    Author insta-skip: %s"
+msgstr "%s :piks-atsni rohtuA    "
+
+#: musicbot/bot.py:2625
+#, python-format
+msgid "  Now Playing @mentions: %s"
+msgstr "%s :snoitnem@ gniyalP woN  "
+
+#: musicbot/bot.py:2629
+#, python-format
+msgid "  Auto-join Owner's voice channel: %s"
+msgstr "%s :lennahc eciov s'renwO nioj-otuA  "
+
+#: musicbot/bot.py:2632
+#, python-format
+msgid "  Auto-Playlist: %(status)s (order: %(order)s)"
+msgstr ")%(order)s :redro( %(status)s :tsilyalP-otuA  "
+
+#: musicbot/bot.py:2635
+msgid "random"
+msgstr "modnar"
+
+#: musicbot/bot.py:2635
+msgid "sequential"
+msgstr "laitneuqes"
+
+#: musicbot/bot.py:2641
+#, python-format
+msgid "    Save per-server queue history: %s"
+msgstr "%s :yrotsih eueuq revres-rep evaS    "
+
+#: musicbot/bot.py:2645
+#, python-format
+msgid "    Save global queue history: %s"
+msgstr "%s :yrotsih eueuq labolg evaS    "
+
+#: musicbot/bot.py:2649
+#, python-format
+msgid "    Remove URLs on extraction error: %s"
+msgstr "%s :rorre noitcartxe no sLRU evomeR    "
+
+#: musicbot/bot.py:2652
+#, python-format
+msgid "    Skip playlist for user requests: %s"
+msgstr "%s :stseuqer resu rof tsilyalp pikS    "
+
+#: musicbot/bot.py:2655
+#, python-format
+msgid "  Auto-Pause: %s"
+msgstr "%s :esuaP-otuA  "
+
+#: musicbot/bot.py:2657
+#, python-format
+msgid "  Delete Messages: %s"
+msgstr "%s :segasseM eteleD  "
+
+#: musicbot/bot.py:2662
+#, python-format
+msgid "    Delete Invoking: %s"
+msgstr "%s :gnikovnI eteleD    "
+
+#: musicbot/bot.py:2666
+#, python-format
+msgid "    Delete Now Playing: %s"
+msgstr "%s :gniyalP woN eteleD    "
+
+#: musicbot/bot.py:2669
+#, python-format
+msgid "  Debug Mode: %s"
+msgstr "%s :edoM gubeD  "
+
+#: musicbot/bot.py:2670
+#, python-format
+msgid "  Songs blocklist: %s"
+msgstr "%s :tsilkcolb sgnoS  "
+
+#: musicbot/bot.py:2671
+#, python-format
+msgid "  Users blocklist: %s"
+msgstr "%s :tsilkcolb sresU  "
+
+#: musicbot/bot.py:2673
+#, python-format
+msgid "  Downloaded songs will be %s"
+msgstr "%s eb lliw sgnos dedaolnwoD  "
+
+#: musicbot/bot.py:2677
+#, python-format
+msgid "    Delete if unused for %d days"
+msgstr "syad %d rof desunu fi eteleD    "
+
+#: musicbot/bot.py:2680
+#, python-format
+msgid "    Delete if cache exceeds %s"
+msgstr "%s sdeecxe ehcac fi eteleD    "
+
+#: musicbot/bot.py:2683
+#, python-format
+msgid "  Pre-download next track: %s"
+msgstr "%s :kcart txen daolnwod-erP  "
+
+#: musicbot/bot.py:2688
+#, python-format
+msgid "  Status message: %s"
+msgstr "%s :egassem sutatS  "
+
+#: musicbot/bot.py:2690
+#, python-format
+msgid "  Write current song title to file: %s"
+msgstr "%s :elif ot eltit gnos tnerruc etirW  "
+
+#: musicbot/bot.py:2693
+#, python-format
+msgid "  Respond with Embeds: %s"
+msgstr "%s :sdebmE htiw dnopseR  "
+
+#: musicbot/bot.py:2696
+msgid "    Footer Text Disabled"
+msgstr "delbasiD txeT retooF    "
+
+#: musicbot/bot.py:2698
+#, python-format
+msgid "    Footer Text:  %s"
+msgstr "%s  :txeT retooF    "
+
+#: musicbot/bot.py:2700
+#, python-format
+msgid "  Spotify integration: %s"
+msgstr "%s :noitargetni yfitopS  "
+
+#: musicbot/bot.py:2704
+#, python-format
+msgid "  Leave servers where Owner is not a member: %s"
+msgstr "%s :rebmem a ton si renwO erehw srevres evaeL  "
+
+#: musicbot/bot.py:2708
+#, python-format
+msgid "  Disconnect from inactive channel: %s"
+msgstr "%s :lennahc evitcani morf tcennocsiD  "
+
+#: musicbot/bot.py:2713
+#, python-format
+msgid "    Timeout: %s seconds"
+msgstr "sdnoces %s :tuoemiT    "
+
+#: musicbot/bot.py:2717
+#, python-format
+msgid "  Disconnect at end of queue: %s"
+msgstr "%s :eueuq fo dne ta tcennocsiD  "
+
+#: musicbot/bot.py:2721
+#, python-format
+msgid "  Disconnect when player idles: %s"
+msgstr "%s :seldi reyalp nehw tcennocsiD  "
+
+#: musicbot/bot.py:2725
+#, python-format
+msgid "    Timeout: %d seconds"
+msgstr "sdnoces %d :tuoemiT    "
+
+#: musicbot/bot.py:2726
+#, python-format
+msgid "  Self Deafen: %s"
+msgstr "%s :nefaeD fleS  "
+
+#: musicbot/bot.py:2728
+#, python-format
+msgid "  Per-server command prefix: %s"
+msgstr "%s :xiferp dnammoc revres-reP  "
+
+#: musicbot/bot.py:2731
+#, python-format
+msgid "  Search using reactions: %s"
+msgstr "%s :snoitcaer gnisu hcraeS  "
+
+#: musicbot/bot.py:2732
+#, python-format
+msgid "    Results per search: %d"
+msgstr "%d :hcraes rep stluseR    "
+
+#: musicbot/bot.py:2734
+#, python-format
+msgid "  Round Robin Queue: %s"
+msgstr "%s :eueuQ niboR dnuoR  "
+
+#: musicbot/bot.py:2737
+#, python-format
+msgid "  Local media files: %s"
+msgstr "%s :selif aidem lacoL  "
+
+#: musicbot/bot.py:2740
+#, python-format
+msgid "  Network checking ping tests: %s"
+msgstr "%s :stset gnip gnikcehc krowteN  "
+
+#: musicbot/bot.py:2750
+#, python-format
+msgid "  Audio processed with: %s"
+msgstr "%s :htiw dessecorp oiduA  "
+
+#: musicbot/bot.py:2753
+#, python-format
+msgid "  Equalize audio level per-track: %s"
+msgstr "%s :kcart-rep level oidua ezilauqE  "
+
+#: musicbot/bot.py:2758
+#, python-format
+msgid "  HTTP Proxy set to:  %s"
+msgstr "%s  :ot tes yxorP PTTH  "
+
+#: musicbot/bot.py:2760
+#, python-format
+msgid "  User Agent set to:  %s"
+msgstr "%s  :ot tes tnegA resU  "
+
+#: musicbot/bot.py:2789
+#, python-format
+msgid "The requested song `%(subject)s` is blocked by the song block list."
+msgstr ".tsil kcolb gnos eht yb dekcolb si `%(subject)s` gnos detseuqer ehT"
+
+#: musicbot/bot.py:2800
+msgid ""
+"Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
+msgstr ""
+"...eciov ni ton si toB tub ,ytivitcani lennahC ecioV eldnah ot detpmettA"
+
+#: musicbot/bot.py:2807
+#, python-format
+msgid "Channel activity already waiting in guild: %s"
+msgstr "%s :dliug ni gnitiaw ydaerla ytivitca lennahC"
+
+#: musicbot/bot.py:2812
+msgid "Unknown Channel"
+msgstr "lennahC nwonknU"
+
+#: musicbot/bot.py:2817
+#, python-format
+msgid ""
+"Channel activity waiting %(time)d seconds to leave channel: %(channel)s"
+msgstr ""
+"%(channel)s :lennahc evael ot sdnoces %(time)d gnitiaw ytivitca lennahC"
+
+#: musicbot/bot.py:2832
+#, python-format
+msgid "Channel activity timer for %s has expired. Disconnecting."
+msgstr ".gnitcennocsiD .deripxe sah %s rof remit ytivitca lennahC"
+
+#: musicbot/bot.py:2838
+#, python-format
+msgid "Channel activity timer canceled for: %(channel)s in %(guild)s"
+msgstr "%(guild)s ni %(channel)s :rof delecnac remit ytivitca lennahC"
+
+#: musicbot/bot.py:2866
+#, python-format
+msgid "Ignoring player inactivity in auto-joined channel:  %s"
+msgstr "%s  :lennahc denioj-otua ni ytivitcani reyalp gnirongI"
+
+#: musicbot/bot.py:2873
+#, python-format
+msgid "Player activity timer already waiting in guild: %s"
+msgstr "%s :dliug ni gnitiaw ydaerla remit ytivitca reyalP"
+
+#: musicbot/bot.py:2881
+#, python-format
+msgid ""
+"Player activity timer waiting %(time)d seconds to leave channel: %(channel)s"
+msgstr ""
+"%(channel)s :lennahc evael ot sdnoces %(time)d gnitiaw remit ytivitca reyalP"
+
+#: musicbot/bot.py:2893
+#, python-format
+msgid "Player activity timer for %s has expired. Disconnecting."
+msgstr ".gnitcennocsiD .deripxe sah %s rof remit ytivitca reyalP"
+
+#: musicbot/bot.py:2899 musicbot/bot.py:2904
+#, python-format
+msgid "Player activity timer canceled for: %(channel)s in %(guild)s"
+msgstr "%(guild)s ni %(channel)s :rof delecnac remit ytivitca reyalP"
+
+#: musicbot/bot.py:2921
+msgid "Player activity timer is being reset."
+msgstr ".teser gnieb si remit ytivitca reyalP"
+
+#: musicbot/bot.py:3030
+msgid "No such command"
+msgstr "dnammoc hcus oN"
+
+#: musicbot/bot.py:3106
+msgid "You must mention a user or provide their ID number."
+msgstr ".rebmun DI rieht edivorp ro resu a noitnem tsum uoY"
+
+#: musicbot/bot.py:3111
+msgid "Invalid sub-command given. Use `help blockuser` for usage examples."
+msgstr ".selpmaxe egasu rof `resukcolb pleh` esU .nevig dnammoc-bus dilavnI"
+
+#: musicbot/bot.py:3122
+msgid "MusicBot could not find the user(s) you specified."
+msgstr ".deificeps uoy )s(resu eht dnif ton dluoc toBcisuM"
+
+#: musicbot/bot.py:3129
+msgid "The owner cannot be added to the block list."
+msgstr ".tsil kcolb eht ot dedda eb tonnac renwo ehT"
+
+#: musicbot/bot.py:3133
+#, python-format
+msgid "Not adding user to block list, already blocked:  %(id)s/%(name)s"
+msgstr "%(name)s/%(id)s  :dekcolb ydaerla ,tsil kcolb ot resu gnidda toN"
+
+#: musicbot/bot.py:3142
+#, python-format
+msgid "Not removing user from block list, not listed:  %(id)s/%(name)s"
+msgstr "%(name)s/%(id)s  :detsil ton ,tsil kcolb morf resu gnivomer toN"
+
+#: musicbot/bot.py:3159
+msgid "Cannot add the users you listed, they are already added."
+msgstr ".dedda ydaerla era yeht ,detsil uoy sresu eht dda tonnaC"
+
+#: musicbot/bot.py:3236
+msgid "You must provide a song subject if no song is currently playing."
+msgstr ".gniyalp yltnerruc si gnos on fi tcejbus gnos a edivorp tsum uoY"
+
+#: musicbot/bot.py:3242
+msgid "Invalid sub-command given. Use `help blocksong` for usage examples."
+msgstr ".selpmaxe egasu rof `gnoskcolb pleh` esU .nevig dnammoc-bus dilavnI"
+
+#: musicbot/bot.py:3254
+#, python-format
+msgid "Subject `%(subject)s` is already in the song block list."
+msgstr ".tsil kcolb gnos eht ni ydaerla si `%(subject)s` tcejbuS"
+
+#: musicbot/bot.py:3286
+msgid "The subject is not in the song block list and cannot be removed."
+msgstr ".devomer eb tonnac dna tsil kcolb gnos eht ni ton si tcejbus ehT"
+
+#: musicbot/bot.py:3358
+msgid "Invalid sub-command given. Use `help autoplaylist` for usage examples."
+msgstr ""
+".selpmaxe egasu rof `tsilyalpotua pleh` esU .nevig dnammoc-bus dilavnI"
+
+#: musicbot/bot.py:3365
+msgid "The supplied song link is invalid"
+msgstr "dilavni si knil gnos deilppus ehT"
+
+#: musicbot/bot.py:3371
+msgid "The queue is empty. Add some songs with a play command!"
+msgstr "!dnammoc yalp a htiw sgnos emos ddA .ytpme si eueuq ehT"
+
+#: musicbot/bot.py:3399
+msgid "This song is already in the autoplaylist."
+msgstr ".tsilyalpotua eht ni ydaerla si gnos sihT"
+
+#: musicbot/bot.py:3416
+msgid "This song is not yet in the autoplaylist."
+msgstr ".tsilyalpotua eht ni tey ton si gnos sihT"
+
+#: musicbot/bot.py:3450
+msgid "You must provide a playlist filename."
+msgstr ".emanelif tsilyalp a edivorp tsum uoY"
+
+#: musicbot/bot.py:3490
+#, python-format
+msgid "No playlist file exists with the name: `%(playlist)s`"
+msgstr "`%(playlist)s` :eman eht htiw stsixe elif tsilyalp oN"
+
+#: musicbot/bot.py:3560
+msgid "You are not allowed to request playlists"
+msgstr "stsilyalp tseuqer ot dewolla ton era uoY"
+
+#: musicbot/bot.py:3568
+#, python-format
+msgid "Playlist has too many entries (%(songs)s but max is %(max)s)"
+msgstr ")%(max)s si xam tub %(songs)s( seirtne ynam oot sah tsilyalP"
+
+#: musicbot/bot.py:3579
+#, python-format
+msgid ""
+"The playlist entries will exceed your queue limit.\n"
+"There are %(songs)s in the list, and %(queued)s already in queue.\n"
+"The limit is %(max)s for your group."
+msgstr ""
+".puorg ruoy rof %(max)s si timil ehT\n"
+".eueuq ni ydaerla %(queued)s dna ,tsil eht ni %(songs)s era erehT\n"
+".timil eueuq ruoy deecxe lliw seirtne tsilyalp ehT"
+
+#: musicbot/bot.py:3603
+msgid "Ignoring auto-pause due to network outage."
+msgstr ".egatuo krowten ot eud esuap-otua gnirongI"
+
+#: musicbot/bot.py:3608
+msgid ""
+"MusicPlayer has no VoiceClient or has no channel data, cannot process auto-"
+"pause."
+msgstr ""
+".esuap-otua ssecorp tonnac ,atad lennahc on sah ro tneilCecioV on sah "
+"reyalPcisuM"
+
+#: musicbot/bot.py:3619
+msgid "Already processing auto-pause, ignoring this event."
+msgstr ".tneve siht gnirongi ,esuap-otua gnissecorp ydaerlA"
+
+#: musicbot/bot.py:3627
+#, python-format
+msgid ""
+"%sVoiceClient not connected, waiting %s seconds to handle auto-pause in "
+"guild:  %s"
+msgstr ""
+"%s  :dliug ni esuap-otua eldnah ot sdnoces %s gnitiaw ,detcennoc ton "
+"tneilCecioV%s"
+
+#: musicbot/bot.py:3635
+msgid "Auto-pause waiting was cancelled."
+msgstr ".dellecnac saw gnitiaw esuap-otuA"
+
+#: musicbot/bot.py:3642
+msgid "A new MusicPlayer is being connected, ignoring old auto-pause event."
+msgstr ".tneve esuap-otua dlo gnirongi ,detcennoc gnieb si reyalPcisuM wen A"
+
+#: musicbot/bot.py:3658
+#, python-format
+msgid "Playing in an empty voice channel, running auto pause for guild: %s"
+msgstr "%s :dliug rof esuap otua gninnur ,lennahc eciov ytpme na ni gniyalP"
+
+#: musicbot/bot.py:3665
+#, python-format
+msgid "Previously auto paused player is unpausing for guild: %s"
+msgstr "%s :dliug rof gnisuapnu si reyalp desuap otua ylsuoiverP"
+
+#: musicbot/bot.py:3896
+msgid "Cannot use seek if there is nothing playing."
+msgstr ".gniyalp gnihton si ereht fi kees esu tonnaC"
+
+#: musicbot/bot.py:3901
+msgid "Cannot use seek on current track, it has an unknown duration."
+msgstr ".noitarud nwonknu na sah ti ,kcart tnerruc no kees esu tonnaC"
+
+#: musicbot/bot.py:3907
+msgid "Seeking is not supported for streams."
+msgstr ".smaerts rof detroppus ton si gnikeeS"
+
+#: musicbot/bot.py:3917
+msgid "Cannot use seek without a time to position playback."
+msgstr ".kcabyalp noitisop ot emit a tuohtiw kees esu tonnaC"
+
+#: musicbot/bot.py:3935
+#, python-format
+msgid "Could not convert `%(input)s` to a valid time in seconds."
+msgstr ".sdnoces ni emit dilav a ot `%(input)s` trevnoc ton dluoC"
+
+#: musicbot/bot.py:3948
+#, python-format
+msgid ""
+"Cannot seek to `%(input)s` (`%(seconds)s` seconds) in the current track with"
+" a length of `%(progress)s / %(total)s`"
+msgstr ""
+"`%(total)s / %(progress)s` fo htgnel a htiw kcart tnerruc eht ni )sdnoces "
+"`%(seconds)s`( `%(input)s` ot kees tonnaC"
+
+#: musicbot/bot.py:4009
+msgid "Invalid sub-command. Use the command `help repeat` for usage examples."
+msgstr ""
+".selpmaxe egasu rof `taeper pleh` dnammoc eht esU .dnammoc-bus dilavnI"
+
+#: musicbot/bot.py:4047
+msgid "The player is not currently looping."
+msgstr ".gnipool yltnerruc ton si reyalp ehT"
+
+#: musicbot/bot.py:4103
+msgid "Song positions must be integers!"
+msgstr "!sregetni eb tsum snoitisop gnoS"
+
+#: musicbot/bot.py:4108
+msgid "You gave a position outside the playlist size!"
+msgstr "!ezis tsilyalp eht edistuo noitisop a evag uoY"
+
+#: musicbot/bot.py:4156
+msgid ""
+"Could not prompt for playlist playback, no message to add reactions to."
+msgstr ""
+".ot snoitcaer dda ot egassem on ,kcabyalp tsilyalp rof tpmorp ton dluoC"
+
+#: musicbot/bot.py:4245
+msgid "Local media playback is not enabled."
+msgstr ".delbane ton si kcabyalp aidem lacoL"
+
+#: musicbot/bot.py:4286
+msgid "Spotify URL is invalid or not currently supported."
+msgstr ".detroppus yltnerruc ton ro dilavni si LRU yfitopS"
+
+#: musicbot/bot.py:4290
+msgid "Detected a Spotify URL, but Spotify is not enabled."
+msgstr ".delbane ton si yfitopS tub ,LRU yfitopS a detceteD"
+
+#: musicbot/bot.py:4300 musicbot/bot.py:4505
+#, python-format
+msgid "You have reached your enqueued song limit (%(max)s)"
+msgstr ")%(max)s( timil gnos deueuqne ruoy dehcaer evah uoY"
+
+#: musicbot/bot.py:4306 musicbot/bot.py:4511 musicbot/bot.py:4605
+msgid "Karaoke mode is enabled, please try again when its disabled!"
+msgstr "!delbasid sti nehw niaga yrt esaelp ,delbane si edom ekoaraK"
+
+#: musicbot/bot.py:4318
+msgid "Issue with extract_info(): "
+msgstr " :)(ofni_tcartxe htiw eussI"
+
+#: musicbot/bot.py:4322 musicbot/bot.py:4527
+#, python-format
+msgid ""
+"Failed to extract info due to error:\n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+":rorre ot eud ofni tcartxe ot deliaF"
+
+#: musicbot/bot.py:4328
+msgid "That video cannot be played. Try using the stream command."
+msgstr ".dnammoc maerts eht gnisu yrT .deyalp eb tonnac oediv tahT"
+
+#: musicbot/bot.py:4339
+#, python-format
+msgid "YouTube search returned no results for:  %(url)s"
+msgstr "%(url)s  :rof stluser on denruter hcraes ebuTuoY"
+
+#: musicbot/bot.py:4369
+#, python-format
+msgid ""
+"Processed %(number)d of %(total)d songs in %(time).3f seconds at "
+"%(time_per).2f s/song"
+msgstr ""
+"gnos/s %(time_per).2f ta sdnoces %(time).3f ni sgnos %(total)d fo %(number)d"
+" dessecorP"
+
+#: musicbot/bot.py:4380
+#, python-format
+msgid ""
+"No songs were added, all songs were over max duration (%(max)s seconds)"
+msgstr ""
+")sdnoces %(max)s( noitarud xam revo erew sgnos lla ,dedda erew sgnos oN"
+
+#: musicbot/bot.py:4396
+msgid "Extracted an entry with 'youtube:playlist' as extractor key"
+msgstr "yek rotcartxe sa 'tsilyalp:ebutuoy' htiw yrtne na detcartxE"
+
+#: musicbot/bot.py:4408
+#, python-format
+msgid "Song duration exceeds limit (%(length)s > %(max)s)"
+msgstr ")%(max)s > %(length)s( timil sdeecxe noitarud gnoS"
+
+#: musicbot/bot.py:4426
+#, python-format
+msgid "Added song(s) at position %s"
+msgstr "%s noitisop ta )s(gnos deddA"
+
+#: musicbot/bot.py:4463
+#, python-format
+msgid "Cannot estimate time until playing for position: %d"
+msgstr "%d :noitisop rof gniyalp litnu emit etamitse tonnaC"
+
+#: musicbot/bot.py:4524
+#, python-format
+msgid "Failed to get info from the stream request: %s"
+msgstr "%s :tseuqer maerts eht morf ofni teg ot deliaF"
+
+#: musicbot/bot.py:4533
+msgid "Streaming playlists is not yet supported."
+msgstr ".detroppus tey ton si stsilyalp gnimaertS"
+
+#: musicbot/bot.py:4599
+#, python-format
+msgid "You have reached your playlist item limit (%(max)s)"
+msgstr ")%(max)s( timil meti tsilyalp ruoy dehcaer evah uoY"
+
+#: musicbot/bot.py:4611
+msgid ""
+"Please specify a search query.  Use `help search` for more information."
+msgstr ""
+".noitamrofni erom rof `hcraes pleh` esU  .yreuq hcraes a yficeps esaelP"
+
+#: musicbot/bot.py:4640
+#, python-format
+msgid "You cannot search for more than %(max)s videos"
+msgstr "soediv %(max)s naht erom rof hcraes tonnac uoY"
+
+#: musicbot/bot.py:4965
+#, python-format
+msgid "Waiting for summon lock: %s"
+msgstr "%s :kcol nommus rof gnitiaW"
+
+#: musicbot/bot.py:4968
+#, python-format
+msgid "Summon lock acquired for: %s"
+msgstr "%s :rof deriuqca kcol nommuS"
+
+#: musicbot/bot.py:4972
+msgid "You are not connected to voice. Try joining a voice channel!"
+msgstr "!lennahc eciov a gninioj yrT .eciov ot detcennoc ton era uoY"
+
+#: musicbot/bot.py:4997
+#, python-format
+msgid "Joining %(guild)s/%(channel)s"
+msgstr "%(channel)s/%(guild)s gninioJ"
+
+#: musicbot/bot.py:5059
+msgid "MusicBot cannot follow a user that is not a member of the server."
+msgstr ".revres eht fo rebmem a ton si taht resu a wollof tonnac toBcisuM"
+
+#: musicbot/bot.py:5087
+msgid "Player is not playing."
+msgstr ".gniyalp ton si reyalP"
+
+#: musicbot/bot.py:5162
+msgid ""
+"There is nothing currently playing. Play something with a play command."
+msgstr ""
+".dnammoc yalp a htiw gnihtemos yalP .gniyalp yltnerruc gnihton si erehT"
+
+#: musicbot/bot.py:5176
+#, python-format
+msgid ""
+"Missing permissions to delete queue file for %(guild)s(%(id)s) at: %(path)s"
+msgstr ""
+"%(path)s :ta )%(id)s(%(guild)s rof elif eueuq eteled ot snoissimrep gnissiM"
+
+#: musicbot/bot.py:5181
+#, python-format
+msgid "OS level error while trying to delete queue file: %(path)s"
+msgstr "%(path)s :elif eueuq eteled ot gniyrt elihw rorre level SO"
+
+#: musicbot/bot.py:5212
+msgid "Nothing in the queue to remove!"
+msgstr "!evomer ot eueuq eht ni gnihtoN"
+
+#: musicbot/bot.py:5233
+#, python-format
+msgid "Nothing found in the queue from user `%(user)s`"
+msgstr "`%(user)s` resu morf eueuq eht ni dnuof gnihtoN"
+
+#: musicbot/bot.py:5238 musicbot/bot.py:5274
+msgid ""
+"You do not have the permission to remove that entry from the queue.\n"
+"You must be the one who queued it or have instant skip permissions."
+msgstr ""
+".snoissimrep piks tnatsni evah ro ti deueuq ohw eno eht eb tsum uoY\n"
+".eueuq eht morf yrtne taht evomer ot noissimrep eht evah ton od uoY"
+
+#: musicbot/bot.py:5249 musicbot/bot.py:5254
+msgid "Invalid entry number. Use the queue command to find queue positions."
+msgstr ".snoitisop eueuq dnif ot dnammoc eueuq eht esU .rebmun yrtne dilavnI"
+
+#: musicbot/bot.py:5305
+msgid "Can't skip! The player is not playing!"
+msgstr "!gniyalp ton si reyalp ehT !piks t'naC"
+
+#: musicbot/bot.py:5357
+msgid "You do not have permission to force skip a looped song."
+msgstr ".gnos depool a piks ecrof ot noissimrep evah ton od uoY"
+
+#: musicbot/bot.py:5377
+msgid "You do not have permission to force skip."
+msgstr ".piks ecrof ot noissimrep evah ton od uoY"
+
+#: musicbot/bot.py:5414 musicbot/bot.py:5447
+msgid "You do not have permission to skip a looped song."
+msgstr ".gnos depool a piks ot noissimrep evah ton od uoY"
+
+#: musicbot/bot.py:5497
+#, python-format
+msgid "`%(new_volume)s` is not a valid number"
+msgstr "rebmun dilav a ton si `%(new_volume)s`"
+
+#: musicbot/bot.py:5538
+#, python-format
+msgid ""
+"Unreasonable volume change provided: %(old_volume)s%(adjustment)s is %(new_volume)s.\n"
+"Volume can only be set from 1 to 100."
+msgstr ""
+".001 ot 1 morf tes eb ylno nac emuloV\n"
+".%(new_volume)s si %(adjustment)s%(old_volume)s :dedivorp egnahc emulov elbanosaernU"
+
+#: musicbot/bot.py:5548
+#, python-format
+msgid ""
+"Unreasonable volume provided: %(volume)s. Provide a value between 1 and 100."
+msgstr ""
+".001 dna 1 neewteb eulav a edivorP .%(volume)s :dedivorp emulov elbanosaernU"
+
+#: musicbot/bot.py:5572
+msgid ""
+"No track is playing, cannot set speed.\n"
+"Use the config command to set a default playback speed."
+msgstr ""
+".deeps kcabyalp tluafed a tes ot dnammoc gifnoc eht esU\n"
+".deeps tes tonnac ,gniyalp si kcart oN"
+
+#: musicbot/bot.py:5580
+msgid "Speed cannot be applied to streamed media."
+msgstr ".aidem demaerts ot deilppa eb tonnac deepS"
+
+#: musicbot/bot.py:5585
+msgid "You must provide a speed to set."
+msgstr ".tes ot deeps a edivorp tsum uoY"
+
+#: musicbot/bot.py:5594
+msgid "The speed you provided is invalid. Use a number between 0.5 and 100."
+msgstr ".001 dna 5.0 neewteb rebmun a esU .dilavni si dedivorp uoy deeps ehT"
+
+#: musicbot/bot.py:5653 musicbot/bot.py:5769 musicbot/bot.py:6699
+#, python-format
+msgid "Invalid option for command: `%(option)s`"
+msgstr "`%(option)s` :dnammoc rof noitpo dilavnI"
+
+#: musicbot/bot.py:5667
+#, python-format
+msgid ""
+"Failed to save aliases due to error:\n"
+"`%(raw_error)s`"
+msgstr ""
+"`%(raw_error)s`\n"
+":rorre ot eud sesaila evas ot deliaF"
+
+#: musicbot/bot.py:5674
+msgid "You must supply an alias and a command to alias"
+msgstr "saila ot dnammoc a dna saila na ylppus tsum uoY"
+
+#: musicbot/bot.py:5689
+msgid "You must supply an alias name to remove."
+msgstr ".evomer ot eman saila na ylppus tsum uoY"
+
+#: musicbot/bot.py:5694
+#, python-format
+msgid "The alias `%(alias)s` does not exist."
+msgstr ".tsixe ton seod `%(alias)s` saila ehT"
+
+#: musicbot/bot.py:5752
+msgid "Config cannot use channel and user mentions at the same time."
+msgstr ".emit emas eht ta snoitnem resu dna lennahc esu tonnac gifnoC"
+
+#: musicbot/bot.py:5855
+#, python-format
+msgid ""
+"Unable to reload Config due to the following error:\n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+":rorre gniwollof eht ot eud gifnoC daoler ot elbanU"
+
+#: musicbot/bot.py:5873
+msgid ""
+"Could not resolve section name from option name. Please provide a valid "
+"section and option name."
+msgstr ""
+".eman noitpo dna noitces dilav a edivorp esaelP .eman noitpo morf eman "
+"noitces evloser ton dluoC"
+
+#: musicbot/bot.py:5877
+msgid "The option given is ambiguous, please provide a section name."
+msgstr ".eman noitces a edivorp esaelp ,suougibma si nevig noitpo ehT"
+
+#: musicbot/bot.py:5883
+msgid "You must provide a section name and option name for this command."
+msgstr ".dnammoc siht rof eman noitpo dna eman noitces a edivorp tsum uoY"
+
+#: musicbot/bot.py:5899
+#, python-format
+msgid ""
+"The section `%(section)s` is not available.\n"
+"The available sections are:  %(sections)s"
+msgstr ""
+"%(sections)s  :era snoitces elbaliava ehT\n"
+".elbaliava ton si `%(section)s` noitces ehT"
+
+#: musicbot/bot.py:5907
+#, python-format
+msgid "The option `%(option)s` is not available."
+msgstr ".elbaliava ton si `%(option)s` noitpo ehT"
+
+#: musicbot/bot.py:5935
+#, python-format
+msgid "Option `%(option)s` is not editable. Cannot save to disk."
+msgstr ".ksid ot evas tonnaC .elbatide ton si `%(option)s` noitpO"
+
+#: musicbot/bot.py:5944
+#, python-format
+msgid "Failed to save the option:  `%(option)s`"
+msgstr "`%(option)s`  :noitpo eht evas ot deliaF"
+
+#: musicbot/bot.py:5959
+#, python-format
+msgid "Option `%(option)s` is not editable, value cannot be displayed."
+msgstr ".deyalpsid eb tonnac eulav ,elbatide ton si `%(option)s` noitpO"
+
+#: musicbot/bot.py:5982
+#, python-format
+msgid "Option `%(option)s` is not editable. Cannot update setting."
+msgstr ".gnittes etadpu tonnaC .elbatide ton si `%(option)s` noitpO"
+
+#: musicbot/bot.py:5988 musicbot/bot.py:6912
+msgid "You must provide a section, option, and value for this sub command."
+msgstr ".dnammoc bus siht rof eulav dna ,noitpo ,noitces a edivorp tsum uoY"
+
+#: musicbot/bot.py:5992
+#, python-format
+msgid "Doing set with on %(config)s == %(value)s"
+msgstr "%(value)s == %(config)s no htiw tes gnioD"
+
+#: musicbot/bot.py:5999
+#, python-format
+msgid "Option `%(option)s` was not updated!"
+msgstr "!detadpu ton saw `%(option)s` noitpO"
+
+#: musicbot/bot.py:6015
+#, python-format
+msgid "Option `%(option)s` is not editable. Cannot reset to default."
+msgstr ".tluafed ot teser tonnaC .elbatide ton si `%(option)s` noitpO"
+
+#: musicbot/bot.py:6027
+#, python-format
+msgid "Resetting %(config)s to default %(value)s"
+msgstr "%(value)s tluafed ot %(config)s gnitteseR"
+
+#: musicbot/bot.py:6034
+#, python-format
+msgid "Option `%(option)s` was not reset to default!"
+msgstr "!tluafed ot teser ton saw `%(option)s` noitpO"
+
+#: musicbot/bot.py:6067
+msgid "The option command is deprecated, use the config command instead."
+msgstr ".daetsni dnammoc gifnoc eht esu ,detacerped si dnammoc noitpo ehT"
+
+#: musicbot/bot.py:6087
+msgid "Invalid option specified, use: info, update, or clear"
+msgstr "raelc ro ,etadpu ,ofni :esu ,deificeps noitpo dilavnI"
+
+#: musicbot/bot.py:6144
+msgid "**Failed** to delete cache, check logs for more info..."
+msgstr "...ofni erom rof sgol kcehc ,ehcac eteled ot **deliaF**"
+
+#: musicbot/bot.py:6179
+msgid "Queue page argument must be a whole number."
+msgstr ".rebmun elohw a eb tsum tnemugra egap eueuQ"
+
+#: musicbot/bot.py:6186
+msgid "There are no songs queued! Queue something with a play command."
+msgstr ".dnammoc yalp a htiw gnihtemos eueuQ !deueuq sgnos on era erehT"
+
+#: musicbot/bot.py:6193
+#, python-format
+msgid ""
+"Requested page number is out of bounds.\n"
+"There are **%(total)s** pages."
+msgstr ""
+".segap **%(total)s** era erehT\n"
+".sdnuob fo tuo si rebmun egap detseuqeR"
+
+#: musicbot/bot.py:6236
+msgid "Skipped the current playlist entry."
+msgstr ".yrtne tsilyalp tnerruc eht deppikS"
+
+#: musicbot/bot.py:6279
+msgid "Not enough entries to paginate the queue."
+msgstr ".eueuq eht etanigap ot seirtne hguone toN"
+
+#: musicbot/bot.py:6283
+msgid "Could not post queue message, no message to add reactions to."
+msgstr ".ot snoitcaer dda ot egassem on ,egassem eueuq tsop ton dluoC"
+
+#: musicbot/bot.py:6285
+msgid ""
+"Try that again. MusicBot couldn't make or get a reference to the queue message.\n"
+"If the issue persists, file a bug report."
+msgstr ""
+".troper gub a elif ,stsisrep eussi eht fI\n"
+".egassem eueuq eht ot ecnerefer a teg ro ekam t'ndluoc toBcisuM .niaga taht yrT"
+
+#: musicbot/bot.py:6395
+msgid "Cannot use purge on private DM channel."
+msgstr ".lennahc MD etavirp no egrup esu tonnaC"
+
+#: musicbot/bot.py:6427
+msgid "The given URL was not a valid URL."
+msgstr ".LRU dilav a ton saw LRU nevig ehT"
+
+#: musicbot/bot.py:6437
+#, python-format
+msgid ""
+"Could not extract info from input url\n"
+"%(raw_error)s\n"
+msgstr ""
+"\n"
+"%(raw_error)s\n"
+"lru tupni morf ofni tcartxe ton dluoC"
+
+#: musicbot/bot.py:6442
+msgid "This does not seem to be a playlist."
+msgstr ".tsilyalp a eb ot mees ton seod sihT"
+
+#: musicbot/bot.py:6605
+msgid ""
+"Invalid user ID or server nickname, please double-check the ID and try "
+"again."
+msgstr ""
+".niaga yrt dna DI eht kcehc-elbuod esaelp ,emankcin revres ro DI resu "
+"dilavnI"
+
+#: musicbot/bot.py:6612
+msgid "Could not determine the discord User.  Try again."
+msgstr ".niaga yrT  .resU drocsid eht enimreted ton dluoC"
+
+#: musicbot/bot.py:6683
+msgid "Permissions cannot use channel and user mentions at the same time."
+msgstr ".emit emas eht ta snoitnem resu dna lennahc esu tonnac snoissimreP"
+
+#: musicbot/bot.py:6718
+#, python-format
+msgid ""
+"Unable to reload Permissions due to an error:\n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+":rorre na ot eud snoissimreP daoler ot elbanU"
+
+#: musicbot/bot.py:6755
+msgid "You must provide a group or option name for this command."
+msgstr ".dnammoc siht rof eman noitpo ro puorg a edivorp tsum uoY"
+
+#: musicbot/bot.py:6759
+msgid "You must provide a group, option, and value to set for this command."
+msgstr ".dnammoc siht rof tes ot eulav dna ,noitpo ,puorg a edivorp tsum uoY"
+
+#: musicbot/bot.py:6773
+#, python-format
+msgid "The %(option)s sub-command requires a group and permission name."
+msgstr ".eman noissimrep dna puorg a seriuqer dnammoc-bus %(option)s ehT"
+
+#: musicbot/bot.py:6785
+#, python-format
+msgid ""
+"The group `%(group)s` is not available.\n"
+"The available groups are:  %(sections)s"
+msgstr ""
+"%(sections)s  :era spuorg elbaliava ehT\n"
+".elbaliava ton si `%(group)s` puorg ehT"
+
+#: musicbot/bot.py:6796
+#, python-format
+msgid "The permission `%(option)s` is not available."
+msgstr ".elbaliava ton si `%(option)s` noissimrep ehT"
+
+#: musicbot/bot.py:6832
+#, python-format
+msgid "Cannot add group `%(group)s` it already exists."
+msgstr ".stsixe ydaerla ti `%(group)s` puorg dda tonnaC"
+
+#: musicbot/bot.py:6850
+msgid "Cannot remove built-in group."
+msgstr ".puorg ni-tliub evomer tonnaC"
+
+#: musicbot/bot.py:6868 musicbot/bot.py:6907
+msgid "The owner group is not editable."
+msgstr ".elbatide ton si puorg renwo ehT"
+
+#: musicbot/bot.py:6876
+#, python-format
+msgid "Failed to save the group:  `%(group)s`"
+msgstr "`%(group)s`  :puorg eht evas ot deliaF"
+
+#: musicbot/bot.py:6916
+#, python-format
+msgid "Doing set on %(option)s with value: %(value)s"
+msgstr "%(value)s :eulav htiw %(option)s no tes gnioD"
+
+#: musicbot/bot.py:6923
+#, python-format
+msgid "Permission `%(option)s` was not updated!"
+msgstr "!detadpu ton saw `%(option)s` noissimreP"
+
+#: musicbot/bot.py:6964
+msgid ""
+"Failed to change username. Did you change names too many times?\n"
+"Remember name changes are limited to twice per hour.\n"
+msgstr ""
+"\n"
+".ruoh rep eciwt ot detimil era segnahc eman rebmemeR\n"
+"?semit ynam oot seman egnahc uoy diD .emanresu egnahc ot deliaF"
+
+#: musicbot/bot.py:6970
+#, python-format
+msgid ""
+"Failed to change username due to error:  \n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+"  :rorre ot eud emanresu egnahc ot deliaF"
+
+#: musicbot/bot.py:6992
+msgid "Unable to change nickname: no permission."
+msgstr ".noissimrep on :emankcin egnahc ot elbanU"
+
+#: musicbot/bot.py:7000
+#, python-format
+msgid ""
+"Failed to set nickname due to error:  \n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+"  :rorre ot eud emankcin tes ot deliaF"
+
+#: musicbot/bot.py:7040
+msgid "Custom emoji must be from this server to use as a prefix."
+msgstr ".xiferp a sa esu ot revres siht morf eb tsum ijome motsuC"
+
+#: musicbot/bot.py:7057
+msgid ""
+"Prefix per server is not enabled!\n"
+"Use the config command to update the prefix instead."
+msgstr ""
+".daetsni xiferp eht etadpu ot dnammoc gifnoc eht esU\n"
+"!delbane ton si revres rep xiferP"
+
+#: musicbot/bot.py:7087
+msgid "This command can only be used in guilds."
+msgstr ".sdliug ni desu eb ylno nac dnammoc sihT"
+
+#: musicbot/bot.py:7092
+msgid "Invalid sub-command given. Use the help command for more information."
+msgstr ".noitamrofni erom rof dnammoc pleh eht esU .nevig dnammoc-bus dilavnI"
+
+#: musicbot/bot.py:7113
+#, python-format
+msgid "Cannot set language to `%(locale)s` it is not available."
+msgstr ".elbaliava ton si ti `%(locale)s` ot egaugnal tes tonnaC"
+
+#: musicbot/bot.py:7158
+msgid "You must provide a URL or attach a file."
+msgstr ".elif a hcatta ro LRU a edivorp tsum uoY"
+
+#: musicbot/bot.py:7168
+#, python-format
+msgid ""
+"Unable to change avatar due to error:  \n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+"  :rorre ot eud ratava egnahc ot elbanU"
+
+#: musicbot/bot.py:7193
+#, python-format
+msgid "MusicBot found a %s with no guild!  This could be a problem."
+msgstr ".melborp a eb dluoc sihT  !dliug on htiw %s a dnuof toBcisuM"
+
+#: musicbot/bot.py:7205
+#, python-format
+msgid "Not currently connected to server `%(guild)s`"
+msgstr "`%(guild)s` revres ot detcennoc yltnerruc toN"
+
+#: musicbot/bot.py:7246
+msgid ""
+"Invalid option given, use one of:  soft, full, upgrade, uppip, or upgit"
+msgstr ""
+"tigpu ro ,pippu ,edargpu ,lluf ,tfos  :fo eno esu ,nevig noitpo dilavnI"
+
+#: musicbot/bot.py:7355
+msgid "You must provide an ID or name."
+msgstr ".eman ro DI na edivorp tsum uoY"
+
+#: musicbot/bot.py:7366
+#, python-format
+msgid "No guild was found with the ID or name `%(input)s`"
+msgstr "`%(input)s` eman ro DI eht htiw dnuof saw dliug oN"
+
+#: musicbot/bot.py:7423
+#, python-format
+msgid "Activating debug breakpoint ID: %(uuid)s"
+msgstr "%(uuid)s :DI tniopkaerb gubed gnitavitcA"
+
+#: musicbot/bot.py:7463
+msgid "Could not import `objgraph`, is it installed?"
+msgstr "?dellatsni ti si ,`hpargjbo` tropmi ton dluoC"
+
+#: musicbot/bot.py:7538
+msgid "Debug code ran with eval()."
+msgstr ".)(lave htiw nar edoc gubeD"
+
+#: musicbot/bot.py:7548
+msgid "Debug code ran with exec()."
+msgstr ".)(cexe htiw nar edoc gubeD"
+
+#: musicbot/bot.py:7551
+msgid "Debug code failed to execute."
+msgstr ".etucexe ot deliaf edoc gubeD"
+
+#: musicbot/bot.py:7553
+#, python-format
+msgid ""
+"Failed to execute debug code:\n"
+"%(py_code)s\n"
+"Exception: ```\n"
+"%(ex_name)s:\n"
+"%(ex_text)s```"
+msgstr ""
+"```%(ex_text)s\n"
+":%(ex_name)s\n"
+"``` :noitpecxE\n"
+"%(py_code)s\n"
+":edoc gubed etucexe ot deliaF"
+
+#: musicbot/bot.py:7588 musicbot/bot.py:7649
+#, python-format
+msgid "Sub-command must be one of: %(options)s"
+msgstr "%(options)s :fo eno eb tsum dnammoc-buS"
+
+#: musicbot/bot.py:7688
+msgid "Could not locate git executable."
+msgstr ".elbatucexe tig etacol ton dluoC"
+
+#: musicbot/bot.py:7732
+msgid "Failed while checking for updates via git command."
+msgstr ".dnammoc tig aiv setadpu rof gnikcehc elihw deliaF"
+
+#: musicbot/bot.py:7761
+msgid "Package missing meta in pip report."
+msgstr ".troper pip ni atem gnissim egakcaP"
+
+#: musicbot/bot.py:7775
+msgid "Failed to get pip update status due to some error."
+msgstr ".rorre emos ot eud sutats etadpu pip teg ot deliaF"
+
+#: musicbot/bot.py:7836
+msgid "Got a strange voice client entry."
+msgstr ".yrtne tneilc eciov egnarts a toG"
+
+#: musicbot/bot.py:7946
+msgid "Cookies already enabled."
+msgstr ".delbane ydaerla seikooC"
+
+#: musicbot/bot.py:7953
+msgid "Cookies must be uploaded to be enabled. (Missing cookies file.)"
+msgstr ").elif seikooc gnissiM( .delbane eb ot dedaolpu eb tsum seikooC"
+
+#: musicbot/bot.py:7966
+#, python-format
+msgid "Could not enable cookies due to error:  %(raw_error)s"
+msgstr "%(raw_error)s  :rorre ot eud seikooc elbane ton dluoC"
+
+#: musicbot/bot.py:7980
+#, python-format
+msgid ""
+"Could not rename cookies file due to error:  %(raw_error)s\n"
+"Cookies temporarily disabled and will be re-enabled on next restart."
+msgstr ""
+".tratser txen no delbane-er eb lliw dna delbasid yliraropmet seikooC\n"
+"%(raw_error)s  :rorre ot eud elif seikooc emaner ton dluoC"
+
+#: musicbot/bot.py:7989
+msgid ""
+"No attached uploads were found, try again while uploading a cookie file."
+msgstr ""
+".elif eikooc a gnidaolpu elihw niaga yrt ,dnuof erew sdaolpu dehcatta oN"
+
+#: musicbot/bot.py:7998
+#, python-format
+msgid "Could not remove old, disabled cookies file:  %(raw_error)s"
+msgstr "%(raw_error)s  :elif seikooc delbasid ,dlo evomer ton dluoC"
+
+#: musicbot/bot.py:8007
+#, python-format
+msgid "Error downloading the cookies file from discord:  %(raw_error)s"
+msgstr "%(raw_error)s  :drocsid morf elif seikooc eht gnidaolnwod rorrE"
+
+#: musicbot/bot.py:8012
+#, python-format
+msgid "Could not save cookies to disk:  %(raw_error)s"
+msgstr "%(raw_error)s  :ksid ot seikooc evas ton dluoC"
+
+#: musicbot/bot.py:8030
+#, python-format
+msgid "Got a message with no channel, somehow:  %s"
+msgstr "%s  :wohemos ,lennahc on htiw egassem a toG"
+
+#: musicbot/bot.py:8058
+#, python-format
+msgid "Ignoring command from myself (%s)"
+msgstr ")%s( flesym morf dnammoc gnirongI"
+
+#: musicbot/bot.py:8066
+#, python-format
+msgid "Ignoring command from other bot (%s)"
+msgstr ")%s( tob rehto morf dnammoc gnirongI"
+
+#: musicbot/bot.py:8074
+#, python-format
+msgid "Ignoring command from channel of type:  %s"
+msgstr "%s  :epyt fo lennahc morf dnammoc gnirongI"
+
+#: musicbot/bot.py:8143
+msgid ""
+"MusicBot has bound channel config and caller channel is not in bound "
+"channels."
+msgstr ""
+".slennahc dnuob ni ton si lennahc rellac dna gifnoc lennahc dnuob sah "
+"toBcisuM"
+
+#: musicbot/bot.py:8150
+msgid "Caller server has a bound channel, caller channel ignored."
+msgstr ".derongi lennahc rellac ,lennahc dnuob a sah revres rellaC"
+
+#: musicbot/bot.py:8153
+msgid "Caller server has no bound channel, caller allowed."
+msgstr ".dewolla rellac ,lennahc dnuob on sah revres rellaC"
+
+#: musicbot/bot.py:8156
+#, python-format
+msgid "Unbound channel (%s) in server:  %s"
+msgstr "%s  :revres ni )%s( lennahc dnuobnU"
+
+#: musicbot/bot.py:8169
+#, python-format
+msgid "User in block list: %(id)s/%(name)s  tried command: %(command)s"
+msgstr "%(command)s :dnammoc deirt  %(name)s/%(id)s :tsil kcolb ni resU"
+
+#: musicbot/bot.py:8176
+#, python-format
+msgid "Message from %(id)s/%(name)s: %(message)s"
+msgstr "%(message)s :%(name)s/%(id)s morf egasseM"
+
+#: musicbot/bot.py:8210
+#, python-format
+msgid "This command is not allowed for your permissions group:  %(group)s"
+msgstr "%(group)s  :puorg snoissimrep ruoy rof dewolla ton si dnammoc sihT"
+
+#: musicbot/bot.py:8245
+msgid "This command requires you to be in a Voice channel."
+msgstr ".lennahc ecioV a ni eb ot uoy seriuqer dnammoc sihT"
+
+#: musicbot/bot.py:8329
+#, python-format
+msgid "Invalid command usage, missing values for params: %(params)r"
+msgstr "%(params)r :smarap rof seulav gnissim ,egasu dnammoc dilavnI"
+
+#: musicbot/bot.py:8367
+#, python-format
+msgid "Error in %(command)s: %(err_name)s: %(err_text)s"
+msgstr "%(err_text)s :%(err_name)s :%(command)s ni rorrE"
+
+#: musicbot/bot.py:8390
+#, python-format
+msgid "Exception while handling command: %(command)s"
+msgstr "%(command)s :dnammoc gnildnah elihw noitpecxE"
+
+#: musicbot/bot.py:8421
+#, python-format
+msgid "Cannot generate help for missing command:  %s"
+msgstr "%s  :dnammoc gnissim rof pleh etareneg tonnaC"
+
+#: musicbot/bot.py:8425
+#, python-format
+msgid "Missing help data for command:  %s"
+msgstr "%s  :dnammoc rof atad pleh gnissiM"
+
+#: musicbot/bot.py:8542
+#, python-format
+msgid "Leaving voice channel %s in %s due to inactivity."
+msgstr ".ytivitcani ot eud %s ni %s lennahc eciov gnivaeL"
+
+#: musicbot/bot.py:8551
+msgid "MusicBot has become connected."
+msgstr ".detcennoc emoceb sah toBcisuM"
+
+#: musicbot/bot.py:8555
+msgid "MusicBot has become disconnected."
+msgstr ".detcennocsid emoceb sah toBcisuM"
+
+#: musicbot/bot.py:8560
+#, python-format
+msgid "Got a Socket Event:  %s"
+msgstr "%s  :tnevE tekcoS a toG"
+
+#: musicbot/bot.py:8576
+msgid "VoiceState updated before on_ready finished"
+msgstr "dehsinif ydaer_no erofeb detadpu etatSecioV"
+
+#: musicbot/bot.py:8589
+#, python-format
+msgid "Ignoring %s in %s as it is a bound voice channel."
+msgstr ".lennahc eciov dnuob a si ti sa %s ni %s gnirongI"
+
+#: musicbot/bot.py:8598
+#, python-format
+msgid "%s has been detected as empty. Handling timeouts."
+msgstr ".stuoemit gnildnaH .ytpme sa detceted neeb sah %s"
+
+#: musicbot/bot.py:8609
+#, python-format
+msgid "A user joined %s, cancelling timer."
+msgstr ".remit gnillecnac ,%s denioj resu A"
+
+#: musicbot/bot.py:8622
+#, python-format
+msgid ""
+"The bot got moved and the voice channel %s is empty. Handling timeouts."
+msgstr ""
+".stuoemit gnildnaH .ytpme si %s lennahc eciov eht dna devom tog tob ehT"
+
+#: musicbot/bot.py:8631
+#, python-format
+msgid "The bot got moved and the voice channel %s is not empty."
+msgstr ".ytpme ton si %s lennahc eciov eht dna devom tog tob ehT"
+
+#: musicbot/bot.py:8680
+#, python-format
+msgid "No longer following user %s"
+msgstr "%s resu gniwollof regnol oN"
+
+#: musicbot/bot.py:8702
+#, python-format
+msgid "Following user `%(user)s` to channel:  %(channel)s"
+msgstr "%(channel)s  :lennahc ot `%(user)s` resu gniwolloF"
+
+#: musicbot/bot.py:8722
+msgid "VoiceState disconnect before.channel is None."
+msgstr ".enoN si lennahc.erofeb tcennocsid etatSecioV"
+
+#: musicbot/bot.py:8749
+#, python-format
+msgid ""
+"Disconnected from voice by Discord API in: %(guild)s/%(channel)s (Code: "
+"%(code)s) [S:%(state)s]"
+msgstr ""
+"]%(state)s:S[ )%(code)s :edoC( %(channel)s/%(guild)s :ni IPA drocsiD yb "
+"eciov morf detcennocsiD"
+
+#: musicbot/bot.py:8771
+#, python-format
+msgid "Cannot use auto-join channel with type: %(type)s  in guild:  %(guild)s"
+msgstr ""
+"%(guild)s  :dliug ni  %(type)s :epyt htiw lennahc nioj-otua esu tonnaC"
+
+#: musicbot/bot.py:8778
+#, python-format
+msgid "Cannot find the auto-joined channel, was it deleted?  Guild:  %s"
+msgstr "%s  :dliuG  ?deteled ti saw ,lennahc denioj-otua eht dnif tonnaC"
+
+#: musicbot/bot.py:8784
+#, python-format
+msgid "Reconnecting to auto-joined guild on channel:  %s"
+msgstr "%s  :lennahc no dliug denioj-otua ot gnitcennoceR"
+
+#: musicbot/bot.py:8797
+#, python-format
+msgid "Cannot auto join channel:  %s"
+msgstr "%s  :lennahc nioj otua tonnaC"
+
+#: musicbot/bot.py:8813
+#, python-format
+msgid "Bot has been added to guild: %s"
+msgstr "%s :dliug ot dedda neeb sah toB"
+
+#: musicbot/bot.py:8825
+#, python-format
+msgid "Left guild '%s' due to bot owner not found."
+msgstr ".dnuof ton renwo tob ot eud '%s' dliug tfeL"
+
+#: musicbot/bot.py:8839
+#, python-format
+msgid "Creating data folder for guild %s"
+msgstr "%s dliug rof redlof atad gnitaerC"
+
+#: musicbot/bot.py:8847
+#, python-format
+msgid "Bot has been removed from guild: %s"
+msgstr "%s :dliug morf devomer neeb sah toB"
+
+#: musicbot/bot.py:8848
+msgid "Updated guild list:"
+msgstr ":tsil dliug detadpU"
+
+#: musicbot/bot.py:8863
+#, python-format
+msgid "Guild \"%s\" has become available."
+msgstr ".elbaliava emoceb sah \"%s\" dliuG"
+
+#: musicbot/bot.py:8869
+#, python-format
+msgid "Resuming player in \"%s\" due to availability."
+msgstr ".ytilibaliava ot eud \"%s\" ni reyalp gnimuseR"
+
+#: musicbot/bot.py:8886
+#, python-format
+msgid "Guild \"%s\" has become unavailable."
+msgstr ".elbaliavanu emoceb sah \"%s\" dliuG"
+
+#: musicbot/bot.py:8892
+#, python-format
+msgid "Pausing player in \"%s\" due to unavailability."
+msgstr ".ytilibaliavanu ot eud \"%s\" ni reyalp gnisuaP"
+
+#: musicbot/bot.py:8908
+#, python-format
+msgid "Guild update for:  %s"
+msgstr "%s  :rof etadpu dliuG"
+
+#: musicbot/bot.py:8914
+#, python-format
+msgid "Guild attribute %(attr)s is now: %(new)s  -- Was: %(old)s"
+msgstr "%(old)s :saW --  %(new)s :won si %(attr)s etubirtta dliuG"
+
+#: musicbot/bot.py:8965
+#, python-format
+msgid "Channel update for:  %(channel)s  --  %(changes)s"
+msgstr "%(changes)s  --  %(channel)s  :rof etadpu lennahC"
+
+#: musicbot/config.py:87
+#, python-format
+msgid "Creating %s"
+msgstr "%s gnitaerC"
+
+#: musicbot/config.py:108
+#, python-format
+msgid "Loading config from:  %s"
+msgstr "%s  :morf gifnoc gnidaoL"
+
+#: musicbot/config.py:1084
+msgid "Generating new config options files..."
+msgstr "...selif snoitpo gifnoc wen gnitareneG"
+
+#: musicbot/config.py:1094
+#, python-format
+msgid ""
+"Error creating default config options file.\n"
+"\n"
+"Problem:\n"
+"  MusicBot attempted to generate the config files but failed due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Make sure MusicBot can read and write to your config files.\n"
+msgstr ""
+"\n"
+".selif gifnoc ruoy ot etirw dna daer nac toBcisuM erus ekaM  \n"
+":noituloS\n"
+"\n"
+"%(raw_error)s  \n"
+":rorre na ot eud deliaf tub selif gifnoc eht etareneg ot detpmetta toBcisuM  \n"
+":melborP\n"
+"\n"
+".elif snoitpo gifnoc tluafed gnitaerc rorrE"
+
+#: musicbot/config.py:1128
+#, python-format
+msgid ""
+"Error while reading config.\n"
+"\n"
+"Problem:\n"
+"  One or more required config option sections are missing.\n"
+"  The missing sections are:\n"
+"  %(sections)s\n"
+"\n"
+"Solution:\n"
+"  Repair your config options file.\n"
+"  Each [Section] must appear only once, with no other text on the same line.\n"
+"  Each section must have at least one option.\n"
+"  Use the example options as a template or copy it from the repository."
+msgstr ""
+".yrotisoper eht morf ti ypoc ro etalpmet a sa snoitpo elpmaxe eht esU  \n"
+".noitpo eno tsael ta evah tsum noitces hcaE  \n"
+".enil emas eht no txet rehto on htiw ,ecno ylno raeppa tsum ]noitceS[ hcaE  \n"
+".elif snoitpo gifnoc ruoy riapeR  \n"
+":noituloS\n"
+"\n"
+"%(sections)s  \n"
+":era snoitces gnissim ehT  \n"
+".gnissim era snoitces noitpo gifnoc deriuqer erom ro enO  \n"
+":melborP\n"
+"\n"
+".gifnoc gnidaer elihw rorrE"
+
+#: musicbot/config.py:1158
+#, python-format
+msgid ""
+"Cannot store more than %s log files. Option LogsMaxKept will be limited "
+"instead."
+msgstr ""
+".daetsni detimil eb lliw tpeKxaMsgoL noitpO .selif gol %s naht erom erots "
+"tonnaC"
+
+#: musicbot/config.py:1166
+msgid ""
+"Config option LogsDateFormat is empty and this will break log file rotation."
+" Using default instead."
+msgstr ""
+".daetsni tluafed gnisU .noitator elif gol kaerb lliw siht dna ytpme si "
+"tamroFetaDsgoL noitpo gifnoC"
+
+#: musicbot/config.py:1177
+msgid ""
+"Error while validating config options.\n"
+"\n"
+"Problem:\n"
+"  Config option AudioCachePath is not a directory.\n"
+"\n"
+"Solution:\n"
+"  Make sure the path you configured is a path to a folder / directory."
+msgstr ""
+".yrotcerid / redlof a ot htap a si derugifnoc uoy htap eht erus ekaM  \n"
+":noituloS\n"
+"\n"
+".yrotcerid a ton si htaPehcaCoiduA noitpo gifnoC  \n"
+":melborP\n"
+"\n"
+".snoitpo gifnoc gnitadilav elihw rorrE"
+
+#: musicbot/config.py:1194
+msgid "An exception was thrown while validating AudioCachePath."
+msgstr ".htaPehcaCoiduA gnitadilav elihw nworht saw noitpecxe nA"
+
+#: musicbot/config.py:1198
+#, python-format
+msgid ""
+"Error while validating config options.\n"
+"\n"
+"Problem:\n"
+"  AudioCachePath config option could not be set due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Double check the setting is a valid, accessible directory path."
+msgstr ""
+".htap yrotcerid elbissecca ,dilav a si gnittes eht kcehc elbuoD  \n"
+":noituloS\n"
+"\n"
+"%(raw_error)s  \n"
+":rorre na ot eud tes eb ton dluoc noitpo gifnoc htaPehcaCoiduA  \n"
+":melborP\n"
+"\n"
+".snoitpo gifnoc gnitadilav elihw rorrE"
+
+#: musicbot/config.py:1210
+#, python-format
+msgid "Audio Cache will be stored in:  %s"
+msgstr "%s  :ni derots eb lliw ehcaC oiduA"
+
+#: musicbot/config.py:1221
+#, python-format
+msgid ""
+"Error while reading config options.\n"
+"\n"
+"Problem:\n"
+"  No bot Token was specified in the config options or environment.\n"
+"\n"
+"Solution:\n"
+"  Set the Token config option or set environment variable %(env_var)s with an App token."
+msgstr ""
+".nekot ppA na htiw %(env_var)s elbairav tnemnorivne tes ro noitpo gifnoc nekoT eht teS  \n"
+":noituloS\n"
+"\n"
+".tnemnorivne ro snoitpo gifnoc eht ni deificeps saw nekoT tob oN  \n"
+":melborP\n"
+"\n"
+".snoitpo gifnoc gnidaer elihw rorrE"
+
+#: musicbot/config.py:1242
+msgid ""
+"StatusMessage config option is too long, it will be limited to 128 "
+"characters."
+msgstr ""
+".sretcarahc 821 ot detimil eb lliw ti ,gnol oot si noitpo gifnoc "
+"egasseMsutatS"
+
+#: musicbot/config.py:1251
+#, python-format
+msgid ""
+"The default playback speed must be between 0.5 and 100.0. The option value "
+"of %.3f will be limited instead."
+msgstr ""
+".daetsni detimil eb lliw %.3f fo eulav noitpo ehT .0.001 dna 5.0 neewteb eb "
+"tsum deeps kcabyalp tluafed ehT"
+
+#: musicbot/config.py:1261
+msgid ""
+"Cookies TXT file detected. MusicBot will pass them to yt-dlp.\n"
+"Cookies are not recommended, may not be supported, and may totally break.\n"
+"Copying cookies from your web-browser risks exposing personal data and \n"
+"in the best case can result in your accounts being banned!\n"
+"\n"
+"You have been warned!  Good Luck!  \\U0001F596\n"
+msgstr ""
+"\n"
+"695F1000U\\  !kcuL dooG  !denraw neeb evah uoY\n"
+"\n"
+"!dennab gnieb stnuocca ruoy ni tluser nac esac tseb eht ni\n"
+" dna atad lanosrep gnisopxe sksir resworb-bew ruoy morf seikooc gniypoC\n"
+".kaerb yllatot yam dna ,detroppus eb ton yam ,dednemmocer ton era seikooC\n"
+".pld-ty ot meht ssap lliw toBcisuM .detceted elif TXT seikooC"
+
+#: musicbot/config.py:1279
+msgid "Validating options with service data..."
+msgstr "...atad ecivres htiw snoitpo gnitadilaV"
+
+#: musicbot/config.py:1285
+msgid "Acquired owner ID via API"
+msgstr "IPA aiv DI renwo deriuqcA"
+
+#: musicbot/config.py:1289
+msgid ""
+"Error while fetching 'OwnerID' automatically.\n"
+"\n"
+"Problem:\n"
+"  Discord App info is not available.\n"
+"  This could be a temporary API outage or a bug.\n"
+"\n"
+"Solution:\n"
+"  Manually set the 'OwnerID' config option or try again later."
+msgstr ""
+".retal niaga yrt ro noitpo gifnoc 'DIrenwO' eht tes yllaunaM  \n"
+":noituloS\n"
+"\n"
+".gub a ro egatuo IPA yraropmet a eb dluoc sihT  \n"
+".elbaliava ton si ofni ppA drocsiD  \n"
+":melborP\n"
+"\n"
+".yllacitamotua 'DIrenwO' gnihctef elihw rorrE"
+
+#: musicbot/config.py:1301
+msgid "MusicBot does not have a user instance, cannot proceed."
+msgstr ".deecorp tonnac ,ecnatsni resu a evah ton seod toBcisuM"
+
+#: musicbot/config.py:1307
+msgid ""
+"Error validating config options.\n"
+"\n"
+"Problem:\n"
+"  The 'OwnerID' config is the same as your Bot / App ID.\n"
+"\n"
+"Solution:\n"
+"  Do not use the Bot or App ID in the 'OwnerID' field."
+msgstr ""
+".dleif 'DIrenwO' eht ni DI ppA ro toB eht esu ton oD  \n"
+":noituloS\n"
+"\n"
+".DI ppA / toB ruoy sa emas eht si gifnoc 'DIrenwO' ehT  \n"
+":melborP\n"
+"\n"
+".snoitpo gifnoc gnitadilav rorrE"
+
+#: musicbot/config.py:1331
+msgid "Config options file not found. Checking for alternatives..."
+msgstr "...sevitanretla rof gnikcehC .dnuof ton elif snoitpo gifnoC"
+
+#: musicbot/config.py:1344
+#, python-format
+msgid ""
+"Renaming %(ini_file)s to %(option_file)s, you should probably turn file "
+"extensions on."
+msgstr ""
+".no snoisnetxe elif nrut ylbaborp dluohs uoy ,%(option_file)s ot "
+"%(ini_file)s gnimaneR"
+
+#: musicbot/config.py:1352
+#, python-format
+msgid "Copying existing example options file:  %(example_file)s"
+msgstr "%(example_file)s  :elif snoitpo elpmaxe gnitsixe gniypoC"
+
+#: musicbot/config.py:1359
+#, python-format
+msgid ""
+"Could not locate config options or example options files.\n"
+"MusicBot will generate the config files at the location:\n"
+"  %(cfg_file)s"
+msgstr ""
+"%(cfg_file)s  \n"
+":noitacol eht ta selif gifnoc eht etareneg lliw toBcisuM\n"
+".selif snoitpo elpmaxe ro snoitpo gifnoc etacol ton dluoC"
+
+#: musicbot/config.py:1366
+msgid "Something went wrong while trying to find a config option file."
+msgstr ".elif noitpo gifnoc a dnif ot gniyrt elihw gnorw tnew gnihtemoS"
+
+#: musicbot/config.py:1370
+#, python-format
+msgid ""
+"Error locating config.\n"
+"\n"
+"Problem:\n"
+"  Could not find or create a config file due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Verify the config folder and files exist and can be read by MusicBot."
+msgstr ""
+".toBcisuM yb daer eb nac dna tsixe selif dna redlof gifnoc eht yfireV  \n"
+":noituloS\n"
+"\n"
+"%(raw_error)s  \n"
+":rorre na ot eud elif gifnoc a etaerc ro dnif ton dluoC  \n"
+":melborP\n"
+"\n"
+".gifnoc gnitacol rorrE"
+
+#: musicbot/config.py:1388
+#, python-format
+msgid ""
+"Error loading config.\n"
+"\n"
+"Problem:\n"
+"  MusicBot could not read config file due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Make sure the file is accessible and error free.\n"
+"  Copy the example file from the repo if all else fails."
+msgstr ""
+".sliaf esle lla fi oper eht morf elif elpmaxe eht ypoC  \n"
+".eerf rorre dna elbissecca si elif eht erus ekaM  \n"
+":noituloS\n"
+"\n"
+"%(raw_error)s  \n"
+":rorre na ot eud elif gifnoc daer ton dluoc toBcisuM  \n"
+":melborP\n"
+"\n"
+".gifnoc gnidaol rorrE"
+
+#: musicbot/config.py:1412
+msgid "Dev Bug! Config option has getter that is not available."
+msgstr ".elbaliava ton si taht retteg sah noitpo gifnoC !guB veD"
+
+#: musicbot/config.py:1417
+msgid ""
+"Dev Bug! Config option has invalid type, getter and default must be the same"
+" type."
+msgstr ""
+".epyt emas eht eb tsum tluafed dna retteg ,epyt dilavni sah noitpo gifnoC "
+"!guB veD"
+
+#: musicbot/config.py:1437
+msgid "Option was missing previously."
+msgstr ".ylsuoiverp gnissim saw noitpO"
+
+#: musicbot/config.py:1452
+#, python-format
+msgid "Config section not in parsed config! Missing: %s"
+msgstr "%s :gnissiM !gifnoc desrap ni ton noitces gifnoC"
+
+#: musicbot/config.py:1457
+#, python-format
+msgid "Saved config option: %(config)s  =  %(value)s"
+msgstr "%(value)s  =  %(config)s :noitpo gifnoc devaS"
+
+#: musicbot/config.py:1470
+#, python-format
+msgid "Failed to save config:  %s"
+msgstr "%s  :gifnoc evas ot deliaF"
+
+#: musicbot/config.py:1989
+msgid ""
+"Option names are not unique between INI sections!  Resolver is disabled."
+msgstr ""
+".delbasid si revloseR  !snoitces INI neewteb euqinu ton era seman noitpO"
+
+#: musicbot/config.py:2166 musicbot/permissions.py:906
+#, python-format
+msgid "Failed to save default INI file at:  %s"
+msgstr "%s  :ta elif INI tluafed evas ot deliaF"
+
+#: musicbot/config.py:2256
+#, python-format
+msgid ""
+"Error loading config value.\n"
+"\n"
+"Problem:\n"
+"  The owner ID in [%(section)s] > %(option)s is not valid.\n"
+"\n"
+"Solution:\n"
+"  Set %(option)s to a numerical ID or set it to `auto` or `0` for automatic owner binding."
+msgstr ""
+".gnidnib renwo citamotua rof `0` ro `otua` ot ti tes ro DI laciremun a ot %(option)s teS  \n"
+":noituloS\n"
+"\n"
+".dilav ton si %(option)s > ]%(section)s[ ni DI renwo ehT  \n"
+":melborP\n"
+"\n"
+".eulav gifnoc gnidaol rorrE"
+
+#: musicbot/config.py:2292
+#, python-format
+msgid ""
+"Error loading config value.\n"
+"\n"
+"Problem:\n"
+"  The config option [%(section)s] > %(option)s is not a valid file location.\n"
+"\n"
+"Solution:\n"
+"  Check the path setting and make sure the file exists and is accessible to MusicBot."
+msgstr ""
+".toBcisuM ot elbissecca si dna stsixe elif eht erus ekam dna gnittes htap eht kcehC  \n"
+":noituloS\n"
+"\n"
+".noitacol elif dilav a ton si %(option)s > ]%(section)s[ noitpo gifnoc ehT  \n"
+":melborP\n"
+"\n"
+".eulav gifnoc gnidaol rorrE"
+
+#: musicbot/config.py:2322
+#, python-format
+msgid ""
+"Error loading config value.\n"
+"\n"
+"Problem:\n"
+"  One of the IDs in option [%(section)s] > %(option)s is invalid.\n"
+"\n"
+"Solution:\n"
+"  Ensure all IDs are numerical, and separated only by spaces or commas."
+msgstr ""
+".sammoc ro secaps yb ylno detarapes dna ,laciremun era sDI lla erusnE  \n"
+":noituloS\n"
+"\n"
+".dilavni si %(option)s > ]%(section)s[ noitpo ni sDI eht fo enO  \n"
+":melborP\n"
+"\n"
+".eulav gifnoc gnidaol rorrE"
+
+#: musicbot/config.py:2358
+#, python-format
+msgid ""
+"Invalid DebugLevel option \"%(value)s\" given, falling back to level: "
+"%(fallback)s"
+msgstr ""
+"%(fallback)s :level ot kcab gnillaf ,nevig \"%(value)s\" noitpo leveLgubeD "
+"dilavnI"
+
+#: musicbot/config.py:2379
+#, python-format
+msgid ""
+"Option [%(section)s] > %(option)s has invalid config value '%(value)s' using"
+" default instead."
+msgstr ""
+".daetsni tluafed gnisu '%(value)s' eulav gifnoc dilavni sah %(option)s > "
+"]%(section)s[ noitpO"
+
+#: musicbot/config.py:2428
+#, python-format
+msgid ""
+"Option [%(section)s] > %(option)s has a value greater than 100 %% "
+"(%(value)s) and will be set to %(fallback)s instead."
+msgstr ""
+".daetsni %(fallback)s ot tes eb lliw dna )%(value)s( %% 001 naht retaerg "
+"eulav a sah %(option)s > ]%(section)s[ noitpO"
+
+#: musicbot/config.py:2512
+#, python-format
+msgid ""
+"Renaming INI file entry [%(old_s)s] > %(old_o)s  to  [%(new_s)s] > %(new_o)s"
+msgstr ""
+"%(new_o)s > ]%(new_s)s[  ot  %(old_o)s > ]%(old_s)s[ yrtne elif INI gnimaneR"
+
+#: musicbot/config.py:2568
+msgid "Upgrading config file with renamed options..."
+msgstr "...snoitpo demaner htiw elif gifnoc gnidargpU"
+
+#: musicbot/config.py:2585
+msgid "Failed to upgrade config.  You'll need to upgrade it manually."
+msgstr ".yllaunam ti edargpu ot deen ll'uoY  .gifnoc edargpu ot deliaF"
+
+#: musicbot/config.py:2626
+#, python-format
+msgid "Block list file not found:  %s"
+msgstr "%s  :dnuof ton elif tsil kcolB"
+
+#: musicbot/config.py:2647
+#, python-format
+msgid "Could not load block list from file:  %s"
+msgstr "%s  :elif morf tsil kcolb daol ton dluoC"
+
+#: musicbot/config.py:2685 musicbot/config.py:2718
+#, python-format
+msgid "Could not update the block list file:  %s"
+msgstr "%s  :elif tsil kcolb eht etadpu ton dluoC"
+
+#: musicbot/config.py:2745
+#, python-format
+msgid "Loaded User Block list with %s entries."
+msgstr ".seirtne %s htiw tsil kcolB resU dedaoL"
+
+#: musicbot/config.py:2756
+#, python-format
+msgid "We found a legacy blacklist file, it will be renamed to:  %s"
+msgstr "%s  :ot demaner eb lliw ti ,elif tsilkcalb ycagel a dnuof eW"
+
+#: musicbot/config.py:2802
+#, python-format
+msgid "Loaded a Song Block list with %s entries."
+msgstr ".seirtne %s htiw tsil kcolB gnoS a dedaoL"
+
+#: musicbot/constructs.py:220
+msgid ""
+"Cannot load data for guild with ID 0. This is likely a bug in the code!"
+msgstr ""
+"!edoc eht ni gub a ylekil si sihT .0 DI htiw dliug rof atad daol tonnaC"
+
+#: musicbot/constructs.py:229
+#, python-format
+msgid "No file for guild %(id)s/%(name)s"
+msgstr "%(name)s/%(id)s dliug rof elif oN"
+
+#: musicbot/constructs.py:238
+#, python-format
+msgid "Loading guild data for guild with ID:  %(id)s/%(name)s"
+msgstr "%(name)s/%(id)s  :DI htiw dliug rof atad dliug gnidaoL"
+
+#: musicbot/constructs.py:245
+#, python-format
+msgid "An OS error prevented reading guild data file:  %s"
+msgstr "%s  :elif atad dliug gnidaer detneverp rorre SO nA"
+
+#: musicbot/constructs.py:256
+#, python-format
+msgid "Guild %(id)s/%(name)s has custom command prefix: %(prefix)s"
+msgstr "%(prefix)s :xiferp dnammoc motsuc sah %(name)s/%(id)s dliuG"
+
+#: musicbot/constructs.py:276
+msgid ""
+"Cannot save data for guild with ID 0. This is likely a bug in the code!"
+msgstr ""
+"!edoc eht ni gub a ylekil si sihT .0 DI htiw dliug rof atad evas tonnaC"
+
+#: musicbot/constructs.py:300
+msgid "Could not save guild specific data due to OS Error."
+msgstr ".rorrE SO ot eud atad cificeps dliug evas ton dluoC"
+
+#: musicbot/constructs.py:303
+msgid "Failed to serialize guild specific data due to invalid data."
+msgstr ".atad dilavni ot eud atad cificeps dliug ezilaires ot deliaF"
+
+#: musicbot/downloader.py:94
+#, python-format
+msgid "Forcing YTDLP to use User Agent:  %s"
+msgstr "%s  :tnegA resU esu ot PLDTY gnicroF"
+
+#: musicbot/downloader.py:105
+#, python-format
+msgid "MusicBot will use cookies for yt-dlp from:  %s"
+msgstr "%s  :morf pld-ty rof seikooc esu lliw toBcisuM"
+
+#: musicbot/downloader.py:111
+msgid "Yt-dlp will use your configured proxy server."
+msgstr ".revres yxorp derugifnoc ruoy esu lliw pld-tY"
+
+#: musicbot/downloader.py:134
+msgid ""
+"Original OAuth2 plugin is installed and will be used instead.\n"
+"This may cause MusicBot to not close completely, or hang pending authorization!\n"
+"To close MusicBot, you must manually Kill the MusicBot process!\n"
+"Yt-dlp is being set to show warnings and other log messages, to show the Auth code.\n"
+"Uninstall the yt-dlp-youtube-oauth2 package to use integrated OAuth2 features instead."
+msgstr ""
+".daetsni serutaef 2htuAO detargetni esu ot egakcap 2htuao-ebutuoy-pld-ty eht llatsninU\n"
+".edoc htuA eht wohs ot ,segassem gol rehto dna sgninraw wohs ot tes gnieb si pld-tY\n"
+"!ssecorp toBcisuM eht lliK yllaunam tsum uoy ,toBcisuM esolc oT\n"
+"!noitazirohtua gnidnep gnah ro ,yletelpmoc esolc ton ot toBcisuM esuac yam sihT\n"
+".daetsni desu eb lliw dna dellatsni si nigulp 2htuAO lanigirO"
+
+#: musicbot/downloader.py:232
+msgid "HEAD seems to have no headers..."
+msgstr "...sredaeh on evah ot smees DAEH"
+
+#: musicbot/downloader.py:243
+msgid "Checking media headers failed due to timeout."
+msgstr ".tuoemit ot eud deliaf sredaeh aidem gnikcehC"
+
+#: musicbot/downloader.py:246
+#, python-format
+msgid "Failed HEAD request for:  %s"
+msgstr "%s  :rof tseuqer DAEH deliaF"
+
+#: musicbot/downloader.py:247
+msgid "HEAD Request exception: "
+msgstr " :noitpecxe tseuqeR DAEH"
+
+#: musicbot/downloader.py:315
+#, python-format
+msgid ""
+"Sanitized YTDL Extraction Info (not JSON):\n"
+"%s"
+msgstr ""
+"%s\n"
+":)NOSJ ton( ofnI noitcartxE LDTY dezitinaS"
+
+#: musicbot/downloader.py:317
+#, python-format
+msgid "Sanitized YTDL Extraction Info (not JSON):  %s"
+msgstr "%s  :)NOSJ ton( ofnI noitcartxE LDTY dezitinaS"
+
+#: musicbot/downloader.py:381
+msgid "Song info extraction returned no data."
+msgstr ".atad on denruter noitcartxe ofni gnoS"
+
+#: musicbot/downloader.py:437
+#, python-format
+msgid "Called extract_info with:  '%(subject)s', %(args)s, %(kws)s"
+msgstr "%(kws)s ,%(args)s ,'%(subject)s'  :htiw ofni_tcartxe dellaC"
+
+#: musicbot/downloader.py:445
+msgid "Cannot run extraction, loop is closed. (This is normal on shutdowns.)"
+msgstr ").snwodtuhs no lamron si sihT( .desolc si pool ,noitcartxe nur tonnaC"
+
+#: musicbot/downloader.py:447
+msgid "Cannot continue extraction, event loop is closed."
+msgstr ".desolc si pool tneve ,noitcartxe eunitnoc tonnaC"
+
+#: musicbot/downloader.py:456
+msgid "Spotify URL is invalid or not supported."
+msgstr ".detroppus ton ro dilavni si LRU yfitopS"
+
+#: musicbot/downloader.py:489 musicbot/downloader.py:510
+#, python-format
+msgid "Error in yt-dlp while downloading data: %(raw_error)s"
+msgstr "%(raw_error)s :atad gnidaolnwod elihw pld-ty ni rorrE"
+
+#: musicbot/downloader.py:493
+msgid "Download Error with stream URL"
+msgstr "LRU maerts htiw rorrE daolnwoD"
+
+#: musicbot/downloader.py:498
+msgid "Assuming content is a direct stream"
+msgstr "maerts tcerid a si tnetnoc gnimussA"
+
+#: musicbot/downloader.py:506
+msgid "Cannot stream an invalid URL."
+msgstr ".LRU dilavni na maerts tonnaC"
+
+#: musicbot/downloader.py:517
+msgid ""
+"Caught NoSupportingHandlers, trying again after replacing colon with space."
+msgstr ""
+".ecaps htiw noloc gnicalper retfa niaga gniyrt ,sreldnaHgnitroppuSoN thguaC"
+
+#: musicbot/downloader.py:544
+msgid ""
+"Extractor youtube:search returned single-entry result, replacing base info "
+"with entry info."
+msgstr ""
+".ofni yrtne htiw ofni esab gnicalper ,tluser yrtne-elgnis denruter "
+"hcraes:ebutuoy rotcartxE"
+
+#: musicbot/downloader.py:560
+#, python-format
+msgid "Called safe_extract_info with:  %(args)s, %(kws)s"
+msgstr "%(kws)s ,%(args)s  :htiw ofni_tcartxe_efas dellaC"
+
+#: musicbot/downloader.py:580
+msgid "The local media file could not be found."
+msgstr ".dnuof eb ton dluoc elif aidem lacol ehT"
+
+#: musicbot/downloader.py:618
+msgid "Missing __input_subject from YtdlpResponseDict"
+msgstr "tciDesnopseRpldtY morf tcejbus_tupni__ gnissiM"
+
+#: musicbot/downloader.py:623
+msgid ""
+"Entries is not a list in YtdlpResponseDict, set process=True to avoid this."
+msgstr ""
+".siht diova ot eurT=ssecorp tes ,tciDesnopseRpldtY ni tsil a ton si seirtnE"
+
+#: musicbot/downloader.py:852
+#, python-format
+msgid "Warning, duration error for: %(url)s"
+msgstr "%(url)s :rof rorre noitarud ,gninraW"
+
+#: musicbot/entry.py:46
+msgid "module 'pymediainfo' not found, will fall back to ffprobe."
+msgstr ".eborpff ot kcab llaf lliw ,dnuof ton 'ofniaidemyp' eludom"
+
+#: musicbot/entry.py:159
+#, python-format
+msgid "Created future for %r"
+msgstr "%r rof erutuf detaerC"
+
+#: musicbot/entry.py:171
+#, python-format
+msgid "Completed futures for %(entry)r with %(callback)r"
+msgstr "%(callback)r htiw %(entry)r rof serutuf detelpmoC"
+
+#: musicbot/entry.py:181
+msgid "Unhandled exception in _for_each_future callback."
+msgstr ".kcabllac erutuf_hcae_rof_ ni noitpecxe deldnahnU"
+
+#: musicbot/entry.py:223
+#, python-format
+msgid "Starting asyncio subprocess (%(process)s) with command: %(run)s"
+msgstr "%(run)s :dnammoc htiw )%(process)s( ssecorpbus oicnysa gnitratS"
+
+#: musicbot/entry.py:258
+#, python-format
+msgid ""
+"Extraction did not provide a duration for this entry.\n"
+"MusicBot cannot estimate queue times until it is downloaded.\n"
+"Entry name:  %s"
+msgstr ""
+"%s  :eman yrtnE\n"
+".dedaolnwod si ti litnu semit eueuq etamitse tonnac toBcisuM\n"
+".yrtne siht rof noitarud a edivorp ton did noitcartxE"
+
+#. TRANSLATORS: Placeholder for empty track title.
+#: musicbot/entry.py:299 musicbot/entry.py:821 musicbot/entry.py:1020
+msgid "Unknown"
+msgstr "nwonknU"
+
+#: musicbot/entry.py:364 musicbot/entry.py:874 musicbot/entry.py:1084
+msgid "Entry data is missing version number, cannot deserialize."
+msgstr ".ezilairesed tonnac ,rebmun noisrev gnissim si atad yrtnE"
+
+#: musicbot/entry.py:367 musicbot/entry.py:877 musicbot/entry.py:1087
+msgid "Entry data has the wrong version number, cannot deserialize."
+msgstr ".ezilairesed tonnac ,rebmun noisrev gnorw eht sah atad yrtnE"
+
+#: musicbot/entry.py:383
+#, python-format
+msgid "Deserialized URLPlaylistEntry cannot find channel with ID:  %s"
+msgstr "%s  :DI htiw lennahc dnif tonnac yrtnEtsilyalPLRU dezilaireseD"
+
+#: musicbot/entry.py:399
+#, python-format
+msgid "Deserialized URLPlaylistEntry has the wrong channel type:  %s"
+msgstr "%s  :epyt lennahc gnorw eht sah yrtnEtsilyalPLRU dezilaireseD"
+
+#: musicbot/entry.py:421
+#, python-format
+msgid "Deserialized URLPlaylistEntry cannot find author with ID:  %s"
+msgstr "%s  :DI htiw rohtua dnif tonnac yrtnEtsilyalPLRU dezilaireseD"
+
+#: musicbot/entry.py:427
+msgid ""
+"Deserialized URLPlaylistEntry has an author ID but no channel for lookup!"
+msgstr ""
+"!pukool rof lennahc on tub DI rohtua na sah yrtnEtsilyalPLRU dezilaireseD"
+
+#: musicbot/entry.py:437 musicbot/entry.py:943 musicbot/entry.py:1157
+#, python-format
+msgid "Could not load %s"
+msgstr "%s daol ton dluoC"
+
+#: musicbot/entry.py:474
+#, python-format
+msgid "Cannot download Spotify links, processing error with type: %(type)s"
+msgstr "%(type)s :epyt htiw rorre gnissecorp ,sknil yfitopS daolnwod tonnaC"
+
+#: musicbot/entry.py:486 musicbot/entry.py:948 musicbot/entry.py:1190
+#, python-format
+msgid "Getting ready for entry:  %r"
+msgstr "%r  :yrtne rof ydaer gnitteG"
+
+#: musicbot/entry.py:503
+msgid "Download cached with different extension..."
+msgstr "...noisnetxe tnereffid htiw dehcac daolnwoD"
+
+#: musicbot/entry.py:512
+msgid "Local size different from remote size. Re-downloading..."
+msgstr "...gnidaolnwod-eR .ezis etomer morf tnereffid ezis lacoL"
+
+#: musicbot/entry.py:516
+#, python-format
+msgid "Download already cached at:  %s"
+msgstr "%s  :ta dehcac ydaerla daolnwoD"
+
+#: musicbot/entry.py:536 musicbot/entry.py:1206
+#, python-format
+msgid ""
+"MusicBot could not get duration data for this entry.\n"
+"Queue time estimation may be unavailable until this track is cleared.\n"
+"Entry file: %s"
+msgstr ""
+"%s :elif yrtnE\n"
+".deraelc si kcart siht litnu elbaliavanu eb yam noitamitse emit eueuQ\n"
+".yrtne siht rof atad noitarud teg ton dluoc toBcisuM"
+
+#: musicbot/entry.py:543
+#, python-format
+msgid "Got duration of %(time)s seconds for file:  %(file)s"
+msgstr "%(file)s  :elif rof sdnoces %(time)s fo noitarud toG"
+
+#: musicbot/entry.py:554 musicbot/entry.py:1224
+msgid ""
+"There as a problem with working out EQ, likely caused by a strange "
+"installation of FFmpeg. This has not impacted the ability for the bot to "
+"work, but will mean your tracks will not be equalized."
+msgstr ""
+".dezilauqe eb ton lliw skcart ruoy naem lliw tub ,krow ot tob eht rof "
+"ytiliba eht detcapmi ton sah sihT .gepmFF fo noitallatsni egnarts a yb "
+"desuac ylekil ,QE tuo gnikrow htiw melborp a sa erehT"
+
+#: musicbot/entry.py:566 musicbot/entry.py:1237
+msgid "Exception while checking entry data."
+msgstr ".atad yrtne gnikcehc elihw noitpecxE"
+
+#: musicbot/entry.py:577 musicbot/entry.py:1248
+#, python-format
+msgid "Trying to get duration via pymediainfo for:  %s"
+msgstr "%s  :rof ofniaidemyp aiv noitarud teg ot gniyrT"
+
+#: musicbot/entry.py:583 musicbot/entry.py:1254
+msgid "Failed to get duration via pymediainfo."
+msgstr ".ofniaidemyp aiv noitarud teg ot deliaF"
+
+#: musicbot/entry.py:590 musicbot/entry.py:1261
+#, python-format
+msgid "Trying to get duration via ffprobe for:  %s"
+msgstr "%s  :rof eborpff aiv noitarud teg ot gniyrT"
+
+#: musicbot/entry.py:593 musicbot/entry.py:1264
+msgid "Could not locate ffprobe in your path!"
+msgstr "!htap ruoy ni eborpff etacol ton dluoC"
+
+#: musicbot/entry.py:614 musicbot/entry.py:1285
+msgid "ffprobe returned something that could not be used."
+msgstr ".desu eb ton dluoc taht gnihtemos denruter eborpff"
+
+#: musicbot/entry.py:617 musicbot/entry.py:1288
+msgid "ffprobe could not be executed for some reason."
+msgstr ".nosaer emos rof detucexe eb ton dluoc eborpff"
+
+#: musicbot/entry.py:627 musicbot/entry.py:1298
+#, python-format
+msgid "Calculating mean volume of:  %s"
+msgstr "%s  :fo emulov naem gnitaluclaC"
+
+#: musicbot/entry.py:630 musicbot/entry.py:1301
+msgid "Could not locate ffmpeg on your path!"
+msgstr "!htap ruoy no gepmff etacol ton dluoC"
+
+#: musicbot/entry.py:656 musicbot/entry.py:1327
+msgid "Could not parse 'I' in normalize json."
+msgstr ".nosj ezilamron ni 'I' esrap ton dluoC"
+
+#: musicbot/entry.py:664 musicbot/entry.py:1335
+msgid "Could not parse 'LRA' in normalize json."
+msgstr ".nosj ezilamron ni 'ARL' esrap ton dluoC"
+
+#: musicbot/entry.py:672 musicbot/entry.py:1343
+msgid "Could not parse 'TP' in normalize json."
+msgstr ".nosj ezilamron ni 'PT' esrap ton dluoC"
+
+#: musicbot/entry.py:680 musicbot/entry.py:1351
+msgid "Could not parse 'thresh' in normalize json."
+msgstr ".nosj ezilamron ni 'hserht' esrap ton dluoC"
+
+#: musicbot/entry.py:688 musicbot/entry.py:1359
+msgid "Could not parse 'offset' in normalize json."
+msgstr ".nosj ezilamron ni 'tesffo' esrap ton dluoC"
+
+#: musicbot/entry.py:705
+#, python-format
+msgid "Download started:  %r"
+msgstr "%r  :detrats daolnwoD"
+
+#: musicbot/entry.py:710
+#, python-format
+msgid "Download attempt %s of 3..."
+msgstr "...3 fo %s tpmetta daolnwoD"
+
+#: musicbot/entry.py:722
+#, python-format
+msgid ""
+"Download incomplete, retrying in %(time).1f seconds.  Reason: %(raw_error)s"
+msgstr ""
+"%(raw_error)s :nosaeR  .sdnoces %(time).1f ni gniyrter ,etelpmocni daolnwoD"
+
+#: musicbot/entry.py:730
+#, python-format
+msgid "Download failed, not retrying! Reason:  %(raw_error)s"
+msgstr "%(raw_error)s  :nosaeR !gniyrter ton ,deliaf daolnwoD"
+
+#: musicbot/entry.py:735
+#, python-format
+msgid "Download did not complete due to an error: %(raw_error)s"
+msgstr "%(raw_error)s :rorre na ot eud etelpmoc ton did daolnwoD"
+
+#: musicbot/entry.py:741
+#, python-format
+msgid "Download failed due to a yt-dlp error: %(raw_error)s"
+msgstr "%(raw_error)s :rorre pld-ty a ot eud deliaf daolnwoD"
+
+#: musicbot/entry.py:747
+msgid "Extraction encountered an unhandled exception."
+msgstr ".noitpecxe deldnahnu na deretnuocne noitcartxE"
+
+#: musicbot/entry.py:751
+#, python-format
+msgid "Download failed due to an unhandled exception: %(raw_error)s"
+msgstr "%(raw_error)s :noitpecxe deldnahnu na ot eud deliaf daolnwoD"
+
+#: musicbot/entry.py:756
+#, python-format
+msgid "Download failed:  %r"
+msgstr "%r  :deliaf daolnwoD"
+
+#: musicbot/entry.py:757
+msgid "Failed to extract data for the requested media."
+msgstr ".aidem detseuqer eht rof atad tcartxe ot deliaF"
+
+#: musicbot/entry.py:759
+#, python-format
+msgid "Download complete:  %r"
+msgstr "%r  :etelpmoc daolnwoD"
+
+#: musicbot/entry.py:890
+#, python-format
+msgid "Deserialized StreamPlaylistEntry cannot find channel with ID:  %s"
+msgstr "%s  :DI htiw lennahc dnif tonnac yrtnEtsilyalPmaertS dezilaireseD"
+
+#: musicbot/entry.py:906
+#, python-format
+msgid "Deserialized StreamPlaylistEntry has the wrong channel type:  %s"
+msgstr "%s  :epyt lennahc gnorw eht sah yrtnEtsilyalPmaertS dezilaireseD"
+
+#: musicbot/entry.py:928
+#, python-format
+msgid "Deserialized StreamPlaylistEntry cannot find author with ID:  %s"
+msgstr "%s  :DI htiw rohtua dnif tonnac yrtnEtsilyalPmaertS dezilaireseD"
+
+#: musicbot/entry.py:934
+msgid ""
+"Deserialized StreamPlaylistEntry has an author ID but no channel for lookup!"
+msgstr ""
+"!pukool rof lennahc on tub DI rohtua na sah yrtnEtsilyalPmaertS dezilaireseD"
+
+#: musicbot/entry.py:1103
+#, python-format
+msgid "Deserialized LocalFilePlaylistEntry cannot find channel with ID:  %s"
+msgstr "%s  :DI htiw lennahc dnif tonnac yrtnEtsilyalPeliFlacoL dezilaireseD"
+
+#: musicbot/entry.py:1119
+#, python-format
+msgid "Deserialized LocalFilePlaylistEntry has the wrong channel type:  %s"
+msgstr "%s  :epyt lennahc gnorw eht sah yrtnEtsilyalPeliFlacoL dezilaireseD"
+
+#: musicbot/entry.py:1141
+#, python-format
+msgid "Deserialized LocalFilePlaylistEntry cannot find author with ID:  %s"
+msgstr "%s  :DI htiw rohtua dnif tonnac yrtnEtsilyalPeliFlacoL dezilaireseD"
+
+#: musicbot/entry.py:1147
+msgid ""
+"Deserialized LocalFilePlaylistEntry has an author ID but no channel for "
+"lookup!"
+msgstr ""
+"!pukool rof lennahc on tub DI rohtua na sah yrtnEtsilyalPeliFlacoL "
+"dezilaireseD"
+
+#: musicbot/entry.py:1213
+#, python-format
+msgid "Got duration of %(seconds)s seconds for file:  %(file)s"
+msgstr "%(file)s  :elif rof sdnoces %(seconds)s fo noitarud toG"
+
+#: musicbot/filecache.py:120
+#, python-format
+msgid "Failed to delete cache file:  %s"
+msgstr "%s  :elif ehcac eteled ot deliaF"
+
+#: musicbot/filecache.py:131
+msgid "Audio cache directory has been removed."
+msgstr ".devomer neeb sah yrotcerid ehcac oiduA"
+
+#: musicbot/filecache.py:138
+msgid "Audio cache directory could not be removed or renamed."
+msgstr ".demaner ro devomer eb ton dluoc yrotcerid ehcac oiduA"
+
+#: musicbot/filecache.py:145
+msgid "Audio cache directory could not be removed."
+msgstr ".devomer eb ton dluoc yrotcerid ehcac oiduA"
+
+#: musicbot/filecache.py:154
+msgid "Audio cache has no limits set, nothing to delete."
+msgstr ".eteled ot gnihton ,tes stimil on sah ehcac oiduA"
+
+#: musicbot/filecache.py:217
+#, python-format
+msgid "Audio cache deleted %(number)s file(s), total of %(size)s removed."
+msgstr ".devomer %(size)s fo latot ,)s(elif %(number)s deteled ehcac oiduA"
+
+#: musicbot/filecache.py:225
+#, python-format
+msgid ""
+"Audio cached retained %(number)s file(s) from autoplaylist, total of "
+"%(size)s retained."
+msgstr ""
+".deniater %(size)s fo latot ,tsilyalpotua morf )s(elif %(number)s deniater "
+"dehcac oiduA"
+
+#: musicbot/filecache.py:234
+#, python-format
+msgid "Audio cache is now %(size)s over %(number)s file(s)."
+msgstr ".)s(elif %(number)s revo %(size)s won si ehcac oiduA"
+
+#: musicbot/filecache.py:250
+msgid "Audio cache directory is missing, nothing to delete."
+msgstr ".eteled ot gnihton ,gnissim si yrotcerid ehcac oiduA"
+
+#: musicbot/filecache.py:269
+msgid ""
+"Audio cache file is from autoplaylist but marked as busted, ignoring it."
+msgstr ""
+".ti gnirongi ,detsub sa dekram tub tsilyalpotua morf si elif ehcac oiduA"
+
+#: musicbot/filecache.py:280
+#, python-format
+msgid "Cache level requires cleanup. %s"
+msgstr "%s .punaelc seriuqer level ehcaC"
+
+#: musicbot/filecache.py:304
+msgid "Auto playlist has no cache map, moving on."
+msgstr ".no gnivom ,pam ehcac on sah tsilyalp otuA"
+
+#: musicbot/filecache.py:312
+#, python-format
+msgid "Loaded auto playlist cache map with %s entries."
+msgstr ".seirtne %s htiw pam ehcac tsilyalp otua dedaoL"
+
+#: musicbot/filecache.py:316
+msgid "Failed to load auto playlist cache map."
+msgstr ".pam ehcac tsilyalp otua daol ot deliaF"
+
+#: musicbot/filecache.py:332
+msgid "Cachemap defer flag is set, not yet saving to disk..."
+msgstr "...ksid ot gnivas tey ton ,tes si galf refed pamehcaC"
+
+#: musicbot/filecache.py:341
+#, python-format
+msgid "Saved auto playlist cache map with %s entries."
+msgstr ".seirtne %s htiw pam ehcac tsilyalp otua devaS"
+
+#: musicbot/filecache.py:345
+msgid "Failed to save auto playlist cache map."
+msgstr ".pam ehcac tsilyalp otua evas ot deliaF"
+
+#: musicbot/filecache.py:363
+#, python-format
+msgid ""
+"Auto playlist cache map conflict on Key: %(file)s  Old: %(old)s  New: "
+"%(new)s"
+msgstr ""
+"%(new)s :weN  %(old)s :dlO  %(file)s :yeK no tcilfnoc pam ehcac tsilyalp "
+"otuA"
+
+#: musicbot/i18n.py:229
+#, python-format
+msgid "Lang Argument Error:  %s"
+msgstr "%s  :rorrE tnemugrA gnaL"
+
+#: musicbot/i18n.py:290
+#, python-format
+msgid "Failed to load log translations for any of:  [%s]  in:  %s"
+msgstr "%s  :ni  ]%s[  :fo yna rof snoitalsnart gol daol ot deliaF"
+
+#: musicbot/i18n.py:338
+#, python-format
+msgid ""
+"Failed to load discord translations for any of:  [%s]  guild:  %s  in:  %s"
+msgstr ""
+"%s  :ni  %s  :dliug  ]%s[  :fo yna rof snoitalsnart drocsid daol ot deliaF"
+
+#: musicbot/json.py:14
+#, python-format
+msgid "Loading JSON file: %s"
+msgstr "%s :elif NOSJ gnidaoL"
+
+#: musicbot/json.py:27
+#, python-format
+msgid "Error parsing %s as JSON"
+msgstr "NOSJ sa %s gnisrap rorrE"
+
+#: musicbot/json.py:36
+#, python-format
+msgid "Could not grab data from JSON key: %s"
+msgstr "%s :yek NOSJ morf atad barg ton dluoC"
+
+#: musicbot/logs.py:131
+msgid "Skipping logger setup, already set up"
+msgstr "pu tes ydaerla ,putes reggol gnippikS"
+
+#: musicbot/logs.py:283
+#, python-format
+msgid "Log level was previously set via override to: %s"
+msgstr "%s :ot edirrevo aiv tes ylsuoiverp saw level goL"
+
+#: musicbot/logs.py:292
+#, python-format
+msgid "Changing log level to:  %s"
+msgstr "%s  :ot level gol gnignahC"
+
+#: musicbot/logs.py:321
+msgid "MusicBot loggers have been called to shut down."
+msgstr ".nwod tuhs ot dellac neeb evah sreggol toBcisuM"
+
+#: musicbot/permissions.py:120
+#, python-format
+msgid "Permissions file not found, copying from:  %s"
+msgstr "%s  :morf gniypoc ,dnuof ton elif snoissimreP"
+
+#: musicbot/permissions.py:129
+#, python-format
+msgid "Error copying example permissions file:  %s"
+msgstr "%s  :elif snoissimrep elpmaxe gniypoc rorrE"
+
+#: musicbot/permissions.py:136
+#, python-format
+msgid ""
+"Could not locate config permissions or example permissions files.\n"
+"MusicBot will generate the config files at the location:\n"
+"  %(perms_file)s"
+msgstr ""
+"%(perms_file)s  \n"
+":noitacol eht ta selif gifnoc eht etareneg lliw toBcisuM\n"
+".selif snoissimrep elpmaxe ro snoissimrep gifnoc etacol ton dluoC"
+
+#: musicbot/permissions.py:163
+msgid "Generating new config permissions files..."
+msgstr "...selif snoissimrep gifnoc wen gnitareneG"
+
+#: musicbot/permissions.py:172
+#, python-format
+msgid ""
+"Error creating default config permissions file.\n"
+"\n"
+"Problem:\n"
+"  MusicBot attempted to generate the config files but failed due to an error:\n"
+"  %(raw_error)s\n"
+"\n"
+"Solution:\n"
+"  Make sure MusicBot can read and write to your config files.\n"
+msgstr ""
+"\n"
+".selif gifnoc ruoy ot etirw dna daer nac toBcisuM erus ekaM  \n"
+":noituloS\n"
+"\n"
+"%(raw_error)s  \n"
+":rorre na ot eud deliaf tub selif gifnoc eht etareneg ot detpmetta toBcisuM  \n"
+":melborP\n"
+"\n"
+".elif snoissimrep gifnoc tluafed gnitaerc rorrE"
+
+#: musicbot/permissions.py:195
+msgid "Config 'OwnerID' is set auto, will set correctly later."
+msgstr ".retal yltcerroc tes lliw ,otua tes si 'DIrenwO' gifnoC"
+
+#: musicbot/permissions.py:212
+msgid "Validating permissions..."
+msgstr "...snoissimrep gnitadilaV"
+
+#: musicbot/permissions.py:214
+msgid "Setting auto 'OwnerID' for owner permissions group."
+msgstr ".puorg snoissimrep renwo rof 'DIrenwO' otua gnitteS"
+
+#: musicbot/permissions.py:274
+#, python-format
+msgid "Updating group in permissions file:  %s"
+msgstr "%s  :elif snoissimrep ni puorg gnitadpU"
+
+#: musicbot/permissions.py:280
+#, python-format
+msgid "Deleting group from permissions file:  %s"
+msgstr "%s  :elif snoissimrep morf puorg gniteleD"
+
+#: musicbot/permissions.py:285
+#, python-format
+msgid "Adding new group to permissions file:  %s"
+msgstr "%s  :elif snoissimrep ot puorg wen gniddA"
+
+#: musicbot/permissions.py:300
+msgid "Saving permissions file now."
+msgstr ".won elif snoissimrep gnivaS"
+
+#: musicbot/permissions.py:306
+msgid "ConfigUpdater could not parse the permissions file!"
+msgstr "!elif snoissimrep eht esrap ton dluoc retadpUgifnoC"
+
+#: musicbot/permissions.py:308
+msgid "You have a duplicate section, fix your Permissions file!"
+msgstr "!elif snoissimreP ruoy xif ,noitces etacilpud a evah uoY"
+
+#: musicbot/permissions.py:310
+#, python-format
+msgid "Failed to save permissions group:  %s"
+msgstr "%s  :puorg snoissimrep evas ot deliaF"
+
+#: musicbot/permissions.py:325
+msgid "Dev Bug! Permission has getter that is not available."
+msgstr ".elbaliava ton si taht retteg sah noissimreP !guB veD"
+
+#: musicbot/permissions.py:330
+msgid ""
+"Dev Bug! Permission has invalid type, getter and default must be the same "
+"type."
+msgstr ""
+".epyt emas eht eb tsum tluafed dna retteg ,epyt dilavni sah noissimreP !guB "
+"veD"
+
+#: musicbot/permissions.py:574
+msgid "Max search items can't be larger than 100. Setting to 100."
+msgstr ".001 ot gnitteS .001 naht regral eb t'nac smeti hcraes xaM"
+
+#: musicbot/permissions.py:657
+#, python-format
+msgid ""
+"You do not have permission to play the requested media.\n"
+"The yt-dlp extractor `%(extractor)s` is not permitted in your group."
+msgstr ""
+".puorg ruoy ni dettimrep ton si `%(extractor)s` rotcartxe pld-ty ehT\n"
+".aidem detseuqer eht yalp ot noissimrep evah ton od uoY"
+
+#: musicbot/player.py:86
+#, python-format
+msgid "Cleanup got called on the audio source:  %r"
+msgstr "%r  :ecruos oidua eht no dellac tog punaelC"
+
+#: musicbot/player.py:191
+#, python-format
+msgid "MusicPlayer.skip() is called:  %s"
+msgstr "%s  :dellac si )(piks.reyalPcisuM"
+
+#: musicbot/player.py:201
+#, python-format
+msgid "MusicPlayer.stop() is called:  %s"
+msgstr "%s  :dellac si )(pots.reyalPcisuM"
+
+#: musicbot/player.py:216
+msgid "Guild or network unavailable, cannot resume playback."
+msgstr ".kcabyalp emuser tonnac ,elbaliavanu krowten ro dliuG"
+
+#: musicbot/player.py:220
+#, python-format
+msgid "MusicPlayer.resume() is called:  %s"
+msgstr "%s  :dellac si )(emuser.reyalPcisuM"
+
+#: musicbot/player.py:240
+#, python-format
+msgid "MusicPlayer.pause() is called:  %s"
+msgstr "%s  :dellac si )(esuap.reyalPcisuM"
+
+#: musicbot/player.py:262
+#, python-format
+msgid "MusicPlayer.kill() is called:  %s"
+msgstr "%s  :dellac si )(llik.reyalPcisuM"
+
+#: musicbot/player.py:288
+msgid "Playback finished, but _current_entry is None."
+msgstr ".enoN si yrtne_tnerruc_ tub ,dehsinif kcabyalP"
+
+#: musicbot/player.py:343
+msgid "Possible Warning from kill_current_player()"
+msgstr ")(reyalp_tnerruc_llik morf gninraW elbissoP"
+
+#: musicbot/player.py:362
+#, python-format
+msgid "MusicPlayer.play() is called:  %s"
+msgstr "%s  :dellac si )(yalp.reyalPcisuM"
+
+#: musicbot/player.py:372
+msgid "MusicPlayer is dead, cannot play."
+msgstr ".yalp tonnac ,daed si reyalPcisuM"
+
+#: musicbot/player.py:377
+msgid "Guild or network unavailable, cannot start playback."
+msgstr ".kcabyalp trats tonnac ,elbaliavanu krowten ro dliuG"
+
+#: musicbot/player.py:382
+msgid "MusicPlayer was previously paused, resuming current player."
+msgstr ".reyalp tnerruc gnimuser ,desuap ylsuoiverp saw reyalPcisuM"
+
+#: musicbot/player.py:388
+msgid "MusicPlayer already locked for playback, this call is ignored."
+msgstr ".derongi si llac siht ,kcabyalp rof dekcol ydaerla reyalPcisuM"
+
+#: musicbot/player.py:399
+msgid "Failed to get next entry."
+msgstr ".yrtne txen teg ot deliaF"
+
+#: musicbot/player.py:403
+msgid "Failed to process entry for playback."
+msgstr ".kcabyalp rof yrtne ssecorp ot deliaF"
+
+#: musicbot/player.py:446
+#, python-format
+msgid "Probed codec and bitrate: %(name)s at %(rate)s kbps"
+msgstr "spbk %(rate)s ta %(name)s :etartib dna cedoc deborP"
+
+#: musicbot/player.py:485
+#, python-format
+msgid "Creating player with options: ffmpeg %(before)s -i %(input)s %(after)s"
+msgstr ""
+"%(after)s %(input)s i- %(before)s gepmff :snoitpo htiw reyalp gnitaerC"
+
+#: musicbot/player.py:489
+#, python-format
+msgid "Playing %(source)r using %(client)r"
+msgstr "%(client)r gnisu %(source)r gniyalP"
+
+#: musicbot/player.py:520
+#, python-format
+msgid "Skipping deletion of '%s', found song in queue"
+msgstr "eueuq ni gnos dnuof ,'%s' fo noiteled gnippikS"
+
+#: musicbot/player.py:524
+#, python-format
+msgid "Deleting file:  %s"
+msgstr "%s  :elif gniteleD"
+
+#: musicbot/player.py:529
+#, python-format
+msgid "File deleted:  %s"
+msgstr "%s  :deteled eliF"
+
+#: musicbot/player.py:533
+msgid "Cannot delete file, it is currently in use."
+msgstr ".esu ni yltnerruc si ti ,elif eteled tonnaC"
+
+#: musicbot/player.py:536
+msgid "Cannot delete file due to a permission error."
+msgstr ".rorre noissimrep a ot eud elif eteled tonnaC"
+
+#: musicbot/player.py:541
+msgid "Cannot delete file, it was not found."
+msgstr ".dnuof ton saw ti ,elif eteled tonnaC"
+
+#: musicbot/player.py:547
+msgid "Error while trying to delete file."
+msgstr ".elif eteled ot gniyrt elihw rorrE"
+
+#: musicbot/player.py:552
+msgid "Could not delete file, giving up and moving on"
+msgstr "no gnivom dna pu gnivig ,elif eteled ton dluoC"
+
+#: musicbot/player.py:618
+#, python-format
+msgid "Deserialize returned an object that is not a MusicPlayer:  %s"
+msgstr "%s  :reyalPcisuM a ton si taht tcejbo na denruter ezilaireseD"
+
+#: musicbot/player.py:623
+msgid "Failed to deserialize player"
+msgstr "reyalp ezilairesed ot deliaF"
+
+#: musicbot/player.py:685
+#, python-format
+msgid "Data from ffmpeg: %s"
+msgstr "%s :gepmff morf ataD"
+
+#: musicbot/player.py:695
+#, python-format
+msgid "Error from ffmpeg: %s"
+msgstr "%s :gepmff morf rorrE"
+
+#: musicbot/player.py:703
+#, python-format
+msgid "Warning from ffmpeg:  %s"
+msgstr "%s  :gepmff morf gninraW"
+
+#: musicbot/player.py:732
+msgid "Unknown error decoding message from ffmpeg"
+msgstr "gepmff morf egassem gnidoced rorre nwonknU"
+
+#: musicbot/player.py:736
+#, python-format
+msgid "Decoded data from ffmpeg: %s"
+msgstr "%s :gepmff morf atad dedoceD"
+
+#: musicbot/playlist.py:121
+#, python-format
+msgid "Adding stream entry for URL:  %(url)s"
+msgstr "%(url)s  :LRU rof yrtne maerts gniddA"
+
+#: musicbot/playlist.py:159
+msgid "Could not extract information"
+msgstr "noitamrofni tcartxe ton dluoC"
+
+#: musicbot/playlist.py:163
+msgid "This is a playlist."
+msgstr ".tsilyalp a si sihT"
+
+#: musicbot/playlist.py:177
+msgid "Entry info appears to be a stream, adding stream entry..."
+msgstr "...yrtne maerts gnidda ,maerts a eb ot sraeppa ofni yrtnE"
+
+#: musicbot/playlist.py:195
+#, python-format
+msgid "Invalid content type `%(type)s` for URL: %(url)s"
+msgstr "%(url)s :LRU rof `%(type)s` epyt tnetnoc dilavnI"
+
+#: musicbot/playlist.py:203
+msgid "Got text/html for content-type, this might be a stream."
+msgstr ".maerts a eb thgim siht ,epyt-tnetnoc rof lmth/txet toG"
+
+#: musicbot/playlist.py:210
+#, python-format
+msgid "Questionable content-type \"%(type)s\" for url:  %(url)s"
+msgstr "%(url)s  :lru rof \"%(type)s\" epyt-tnetnoc elbanoitseuQ"
+
+#: musicbot/playlist.py:215
+#, python-format
+msgid "Adding URLPlaylistEntry for: %(subject)s"
+msgstr "%(subject)s :rof yrtnEtsilyalPLRU gniddA"
+
+#: musicbot/playlist.py:235
+#, python-format
+msgid "Adding LocalFilePlaylistEntry for: %(subject)s"
+msgstr "%(subject)s :rof yrtnEtsilyalPeliFlacoL gniddA"
+
+#: musicbot/playlist.py:280
+#, python-format
+msgid "Ignored video from compound playlist link with ID:  %s"
+msgstr "%s  :DI htiw knil tsilyalp dnuopmoc morf oediv derongI"
+
+#: musicbot/playlist.py:292
+#, python-format
+msgid ""
+"Not allowing entry that is in song block list:  %(title)s  URL: %(url)s"
+msgstr ""
+"%(url)s :LRU  %(title)s  :tsil kcolb gnos ni si taht yrtne gniwolla toN"
+
+#: musicbot/playlist.py:305
+#, python-format
+msgid ""
+"Ignoring song in entries by '%s', duration longer than permitted maximum."
+msgstr ""
+".mumixam dettimrep naht regnol noitarud ,'%s' yb seirtne ni gnos gnirongI"
+
+#: musicbot/playlist.py:317
+#, python-format
+msgid "Not adding YouTube video because it is marked private or deleted:  %s"
+msgstr "%s  :deteled ro etavirp dekram si ti esuaceb oediv ebuTuoY gnidda toN"
+
+#: musicbot/playlist.py:342
+msgid "Could not add item"
+msgstr "meti dda ton dluoC"
+
+#: musicbot/playlist.py:343
+#, python-format
+msgid "Item: %s"
+msgstr "%s :metI"
+
+#: musicbot/playlist.py:346
+#, python-format
+msgid "Skipped %s bad entries"
+msgstr "seirtne dab %s deppikS"
+
+#: musicbot/playlist.py:387
+msgid "Reorder looping over entries."
+msgstr ".seirtne revo gnipool redroeR"
+
+#: musicbot/playlist.py:469
+#, python-format
+msgid "Pre-downloading next track:  %r"
+msgstr "%r  :kcart txen gnidaolnwod-erP"
+
+#: musicbot/playlist.py:495
+msgid "no duration data"
+msgstr "atad noitarud on"
+
+#: musicbot/playlist.py:504
+msgid "no duration data in current entry"
+msgstr "yrtne tnerruc ni atad noitarud on"
+
+#: musicbot/spotify.py:119
+#, python-format
+msgid "Invalid track_data, must be of type `track` got `%(type)s`"
+msgstr "`%(type)s` tog `kcart` epyt fo eb tsum ,atad_kcart dilavnI"
+
+#: musicbot/spotify.py:301
+#, python-format
+msgid "Ignored non-track entry in playlist with type:  %s"
+msgstr "%s  :epyt htiw tsilyalp ni yrtne kcart-non derongI"
+
+#: musicbot/spotify.py:487
+#, python-format
+msgid "Spotify Album total tacks:  %(total)s  Next URL: %(url)s"
+msgstr "%(url)s :LRU txeN  %(total)s  :skcat latot mublA yfitopS"
+
+#: musicbot/spotify.py:492
+#, python-format
+msgid "Getting Spotify Album Next URL:  %s"
+msgstr "%s  :LRU txeN mublA yfitopS gnitteG"
+
+#: musicbot/spotify.py:503
+#, python-format
+msgid ""
+"Spotify Album Object may not be complete, expected %(total)s tracks but got "
+"%(number)s"
+msgstr ""
+"%(number)s tog tub skcart %(total)s detcepxe ,etelpmoc eb ton yam tcejbO "
+"mublA yfitopS"
+
+#: musicbot/spotify.py:507
+msgid "Spotify Album has more tracks than initial total."
+msgstr ".latot laitini naht skcart erom sah mublA yfitopS"
+
+#: musicbot/spotify.py:530
+#, python-format
+msgid "Spotify Playlist total tacks: %(total)s  Next URL: %(url)s"
+msgstr "%(url)s :LRU txeN  %(total)s :skcat latot tsilyalP yfitopS"
+
+#: musicbot/spotify.py:535
+#, python-format
+msgid "Getting Spotify Playlist Next URL:  %s"
+msgstr "%s  :LRU txeN tsilyalP yfitopS gnitteG"
+
+#: musicbot/spotify.py:546
+#, python-format
+msgid ""
+"Spotify Playlist Object may not be complete, expected %(total)s tracks but "
+"got %(number)s"
+msgstr ""
+"%(number)s tog tub skcart %(total)s detcepxe ,etelpmoc eb ton yam tcejbO "
+"tsilyalP yfitopS"
+
+#: musicbot/spotify.py:550
+msgid "Spotify Playlist has more tracks than initial total."
+msgstr ".latot laitini naht skcart erom sah tsilyalP yfitopS"
+
+#: musicbot/spotify.py:555
+#, python-format
+msgid "Spotify Playlist contained %s usable tracks."
+msgstr ".skcart elbasu %s deniatnoc tsilyalP yfitopS"
+
+#: musicbot/spotify.py:581 musicbot/spotify.py:617
+#, python-format
+msgid "Response status is not OK: [%(status)s] %(reason)s"
+msgstr "%(reason)s ]%(status)s[ :KO ton si sutats esnopseR"
+
+#: musicbot/spotify.py:587 musicbot/spotify.py:623 musicbot/spotify.py:733
+msgid "Response JSON did not decode to a dict!"
+msgstr "!tcid a ot edoced ton did NOSJ esnopseR"
+
+#: musicbot/spotify.py:596
+#, python-format
+msgid "Failed making GET request to url:  %s"
+msgstr "%s  :lru ot tseuqer TEG gnikam deliaF"
+
+#: musicbot/spotify.py:602
+#, python-format
+msgid "Could not make GET to URL:  %(url)s  Reason:  %(raw_error)s"
+msgstr "%(raw_error)s  :nosaeR  %(url)s  :LRU ot TEG ekam ton dluoC"
+
+#: musicbot/spotify.py:632
+#, python-format
+msgid "Failed making POST request to url:  %s"
+msgstr "%s  :lru ot tseuqer TSOP gnikam deliaF"
+
+#: musicbot/spotify.py:638
+#, python-format
+msgid "Could not make POST to URL:  %(url)s  Reason:  %(raw_error)s"
+msgstr "%(raw_error)s  :nosaeR  %(url)s  :LRU ot TSOP ekam ton dluoC"
+
+#: musicbot/spotify.py:672
+msgid ""
+"Failed to get a guest token from Spotify, please try specifying client ID "
+"and client secret"
+msgstr ""
+"terces tneilc dna DI tneilc gniyficeps yrt esaelp ,yfitopS morf nekot tseug "
+"a teg ot deliaF"
+
+#: musicbot/spotify.py:679
+msgid "Created a new Guest Mode access token."
+msgstr ".nekot ssecca edoM tseuG wen a detaerC"
+
+#: musicbot/spotify.py:683
+#, python-format
+msgid ""
+"API response did not contain the expected data. Missing key: %(raw_error)s"
+msgstr ""
+"%(raw_error)s :yek gnissiM .atad detcepxe eht niatnoc ton did esnopser IPA"
+
+#: musicbot/spotify.py:689
+#, python-format
+msgid ""
+"API response contained unexpected data.\n"
+"%(raw_error)s"
+msgstr ""
+"%(raw_error)s\n"
+".atad detcepxenu deniatnoc esnopser IPA"
+
+#: musicbot/spotify.py:696
+msgid "Requested a token from Spotify, did not end up getting one"
+msgstr "eno gnitteg pu dne ton did ,yfitopS morf nekot a detseuqeR"
+
+#: musicbot/spotify.py:700
+msgid "Created a new Client Mode access token."
+msgstr ".nekot ssecca edoM tneilC wen a detaerC"
+
+#: musicbot/spotify.py:727
+#, python-format
+msgid "API response status is not OK: [%(status)s]  %(reason)s"
+msgstr "%(reason)s  ]%(status)s[ :KO ton si sutats esnopser IPA"
+
+#: musicbot/spotify.py:743
+msgid "Failed to get Spotify Guest Token."
+msgstr ".nekoT tseuG yfitopS teg ot deliaF"
+
+#: musicbot/spotify.py:750
+#, python-format
+msgid "Failed to get Guest Token due to: %(raw_error)s"
+msgstr "%(raw_error)s :ot eud nekoT tseuG teg ot deliaF"
+
+#: musicbot/testrig.py:462
+msgid "Starting Command Tests..."
+msgstr "...stseT dnammoC gnitratS"
+
+#: musicbot/testrig.py:510
+#, python-format
+msgid "Buffered command: %(cmd)s"
+msgstr "%(cmd)s :dnammoc dereffuB"
+
+#: musicbot/testrig.py:527
+#, python-format
+msgid "- Processing CMD %(n)s of %(t)s: %(cmd)s"
+msgstr "%(cmd)s :%(t)s fo %(n)s DMC gnissecorP -"
+
+#: musicbot/utils.py:174
+msgid "Only the owner can use this command."
+msgstr ".dnammoc siht esu nac renwo eht ylnO"
+
+#: musicbot/utils.py:194
+msgid "Only dev users can use this command."
+msgstr ".dnammoc siht esu nac sresu ved ylnO"
+
+#: musicbot/utils.py:280 musicbot/utils.py:322
+msgid "Cannot count members when voice_channel is None."
+msgstr ".enoN si lennahc_eciov nehw srebmem tnuoc tonnaC"
+
+#: musicbot/ytdlp_oauth2_plugin.py:85
+#, python-format
+msgid "Failed to save ytdlp oauth2 token data due to:  %s"
+msgstr "%s  :ot eud atad nekot 2htuao pldty evas ot deliaF"
+
+#: musicbot/ytdlp_oauth2_plugin.py:92
+msgid "Loading YouTube TV OAuth2 token data."
+msgstr ".atad nekot 2htuAO VT ebuTuoY gnidaoL"
+
+#: musicbot/ytdlp_oauth2_plugin.py:102
+#, python-format
+msgid "Failed to load ytdlp oauth2 token data due to:  %s"
+msgstr "%s  :ot eud atad nekot 2htuao pldty daol ot deliaF"
+
+#: musicbot/ytdlp_oauth2_plugin.py:110
+msgid "Storing YouTube TV OAuth2 token data"
+msgstr "atad nekot 2htuAO VT ebuTuoY gnirotS"
+
+#: musicbot/ytdlp_oauth2_plugin.py:140
+msgid "Invalid cached OAuth2 token data."
+msgstr ".atad nekot 2htuAO dehcac dilavnI"
+
+#: musicbot/ytdlp_oauth2_plugin.py:155
+msgid "Access token expired, refreshing"
+msgstr "gnihserfer ,deripxe nekot sseccA"
+
+#: musicbot/ytdlp_oauth2_plugin.py:176
+msgid ""
+"YouTube cookies have been provided, but OAuth2 is being used. If you "
+"encounter problems, stop providing YouTube cookies to yt-dlp."
+msgstr ""
+".pld-ty ot seikooc ebuTuoY gnidivorp pots ,smelborp retnuocne uoy fI .desu "
+"gnieb si 2htuAO tub ,dedivorp neeb evah seikooc ebuTuoY"
+
+#: musicbot/ytdlp_oauth2_plugin.py:194
+msgid "Refreshing YouTube TV oauth2 token..."
+msgstr "...nekot 2htuao VT ebuTuoY gnihserfeR"
+
+#: musicbot/ytdlp_oauth2_plugin.py:212
+#, python-format
+msgid ""
+"Failed to refresh OAuth2 access token due to:  %s\n"
+"Restarting authorization flow..."
+msgstr ""
+"...wolf noitazirohtua gnitratseR\n"
+"%s  :ot eud nekot ssecca 2htuAO hserfer ot deliaF"
+
+#: musicbot/ytdlp_oauth2_plugin.py:230
+msgid "Starting oauth2 flow..."
+msgstr "...wolf 2htuao gnitratS"
+
+#: musicbot/ytdlp_oauth2_plugin.py:249
+#, python-format
+msgid ""
+"\n"
+"NOTICE:\n"
+"To give yt-dlp access to your account, visit:\n"
+"  %s\n"
+"Then enter this authorization code:  %s\n"
+"You have %s seconds to complete authorization.\n"
+msgstr ""
+"\n"
+".noitazirohtua etelpmoc ot sdnoces %s evah uoY\n"
+"%s  :edoc noitazirohtua siht retne nehT\n"
+"%s  \n"
+":tisiv ,tnuocca ruoy ot ssecca pld-ty evig oT\n"
+":ECITON\n"
+
+#: musicbot/ytdlp_oauth2_plugin.py:258
+msgid ""
+"The application may hang until authorization time out if closed at this "
+"point. This is normal."
+msgstr ""
+".lamron si sihT .tniop siht ta desolc fi tuo emit noitazirohtua litnu gnah "
+"yam noitacilppa ehT"
+
+#: musicbot/ytdlp_oauth2_plugin.py:264
+msgid "Timed out while waiting for OAuth2 token."
+msgstr ".nekot 2htuAO rof gnitiaw elihw tuo demiT"
+
+#: musicbot/ytdlp_oauth2_plugin.py:292
+msgid "The device code has expired, restarting authorization flow for yt-dlp."
+msgstr ""
+".pld-ty rof wolf noitazirohtua gnitratser ,deripxe sah edoc ecived ehT"
+
+#: musicbot/ytdlp_oauth2_plugin.py:298
+msgid "Yt-dlp OAuth2 authorization successful."
+msgstr ".lufsseccus noitazirohtua 2htuAO pld-tY"
+
+#: musicbot/ytdlp_oauth2_plugin.py:328
+#, python-format
+msgid "Adding OAuth2 Plugin to Yt-dlp IE:  %s"
+msgstr "%s  :EI pld-tY ot nigulP 2htuAO gniddA"
+
+#: musicbot/ytdlp_oauth2_plugin.py:350
+#, python-format
+msgid "Default Yt-dlp Clients:  %s"
+msgstr "%s  :stneilC pld-tY tluafeD"
+
+#: run.py:105
+msgid "Could not find git executable."
+msgstr ".elbatucexe tig dnif ton dluoC"
+
+#: run.py:154
+msgid "Attempting to upgrade with `git pull` on current path."
+msgstr ".htap tnerruc no `llup tig` htiw edargpu ot gnitpmettA"
+
+#: run.py:161
+#, python-format
+msgid "Result of git pull:  %s"
+msgstr "%s  :llup tig fo tluseR"
+
+#: run.py:169
+msgid "Upgrade failed, you need to run `git pull` manually."
+msgstr ".yllaunam `llup tig` nur ot deen uoy ,deliaf edargpU"
+
+#: run.py:179
+msgid "Cannot execute pip."
+msgstr ".pip etucexe tonnaC"
+
+#: run.py:186
+msgid "Error using -m method"
+msgstr "dohtem m- gnisu rorrE"
+
+#: run.py:232
+msgid "PIP failed while calling sub-process."
+msgstr ".ssecorp-bus gnillac elihw deliaf PIP"
+
+#: run.py:235
+msgid "PIP failed due to Permission Error."
+msgstr ".rorrE noissimreP ot eud deliaf PIP"
+
+#: run.py:239
+#, python-format
+msgid "PIP failed due to missing Python executable?  (%s)"
+msgstr ")%s(  ?elbatucexe nohtyP gnissim ot eud deliaf PIP"
+
+#: run.py:244
+msgid "PIP failed due to OSError."
+msgstr ".rorrESO ot eud deliaf PIP"
+
+#: run.py:265
+msgid "Could not decode pip update report JSON."
+msgstr ".NOSJ troper etadpu pip edoced ton dluoC"
+
+#: run.py:287
+msgid "Cannot locate or execute python -m pip"
+msgstr "pip m- nohtyp etucexe ro etacol tonnaC"
+
+#: run.py:290
+#, python-format
+msgid "Attempting to upgrade with `%s` on current path..."
+msgstr "...htap tnerruc no `%s` htiw edargpu ot gnitpmettA"
+
+#: run.py:308
+#, python-format
+msgid ""
+"Result of pip upgrade:\n"
+"%s"
+msgstr ""
+"%s\n"
+":edargpu pip fo tluseR"
+
+#: run.py:313
+#, python-format
+msgid "Result exit code from pip upgrade: %s"
+msgstr "%s :edargpu pip morf edoc tixe tluseR"
+
+#: run.py:328
+msgid "Upgrade failed to execute or we could not understand the output"
+msgstr "tuptuo eht dnatsrednu ton dluoc ew ro etucexe ot deliaf edargpU"
+
+#: run.py:331
+#, python-format
+msgid "You may need to run `%s` manually."
+msgstr ".yllaunam `%s` nur ot deen yam uoY"
+
+#: run.py:340
+msgid "Press enter to continue . . ."
+msgstr ". . . eunitnoc ot retne sserP"
+
+#: run.py:353
+msgid "Starting sanity checks"
+msgstr "skcehc ytinas gnitratS"
+
+#: run.py:364
+msgid "Required checks passed."
+msgstr ".dessap skcehc deriuqeR"
+
+#: run.py:377
+msgid "Skipped checking for updates."
+msgstr ".setadpu rof gnikcehc deppikS"
+
+#: run.py:379
+msgid "Optional checks passed."
+msgstr ".dessap skcehc lanoitpO"
+
+#: run.py:387
+msgid "Checking for Python 3.8+"
+msgstr "+8.3 nohtyP rof gnikcehC"
+
+#: run.py:391
+#, python-format
+msgid "Python 3.8+ is required. This version is %s"
+msgstr "%s si noisrev sihT .deriuqer si +8.3 nohtyP"
+
+#: run.py:393
+msgid "Attempting to locate Python 3.8..."
+msgstr "...8.3 nohtyP etacol ot gnitpmettA"
+
+#: run.py:401
+msgid "Could not locate py.exe"
+msgstr "exe.yp etacol ton dluoC"
+
+#: run.py:412
+msgid "Could not execute `py.exe -3.8` "
+msgstr " `8.3- exe.yp` etucexe ton dluoC"
+
+#: run.py:416
+msgid "Python 3 found.  Launching bot..."
+msgstr "...tob gnihcnuaL  .dnuof 3 nohtyP"
+
+#: run.py:421
+msgid "Trying \"python3.8\""
+msgstr "\"8.3nohtyp\" gniyrT"
+
+#: run.py:424
+msgid "Could not locate python3.8 on path."
+msgstr ".htap no 8.3nohtyp etacol ton dluoC"
+
+#: run.py:438
+#, python-format
+msgid ""
+"\n"
+"Python 3.8 found.  Re-launching bot using: %s run.py\n"
+msgstr ""
+"\n"
+"yp.nur %s :gnisu tob gnihcnual-eR  .dnuof 8.3 nohtyP\n"
+
+#: run.py:443
+msgid ""
+"Could not find Python 3.8 or higher.  Please run the bot using Python 3.8"
+msgstr ""
+"8.3 nohtyP gnisu tob eht nur esaelP  .rehgih ro 8.3 nohtyP dnif ton dluoC"
+
+#: run.py:476
+msgid "Ensuring we're in the right environment"
+msgstr "tnemnorivne thgir eht ni er'ew gnirusnE"
+
+#: run.py:499
+#, python-format
+msgid "Failed environment check, %s"
+msgstr "%s ,kcehc tnemnorivne deliaF"
+
+#: run.py:523
+#, python-format
+msgid ""
+"MusicBot could not write files in the following directory:\n"
+"%(dir)s"
+msgstr ""
+"%(dir)s\n"
+":yrotcerid gniwollof eht ni selif etirw ton dluoc toBcisuM"
+
+#: run.py:527
+msgid "Please make sure MusicBot can read and write in the above directory."
+msgstr ".yrotcerid evoba eht ni etirw dna daer nac toBcisuM erus ekam esaelP"
+
+#: run.py:534
+msgid "Failed to clean up write-test path."
+msgstr ".htap tset-etirw pu naelc ot deliaF"
+
+#: run.py:540
+#, python-format
+msgid "Detected FFmpeg is installed at:  %s"
+msgstr "%s  :ta dellatsni si gepmFF detceteD"
+
+#: run.py:542
+msgid "Adding local bins/ folder environment PATH for bundled ffmpeg..."
+msgstr "...gepmff deldnub rof HTAP tnemnorivne redlof /snib lacol gniddA"
+
+#: run.py:551
+msgid ""
+"MusicBot could not locate FFmpeg binary in your environment.\n"
+"Please install FFmpeg so it is available in your environment PATH variable."
+msgstr ""
+".elbairav HTAP tnemnorivne ruoy ni elbaliava si ti os gepmFF llatsni esaelP\n"
+".tnemnorivne ruoy ni yranib gepmFF etacol ton dluoc toBcisuM"
+
+#: run.py:556
+msgid ""
+"On Windows, you can add a pre-compiled EXE to the MusicBot `bin` folder,\n"
+"or you can install FFmpeg system-wide using WinGet or by running the install.bat file."
+msgstr ""
+".elif tab.llatsni eht gninnur yb ro teGniW gnisu ediw-metsys gepmFF llatsni nac uoy ro\n"
+",redlof `nib` toBcisuM eht ot EXE delipmoc-erp a dda nac uoy ,swodniW nO"
+
+#: run.py:561
+msgid ""
+"On MacOS, you may be able to install FFmpeg via homebrew.\n"
+"Otherwise, check the official FFmpeg site for build or install steps."
+msgstr ""
+".spets llatsni ro dliub rof etis gepmFF laiciffo eht kcehc ,esiwrehtO\n"
+".werbemoh aiv gepmFF llatsni ot elba eb yam uoy ,SOcaM nO"
+
+#: run.py:566
+msgid ""
+"On Linux, many distros make FFmpeg available via system package managers.\n"
+"Check for ffmpeg with your system package manager or build from sources."
+msgstr ""
+".secruos morf dliub ro reganam egakcap metsys ruoy htiw gepmff rof kcehC\n"
+".sreganam egakcap metsys aiv elbaliava gepmFF ekam sortsid ynam ,xuniL nO"
+
+#: run.py:579
+#, python-format
+msgid "Less than %sMB of free space remains on this device"
+msgstr "ecived siht no sniamer ecaps eerf fo BM%s naht sseL"
+
+#: run.py:588
+msgid ""
+"\n"
+"Checking for updates to MusicBot or dependencies..."
+msgstr "...seicnedneped ro toBcisuM ot setadpu rof gnikcehC\n"
+
+#: run.py:605
+msgid "No MusicBot updates available via `git` command."
+msgstr ".dnammoc `tig` aiv elbaliava setadpu toBcisuM oN"
+
+#: run.py:608
+msgid ""
+"Could not check for updates using `git` commands.  You should check "
+"manually."
+msgstr ""
+".yllaunam kcehc dluohs uoY  .sdnammoc `tig` gnisu setadpu rof kcehc ton "
+"dluoC"
+
+#: run.py:615
+msgid "The following packages can be updated:\n"
+msgstr ""
+"\n"
+":detadpu eb nac segakcap gniwollof ehT"
+
+#: run.py:621
+#, python-format
+msgid "  %s  to version:  %s\n"
+msgstr ""
+"\n"
+"%s  :noisrev ot  %s  "
+
+#: run.py:632
+msgid "No dependency updates available via `pip` command."
+msgstr ".dnammoc `pip` aiv elbaliava setadpu ycnedneped oN"
+
+#: run.py:635
+msgid ""
+"Could not check for updates using `pip` commands.  You should check "
+"manually."
+msgstr ""
+".yllaunam kcehc dluohs uoY  .sdnammoc `pip` gnisu setadpu rof kcehc ton "
+"dluoC"
+
+#: run.py:639
+#, python-format
+msgid ""
+"You can run a guided update by using the command:\n"
+"    %s ./update.py"
+msgstr ""
+"yp.etadpu/. %s    \n"
+":dnammoc eht gnisu yb etadpu dediug a nur nac uoY"
+
+#: run.py:657
+msgid "Value is above the maximum limit."
+msgstr ".timil mumixam eht evoba si eulaV"
+
+#: run.py:659
+msgid "Value must not be negative."
+msgstr ".evitagen eb ton tsum eulaV"
+
+#: run.py:663
+#, python-format
+msgid "Value for Max Logs Kept must be a number from 0 to %s"
+msgstr "%s ot 0 morf rebmun a eb tsum tpeK sgoL xaM rof eulaV"
+
+#: run.py:673
+#, python-format
+msgid "Log level '%s' is not available."
+msgstr ".elbaliava ton si '%s' level goL"
+
+#: run.py:677
+#, python-format
+msgid "Log Level must be one of:  %s"
+msgstr "%s  :fo eno eb tsum leveL goL"
+
+#: run.py:687
+msgid ""
+"Launch a music playing discord bot built using discord.py, youtubeDL, and "
+"ffmpeg."
+msgstr ""
+".gepmff dna ,LDebutuoy ,yp.drocsid gnisu tliub tob drocsid gniyalp cisum a "
+"hcnuaL"
+
+#: run.py:690
+msgid "Available via Github:"
+msgstr ":buhtiG aiv elbaliavA"
+
+#: run.py:694
+msgid "For more help and support with this bot, join our discord:"
+msgstr ":drocsid ruo nioj ,tob siht htiw troppus dna pleh erom roF"
+
+#: run.py:696
+msgid "This software is provided under the MIT License."
+msgstr ".esneciL TIM eht rednu dedivorp si erawtfos sihT"
+
+#: run.py:698
+msgid "See the `LICENSE` text file for complete details."
+msgstr ".sliated etelpmoc rof elif txet `ESNECIL` eht eeS"
+
+#: run.py:710
+msgid ""
+"Override the default / system detected language for all text in MusicBot."
+msgstr ""
+".toBcisuM ni txet lla rof egaugnal detceted metsys / tluafed eht edirrevO"
+
+#: run.py:719
+msgid "Use this language for all server-side log messages from MusicBot."
+msgstr ".toBcisuM morf segassem gol edis-revres lla rof egaugnal siht esU"
+
+#: run.py:728
+msgid ""
+"Use this language for all messages sent to discord from MusicBot.\n"
+"This does not prevent per-guild language selection."
+msgstr ""
+".noitceles egaugnal dliug-rep tneverp ton seod sihT\n"
+".toBcisuM morf drocsid ot tnes segassem lla rof egaugnal siht esU"
+
+#: run.py:739
+msgid "Print the MusicBot version information and exit."
+msgstr ".tixe dna noitamrofni noisrev toBcisuM eht tnirP"
+
+#: run.py:747
+msgid "Skip all optional startup checks, including the update check."
+msgstr ".kcehc etadpu eht gnidulcni ,skcehc putrats lanoitpo lla pikS"
+
+#: run.py:755
+msgid "Skip only the disk space check at startup."
+msgstr ".putrats ta kcehc ecaps ksid eht ylno pikS"
+
+#: run.py:763
+msgid "Skip only the update check at startup."
+msgstr ".putrats ta kcehc etadpu eht ylno pikS"
+
+#: run.py:772
+msgid ""
+"Disable MusicBot from trying to install dependencies when it cannot import "
+"them."
+msgstr ""
+".meht tropmi tonnac ti nehw seicnedneped llatsni ot gniyrt morf toBcisuM "
+"elbasiD"
+
+#: run.py:783
+#, python-format
+msgid ""
+"Specify how many log files to keep, between 0 and %s inclusive. (Default: "
+"%s)"
+msgstr ""
+")%s :tluafeD( .evisulcni %s dna 0 neewteb ,peek ot selif gol ynam woh "
+"yficepS"
+
+#: run.py:793
+#, python-format
+msgid "Override the log level settings set in config. Must be one of: %s"
+msgstr "%s :fo eno eb tsuM .gifnoc ni tes sgnittes level gol eht edirrevO"
+
+#: run.py:804
+#, python-format
+msgid ""
+"Override the default date format used when rotating log files. This should "
+"contain values compatible with strftime().  (Default:  '%s')"
+msgstr ""
+")'%s'  :tluafeD(  .)(emitfrts htiw elbitapmoc seulav niatnoc dluohs sihT "
+".selif gol gnitator nehw desu tamrof etad tluafed eht edirrevO"
+
+#: run.py:817
+msgid ""
+"Supply a directory where MusicBot can store all mutable files.\n"
+"Essentially treats the install directory as read-only.\n"
+"MusicBot must have permission to create this directory.\n"
+msgstr ""
+"\n"
+".yrotcerid siht etaerc ot noissimrep evah tsum toBcisuM\n"
+".ylno-daer sa yrotcerid llatsni eht staert yllaitnessE\n"
+".selif elbatum lla erots nac toBcisuM erehw yrotcerid a ylppuS"
+
+#: run.py:827
+#, python-format
+msgid "Version:  %s"
+msgstr "%s  :noisreV"
+
+#: run.py:902
+msgid "Opened a new MusicBot instance. This terminal can be safely closed!"
+msgstr "!desolc ylefas eb nac lanimret sihT .ecnatsni toBcisuM wen a denepO"
+
+#: run.py:973
+#, python-format
+msgid "Loading MusicBot version:  %s"
+msgstr "%s  :noisrev toBcisuM gnidaoL"
+
+#: run.py:974
+#, python-format
+msgid "Log opened:  %s"
+msgstr "%s  :denepo goL"
+
+#: run.py:975
+#, python-format
+msgid "Python version:  %s"
+msgstr "%s  :noisrev nohtyP"
+
+#: run.py:984
+#, python-format
+msgid "Changing working directory to:  %s"
+msgstr "%s  :ot yrotcerid gnikrow gnignahC"
+
+#: run.py:988
+msgid ""
+"Cannot start the bot!  You started `run.py` in the wrong directory and we "
+"could not locate `musicbot` and `.git` folders to verify a new directory "
+"location."
+msgstr ""
+".noitacol yrotcerid wen a yfirev ot sredlof `tig.` dna `tobcisum` etacol ton"
+" dluoc ew dna yrotcerid gnorw eht ni `yp.nur` detrats uoY  !tob eht trats "
+"tonnaC"
+
+#: run.py:993
+msgid ""
+"For best results, start `run.py` from the same folder you cloned MusicBot into.\n"
+"If you did not use git to clone the repository, you are strongly urged to."
+msgstr ""
+".ot degru ylgnorts era uoy ,yrotisoper eht enolc ot tig esu ton did uoy fI\n"
+".otni toBcisuM denolc uoy redlof emas eht morf `yp.nur` trats ,stluser tseb roF"
+
+#: run.py:1047
+msgid ""
+"Certificate error is not a verification error, not trying certifi and "
+"exiting."
+msgstr ""
+".gnitixe dna ifitrec gniyrt ton ,rorre noitacifirev a ton si rorre "
+"etacifitreC"
+
+#: run.py:1049
+msgid "Here is the exact error, it could be a bug."
+msgstr ".gub a eb dluoc ti ,rorre tcaxe eht si ereH"
+
+#: run.py:1065
+msgid ""
+"To easily add a certificate to Windows trust store, \n"
+"you can open the failing site in Microsoft Edge or IE...\n"
+msgstr ""
+"\n"
+"...EI ro egdE tfosorciM ni etis gniliaf eht nepo nac uoy\n"
+" ,erots tsurt swodniW ot etacifitrec a dda ylisae oT"
+
+#: run.py:1071
+msgid ""
+"Could not get Issuer Certificate from default trust store, trying certifi "
+"instead."
+msgstr ""
+".daetsni ifitrec gniyrt ,erots tsurt tluafed morf etacifitreC reussI teg ton"
+" dluoC"
+
+#: run.py:1080
+msgid "Syntax error (modification detected, did you edit the code?)"
+msgstr ")?edoc eht tide uoy did ,detceted noitacifidom( rorre xatnyS"
+
+#: run.py:1083
+msgid "Syntax error (this is a bug, not your fault)"
+msgstr ")tluaf ruoy ton ,gub a si siht( rorre xatnyS"
+
+#: run.py:1095
+msgid ""
+"Cannot start MusicBot due to an error!\n"
+"\n"
+"Problem:\n"
+"  There was an error importing MusicBot or a dependency package.\n"
+"\n"
+"Solution:\n"
+"  You need to manually install pip packages for MusicBot\n"
+"  or launch without `--no-install-deps` and MusicBot will try to install them for you."
+msgstr ""
+".uoy rof meht llatsni ot yrt lliw toBcisuM dna `sped-llatsni-on--` tuohtiw hcnual ro  \n"
+"toBcisuM rof segakcap pip llatsni yllaunam ot deen uoY  \n"
+":noituloS\n"
+"\n"
+".egakcap ycnedneped a ro toBcisuM gnitropmi rorre na saw erehT  \n"
+":melborP\n"
+"\n"
+"!rorre na ot eud toBcisuM trats tonnaC"
+
+#: run.py:1128
+msgid "Attempting to install MusicBot dependency packages automatically...\n"
+msgstr ""
+"\n"
+"...yllacitamotua segakcap ycnedneped toBcisuM llatsni ot gnitpmettA"
+
+#: run.py:1137
+#, python-format
+msgid ""
+"MusicBot dependencies may not be installed!\n"
+"\n"
+"Problem:\n"
+"  The pip install process ended with a possible error.\n"
+"  Some or all of the the dependencies may be missing.\n"
+"\n"
+"Solution:\n"
+"  You must manually install dependency packages.\n"
+"  Open a CMD prompt / terminal to the MusicBot directory.\n"
+"  You can try using the update scripts install packages.\n"
+"  Or try this manual command:\n"
+"    %(py_bin)s -m pip install -U -r ./requirements.txt\n"
+"\n"
+"You can also ask for help in MusicBot's support discord:\n"
+"  https://discord.gg/bots"
+msgstr ""
+"stob/gg.drocsid//:sptth  \n"
+":drocsid troppus s'toBcisuM ni pleh rof ksa osla nac uoY\n"
+"\n"
+"txt.stnemeriuqer/. r- U- llatsni pip m- %(py_bin)s    \n"
+":dnammoc launam siht yrt rO  \n"
+".segakcap llatsni stpircs etadpu eht gnisu yrt nac uoY  \n"
+".yrotcerid toBcisuM eht ot lanimret / tpmorp DMC a nepO  \n"
+".segakcap ycnedneped llatsni yllaunam tsum uoY  \n"
+":noituloS\n"
+"\n"
+".gnissim eb yam seicnedneped eht eht fo lla ro emoS  \n"
+".rorre elbissop a htiw dedne ssecorp llatsni pip ehT  \n"
+":melborP\n"
+"\n"
+"!dellatsni eb ton yam seicnedneped toBcisuM"
+
+#: run.py:1158
+msgid "OK, lets hope installing dependencies worked!"
+msgstr "!dekrow seicnedneped gnillatsni epoh stel ,KO"
+
+#: run.py:1170
+msgid ""
+"MusicBot got an ImportError after trying to install packages. MusicBot must "
+"exit..."
+msgstr ""
+"...tixe tsum toBcisuM .segakcap llatsni ot gniyrt retfa rorrEtropmI na tog "
+"toBcisuM"
+
+#: run.py:1172
+msgid "The exception which caused the above error: "
+msgstr " :rorre evoba eht desuac hcihw noitpecxe ehT"
+
+#: run.py:1191
+msgid "MusicBot is doing a soft restart..."
+msgstr "...tratser tfos a gniod si toBcisuM"
+
+#: run.py:1195
+msgid "MusicBot is doing a full process restart..."
+msgstr "...tratser ssecorp lluf a gniod si toBcisuM"
+
+#: run.py:1201
+msgid "Error starting bot"
+msgstr "tob gnitrats rorrE"
+
+#: run.py:1206
+msgid "Closing event loop."
+msgstr ".pool tneve gnisolC"
+
+#: run.py:1211
+#, python-format
+msgid "Restarting in %s seconds..."
+msgstr "...sdnoces %s ni gnitratseR"
+
+#: run.py:1215
+msgid "All done."
+msgstr ".enod llA"
+
+#: run.py:1244
+msgid "OK, we're closing!"
+msgstr "!gnisolc er'ew ,KO"

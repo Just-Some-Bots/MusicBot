@@ -2,11 +2,12 @@ import configparser
 import logging
 import pathlib
 import shutil
-from typing import TYPE_CHECKING, Dict, Set, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple, Type, Union
 
 import configupdater
 import discord
 
+from . import write_path
 from .config import ConfigOption, ConfigOptionRegistry, ExtendedConfigParser, RegTypes
 from .constants import (
     DEFAULT_OWNER_GROUP_NAME,
@@ -15,6 +16,7 @@ from .constants import (
     EXAMPLE_PERMS_FILE,
 )
 from .exceptions import HelpfulError, PermissionsError
+from .i18n import _Dd
 
 if TYPE_CHECKING:
     from .bot import MusicBot
@@ -33,6 +35,7 @@ class PermissionsDefaults:
 
     command_whitelist: Set[str] = set()
     command_blacklist: Set[str] = set()
+    advanced_commandlists: bool = False
     ignore_non_voice: Set[str] = set()
     grant_to_roles: Set[int] = set()
     user_list: Set[int] = set()
@@ -62,8 +65,8 @@ class PermissionsDefaults:
     }
 
     # These defaults are not used per-group but rather for permissions system itself.
-    perms_file: pathlib.Path = pathlib.Path(DEFAULT_PERMS_FILE)
-    example_perms_file: pathlib.Path = pathlib.Path(EXAMPLE_PERMS_FILE)
+    perms_file: pathlib.Path = write_path(DEFAULT_PERMS_FILE)
+    example_perms_file: pathlib.Path = write_path(EXAMPLE_PERMS_FILE)
 
 
 class PermissiveDefaults(PermissionsDefaults):
@@ -74,6 +77,7 @@ class PermissiveDefaults(PermissionsDefaults):
 
     command_whitelist: Set[str] = set()
     command_blacklist: Set[str] = set()
+    advanced_commandlists: bool = False
     ignore_non_voice: Set[str] = set()
     grant_to_roles: Set[int] = set()
     user_list: Set[int] = set()
@@ -107,26 +111,33 @@ class Permissions:
         self.perms_file = perms_file
         self.config = ExtendedConfigParser()
         self.register = PermissionOptionRegistry(self, self.config)
-        self.groups: Dict[str, "PermissionGroup"] = {}
+        self.groups: Dict[str, PermissionGroup] = {}
 
         if not self.config.read(self.perms_file, encoding="utf-8"):
             example_file = PermissionsDefaults.example_perms_file
-            log.info(
-                "Permissions file not found, copying from:  %s",
-                example_file,
-            )
-
-            try:
-                shutil.copy(example_file, self.perms_file)
-                self.config.read(self.perms_file, encoding="utf-8")
-
-            except Exception as e:
-                log.exception(
-                    "Error copying example permissions file:  %s", example_file
+            if example_file.is_file():
+                log.warning(
+                    "Permissions file not found, copying from:  %s",
+                    example_file,
                 )
-                raise RuntimeError(
-                    f"Unable to copy {example_file} to {self.perms_file}:  {str(e)}"
-                ) from e
+
+                try:
+                    shutil.copy(example_file, self.perms_file)
+                    self.config.read(self.perms_file, encoding="utf-8")
+                except Exception as e:
+                    log.exception(
+                        "Error copying example permissions file:  %s", example_file
+                    )
+                    raise RuntimeError(
+                        f"Unable to copy {example_file} to {self.perms_file}:  {str(e)}"
+                    ) from e
+            else:
+                log.error(
+                    "Could not locate config permissions or example permissions files.\n"
+                    "MusicBot will generate the config files at the location:\n"
+                    "  %(perms_file)s",
+                    {"perms_file": self.perms_file.parent},
+                )
 
         for section in self.config.sections():
             if section == DEFAULT_OWNER_GROUP_NAME:
@@ -148,6 +159,28 @@ class Permissions:
 
         self.register.validate_register_destinations()
 
+        if not self.perms_file.is_file():
+            log.info("Generating new config permissions files...")
+            try:
+                ex_file = PermissionsDefaults.example_perms_file
+                self.register.write_default_ini(ex_file)
+                shutil.copy(ex_file, self.perms_file)
+                self.config.read(self.perms_file, encoding="utf-8")
+            except OSError as e:
+                raise HelpfulError(
+                    # fmt: off
+                    "Error creating default config permissions file.\n"
+                    "\n"
+                    "Problem:\n"
+                    "  MusicBot attempted to generate the config files but failed due to an error:\n"
+                    "  %(raw_error)s\n"
+                    "\n"
+                    "Solution:\n"
+                    "  Make sure MusicBot can read and write to your config files.\n",
+                    # fmt: on
+                    fmt_args={"raw_error": e},
+                ) from e
+
     def _generate_default_group(self, name: str) -> "PermissionGroup":
         """Generate a group with `name` using PermissionDefaults."""
         return PermissionGroup(name, self, PermissionsDefaults)
@@ -159,7 +192,7 @@ class Permissions:
     def set_owner_id(self, owner_id: int) -> None:
         """Sets the given id as the owner ID in the owner permission group."""
         if owner_id == 0:
-            log.debug("OwnerID is set auto, will set correctly later.")
+            log.debug("Config 'OwnerID' is set auto, will set correctly later.")
         self.groups[DEFAULT_OWNER_GROUP_NAME].user_list = set([owner_id])
 
     @property
@@ -178,7 +211,7 @@ class Permissions:
         """
         log.debug("Validating permissions...")
         if 0 in self.owner_group.user_list:
-            log.debug("Setting auto OwnerID for owner permissions group.")
+            log.debug("Setting auto 'OwnerID' for owner permissions group.")
             self.owner_group.user_list = {bot.config.owner_id}
 
     def for_user(self, user: Union[discord.Member, discord.User]) -> "PermissionGroup":
@@ -186,6 +219,12 @@ class Permissions:
         Returns the first PermissionGroup a user belongs to
         :param user: A discord User or Member object
         """
+        # Only ever put Owner in the Owner group.
+        if user.id in self.owner_group.user_list:
+            return self.owner_group
+
+        # TODO: Maybe we should validate to prevent users in multiple groups...
+        # Or complicate things more by merging groups into virtual groups......
 
         # Search for the first group a member ID shows up in.
         for group in self.groups.values():
@@ -232,7 +271,7 @@ class Permissions:
             if group in set(cu.keys()):
                 # update
                 if group in self.groups:
-                    log.debug("Updating group in permssions file:  %s", group)
+                    log.debug("Updating group in permissions file:  %s", group)
                     for option in set(cu[group].keys()):
                         cu[group][option].value = self.register.to_ini(opts[option])
 
@@ -298,6 +337,8 @@ class Permissions:
 
 
 class PermissionGroup:
+    _BuiltIn: List[str] = [DEFAULT_PERMS_GROUP_NAME, DEFAULT_OWNER_GROUP_NAME]
+
     def __init__(
         self,
         name: str,
@@ -321,9 +362,11 @@ class PermissionGroup:
             dest="command_whitelist",
             getter="getstrset",
             default=defaults.command_whitelist,
-            comment=(
+            comment=_Dd(
                 "List of command names allowed for use, separated by spaces.\n"
-                "This option overrides CommandBlacklist if set."
+                "Sub-command access can be controlled by adding _ and the sub-command name.\n"
+                "That is `config_set` grants only the `set` sub-command of the config command.\n"
+                "This option overrides CommandBlacklist if set.\n"
             ),
             empty_display_val="(All allowed)",
         )
@@ -333,11 +376,22 @@ class PermissionGroup:
             dest="command_blacklist",
             default=defaults.command_blacklist,
             getter="getstrset",
-            comment=(
+            comment=_Dd(
                 "List of command names denied from use, separated by spaces.\n"
                 "Will not work if CommandWhitelist is set!"
             ),
             empty_display_val="(None denied)",
+        )
+        self.advanced_commandlists = self._mgr.register.init_option(
+            section=name,
+            option="AdvancedCommandLists",
+            dest="advanced_commandlists",
+            getter="getboolean",
+            default=defaults.advanced_commandlists,
+            comment=_Dd(
+                "When enabled, CommandBlacklist and CommandWhitelist are used together.\n"
+                "Only commands in the whitelist are allowed, however sub-commands may be denied by the blacklist.\n"
+            ),
         )
         self.ignore_non_voice = self._mgr.register.init_option(
             section=name,
@@ -345,7 +399,7 @@ class PermissionGroup:
             dest="ignore_non_voice",
             getter="getstrset",
             default=defaults.ignore_non_voice,
-            comment=(
+            comment=_Dd(
                 "List of command names that can only be used while in the same voice channel as MusicBot.\n"
                 "Some commands will always require the user to be in voice, regardless of this list.\n"
                 "Command names should be separated by spaces."
@@ -358,7 +412,10 @@ class PermissionGroup:
             dest="granted_to_roles",
             getter="getidset",
             default=defaults.grant_to_roles,
-            comment="List of Discord server role IDs that are granted this permission group. This option is ignored if UserList is set.",
+            comment=_Dd(
+                "List of Discord server role IDs that are granted this permission group.\n"
+                "This option is ignored if UserList is set."
+            ),
             invisible=True,
         )
         self.user_list = self._mgr.register.init_option(
@@ -367,7 +424,10 @@ class PermissionGroup:
             dest="user_list",
             getter="getidset",
             default=defaults.user_list,
-            comment="List of Discord member IDs that are granted permissions in this group. This option overrides GrantToRoles.",
+            comment=_Dd(
+                "List of Discord member IDs that are granted permissions in this group.\n"
+                "This option overrides GrantToRoles."
+            ),
             invisible=True,
         )
         self.max_songs = self._mgr.register.init_option(
@@ -376,7 +436,10 @@ class PermissionGroup:
             dest="max_songs",
             getter="getint",
             default=defaults.max_songs,
-            comment="Maximum number of songs a user is allowed to queue. A value of 0 means unlimited.",
+            comment=_Dd(
+                "Maximum number of songs a user is allowed to queue.\n"
+                "A value of 0 means unlimited."
+            ),
             empty_display_val="(Unlimited)",
         )
         self.max_song_length = self._mgr.register.init_option(
@@ -385,7 +448,7 @@ class PermissionGroup:
             dest="max_song_length",
             getter="getint",
             default=defaults.max_song_length,
-            comment=(
+            comment=_Dd(
                 "Maximum length of a song in seconds. A value of 0 means unlimited.\n"
                 "This permission may not be enforced if song duration is not available."
             ),
@@ -397,7 +460,10 @@ class PermissionGroup:
             dest="max_playlist_length",
             getter="getint",
             default=defaults.max_playlist_length,
-            comment="Maximum number of songs a playlist is allowed to have to be queued. A value of 0 means unlimited.",
+            comment=_Dd(
+                "Maximum number of songs a playlist is allowed to have when queued.\n"
+                "A value of 0 means unlimited."
+            ),
             empty_display_val="(Unlimited)",
         )
         self.max_search_items = self._mgr.register.init_option(
@@ -406,7 +472,9 @@ class PermissionGroup:
             dest="max_search_items",
             getter="getint",
             default=defaults.max_search_items,
-            comment="The maximum number of items that can be returned in a search.",
+            comment=_Dd(
+                "The maximum number of items that can be returned in a search."
+            ),
         )
         self.allow_playlists = self._mgr.register.init_option(
             section=name,
@@ -414,7 +482,7 @@ class PermissionGroup:
             dest="allow_playlists",
             getter="getboolean",
             default=defaults.allow_playlists,
-            comment="Allow users to queue playlists, or multiple songs at once.",
+            comment=_Dd("Allow users to queue playlists, or multiple songs at once."),
         )
         self.instaskip = self._mgr.register.init_option(
             section=name,
@@ -422,7 +490,9 @@ class PermissionGroup:
             dest="instaskip",
             getter="getboolean",
             default=defaults.insta_skip,
-            comment="Allow users to skip without voting, if LegacySkip config option is enabled.",
+            comment=_Dd(
+                "Allow users to skip without voting, if LegacySkip config option is enabled."
+            ),
         )
         self.skip_looped = self._mgr.register.init_option(
             section=name,
@@ -430,7 +500,7 @@ class PermissionGroup:
             dest="skip_looped",
             getter="getboolean",
             default=defaults.skip_looped,
-            comment="Allows the user to skip a looped song.",
+            comment=_Dd("Allows the user to skip a looped song."),
         )
         self.remove = self._mgr.register.init_option(
             section=name,
@@ -438,7 +508,7 @@ class PermissionGroup:
             dest="remove",
             getter="getboolean",
             default=defaults.remove,
-            comment=(
+            comment=_Dd(
                 "Allows the user to remove any song from the queue.\n"
                 "Does not remove or skip currently playing songs."
             ),
@@ -449,7 +519,9 @@ class PermissionGroup:
             dest="skip_when_absent",
             getter="getboolean",
             default=defaults.skip_when_absent,
-            comment="Skip songs added by users who are not in voice when their song is played.",
+            comment=_Dd(
+                "Skip songs added by users who are not in voice when their song is played."
+            ),
         )
         self.bypass_karaoke_mode = self._mgr.register.init_option(
             section=name,
@@ -457,7 +529,9 @@ class PermissionGroup:
             dest="bypass_karaoke_mode",
             getter="getboolean",
             default=defaults.bypass_karaoke_mode,
-            comment="Allows the user to add songs to the queue when Karaoke Mode is enabled.",
+            comment=_Dd(
+                "Allows the user to add songs to the queue when Karaoke Mode is enabled."
+            ),
         )
         self.summonplay = self._mgr.register.init_option(
             section=name,
@@ -465,7 +539,7 @@ class PermissionGroup:
             dest="summonplay",
             getter="getboolean",
             default=defaults.summon_no_voice,
-            comment=(
+            comment=_Dd(
                 "Auto summon to user voice channel when using play commands, if bot isn't in voice already.\n"
                 "The summon command must still be allowed for this group!"
             ),
@@ -476,20 +550,23 @@ class PermissionGroup:
             dest="extractors",
             getter="getstrset",
             default=defaults.extractors,
-            comment=(
-                "List of yt_dlp extractor keys, separated by spaces, that are allowed to be used.\n"
-                "Extractor names are matched partially, to allow for strict and flexible permissions.\n"
-                "Example:  `youtube:search` allows only search, but `youtube` allows all of youtube extractors.\n"
-                "When empty, hard-coded defaults are used. If you set this, you may want to add those defaults as well.\n"
-                f"To allow all extractors, add `{PERMS_ALLOW_ALL_EXTRACTOR_NAME}` to the list of extractors.\n"
-                "Services supported by yt_dlp shown here:  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md \n"
-                "MusicBot also provides one custom service `spotify:musicbot` to enable or disable spotify API extraction.\n"
-                "NOTICE: MusicBot might not support all services available to yt_dlp!\n"
+            comment=_Dd(
+                "Specify yt-dlp extractor names, separated by spaces, that are allowed to be used.\n"
+                "When empty, hard-coded defaults are used. The defaults are displayed above, but may change between versions.\n"
+                "To allow all extractors, add `%(allow_all)s` without quotes to the list.\n"
+                "\n"
+                "Services/extractors supported by yt-dlp are listed here:\n"
+                "  https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md \n"
+                "\n"
+                "MusicBot also provides one custom service `spotify:musicbot` to enable or disable Spotify API extraction.\n"
+                "NOTICE: MusicBot might not support all services available to yt-dlp!\n"
             ),
+            comment_args={"allow_all": PERMS_ALLOW_ALL_EXTRACTOR_NAME},
             empty_display_val="(All allowed)",
         )
 
         self.validate()
+        self._mgr.register.update_missing_config()
 
     def validate(self) -> None:
         """Validate permission values are within acceptable limits"""
@@ -501,6 +578,11 @@ class PermissionGroup:
         if PERMS_ALLOW_ALL_EXTRACTOR_NAME in self.extractors:
             self.extractors = set()
 
+        # Make sure to clear the UserList and GrantToRoles options of built-ins.
+        if self.name in PermissionGroup._BuiltIn:
+            self.user_list.clear()
+            self.granted_to_roles.clear()
+
     def add_user(self, uid: int) -> None:
         """Add given discord User ID to the user list."""
         self.user_list.add(uid)
@@ -510,23 +592,50 @@ class PermissionGroup:
         if uid in self.user_list:
             self.user_list.remove(uid)
 
-    def can_use_command(self, command: str) -> None:
+    def can_use_command(self, command: str, sub: str = "") -> bool:
         """
-        Test if command is enabled in this permission group.
+        Test if the group can use the given command or sub-command.
 
-        :raises:  PermissionsError  if command is denied from use.
+        :param: command:  The command name to test.
+        :param: sub:      The sub-command argument of the command being tested.
+
+        :returns:  boolean:  False if not allowed, True otherwise.
         """
-        if self.command_whitelist and command not in self.command_whitelist:
-            raise PermissionsError(
-                f"This command is not enabled for your group ({self.name}).",
-                expire_in=20,
-            )
+        csub = f"{command}_{sub}"
+        terms = [command]
+        if sub:
+            terms.append(csub)
 
-        if self.command_blacklist and command in self.command_blacklist:
-            raise PermissionsError(
-                f"This command is disabled for your group ({self.name}).",
-                expire_in=20,
-            )
+        if not self.advanced_commandlists:
+            if self.command_whitelist and all(
+                c not in self.command_whitelist for c in terms
+            ):
+                return False
+
+            if self.command_blacklist and any(
+                c in self.command_blacklist for c in terms
+            ):
+                return False
+
+        else:
+            if self.command_whitelist and all(
+                x not in self.command_whitelist for x in terms
+            ):
+                return False
+
+            if (
+                sub
+                and command in self.command_whitelist
+                and csub in self.command_blacklist
+            ):
+                return False
+
+            if any(
+                c in self.command_blacklist and c in self.command_whitelist
+                for c in terms
+            ):
+                return False
+        return True
 
     def can_use_extractor(self, extractor: str) -> None:
         """
@@ -546,8 +655,8 @@ class PermissionGroup:
         # the extractor is not allowed.
         raise PermissionsError(
             "You do not have permission to play the requested media.\n"
-            f"The yt-dlp extractor `{extractor}` is not permitted in your group.",
-            expire_in=30,
+            "The yt-dlp extractor `%(extractor)s` is not permitted in your group.",
+            fmt_args={"extractor": extractor},
         )
 
     def format(self, for_user: bool = False) -> str:
@@ -694,3 +803,105 @@ class PermissionOptionRegistry(ConfigOptionRegistry):
 
             conf_value = getattr(group, option.dest)
         return self._value_to_ini(conf_value, option.getter)
+
+    def write_default_ini(self, filename: pathlib.Path) -> bool:
+        """Uses registry to generate an example_permissions.ini file."""
+        if not isinstance(self._config, Permissions):
+            raise RuntimeError("Dev bug, Permissions object expcted.")
+
+        if DEFAULT_OWNER_GROUP_NAME not in self._config.groups:
+            self._config.groups[DEFAULT_OWNER_GROUP_NAME] = (
+                self._config._generate_permissive_group(  # pylint: disable=protected-access
+                    DEFAULT_OWNER_GROUP_NAME
+                )
+            )
+        if DEFAULT_PERMS_GROUP_NAME not in self._config.groups:
+            self._config.add_group(DEFAULT_PERMS_GROUP_NAME)
+
+        try:
+            cu = configupdater.ConfigUpdater()
+            cu.optionxform = str  # type: ignore
+
+            # add the default sections.
+            cu.add_section(DEFAULT_OWNER_GROUP_NAME)
+            cu.add_section(DEFAULT_PERMS_GROUP_NAME)
+
+            # create the comment documentation and fill in defaults for each section.
+            docs = ""
+            for opt in self.option_list:
+                if opt.section not in [
+                    DEFAULT_OWNER_GROUP_NAME,
+                    DEFAULT_PERMS_GROUP_NAME,
+                ]:
+                    continue
+                dval = self.to_ini(opt, use_default=True)
+                cu[opt.section][opt.option] = dval
+                if opt.section == DEFAULT_PERMS_GROUP_NAME:
+                    if opt.comment_args:
+                        comment = opt.comment % opt.comment_args
+                    else:
+                        comment = opt.comment
+                    comment = "".join(
+                        f"    {c}\n" for c in comment.split("\n")
+                    ).rstrip()
+                    docs += f" {opt.option} = {dval}\n{comment}\n\n"
+
+            # add comments to head of file.
+            adder = cu[DEFAULT_OWNER_GROUP_NAME].add_before
+            head_comment = (
+                "This is the permissions file for MusicBot. Do not edit this file using Notepad.\n"
+                "Use Notepad++ or a code editor like Visual Studio Code.\n"
+                "For help, see: https://just-some-bots.github.io/MusicBot/ \n"
+                "\n"
+                "This file was generated by MusicBot, it contains all options set to their default values.\n"
+                "\n"
+                "Basics:\n"
+                "- Lines starting with semicolons (;) are comments, and are ignored.\n"
+                "- Words in square brackets [ ] are permission group names.\n"
+                "- Group names must be unique, and cannot be duplicated.\n"
+                "- Each group must have at least one permission option defined.\n"
+                "- [Default] is a reserved section. Users without a specific group assigned will use it.\n"
+                "- [Owner (auto)] is a reserved section that cannot be removed, used by the Owner user.\n"
+                "\nAvailable Options:\n"
+                f"{docs}"
+            ).strip()
+            for line in head_comment.split("\n"):
+                adder.comment(line, comment_prefix=";")
+            adder.space()
+            adder.space()
+
+            # add owner section comment
+            owner_comment = (
+                "This permission group is used by the Owner only, it cannot be deleted or renamed.\n"
+                "It's options only apply to Owner user set in the 'OwnerID' config option.\n"
+                "You cannot set the UserList or GrantToRoles options in this group.\n"
+                "This group does not control access to owner-only commands."
+            )
+            for line in owner_comment.split("\n"):
+                adder.comment(line, comment_prefix=";")
+
+            # add default section comment
+            default_comment = (
+                "This is the default permission group. It cannot be deleted or renamed.\n"
+                "All users without explicit group assignment will be placed in this group.\n"
+                "The options GrantToRoles and UserList are effectively ignored in this group.\n"
+                "If you want to use the above options, add a new [Group] to the file."
+            )
+            adder = cu[DEFAULT_PERMS_GROUP_NAME].add_before
+            adder.space()
+            adder.space()
+            for line in default_comment.split("\n"):
+                adder.comment(line, comment_prefix=";")
+
+            with open(filename, "w", encoding="utf8") as fp:
+                cu.write(fp)
+
+            return True
+        except (
+            configparser.DuplicateSectionError,
+            configparser.ParsingError,
+            OSError,
+            AttributeError,
+        ):
+            log.exception("Failed to save default INI file at:  %s", filename)
+            return False

@@ -19,7 +19,12 @@ from typing import (
 
 import discord
 
-from .constants import DATA_GUILD_FILE_OPTIONS
+from .constants import (
+    DATA_GUILD_FILE_OPTIONS,
+    MUSICBOT_EMBED_COLOR_ERROR,
+    MUSICBOT_EMBED_COLOR_NORMAL,
+)
+from .i18n import _D
 from .json import Json
 from .utils import _get_variable
 
@@ -29,6 +34,14 @@ if TYPE_CHECKING:
     from .autoplaylist import AutoPlaylist
     from .bot import MusicBot
     from .config import Config
+
+DiscordChannels = Union[
+    discord.TextChannel,
+    discord.VoiceChannel,
+    discord.StageChannel,
+    discord.DMChannel,
+    discord.GroupChannel,
+]
 
 
 class GuildAsyncEvent(asyncio.Event):
@@ -66,9 +79,9 @@ class GuildSpecificData:
         Initialize a managed server specific data set.
         """
         # Members for internal use only.
-        self._ssd: DefaultDict[int, "GuildSpecificData"] = bot.server_data
-        self._bot_config: "Config" = bot.config
-        self._bot: "MusicBot" = bot
+        self._ssd: DefaultDict[int, GuildSpecificData] = bot.server_data
+        self._bot_config: Config = bot.config
+        self._bot: MusicBot = bot
         self._guild_id: int = 0
         self._guild_name: str = ""
         self._command_prefix: str = ""
@@ -79,14 +92,15 @@ class GuildSpecificData:
         self._is_file_loaded: bool = False
 
         # Members below are available for public use.
-        self.last_np_msg: Optional["discord.Message"] = None
+        self.last_np_msg: Optional[discord.Message] = None
         self.last_played_song_subject: str = ""
-        self.follow_user: Optional["discord.Member"] = None
+        self.follow_user: Optional[discord.Member] = None
         self.auto_join_channel: Optional[
-            Union["discord.VoiceChannel", "discord.StageChannel"]
+            Union[discord.VoiceChannel, discord.StageChannel]
         ] = None
-        self.autoplaylist: "AutoPlaylist" = self._bot.playlist_mgr.get_default()
+        self.autoplaylist: AutoPlaylist = self._bot.playlist_mgr.get_default()
         self.current_playing_url: str = ""
+        self.lang_code: str = ""
 
         # create a task to load any persistent guild options.
         # in theory, this should work out fine.
@@ -126,6 +140,11 @@ class GuildSpecificData:
         if not pl.loaded:
             await pl.load()
         return pl
+
+    @property
+    def guild_id(self) -> int:
+        """Guild ID if available, may return 0 before loading is complete."""
+        return self._guild_id
 
     @property
     def command_prefix(self) -> str:
@@ -206,16 +225,18 @@ class GuildSpecificData:
                 str(self._guild_id), DATA_GUILD_FILE_OPTIONS
             )
             if not opt_file.is_file():
-                log.debug("No file for guild %s/%s", self._guild_id, self._guild_name)
+                log.debug(
+                    "No file for guild %(id)s/%(name)s",
+                    {"id": self._guild_id, "name": self._guild_name},
+                )
                 self._is_file_loaded = True
                 return
 
             async with self._file_lock:
                 try:
                     log.debug(
-                        "Loading guild data for guild with ID:  %s/%s",
-                        self._guild_id,
-                        self._guild_name,
+                        "Loading guild data for guild with ID:  %(id)s/%(name)s",
+                        {"id": self._guild_id, "name": self._guild_name},
                     )
                     options = Json(opt_file)
                     self._is_file_loaded = True
@@ -226,14 +247,18 @@ class GuildSpecificData:
                     )
                     return
 
+            self.lang_code = options.get("language", "")
+
             guild_prefix = options.get("command_prefix", None)
             if guild_prefix:
                 self._command_prefix = guild_prefix
                 log.info(
-                    "Guild %s/%s has custom command prefix: %s",
-                    self._guild_id,
-                    self._guild_name,
-                    self._command_prefix,
+                    "Guild %(id)s/%(name)s has custom command prefix: %(prefix)s",
+                    {
+                        "id": self._guild_id,
+                        "name": self._guild_name,
+                        "prefix": self._command_prefix,
+                    },
                 )
 
             guild_playlist = options.get("auto_playlist", None)
@@ -264,6 +289,7 @@ class GuildSpecificData:
         opt_dict = {
             "command_prefix": self._command_prefix,
             "auto_playlist": auto_playlist,
+            "language": self.lang_code,
         }
 
         async with self._file_lock:
@@ -288,7 +314,7 @@ class SkipState:
         enable counting votes for skipping a song.
         """
         self.skippers: Set[int] = set()
-        self.skip_msgs: Set["discord.Message"] = set()
+        self.skip_msgs: Set[discord.Message] = set()
 
     @property
     def skip_count(self) -> int:
@@ -313,41 +339,141 @@ class SkipState:
         return self.skip_count
 
 
-class Response:
-    __slots__ = ["_content", "reply", "delete_after", "codeblock", "_codeblock"]
+class MusicBotResponse(discord.Embed):
+    """
+    Base class for all messages generated by MusicBot.
+    Allows messages to be switched easily between embed and plain-text.
+    """
 
     def __init__(
         self,
-        content: Union[str, "discord.Embed"],
-        reply: bool = False,
-        delete_after: int = 0,
-        codeblock: str = "",
+        content: str,
+        title: Optional[str] = None,
+        codeblock: Optional[str] = None,
+        reply_to: Optional[discord.Message] = None,
+        send_to: Optional[DiscordChannels] = None,
+        sent_from: Optional[discord.abc.Messageable] = None,
+        color_hex: str = MUSICBOT_EMBED_COLOR_NORMAL,
+        files: Optional[List[discord.File]] = None,
+        delete_after: Union[None, int, float] = None,
+        force_text: bool = False,
+        force_embed: bool = False,
+        **kwargs: Any,
     ) -> None:
         """
-        Helper class intended to be used by command functions in MusicBot.
-        Simple commands should return a Response rather than calling to send
-        messages on their own.
+        Creates an embed-like response object.
 
-        :param: content:  the text message or an Embed object to be sent.
-        :param: reply:  if this response should reply to the original author.
-        :param: delete_after:  how long to wait before deleting the message created by this Response.
-            Set to 0 to never delete.
-        :param: codeblock:  format a code block with this value as the language used for syntax highlights.
+        :param: content:  The primary content, the description in the embed.
+        :param: codeblock:  A string used for syntax highlighter markdown.
+                            Setting this parameter will format content at display time.
+        :param: reply_to:  A message to reply to with this response.
+        :param: send_to:  A destination for the message.
+        :param: sent_from:  A channel where this response can be sent to if send_to fails.
+                            This is useful for DM with strict perms.
+        :param: color_hex:  A hex color string used only for embed accent color.
+        :param: files:      A list of discord.File objects to send.
+        :param: delete_after:   A time limit to wait before deleting the response from discord.
+                                Only used if message delete options are enabled.
+        :param: force_text:  Regardless of settings, this response should be text-only.
+        :param: force_embed: Regardless of settings, this response should be embed-only.
         """
-        self._content = content
-        self.reply = reply
-        self.delete_after = delete_after
+        self.content = content
         self.codeblock = codeblock
-        self._codeblock = f"```{codeblock}\n{{}}\n```"
+        self.reply_to = reply_to
+        self.send_to = send_to
+        self.sent_from = sent_from
+        self.force_text = force_text
+        self.force_embed = force_embed
+        self.delete_after = delete_after
+        self.files = files if files is not None else []
+
+        super().__init__(
+            title=title,
+            color=discord.Colour.from_str(color_hex),
+            **kwargs,
+        )
+        # overload the original description with our formatting property.
+        # yes, this is cursed and I don't like doing it, but it defers format.
+        setattr(self, "description", getattr(self, "overload_description"))
 
     @property
-    def content(self) -> Union[str, "discord.Embed"]:
+    def overload_description(self) -> str:
         """
-        Get the Response content, but quietly format a code block if needed.
+        Overload the description attribute to defer codeblock formatting.
         """
         if self.codeblock:
-            return self._codeblock.format(self._content)
-        return self._content
+            return f"```{self.codeblock}\n{self.content}```"
+        return self.content
+
+    def to_markdown(self, ssd_: Optional[GuildSpecificData] = None) -> str:
+        """
+        Converts the embed to a markdown text.
+        Embeds may have more content than text messages will allow!
+        """
+        url = ""
+        title = ""
+        descr = ""
+        image = ""
+        fields = ""
+        if self.title:
+            # TRANSLATORS: text-only format for embed title.
+            title = _D("## %(title)s\n", ssd_) % {"title": self.title}
+        if self.description:
+            # TRANSLATORS: text-only format for embed description.
+            descr = _D("%(content)s\n", ssd_) % {"content": self.description}
+        if self.url:
+            # TRANSLATORS: text-only format for embed url.
+            url = _D("%(url)s\n", ssd_) % {"url": self.url}
+
+        for field in self.fields:
+            if field.value:
+                if field.name:
+                    # TRANSLATORS: text-only format for embed field name an value.
+                    fields += _D("**%(name)s** %(value)s\n", ssd_) % {
+                        "name": field.name,
+                        "value": field.value,
+                    }
+                else:
+                    # TRANSLATORS: text-only format for embed field without a name.
+                    fields += _D("%(value)s\n", ssd_) % {"value": field.value}
+
+        # only pick one image if both thumbnail and image are set,
+        if self.image:
+            # TRANSLATORS: text-only format for embed image or thumbnail.
+            image = _D("%(url)s", ssd_) % {"url": self.image.url}
+        elif self.thumbnail:
+            image = _D("%(url)s", ssd_) % {"url": self.thumbnail.url}
+
+        return _D(
+            # TRANSLATORS: text-only format template for embeds converted to markdown.
+            "%(title)s%(content)s%(url)s%(fields)s%(image)s",
+            ssd_,
+        ) % {
+            "title": title,
+            "content": descr,
+            "url": url,
+            "fields": fields,
+            "image": image,
+        }
+
+
+class Response(MusicBotResponse):
+    """Response"""
+
+    def __init__(self, content: str, **kwargs: Any) -> None:
+        super().__init__(content=content, **kwargs)
+
+
+class ErrorResponse(MusicBotResponse):
+    """An error message to send to discord."""
+
+    def __init__(self, content: str, **kwargs: Any) -> None:
+        if "color_hex" in kwargs:
+            kwargs.pop("color_hex")
+
+        super().__init__(
+            content=content, color_hex=MUSICBOT_EMBED_COLOR_ERROR, **kwargs
+        )
 
 
 class Serializer(json.JSONEncoder):

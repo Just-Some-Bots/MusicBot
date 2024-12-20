@@ -15,6 +15,7 @@ from yt_dlp.utils import (  # type: ignore[import-untyped]
 from .constructs import Serializable
 from .downloader import YtdlpResponseDict
 from .exceptions import ExtractionError, InvalidDataError, MusicbotException
+from .i18n import _X
 from .spotify import Spotify
 
 if TYPE_CHECKING:
@@ -59,6 +60,29 @@ class BasePlaylistEntry(Serializable):
         self._is_downloaded: bool = False
         self._waiting_futures: List[AsyncFuture] = []
         self._task_pool: Set[AsyncTask] = set()
+        self._probed_codec: Optional[str] = ""
+        self._probed_bitrate: int = 0
+        self._a_filters: Dict[str, str] = {}
+
+    @property
+    def probed_codec(self) -> Optional[str]:
+        """Get the previously probed codec. This is set by the MusicPlayer."""
+        return self._probed_codec
+
+    @probed_codec.setter
+    def probed_codec(self, codec: Optional[str]) -> None:
+        """Set the probed codec."""
+        self._probed_codec = codec
+
+    @property
+    def probed_bitrate(self) -> int:
+        """Get the probed bitrate. Only set by MusicPlayer"""
+        return self._probed_bitrate
+
+    @probed_bitrate.setter
+    def probed_bitrate(self, value: int) -> None:
+        """Set the probed bitrate."""
+        self._probed_bitrate = value
 
     @property
     def start_time(self) -> float:
@@ -144,7 +168,8 @@ class BasePlaylistEntry(Serializable):
         self._waiting_futures = []
 
         log.everything(  # type: ignore[attr-defined]
-            "Completed futures for %r with %r", self, cb
+            "Completed futures for %(entry)r with %(callback)r",
+            {"entry": self, "callback": cb},
         )
         for future in futures:
             if future.cancelled():
@@ -163,6 +188,17 @@ class BasePlaylistEntry(Serializable):
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__}(url='{self.url}', title='{self.title}' file='{self.filename}')>"
+
+    def set_audio_filter(self, name: str, args: str) -> None:
+        """Add or update an audio filter."""
+        self._a_filters[name] = args
+
+    def get_audio_filters(self) -> str:
+        """Convert audio filters into ffmpeg -af option string."""
+        if self._a_filters:
+            filters = ",".join(f"{f}={a}" for f, a in self._a_filters.items())
+            return f"-af {filters}"
+        return ""
 
 
 async def run_command(command: List[str]) -> bytes:
@@ -184,7 +220,8 @@ async def run_command(command: List[str]) -> bytes:
         stderr=asyncio.subprocess.PIPE,
     )
     log.noise(  # type: ignore[attr-defined]
-        "Starting asyncio subprocess (%s) with command: %s", p, command
+        "Starting asyncio subprocess (%(process)s) with command: %(run)s",
+        {"process": p, "run": command},
     )
     stdout, stderr = await p.communicate()
     return stdout + stderr
@@ -210,9 +247,9 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         self._start_time: Optional[float] = None
         self._playback_rate: Optional[float] = None
-        self.playlist: "Playlist" = playlist
-        self.downloader: "Downloader" = playlist.bot.downloader
-        self.filecache: "AudioFileCache" = playlist.bot.filecache
+        self.playlist: Playlist = playlist
+        self.downloader: Downloader = playlist.bot.downloader
+        self.filecache: AudioFileCache = playlist.bot.filecache
 
         self.info: YtdlpResponseDict = info
 
@@ -224,27 +261,17 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 self.title,
             )
 
-        self.author: Optional["discord.Member"] = author
+        self.author: Optional[discord.Member] = author
         self.channel: Optional[GuildMessageableChannels] = channel
-
-        self._aopt_eq: str = ""
 
     @property
     def aoptions(self) -> str:
         """After input options for ffmpeg to use with this entry."""
-        aopts = f"{self._aopt_eq}"
         # Set playback speed options if needed.
         if self._playback_rate is not None or self.playback_speed != 1.0:
-            # Append to the EQ options if they are set.
-            if self._aopt_eq:
-                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
-            else:
-                aopts = f"-af atempo={self.playback_speed:.3f}"
+            self.set_audio_filter("atempo", f"{self.playback_speed:.3f}")
 
-        if aopts:
-            return f"{aopts} -vn"
-
-        return "-vn"
+        return self.get_audio_filters()
 
     @property
     def boptions(self) -> str:
@@ -268,8 +295,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
     @property
     def title(self) -> str:
         """Gets a title string from entry info or 'Unknown'"""
-        # TODO: i18n for this at some point.
-        return self.info.title or "Unknown"
+        # TRANSLATORS: Placeholder for empty track title.
+        return self.info.title or _X("Unknown")
 
     @property
     def duration(self) -> Optional[float]:
@@ -345,7 +372,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             downloaded = (
                 raw_json["downloaded"] if playlist.bot.config.save_videos else False
             )
-            filename = raw_json["filename"] if downloaded else None
+            filename = raw_json["filename"] if downloaded else ""
 
             channel_id = raw_json.get("channel_id", None)
             if channel_id:
@@ -353,7 +380,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
                 if not o_channel:
                     log.warning(
-                        "Deserialized URLPlaylistEntry cannot find channel with id:  %s",
+                        "Deserialized URLPlaylistEntry cannot find channel with ID:  %s",
                         raw_json["channel_id"],
                     )
 
@@ -391,7 +418,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
                     if not author:
                         log.warning(
-                            "Deserialized URLPlaylistEntry cannot find author with id:  %s",
+                            "Deserialized URLPlaylistEntry cannot find author with ID:  %s",
                             raw_json["author_id"],
                         )
                 else:
@@ -444,7 +471,8 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 self.info = info
             else:
                 raise InvalidDataError(
-                    f"Cannot download spotify links, processing error with type: {info.ytdl_type}."
+                    "Cannot download Spotify links, processing error with type: %(type)s",
+                    fmt_args={"type": info.ytdl_type},
                 )
 
         # if this isn't set this entry is probably from a playlist and needs more info.
@@ -512,20 +540,19 @@ class URLPlaylistEntry(BasePlaylistEntry):
                     )
                 else:
                     log.debug(
-                        "Got duration of %s seconds for file:  %s",
-                        self.duration,
-                        self.filename,
+                        "Got duration of %(time)s seconds for file:  %(file)s",
+                        {"time": self.duration, "file": self.filename},
                     )
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    self._aopt_eq = await self.get_mean_volume(self.filename)
+                    await self.get_mean_volume(self.filename)
 
                 # Unfortunate evil that we abide for now...
                 except Exception:  # pylint: disable=broad-exception-caught
                     log.error(
                         "There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. "
-                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.",
+                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalized.",
                         exc_info=True,
                     )
 
@@ -591,7 +618,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         return None
 
-    async def get_mean_volume(self, input_file: str) -> str:
+    async def get_mean_volume(self, input_file: str) -> None:
         """
         Attempt to calculate the mean volume of the `input_file` by using
         output from ffmpeg to provide values which can be used by command
@@ -601,7 +628,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         ffmpeg_bin = shutil.which("ffmpeg")
         if not ffmpeg_bin:
             log.error("Could not locate ffmpeg on your path!")
-            return ""
+            return
 
         # NOTE: this command should contain JSON, but I have no idea how to make
         # ffmpeg spit out only the JSON.
@@ -626,7 +653,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # log.debug("i_matches=%s", i_matches[0][0])
             i_value = float(i_matches[0][0])
         else:
-            log.debug("Could not parse I in normalise json.")
+            log.debug("Could not parse 'I' in normalize json.")
             i_value = float(0)
 
         lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -634,7 +661,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # log.debug("lra_matches=%s", lra_matches[0][0])
             lra_value = float(lra_matches[0][0])
         else:
-            log.debug("Could not parse LRA in normalise json.")
+            log.debug("Could not parse 'LRA' in normalize json.")
             lra_value = float(0)
 
         tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -642,7 +669,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # log.debug("tp_matches=%s", tp_matches[0][0])
             tp_value = float(tp_matches[0][0])
         else:
-            log.debug("Could not parse TP in normalise json.")
+            log.debug("Could not parse 'TP' in normalize json.")
             tp_value = float(0)
 
         thresh_matches = re.findall(r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -650,7 +677,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # log.debug("thresh_matches=%s", thresh_matches[0][0])
             thresh = float(thresh_matches[0][0])
         else:
-            log.debug("Could not parse thresh in normalise json.")
+            log.debug("Could not parse 'thresh' in normalize json.")
             thresh = float(0)
 
         offset_matches = re.findall(r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output)
@@ -658,18 +685,18 @@ class URLPlaylistEntry(BasePlaylistEntry):
             # log.debug("offset_matches=%s", offset_matches[0][0])
             offset = float(offset_matches[0][0])
         else:
-            log.debug("Could not parse offset in normalise json.")
+            log.debug("Could not parse 'offset' in normalize json.")
             offset = float(0)
 
         loudnorm_opts = (
-            "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
+            "I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
             f"measured_I={i_value}:"
             f"measured_LRA={lra_value}:"
             f"measured_TP={tp_value}:"
             f"measured_thresh={thresh}:"
             f"offset={offset}"
         )
-        return loudnorm_opts
+        self.set_audio_filter("loudnorm", loudnorm_opts)
 
     async def _really_download(self) -> None:
         """
@@ -692,24 +719,38 @@ class URLPlaylistEntry(BasePlaylistEntry):
                 if attempt < 3:
                     wait_for = 1.5 * attempt
                     log.warning(
-                        "Download incomplete, retrying in %.1f seconds.  Reason: %s",
-                        wait_for,
-                        str(e),
+                        "Download incomplete, retrying in %(time).1f seconds.  Reason: %(raw_error)s",
+                        {"time": wait_for, "raw_error": e},
                     )
                     await asyncio.sleep(wait_for)  # TODO: backoff timer maybe?
                     continue
 
                 # Mark the file I guess, and maintain the default of raising ExtractionError.
-                log.error("Download failed, not retrying! Reason:  %s", str(e))
+                log.error(
+                    "Download failed, not retrying! Reason:  %(raw_error)s",
+                    {"raw_error": e},
+                )
                 self.cache_busted = True
-                raise ExtractionError(str(e)) from e
+                raise ExtractionError(
+                    "Download did not complete due to an error: %(raw_error)s",
+                    fmt_args={"raw_error": e},
+                ) from e
             except YoutubeDLError as e:
                 # as a base exception for any exceptions raised by yt_dlp.
-                raise ExtractionError(str(e)) from e
+                raise ExtractionError(
+                    "Download failed due to a yt-dlp error: %(raw_error)s",
+                    fmt_args={"raw_error": e},
+                ) from e
 
             except Exception as e:
-                log.error("Extraction encountered an unhandled exception.")
-                raise MusicbotException(str(e)) from e
+                log.error(
+                    "Extraction encountered an unhandled exception.",
+                    exc_info=self.playlist.bot.config.debug_mode,
+                )
+                raise MusicbotException(
+                    "Download failed due to an unhandled exception: %(raw_error)s",
+                    fmt_args={"raw_error": e},
+                ) from e
 
         if info is None:
             log.error("Download failed:  %r", self)
@@ -745,10 +786,10 @@ class StreamPlaylistEntry(BasePlaylistEntry):
         """
         super().__init__()
 
-        self.playlist: "Playlist" = playlist
+        self.playlist: Playlist = playlist
         self.info: YtdlpResponseDict = info
 
-        self.author: Optional["discord.Member"] = author
+        self.author: Optional[discord.Member] = author
         self.channel: Optional[GuildMessageableChannels] = channel
 
         self.filename: str = self.url
@@ -777,8 +818,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
             if dtitle and not self.info.title:
                 return str(dtitle)
 
-        # TODO: i18n for this at some point.
-        return self.info.title or "Unknown"
+        return self.info.title or _X("Unknown")
 
     @property
     def duration(self) -> Optional[float]:
@@ -847,7 +887,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
                 if not o_channel:
                     log.warning(
-                        "Deserialized StreamPlaylistEntry cannot find channel with id:  %s",
+                        "Deserialized StreamPlaylistEntry cannot find channel with ID:  %s",
                         raw_json["channel_id"],
                     )
 
@@ -885,7 +925,7 @@ class StreamPlaylistEntry(BasePlaylistEntry):
 
                     if not author:
                         log.warning(
-                            "Deserialized StreamPlaylistEntry cannot find author with id:  %s",
+                            "Deserialized StreamPlaylistEntry cannot find author with ID:  %s",
                             raw_json["author_id"],
                         )
                 else:
@@ -934,14 +974,14 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
         self._start_time: Optional[float] = None
         self._playback_rate: Optional[float] = None
-        self.playlist: "Playlist" = playlist
+        self.playlist: Playlist = playlist
 
         self.info: YtdlpResponseDict = info
         self.filename = self.expected_filename or ""
 
         # TODO: maybe it is worth getting duration as early as possible...
 
-        self.author: Optional["discord.Member"] = author
+        self.author: Optional[discord.Member] = author
         self.channel: Optional[GuildMessageableChannels] = channel
 
         self._aopt_eq: str = ""
@@ -949,19 +989,11 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
     @property
     def aoptions(self) -> str:
         """After input options for ffmpeg to use with this entry."""
-        aopts = f"{self._aopt_eq}"
         # Set playback speed options if needed.
         if self._playback_rate is not None or self.playback_speed != 1.0:
-            # Append to the EQ options if they are set.
-            if self._aopt_eq:
-                aopts = f"{self._aopt_eq},atempo={self.playback_speed:.3f}"
-            else:
-                aopts = f"-af atempo={self.playback_speed:.3f}"
+            self.set_audio_filter("atempo", f"{self.playback_speed:.3f}")
 
-        if aopts:
-            return f"{aopts} -vn"
-
-        return "-vn"
+        return self.get_audio_filters()
 
     @property
     def boptions(self) -> str:
@@ -985,8 +1017,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
     @property
     def title(self) -> str:
         """Gets a title string from entry info or 'Unknown'"""
-        # TODO: i18n for this at some point.
-        return self.info.title or "Unknown"
+        return self.info.title or _X("Unknown")
 
     @property
     def duration(self) -> Optional[float]:
@@ -1061,7 +1092,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             downloaded = (
                 raw_json["downloaded"] if playlist.bot.config.save_videos else False
             )
-            filename = raw_json["filename"] if downloaded else None
+            filename = raw_json["filename"] if downloaded else ""
 
             channel_id = raw_json.get("channel_id", None)
             if channel_id:
@@ -1069,7 +1100,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
                 if not o_channel:
                     log.warning(
-                        "Deserialized LocalFilePlaylistEntry cannot find channel with id:  %s",
+                        "Deserialized LocalFilePlaylistEntry cannot find channel with ID:  %s",
                         raw_json["channel_id"],
                     )
 
@@ -1107,7 +1138,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
                     if not author:
                         log.warning(
-                            "Deserialized LocalFilePlaylistEntry cannot find author with id:  %s",
+                            "Deserialized LocalFilePlaylistEntry cannot find author with ID:  %s",
                             raw_json["author_id"],
                         )
                 else:
@@ -1179,20 +1210,19 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
                     )
                 else:
                     log.debug(
-                        "Got duration of %s seconds for file:  %s",
-                        self.duration,
-                        self.filename,
+                        "Got duration of %(seconds)s seconds for file:  %(file)s",
+                        {"seconds": self.duration, "file": self.filename},
                     )
 
             if self.playlist.bot.config.use_experimental_equalization:
                 try:
-                    self._aopt_eq = await self.get_mean_volume(self.filename)
+                    await self.get_mean_volume(self.filename)
 
                 # Unfortunate evil that we abide for now...
                 except Exception:  # pylint: disable=broad-exception-caught
                     log.error(
                         "There as a problem with working out EQ, likely caused by a strange installation of FFmpeg. "
-                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalised.",
+                        "This has not impacted the ability for the bot to work, but will mean your tracks will not be equalized.",
                         exc_info=True,
                     )
 
@@ -1259,7 +1289,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
         return None
 
-    async def get_mean_volume(self, input_file: str) -> str:
+    async def get_mean_volume(self, input_file: str) -> None:
         """
         Attempt to calculate the mean volume of the `input_file` by using
         output from ffmpeg to provide values which can be used by command
@@ -1269,7 +1299,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
         ffmpeg_bin = shutil.which("ffmpeg")
         if not ffmpeg_bin:
             log.error("Could not locate ffmpeg on your path!")
-            return ""
+            return
 
         # NOTE: this command should contain JSON, but I have no idea how to make
         # ffmpeg spit out only the JSON.
@@ -1294,7 +1324,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             # log.debug("i_matches=%s", i_matches[0][0])
             i_value = float(i_matches[0][0])
         else:
-            log.debug("Could not parse I in normalise json.")
+            log.debug("Could not parse 'I' in normalize json.")
             i_value = float(0)
 
         lra_matches = re.findall(r'"input_lra" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -1302,7 +1332,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             # log.debug("lra_matches=%s", lra_matches[0][0])
             lra_value = float(lra_matches[0][0])
         else:
-            log.debug("Could not parse LRA in normalise json.")
+            log.debug("Could not parse 'LRA' in normalize json.")
             lra_value = float(0)
 
         tp_matches = re.findall(r'"input_tp" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -1310,7 +1340,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             # log.debug("tp_matches=%s", tp_matches[0][0])
             tp_value = float(tp_matches[0][0])
         else:
-            log.debug("Could not parse TP in normalise json.")
+            log.debug("Could not parse 'TP' in normalize json.")
             tp_value = float(0)
 
         thresh_matches = re.findall(r'"input_thresh" : "(-?([0-9]*\.[0-9]+))",', output)
@@ -1318,7 +1348,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             # log.debug("thresh_matches=%s", thresh_matches[0][0])
             thresh = float(thresh_matches[0][0])
         else:
-            log.debug("Could not parse thresh in normalise json.")
+            log.debug("Could not parse 'thresh' in normalize json.")
             thresh = float(0)
 
         offset_matches = re.findall(r'"target_offset" : "(-?([0-9]*\.[0-9]+))', output)
@@ -1326,15 +1356,15 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
             # log.debug("offset_matches=%s", offset_matches[0][0])
             offset = float(offset_matches[0][0])
         else:
-            log.debug("Could not parse offset in normalise json.")
+            log.debug("Could not parse 'offset' in normalize json.")
             offset = float(0)
 
         loudnorm_opts = (
-            "-af loudnorm=I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
+            "I=-24.0:LRA=7.0:TP=-2.0:linear=true:"
             f"measured_I={i_value}:"
             f"measured_LRA={lra_value}:"
             f"measured_TP={tp_value}:"
             f"measured_thresh={thresh}:"
             f"offset={offset}"
         )
-        return loudnorm_opts
+        self.set_audio_filter("loudnorm", loudnorm_opts)

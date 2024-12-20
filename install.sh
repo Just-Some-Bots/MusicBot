@@ -7,6 +7,8 @@
 # a variety of different Linux distros.
 # 
 
+# TODO: Venv install with pre-cloned repo needs fixed.
+
 #-----------------------------------------------Configs-----------------------------------------------#
 MusicBotGitURL="https://github.com/Just-Some-Bots/MusicBot.git"
 CloneDir="MusicBot"
@@ -127,6 +129,43 @@ function exit_err() {
     exit 1
 }
 
+function build_python() {
+    PyBuildVer="3.10.14"
+    PySrcDir="Python-${PyBuildVer}"
+    PySrcFile="${PySrcDir}.tgz"
+    PySrcUrl="https://www.python.org/ftp/python/${PyBuildVer}/${PySrcFile}"
+    
+    # Ask if we should build python
+    echo "We need to build python from source for your system."
+    echo "It will be installed using the altinstall target to avoid conflicts."
+    echo " Building Python ${PyBuildVer}  from: ${PySrcUrl}"
+    read -rp "Would you like to continue ? [N/y]" BuildPython
+    if [ "${BuildPython,,}" == "y" ] || [ "${BuildPython,,}" == "yes" ] ; then
+        # Build python.
+        curl -o "$PySrcFile" "$PySrcUrl"
+        tar -xzf "$PySrcFile"
+        cd "${PySrcDir}" || exit_err "Fatal:  Could not change to python source directory."
+
+        ./configure --enable-optimizations
+        sudo make altinstall
+
+        # Ensure python bin is updated with altinstall name.
+        find_python
+        RetVal=$?
+        if [ "$RetVal" == "0" ] ; then
+            # check if pip is available
+            $PyBin -m pip --version >/dev/null 2>&1
+            if [ "$?" == "1" ] ; then
+                # manually install pip package for current user.
+                $PyBin <(curl -s https://bootstrap.pypa.io/get-pip.py)
+            fi
+        else
+            echo "Error:  Could not find python on the PATH after installing it."
+            exit 1
+        fi
+    fi
+}
+
 function find_python() {
     # compile a list of bin names to try for.
     PyBins=("python3")  # We hope that python3 maps to a good version.
@@ -222,11 +261,30 @@ function pull_musicbot_git() {
         if [ "${UsePwd,,}" == "y" ] || [ "${UsePwd,,}" == "yes" ] ; then
             echo ""
             CloneDir="${PWD}"
+            CloneDirName="$(basename "$PWD")"
+            # sort out the directory structure, we want musicbot inside its venv.
+            if [ "$InstalledViaVenv" == "1" ] ; then
+                # if the venv is inside our repo, move it out.
+                if [ -d "$VenvDir" ] ; then
+                    echo "Installer needs to move your clone inside the Venv."
+                    echo " - moving $VenvDir up one directory."
+                    mv "./${VenvDir}" "../${VenvDir}"
+                    echo " - moving $CloneDirName into $VenvDir"
+                    cd .. || exit_err "Failed to leave repo directory."
+                    mv "$CloneDir" "${VenvDir}/$CloneDirName"
+                    cd "${VenvDir}/$CloneDirName" || exit_err "Failed to enter clone directory."
+                    CloneDir="${PWD}"
+                fi
+            fi
 
             $PyBin -m pip install --upgrade -r requirements.txt
             echo ""
 
-            cp ./config/example_options.ini ./config/options.ini
+            if [ ! -f "./config/options.ini" ] ; then
+                echo "Creating default options.ini file from example_options.ini file."
+                echo ""
+                cp ./config/example_options.ini ./config/options.ini
+            fi
             return 0
         fi
         echo "Installer will attempt to create a new directory for MusicBot."
@@ -284,7 +342,7 @@ function pull_musicbot_git() {
     echo ""
 
     if ! [ -f ./config/options.ini ] ; then
-        echo "Creating empty options.ini file from example_options.ini file."
+        echo "Creating default options.ini file from example_options.ini file."
         echo ""
         cp ./config/example_options.ini ./config/options.ini
     fi
@@ -877,33 +935,7 @@ case $DISTRO_NAME in
                 libreadline-dev libsqlite3-dev libbz2-dev \
                 unzip curl git jq ffmpeg -y
             
-            # Ask if we should build python
-            echo "We need to build python from source for your system. It will be installed using altinstall target."
-            read -rp "Would you like to continue ? [N/y]" BuildPython
-            if [ "${BuildPython,,}" == "y" ] || [ "${BuildPython,,}" == "yes" ] ; then
-                # Build python.
-                PyBuildVer="3.10.14"
-                PySrcDir="Python-${PyBuildVer}"
-                PySrcFile="${PySrcDir}.tgz"
-
-                curl -o "$PySrcFile" "https://www.python.org/ftp/python/${PyBuildVer}/${PySrcFile}"
-                tar -xzf "$PySrcFile"
-                cd "${PySrcDir}" || exit_err "Fatal:  Could not change to python source directory."
-
-                ./configure --enable-optimizations
-                sudo make altinstall
-
-                # Ensure python bin is updated with altinstall name.
-                find_python
-                RetVal=$?
-                if [ "$RetVal" == "0" ] ; then
-                    # manually install pip package for current user.
-                    $PyBin <(curl -s https://bootstrap.pypa.io/get-pip.py)
-                else
-                    echo "Error:  Could not find python on the PATH after installing it."
-                    exit 1
-                fi
-            fi
+            build_python
         fi
 
         if [ "$INSTALL_BOT_BITS" == "1" ] ; then
@@ -956,6 +988,25 @@ case $DISTRO_NAME in
 # NOTE: Raspberry Pi OS 11, i386 arch, returns Debian as distro name.
 *"Debian"* )
     case $DISTRO_NAME in
+    *"Debian GNU/Linux 10"*)
+        if [ "$INSTALL_SYS_PKGS" == "1" ] ; then
+            sudo apt-get update -y
+            sudo apt-get upgrade -y
+
+            sudo apt-get install -y build-essential \
+                libopus-dev libffi-dev libsodium-dev libssl-dev \
+                zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
+                libreadline-dev libsqlite3-dev libbz2-dev \
+                unzip curl git jq ffmpeg
+
+            build_python
+        fi
+
+        if [ "$INSTALL_BOT_BITS" == "1" ] ; then
+            pull_musicbot_git
+        fi
+        ;;
+    
     # Tested working:
     # R-Pi OS 11  @  2024/03/29
     # Debian 11.3  @  2024/03/29
@@ -963,9 +1014,7 @@ case $DISTRO_NAME in
         if [ "$INSTALL_SYS_PKGS" == "1" ] ; then
             sudo apt-get update -y
             sudo apt-get upgrade -y
-            sudo apt-get install git libopus-dev libffi-dev libsodium-dev ffmpeg \
-                build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev \
-                libsqlite3-dev tk-dev libssl-dev openssl python3 python3-pip curl jq -y
+            sudo apt-get install -y jq git curl ffmpeg python3 python3-pip
         fi
 
         if [ "$INSTALL_BOT_BITS" == "1" ] ; then
@@ -981,7 +1030,7 @@ case $DISTRO_NAME in
         if [ "$INSTALL_SYS_PKGS" == "1" ] ; then
             sudo apt-get update -y
             sudo apt-get upgrade -y
-            sudo apt-get install build-essential libopus-dev libffi-dev libsodium-dev \
+            sudo apt-get install -y build-essential libopus-dev libffi-dev libsodium-dev \
                 python3-full python3-dev python3-venv python3-pip git ffmpeg curl
         fi
 
@@ -1002,7 +1051,15 @@ case $DISTRO_NAME in
     if [ "$INSTALL_SYS_PKGS" == "1" ] ; then
         sudo apt-get update -y
         sudo apt-get upgrade -y
-        sudo apt install python3-pip git libopus-dev ffmpeg curl
+
+        sudo apt-get install -y build-essential libopus-dev libffi-dev \
+            libsodium-dev libssl-dev zlib1g-dev libncurses5-dev \
+            libgdbm-dev libnss3-dev libreadline-dev libsqlite3-dev \
+            libbz2-dev liblzma-dev lzma-dev uuid-dev \
+            unzip curl git ffmpeg
+
+        build_python
+
         curl -o jq.tar.gz https://github.com/stedolan/jq/releases/download/jq-1.5/jq-1.5.tar.gz
         tar -zxvf jq.tar.gz
         cd jq-1.5 || exit_err "Fatal:  Could not change directory to jq-1.5"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -128,6 +129,41 @@ def check_bot_updates(git_bin: str, branch_name: str) -> Optional[Tuple[str, str
     return None
 
 
+def check_for_process(proc_path: str) -> None:
+    """Check for processes that would prevent updates"""
+    path = pathlib.Path(proc_path)
+    name = path.stem
+    print(f"Checking if {name} is still running...")
+    try:
+        o = (
+            subprocess.check_output(
+                [
+                    "powershell.exe",
+                    "Get-Process",
+                    "-name",
+                    f"{name}*",
+                    "-ErrorAction",
+                    "silentlycontinue",
+                    "|",
+                    "select",
+                    "path",
+                ],
+            )
+            .decode("utf-8")
+            .strip()
+        )
+    except subprocess.CalledProcessError:
+        # The command will error out if no process is found at all.
+        # May be a better way to deal with that but this is simple.
+        o = ""
+
+    if proc_path in o:
+        raise RuntimeError(
+            f"Cannot continue because {name} is still in use!\n"
+            "Make sure MusicBot is shut down, or use Task Manager to stop the process first."
+        )
+
+
 def update_deps() -> None:
     """
     Tries to upgrade MusicBot dependencies using pip module.
@@ -243,6 +279,16 @@ def dl_windows_ffmpeg() -> None:
         os.unlink(tmp_ffmpeg_path)
 
 
+def check_ffmpeg_running() -> None:
+    """check if ffmpeg is still running and exit if so."""
+    if not sys.platform.startswith("win"):
+        return
+
+    ffmpeg_bin = shutil.which("ffmpeg")
+    if ffmpeg_bin:
+        check_for_process(ffmpeg_bin)
+
+
 def update_ffmpeg() -> None:
     """
     Handles checking for new versions of ffmpeg and requesting update.
@@ -253,6 +299,8 @@ def update_ffmpeg() -> None:
             "You should use a package manager to install/update ffmpeg instead."
         )
         return
+
+    check_ffmpeg_running()
 
     print("Checking for ffmpeg versions...")
 
@@ -400,6 +448,7 @@ def main() -> None:
             "Would you like to reset the Source code, to allow MusicBot to update?"
         )
         if hard_reset:
+            check_ffmpeg_running()
             run_or_raise_error(
                 [git_bin, "reset", "--hard"],
                 "Could not hard reset the directory to a clean state.\n"
@@ -433,6 +482,7 @@ def main() -> None:
         print(f"Updates are available, latest commit ID is:  {updates[1]}")
         do_bot_upgrade = yes_or_no_input("Would you like to update?")
         if do_bot_upgrade:
+            check_ffmpeg_running()
             run_or_raise_error(
                 [git_bin, "pull"],
                 "Could not update the bot. You will need to run 'git pull' manually.",
