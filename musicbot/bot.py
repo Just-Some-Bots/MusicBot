@@ -8202,9 +8202,10 @@ class MusicBot(discord.Client):
                 await self._check_ignore_non_voice(message)
 
             # Test for command permissions.
+            sub_cmd = args[0] if len(args) else ""
             if (
                 message.author.id != self.config.owner_id
-                and not user_permissions.can_use_command(command, args[0])
+                and not user_permissions.can_use_command(command, sub_cmd)
             ):
                 raise exceptions.PermissionsError(
                     "This command is not allowed for your permissions group:  %(group)s",
