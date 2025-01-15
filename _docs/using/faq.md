@@ -4,25 +4,33 @@ category: Using the bot
 order: 7
 ---
 
-#### How do I get an ID?
+## How do I get an ID?
 
 <img class="doc-img-right" src="{{ site.baseurl }}/images/ids.gif" alt="Example of getting discord IDs"/>
 
 The bot has a `!listids` command that you can use to obtain IDs, or you can turn on Developer Mode in the Discord client by going to User Settings -> Appearance. Afterwards, you can right-click on any user, channel, role, whatever and you will get a Copy ID option on the context menu. The GIF demonstrates this.
 
-#### What can the bot play?
+## What can the bot play?
 
-The bot was developed to support YouTube and SoundCloud URLs, but it can theoretically support most of what yt-dlp [supports](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). If there is a site that isn't supported by the bot but is by yt-dlp, create an [issue](https://github.com/Just-Some-Bots/MusicBot/issues/new) and let us know you want support added for it. The bot supports also streams like Twitch and internet radio (provided you give it a direct URL), however it is an experimental feature. To do this, use the `!stream` command instead of `!play`.
+MusicBot depends on yt-dlp and ffmpeg to get and play media.  
+In theory, you can play any media ffmpeg can play from any service listed on [yt-dlp supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).  
 
-Currently, the bot can't play music that is saved on your computer locally, though it is a [planned feature](https://github.com/Just-Some-Bots/MusicBot/issues/168).
+MusicBot also supports playing streams like Twitch and internet radio streams. 
+To do this, use the `!stream` command instead of `!play` and provide a direct URL 
+to the media stream.  
 
-#### How can I sign into youtube?
+In recent `dev` branch versions, MusicBot optionally supports playing media files 
+which can be manually uploaded to the `media` directory at the root of MusicBot directory.  
+
+If you supply an attachment to the `!play` command, MusicBot will also attempt to play the first attachment.  
+
+## How can I sign into youtube?
 
 You'll need to research what the maintainers of ytdlp recommend as the modern method of choice.  
 Typically, if a method works for stand-alone ytdlp, then it can usually work for MusicBot.  
-YouTube as a platform makes changes in order to force users to comply.  Best of luck to you in keeping up with the changes.  
+The solution seems to be different for everyone, as YouTube takes active steps to stop bots. 
 
-#### Can I modify the bot?
+## Can I modify the bot?
 
 MusicBot is provided under an MIT License.  
 Under this license you are allowed to modify the source code as you please!  
@@ -31,17 +39,19 @@ It is recommended that you are familiar with Python and the Asyncio library firs
 
 If your modifications are general improvements, please consider contributing your changes to improve MusicBot for everyone.  
 
-#### Can I change the bot's responses?
+## Can I change the bot's responses?
 
 Short answer is yes!  
+There are several options which impact how bot responds, in addition to using translation 
+files to modify the content or format of messages sent by the bot.  
 
-##### After the UI/i18n PR #2436
+#### After the UI/i18n PR #2436
 
 MusicBot is almost fully translation ready, allowing you to translate or modify 
 text used by MusicBot in both Discord messages and MusicBot logs.  
 Translations use the Gettext format.  For more information, see the [i18n readme](https://github.com/Just-Some-Bots/MusicBot/blob/dev/i18n/readme.md).
 
-##### Before the UI/i18n PR #2436
+#### Before the UI/i18n PR #2436
 
 If you would like to change the bot's responses, perhaps because your users have a different native language, it is possible without editing the bot's source code. As long as you have a basic understanding of JSON, you can create a new i18n file. Open up the `config/i18n` folder, copy `en.json` to `whatever.json`, and then open it up with a code editor (such as Notepad++, Atom, or Visual Studio Code).
 
