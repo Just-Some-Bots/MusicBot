@@ -955,6 +955,19 @@ class Config:
                 "Leave blank to use default, dynamically generated UA strings."
             ),
         )
+        self.ytdlp_source_address: str = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpSourceAddress",
+            dest="ytdlp_source_address",
+            default=ConfigDefaults.ytdlp_source_address,
+            getter="getstr",
+            comment=_Dd(
+                "Force yt-dlp to bind to a specific IP address or IP version on your system.\n"
+                "To force any available IPv4, set this to:  0.0.0.0\n"
+                "To force any available IPv6, set this to:  ::\n"
+                "To allow either IPv4 or v6, set this to:  *"
+            ),
+        )
 
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
@@ -1537,6 +1550,7 @@ class ConfigDefaults:
     auto_unpause_on_play: bool = False
     ytdlp_proxy: str = ""
     ytdlp_user_agent: str = ""
+    ytdlp_source_address: str = "*"
 
     pre_download_next_song: bool = True
     default_search_service: str = "ytsearch"

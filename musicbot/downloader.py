@@ -80,7 +80,7 @@ ytdl_format_options_immutable = MappingProxyType(
         # extract_flat speeds up extract_info by only listing playlist entries rather than extracting them as well.
         "extract_flat": "in_playlist",
         "default_search": "auto",
-        "source_address": "0.0.0.0",
+        "source_address": None,
         "usenetrc": True,
         "no_color": True,
         "retries": 1,
@@ -133,6 +133,10 @@ class Downloader:
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
         ytdl_format_options["http_headers"] = self.http_req_headers
+
+        # apply source address settings.
+        if bot.config.ytdlp_source_address != "*":
+            ytdl_format_options["source_address"] = bot.config.ytdlp_source_address
 
         # enable verbose ytdlp logs if debug mode is enabled.
         if bot.config.debug_mode:
