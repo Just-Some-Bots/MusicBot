@@ -591,6 +591,15 @@ Leave blank to use default, dynamically generated UA strings.<br>
 <strong>Default Value:</strong> <i>*empty*</i>  
 </details>  
 <details>
+  <summary>YtdlpSourceAddress</summary>
+
+Force yt-dlp to bind to a specific IP address or IP version on your system.<br>
+To force any available IPv4, set this to:  0.0.0.0<br>
+To force any available IPv6, set this to:  ::<br>
+To allow either IPv4 or v6, set this to:  *<br>  
+<strong>Default Value:</strong> <code>*</code>  
+</details>  
+<details>
   <summary>EnableUserBlocklist</summary>
 
 Toggle the user block list feature, without emptying the block list.<br>  
