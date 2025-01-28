@@ -3332,6 +3332,7 @@ class MusicBot(discord.Client):
         guild: discord.Guild,
         author: discord.Member,
         channel: GuildMessageableChannels,
+        voice_channel: Optional[VoiceableChannel],
         message: discord.Message,
         _player: Optional[MusicPlayer],
         player: MusicPlayer,
@@ -3497,6 +3498,10 @@ class MusicBot(discord.Client):
             )
 
         if option == "queue":
+            if not voice_channel:
+                raise exceptions.CommandError(
+                    "You must be in a voice channel to use this command."
+                )
             if not opt_url and ssd_:
                 plname = ssd_.autoplaylist.filename
             else:
@@ -3536,6 +3541,11 @@ class MusicBot(discord.Client):
 
             entries: List[EntryTypes] = []
             if info:
+                _player = self.get_player_in(guild)
+                if _player is None:
+                    player = await self.get_player(voice_channel, create=True)
+                else:
+                    player = _player
                 entries, _pos = await player.playlist.import_from_info(
                     info,
                     head=False,
