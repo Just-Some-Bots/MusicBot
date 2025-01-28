@@ -22,6 +22,7 @@ from yt_dlp.utils import UnsupportedError
 
 from .constants import DEFAULT_MAX_INFO_DL_THREADS, DEFAULT_MAX_INFO_REQUEST_TIMEOUT
 from .exceptions import ExtractionError, MusicbotException
+from .i18n import _L
 from .spotify import Spotify
 from .utils import check_extractor
 
@@ -371,6 +372,10 @@ class Downloader:
         ):
             return self._return_local_media(song_subject)
 
+        if song_subject.lower().startswith("mbapl://"):
+            log.debug("AutoPlaylist requested:  %s", song_subject)
+            return await self._return_autoplaylist(song_subject)
+
         # Hash the URL for use as a unique ID in file paths.
         # but ignore services with multiple URLs for the same media.
         song_subject_hash = ""
@@ -601,7 +606,7 @@ class Downloader:
             {
                 "__input_subject": song_subject,
                 "__header_data": None,
-                "__expected_filename": local_file_path,
+                "__expected_filename": str(local_file_path),
                 "_type": "local",
                 # "original_url": song_subject,
                 "extractor": "local:musicbot",
@@ -609,6 +614,108 @@ class Downloader:
                 # Getting a "good" title for the track will take some serious consideration...
                 "title": local_file_path.name,
                 "url": corrected_fie_uri,
+            }
+        )
+
+    async def _return_autoplaylist(self, song_subject: str) -> "YtdlpResponseDict":
+        """Converts an autoplaylist file into a usable playlist result."""
+        plname = song_subject[8:]
+        if not self.bot.playlist_mgr.playlist_exists(plname):
+            raise MusicbotException("The playlist does not exist.")
+
+        pl = self.bot.playlist_mgr.get_playlist(plname)
+        if not pl.loaded:
+            await pl.load()
+
+        # process each playlist entry.
+        entries_data: List[Dict[str, Any]] = []
+        for track in pl:
+            if not self.bot.loop or (self.bot.loop and self.bot.loop.is_closed()):
+                return YtdlpResponseDict({})
+            if self.bot.logout_called:
+                return YtdlpResponseDict({})
+
+            # If the track is already a URL, maybe skip it...
+            # Some URLs, like playlists, may want to be extracted here, instead.
+            # This method will prevent queue estimations.
+            """
+            song_url = self.get_url_or_none(track)
+            if song_url:
+                entries_data.append(
+                    {
+                        "_type": "url",
+                        "extractor": "autoplaylist:musicbot",
+                        "extractor_key": "AutoPlaylistEntry",
+                        "__header_data": None,
+                        "__input_subject": track,
+                        "url": song_url,
+                    }
+                )
+                continue
+            # """
+
+            # extract with ytdlp
+            try:
+                info = await self.extract_info(track, download=False, process=True)
+            except (
+                youtube_dl.utils.YoutubeDLError,
+                youtube_dl.utils.DownloadError,
+            ) as e:
+                log.error(
+                    'Error while processing song "%(url)s":  %(raw_error)s',
+                    {"url": track, "raw_error": e},
+                )
+                continue
+
+            except ExtractionError as e:
+                log.error(
+                    'Error extracting song "%(url)s": %(raw_error)s',
+                    {
+                        "url": track,
+                        "raw_error": _L(e.message) % e.fmt_args,
+                    },
+                    exc_info=True,
+                )
+                continue
+
+            except MusicbotException as e:
+                if track.lower().startswith("file://"):
+                    log.error(
+                        "Could not process track '%(track)s' due to: %(raw_error)s",
+                        {
+                            "track": track,
+                            "raw_error": _L(e.message) % e.fmt_args,
+                        },
+                    )
+                    continue
+                # else, just bail.
+                log.exception(
+                    "MusicBot needs to stop the auto playlist extraction and bail."
+                )
+                break
+            except Exception:  # pylint: disable=broad-exception-caught
+                log.exception(
+                    "MusicBot got an unhandled exception while adding auto playlist to the queue."
+                )
+                break
+
+            # Process playlists
+            if info.has_entries:
+                entries_data.extend(info.get_entries_dicts())
+
+            # process single entries.
+            else:
+                entries_data.append(info.data.copy())
+
+        return YtdlpResponseDict(
+            {
+                "__input_subject": f"apl://{pl.filename}",
+                "__header_data": None,
+                "_type": "playlist",
+                "extractor": "autoplaylist:musicbot",
+                "extractor_key": "AutoPlaylist",
+                "entries": entries_data,
+                "playlist_count": len(entries_data),
             }
         )
 

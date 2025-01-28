@@ -2501,14 +2501,15 @@ class MusicBot(discord.Client):
                 "Detected missing config options!\n"
                 "\n"
                 "Problem:\n"
-                "  You config options file is missing some options.\n"
-                "  Default settings will be used for these options.\n"
-                "  Here is a list of options we didn't find:\n"
-                "  %(missing)s\n"
+                "  Your config options.ini file is missing some options.\n"
+                "  Default settings will be used for these options until you set them.\n"
+                "  Here is a list of options (with [section] names) we didn't find:\n"
+                "%(missing)s\n"
                 "\n"
                 "Solution:\n"
-                "  Copy new options from the example options file.\n"
-                "  Or use the config command to set and save them.\n\n",
+                "  Add the new options listed above to your options.ini file.\n"
+                "  You can do this with MusicBot config command, the configure.py tool, or any text editor.\n"
+                "  If you recently updated, check example_options.ini for documentation and default values.\n\n",
                 # fmt: on
                 {"missing": missing_list},
             )
@@ -3297,10 +3298,16 @@ class MusicBot(discord.Client):
             "{cmd} add all\n"
             + _Dd("    Adds the entire queue to the guilds playlist.\n"),
 
+            "{cmd} queue [NAME]\n"
+            + _Dd(
+                "    Add all tracks in the given auto playlist to the normal playback queue.\n"
+                "    If playlist name is omitted, the currently loaded playlist is used.\n"
+            ),
+
             "{cmd} clear [NAME]\n"
             + _Dd(
                 "    Clear all songs from the named playlist file.\n"
-                "    If name is omitted, the currently loaded playlist is emptied.\n"
+                "    If playlist name is omitted, the currently loaded playlist is emptied.\n"
             ),
 
             "{cmd} show\n"
@@ -3324,6 +3331,8 @@ class MusicBot(discord.Client):
         ssd_: Optional[GuildSpecificData],
         guild: discord.Guild,
         author: discord.Member,
+        channel: GuildMessageableChannels,
+        message: discord.Message,
         _player: Optional[MusicPlayer],
         player: MusicPlayer,
         option: str,
@@ -3332,7 +3341,6 @@ class MusicBot(discord.Client):
         """
         Manage auto playlists globally and per-guild.
         """
-        # TODO: add a method to display the current auto playlist setting in chat.
         option = option.lower()
         if option not in [
             "+",
@@ -3486,6 +3494,63 @@ class MusicBot(discord.Client):
             return Response(
                 _D("The playlist `%(playlist)s` has been cleared.", ssd_)
                 % {"playlist": plname}
+            )
+
+        if option == "queue":
+            if not opt_url and ssd_:
+                plname = ssd_.autoplaylist.filename
+            else:
+                plname = opt_url.lower()
+                if not plname.endswith(".txt"):
+                    plname += ".txt"
+                if not self.playlist_mgr.playlist_exists(plname):
+                    raise exceptions.CommandError(
+                        "No playlist file exists with the name: `%(playlist)s`",
+                        fmt_args={"playlist": plname},
+                    )
+
+            premsg = _D(
+                "The tracks in playlist `%(playlist)s` will be added to the queue.\n"
+                "Please wait while MusicBot processes the playlist.",
+                ssd_,
+            ) % {"playlist": plname}
+            await self.safe_send_message(
+                channel,
+                Response(premsg, reply_to=message),
+            )
+
+            try:
+                info = await self.downloader.extract_info(
+                    f"mbapl://{plname}", download=False, process=True
+                )
+            except Exception as e:
+                # TODO: i18n for translated exceptions.
+                info = None
+                log.exception("Issue with extract_info(): ")
+                if isinstance(e, exceptions.MusicbotException):
+                    raise
+                raise exceptions.CommandError(
+                    "Failed to extract info due to error:\n%(raw_error)s",
+                    fmt_args={"raw_error": e},
+                ) from e
+
+            entries: List[EntryTypes] = []
+            if info:
+                entries, _pos = await player.playlist.import_from_info(
+                    info,
+                    head=False,
+                    channel=channel,
+                    author=author,
+                )
+                if len(entries) and player.is_stopped:
+                    player.play()
+
+            return Response(
+                _D(
+                    "Added %(number)d track(s) to the queue from playlist `%(playlist)s`",
+                    ssd_,
+                )
+                % {"number": len(entries), "playlist": plname}
             )
 
         return None
@@ -6248,7 +6313,7 @@ class MusicBot(discord.Client):
             tracks_list += _D(
                 "**Entry #%(index)s:**"
                 "Title: `%(title)s`\n"
-                "Added by: `%(user)s\n\n",
+                "Added by: `%(user)s`\n\n",
                 ssd_,
             ) % {"index": idx, "title": _D(item.title, ssd_), "user": added_by}
 
