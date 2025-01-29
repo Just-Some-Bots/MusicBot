@@ -3321,9 +3321,16 @@ class MusicBot(discord.Client):
             "{cmd} set <NAME>\n"
             + _Dd("    Set a playlist as default for this guild and reloads the guild auto playlist.\n"),
 
+            "{cmd} reload [NAME]\n"
+            + _Dd(
+                "    Reload the given playlist from disk into memory, but does not update the current auto playlist queue."
+            ),
         ],
         # fmt: on
-        desc=_Dd("Manage auto playlist files and per-guild settings."),
+        desc=_Dd(
+            "Manage auto playlist files and per-guild settings.\n"
+            "Auto playlists use a their own queue, only playing when the main queue is empty."
+        ),
         remap_subs={"+": "add", "-": "remove"},
     )
     async def cmd_autoplaylist(
@@ -3353,6 +3360,7 @@ class MusicBot(discord.Client):
             "set",
             "restart",
             "queue",
+            "reload",
         ]:
             raise exceptions.CommandError(
                 "Invalid sub-command given. Use `help autoplaylist` for usage examples.",
@@ -3562,6 +3570,21 @@ class MusicBot(discord.Client):
                 )
                 % {"number": len(entries), "playlist": plname}
             )
+
+        if option == "reload":
+            if not opt_url and ssd_:
+                plname = ssd_.autoplaylist.filename
+            else:
+                plname = opt_url.lower()
+                if not plname.endswith(".txt"):
+                    plname += ".txt"
+                if not self.playlist_mgr.playlist_exists(plname):
+                    raise exceptions.CommandError(
+                        "No playlist file exists with the name: `%(playlist)s`",
+                        fmt_args={"playlist": plname},
+                    )
+            await self.playlist_mgr.get_playlist(plname).load()
+            return Response(_D("The playlist has been reloaded from disk.", ssd_))
 
         return None
 
