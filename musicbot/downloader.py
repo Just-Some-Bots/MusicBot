@@ -627,7 +627,10 @@ class Downloader:
         if not pl.loaded:
             await pl.load()
 
-        # process each playlist entry.
+        # terms used to trigger URL processing.
+        pterms = ["playlist", "bandcamp.com/album"]
+
+        # process each playlist entries.
         entries_data: List[Dict[str, Any]] = []
         for track in pl:
             if not self.bot.loop or (self.bot.loop and self.bot.loop.is_closed()):
@@ -638,9 +641,8 @@ class Downloader:
             # If the track is already a URL, maybe skip it...
             # Some URLs, like playlists, may want to be extracted here, instead.
             # This method will prevent queue estimations.
-            """
             song_url = self.get_url_or_none(track)
-            if song_url:
+            if song_url and all(x not in song_url.lower() for x in pterms):
                 entries_data.append(
                     {
                         "_type": "url",
@@ -652,7 +654,6 @@ class Downloader:
                     }
                 )
                 continue
-            # """
 
             # extract with ytdlp
             try:
