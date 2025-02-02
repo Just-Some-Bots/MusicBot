@@ -63,7 +63,10 @@ from .constants import (
     MUSICBOT_VOICE_MAX_KBITRATE,
 )
 from .constants import VERSION as BOTVERSION
-from .constants import VOICE_CLIENT_MAX_RETRY_CONNECT, VOICE_CLIENT_RECONNECT_TIMEOUT
+from .constants import (
+    VOICE_CLIENT_MAX_RETRY_CONNECT,
+    VOICE_CLIENT_RECONNECT_TIMEOUT,
+)
 from .constructs import ErrorResponse, GuildSpecificData, MusicBotResponse, Response
 from .entry import LocalFilePlaylistEntry, StreamPlaylistEntry, URLPlaylistEntry
 from .filecache import AudioFileCache
