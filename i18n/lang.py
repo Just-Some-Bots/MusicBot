@@ -429,7 +429,7 @@ class LangTool:
                 po.merge(pot_msgs)
 
             pct = self._colorize_percent(po.percent_translated())
-            po.metadata['Project-Id-Version'] = self.version
+            po.metadata["Project-Id-Version"] = self.version
             po.save()
             print(
                 f"Updated: {locale} - {po_file.name} Was {pre_pct} translated, now {pct}"
