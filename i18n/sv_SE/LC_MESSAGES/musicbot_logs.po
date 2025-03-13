@@ -1,7 +1,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: notmusicbot\n"
+"Project-Id-Version: release-250723-178-gba5fdbf2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2024-11-11 16:38-0800\n"
 "PO-Revision-Date: 2024-11-12 00:39\n"
@@ -488,20 +488,20 @@ msgid ""
 msgstr "MusicBot anslutning till röst avbröts. Detta är udda. Kanske omstart?"
 
 #. Used by: info
-#: musicbot/bot.py:849 musicbot/bot.py:8771
+#: musicbot/bot.py:849 musicbot/bot.py:8776
 #, python-format
 msgid "MusicBot is requesting to speak in channel: %s"
 msgstr "MusicBot begär att få tala i kanalen: %s"
 
 #. Used by: PermissionsError
 #. Used by: exception
-#: musicbot/bot.py:854 musicbot/bot.py:8777
+#: musicbot/bot.py:854 musicbot/bot.py:8782
 msgid "MusicBot does not have permission to speak."
 msgstr "MusicBot har inte behörighet att tala."
 
 #. Used by: MusicbotException
 #. Used by: exception
-#: musicbot/bot.py:858 musicbot/bot.py:8779
+#: musicbot/bot.py:858 musicbot/bot.py:8784
 msgid "MusicBot could not request to speak."
 msgstr "MusicBot kunde inte begära att få tala."
 
@@ -637,69 +637,69 @@ msgid "Setting URL history guild %(guild_id)s == %(url)s"
 msgstr "Ställer in URL-historik guild %(guild_id)s == %(url)s"
 
 #. Used by: warning
-#: musicbot/bot.py:1186 musicbot/bot.py:5041
+#: musicbot/bot.py:1186 musicbot/bot.py:5046
 #, python-format
 msgid "No thumbnail set for entry with URL: %s"
 msgstr "Ingen miniatyrbild har angetts för post med URL: %s"
 
 #. Used by: debug
-#: musicbot/bot.py:1198
+#: musicbot/bot.py:1202
 msgid "no channel to put now playing message into"
 msgstr "ingen kanal att lägga nu spela upp meddelandet i"
 
 #. Used by: debug
-#: musicbot/bot.py:1210
+#: musicbot/bot.py:1214
 msgid "ignored now-playing message as it was already posted."
 msgstr "ignorerade nu-spela meddelande som det redan var publicerat."
 
 #. Used by: debug
-#: musicbot/bot.py:1234
+#: musicbot/bot.py:1238
 msgid "Running on_player_resume"
 msgstr "Kör på_player_fortsätt"
 
 #. Used by: debug
-#: musicbot/bot.py:1247
+#: musicbot/bot.py:1251
 msgid "Running on_player_pause"
 msgstr "Körs på"
 
 #. Used by: debug
-#: musicbot/bot.py:1263
+#: musicbot/bot.py:1267
 msgid "Running on_player_stop"
 msgstr "Kör på_player_stop"
 
 #. Used by: debug
-#: musicbot/bot.py:1273
+#: musicbot/bot.py:1277
 msgid "Running on_player_finished_playing"
 msgstr "Körs på"
 
 #. Used by: debug
-#: musicbot/bot.py:1275 musicbot/bot.py:1321 musicbot/bot.py:1392
+#: musicbot/bot.py:1279 musicbot/bot.py:1325 musicbot/bot.py:1396
 msgid "Event loop is closed, nothing else to do here."
 msgstr "Händelseslingan är stängd, inget annat att göra här."
 
 #. Used by: debug
-#: musicbot/bot.py:1279 musicbot/bot.py:1325 musicbot/bot.py:1396
+#: musicbot/bot.py:1283 musicbot/bot.py:1329 musicbot/bot.py:1400
 msgid "Logout under way, ignoring this event."
 msgstr "Logga ut på gång, ignorera denna händelse."
 
 #. Used by: debug
-#: musicbot/bot.py:1296
+#: musicbot/bot.py:1300
 msgid "VoiceClient says it is not connected, nothing else we can do here."
 msgstr ""
 "VoiceClient säger att det inte är anslutet, inget annat vi kan göra här."
 
 #. Used by: info
-#: musicbot/bot.py:1303
+#: musicbot/bot.py:1307
 msgid "Player finished and queue is empty, leaving voice channel..."
 msgstr "Spelaren är klar och kön är tom, lämnar röstkanalen..."
 
 #. Used by: everything
-#: musicbot/bot.py:1317
+#: musicbot/bot.py:1321
 msgid "Looping over queue to expunge songs with missing author..."
 msgstr "Loopa över kön för att expunge låtar med saknad författare..."
 
 #. Used by: noise
-#: musicbot/bot.py:1356
+#: musicbot/bot.py:1360
 #, python-format
 msgid ""
 "Author `%(user)s` absent, skipped (deleted) entry from queue:  %(song)s"
@@ -708,291 +708,291 @@ msgstr ""
 "%(song)s"
 
 #. Used by: warning
-#: musicbot/bot.py:1375
+#: musicbot/bot.py:1379
 msgid "No playable songs in the Guild autoplaylist, disabling."
 msgstr "Inga spelbara låtar i Guilds autospelslista inaktiveras."
 
 #. Used by: debug
-#: musicbot/bot.py:1380
+#: musicbot/bot.py:1384
 msgid "No content in current autoplaylist. Filling with new music..."
 msgstr "Inget innehåll i aktuell autospellista. Fyller med ny musik..."
 
 #. Used by: everything
-#: musicbot/bot.py:1388
+#: musicbot/bot.py:1392
 msgid "Looping over player autoplaylist..."
 msgstr "Loopa över spelare autospellista..."
 
 #. Used by: error
-#: musicbot/bot.py:1429 musicbot/downloader.py:666
+#: musicbot/bot.py:1433 musicbot/downloader.py:666
 #, python-format
 msgid "Error while processing song \"%(url)s\":  %(raw_error)s"
 msgstr "Fel vid bearbetning av låt \"%(url)s\":  %(raw_error)s"
 
 #. Used by: error
-#: musicbot/bot.py:1440 musicbot/downloader.py:673
+#: musicbot/bot.py:1444 musicbot/downloader.py:673
 #, python-format
 msgid "Error extracting song \"%(url)s\": %(raw_error)s"
 msgstr "Fel vid extrahering av låt \"%(url)s\": %(raw_error)s"
 
 #. Used by: exception
-#: musicbot/bot.py:1455 musicbot/downloader.py:694
+#: musicbot/bot.py:1459 musicbot/downloader.py:694
 msgid "MusicBot needs to stop the auto playlist extraction and bail."
 msgstr "MusicBot måste stoppa auto spellista utvinning och borgen."
 
 #. Used by: exception
-#: musicbot/bot.py:1460
+#: musicbot/bot.py:1464
 msgid "MusicBot got an unhandled exception in player finished event."
 msgstr "MusicBot fick ett ohanterat undantag i spelarens färdiga händelse."
 
 #. Used by: info
-#: musicbot/bot.py:1466
+#: musicbot/bot.py:1470
 #, python-format
 msgid "Expanding auto playlist with entries extracted from:  %s"
 msgstr "Expanderar automatisk spellista med poster extraherade från:  %s"
 
 #. Used by: error
-#: musicbot/bot.py:1490
+#: musicbot/bot.py:1494
 #, python-format
 msgid "Error adding song from autoplaylist: %s"
 msgstr "Det gick inte att lägga till låt från autospellista: %s"
 
 #. Used by: debug
-#: musicbot/bot.py:1493
+#: musicbot/bot.py:1497
 msgid "Exception data for above error:"
 msgstr "Undantag data för ovanstående fel:"
 
 #. Used by: warning
-#: musicbot/bot.py:1499
+#: musicbot/bot.py:1503
 msgid "No playable songs in the autoplaylist, disabling."
 msgstr "Inga spelbara låtar i autospelarlistan inaktiveras."
 
 #. Used by: debug
-#: musicbot/bot.py:1519
+#: musicbot/bot.py:1523
 msgid "Running on_player_entry_added"
 msgstr "Kör på_player_entry_added"
 
 #. Used by: debug
-#: musicbot/bot.py:1529
+#: musicbot/bot.py:1533
 msgid "Automatically skipping auto-playlist entry for queued entry."
 msgstr "Hoppar över automatisk spellista automatiskt för köad post."
 
 #. Used by: exception
-#: musicbot/bot.py:1549
+#: musicbot/bot.py:1553
 #, python-format
 msgid "MusicPlayer exception for entry: %r"
 msgstr "Musikspelare undantag för post: %r"
 
 #. Used by: exception
-#: musicbot/bot.py:1555
+#: musicbot/bot.py:1559
 msgid "MusicPlayer exception."
 msgstr "Musikspelare undantag."
 
 #. Used by: info
-#: musicbot/bot.py:1579
+#: musicbot/bot.py:1583
 #, python-format
 msgid "Auto playlist track could not be played:  %r"
 msgstr "Det gick inte att spela upp låten automatiskt spellista:  %r"
 
 #. Used by: debug
-#: musicbot/bot.py:1618
+#: musicbot/bot.py:1622
 msgid "Logout under way, ignoring status update event."
 msgstr "Logga ut pågår, ignorerar statusuppdateringshändelsen."
 
 #. Used by: noise
-#: musicbot/bot.py:1719
+#: musicbot/bot.py:1723
 #, python-format
 msgid "Update bot status:  %(status)s -- %(activity)r"
 msgstr "Uppdatera botstatus:  %(status)s -- %(activity)r"
 
 #. Used by: debug
-#: musicbot/bot.py:1747
+#: musicbot/bot.py:1751
 #, python-format
 msgid "Serializing queue for %s"
 msgstr "Serialiserar kö för %s"
 
 #. Used by: debug
-#: musicbot/bot.py:1773
+#: musicbot/bot.py:1777
 #, python-format
 msgid "Deserializing queue for %s"
 msgstr "Deserialiserar kö för %s"
 
 #. Used by: debug
-#: musicbot/bot.py:1791
+#: musicbot/bot.py:1795
 #, python-format
 msgid "Writing current song for %s"
 msgstr "Skriver aktuell låt för %s"
 
 #. Used by: error
-#: musicbot/bot.py:1816
+#: musicbot/bot.py:1820
 #, python-format
 msgid "Cannot send non-response object:  %r"
 msgstr "Kan inte skicka icke-svarsobjekt:  %r"
 
 #. Used by: MusicbotException
-#: musicbot/bot.py:1821
+#: musicbot/bot.py:1825
 msgid "[Dev Bug] Tried sending an invalid response object."
 msgstr "[Dev Bug] Försökte skicka ett ogiltigt svarsobjekt."
 
 #. Used by: debug
-#: musicbot/bot.py:1858
+#: musicbot/bot.py:1862
 #, python-format
 msgid "sending embed to: %s"
 msgstr "skickar inbäddad till: %s"
 
 #. Used by: debug
-#: musicbot/bot.py:1861
+#: musicbot/bot.py:1865
 #, python-format
 msgid "sending text to: %s"
 msgstr "skicka text till: %s"
 
 #. Used by: error
-#: musicbot/bot.py:1866
+#: musicbot/bot.py:1870
 #, python-format
 msgid "Cannot send message to \"%s\", no permission"
 msgstr "Kan inte skicka meddelande till \"%s\", ingen behörighet"
 
 #. Used by: error
-#: musicbot/bot.py:1873
+#: musicbot/bot.py:1877
 #, python-format
 msgid "Cannot send message to \"%s\", invalid or deleted channel"
 msgstr "Kan inte skicka meddelande till \"%s\", ogiltig eller raderad kanal"
 
 #. Used by: error
-#: musicbot/bot.py:1881
+#: musicbot/bot.py:1885
 #, python-format
 msgid "Message is over the message size limit (%s)"
 msgstr "Meddelandet är över meddelandets storleksgräns (%s)"
 
 #. Used by: debug
-#: musicbot/bot.py:1889
+#: musicbot/bot.py:1893
 msgid "Could not send private message, sending in fallback channel instead."
 msgstr "Kunde inte skicka privat meddelande, skicka i reservkanal istället."
 
 #. Used by: warning
-#: musicbot/bot.py:1907
+#: musicbot/bot.py:1911
 #, python-format
 msgid "Rate limited send message, retrying in %s seconds."
 msgstr "Betygsätt begränsat skicka meddelande, försöker igen om %s sekunder."
 
 #. Used by: warning
-#: musicbot/bot.py:1913
+#: musicbot/bot.py:1917
 #, python-format
 msgid "Cancelled message retry for:  %s"
 msgstr "Avbrutet meddelande försök igen för:  %s"
 
 #. Used by: error
-#: musicbot/bot.py:1918
+#: musicbot/bot.py:1922
 msgid "Rate limited send message, but cannot retry!"
 msgstr "Betygsätt begränsat skicka meddelande, men kan inte försöka igen!"
 
 #. Used by: error
-#: musicbot/bot.py:1924
+#: musicbot/bot.py:1928
 msgid "Failed to send message in fallback channel."
 msgstr "Det gick inte att skicka meddelande i reservkanal."
 
 #. Used by: error
-#: musicbot/bot.py:1929 musicbot/bot.py:1993 musicbot/bot.py:2063
+#: musicbot/bot.py:1933 musicbot/bot.py:1997 musicbot/bot.py:2067
 msgid "Failed to send due to an HTTP error."
 msgstr "Det gick inte att skicka på grund av ett HTTP-fel."
 
 #. Used by: warning
-#: musicbot/bot.py:1955
+#: musicbot/bot.py:1959
 #, python-format
 msgid "Cannot delete message \"%s\", no permission"
 msgstr "Kan inte ta bort meddelandet \"%s\", ingen behörighet"
 
 #. Used by: warning
-#: musicbot/bot.py:1960
+#: musicbot/bot.py:1964
 #, python-format
 msgid "Cannot delete message \"%s\", message not found"
 msgstr "Kan inte ta bort meddelandet \"%s\", meddelandet hittades inte"
 
 #. Used by: warning
-#: musicbot/bot.py:1978
+#: musicbot/bot.py:1982
 #, python-format
 msgid "Rate limited message delete, retrying in %s seconds."
 msgstr "Betygsätt begränsat meddelande ta bort, försöker igen om %s sekunder."
 
 #. Used by: error
-#: musicbot/bot.py:1983
+#: musicbot/bot.py:1987
 msgid "Rate limited message delete, but cannot retry!"
 msgstr "Betygsätt begränsat meddelande ta bort, men kan inte försöka igen!"
 
 #. Used by: warning
-#: musicbot/bot.py:1986
+#: musicbot/bot.py:1990
 msgid "Failed to delete message"
 msgstr "Det gick inte att ta bort meddelandet"
 
 #. Used by: noise
-#: musicbot/bot.py:1988
+#: musicbot/bot.py:1992
 #, python-format
 msgid "Got HTTPException trying to delete message: %s"
 msgstr "Fick HTTPException försöker ta bort meddelandet: %s"
 
 #. Used by: warning
-#: musicbot/bot.py:2023
+#: musicbot/bot.py:2027
 #, python-format
 msgid "Cannot edit message \"%s\", message not found"
 msgstr "Kan inte redigera meddelandet \"%s\", meddelandet hittades inte"
 
 #. Used by: warning
-#: musicbot/bot.py:2027
+#: musicbot/bot.py:2031
 msgid "Sending message instead"
 msgstr "Skickar meddelande istället"
 
 #. Used by: warning
-#: musicbot/bot.py:2044
+#: musicbot/bot.py:2048
 #, python-format
 msgid "Rate limited edit message, retrying in %s seconds."
 msgstr ""
 "Betygsätt begränsat redigeringsmeddelande, försöker igen om %s sekunder."
 
 #. Used by: warning
-#: musicbot/bot.py:2050
+#: musicbot/bot.py:2054
 #, python-format
 msgid "Cancelled message edit for:  %s"
 msgstr "Avbröt meddelanderedigering för:  %s"
 
 #. Used by: warning
-#: musicbot/bot.py:2056
+#: musicbot/bot.py:2060
 msgid "Failed to edit message"
 msgstr "Det gick inte att redigera meddelandet"
 
 #. Used by: noise
-#: musicbot/bot.py:2058
+#: musicbot/bot.py:2062
 #, python-format
 msgid "Got HTTPException trying to edit message %s to: %s"
 msgstr "Fick HTTPException försöker redigera meddelandet %s till: %s"
 
 #. Used by: warning
-#: musicbot/bot.py:2080
+#: musicbot/bot.py:2084
 #, python-format
 msgid "Cancelled delete for message (ID: %(id)s):  %(content)s"
 msgstr "Avbruten borttagning av meddelande (ID: %(id)s):  %(content)s"
 
 #. Used by: warning
-#: musicbot/bot.py:2142
+#: musicbot/bot.py:2146
 #, python-format
 msgid "Caught a signal from the OS: %s"
 msgstr "Fångade en signal från OS: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2146
+#: musicbot/bot.py:2150
 msgid "Disconnecting and closing down MusicBot..."
 msgstr "Koppla bort och stänga MusicBot..."
 
 #. Used by: exception
-#: musicbot/bot.py:2149
+#: musicbot/bot.py:2153
 msgid "Exception thrown while handling interrupt signal!"
 msgstr "Undantag kastas medan hanteringen avbryter signalen!"
 
 #. Used by: info
-#: musicbot/bot.py:2164
+#: musicbot/bot.py:2168
 msgid "MusicBot is now doing shutdown steps..."
 msgstr "MusicBot gör nu avstängningssteg..."
 
 #. Used by: HelpfulError
-#: musicbot/bot.py:2172
+#: musicbot/bot.py:2176
 msgid ""
 "Failed Discord API Login!\n"
 "\n"
@@ -1015,44 +1015,44 @@ msgstr ""
 "  Kontrollera API-status på den officiella webbplatsen: discordstatus.com"
 
 #. Used by: info
-#: musicbot/bot.py:2186
+#: musicbot/bot.py:2190
 msgid "Waiting for download threads to finish up..."
 msgstr "Väntar på nedladdningstrådar för att slutföra..."
 
 #. Used by: debug
-#: musicbot/bot.py:2212
+#: musicbot/bot.py:2216
 #, python-format
 msgid "Will wait for task:  %(name)s  (%(func)s)"
 msgstr "Väntar på uppgift:  %(name)s  (%(func)s)"
 
 #. Used by: debug
-#: musicbot/bot.py:2219
+#: musicbot/bot.py:2223
 #, python-format
 msgid "Will try to cancel task:  %(name)s  (%(func)s)"
 msgstr "Kommer att försöka avbryta uppgiften:  %(name)s  (%(func)s)"
 
 #. Used by: debug
-#: musicbot/bot.py:2227
+#: musicbot/bot.py:2231
 msgid "Awaiting pending tasks..."
 msgstr "Väntar på väntande uppgifter..."
 
 #. Used by: debug
-#: musicbot/bot.py:2233
+#: musicbot/bot.py:2237
 msgid "Closing HTTP Connector."
 msgstr "Stänger HTTP Connector."
 
 #. Used by: debug
-#: musicbot/bot.py:2239
+#: musicbot/bot.py:2243
 msgid "Closing aiohttp session."
 msgstr "Stänger aiohttp session."
 
 #. Used by: noise
-#: musicbot/bot.py:2251
+#: musicbot/bot.py:2255
 msgid "Logout has been called."
 msgstr "Utloggning har kallats."
 
 #. Used by: error
-#: musicbot/bot.py:2263
+#: musicbot/bot.py:2267
 #, python-format
 msgid ""
 "Exception in %(event)s:\n"
@@ -1062,81 +1062,81 @@ msgstr ""
 "%(error)s"
 
 #. Used by: error
-#: musicbot/bot.py:2279
+#: musicbot/bot.py:2283
 #, python-format
 msgid "Exception in %s"
 msgstr "Undantag i %s"
 
 #. Used by: info
-#: musicbot/bot.py:2286
+#: musicbot/bot.py:2290
 msgid "MusicBot resumed a session with discord."
 msgstr "MusicBot återupptog en session med oenighet."
 
 #. Used by: debug
-#: musicbot/bot.py:2303
+#: musicbot/bot.py:2307
 msgid "Finish on_ready"
 msgstr "Slutför"
 
 #. Used by: debug
-#: musicbot/bot.py:2310
+#: musicbot/bot.py:2314
 msgid "Logged in, now getting MusicBot ready..."
 msgstr "Inloggad, nu blir MusicBot klar..."
 
 #. Used by: critical
-#: musicbot/bot.py:2313
+#: musicbot/bot.py:2317
 msgid "ClientUser is somehow none, we gotta bail..."
 msgstr "KlientAnvändaren är på något sätt ingen, vi måste borgen..."
 
 #. Used by: info
-#: musicbot/bot.py:2322
+#: musicbot/bot.py:2326
 #, python-format
 msgid "MusicBot:  %(id)s/%(name)s#%(desc)s"
 msgstr "MusicBot:  %(id)s/%(name)s#%(desc)s"
 
 #. Used by: info
-#: musicbot/bot.py:2333
+#: musicbot/bot.py:2337
 #, python-format
 msgid "Owner:     %(id)s/%(name)s#%(desc)s\n"
 msgstr "Ägare:     %(id)s/%(name)s#%(desc)s\n"
 
 #. Used by: info
-#: musicbot/bot.py:2341 musicbot/bot.py:2368
+#: musicbot/bot.py:2345 musicbot/bot.py:2372
 msgid "Guild List:"
 msgstr "Lista över gillen:"
 
 #. Used by: info
 #. Used by: debug
-#: musicbot/bot.py:2345 musicbot/bot.py:2371 musicbot/bot.py:8963
+#: musicbot/bot.py:2349 musicbot/bot.py:2375 musicbot/bot.py:8968
 #, python-format
 msgid " - %s"
 msgstr " - %s"
 
 #. Used by: info
-#: musicbot/bot.py:2354
+#: musicbot/bot.py:2358
 #, python-format
 msgid "Left %s due to bot owner not found"
 msgstr "Vänster %s på grund av bot ägaren hittades inte"
 
 #. Used by: info
-#: musicbot/bot.py:2359
+#: musicbot/bot.py:2363
 #, python-format
 msgid "Not proceeding with checks in %s servers due to unavailability"
 msgstr ""
 "Fortsätter inte med kontroller på %s servrar på grund av otillgänglighet"
 
 #. Used by: warning
-#: musicbot/bot.py:2365
+#: musicbot/bot.py:2369
 #, python-format
 msgid "Owner could not be found on any guild (id: %s)\n"
 msgstr "Ägare kunde inte hittas på någon guild (id: %s)\n"
 
 #. Used by: warning
-#: musicbot/bot.py:2374
+#: musicbot/bot.py:2378
 msgid "Owner unknown, bot is not on any guilds."
 msgstr "Ägare okänd, bot är inte på några guilds."
 
 #. Used by: warning
-#: musicbot/bot.py:2378
+#: musicbot/bot.py:2382
 #, python-format
 msgid ""
 "To make the bot join a guild, paste this link in your browser. \n"
@@ -1150,250 +1150,250 @@ msgstr ""
 "  %s"
 
 #. Used by: warning
-#: musicbot/bot.py:2395
+#: musicbot/bot.py:2399
 #, python-format
 msgid "Got None for bound channel with ID:  %d"
 msgstr "Har ingen för bunden kanal med ID:  %d"
 
 #. Used by: warning
-#: musicbot/bot.py:2401
+#: musicbot/bot.py:2405
 #, python-format
 msgid "Cannot bind to non Messageable channel with ID:  %d"
 msgstr "Kan inte binda till icke meddelandebar kanal med ID:  %d"
 
 #. Used by: info
-#: musicbot/bot.py:2415
+#: musicbot/bot.py:2419
 msgid "Bound to text channels:"
 msgstr "Bundna till textkanaler:"
 
 #. Used by: info
-#: musicbot/bot.py:2433 musicbot/bot.py:2483
+#: musicbot/bot.py:2437 musicbot/bot.py:2487
 #, python-format
 msgid " - %(guild)s/%(channel)s"
 msgstr " - %(guild)s/%(channel)s"
 
 #. Used by: info
-#: musicbot/bot.py:2437 musicbot/bot.py:2439
+#: musicbot/bot.py:2441 musicbot/bot.py:2443
 msgid "Not bound to any text channels"
 msgstr "Inte bunden till någon textkanal"
 
 #. Used by: warning
-#: musicbot/bot.py:2450
+#: musicbot/bot.py:2454
 #, python-format
 msgid "Got None for auto join channel with ID:  %d"
 msgstr "Har ingen för automatisk anslutning kanal med ID:  %d"
 
 #. Used by: warning
-#: musicbot/bot.py:2456
+#: musicbot/bot.py:2460
 #, python-format
 msgid "Cannot auto join a Private/Non-Guild channel with ID:  %d"
 msgstr ""
 "Kan inte automatiskt ansluta till en Privat/Icke-Guild kanal med ID:  %d"
 
 #. Used by: warning
-#: musicbot/bot.py:2464
+#: musicbot/bot.py:2468
 #, python-format
 msgid "Cannot auto join to non-connectable channel with ID:  %d"
 msgstr ""
 "Kan inte automatiskt ansluta till icke-anslutningsbar kanal med ID:  %d"
 
 #. Used by: info
-#: musicbot/bot.py:2480
+#: musicbot/bot.py:2484
 msgid "Auto joining voice channels:"
 msgstr "Automatisk anslutning av röstkanaler:"
 
 #. Used by: info
-#: musicbot/bot.py:2488 musicbot/bot.py:2491
+#: musicbot/bot.py:2492 musicbot/bot.py:2495
 msgid "Not auto joining any voice channels"
 msgstr "Inte automatiskt gå med i några röstkanaler"
 
 #. Used by: debug
-#: musicbot/bot.py:2534
+#: musicbot/bot.py:2538
 #, python-format
 msgid "Event on_ready has fired %s times"
 msgstr "Händelse på _ready har avfyrat %s gånger"
 
 #. Used by: debug
-#: musicbot/bot.py:2550
+#: musicbot/bot.py:2554
 msgid "Getting application info."
 msgstr "Hämtar applikationsinformation."
 
 #. Used by: debug
-#: musicbot/bot.py:2568
+#: musicbot/bot.py:2572
 msgid "Ensuring data folders exist"
 msgstr "Det finns säkra datamappar"
 
 #. Used by: debug
-#: musicbot/bot.py:2583
+#: musicbot/bot.py:2587
 msgid "Validating config"
 msgstr "Validerar konfiguration"
 
 #. Used by: debug
-#: musicbot/bot.py:2586
+#: musicbot/bot.py:2590
 msgid "Validating permissions config"
 msgstr "Validerar behörighetskonfiguration"
 
 #. Used by: _L
-#: musicbot/bot.py:2596
+#: musicbot/bot.py:2600
 msgid "Disabled"
 msgstr "Inaktiverad"
 
 #. Used by: _L
-#: musicbot/bot.py:2596
+#: musicbot/bot.py:2600
 msgid "Enabled"
 msgstr "Aktiverad"
 
 #. Used by: info
-#: musicbot/bot.py:2599
+#: musicbot/bot.py:2603
 msgid "Options:"
 msgstr "Alternativ:"
 
 #. Used by: info
-#: musicbot/bot.py:2601
+#: musicbot/bot.py:2605
 #, python-format
 msgid "  Command prefix: %s"
 msgstr "  Kommando prefix: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2606
+#: musicbot/bot.py:2610
 #, python-format
 msgid "  Default volume: %d%%"
 msgstr "  Standardvolym: %d%%"
 
 #. Used by: info
-#: musicbot/bot.py:2608
+#: musicbot/bot.py:2612
 #, python-format
 msgid "  Skip threshold: %(num)d votes or %(percent).0f%%"
 msgstr "  Hoppa över tröskel: %(num)d röster eller %(percent).0f%%"
 
 #. Used by: info
-#: musicbot/bot.py:2620
+#: musicbot/bot.py:2624
 #, python-format
 msgid "  Now Playing @mentions: %s"
 msgstr "  Nu spelas @mentions: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2627
+#: musicbot/bot.py:2631
 #, python-format
 msgid "  Auto-Playlist: %(status)s (order: %(order)s)"
 msgstr "  Auto-spellista: %(status)s (ordning: %(order)s)"
 
 #. Used by: _L
-#: musicbot/bot.py:2630
+#: musicbot/bot.py:2634
 msgid "random"
 msgstr "slumpmässigt"
 
 #. Used by: _L
-#: musicbot/bot.py:2630
+#: musicbot/bot.py:2634
 msgid "sequential"
 msgstr "sekventiell"
 
 #. Used by: info
-#: musicbot/bot.py:2650
+#: musicbot/bot.py:2654
 #, python-format
 msgid "  Auto-Pause: %s"
 msgstr "  Automatisk paus: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2652
+#: musicbot/bot.py:2656
 #, python-format
 msgid "  Delete Messages: %s"
 msgstr "  Ta bort meddelanden: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2657
+#: musicbot/bot.py:2661
 #, python-format
 msgid "    Delete Invoking: %s"
 msgstr "    Ta bort inbjudan: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2661
+#: musicbot/bot.py:2665
 #, python-format
 msgid "    Delete Now Playing: %s"
 msgstr "    Ta bort nu spela: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2664
+#: musicbot/bot.py:2668
 #, python-format
 msgid "  Debug Mode: %s"
 msgstr "  Felsökningsläge: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2668
+#: musicbot/bot.py:2672
 #, python-format
 msgid "  Downloaded songs will be %s"
 msgstr "  Nedladdade låtar kommer att vara %s"
 
 #. Used by: info
-#: musicbot/bot.py:2672
+#: musicbot/bot.py:2676
 #, python-format
 msgid "    Delete if unused for %d days"
 msgstr "    Radera om oanvänd för %d dagar"
 
 #. Used by: info
-#: musicbot/bot.py:2683
+#: musicbot/bot.py:2687
 #, python-format
 msgid "  Status message: %s"
 msgstr "  Statusmeddelande: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2695
+#: musicbot/bot.py:2699
 #, python-format
 msgid "  Spotify integration: %s"
 msgstr "  Spotify-integrering: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2708
+#: musicbot/bot.py:2712
 #, python-format
 msgid "    Timeout: %s seconds"
 msgstr "    Tidsåtgång: %s sekunder"
 
 #. Used by: info
-#: musicbot/bot.py:2720
+#: musicbot/bot.py:2724
 #, python-format
 msgid "    Timeout: %d seconds"
 msgstr "    Timeout: %d sekunder"
 
 #. Used by: info
-#: musicbot/bot.py:2721
+#: musicbot/bot.py:2725
 #, python-format
 msgid "  Self Deafen: %s"
 msgstr "  Självdöv: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2723
+#: musicbot/bot.py:2727
 #, python-format
 msgid "  Per-server command prefix: %s"
 msgstr "  Prefix för kommandon per server: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2729
+#: musicbot/bot.py:2733
 #, python-format
 msgid "  Round Robin Queue: %s"
 msgstr "  Runda Robin Kö: %s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:2784
+#: musicbot/bot.py:2788
 #, python-format
 msgid "The requested song `%(subject)s` is blocked by the song block list."
 msgstr ""
 "Den efterfrågade låten `%(subject)s` blockeras av listan över låtblock."
 
 #. Used by: warning
-#: musicbot/bot.py:2795
+#: musicbot/bot.py:2799
 msgid ""
 "Attempted to handle Voice Channel inactivity, but Bot is not in voice..."
 msgstr ""
 "Försök att hantera röstkanalens inaktivitet, men Bot är inte i röst..."
 
 #. Used by: debug
-#: musicbot/bot.py:2802
+#: musicbot/bot.py:2806
 #, python-format
 msgid "Channel activity already waiting in guild: %s"
 msgstr "Kanalaktivitet väntar redan i guild: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2812
+#: musicbot/bot.py:2816
 #, python-format
 msgid ""
 "Channel activity waiting %(time)d seconds to leave channel: %(channel)s"
@@ -1401,31 +1401,31 @@ msgstr ""
 "Kanalaktivitet väntar %(time)d sekunder för att lämna kanalen: %(channel)s"
 
 #. Used by: info
-#: musicbot/bot.py:2827
+#: musicbot/bot.py:2831
 #, python-format
 msgid "Channel activity timer for %s has expired. Disconnecting."
 msgstr "Kanalaktivitet timer för %s har löpt ut. Kopplar från."
 
 #. Used by: info
-#: musicbot/bot.py:2833
+#: musicbot/bot.py:2837
 #, python-format
 msgid "Channel activity timer canceled for: %(channel)s in %(guild)s"
 msgstr "Timer för kanalaktivitet avbryts för: %(channel)s i %(guild)s"
 
 #. Used by: debug
-#: musicbot/bot.py:2861
+#: musicbot/bot.py:2865
 #, python-format
 msgid "Ignoring player inactivity in auto-joined channel:  %s"
 msgstr "Ignorerar spelarinaktivitet i auto-anslöt kanal:  %s"
 
 #. Used by: debug
-#: musicbot/bot.py:2868
+#: musicbot/bot.py:2872
 #, python-format
 msgid "Player activity timer already waiting in guild: %s"
 msgstr "Spelarens aktivitets timer väntar redan i guild: %s"
 
 #. Used by: info
-#: musicbot/bot.py:2876
+#: musicbot/bot.py:2880
 #, python-format
 msgid ""
 "Player activity timer waiting %(time)d seconds to leave channel: %(channel)s"
@@ -1434,137 +1434,137 @@ msgstr ""
 "%(channel)s"
 
 #. Used by: info
-#: musicbot/bot.py:2888
+#: musicbot/bot.py:2892
 #, python-format
 msgid "Player activity timer for %s has expired. Disconnecting."
 msgstr "Spelarens aktivitets timer för %s har löpt ut. Kopplar från."
 
 #. Used by: info
-#: musicbot/bot.py:2894 musicbot/bot.py:2899
+#: musicbot/bot.py:2898 musicbot/bot.py:2903
 #, python-format
 msgid "Player activity timer canceled for: %(channel)s in %(guild)s"
 msgstr ""
 "Tidtagaren för spelarens aktivitet avbryts för: %(channel)s i %(guild)s"
 
 #. Used by: debug
-#: musicbot/bot.py:2916
+#: musicbot/bot.py:2920
 msgid "Player activity timer is being reset."
 msgstr "Spelarens aktivitet timer återställs."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3025
+#: musicbot/bot.py:3029
 msgid "No such command"
 msgstr "Inget sådant kommando"
 
 #. Used by: CommandError
-#: musicbot/bot.py:3101
+#: musicbot/bot.py:3105
 msgid "You must mention a user or provide their ID number."
 msgstr "Du måste ange en användare eller ange deras ID-nummer."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3106
+#: musicbot/bot.py:3110
 msgid "Invalid sub-command given. Use `help blockuser` for usage examples."
 msgstr ""
 "Ogiltigt underkommando angivet. Använd `help blockuser` för "
 "användningsexempel."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3117
+#: musicbot/bot.py:3121
 msgid "MusicBot could not find the user(s) you specified."
 msgstr "MusicBot kunde inte hitta de användare du angav."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3124
+#: musicbot/bot.py:3128
 msgid "The owner cannot be added to the block list."
 msgstr "Ägaren kan inte läggas till i blocklistan."
 
 #. Used by: info
-#: musicbot/bot.py:3128
+#: musicbot/bot.py:3132
 #, python-format
 msgid "Not adding user to block list, already blocked:  %(id)s/%(name)s"
 msgstr ""
 "Lägger inte till användare i blocklistan, redan blockerad:  %(id)s/%(name)s"
 
 #. Used by: info
-#: musicbot/bot.py:3137
+#: musicbot/bot.py:3141
 #, python-format
 msgid "Not removing user from block list, not listed:  %(id)s/%(name)s"
 msgstr ""
 "Tar inte bort användare från blocklistan, inte listad:  %(id)s/%(name)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:3154
+#: musicbot/bot.py:3158
 msgid "Cannot add the users you listed, they are already added."
 msgstr "Kan inte lägga till de användare du listade, de är redan tillagda."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3231
+#: musicbot/bot.py:3235
 msgid "You must provide a song subject if no song is currently playing."
 msgstr "Du måste ange ett låtämne om ingen låt spelas just nu."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3237
+#: musicbot/bot.py:3241
 msgid "Invalid sub-command given. Use `help blocksong` for usage examples."
 msgstr ""
 "Ogiltigt underkommando angivet. Använd `help blocksong` för "
 "användningsexempel."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3249
+#: musicbot/bot.py:3253
 #, python-format
 msgid "Subject `%(subject)s` is already in the song block list."
 msgstr "Ämne `%(subject)s` finns redan i listan över låtblock."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3281
+#: musicbot/bot.py:3285
 msgid "The subject is not in the song block list and cannot be removed."
 msgstr "Ämnet finns inte i listan över låtblock och kan inte tas bort."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3369
+#: musicbot/bot.py:3373
 msgid "Invalid sub-command given. Use `help autoplaylist` for usage examples."
 msgstr ""
 "Ogiltigt underkommando angivet. Använd `help autoplaylist` för "
 "användningsexempel."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3376
+#: musicbot/bot.py:3380
 msgid "The supplied song link is invalid"
 msgstr "Länk till medföljande låt är ogiltig"
 
 #. Used by: CommandError
-#: musicbot/bot.py:3382
+#: musicbot/bot.py:3386
 msgid "The queue is empty. Add some songs with a play command!"
 msgstr "Kön är tom. Lägg till några låtar med ett låtkommando!"
 
 #. Used by: CommandError
-#: musicbot/bot.py:3410
+#: musicbot/bot.py:3414
 msgid "This song is already in the autoplaylist."
 msgstr "Den här låten finns redan i autospellistan."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3427
+#: musicbot/bot.py:3431
 msgid "This song is not yet in the autoplaylist."
 msgstr "Den här låten finns ännu inte med i autospellistan."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3461
+#: musicbot/bot.py:3465
 msgid "You must provide a playlist filename."
 msgstr "Du måste ange ett filnamn för spellistan."
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:3652
+#: musicbot/bot.py:3656
 msgid "You are not allowed to request playlists"
 msgstr "Du har inte behörighet att begära spellistor"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:3660
+#: musicbot/bot.py:3664
 #, python-format
 msgid "Playlist has too many entries (%(songs)s but max is %(max)s)"
 msgstr "Spellistan har för många poster (%(songs)s men max är %(max)s)"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:3671
+#: musicbot/bot.py:3675
 #, python-format
 msgid ""
 "The playlist entries will exceed your queue limit.\n"
@@ -1576,12 +1576,12 @@ msgstr ""
 "Gränsen är %(max)s för din grupp."
 
 #. Used by: debug
-#: musicbot/bot.py:3695
+#: musicbot/bot.py:3699
 msgid "Ignoring auto-pause due to network outage."
 msgstr "Ignorerar automatisk paus på grund av nätverksavbrott."
 
 #. Used by: voicedebug
-#: musicbot/bot.py:3700
+#: musicbot/bot.py:3704
 msgid ""
 "MusicPlayer has no VoiceClient or has no channel data, cannot process auto-"
 "pause."
@@ -1590,12 +1590,12 @@ msgstr ""
 "bearbeta automatisk paus."
 
 #. Used by: debug
-#: musicbot/bot.py:3711
+#: musicbot/bot.py:3715
 msgid "Already processing auto-pause, ignoring this event."
 msgstr "Behandlar redan automatisk paus, ignorerar denna händelse."
 
 #. Used by: warning
-#: musicbot/bot.py:3719
+#: musicbot/bot.py:3723
 #, python-format
 msgid ""
 "%sVoiceClient not connected, waiting %s seconds to handle auto-pause in "
@@ -1605,58 +1605,58 @@ msgstr ""
 "guild:  %s"
 
 #. Used by: debug
-#: musicbot/bot.py:3727
+#: musicbot/bot.py:3731
 msgid "Auto-pause waiting was cancelled."
 msgstr "Auto-paus väntar avbröts."
 
 #. Used by: info
-#: musicbot/bot.py:3734
+#: musicbot/bot.py:3738
 msgid "A new MusicPlayer is being connected, ignoring old auto-pause event."
 msgstr ""
 "En ny MusicPlayer håller på att anslutas och ignorerar gamla auto-paus-"
 "händelser."
 
 #. Used by: info
-#: musicbot/bot.py:3750
+#: musicbot/bot.py:3754
 #, python-format
 msgid "Playing in an empty voice channel, running auto pause for guild: %s"
 msgstr "Spelar i en tom röstkanal, kör automatisk paus för guild: %s"
 
 #. Used by: info
-#: musicbot/bot.py:3757
+#: musicbot/bot.py:3761
 #, python-format
 msgid "Previously auto paused player is unpausing for guild: %s"
 msgstr "Tidigare automatisk pausad spelare avpausar för guild: %s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:3988
+#: musicbot/bot.py:3992
 msgid "Cannot use seek if there is nothing playing."
 msgstr "Kan inte använda söka om det inte finns något att spela."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3993
+#: musicbot/bot.py:3997
 msgid "Cannot use seek on current track, it has an unknown duration."
 msgstr ""
 "Kan inte använda sökningen på nuvarande spår, den har en okänd varaktighet."
 
 #. Used by: CommandError
-#: musicbot/bot.py:3999
+#: musicbot/bot.py:4003
 msgid "Seeking is not supported for streams."
 msgstr "Sökandet stöds inte för strömmar."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4009
+#: musicbot/bot.py:4013
 msgid "Cannot use seek without a time to position playback."
 msgstr "Kan inte använda söka utan tid för att placera uppspelning."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4027
+#: musicbot/bot.py:4031
 #, python-format
 msgid "Could not convert `%(input)s` to a valid time in seconds."
 msgstr "Kunde inte konvertera `%(input)s` till en giltig tid i sekunder."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4040
+#: musicbot/bot.py:4044
 #, python-format
 msgid ""
 "Cannot seek to `%(input)s` (`%(seconds)s` seconds) in the current track with"
@@ -1666,29 +1666,29 @@ msgstr ""
 "spåret med en längd av `%(progress)s / %(total)s`"
 
 #. Used by: CommandError
-#: musicbot/bot.py:4101
+#: musicbot/bot.py:4105
 msgid "Invalid sub-command. Use the command `help repeat` for usage examples."
 msgstr ""
 "Ogiltigt underkommando. Använd kommandot `help repeat` för "
 "användningsexempel."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4139
+#: musicbot/bot.py:4143
 msgid "The player is not currently looping."
 msgstr "Spelaren loopar inte för närvarande."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4195
+#: musicbot/bot.py:4199
 msgid "Song positions must be integers!"
 msgstr "Sångpositioner måste vara heltal!"
 
 #. Used by: CommandError
-#: musicbot/bot.py:4200
+#: musicbot/bot.py:4204
 msgid "You gave a position outside the playlist size!"
 msgstr "Du gav en position utanför spellistan storlek!"
 
 #. Used by: warning
-#: musicbot/bot.py:4248
+#: musicbot/bot.py:4252
 msgid ""
 "Could not prompt for playlist playback, no message to add reactions to."
 msgstr ""
@@ -1696,38 +1696,38 @@ msgstr ""
 " till reaktioner på."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4337
+#: musicbot/bot.py:4341
 msgid "Local media playback is not enabled."
 msgstr "Lokal medieuppspelning är inte aktiverad."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4380
+#: musicbot/bot.py:4384
 msgid "Spotify URL is invalid or not currently supported."
 msgstr "Spotify-URL är ogiltig eller stöds inte för närvarande."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4384
+#: musicbot/bot.py:4388
 msgid "Detected a Spotify URL, but Spotify is not enabled."
 msgstr "Upptäckte en Spotify-URL, men Spotify är inte aktiverat."
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:4394 musicbot/bot.py:4599
+#: musicbot/bot.py:4398 musicbot/bot.py:4603
 #, python-format
 msgid "You have reached your enqueued song limit (%(max)s)"
 msgstr "Du har nått din köade låtgräns (%(max)s)"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:4400 musicbot/bot.py:4605 musicbot/bot.py:4702
+#: musicbot/bot.py:4404 musicbot/bot.py:4609 musicbot/bot.py:4706
 msgid "Karaoke mode is enabled, please try again when its disabled!"
 msgstr "Karaoke-läget är aktiverat, försök igen när det är inaktiverat!"
 
 #. Used by: exception
-#: musicbot/bot.py:3545 musicbot/bot.py:4412
+#: musicbot/bot.py:3549 musicbot/bot.py:4416
 msgid "Issue with extract_info(): "
 msgstr "Problem med extract_info(): "
 
 #. Used by: CommandError
-#: musicbot/bot.py:3549 musicbot/bot.py:4416 musicbot/bot.py:4621
+#: musicbot/bot.py:3553 musicbot/bot.py:4420 musicbot/bot.py:4625
 #, python-format
 msgid ""
 "Failed to extract info due to error:\n"
@@ -1737,18 +1737,18 @@ msgstr ""
 "%(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:4422
+#: musicbot/bot.py:4426
 msgid "That video cannot be played. Try using the stream command."
 msgstr "Den videon kan inte spelas. Prova att använda strömkommandot."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4433
+#: musicbot/bot.py:4437
 #, python-format
 msgid "YouTube search returned no results for:  %(url)s"
 msgstr "YouTube-sökning gav inga resultat för:  %(url)s"
 
 #. Used by: info
-#: musicbot/bot.py:4463
+#: musicbot/bot.py:4467
 #, python-format
 msgid ""
 "Processed %(number)d of %(total)d songs in %(time).3f seconds at "
@@ -1758,7 +1758,7 @@ msgstr ""
 "%(time_per).2f s/sång"
 
 #. Used by: CommandError
-#: musicbot/bot.py:4474
+#: musicbot/bot.py:4478
 #, python-format
 msgid ""
 "No songs were added, all songs were over max duration (%(max)s seconds)"
@@ -1767,103 +1767,103 @@ msgstr ""
 "sekunder)"
 
 #. Used by: noise
-#: musicbot/bot.py:4490
+#: musicbot/bot.py:4494
 msgid "Extracted an entry with 'youtube:playlist' as extractor key"
 msgstr "Extraherade en post med \"youtube<unk> list\" som utsugningsnyckel"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:4502
+#: musicbot/bot.py:4506
 #, python-format
 msgid "Song duration exceeds limit (%(length)s > %(max)s)"
 msgstr "Sånglängden överskrider gränsen (%(length)s > %(max)s)"
 
 #. Used by: debug
-#: musicbot/bot.py:4520
+#: musicbot/bot.py:4524
 #, python-format
 msgid "Added song(s) at position %s"
 msgstr "Lade till låt(ar) på position %s"
 
 #. Used by: warning
-#: musicbot/bot.py:4557
+#: musicbot/bot.py:4561
 #, python-format
 msgid "Cannot estimate time until playing for position: %d"
 msgstr "Kan inte uppskatta tid innan du spelar för position: %d"
 
 #. Used by: exception
-#: musicbot/bot.py:4618
+#: musicbot/bot.py:4622
 #, python-format
 msgid "Failed to get info from the stream request: %s"
 msgstr "Misslyckades att hämta information från strömningsförfrågan: %s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:4627
+#: musicbot/bot.py:4631
 msgid "Streaming playlists is not yet supported."
 msgstr "Streaming av spellistor stöds ännu inte."
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:4696
+#: musicbot/bot.py:4700
 #, python-format
 msgid "You have reached your playlist item limit (%(max)s)"
 msgstr "Du har nått din gräns för spellistans objekt (%(max)s)"
 
 #. Used by: CommandError
-#: musicbot/bot.py:4708
+#: musicbot/bot.py:4712
 msgid ""
 "Please specify a search query.  Use `help search` for more information."
 msgstr "Ange en sökfråga. Använd `help search` för mer information."
 
 #. Used by: CommandError
-#: musicbot/bot.py:4744
+#: musicbot/bot.py:4748
 #, python-format
 msgid "You cannot search for more than %(max)s videos"
 msgstr "Du kan inte söka efter mer än %(max)s videor"
 
 #. Used by: debug
-#: musicbot/bot.py:5069
+#: musicbot/bot.py:5074
 #, python-format
 msgid "Waiting for summon lock: %s"
 msgstr "Väntar på stämningslås: %s"
 
 #. Used by: debug
-#: musicbot/bot.py:5072
+#: musicbot/bot.py:5077
 #, python-format
 msgid "Summon lock acquired for: %s"
 msgstr "Kallelselås som förvärvats för: %s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5076
+#: musicbot/bot.py:5081
 msgid "You are not connected to voice. Try joining a voice channel!"
 msgstr "Du är inte ansluten till röst. Försök att ansluta till en röstkanal!"
 
 #. Used by: info
-#: musicbot/bot.py:5101
+#: musicbot/bot.py:5106
 #, python-format
 msgid "Joining %(guild)s/%(channel)s"
 msgstr "Ansluter till %(guild)s/%(channel)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5163
+#: musicbot/bot.py:5168
 msgid "MusicBot cannot follow a user that is not a member of the server."
 msgstr "MusicBot kan inte följa en användare som inte är medlem i servern."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5191
+#: musicbot/bot.py:5196
 msgid "Player is not playing."
 msgstr "Spelaren spelar inte."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5316
+#: musicbot/bot.py:5321
 msgid "Nothing in the queue to remove!"
 msgstr "Ingenting i kön att ta bort!"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5337
+#: musicbot/bot.py:5342
 #, python-format
 msgid "Nothing found in the queue from user `%(user)s`"
 msgstr "Ingenting hittades i kön från användaren `%(user)s`"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:5342 musicbot/bot.py:5378
+#: musicbot/bot.py:5347 musicbot/bot.py:5383
 msgid ""
 "You do not have the permission to remove that entry from the queue.\n"
 "You must be the one who queued it or have instant skip permissions."
@@ -1872,38 +1872,38 @@ msgstr ""
 "Du måste vara den som köade det eller har omedelbar hoppa över behörigheter."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5353 musicbot/bot.py:5358
+#: musicbot/bot.py:5358 musicbot/bot.py:5363
 msgid "Invalid entry number. Use the queue command to find queue positions."
 msgstr "Ogiltigt postnummer. Använd kökommandot för att hitta köpositioner."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5409
+#: musicbot/bot.py:5414
 msgid "Can't skip! The player is not playing!"
 msgstr "Kan inte hoppa över! Spelaren spelar inte!"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:5461
+#: musicbot/bot.py:5466
 msgid "You do not have permission to force skip a looped song."
 msgstr "Du har inte behörighet att tvinga hoppa över en loopad låt."
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:5481
+#: musicbot/bot.py:5486
 msgid "You do not have permission to force skip."
 msgstr "Du har inte behörighet att tvinga hopp."
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:5518 musicbot/bot.py:5551
+#: musicbot/bot.py:5523 musicbot/bot.py:5556
 msgid "You do not have permission to skip a looped song."
 msgstr "Du har inte behörighet att hoppa över en loopad låt."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5601
+#: musicbot/bot.py:5606
 #, python-format
 msgid "`%(new_volume)s` is not a valid number"
 msgstr "`%(new_volume)s` är inte ett giltigt tal"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5642
+#: musicbot/bot.py:5647
 #, python-format
 msgid ""
 "Unreasonable volume change provided: %(old_volume)s%(adjustment)s is %(new_volume)s.\n"
@@ -1913,14 +1913,14 @@ msgstr ""
 "Volymen kan endast ändras från 1 till 100."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5652
+#: musicbot/bot.py:5657
 #, python-format
 msgid ""
 "Unreasonable volume provided: %(volume)s. Provide a value between 1 and 100."
 msgstr "Orimlig volym angiven: %(volume)s. Ange ett värde mellan 1 och 100."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5676
+#: musicbot/bot.py:5681
 msgid ""
 "No track is playing, cannot set speed.\n"
 "Use the config command to set a default playback speed."
@@ -1929,29 +1929,29 @@ msgstr ""
 "Använd konfigurationskommandot för att ställa in en standard uppspelningshastighet."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5684
+#: musicbot/bot.py:5689
 msgid "Speed cannot be applied to streamed media."
 msgstr "Hastighet kan inte tillämpas på strömmade medier."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5689
+#: musicbot/bot.py:5694
 msgid "You must provide a speed to set."
 msgstr "Du måste ange en hastighet att ställa in."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5698
+#: musicbot/bot.py:5703
 msgid "The speed you provided is invalid. Use a number between 0.5 and 100."
 msgstr ""
 "Hastigheten du angav är ogiltig. Använd ett nummer mellan 0,5 och 100."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5757 musicbot/bot.py:5873 musicbot/bot.py:6805
+#: musicbot/bot.py:5762 musicbot/bot.py:5878 musicbot/bot.py:6810
 #, python-format
 msgid "Invalid option for command: `%(option)s`"
 msgstr "Ogiltigt alternativ för kommandot: `%(option)s`"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5771
+#: musicbot/bot.py:5776
 #, python-format
 msgid ""
 "Failed to save aliases due to error:\n"
@@ -1961,28 +1961,28 @@ msgstr ""
 "`%(raw_error)s`"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5778
+#: musicbot/bot.py:5783
 msgid "You must supply an alias and a command to alias"
 msgstr "Du måste tillhandahålla ett alias och ett kommando till alias"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5793
+#: musicbot/bot.py:5798
 msgid "You must supply an alias name to remove."
 msgstr "Du måste ange ett alias namn för att ta bort."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5798
+#: musicbot/bot.py:5803
 #, python-format
 msgid "The alias `%(alias)s` does not exist."
 msgstr "Alias `%(alias)s` finns inte."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5856
+#: musicbot/bot.py:5861
 msgid "Config cannot use channel and user mentions at the same time."
 msgstr "Konfigurationen kan inte använda kanal och användarnamn samtidigt."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5954
+#: musicbot/bot.py:5959
 #, python-format
 msgid ""
 "Unable to reload Config due to the following error:\n"
@@ -1992,7 +1992,7 @@ msgstr ""
 "%(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:5972
+#: musicbot/bot.py:5977
 msgid ""
 "Could not resolve section name from option name. Please provide a valid "
 "section and option name."
@@ -2001,17 +2001,17 @@ msgstr ""
 "undervisnings- och alternativnamn."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5976
+#: musicbot/bot.py:5981
 msgid "The option given is ambiguous, please provide a section name."
 msgstr "Det alternativ som anges är tvetydigt, ange ett avsnittsnamn."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5982
+#: musicbot/bot.py:5987
 msgid "You must provide a section name and option name for this command."
 msgstr "Du måste ange ett namn och alternativnamn för detta kommando."
 
 #. Used by: CommandError
-#: musicbot/bot.py:5998
+#: musicbot/bot.py:6003
 #, python-format
 msgid ""
 "The section `%(section)s` is not available.\n"
@@ -2021,32 +2021,32 @@ msgstr ""
 "De tillgängliga sektionerna är:  %(sections)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6006
+#: musicbot/bot.py:6011
 #, python-format
 msgid "The option `%(option)s` is not available."
 msgstr "Alternativet `%(option)s` är inte tillgängligt."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6034
+#: musicbot/bot.py:6039
 #, python-format
 msgid "Option `%(option)s` is not editable. Cannot save to disk."
 msgstr ""
 "Alternativet `%(option)s` är inte redigerbart. Kan inte spara till disk."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6043
+#: musicbot/bot.py:6048
 #, python-format
 msgid "Failed to save the option:  `%(option)s`"
 msgstr "Kunde inte spara alternativet: `%(option)s`"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6058
+#: musicbot/bot.py:6063
 #, python-format
 msgid "Option `%(option)s` is not editable, value cannot be displayed."
 msgstr "Alternativ `%(option)s` är inte redigerbar, värde kan inte visas."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6088
+#: musicbot/bot.py:6093
 #, python-format
 msgid "Option `%(option)s` is not editable. Cannot update setting."
 msgstr ""
@@ -2054,25 +2054,25 @@ msgstr ""
 "inställningen."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6094 musicbot/bot.py:7018
+#: musicbot/bot.py:6099 musicbot/bot.py:7023
 msgid "You must provide a section, option, and value for this sub command."
 msgstr ""
 "Du måste ange ett avsnitt, alternativ och värde för detta underkommando."
 
 #. Used by: debug
-#: musicbot/bot.py:6098
+#: musicbot/bot.py:6103
 #, python-format
 msgid "Doing set with on %(config)s == %(value)s"
 msgstr "Gör set med på %(config)s == %(value)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6105
+#: musicbot/bot.py:6110
 #, python-format
 msgid "Option `%(option)s` was not updated!"
 msgstr "Alternativet `%(option)s` uppdaterades inte!"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6121
+#: musicbot/bot.py:6126
 #, python-format
 msgid "Option `%(option)s` is not editable. Cannot reset to default."
 msgstr ""
@@ -2080,46 +2080,46 @@ msgstr ""
 "standard."
 
 #. Used by: debug
-#: musicbot/bot.py:6133
+#: musicbot/bot.py:6138
 #, python-format
 msgid "Resetting %(config)s to default %(value)s"
 msgstr "Återställer %(config)s till standard %(value)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6140
+#: musicbot/bot.py:6145
 #, python-format
 msgid "Option `%(option)s` was not reset to default!"
 msgstr "Alternativet `%(option)s` återställdes inte till standard!"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6173
+#: musicbot/bot.py:6178
 msgid "The option command is deprecated, use the config command instead."
 msgstr "Alternativkommandot är föråldrat, använd kommandot config istället."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6193
+#: musicbot/bot.py:6198
 msgid "Invalid option specified, use: info, update, or clear"
 msgstr ""
 "Ogiltigt alternativ angivet, användning: info, uppdatering eller rensa"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6250
+#: musicbot/bot.py:6255
 msgid "**Failed** to delete cache, check logs for more info..."
 msgstr ""
 "**Misslyckades** att ta bort cache, kolla loggar för mer information..."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6285
+#: musicbot/bot.py:6290
 msgid "Queue page argument must be a whole number."
 msgstr "Kö sida argument måste vara ett heltal."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6292
+#: musicbot/bot.py:6297
 msgid "There are no songs queued! Queue something with a play command."
 msgstr "Det finns inga låtar köade! Köa något med ett spelkommando."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6299
+#: musicbot/bot.py:6304
 #, python-format
 msgid ""
 "Requested page number is out of bounds.\n"
@@ -2129,24 +2129,24 @@ msgstr ""
 "Det finns **%(total)s** sidor."
 
 #. Used by: debug
-#: musicbot/bot.py:6342
+#: musicbot/bot.py:6347
 msgid "Skipped the current playlist entry."
 msgstr "Hoppade över den aktuella spellistposten."
 
 #. Used by: debug
-#: musicbot/bot.py:6385
+#: musicbot/bot.py:6390
 msgid "Not enough entries to paginate the queue."
 msgstr "Inte tillräckligt med poster för att paginera kön."
 
 #. Used by: warning
-#: musicbot/bot.py:6389
+#: musicbot/bot.py:6394
 msgid "Could not post queue message, no message to add reactions to."
 msgstr ""
 "Kunde inte posta kömeddelande, inget meddelande att lägga till reaktioner "
 "på."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6391
+#: musicbot/bot.py:6396
 msgid ""
 "Try that again. MusicBot couldn't make or get a reference to the queue message.\n"
 "If the issue persists, file a bug report."
@@ -2155,17 +2155,17 @@ msgstr ""
 "Om problemet kvarstår, skicka in en felrapport."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6501
+#: musicbot/bot.py:6506
 msgid "Cannot use purge on private DM channel."
 msgstr "Kan inte använda rensning på privat DM-kanal."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6533
+#: musicbot/bot.py:6538
 msgid "The given URL was not a valid URL."
 msgstr "Den angivna URL:en var inte en giltig URL."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6543
+#: musicbot/bot.py:6548
 #, python-format
 msgid ""
 "Could not extract info from input url\n"
@@ -2175,12 +2175,12 @@ msgstr ""
 "%(raw_error)s\n"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6548
+#: musicbot/bot.py:6553
 msgid "This does not seem to be a playlist."
 msgstr "Detta verkar inte vara en spellista."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6711
+#: musicbot/bot.py:6716
 msgid ""
 "Invalid user ID or server nickname, please double-check the ID and try "
 "again."
@@ -2189,17 +2189,17 @@ msgstr ""
 "försök igen."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6718
+#: musicbot/bot.py:6723
 msgid "Could not determine the discord User.  Try again."
 msgstr "Kunde inte bestämma discord-användaren. Försök igen."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6789
+#: musicbot/bot.py:6794
 msgid "Permissions cannot use channel and user mentions at the same time."
 msgstr "Behörigheter kan inte använda kanal och användarnamn samtidigt."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6824
+#: musicbot/bot.py:6829
 #, python-format
 msgid ""
 "Unable to reload Permissions due to an error:\n"
@@ -2209,23 +2209,23 @@ msgstr ""
 "%(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6861
+#: musicbot/bot.py:6866
 msgid "You must provide a group or option name for this command."
 msgstr "Du måste ange ett grupp- eller alternativnamn för detta kommando."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6865
+#: musicbot/bot.py:6870
 msgid "You must provide a group, option, and value to set for this command."
 msgstr "Du måste ange en grupp, alternativ och värde för detta kommando."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6879
+#: musicbot/bot.py:6884
 #, python-format
 msgid "The %(option)s sub-command requires a group and permission name."
 msgstr "%(option)s underkommandot kräver ett grupp- och behörighetsnamn."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6891
+#: musicbot/bot.py:6896
 #, python-format
 msgid ""
 "The group `%(group)s` is not available.\n"
@@ -2235,47 +2235,47 @@ msgstr ""
 "De tillgängliga grupperna är:  %(sections)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:6902
+#: musicbot/bot.py:6907
 #, python-format
 msgid "The permission `%(option)s` is not available."
 msgstr "Behörigheten `%(option)s` är inte tillgänglig."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6938
+#: musicbot/bot.py:6943
 #, python-format
 msgid "Cannot add group `%(group)s` it already exists."
 msgstr "Kan inte lägga till grupp `%(group)s` det finns redan."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6956
+#: musicbot/bot.py:6961
 msgid "Cannot remove built-in group."
 msgstr "Kan inte ta bort inbyggd grupp."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6974 musicbot/bot.py:7013
+#: musicbot/bot.py:6979 musicbot/bot.py:7018
 msgid "The owner group is not editable."
 msgstr "Ägargruppen är inte redigerbar."
 
 #. Used by: CommandError
-#: musicbot/bot.py:6982
+#: musicbot/bot.py:6987
 #, python-format
 msgid "Failed to save the group:  `%(group)s`"
 msgstr "Det gick inte att spara gruppen: `%(group)s`"
 
 #. Used by: debug
-#: musicbot/bot.py:7022
+#: musicbot/bot.py:7027
 #, python-format
 msgid "Doing set on %(option)s with value: %(value)s"
 msgstr "Gör set på %(option)s med värde: %(value)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7029
+#: musicbot/bot.py:7034
 #, python-format
 msgid "Permission `%(option)s` was not updated!"
 msgstr "Behörighet `%(option)s` uppdaterades inte!"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7070
+#: musicbot/bot.py:7075
 msgid ""
 "Failed to change username. Did you change names too many times?\n"
 "Remember name changes are limited to twice per hour.\n"
@@ -2284,7 +2284,7 @@ msgstr ""
 "Kom ihåg att namnändringar är begränsade till två gånger per timme.\n"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7076
+#: musicbot/bot.py:7081
 #, python-format
 msgid ""
 "Failed to change username due to error:  \n"
@@ -2294,12 +2294,12 @@ msgstr ""
 "%(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7098
+#: musicbot/bot.py:7103
 msgid "Unable to change nickname: no permission."
 msgstr "Det går inte att ändra smeknamn: ingen behörighet."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7106
+#: musicbot/bot.py:7111
 #, python-format
 msgid ""
 "Failed to set nickname due to error:  \n"
@@ -2309,13 +2309,13 @@ msgstr ""
 "%(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7146
+#: musicbot/bot.py:7151
 msgid "Custom emoji must be from this server to use as a prefix."
 msgstr ""
 "Anpassad emoji måste vara från den här servern för att använda som prefix."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7163
+#: musicbot/bot.py:7168
 msgid ""
 "Prefix per server is not enabled!\n"
 "Use the config command to update the prefix instead."
@@ -2324,29 +2324,29 @@ msgstr ""
 "Använd konfigurationskommandot för att uppdatera prefixet istället."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7193
+#: musicbot/bot.py:7198
 msgid "This command can only be used in guilds."
 msgstr "Detta kommando kan endast användas i guilds."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7198
+#: musicbot/bot.py:7203
 msgid "Invalid sub-command given. Use the help command for more information."
 msgstr ""
 "Ogiltigt underkommando ges. Använd hjälpkommandot för mer information."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7219
+#: musicbot/bot.py:7224
 #, python-format
 msgid "Cannot set language to `%(locale)s` it is not available."
 msgstr "Kan inte ställa in språk till `%(locale)s` det är inte tillgängligt."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7264
+#: musicbot/bot.py:7269
 msgid "You must provide a URL or attach a file."
 msgstr "Du måste ange en URL eller bifoga en fil."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7274
+#: musicbot/bot.py:7279
 #, python-format
 msgid ""
 "Unable to change avatar due to error:  \n"
@@ -2356,19 +2356,19 @@ msgstr ""
 "%(raw_error)s"
 
 #. Used by: warning
-#: musicbot/bot.py:7299
+#: musicbot/bot.py:7304
 #, python-format
 msgid "MusicBot found a %s with no guild!  This could be a problem."
 msgstr "MusicBot hittade en %s utan guild! Detta kan vara ett problem."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7311
+#: musicbot/bot.py:7316
 #, python-format
 msgid "Not currently connected to server `%(guild)s`"
 msgstr "Inte ansluten till servern `%(guild)s`"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7352
+#: musicbot/bot.py:7357
 msgid ""
 "Invalid option given, use one of:  soft, full, upgrade, uppip, or upgit"
 msgstr ""
@@ -2376,44 +2376,44 @@ msgstr ""
 "eller upgit"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7461
+#: musicbot/bot.py:7466
 msgid "You must provide an ID or name."
 msgstr "Du måste ange ett ID eller namn."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7472
+#: musicbot/bot.py:7477
 #, python-format
 msgid "No guild was found with the ID or name `%(input)s`"
 msgstr "Ingen guild hittades med ID eller namn `%(input)s`"
 
 #. Used by: critical
-#: musicbot/bot.py:7529
+#: musicbot/bot.py:7534
 #, python-format
 msgid "Activating debug breakpoint ID: %(uuid)s"
 msgstr "Aktivera debug brytpunkt ID: %(uuid)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7569
+#: musicbot/bot.py:7574
 msgid "Could not import `objgraph`, is it installed?"
 msgstr "Kunde inte importera `objgraph`, är det installerat?"
 
 #. Used by: debug
-#: musicbot/bot.py:7645
+#: musicbot/bot.py:7650
 msgid "Debug code ran with eval()."
 msgstr "Felsökningskoden gick med eval()."
 
 #. Used by: debug
-#: musicbot/bot.py:7655
+#: musicbot/bot.py:7660
 msgid "Debug code ran with exec()."
 msgstr "Felsökningskoden kördes med körning()."
 
 #. Used by: exception
-#: musicbot/bot.py:7658
+#: musicbot/bot.py:7663
 msgid "Debug code failed to execute."
 msgstr "Felsökningskoden misslyckades att köra."
 
 #. Used by: CommandError
-#: musicbot/bot.py:7660
+#: musicbot/bot.py:7665
 #, python-format
 msgid ""
 "Failed to execute debug code:\n"
@@ -2429,55 +2429,55 @@ msgstr ""
 "%(ex_text)s```"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7695 musicbot/bot.py:7756
+#: musicbot/bot.py:7700 musicbot/bot.py:7761
 #, python-format
 msgid "Sub-command must be one of: %(options)s"
 msgstr "Underkommando måste vara ett av: %(options)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:7795
+#: musicbot/bot.py:7800
 msgid "Could not locate git executable."
 msgstr "Kunde inte lokalisera git körbar."
 
 #. Used by: exception
-#: musicbot/bot.py:7839
+#: musicbot/bot.py:7844
 msgid "Failed while checking for updates via git command."
 msgstr "Det gick inte att söka efter uppdateringar via git-kommandot."
 
 #. Used by: debug
-#: musicbot/bot.py:7868
+#: musicbot/bot.py:7873
 msgid "Package missing meta in pip report."
 msgstr "Paket saknar meta i pip rapport."
 
 #. Used by: exception
-#: musicbot/bot.py:7882
+#: musicbot/bot.py:7887
 msgid "Failed to get pip update status due to some error."
 msgstr "Det gick inte att hämta pip-uppdateringsstatus på grund av något fel."
 
 #. Used by: debug
-#: musicbot/bot.py:7943
+#: musicbot/bot.py:7948
 msgid "Got a strange voice client entry."
 msgstr "Har en konstig röstklient post."
 
 #. Used by: CommandError
-#: musicbot/bot.py:8053
+#: musicbot/bot.py:8058
 msgid "Cookies already enabled."
 msgstr "Cookies har redan aktiverats."
 
 #. Used by: CommandError
-#: musicbot/bot.py:8060
+#: musicbot/bot.py:8065
 msgid "Cookies must be uploaded to be enabled. (Missing cookies file.)"
 msgstr ""
 "Cookies måste laddas upp för att kunna aktiveras. (Missing cookies file.)"
 
 #. Used by: CommandError
-#: musicbot/bot.py:8073
+#: musicbot/bot.py:8078
 #, python-format
 msgid "Could not enable cookies due to error:  %(raw_error)s"
 msgstr "Kunde inte aktivera cookies på grund av fel:  %(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:8087
+#: musicbot/bot.py:8092
 #, python-format
 msgid ""
 "Could not rename cookies file due to error:  %(raw_error)s\n"
@@ -2487,7 +2487,7 @@ msgstr ""
 "Cookies tillfälligt inaktiverade och kommer att aktiveras igen vid nästa omstart."
 
 #. Used by: CommandError
-#: musicbot/bot.py:8096
+#: musicbot/bot.py:8101
 msgid ""
 "No attached uploads were found, try again while uploading a cookie file."
 msgstr ""
@@ -2495,178 +2495,178 @@ msgstr ""
 "cookie-fil."
 
 #. Used by: warning
-#: musicbot/bot.py:8105
+#: musicbot/bot.py:8110
 #, python-format
 msgid "Could not remove old, disabled cookies file:  %(raw_error)s"
 msgstr "Kunde inte ta bort gamla, inaktiverade cookiefil:  %(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:8114
+#: musicbot/bot.py:8119
 #, python-format
 msgid "Error downloading the cookies file from discord:  %(raw_error)s"
 msgstr "Fel vid nedladdning av cookie-filen från diskett:  %(raw_error)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:8119
+#: musicbot/bot.py:8124
 #, python-format
 msgid "Could not save cookies to disk:  %(raw_error)s"
 msgstr "Kunde inte spara kakor till disk:  %(raw_error)s"
 
 #. Used by: debug
-#: musicbot/bot.py:8137
+#: musicbot/bot.py:8142
 #, python-format
 msgid "Got a message with no channel, somehow:  %s"
 msgstr "Har ett meddelande utan kanal, på något sätt:  %s"
 
 #. Used by: warning
-#: musicbot/bot.py:8165
+#: musicbot/bot.py:8170
 #, python-format
 msgid "Ignoring command from myself (%s)"
 msgstr "Ignorerar kommando från mig själv (%s)"
 
 #. Used by: warning
-#: musicbot/bot.py:8173
+#: musicbot/bot.py:8178
 #, python-format
 msgid "Ignoring command from other bot (%s)"
 msgstr "Ignorerar kommando från annan bot (%s)"
 
 #. Used by: warning
-#: musicbot/bot.py:8181
+#: musicbot/bot.py:8186
 #, python-format
 msgid "Ignoring command from channel of type:  %s"
 msgstr "Ignorerar kommando från kanal av typ:  %s"
 
 #. Used by: warning
-#: musicbot/bot.py:8276
+#: musicbot/bot.py:8281
 #, python-format
 msgid "User in block list: %(id)s/%(name)s  tried command: %(command)s"
 msgstr ""
 "Användare i blocklistan: %(id)s/%(name)s  försökte kommando: %(command)s"
 
 #. Used by: info
-#: musicbot/bot.py:8283
+#: musicbot/bot.py:8288
 #, python-format
 msgid "Message from %(id)s/%(name)s: %(message)s"
 msgstr "Meddelande från %(id)s/%(name)s: %(message)s"
 
 #. Used by: PermissionsError
-#: musicbot/bot.py:8318
+#: musicbot/bot.py:8323
 #, python-format
 msgid "This command is not allowed for your permissions group:  %(group)s"
 msgstr "Detta kommando är inte tillåtet för din behörighetsgrupp:  %(group)s"
 
 #. Used by: CommandError
-#: musicbot/bot.py:8353
+#: musicbot/bot.py:8358
 msgid "This command requires you to be in a Voice channel."
 msgstr "Detta kommando kräver att du är i en röstkanal."
 
 #. Used by: debug
-#: musicbot/bot.py:8442
+#: musicbot/bot.py:8447
 #, python-format
 msgid "Invalid command usage, missing values for params: %(params)r"
 msgstr "Ogiltig kommandoanvändning, saknade värden för parametrar: %(params)r"
 
 #. Used by: error
-#: musicbot/bot.py:8480
+#: musicbot/bot.py:8485
 #, python-format
 msgid "Error in %(command)s: %(err_name)s: %(err_text)s"
 msgstr "Fel i %(command)s: %(err_name)s: %(err_text)s"
 
 #. Used by: error
-#: musicbot/bot.py:8503
+#: musicbot/bot.py:8508
 #, python-format
 msgid "Exception while handling command: %(command)s"
 msgstr "Undantag vid hantering av kommando: %(command)s"
 
 #. Used by: debug
-#: musicbot/bot.py:8534
+#: musicbot/bot.py:8539
 #, python-format
 msgid "Cannot generate help for missing command:  %s"
 msgstr "Kan inte generera hjälp för saknat kommando:  %s"
 
 #. Used by: critical
-#: musicbot/bot.py:8538
+#: musicbot/bot.py:8543
 #, python-format
 msgid "Missing help data for command:  %s"
 msgstr "Saknar hjälpdata för kommandot:  %s"
 
 #. Used by: info
-#: musicbot/bot.py:8655
+#: musicbot/bot.py:8660
 #, python-format
 msgid "Leaving voice channel %s in %s due to inactivity."
 msgstr "Lämnar röstkanal %s i %s på grund av inaktivitet."
 
 #. Used by: info
-#: musicbot/bot.py:8664
+#: musicbot/bot.py:8669
 msgid "MusicBot has become connected."
 msgstr "MusicBot har blivit ansluten."
 
 #. Used by: info
-#: musicbot/bot.py:8668
+#: musicbot/bot.py:8673
 msgid "MusicBot has become disconnected."
 msgstr "MusicBot har blivit frånkopplad."
 
 #. Used by: everything
-#: musicbot/bot.py:8673
+#: musicbot/bot.py:8678
 #, python-format
 msgid "Got a Socket Event:  %s"
 msgstr "Har ett uttag:  %s"
 
 #. Used by: warning
-#: musicbot/bot.py:8689
+#: musicbot/bot.py:8694
 msgid "VoiceState updated before on_ready finished"
 msgstr "Rösttillstånd uppdaterat innan on_ready finished"
 
 #. Used by: info
-#: musicbot/bot.py:8702
+#: musicbot/bot.py:8707
 #, python-format
 msgid "Ignoring %s in %s as it is a bound voice channel."
 msgstr "Ignorerar %s i %s eftersom det är en bunden röstkanal."
 
 #. Used by: info
-#: musicbot/bot.py:8711
+#: musicbot/bot.py:8716
 #, python-format
 msgid "%s has been detected as empty. Handling timeouts."
 msgstr "%s har upptäckts som tom. Hantering av timeouts."
 
 #. Used by: info
-#: musicbot/bot.py:8722
+#: musicbot/bot.py:8727
 #, python-format
 msgid "A user joined %s, cancelling timer."
 msgstr "En användare anslöt till %s, avbryter timer."
 
 #. Used by: info
-#: musicbot/bot.py:8735
+#: musicbot/bot.py:8740
 #, python-format
 msgid ""
 "The bot got moved and the voice channel %s is empty. Handling timeouts."
 msgstr "Botten blev flyttad och röstkanalen %s är tom. Hantering av timeouts."
 
 #. Used by: info
-#: musicbot/bot.py:8744
+#: musicbot/bot.py:8749
 #, python-format
 msgid "The bot got moved and the voice channel %s is not empty."
 msgstr "Botten blev flyttad och röstkanalen %s är inte tom."
 
 #. Used by: debug
-#: musicbot/bot.py:8793
+#: musicbot/bot.py:8798
 #, python-format
 msgid "No longer following user %s"
 msgstr "Följer inte längre %s"
 
 #. Used by: debug
-#: musicbot/bot.py:8815
+#: musicbot/bot.py:8820
 #, python-format
 msgid "Following user `%(user)s` to channel:  %(channel)s"
 msgstr "Följande användare `%(user)s` till kanal:  %(channel)s"
 
 #. Used by: debug
-#: musicbot/bot.py:8835
+#: musicbot/bot.py:8840
 msgid "VoiceState disconnect before.channel is None."
 msgstr "Röststaten kopplar ifrån innan kanalen är ingen."
 
 #. Used by: info
-#: musicbot/bot.py:8862
+#: musicbot/bot.py:8867
 #, python-format
 msgid ""
 "Disconnected from voice by Discord API in: %(guild)s/%(channel)s (Code: "
@@ -2676,98 +2676,98 @@ msgstr ""
 "%(code)s) [S:%(state)s]"
 
 #. Used by: error
-#: musicbot/bot.py:8884
+#: musicbot/bot.py:8889
 #, python-format
 msgid "Cannot use auto-join channel with type: %(type)s  in guild:  %(guild)s"
 msgstr ""
 "Kan inte använda auto-join-kanal med typ: %(type)s  i guild:  %(guild)s"
 
 #. Used by: error
-#: musicbot/bot.py:8891
+#: musicbot/bot.py:8896
 #, python-format
 msgid "Cannot find the auto-joined channel, was it deleted?  Guild:  %s"
 msgstr ""
 "Kan inte hitta den automatiskt anslöta kanalen, togs den bort? Guild:  %s"
 
 #. Used by: info
-#: musicbot/bot.py:8897
+#: musicbot/bot.py:8902
 #, python-format
 msgid "Reconnecting to auto-joined guild on channel:  %s"
 msgstr "Återansluter till auto-anslöt guild i kanalen:  %s"
 
 #. Used by: warning
-#: musicbot/bot.py:8910
+#: musicbot/bot.py:8915
 #, python-format
 msgid "Cannot auto join channel:  %s"
 msgstr "Kan inte ansluta till kanalen:  %s"
 
 #. Used by: info
-#: musicbot/bot.py:8926
+#: musicbot/bot.py:8931
 #, python-format
 msgid "Bot has been added to guild: %s"
 msgstr "Bot har lagts till i guild: %s"
 
 #. Used by: info
-#: musicbot/bot.py:8938
+#: musicbot/bot.py:8943
 #, python-format
 msgid "Left guild '%s' due to bot owner not found."
 msgstr "Vänster guild '%s' på grund av bot ägaren hittades inte."
 
 #. Used by: debug
-#: musicbot/bot.py:8952
+#: musicbot/bot.py:8957
 #, python-format
 msgid "Creating data folder for guild %s"
 msgstr "Skapar datamapp för guild %s"
 
 #. Used by: info
-#: musicbot/bot.py:8960
+#: musicbot/bot.py:8965
 #, python-format
 msgid "Bot has been removed from guild: %s"
 msgstr "Bot har tagits bort från guild: %s"
 
 #. Used by: debug
-#: musicbot/bot.py:8961
+#: musicbot/bot.py:8966
 msgid "Updated guild list:"
 msgstr "Uppdaterad guild-lista:"
 
 #. Used by: info
-#: musicbot/bot.py:8976
+#: musicbot/bot.py:8981
 #, python-format
 msgid "Guild \"%s\" has become available."
 msgstr "Guild \"%s\" har blivit tillgänglig."
 
 #. Used by: debug
-#: musicbot/bot.py:8982
+#: musicbot/bot.py:8987
 #, python-format
 msgid "Resuming player in \"%s\" due to availability."
 msgstr "Återupptar spelare i \"%s\" på grund av tillgänglighet."
 
 #. Used by: info
-#: musicbot/bot.py:8999
+#: musicbot/bot.py:9004
 #, python-format
 msgid "Guild \"%s\" has become unavailable."
 msgstr "Guild \"%s\" har inte blivit tillgänglig."
 
 #. Used by: debug
-#: musicbot/bot.py:9005
+#: musicbot/bot.py:9010
 #, python-format
 msgid "Pausing player in \"%s\" due to unavailability."
 msgstr "Pausa spelare i \"%s\" på grund av otillgänglighet."
 
 #. Used by: info
-#: musicbot/bot.py:9021
+#: musicbot/bot.py:9026
 #, python-format
 msgid "Guild update for:  %s"
 msgstr "Guild uppdatering för:  %s"
 
 #. Used by: everything
-#: musicbot/bot.py:9027
+#: musicbot/bot.py:9032
 #, python-format
 msgid "Guild attribute %(attr)s is now: %(new)s  -- Was: %(old)s"
 msgstr "Guild-attribut %(attr)s är nu: %(new)s  -- Var: %(old)s"
 
 #. Used by: info
-#: musicbot/bot.py:9078
+#: musicbot/bot.py:9083
 #, python-format
 msgid "Channel update for:  %(channel)s  --  %(changes)s"
 msgstr "Kanaluppdatering för:  %(channel)s  --  %(changes)s"
@@ -5125,36 +5125,36 @@ msgid "OK, we're closing!"
 msgstr "OK, vi stänger!"
 
 #. Used by: info
-#: musicbot/bot.py:2162
+#: musicbot/bot.py:2166
 msgid "MusicBot is now doing start up steps..."
 msgstr ""
 
 #. Used by: warning
-#: musicbot/bot.py:2169
+#: musicbot/bot.py:2173
 msgid "Start up failed at login."
 msgstr ""
 
 #. Used by: CommandError
-#: musicbot/bot.py:3501 musicbot/bot.py:3524 musicbot/bot.py:3586
+#: musicbot/bot.py:3505 musicbot/bot.py:3528 musicbot/bot.py:3590
 #, python-format
 msgid "No playlist file exists with the name: `%(playlist)s`"
 msgstr ""
 
 #. Used by: CommandError
-#: musicbot/bot.py:5266
+#: musicbot/bot.py:5271
 msgid ""
 "There is nothing currently playing. Play something with a play command."
 msgstr ""
 
 #. Used by: error
-#: musicbot/bot.py:5280
+#: musicbot/bot.py:5285
 #, python-format
 msgid ""
 "Missing permissions to delete queue file for %(guild)s(%(id)s) at: %(path)s"
 msgstr ""
 
 #. Used by: exception
-#: musicbot/bot.py:5285
+#: musicbot/bot.py:5290
 #, python-format
 msgid "OS level error while trying to delete queue file: %(path)s"
 msgstr ""
@@ -5247,34 +5247,34 @@ msgid ""
 msgstr ""
 
 #. Used by: _L
-#: musicbot/bot.py:2417
+#: musicbot/bot.py:2421
 msgid "Private Channel"
 msgstr ""
 
 #. Used by: _L
-#: musicbot/bot.py:2419
+#: musicbot/bot.py:2423
 msgid "Unknown User DM"
 msgstr ""
 
 #. Used by: _L
-#: musicbot/bot.py:2421
+#: musicbot/bot.py:2425
 #, python-format
 msgid "User DM: %(name)s"
 msgstr ""
 
 #. Used by: _L
-#: musicbot/bot.py:2425
+#: musicbot/bot.py:2429
 msgid "Unknown Channel (Partial)"
 msgstr ""
 
 #. Used by: _L
-#: musicbot/bot.py:2427
+#: musicbot/bot.py:2431
 #, python-format
 msgid "Unnamed Channel: %(id)s"
 msgstr ""
 
 #. Used by: _L
-#: musicbot/bot.py:2807
+#: musicbot/bot.py:2811
 msgid "Unknown Channel"
 msgstr ""
 
@@ -5297,197 +5297,197 @@ msgid "Probed codec and bitrate: %(name)s at %(rate)s kbps"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2603
+#: musicbot/bot.py:2607
 #, python-format
 msgid "  Command by @mention: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2605
+#: musicbot/bot.py:2609
 #, python-format
 msgid "  Command aliases: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2614
+#: musicbot/bot.py:2618
 #, python-format
 msgid "    Legacy skip: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2616
+#: musicbot/bot.py:2620
 #, python-format
 msgid "    Author insta-skip: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2624
+#: musicbot/bot.py:2628
 #, python-format
 msgid "  Auto-join Owner's voice channel: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2636
+#: musicbot/bot.py:2640
 #, python-format
 msgid "    Save per-server queue history: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2640
+#: musicbot/bot.py:2644
 #, python-format
 msgid "    Save global queue history: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2644
+#: musicbot/bot.py:2648
 #, python-format
 msgid "    Remove URLs on extraction error: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2647
+#: musicbot/bot.py:2651
 #, python-format
 msgid "    Skip playlist for user requests: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2665
+#: musicbot/bot.py:2669
 #, python-format
 msgid "  Songs blocklist: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2666
+#: musicbot/bot.py:2670
 #, python-format
 msgid "  Users blocklist: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2675
+#: musicbot/bot.py:2679
 #, python-format
 msgid "    Delete if cache exceeds %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2678
+#: musicbot/bot.py:2682
 #, python-format
 msgid "  Pre-download next track: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2685
+#: musicbot/bot.py:2689
 #, python-format
 msgid "  Write current song title to file: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2688
+#: musicbot/bot.py:2692
 #, python-format
 msgid "  Respond with Embeds: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2691
+#: musicbot/bot.py:2695
 msgid "    Footer Text Disabled"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2693
+#: musicbot/bot.py:2697
 #, python-format
 msgid "    Footer Text:  %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2699
+#: musicbot/bot.py:2703
 #, python-format
 msgid "  Leave servers where Owner is not a member: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2703
+#: musicbot/bot.py:2707
 #, python-format
 msgid "  Disconnect from inactive channel: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2712
+#: musicbot/bot.py:2716
 #, python-format
 msgid "  Disconnect at end of queue: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2716
+#: musicbot/bot.py:2720
 #, python-format
 msgid "  Disconnect when player idles: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2726
+#: musicbot/bot.py:2730
 #, python-format
 msgid "  Search using reactions: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2727
+#: musicbot/bot.py:2731
 #, python-format
 msgid "    Results per search: %d"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2732
+#: musicbot/bot.py:2736
 #, python-format
 msgid "  Local media files: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2735
+#: musicbot/bot.py:2739
 #, python-format
 msgid "  Network checking ping tests: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2745
+#: musicbot/bot.py:2749
 #, python-format
 msgid "  Audio processed with: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2748
+#: musicbot/bot.py:2752
 #, python-format
 msgid "  Equalize audio level per-track: %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2753
+#: musicbot/bot.py:2757
 #, python-format
 msgid "  HTTP Proxy set to:  %s"
 msgstr ""
 
 #. Used by: info
-#: musicbot/bot.py:2755
+#: musicbot/bot.py:2759
 #, python-format
 msgid "  User Agent set to:  %s"
 msgstr ""
 
 #. Used by: debug
-#: musicbot/bot.py:8250
+#: musicbot/bot.py:8255
 msgid ""
 "MusicBot has bound channel config and caller channel is not in bound "
 "channels."
 msgstr ""
 
 #. Used by: debug
-#: musicbot/bot.py:8257
+#: musicbot/bot.py:8262
 msgid "Caller server has a bound channel, caller channel ignored."
 msgstr ""
 
 #. Used by: debug
-#: musicbot/bot.py:8260
+#: musicbot/bot.py:8265
 msgid "Caller server has no bound channel, caller allowed."
 msgstr ""
 
 #. Used by: debug
-#: musicbot/bot.py:8263
+#: musicbot/bot.py:8268
 #, python-format
 msgid "Unbound channel (%s) in server:  %s"
 msgstr ""
@@ -5510,7 +5510,7 @@ msgid "- Processing CMD %(n)s of %(t)s: %(cmd)s"
 msgstr ""
 
 #. Used by: warning
-#: musicbot/bot.py:2504
+#: musicbot/bot.py:2508
 #, python-format
 msgid ""
 "Detected missing config options!\n"
@@ -5529,7 +5529,7 @@ msgid ""
 msgstr ""
 
 #. Used by: CommandError
-#: musicbot/bot.py:3514
+#: musicbot/bot.py:3518
 msgid "You must be in a voice channel to use this command."
 msgstr ""
 
