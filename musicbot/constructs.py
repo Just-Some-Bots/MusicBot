@@ -428,7 +428,7 @@ class MusicBotResponse(discord.Embed):
         for field in self.fields:
             if field.value:
                 if field.name:
-                    # TRANSLATORS: text-only format for embed field name an value.
+                    # TRANSLATORS: text-only format for embed field name and value.
                     fields += _D("**%(name)s** %(value)s\n", ssd_) % {
                         "name": field.name,
                         "value": field.value,

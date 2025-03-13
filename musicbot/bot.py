@@ -1187,6 +1187,10 @@ class MusicBot(discord.Client):
                 entry.url,
             )
 
+        if len(entry.url) <= 1024:
+            # TRANSLATORS:  URL field title for embeds.
+            content.add_field(name=_D("URL:", ssd_), value=entry.url, inline=False)
+
         if self.config.now_playing_mentions:
             content.title = None
             content.add_field(name="\n", value=newmsg, inline=True)
@@ -5034,7 +5038,8 @@ class MusicBot(discord.Client):
                 inline=False,
             )
             if len(entry.url) <= 1024:
-                content.add_field(name="URL:", value=entry.url, inline=False)
+                # TRANSLATORS:  URL field title for embeds.
+                content.add_field(name=_D("URL:", ssd_), value=entry.url, inline=False)
             if entry.thumbnail_url:
                 content.set_image(url=entry.thumbnail_url)
             else:
