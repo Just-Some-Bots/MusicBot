@@ -256,6 +256,14 @@ textarea {
 }
 
 /**
+ * Correct iOS Safari using border radius on inputs.
+ * This breaks visual layout of stylized inputs like search.
+ **/
+ input {
+    border-radius: 0px;
+ }
+
+/**
  * Address `overflow` set to `hidden` in IE 8/9/10/11.
  */
 
@@ -287,7 +295,6 @@ button,
 html input[type="button"], /* 1 */
 input[type="reset"],
 input[type="submit"] {
-  all: unset; /* 2 */
   cursor: pointer; /* 3 */
 }
 
