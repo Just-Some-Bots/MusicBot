@@ -473,10 +473,10 @@ class MusicBotResponse(discord.Embed):
                     fields += _D("%(value)s\n", ssd_) % {"value": field.value}
 
         # only pick one image if both thumbnail and image are set,
-        if self.image:
+        if self.image and self.image.url:
             # TRANSLATORS: text-only format for embed image or thumbnail.
             image = _D("%(url)s", ssd_) % {"url": self.image.url}
-        elif self.thumbnail:
+        elif self.thumbnail and self.thumbnail.url:
             image = _D("%(url)s", ssd_) % {"url": self.thumbnail.url}
 
         return _D(
