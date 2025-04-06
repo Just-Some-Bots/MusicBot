@@ -90,9 +90,10 @@ class GuildSpecificData:
         self._file_lock: asyncio.Lock = asyncio.Lock()
         self._loading_lock: asyncio.Lock = asyncio.Lock()
         self._is_file_loaded: bool = False
+        self._last_np_ch_id: int = 0
+        self._last_np_msg: Optional[discord.Message] = None
 
         # Members below are available for public use.
-        self.last_np_msg: Optional[discord.Message] = None
         self.last_played_song_subject: str = ""
         self.follow_user: Optional[discord.Member] = None
         self.auto_join_channel: Optional[
@@ -140,6 +141,32 @@ class GuildSpecificData:
         if not pl.loaded:
             await pl.load()
         return pl
+
+    @property
+    def last_np_msg(self) -> Optional[discord.Message]:
+        return self._last_np_msg
+
+    @last_np_msg.setter
+    def last_np_msg(self, value: Optional[discord.Message]) -> None:
+        self._last_np_msg = value
+        if value is not None:
+            self._last_np_ch_id = value.channel.id
+        else:
+            self._last_np_ch_id = 0
+
+    @property
+    def last_np_channel(self) -> Optional[discord.abc.Messageable]:
+        """Gets the last channel used in the guild for Now Playing messages."""
+        ch = None
+        if not self.is_ready():
+            return ch
+
+        if self._last_np_ch_id != 0:
+            guild = self._bot.get_guild(self.guild_id)
+            if guild:
+                ch = guild.get_channel_or_thread(self._last_np_ch_id)
+
+        return ch  # type: ignore[return-value]
 
     @property
     def guild_id(self) -> int:
@@ -249,6 +276,8 @@ class GuildSpecificData:
 
             self.lang_code = options.get("language", "")
 
+            self._last_np_ch_id = int(options.get("last_np_ch_id", 0))
+
             guild_prefix = options.get("command_prefix", None)
             if guild_prefix:
                 self._command_prefix = guild_prefix
@@ -290,6 +319,7 @@ class GuildSpecificData:
             "command_prefix": self._command_prefix,
             "auto_playlist": auto_playlist,
             "language": self.lang_code,
+            "last_np_ch_id": self._last_np_ch_id,
         }
 
         async with self._file_lock:

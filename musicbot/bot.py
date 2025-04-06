@@ -1174,9 +1174,21 @@ class MusicBot(discord.Client):
                     if potential_channel and potential_channel.guild == guild:
                         np_channel = potential_channel
                         break
+            elif self.config.bound_channels:
+                for potential_channel_id in self.config.bound_channels:
+                    potential_channel = self.get_channel(potential_channel_id)
+                    if isinstance(potential_channel, discord.abc.PrivateChannel):
+                        continue
 
-            if not np_channel and last_np_msg:
-                np_channel = last_np_msg.channel
+                    if not isinstance(potential_channel, discord.abc.Messageable):
+                        continue
+
+                    if potential_channel and potential_channel.guild == guild:
+                        np_channel = potential_channel
+                        break
+
+            if not np_channel and ssd_.last_np_channel:
+                np_channel = ssd_.last_np_channel  # type: ignore[assignment]
 
         content = Response("")
         if entry.thumbnail_url:
