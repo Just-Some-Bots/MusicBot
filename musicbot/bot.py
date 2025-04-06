@@ -331,27 +331,10 @@ class MusicBot(discord.Client):
                 self.config.spotify_enabled = False
                 time.sleep(5)  # make sure they see the problem
         else:
-            try:
-                log.warning(
-                    "The config did not have Spotify app credentials, attempting to use guest mode."
-                )
-                self.spotify = Spotify(
-                    None, None, aiosession=self.session, loop=self.loop
-                )
-                if not await self.spotify.has_token():
-                    log.warning("Spotify did not provide us with a token. Disabling.")
-                    self.config.spotify_enabled = False
-                else:
-                    log.info(
-                        "Authenticated with Spotify successfully using guest mode."
-                    )
-                    self.config.spotify_enabled = True
-            except exceptions.SpotifyError as e:
-                log.warning(
-                    "Could not start Spotify client using guest mode. Details: %s.",
-                    e.message % e.fmt_args,
-                )
-                self.config.spotify_enabled = False
+            log.warning(
+                "Your config does not have Spotify app credentials. Spotify support will not be available."
+            )
+            self.config.spotify_enabled = False
 
         log.info("Initialized, now connecting to discord.")
         # this creates an output similar to a progress indicator.
