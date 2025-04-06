@@ -70,7 +70,7 @@ class YtdlpLogHook:
 ytdl_format_options_immutable = MappingProxyType(
     {
         "format": "bestaudio/best",
-        "outtmpl": "%(extractor)s-%(id)s-%(title)s-%(qhash)s.%(ext)s",
+        "outtmpl": "%(extractor)s-%(id)s-%(title).64B-%(qhash)s.%(ext)s",
         "restrictfilenames": True,
         "noplaylist": True,
         "nocheckcertificate": True,
