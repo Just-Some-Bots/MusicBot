@@ -144,10 +144,15 @@ class GuildSpecificData:
 
     @property
     def last_np_msg(self) -> Optional[discord.Message]:
+        """
+        The last discord.Message object used for Now Playing, if any.
+        When this value is set, it will also cause `last_np_channel` to be updated.
+        """
         return self._last_np_msg
 
     @last_np_msg.setter
     def last_np_msg(self, value: Optional[discord.Message]) -> None:
+        """Update the last now playing message and the channel ID for future messages."""
         self._last_np_msg = value
         if value is not None:
             self._last_np_ch_id = value.channel.id
