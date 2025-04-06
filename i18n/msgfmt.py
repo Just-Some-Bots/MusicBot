@@ -51,7 +51,7 @@ def usage(code, msg=""):
 
 def add(ctxt, msgid, msgstr, fuzzy):
     "Add a non-fuzzy translation to the dictionary."
-    global MESSAGES  # pylint: disable=global-variable-not-assigned
+    global MESSAGES  # noqa: F824  # pylint: disable=global-variable-not-assigned
     if not fuzzy and msgstr:
         if ctxt is None:
             MESSAGES[msgid] = msgstr
@@ -61,7 +61,7 @@ def add(ctxt, msgid, msgstr, fuzzy):
 
 def generate():
     "Return the generated output."
-    global MESSAGES  # pylint: disable=global-variable-not-assigned
+    global MESSAGES  # noqa: F824  # pylint: disable=global-variable-not-assigned
     # the keys are sorted in the .mo file
     keys = sorted(MESSAGES.keys())
     offsets = []

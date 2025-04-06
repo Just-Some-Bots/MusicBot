@@ -912,14 +912,14 @@ class ConfigAssistantTextSystem:
                 self.sct_selno = 0
 
         def remove_callback() -> None:
-            nonlocal selected_opt
+            nonlocal selected_opt  # noqa: F824
             if self.mgr_perms is None or selected_opt is None:
                 return
             self.mgr_perms.remove_group(selected_opt.section)
             self.edited_perms.add(selected_opt)
 
         def add_callback() -> None:
-            nonlocal groups
+            nonlocal groups  # noqa: F824
             if not self.mgr_perms:
                 return
             self.win.clear()
