@@ -3331,7 +3331,7 @@ class MusicBot(discord.Client):
         # fmt: on
         desc=_Dd(
             "Manage auto playlist files and per-guild settings.\n"
-            "Auto playlists use a their own queue, only playing when the main queue is empty."
+            "Auto playlists use their own queue, only playing when the main queue is empty."
         ),
         remap_subs={"+": "add", "-": "remove"},
     )
