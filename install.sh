@@ -7,7 +7,14 @@
 # a variety of different Linux distros.
 # 
 
-# TODO: Venv install with pre-cloned repo needs fixed.
+#-----------------------------------------------------------------------------------------------------#
+# Check if this script is being run on windows and redirect the user.  
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] ; then
+    echo "install.sh is not for Windows.  Use the install.bat file instead."
+    sleep 5
+    exit 2
+fi
+
 
 #-----------------------------------------------Configs-----------------------------------------------#
 MusicBotGitURL="https://github.com/Just-Some-Bots/MusicBot.git"
