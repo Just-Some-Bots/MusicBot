@@ -8,7 +8,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")" || { echo "Could not change directory to Mus
 # Check if this script is being run on windows and redirect the user.  
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] ; then
     echo "run.sh is not for Windows.  Use the run.bat file instead."
-    sleep 5
+    read -rp "Press any key to exit."
     exit 2
 fi
 

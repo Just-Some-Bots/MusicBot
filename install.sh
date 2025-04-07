@@ -11,7 +11,7 @@
 # Check if this script is being run on windows and redirect the user.  
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] ; then
     echo "install.sh is not for Windows.  Use the install.bat file instead."
-    sleep 5
+    read -rp "Press any key to exit."
     exit 2
 fi
 
