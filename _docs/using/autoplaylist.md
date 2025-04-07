@@ -11,9 +11,10 @@ A simple text file containing mostly URLs which would be loaded into a dedicated
 no other music was in the primary queue.  
 
 In more recent versions, it allows for multiple playlists, has more options, and is more flexible all around. 
-Be sure to review the config section and the `autoplaylist` command for more details on exact features.  
+Be sure to review the [config section]({{ site.baseurl }}/using/configuration#autoplaylist) 
+and the `autoplaylist` [command]({{ site.baseurl}}/using/commands) for more details on exact features.  
 
-## Where the files at?
+## File Locations
 
 Playlist files are stored in the `config` directory in all versions.  
 In older versions, the files are:  
@@ -43,7 +44,7 @@ old, and you may want to edit the entries or make a new playlist instead.
 ## How do I make playlists?
 
 To set up a non-default playlist, make use of the `autoplaylist set` command.  
-The set sub-command will create a playlist file if needed, and save that playlist choice 
+The `set` sub-command will create a playlist file if needed, and save that playlist choice 
 to the per-server data so it will be used after restarts as well.  
 
 To modify a playlist, you can either use the `autoplaylist` commands or edit the file 
