@@ -4426,17 +4426,18 @@ class MusicBot(discord.Client):
 
             # if the result has "entries" but it's empty, it might be a failed search.
             if "entries" in info and not info.entry_count:
-                if check_extractor(info.extractor, "youtube:search"):
+                if check_extractor(info.extractor, "search"):
                     # TOOD: UI, i18n stuff
                     raise exceptions.CommandError(
-                        "YouTube search returned no results for:  %(url)s",
-                        fmt_args={"url": song_url},
+                        "Search returned no results with %(extractor)s for:  %(url)s",
+                        fmt_args={"url": song_url, "extractor": info.extractor},
                     )
 
             # If the result has usable entries, we assume it is a playlist
+            # but with only one entry is may be a search result.
             listlen = 1
             track_title = ""
-            if info.has_entries:
+            if info.has_entries and info.entry_count > 1:
                 await self._do_playlist_checks(player, author, info)
 
                 num_songs = info.playlist_count or info.entry_count

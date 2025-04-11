@@ -560,7 +560,7 @@ class Downloader:
             and len(data.get("entries", [])) == 1
             and isinstance(data.get("entries", None), list)
             and data.get("playlist_count", 0) == 1
-            and not any(song_subject.startswith(e) for e in self._supported_search)
+            and any(song_subject.startswith(e) for e in self._supported_search)
         ):
             log.noise(  # type: ignore[attr-defined]
                 "Extractor %(extractor)s returned single-entry result, replacing base info with entry info.",
@@ -569,7 +569,6 @@ class Downloader:
             entry_info = copy.deepcopy(data["entries"][0])
             for key in entry_info:
                 data[key] = entry_info[key]
-            del data["entries"]
 
         return data
 
