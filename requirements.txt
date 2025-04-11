@@ -8,3 +8,4 @@ colorama >= 0.4.6; sys_platform == 'win32'
 cffi --only-binary all; sys_platform == 'win32'
 certifi
 configupdater
+polib

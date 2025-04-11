@@ -6,6 +6,7 @@ import locale
 import logging
 import os
 import pathlib
+import subprocess
 import sys
 from typing import TYPE_CHECKING, Any, Dict, List, NoReturn, Optional, Union
 
@@ -110,6 +111,8 @@ class I18n:
     See I18n.install() for details on global functions.
     """
 
+    _i18n_compiled: bool = False
+
     def __init__(
         self,
         localedir: Optional[pathlib.Path] = None,
@@ -125,6 +128,16 @@ class I18n:
         :param: `msg_lang` An optional language selection for discord text that is prefered over defaults.
         :param: `auto_install` Automaticlly add global functions for translations.
         """
+        # Make sure all po changes are compiled to mo files.
+        # This is an Ouroboros. It's fine...
+        try:
+            if not I18n._i18n_compiled:
+                subprocess.check_call([sys.executable, "./i18n/lang.py", "--jit-mo"])
+                I18n._i18n_compiled = True
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            I18n._i18n_compiled = True
+            print("Auto-compile MO files failed.")
+
         # set the path where translations are stored.
         if localedir:
             self._locale_dir: pathlib.Path = localedir
