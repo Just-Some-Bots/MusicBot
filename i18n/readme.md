@@ -23,6 +23,8 @@ Replace `xx` above with the locale code of your choice. Only one language code c
 For more info on these, use the `--help` launch option.  
 
 > **Note:**  Translations can also be used to customize the output of MusicBot without editing code!  
+> We recommend creating a "custom language" to avoid issues with updates.  
+> Simply copy the directory with the language you use and rename it `xx_custom` then add `--lang=xx_custom` to your launch arguments.  
 
 ## How MusicBot loads translations  
 
@@ -59,8 +61,13 @@ Of course, the `.pot` and `.po` files are just plain text.  So you can edit them
 
 ### How to compile `.mo` files.
 
-To compile the `.mo` files, you generally have two options.  
-If you used Poedit for translations, you can also use it to compile the `.po` into a `.mo` file.  
+MusicBot will automatically compile `.mo` files on start-up under any of these conditions:
+- The `.mo` file does not exist.  
+- The `.po` contains headers which are different from the `.mo` file.
+- The `.po` contains translations or changes not in the `.mo` file.
+
+To manually compile the `.mo` files, you generally have two options.  
+If you used [Poedit](https://poedit.net/) for translations, you can also use it to compile the `.po` into a `.mo` file.  
 
 If you edited using another editor, MusicBot provides an option in the `lang.py` script to enable compiling on any system.  
 Follow these steps to compile manually:  
@@ -138,35 +145,49 @@ The script provides these command line flags:
 - `-h` or `--help`  
   Shows the help message and exits.  
 
-- `-L`  
-  Select a single language code to operate on, instead of all installed.
+- `-L [LOCALE]`  
+  Select a single language code to run tasks on, instead of all installed languages.
 
 - `-c`  
-  Compile existing PO files into MO files.  
-  This requires the `polib` python package.  
+  Compile existing translation PO files into MO files.
+  This requires the `polib` python package.
 
 - `-e`  
-  Extract strings into POT files.
+  Extract strings from source-code to POT files (blank translation templates.)
 
 - `-d`  
-  Shows new changes to POT files without updating them.  
-  This ignores gettext location comment changes.
+  Show differences between source-code extractions and the existing POT files.  
+  Comments and line markers are hidden.  
 
 - `-D`  
-  Same as -d flat but show all changes, including comments.
+  Same as argument -d but shows all changes, including comments and line markers.  
 
 - `-t`  
-  Create or update the 'xx' test language.  
-  The translations are reversed source strings, used to test code changes.  
+  Create or update the 'xx' test language.
   This requires the `polib` python package.
 
 - `-s`  
-  Show translation stats for existing PO files, such as completion and number of missing translations.  
+  Show translation stats for existing PO files, by extracting strings from sources first.
+  This requires the `polib` python package.
+
+- `-J`  
+  Save stats to JSON for use in the repository.  
+  Use with -s option.
+
+- `-B`  
+  Save stats will save badges to use in the repository.  
+  Use with `-s` option.  
 
 - `-u`  
-  Extracts strings to POT files, then updates existing PO files with new strings.  
+  Update all existing translation files (PO & POT) from source-code.  
+  Existing translation files will have new strings to translate.  
   This requires the `polib` python package.
 
 - `-A`  
-  Attempt to automatically translate all untranslated strings using machine translations.  
+  Update all missing translations in PO files with Argos-translate machine translations.  
   This requires the `polib` as well as `argostranslate` and `marko` python packages.  
+
+- `--jit-mo`  
+  Automatically compile MO files if PO files contain different translations or headers.  
+  This requires the `polib` python package.
+
