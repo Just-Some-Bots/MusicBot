@@ -2,114 +2,109 @@
 
 ![Translations: 66.2%](https://img.shields.io/badge/Translations-66.2%25-orange?style=flat-square)  
 
-MusicBot makes use of GNU Gettext for translation of display text.  
-We use the typical `.po`/`.mo` file format to enable translations and bundle a few 
-tools to aid contributors and users with aspects of gettext translation. 
-This readme details how we use Gettext in our code and how you can update or add translations.  
+MusicBot provides some support for translations and customized display text.  
+This guide will explain how you can make use of this feature for specific goals.  
 
-The language directories you'll find or add in `./i18n/` should be named using language codes which mostly conform to the [Locale-Names specification](https://www.gnu.org/savannah-checkouts/gnu/gettext/manual/html_node/Locale-Names.html) by gettext.  
+<details>
+  <summary> Getting Started </summary>  
 
-By default, MusicBot will detect and use your system language, if translations are available.  
-To set a specific language, MusicBot provides these launch options:  
+## Getting started
 
-- `--log_lang=xx`  
-  To set log language only.  
-- `--msg_lang=xx`  
-  To set discord default language only.  
-- `--lang=xx`  
-  To set both log and discord language at once.  
+Before you begin, there are some details you should be aware of.  
 
-Replace `xx` above with the locale code of your choice. Only one language code can be set using these options.  
-For more info on these, use the `--help` launch option.  
+MusicBot provides two domains for text:  
+- `musicbot_logs` - Text shown primarilly in logs or console.  
+- `musicbot_messages` - Text shown primarilly on discord.  
 
-> **Note:**  Translations can also be used to customize the output of MusicBot without editing code!  
-> We recommend creating a "custom language" to avoid issues with updates.  
-> Simply copy the directory with the language you use and rename it `xx_custom` then add `--lang=xx_custom` to your launch arguments.  
+Translation files use the GNU Gettext file formats. Those are:  
+- `.pot` - A blank template, with text extracted from source code but no translations.
+- `.po` - Similar to POT, with full or partial translations and a specific language code.
+- `.mo` - A compiled version of PO file, used at runtime.  MusicBot will compile these automatically.  
 
-## How MusicBot loads translations  
+The `.po` and `.pot` files are plain-text files.  
+You can edit them with a dedicated translation editor, like [Poedit](https://poedit.net/) 
+or with a code/text editor application.  
+For plain-text editing, please read the [PO-Files](https://www.gnu.org/software/gettext/manual/gettext.html#PO-Files) section of Gettext manual for details on the contents of a PO file and specific meanings.  
 
-At start-up, MusicBot looks for language files based on a longest-match first.  
-For example, assume your system language is `en_GB`.  
-When MusicBot starts, it will scan `./i18n/en_GB/LC_MESSAGES/` for translation files with the `.mo` extension. If that fails, bot will look for a shorter version of the language code, in this case just `./i18n/en/...` instead.  
+Official languages use the Gettext [Locale-Names specification](https://www.gnu.org/savannah-checkouts/gnu/gettext/manual/html_node/Locale-Names.html) for compatibility with system language codes.  
+Users should review the above specification when picking language codes for contributing new languages or to avoid conflicts between "custom" codes and official codes.  
 
-Note that the locale codes are case-sensitive, and MusicBot will look for a directory with the exact code you provide.
-
-> **Note:** On unix-like (Linux / Mac) systems, MusicBot makes use of the Environment Variables: `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG` in that order.  
-The first variable with a non-empty value is selected, and multiple languages may be specified in order of preference by separating them with a colon `:` character.  
-
-## How to add a new Language  
-
-Adding a new language to MusicBot is easy, and requires only a few tools.  Namely, an editor for the translations and an extra python package called `polib` to compile them. We will cover both later.  
-
-MusicBot provides some `.pot` files which contain texts extracted from the source code.  You can use these to create `.po` files containing translations for the language of your choice, which are use to compile the `.mo` translation files used by MusicBot.
-
-Here is a step by step break down of the process:  
-
-1. Pick a language code. For example: `es_ES` as in Spanish of Spain.  
-2. Create the new language directories.  
-   With the example code, the path is: `./i18n/es_ES/LC_MESSAGES/`  
-3. Copy the `.pot` files to the folder above, and rename them with `.po` extensions.  
-4. Update the `Language:` header with the language code.  
-5. Translate the strings and save the `.po` files.  
-6. Use an editor or the `lang.py` script to create `.mo` files.  
-7. Test your translations by launching with `run.sh --lang=es_ES`  
-
-### What editor to use
-
-To edit translations you'll need an editor.  Specific to Gettext, you might try [Poedit](https://poedit.net/), which is available for free on most desktop OS.  
-Of course, the `.pot` and `.po` files are just plain text.  So you can edit them with any text editor if you understand the PO file format. (Visit the Gettext manual to [understand the PO format](https://www.gnu.org/software/gettext/manual/gettext.html#PO-Files))
-
-### How to compile `.mo` files.
-
-MusicBot will automatically compile `.mo` files on start-up under any of these conditions:
-- The `.mo` file does not exist.  
-- The `.po` contains headers which are different from the `.mo` file.
-- The `.po` contains translations or changes not in the `.mo` file.
-
-To manually compile the `.mo` files, you generally have two options.  
-If you used [Poedit](https://poedit.net/) for translations, you can also use it to compile the `.po` into a `.mo` file.  
-
-If you edited using another editor, MusicBot provides an option in the `lang.py` script to enable compiling on any system.  
-Follow these steps to compile manually:  
-
-1. First, make sure you've downloaded the PO files into their respective language directories.  
-2. Double check the Language code in the PO file matches the code used in the language directory.
-3. Make sure you have the `polib` python package installed.  
-   You can use `pip install polib` or use your system's package manager to find and install the appropriate package.  
-4. Run the lang tool with `python3 lang.py -c` to compile all existing PO files.
-
-MusicBot should now be able to use the new translations!
+Lastly, MusicBot provides four ways to set language:  
+- Command line options:  
+  - `--lang=` - Set language for logs and discord text.  
+  - `--log_lang=` - Set language for only the log text.  
+  - `--msg_lang=` - Set language for only discord text.  
+- Runtime commands:  
+  - `language` - Set or reset a per-server language selection.  
+                 This will override command line options or the default language.  
 
 ---
 
-## Notes for Developers  
+</details>
 
-If you've never heard of Gettext before, getting started might be a little confusing.  For developers and users alike, you may find many answers to your questions about Gettext within the [GNU Gettext manual](https://www.gnu.org/software/gettext/manual/index.html)  
 
-### Basics of Gettext:
 
-- Files ending with `.pot` are templates, containing all the source strings but no translations.  
-  Plain text files that you edit to make `.po` files.  
-- Files ending with `.po` are fully or partially translated templates with a specific language code and meta data set.  
-  Also plain-text, multiple speakers of the selected language may collaborate with this file.
-- Files ending with `.mo` are compiled binary versions of the `.po` file, that make translation at runtime possible.  
-  MusicBot only looks for these when loading translations.
-- All changes to translations must be compiled into a `.mo` file before you can see them.
-- Translations must not change/rename or add placeholders, but may remove them entirely if needed.
+<details>
+  <summary> How To Customize Text </summary>
+
+## How to customize text
+
+To customize MusicBot text you have two options:  
+- Edit the source code directly.  
+- Edit a translation file.  
+
+We recommend copying an existing language and making edits to it.  
+This will make it easy to keep your changes when MusicBot updates, if there are changes to language files.  
+
+The basic steps are:  
+1. Copy your language folder, for example: `en_US`  
+2. Rename it but avoid using existing locale codes. For example: `xx_custom`  
+3. Next open the file `xx_custom/LC_MESSAGES/musicbot_messages.po` to make desired changes.
+4. Run the bot with `--lang=xx_custom` as a command line option.
+
+---
+
+</details>
+
+
+
+<details>
+  <summary> Adding a Language </summary>
+
+## Adding a new language
+
+Adding a language is almost as simple as customizing text, you only need the language code for your language of choice.  
+Follow these steps to add a new language:  
+1. Select a valid language code which conforms to the [Locale-Names specification](https://www.gnu.org/savannah-checkouts/gnu/gettext/manual/html_node/Locale-Names.html)
+2. Create the required files and folders using the language tool:  
+   `lang.py --new=LOCALE` replace `LOCALE` with your desired language code.
+3. Open the new `.po` files and start translating.
+
+---
+
+</details>
+
+
+
+<details>
+  <summary> Notes for Source Code </summary>
+
+## Notes for Source Code
 
 ### Placeholders in Strings:
 
 Regarding "placeholders", MusicBot sometimes needs to include variable data in output text.  
 To do this, we use traditional percent or modulo (`%`) formatting placeholders in Python that resembles C-style `sprintf` string formatting.  
-For example, the placeholders: `%(user)s` or `%s` get replaced at runtime.
+For example, the placeholders: `%(user)s` or `%s` get replaced at runtime with potentially non-translatable data.
 
 These placeholders can be removed from translated strings but must not be changed or added without complimentary source code changes.  
 Placeholders with no association in the source code will cause errors.  
+Placeholders removed from a string will not.  
 
 For details on how this style of formatting works, check out the [printf-style string formatting](https://docs.python.org/3.10/library/stdtypes.html#printf-style-string-formatting) section of the python manual.
 
 > **Note:** Some strings also contain variables in curly-braces (`{` and `}`) These may be used for simple substitutions in user-supplied data, like the bot status message.  
-They are not used by Python's format functions and if changed will quietly fail to substitute.  
+They are not used by Python's format functions and if changed may quietly fail to substitute.  
 
 ### Updating Source Strings
 
@@ -133,12 +128,31 @@ There are some important things to remember when changing strings in source code
    6. The `_D` and `_Dn` functions require an optional `GuildSpecificData` to enable per-server language selection.
 
 4. Finally, all changes and additional strings need to be extracted before they can be translated.  
-   Developers should make sure the POT files are up-to-date when submitting source code changes.
+   Developers should make sure to run `lang.py -u` to update the `.pot` and existing `.po` files when they make changes.  
 
-### Using the `lang.py` script:
+---
 
-MusicBot provides a bundled script named `lang.py` which can accomplish a number of translation related tasks.  
-Some options require the `polib` python package in order to be used.  
+</details>
+
+
+
+<details>
+  <summary> About Bundled Scripts </summary>  
+
+## About bundled scripts  
+
+The scripts contained in the `i18n` directory provide cross-platform tools to aid in translation tasks.  
+Each script supports the `-h` or `--help` command line option to display usage documentation.  
+
+A breif summary for each script file:  
+- `lang.py`  -  Language tool, the primary script used for most translation tasks.  
+- `msgfmt.py`  -  Modified version of python's msgfmt compatible utility.  
+- `pygettext.py`  -  Modified version of python's xgettext compatible utility.  
+
+<details>
+  <summary> lang.py command line options </summary>
+
+### `lang.py` Command line options:
 
 The script provides these command line flags:
 
@@ -187,7 +201,17 @@ The script provides these command line flags:
   Update all missing translations in PO files with Argos-translate machine translations.  
   This requires the `polib` as well as `argostranslate` and `marko` python packages.  
 
+- `--new [LOCALE]`  
+  Create a new language with code LOCALE.  
+  This creates folders and PO files ready for translation.  
+
 - `--jit-mo`  
   Automatically compile MO files if PO files contain different translations or headers.  
   This requires the `polib` python package.
+
+</details>
+
+---
+
+</details>
 

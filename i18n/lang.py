@@ -21,6 +21,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import urllib.parse
@@ -634,6 +635,36 @@ class LangTool:
                 print("Re-compiled due to translations: ", mo_file)
                 continue
 
+    def mk_new_lang(self, lang_code: str) -> None:
+        """
+        Makes all the required directories and files for a new language.
+        """
+        self._check_polib()
+        import polib  # pylint: disable=import-error,useless-suppression
+
+        langpath = self.basedir.joinpath(lang_code, "LC_MESSAGES")
+        logpath = langpath.joinpath(self._logs_pot_path.stem).with_suffix(".po")
+        msgpath = langpath.joinpath(self._msgs_pot_path.stem).with_suffix(".po")
+        if langpath.exists():
+            print("Language already exists with code: ", lang_code)
+            return
+
+        langpath.mkdir(parents=True)
+
+        shutil.copy(self._logs_pot_path, logpath)
+        po = polib.pofile(logpath)
+        po.metadata["Language"] = lang_code
+        po.metadata["Content-Type"] = "text/plain; charset=UTF-8"
+        po.save()
+        print("Created: ", logpath)
+
+        shutil.copy(self._msgs_pot_path, msgpath)
+        po = polib.pofile(msgpath)
+        po.metadata["Language"] = lang_code
+        po.metadata["Content-Type"] = "text/plain; charset=UTF-8"
+        po.save()
+        print("Created: ", msgpath)
+
 
 def main():
     """MusicBot i18n tool entry point."""
@@ -714,7 +745,7 @@ def main():
         help="Save stats to JSON for use in the repository. Use with -s option.",
     )
 
-    # option:  -sB  save_badges with do_stats
+    # option: -sB  save_badges with do_stats
     ap.add_argument(
         "-B",
         dest="save_badges",
@@ -741,6 +772,16 @@ def main():
         help="Update all missing translations in PO files with Argos-translate machine translations.",
     )
 
+    # option: --new  new_lang
+    ap.add_argument(
+        "--new",
+        dest="new_lang",
+        type=str,
+        default="",
+        metavar="LOCALE",
+        help="Create a new language with code LOCALE. This creates folders and PO files ready for translation.",
+    )
+
     # option: --jit-mo  jit_mo
     ap.add_argument(
         "--jit-mo",
@@ -763,6 +804,10 @@ def main():
         sys.exit(1)
 
     langtool = LangTool(_args, _basedir)
+
+    if _args.new_lang:
+        langtool.mk_new_lang(_args.new_lang)
+        sys.exit(0)
 
     if _args.do_diff_short or _args.do_diff_long:
         langtool.diff(short=not _args.do_diff_long)
