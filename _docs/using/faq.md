@@ -26,9 +26,15 @@ If you supply an attachment to the `!play` command, MusicBot will also attempt t
 
 ## How can I sign into youtube?
 
-You'll need to research what the maintainers of ytdlp recommend as the modern method of choice.  
-Typically, if a method works for stand-alone ytdlp, then it can usually work for MusicBot.  
-The solution seems to be different for everyone, as YouTube takes active steps to stop bots. 
+You'll need to research what [yt-dlp](https://github.com/yt-dlp/yt-dlp/) recommends as the modern method of choice.  
+
+MusicBot provides support for using `--cookies` with yt-dlp.  
+You can place your cookies file in `data/cookies.txt` or optionally use the [`setcookies` command]({{ site.baseurl }}/using/commands).
+The cookies should be in Netscape format.  
+Extractor plugins:
+- [Chrome (Chromium, etc.)](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc)  
+- [Firefox](https://github.com/hrdl-github/cookies-txt)  
+
 
 ## Can I modify the bot?
 
