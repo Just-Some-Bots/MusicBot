@@ -158,6 +158,9 @@ class GuildSpecificData:
             self._last_np_ch_id = value.channel.id
         else:
             self._last_np_ch_id = 0
+        self._bot.create_task(
+            self.save_guild_options_file(), name="MB_SaveGuildOptions"
+        )
 
     @property
     def last_np_channel(self) -> Optional[discord.abc.Messageable]:
