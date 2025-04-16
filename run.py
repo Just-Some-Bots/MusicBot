@@ -257,6 +257,7 @@ class PIP:
         )
         try:
             if isinstance(updata, bytes):
+                updata = update.decode(errors="ignore")
                 pip_data = json.loads(updata)
                 ilist = pip_data.get("install", [])
                 if not isinstance(ilist, list):
