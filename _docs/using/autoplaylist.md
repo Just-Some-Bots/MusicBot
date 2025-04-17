@@ -26,6 +26,7 @@ Some playlist file names are reserved for use by MusicBot.  Those are:
  - `default.txt`  -  Default playlist, automatically re-recreated, used for new servers.  
  - `history.txt`  -  If enabled, playback history from all servers is saved here.  
  - `history-*.txt`  -  If enabled, playback history from one server is saved here.  
+   *Note:* The `*` is usually replaced with a server ID number.  
 
 
 ## How do playlists work?
