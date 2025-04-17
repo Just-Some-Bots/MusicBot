@@ -51,3 +51,4 @@ to the per-server data so it will be used after restarts as well.
 To modify a playlist, you can either use the `autoplaylist` commands or edit the file 
 with a plain-text editor.  If you edit the file you'll want to reload it or restart MusicBot.  
 
+> **Note:** Unlike permissions and config files, auto playlist files *can* be edited with Windows notepad.exe.  
