@@ -71,6 +71,18 @@ class Playlist(EventEmitter, Serializable):
         """Clears the deque of entries."""
         self.entries.clear()
 
+    def removerange(self, start: int, end: int) -> None:
+        """Clears a range of the deque of entries."""
+        if start == 0:
+            for i in range(end - start + 1):
+                self.entries.popleft()
+        elif end == len(self.entries) - 1:
+            for i in range(end - start + 1):
+                self.entries.pop()
+        else:
+            # Reconstruct the deque excluding the range [a, b]
+            self.entries = deque(list(self.entries)[:start] + list(self.entries)[end+1:])
+
     def get_entry_at_index(self, index: int) -> EntryTypes:
         """
         Uses deque rotate to seek to the given `index` and reference the

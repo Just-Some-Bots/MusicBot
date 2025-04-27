@@ -5381,6 +5381,84 @@ class MusicBot(discord.Client):
         )
 
     @command_helper(
+        # fmt: off
+        usage=[
+            "{cmd} <FROM> <TO>\n"
+            + _Dd("    Remove songs at position FROM to position TO.\n"),
+        ],
+        # fmt: on
+        desc=_Dd(
+            "Use the queue command to find track position numbers.\n"
+            "However, positions of all songs are changed when a new song starts playing.\n"
+        ),
+    )
+    async def cmd_removerange(
+        self,
+        ssd_: Optional[GuildSpecificData],
+        permissions: PermissionGroup,
+        author: discord.Member,
+        player: MusicPlayer,
+        guild: discord.Guild,
+        channel: MessageableChannel,
+        command: str,
+        leftover_args: List[str],
+    ) -> CommandResponse:
+        """
+        Command to remove multiple entries from the player queue using relative IDs with FROM and TO position
+        """
+        if not player.current_entry:
+            return Response(
+                _D(
+                    "There are no songs queued. Play something with a play command.",
+                    ssd_,
+                ),
+            )
+
+        indexes = []
+        try:
+            indexes.append(int(command) - 1)
+            indexes.append(int(leftover_args[0]) - 1)
+        except (ValueError, IndexError):
+            raise exceptions.CommandError("Song positions must be integers!")
+
+        for i in indexes:
+            if i < 0 or i > len(player.playlist.entries) - 1:
+                raise exceptions.CommandError(
+                    "You gave a position outside the playlist size!"
+                )
+
+        # if wrong indices are the wrong order, simply reverse order
+        if indexes[0] > indexes[1]:
+            temp_index = indexes[0]
+            indexes[0] = indexes[1]
+            indexes[1] = temp_index
+        
+        # Collects the authors of playlist entries from the given range
+        authors = [
+            player.playlist.get_entry_at_index(idx).author
+            for idx in range(indexes[0], indexes[1] + 1)
+        ]
+        
+        if (not (permissions.remove or set(authors) == {author})) :
+            raise exceptions.PermissionsError(
+                "You do not have the permission to remove the songs in the given range from the queue.\n"
+            )
+
+        await self.safe_send_message(
+            channel,
+            Response(
+                _D(
+                    "Successfully removed songs from position %(from)s in queue to position %(to)s!",
+                    self.server_data[guild.id],
+                )
+                % {"from": indexes[0] + 1, "to": indexes[1] + 1},
+            ),
+        )
+        
+        player.playlist.removerange(indexes[0], indexes[1])
+        return None
+
+    @command_helper(
         usage=["{cmd} [force | f]"],
         desc=_Dd(
             "Skip or vote to skip the current playing song.\n"
