@@ -26,6 +26,5 @@
     "latency": ["ping"],
     "summon": ["join", "connect", "come"],
     "disconnect": ["leave", "stop"],
-    "resume": ["unpause", "continue"],
-    "removerange": ["rangeremove"]
+    "resume": ["unpause", "continue"]
 }
