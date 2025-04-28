@@ -5293,15 +5293,18 @@ class MusicBot(discord.Client):
 
     @command_helper(
         usage=[
-            "{cmd} <POSITION> <TO>\n"
-            + _Dd("    Remove song at POSITION.\n")
-            + "{cmd} <FROM> <TO>\n"
+            "{cmd} [POSITION]\n"
+            + _Dd("    Remove a song at the end of the queue or at [POSITION].\n"),
+            "{cmd} <FROM> <TO>\n"
             + _Dd("    Remove songs from position FROM to position TO.\n"),
+            "{cmd} <@USER>\n"
+            + _Dd("    Remove songs added by the mentioned user.\n"),
         ],
         desc=_Dd(
             "Remove a song from the queue at POSITION specified.\n"
             "Remove multiple songs from the queue from position FROM to position TO specified.\n"
-            "If the position or positions are omitted, the song at the end of the queue is removed.\n"
+            "Remove all songs from the queue added by the mentioned user.\n"
+            "If the user-mention, position or positions are omitted, the song at the end of the queue is removed.\n"
             "Use the queue command to find position number of your track.\n"
             "However, positions of all songs are changed when a new song starts playing.\n"
         ),
@@ -5313,8 +5316,8 @@ class MusicBot(discord.Client):
         author: discord.Member,
         permissions: PermissionGroup,
         player: MusicPlayer,
-        position: str,
-        leftover_args: List[str],
+        position: str = "",
+        leftover_args: List[str] = [],
     ) -> CommandResponse:
         """
         Command to remove entries from the player queue using relative IDs or LIFO method.
