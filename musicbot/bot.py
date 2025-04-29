@@ -5411,7 +5411,7 @@ class MusicBot(discord.Client):
                     "Invalid entry number. Use the queue command to find queue positions.",
                 ) from e
 
-            if idx > len(player.playlist.entries):
+            if idx < 1 or idx > len(player.playlist.entries):
                 raise exceptions.CommandError(
                     "Invalid entry number. Use the queue command to find queue positions.",
                 )
