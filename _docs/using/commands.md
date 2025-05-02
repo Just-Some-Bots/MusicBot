@@ -32,9 +32,13 @@ autoplaylist <add | remove> [URL]
 autoplaylist add all
     Adds the entire queue to the guilds playlist.
 
+autoplaylist queue [NAME]
+    Add all tracks in the given auto playlist to the normal playback queue.
+    If playlist name is omitted, the currently loaded playlist is used.
+
 autoplaylist clear [NAME]
     Clear all songs from the named playlist file.
-    If name is omitted, the currently loaded playlist is emptied.
+    If playlist name is omitted, the currently loaded playlist is emptied.
 
 autoplaylist show
     Show the currently selected playlist and a list of existing playlist files.
@@ -45,9 +49,12 @@ autoplaylist restart
 autoplaylist set <NAME>
     Set a playlist as default for this guild and reloads the guild auto playlist.
 
+autoplaylist reload [NAME]
+    Reload the given playlist from disk into memory, but does not update the current auto playlist queue.
 {% endhighlight %}
 <strong>Description:</strong><br>  
 Manage auto playlist files and per-guild settings.<br>
+Auto playlists use their own queue, only playing when the main queue is empty.<br>
 
 </details>
 
@@ -347,10 +354,20 @@ Optional page number shows later entries in the queue.<br>
 <strong>Example usage:</strong><br>  
 {% highlight text %}
 remove [POSITION]
+    Remove a song at the end of the queue or at [POSITION].
+
+remove <FROM> <TO>
+    Remove songs from position FROM to position TO.
+
+remove <@USER>
+    Remove songs added by the mentioned user.
+
 {% endhighlight %}
 <strong>Description:</strong><br>  
-Remove a song from the queue, optionally at the given queue position.<br>
-If the position is omitted, the song at the end of the queue is removed.<br>
+Remove a song from the queue at POSITION specified.<br>
+Remove multiple songs from the queue from position FROM to position TO specified.<br>
+Remove all songs from the queue added by the mentioned user.<br>
+If the user-mention, position or positions are omitted, the song at the end of the queue is removed.<br>
 Use the queue command to find position number of your track.<br>
 However, positions of all songs are changed when a new song starts playing.<br>
 
