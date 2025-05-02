@@ -5336,8 +5336,8 @@ class MusicBot(discord.Client):
             try:
                 indexes.append(int(position) - 1)
                 indexes.append(int(leftover_args[0]) - 1)
-            except (ValueError, IndexError):
-                raise exceptions.CommandError("Song positions must be integers!")
+            except (ValueError, IndexError) as e:
+                raise exceptions.CommandError("Song positions must be integers!") from e
 
             for i in indexes:
                 if i < 0 or i > len(player.playlist.entries) - 1:
