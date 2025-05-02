@@ -74,10 +74,10 @@ class Playlist(EventEmitter, Serializable):
     def removerange(self, start: int, end: int) -> None:
         """Clears a range of the deque of entries."""
         if start == 0:
-            for i in range(end - start + 1):
+            for _i in range(end - start + 1):
                 self.entries.popleft()
         elif end == len(self.entries) - 1:
-            for i in range(end - start + 1):
+            for _i in range(end - start + 1):
                 self.entries.pop()
         else:
             # Reconstruct the deque excluding the range [a, b]
