@@ -5315,8 +5315,8 @@ class MusicBot(discord.Client):
         author: discord.Member,
         permissions: PermissionGroup,
         player: MusicPlayer,
-        position: str = "",
         leftover_args: List[str],
+        position: str = "",
     ) -> CommandResponse:
         """
         Command to remove entries from the player queue.
