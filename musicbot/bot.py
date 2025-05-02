@@ -5321,10 +5321,10 @@ class MusicBot(discord.Client):
         """
         Command to remove entries from the player queue.
         You can:
-        - Provide one position: `{command_prefix}remove 3` removes song at position 3.
-        - Provide two positions: `{command_prefix}remove 3 6` removes songs 3 through 6.
-        - Mention a user: `{command_prefix}remove @user` removes their entries.
-        - Provide nothing: `{command_prefix}remove` removes the last song. (LIFO-style)
+        - Provide one position: `remove 3` removes song at position 3.
+        - Provide two positions: `remove 3 6` removes songs 3 through 6.
+        - Mention a user: `remove @user` removes their entries.
+        - Provide nothing: `remove` removes the last song. (LIFO-style)
         """
 
         if not player.playlist.entries:
