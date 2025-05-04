@@ -23,6 +23,7 @@ config/blocklist_users.txt
 config/blocklist_songs.txt
 config/playlists/
 media/
+i18n/*/LC_MESSAGES/*.mo
 
 docker-compose.yml
 
