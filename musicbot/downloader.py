@@ -85,7 +85,7 @@ ytdl_format_options_immutable = MappingProxyType(
         "usenetrc": True,
         "no_color": True,
         "retries": 1,
-        "concurrent_fragment_downloads": 16,
+        "concurrent_fragment_downloads": None,
     }
 )
 
@@ -140,6 +140,10 @@ class Downloader:
         if bot.config.ytdlp_source_address != "*":
             ytdl_format_options["source_address"] = bot.config.ytdlp_source_address
 
+        # apply download concurrency settings.
+        if bot.config.concurrent_fragment_downloads != "1":
+            ytdl_format_options["concurrent_fragment_downloads"] = bot.config.concurrent_fragment_downloads
+        
         # enable verbose ytdlp logs if debug mode is enabled.
         if bot.config.debug_mode:
             ytdl_format_options["no_warnings"] = False
