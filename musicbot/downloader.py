@@ -20,7 +20,7 @@ from yt_dlp.networking.exceptions import (  # type: ignore[import-untyped]
 from yt_dlp.utils import DownloadError  # type: ignore[import-untyped]
 from yt_dlp.utils import UnsupportedError
 
-from .constants import DEFAULT_MAX_INFO_DL_THREADS, DEFAULT_MAX_INFO_REQUEST_TIMEOUT
+from .constants import DEFAULT_MAX_INFO_REQUEST_TIMEOUT
 from .exceptions import ExtractionError, MusicbotException
 from .i18n import _L
 from .spotify import Spotify
@@ -111,7 +111,7 @@ class Downloader:
         self.download_folder: pathlib.Path = bot.config.audio_cache_path
         # NOTE: this executor may not be good for long-running downloads...
         self.thread_pool = ThreadPoolExecutor(
-            max_workers=DEFAULT_MAX_INFO_DL_THREADS,
+            max_workers=bot.config.downloader_threads_max,
             thread_name_prefix="MB_Downloader",
         )
         self._supported_search = [
@@ -134,6 +134,12 @@ class Downloader:
         # Copy immutable dict and use the mutable copy for everything else.
         ytdl_format_options = ytdl_format_options_immutable.copy()
         ytdl_format_options["http_headers"] = self.http_req_headers
+
+        # add concurrent-fragments option if it is needed.
+        if bot.config.ytdlp_concurrent_frags > 1:
+            ytdl_format_options["concurrent_fragment_downloads"] = (
+                bot.config.ytdlp_concurrent_frags
+            )
 
         # apply source address settings.
         if bot.config.ytdlp_source_address != "*":

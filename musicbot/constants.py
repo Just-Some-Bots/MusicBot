@@ -121,8 +121,6 @@ VOICE_CLIENT_RECONNECT_TIMEOUT: int = 5
 # Each retry increases the timeout by multiplying attempts by the above timeout.
 VOICE_CLIENT_MAX_RETRY_CONNECT: int = 5
 
-# Maximum number of threads MusicBot will use for downloading and extracting info.
-DEFAULT_MAX_INFO_DL_THREADS: int = 2
 # Maximum number of seconds to wait for HEAD request on media files.
 DEFAULT_MAX_INFO_REQUEST_TIMEOUT: int = 10
 

@@ -968,6 +968,32 @@ class Config:
                 "To allow either IPv4 or v6, set this to:  *"
             ),
         )
+        self.ytdlp_concurrent_frags: int = self.register.init_option(
+            section="MusicBot",
+            option="YtdlpConcurrentFrags",
+            dest="ytdlp_concurrent_frags",
+            default=ConfigDefaults.ytdlp_concurrent_frags,
+            getter="getint",
+            comment=_Dd(
+                "Use this many simultaneous threads to download each track.\n"
+                "Same as ytdlp -N or --concurrent-fragments options.\n"
+                "This option may speed up downloads, but has no effect on streams.\n"
+                "Should not be higher than the available number of CPU cores."
+            ),
+        )
+
+        self.downloader_threads_max: int = self.register.init_option(
+            section="MusicBot",
+            option="DownloaderTheadsMax",
+            dest="downloader_threads_max",
+            default=ConfigDefaults.downloader_threads_max,
+            getter="getint",
+            comment=_Dd(
+                "MusicBot may use up-to this many threads for each separate extraction.\n"
+                "Basically, the max number of simultaneous downloads or extractions.\n"
+                "MusicBot will spawn threads as they are needed, not right away.\n"
+            ),
+        )
 
         self.user_blocklist_enabled: bool = self.register.init_option(
             section="MusicBot",
@@ -1551,6 +1577,8 @@ class ConfigDefaults:
     ytdlp_proxy: str = ""
     ytdlp_user_agent: str = ""
     ytdlp_source_address: str = "*"
+    ytdlp_concurrent_frags: int = 1
+    downloader_threads_max: int = 2
 
     pre_download_next_song: bool = True
     default_search_service: str = "ytsearch"
