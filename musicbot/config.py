@@ -988,9 +988,10 @@ class Config:
             comment=_Dd(
                 "Enable the song block list feature, without emptying the block list."
             ),
+        )
         self.concurrent_fragment_downloads: int = self.register.init_option(
             section="MusicBot",
-            option="ConcurrentDownloads",
+            option="YtdlpConcurrentFrags",
             dest="concurrent_fragment_downloads",
             default=ConfigDefaults.concurrent_fragment_downloads,
             getter="getint",
