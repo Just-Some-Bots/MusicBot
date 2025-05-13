@@ -978,7 +978,7 @@ class Config:
                 "The number of threads used to download a (one) track.\n"
                 "Higher number is faster at the cost of CPU and network load.\n"
                 "Effectively the same as ytdlp -N or --concurrent-fragments option.\n"
-                "This option has no effect on streams.\n"
+                "This option has no effect on streams."
             ),
         )
 
@@ -992,7 +992,7 @@ class Config:
                 "The number of threads MusicBot may use for yt-dlp calls.\n"
                 "Most useful for multi-server bot's with high traffic.\n"
                 "These threads are spawned as-needed, not immediately.\n"
-                "NOTE: Each thread may spawn up to YtdlpConcurrentFrags child-threads.\n"
+                "NOTE: Each thread may spawn up to YtdlpConcurrentFrags child-threads."
             ),
         )
 
