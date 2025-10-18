@@ -23,7 +23,14 @@ import aiohttp
 import certifi  # type: ignore[import-untyped, unused-ignore]
 import discord
 import yt_dlp as youtube_dl  # type: ignore[import-untyped]
+# optional imports
+try:
+    import objgraph  # type: ignore[import-untyped]
+except ImportError:
+    objgraph = None
 
+
+# Local module imports (restored)
 from . import downloader, exceptions
 from .aliases import Aliases, AliasesDefault
 from .autoplaylist import AutoPlaylistManager
@@ -74,12 +81,6 @@ from .utils import (
     owner_only,
     slugify,
 )
-
-# optional imports
-try:
-    import objgraph  # type: ignore[import-untyped]
-except ImportError:
-    objgraph = None
 
 
 if TYPE_CHECKING:
@@ -3509,7 +3510,6 @@ class MusicBot(discord.Client):
             song_url,
             head=False,
         )
-
     async def cmd_shuffleplay(
         self,
         message: discord.Message,
@@ -3548,7 +3548,50 @@ class MusicBot(discord.Client):
             ),
             delete_after=30,
         )
+    
+    async def cmd_shufflequeue(
+        self, player: MusicPlayer, guild: discord.Guild
+    ) -> CommandResponse:
+        """
+        Usage:
+            {command_prefix}shufflequeue
 
+        Shuffles only the queue without affecting the currently playing song.
+        The current song will continue playing and the remaining queue will be randomized.
+        """
+
+        if not player.playlist.entries:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-shufflequeue-empty",
+                    "Cannot shuffle an empty queue! Add some songs with {0}play first.",
+                ).format(self.server_data[guild.id].command_prefix),
+                expire_in=30,
+            )
+
+        if len(player.playlist.entries) < 2:
+            raise exceptions.CommandError(
+                self.str.get(
+                    "cmd-shufflequeue-too-few",
+                    "Need at least 2 songs in the queue to shuffle!",
+                ),
+                expire_in=30,
+            )
+
+        # Get the count before shuffling
+        queue_size = len(player.playlist.entries)
+
+        # Shuffle the queue entries
+        player.playlist.shuffle()
+
+        return Response(
+            self.str.get(
+                "cmd-shufflequeue-success",
+                "🎲 Shuffled {0} songs in the queue for `{1}`. The currently playing song is unaffected.",
+            ).format(queue_size, guild.name),
+            delete_after=20,
+        )
+    
     async def cmd_playnext(
         self,
         message: discord.Message,
@@ -3586,7 +3629,7 @@ class MusicBot(discord.Client):
             song_url,
             head=True,
         )
-
+    
     async def cmd_playnow(
         self,
         message: discord.Message,
