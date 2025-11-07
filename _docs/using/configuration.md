@@ -240,7 +240,7 @@ Allow MusicBot to format its messages as embeds.<br>
 
 Replace MusicBot name/version in embed footer with custom text.<br>
 Only applied when UseEmbeds is enabled and it is not blank.<br>  
-<strong>Default Value:</strong> <code>Just-Some-Bots/MusicBot (alpha-050125-18-g1ef01294-config-cli-tool)</code>  
+<strong>Default Value:</strong> <code>Just-Some-Bots/MusicBot (8206050-fae)</code>  
 </details>  
 <details>
   <summary>RemoveEmbedFooter</summary>
@@ -600,6 +600,24 @@ To allow either IPv4 or v6, set this to:  *<br>
 <strong>Default Value:</strong> <code>*</code>  
 </details>  
 <details>
+  <summary>YtdlpConcurrentFrags</summary>
+
+The number of threads used to download a (one) track.<br>
+Higher number is faster at the cost of CPU and network load.<br>
+Effectively the same as ytdlp -N or --concurrent-fragments option.<br>
+This option has no effect on streams.<br>  
+<strong>Default Value:</strong> <code>1</code>  
+</details>  
+<details>
+  <summary>DownloaderTheadsMax</summary>
+
+The number of threads MusicBot may use for yt-dlp calls.<br>
+Most useful for multi-server bot's with high traffic.<br>
+These threads are spawned as-needed, not immediately.<br>
+NOTE: Each thread may spawn up to YtdlpConcurrentFrags child-threads.<br>  
+<strong>Default Value:</strong> <code>2</code>  
+</details>  
+<details>
   <summary>EnableUserBlocklist</summary>
 
 Toggle the user block list feature, without emptying the block list.<br>  
@@ -671,4 +689,5 @@ Learn more about time format codes from the tables and data here:<br>
 
 ---
 
-<a class="expand-all-details">Show/Hide All</a>
+<p><a class="expand-all-details">Show/Hide All</a></p>
+

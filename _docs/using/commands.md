@@ -902,4 +902,5 @@ Command used to automate testing of commands.<br>
 
 ---
 
-<a class="expand-all-details">Show/Hide All</a>
+<p><a class="expand-all-details">Show/Hide All</a></p>
+
