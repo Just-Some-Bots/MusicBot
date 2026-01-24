@@ -240,7 +240,7 @@ Allow MusicBot to format its messages as embeds.<br>
 
 Replace MusicBot name/version in embed footer with custom text.<br>
 Only applied when UseEmbeds is enabled and it is not blank.<br>  
-<strong>Default Value:</strong> <code>Just-Some-Bots/MusicBot (ece0a13-fae)</code>  
+<strong>Default Value:</strong> <code>Just-Some-Bots/MusicBot (d171151-fae)</code>  
 </details>  
 <details>
   <summary>RemoveEmbedFooter</summary>
