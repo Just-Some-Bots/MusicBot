@@ -11,7 +11,7 @@ class Json:
         """
         Managed JSON data, where some structure is expected.
         """
-        log.debug("Init JSON obj from file: %s", json_file)
+        log.debug("Loading JSON file: %s", json_file)
         self.file = json_file
         self.data = self.parse()
 
