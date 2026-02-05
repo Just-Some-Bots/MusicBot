@@ -18,11 +18,11 @@ We can ignore the Patch version. As long as your Major and Minor versions match,
 
 <a class="expand-all-details">Show/Hide All</a>
 
-## Ubuntu 18.04  
+## Ubuntu 18.04 and 20.04  
 <details>
   <summary>Install steps.</summary>
 
-On Ubuntu 18.04 and lower the system packaged Python is too old for MusicBot.<br>  
+On Ubuntu 20.04 and lower the system packaged Python is too old for MusicBot.<br>  
 So we install packages for MusicBot as well as those needed to compile Python from source.<br>  
 
 {% highlight bash %}
@@ -66,6 +66,11 @@ cd ./MusicBot
 # Now install the pip libraries
 python -m pip install -U -r ./requirements.txt
 
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
+
 {% endhighlight %}
 
 When install is finished you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.<br>  
@@ -76,11 +81,11 @@ After configuring you can use the command <code>./run.sh</code> to start the bot
 
 ---
 
-## Ubuntu 20.04 & 22.04  
+## Ubuntu 22.04  
 <details>
   <summary>Install steps.</summary>
 
-For Ubuntu 20.04 and 22.04, the Python 3 packages should be 3.9 or newer which makes install pretty simple.
+For Ubuntu 22.04, the Python 3 packages should be 3.10 or newer which makes install pretty simple.
 
 {% highlight bash %}
 # Update system packages first
@@ -100,6 +105,12 @@ cd ./MusicBot/
 
 # Now install the pip libraries
 python -m pip install -U -r ./requirements.txt
+
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
+
 {% endhighlight %}
 
 Once finished, you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.<br>  
@@ -124,6 +135,11 @@ sudo apt-get upgrade -y
 sudo apt-get install build-essential software-properties-common \
     unzip curl git ffmpeg libopus-dev libffi-dev libsodium-dev \
     python3-full python3-pip python3-venv python3-dev jq -y
+
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
 
 # Set up the venv directory as ./MusicBotVenv
 python -m venv ./MusicBotVenv

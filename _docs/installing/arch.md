@@ -17,7 +17,12 @@ Follow these steps to install MusicBot with Venv:
 sudo pacman -Syu
 
 # Install system packaged dependencies
-sudo pacman -S git curl python python-pip ffmpeg
+sudo pacman -S git curl python python-pip ffmpeg unzip
+
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
 
 # Create a Virtual environment for MusicBot in your Home directory.
 cd ~

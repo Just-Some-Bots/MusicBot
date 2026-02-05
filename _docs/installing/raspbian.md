@@ -65,43 +65,11 @@ If you need to manually update python libraries for MusicBot, you will need to a
 
 ---
 
-## Version 11 (bullseye)
+## Version 11 (bullseye) and earlier.
 <details>
-  <summary>Raspberry Pi OS 11 (bullseye) install steps.</summary>  
+  <summary>Raspbian 11 (bullseye) install steps.</summary>
 
-For Pi OS version 11 (bullseye), Python 3.9 or higher is available as a system package, so installing is pretty simple.<br>  
-Just follow these commands:  
-
-{% highlight bash %}
-# Update system packages.
-sudo apt-get update -y
-sudo apt-get upgrade -y
-
-# Install dependencies.
-sudo apt install -y git curl ffmpeg python3 python3-pip
-
-# Clone the MusicBot repository targeting the latest dev branch
-git clone https://github.com/Just-Some-Bots/MusicBot.git -b dev ./MusicBot
-
-# Change directory into the cloned repo
-cd ./MusicBot/
-
-# Now install the pip libraries
-python -m pip install -U -r ./requirements.txt
-{% endhighlight %}
-
-Once finished, you need to <a href="{{ site.baseurl }}/using/configuration">Configure</a> MusicBot.<br>  
-After configuring you can use the command <code>./run.sh</code> to start the bot.
-
-</details>
-
----
-
-## Version 10 (buster) and earlier.
-<details>
-  <summary>Raspbian 10 (buster) install steps.</summary>
-
-For Raspbian version 10 (buster) and earlier versions, you will need to compile a version of Python 3.9 or higher as well as installing pip.<br>  
+For Raspbian version 11 (bullseye) and earlier versions, you will need to compile a version of Python 3.10 or higher as well as installing pip.<br>  
 This can take a bit of time to complete and may require a little troubleshooting know-how if these steps are out-of-date or incomplete in some way.<br>  
 <br>
 If you're willing to carefully follow along, these steps <i>should</i> get MusicBot working:
@@ -146,6 +114,11 @@ cd ./MusicBot
 
 # Now install the pip libraries
 python -m pip install -U -r ./requirements.txt
+
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
 
 {% endhighlight %}
 

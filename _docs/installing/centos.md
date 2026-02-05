@@ -3,114 +3,31 @@ title: CentOS
 category: Installing the bot
 order: 8
 ---
-<img class="os-icon" src="{{ site.baseurl }}/images/centos.png" alt="CentOS logo"/>
-Installation on CentOS is possible, however **support is no longer provided for any version of CentOS**.  
-CentOS is considered End-of-Life, and so packages and repositories used in these steps may not exist today!  
-
-CentOS Stream version 8 was included in the [Auto Installer]({{ site.baseurl }}/installing/installers) script. 
-It may or may not work for you, please read the script before using it.  
-If you are interested in installing on CentOS or other RHEL-like OS versions, please consider contributing up-to-date install steps for the OS of your choice.  
-
-> **NOTICE:** These steps are provided for reference only. Carefully examine and update these steps to comply with your system. 
-
-## CentOS 6.9
-
-~~~sh
-# Install dependencies
-sudo yum -y update
-sudo yum -y groupinstall "Development Tools"
-sudo yum -y install https://centos6.iuscommunity.org/ius-release.rpm
-sudo yum -y install gcc openssl-devel bzip2-devel libffi-devel make
-sudo yum -y install yum-utils opus-devel libsodium-devel 
-
-# Install Python3.10
-cd /opt
-wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
-tar xzf Python-3.10.13.tgz
-cd Python-3.10.13
-sudo ./configure --enable-optimizations
-sudo make altinstall
-cd ..
-sudo rm Python-3.10.13.tgz
-
-# Install FFmpeg
-sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
-sudo rpm -Uvh http://li.nux.ro/download/nux/dextop/el6/x86_64/nux-dextop-release-0-2.el6.nux.noarch.rpm
-sudo yum -y install ffmpeg ffmpeg-devel -y
-
-# Install libsodium from source
-mkdir libsodium && cd libsodium
-curl -o libsodium.tar.gz https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
-tar -zxvf libsodium.tar.gz && cd libsodium-stable
-./configure
-make && make check
-sudo make install
-cd ../.. && rm -rf libsodium
-
-# Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
-cd MusicBot
-
-# Install bot requirements
-
-python3 -m pip install -U -r requirements.txt
-python3 -m pip install -U pynacl
-
-~~~
+<img class="os-icon" src="{{ site.baseurl }}/images/centos-stream.svg" alt="CentOS Stream logo"/>
+Installation on CentOS Stream is supported on versions 9 and 10.  
+Other RHEL or CentOS-like distros may also work with these steps, but you may need to adjust or add commands.  
 
 
-## CentOS 7.4
+## CentOS Stream 10  
 
-~~~sh
-# Install dependencies
-sudo yum -y update
-sudo yum -y groupinstall "Development Tools"
-sudo yum -y install https://centos7.iuscommunity.org/ius-release.rpm
-sudo yum -y install curl opus-devel libffi-devel libsodium-devel
-sudo yum -y install gcc openssl-devel bzip2-devel make
-
-# Install Python3.10
-
-cd /opt
-wget https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz
-tar xzf Python-3.10.13.tgz
-cd Python-3.10.13
-sudo ./configure --enable-optimizations
-sudo make altinstall
-cd ..
-sudo rm Python-3.10.13.tgz
-
-# Install FFmpeg
-sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
-sudo rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
-sudo yum -y install ffmpeg ffmpeg-devel -y
-
-# Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b review
-cd MusicBot
-
-# Install bot requirements
-
-python3 -m pip install -U -r requirements.txt
-
-~~~
-
-## CentOS Stream 8
-
-These are the steps used by the auto-installer script for CentOS Stream version 8.  
+The following steps will minimally set up MusicBot.
 
 ```bash
+# Install extra repos, needed for ffmpeg.
+sudo dnf config-manager --set-enabled crb
+sudo dnf install --nogpgcheck https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
+sudo dnf install --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-10.noarch.rpm
 
-# Add extra repositories to system package manager.
-sudo dnf install epel-release
-sudo dnf install --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
-sudo dnf config-manager --enable powertools
+# Install available packages.
+sudo yum -y install opus-devel libffi-devel git curl jq ffmpeg python3 python3-pip python3-devel unzip
 
-# Install available required packages.
-sudo yum -y install opus-devel libffi-devel git curl jq ffmpeg python39 python39-devel
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
 
 # Clone the MusicBot
-git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b master
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b dev
 cd MusicBot
 
 # Install bot requirements
@@ -118,4 +35,57 @@ python3 -m pip install -U -r requirements.txt
 
 ```
 
-Once everything has been completed, you can go ahead and [configure]({{ site.baseurl }}/using/configuration) the bot and then run with `sudo ./run.sh`.
+Once everything has been completed, you can go ahead and [configure]({{ site.baseurl }}/using/configuration) the bot and then run the bot with the `./run.sh` script.
+
+
+
+## CentOS Stream 9
+
+These steps should get everything set up on CentOS Stream 9.  
+
+```bash
+
+# Add extra repositories to system package manager, needed for ffmpeg.
+sudo dnf config-manager --set-enabled crb
+sudo dnf install --nogpgcheck https://dl.fedoraproject.org/pub/epel/epel{,-next}-release-latest-9.noarch.rpm
+sudo dnf install --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
+
+# Install dependency packages.
+sudo yum -y install opus-devel libffi-devel git curl jq ffmpeg unzip \
+    yum-utils make gcc openssl-devel bzip2-devel libffi-devel zlib-devel 
+
+# Download and build Python 3.10
+curl https://www.python.org/ftp/python/3.10.14/Python-3.10.14.tar.xz -o "Python-3.10.14.tar.xz"
+
+# Extract the downloaded archive and change into it.
+tar -xf Python-3.10.14.tar.xz
+cd Python-3.10.14
+
+# Configure Python 3.10.14 build options.
+./configure --enable-optimizations
+
+# Compile the source code.
+# Note: add `-j N` where N is the number of CPU cores, for faster builds.
+make
+
+# Install Python to the system using alternate install location to avoid conflicts with older system python
+sudo make altinstall
+
+# Leave the source directory
+cd ..
+
+# Install deno JS runtime needed for yt-dlp.
+curl -fsSL https://deno.land/install.sh | sh
+
+# NOTE: Restart your user session or terminal to ensure PATH updates are loaded.
+
+# Clone the MusicBot
+git clone https://github.com/Just-Some-Bots/MusicBot.git MusicBot -b dev
+cd MusicBot
+
+# Install bot requirements
+python3 -m pip install -U -r requirements.txt
+
+```
+
+Next [configure]({{ site.baseurl }}/using/configuration) the bot and then run the bot with the `./run.sh` script.  

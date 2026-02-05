@@ -29,9 +29,9 @@ xcode-select --install
 brew update
 
 # Install system dependencies
-brew install libsodium libffi ffmpeg git opus-tools
+brew install libsodium libffi ffmpeg git opus-tools deno
 
-# Install python using version 3.10, or any version from 3.9 to 3.13
+# Install python using version 3.10, or any version from 3.10 to 3.13
 brew install python@3.10
 
 # Clone the MusicBot using master branch, you may also use review or dev.
