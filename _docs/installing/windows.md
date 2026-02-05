@@ -14,7 +14,7 @@ MusicBot can be installed on Windows 7 through 11, though it requires installing
 These steps can be used to install on Windows 10 and 11, using mainly the WinGet tool.  
 This is roughly the same process `install.ps1` follows, without some tweaks and fall-back methods.  
 
-1. Download and install WinGet from this URL: https://aka.ms/getwinget  
+1. Download and install WinGet from this URL: [https://aka.ms/getwinget](https://aka.ms/getwinget)  
 2. After installing winget, open PowerShell and run these commands:  
    ```bat
    winget install Git.Git
