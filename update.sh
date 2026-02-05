@@ -3,6 +3,14 @@
 # make sure we're in MusicBot directory...
 cd "$(dirname "${BASH_SOURCE[0]}")" || { echo "Could not change directory to MusicBot."; exit 1; }
 
+# Check if this script is being run on windows and redirect the user.  
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] ; then
+    echo "update.sh is not for Windows.  Use the update.bat file instead."
+    read -rp "Press any key to exit."
+    exit 2
+fi
+
+
 # provides an exit that also deactivates venv.
 function do_exit() {
     if [ "${VIRTUAL_ENV}" != "" ] ; then
@@ -20,7 +28,7 @@ if [ -f "../bin/activate" ] ; then
 fi
 
 # Suported versions of python using only major.minor format
-PySupported=("3.8" "3.9" "3.10" "3.11" "3.12")
+PySupported=("3.13" "3.12" "3.11" "3.10" "3.9")
 
 # compile a list of bin names to try for.
 PyBins=("python3")  # We hope that python3 maps to a good version.
@@ -49,20 +57,11 @@ for PyBin in "${PyBins[@]}" ; do
     fi
     PY_VER_MAJOR=$((PY_VER[0]))
     PY_VER_MINOR=$((PY_VER[1]))
-    PY_VER_PATCH=$((PY_VER[2]))
+    # PY_VER_PATCH=$((PY_VER[2]))
     # echo "run.sh detected $PY_BIN version: $PY_VER_MAJOR.$PY_VER_MINOR.$PY_VER_PATCH"
 
     # Major version must be 3+
     if [[ $PY_VER_MAJOR -ge 3 ]]; then
-        # If 3, minor version minimum is 3.8
-        if [[ $PY_VER_MINOR -eq 8 ]]; then
-            # if 3.8, patch version minimum is 3.8.7
-            if [[ $PY_VER_PATCH -ge 7 ]]; then
-                VerGood=1
-                Python_Bin="$PyBin"
-                break
-            fi
-        fi
         # if 3.9+ it should work.
         if [[ $PY_VER_MINOR -ge 9 ]]; then
             VerGood=1
@@ -74,7 +73,7 @@ done
 
 # if we don't have a good version for python, bail.
 if [[ "$VerGood" == "0" ]]; then
-    echo "Python 3.8.7 or higher is required to update MusicBot."
+    echo "Python 3.9 or higher is required to update MusicBot."
     do_exit 1
 fi
 
