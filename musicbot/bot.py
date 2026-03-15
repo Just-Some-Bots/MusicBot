@@ -239,7 +239,7 @@ class MusicBot(commands.Bot):
         intents = discord.Intents.all()
         intents.typing = False
         intents.presences = False
-        super().__init__(command_prefix=[], intents=intents)
+        super().__init__(command_prefix="\x00", intents=intents)
 
     def create_task(
         self,
@@ -5476,7 +5476,7 @@ class MusicBot(commands.Bot):
         guild: discord.Guild,
         player: MusicPlayer,
         author: discord.Member,
-        message: discord.Message,
+        message: Optional[discord.Message],
         permissions: PermissionGroup,
         voice_channel: Optional[VoiceableChannel],
         param: str = "",
@@ -5575,7 +5575,8 @@ class MusicBot(commands.Bot):
             num_voice = 1
 
         # add the current skipper id so we can count it.
-        player.skip_state.add_skipper(author.id, message)
+        if message is not None:
+            player.skip_state.add_skipper(author.id, message)
         # count all members who are in skippers set.
         num_skips = count_members_in_voice(
             voice_channel,
