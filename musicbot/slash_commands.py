@@ -1644,3 +1644,417 @@ class SlashCommands(commands.Cog):
             "❌ The `option` command is deprecated. Use `/config` instead.",
             ephemeral=True,
         )
+
+    # =======================================================================
+    # BATCH 4
+    # cache (group), queue, clean, pldump, id, listids, perms
+    # + QueueView helper class (defined below SlashCommands — see bottom)
+    # =======================================================================
+
+    # -----------------------------------------------------------------------
+    # /cache  (owner-only group)
+    # -----------------------------------------------------------------------
+
+    cache = app_commands.Group(
+        name="cache",
+        description="Manage the audio file cache. Owner only.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    @cache.command(name="info", description="Show current cache size and settings.")
+    async def slash_cache_info(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_cache(ssd_=self._ssd(interaction), opt="info")
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @cache.command(name="update", description="Scan the cache folder then show info.")
+    async def slash_cache_update(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_cache(ssd_=self._ssd(interaction), opt="update")
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @cache.command(name="clear", description="Clear the audio cache according to configured limits.")
+    async def slash_cache_clear(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_cache(ssd_=self._ssd(interaction), opt="clear")
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /queue
+    # Pagination is handled by QueueView (defined after SlashCommands).
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="queue",
+        description="Show the current song queue with pagination.",
+    )
+    @app_commands.describe(page="Queue page number to start on.")
+    async def slash_queue(
+        self,
+        interaction: discord.Interaction,
+        page: Optional[int] = None,
+    ) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "queue"):
+            return
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            player = await self._get_player(interaction)
+            ssd = self._ssd(interaction)
+
+            import math
+            total = len(player.playlist.entries)
+            pages_total = math.ceil(total / self.bot.config.queue_length) if total else 1
+            start_page = max(0, (page or 1) - 1)
+
+            view = QueueView(
+                bot=self.bot,
+                player=player,
+                guild=guild,
+                channel=interaction.channel,
+                ssd=ssd,
+                start_page=start_page,
+            )
+            content = await view.build_page()
+
+            # Mirror original behaviour: no pagination UI when everything fits on one page.
+            if pages_total <= 1:
+                await interaction.followup.send(content=content)
+            else:
+                await interaction.followup.send(content=content, view=view)
+                view.message = await interaction.original_response()
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /clean
+    # NOTE: Without a triggering message, purge runs against the most recent
+    # messages (before=utcnow()) rather than stopping before the command msg.
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="clean",
+        description="Delete bot messages and command invocations from this channel.",
+    )
+    @app_commands.describe(range="Number of messages to search through (default 50, max 500).")
+    async def slash_clean(
+        self,
+        interaction: discord.Interaction,
+        range: Optional[int] = 50,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "clean"):
+            return
+        try:
+            guild = interaction.guild
+            user = interaction.user
+            if not guild or not isinstance(user, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_clean(
+                ssd_=self._ssd(interaction),
+                message=None,           # guarded in bot.py — purge uses utcnow() instead
+                channel=interaction.channel,
+                guild=guild,
+                author=user,
+                search_range_str=str(range),
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /pldump
+    # Original sends the file as a DM. Slash version sends it as an
+    # ephemeral file attachment in-channel instead.
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="pldump",
+        description="Dump all URLs from a playlist to a text file.",
+    )
+    @app_commands.describe(url="Playlist URL to dump.")
+    async def slash_pldump(self, interaction: discord.Interaction, url: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "pldump"):
+            return
+        try:
+            user = interaction.user
+            if not isinstance(user, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_pldump(
+                ssd_=self._ssd(interaction),
+                author=user,
+                song_subject=url,
+            )
+            if resp and getattr(resp, "files", None):
+                await interaction.followup.send(
+                    _content(resp), files=resp.files, ephemeral=True
+                )
+            else:
+                await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /id
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="id",
+        description="Show your Discord user ID, or the ID of another member.",
+    )
+    @app_commands.describe(user="Member to look up (omit to show your own ID).")
+    async def slash_id(
+        self,
+        interaction: discord.Interaction,
+        user: Optional[discord.Member] = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "id"):
+            return
+        try:
+            author = interaction.user
+            if not isinstance(author, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_id(
+                ssd_=self._ssd(interaction),
+                author=author,
+                user_mentions=[user] if user else [],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /listids
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="listids",
+        description="Dump Discord IDs for this server's users, roles, and channels to a file.",
+    )
+    @app_commands.describe(category="Which IDs to include (default: all).")
+    @app_commands.choices(category=[
+        app_commands.Choice(name="All",      value="all"),
+        app_commands.Choice(name="Users",    value="users"),
+        app_commands.Choice(name="Roles",    value="roles"),
+        app_commands.Choice(name="Channels", value="channels"),
+    ])
+    async def slash_listids(
+        self,
+        interaction: discord.Interaction,
+        category: Optional[app_commands.Choice[str]] = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "listids"):
+            return
+        try:
+            guild = interaction.guild
+            user = interaction.user
+            if not guild or not isinstance(user, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            cat = category.value if category else "all"
+            resp = await self.bot.cmd_listids(
+                ssd_=self._ssd(interaction),
+                guild=guild,
+                author=user,
+                leftover_args=[],
+                cat=cat,
+            )
+            if resp and getattr(resp, "files", None):
+                await interaction.followup.send(
+                    _content(resp), files=resp.files, ephemeral=True
+                )
+            else:
+                await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /perms
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="perms",
+        description="Show your MusicBot permissions, or another member's.",
+    )
+    @app_commands.describe(user="Member to check (omit to check your own permissions).")
+    async def slash_perms(
+        self,
+        interaction: discord.Interaction,
+        user: Optional[discord.Member] = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "perms"):
+            return
+        try:
+            guild = interaction.guild
+            author = interaction.user
+            if not guild or not isinstance(author, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_perms(
+                ssd_=self._ssd(interaction),
+                author=author,
+                user_mentions=[user] if user else [],
+                guild=guild,
+                permissions=self.bot.permissions.for_user(author),
+                target=str(user.id) if user else "",
+            )
+            # cmd_perms sends to DM via send_to=author — extract content and
+            # send as ephemeral instead so it stays in-channel for slash.
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+
+# ---------------------------------------------------------------------------
+# QueueView — paginated queue display for /queue
+# ---------------------------------------------------------------------------
+
+class QueueView(discord.ui.View):
+    """
+    Prev / Next / Close pagination for the /queue command.
+    Any user in the guild can flip pages.
+    Auto-disables after the bot's configured delete_delay_long timeout.
+    """
+
+    def __init__(
+        self,
+        *,
+        bot: "MusicBot",
+        player: "MusicPlayer",
+        guild: discord.Guild,
+        channel,
+        ssd,
+        start_page: int = 0,
+    ) -> None:
+        super().__init__(timeout=bot.config.delete_delay_long)
+        self.bot = bot
+        self.player = player
+        self.guild = guild
+        self.channel = channel
+        self.ssd = ssd
+        self.page = start_page
+        self.message: Optional[discord.Message] = None
+
+    @property
+    def pages_total(self) -> int:
+        import math
+        total = len(self.player.playlist.entries)
+        if not total:
+            return 1
+        return math.ceil(total / self.bot.config.queue_length)
+
+    async def build_page(self) -> str:
+        """Build the text content for the current page."""
+        from .utils import format_song_duration
+
+        player = self.player
+        ssd = self.ssd
+        total_entry_count = len(player.playlist.entries)
+
+        if not total_entry_count:
+            return "There are no songs queued! Queue something with a play command."
+
+        current_progress = ""
+        if player.is_playing and player.current_entry:
+            song_progress = format_song_duration(player.progress)
+            song_total = (
+                format_song_duration(player.current_entry.duration_td)
+                if player.current_entry.duration is not None
+                else "(unknown duration)"
+            )
+            added_by = "[autoplaylist]"
+            if player.current_entry.channel and player.current_entry.author:
+                added_by = player.current_entry.author.name
+            current_progress = (
+                f"Currently playing: `{player.current_entry.title}`\n"
+                f"Added by: `{added_by}`\n"
+                f"Progress: `[{song_progress}/{song_total}]`\n\n"
+            )
+
+        start_index = self.bot.config.queue_length * self.page
+        end_index = start_index + self.bot.config.queue_length
+        starting_at = start_index + 1
+
+        tracks_list = ""
+        queue_segment = list(player.playlist.entries)[start_index:end_index]
+        for idx, item in enumerate(queue_segment, starting_at):
+            if item == player.current_entry:
+                continue
+            added_by = "[autoplaylist]"
+            if item.channel and item.author:
+                added_by = item.author.name
+            title = item.title[:40] + " ..." if len(item.title) > 40 else item.title
+            entry_str = f"**#{idx}:** `{title}` — added by `{added_by}`\n"
+            if len(tracks_list) + len(entry_str) < 1800:
+                tracks_list += entry_str
+
+        page_info = f"Page **{self.page + 1}/{self.pages_total}**"
+        return (
+            f"**Songs in queue** — {page_info}\n\n"
+            f"{current_progress}"
+            f"There are `{total_entry_count}` entries total.\n\n"
+            f"{tracks_list}"
+        )
+
+    def _update_buttons(self) -> None:
+        self.prev_button.disabled = self.page <= 0
+        self.next_button.disabled = self.page >= self.pages_total - 1
+
+    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary)
+    async def prev_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        self.page = max(0, self.page - 1)
+        self._update_buttons()
+        content = await self.build_page()
+        await interaction.response.edit_message(content=content, view=self)
+
+    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary)
+    async def next_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        self.page = min(self.pages_total - 1, self.page + 1)
+        self._update_buttons()
+        content = await self.build_page()
+        await interaction.response.edit_message(content=content, view=self)
+
+    @discord.ui.button(emoji="✖️", style=discord.ButtonStyle.danger)
+    async def close_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        self.stop()
+        await interaction.response.edit_message(content="Queue closed.", view=None)
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True  # type: ignore[attr-defined]
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
