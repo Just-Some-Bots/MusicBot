@@ -3,7 +3,7 @@ musicbot/slash_commands.py
 --------------------------
 Slash command wrappers for MusicBot.
 
-All 53 user-facing commands are covered across 6 batches:
+All 53 user-facing commands covered across 6 batches:
 
   Batch 1 — resetplaylist, help, blockuser (group), blocksong (group),
              autoplaylist (group), joinserver, karaoke, play, shuffleplay, playnext
@@ -26,29 +26,6 @@ Strategy
 * The custom permissions system is preserved via _check_perms().
 * A shared _send() helper converts Response/ErrorResponse → interaction reply.
 * SearchView and QueueView provide interactive UI for /search and /queue.
-
-Required one-time changes in bot.py
-------------------------------------
-1.  Imports + class declaration:
-        from discord.ext import commands
-        class MusicBot(commands.Bot):
-
-2.  __init__: replace super().__init__ call:
-        super().__init__(command_prefix="\x00", intents=intents)
-
-3.  setup_hook: add at the end:
-        from .slash_commands import SlashCommands
-        await self.add_cog(SlashCommands(self))
-
-4.  _on_ready_once: add after _on_ready_sanity_checks():
-        synced = await self.tree.sync()
-        print(f"Synced {len(synced)} slash commands globally.")
-
-5.  _do_cmd_unpause_check: message param → Optional[discord.Message], guard summon call
-6.  cmd_summon: message param → Optional[discord.Message], guard last_np_msg assignment
-7.  cmd_skip: message param → Optional[discord.Message], guard add_skipper call
-8.  cmd_clean: message param → Optional[discord.Message], guard before= kwarg
-9.  cmd_clear: fix queue-empty check to use playlist.entries instead of len(playlist) < 1
 """
 from __future__ import annotations
 
