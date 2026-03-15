@@ -234,6 +234,136 @@ class SearchView(discord.ui.View):
         self._disable_all()
 
 
+
+# ---------------------------------------------------------------------------
+# QueueView — paginated queue display for /queue
+# ---------------------------------------------------------------------------
+
+class QueueView(discord.ui.View):
+    """
+    Prev / Next / Close pagination for the /queue command.
+    Any user in the guild can flip pages.
+    Auto-disables after the bot's configured delete_delay_long timeout.
+    """
+
+    def __init__(
+        self,
+        *,
+        bot: "MusicBot",
+        player: "MusicPlayer",
+        guild: discord.Guild,
+        channel,
+        ssd,
+        start_page: int = 0,
+    ) -> None:
+        super().__init__(timeout=bot.config.delete_delay_long)
+        self.bot = bot
+        self.player = player
+        self.guild = guild
+        self.channel = channel
+        self.ssd = ssd
+        self.page = start_page
+        self.message: Optional[discord.Message] = None
+
+    @property
+    def pages_total(self) -> int:
+        import math
+        total = len(self.player.playlist.entries)
+        if not total:
+            return 1
+        return math.ceil(total / self.bot.config.queue_length)
+
+    async def build_page(self) -> str:
+        """Build the text content for the current page."""
+        from .utils import format_song_duration
+
+        player = self.player
+        ssd = self.ssd
+        total_entry_count = len(player.playlist.entries)
+
+        if not total_entry_count:
+            return "There are no songs queued! Queue something with a play command."
+
+        current_progress = ""
+        if player.is_playing and player.current_entry:
+            song_progress = format_song_duration(player.progress)
+            song_total = (
+                format_song_duration(player.current_entry.duration_td)
+                if player.current_entry.duration is not None
+                else "(unknown duration)"
+            )
+            added_by = "[autoplaylist]"
+            if player.current_entry.channel and player.current_entry.author:
+                added_by = player.current_entry.author.name
+            current_progress = (
+                f"Currently playing: `{player.current_entry.title}`\n"
+                f"Added by: `{added_by}`\n"
+                f"Progress: `[{song_progress}/{song_total}]`\n\n"
+            )
+
+        start_index = self.bot.config.queue_length * self.page
+        end_index = start_index + self.bot.config.queue_length
+        starting_at = start_index + 1
+
+        tracks_list = ""
+        queue_segment = list(player.playlist.entries)[start_index:end_index]
+        for idx, item in enumerate(queue_segment, starting_at):
+            if item == player.current_entry:
+                continue
+            added_by = "[autoplaylist]"
+            if item.channel and item.author:
+                added_by = item.author.name
+            title = item.title[:40] + " ..." if len(item.title) > 40 else item.title
+            entry_str = f"**#{idx}:** `{title}` — added by `{added_by}`\n"
+            if len(tracks_list) + len(entry_str) < 1800:
+                tracks_list += entry_str
+
+        page_info = f"Page **{self.page + 1}/{self.pages_total}**"
+        return (
+            f"**Songs in queue** — {page_info}\n\n"
+            f"{current_progress}"
+            f"There are `{total_entry_count}` entries total.\n\n"
+            f"{tracks_list}"
+        )
+
+    def _update_buttons(self) -> None:
+        self.prev_button.disabled = self.page <= 0
+        self.next_button.disabled = self.page >= self.pages_total - 1
+
+    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary)
+    async def prev_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        self.page = max(0, self.page - 1)
+        self._update_buttons()
+        content = await self.build_page()
+        await interaction.response.edit_message(content=content, view=self)
+
+    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary)
+    async def next_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        self.page = min(self.pages_total - 1, self.page + 1)
+        self._update_buttons()
+        content = await self.build_page()
+        await interaction.response.edit_message(content=content, view=self)
+
+    @discord.ui.button(emoji="✖️", style=discord.ButtonStyle.danger)
+    async def close_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ) -> None:
+        self.stop()
+        await interaction.response.edit_message(content="Queue closed.", view=None)
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True  # type: ignore[attr-defined]
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+
 class SlashCommands(commands.Cog):
     """Slash command surface for MusicBot."""
 
@@ -1929,136 +2059,6 @@ class SlashCommands(commands.Cog):
         except Exception as e:
             await self._err(interaction, e)
 
-
-# ---------------------------------------------------------------------------
-# QueueView — paginated queue display for /queue
-# ---------------------------------------------------------------------------
-
-class QueueView(discord.ui.View):
-    """
-    Prev / Next / Close pagination for the /queue command.
-    Any user in the guild can flip pages.
-    Auto-disables after the bot's configured delete_delay_long timeout.
-    """
-
-    def __init__(
-        self,
-        *,
-        bot: "MusicBot",
-        player: "MusicPlayer",
-        guild: discord.Guild,
-        channel,
-        ssd,
-        start_page: int = 0,
-    ) -> None:
-        super().__init__(timeout=bot.config.delete_delay_long)
-        self.bot = bot
-        self.player = player
-        self.guild = guild
-        self.channel = channel
-        self.ssd = ssd
-        self.page = start_page
-        self.message: Optional[discord.Message] = None
-
-    @property
-    def pages_total(self) -> int:
-        import math
-        total = len(self.player.playlist.entries)
-        if not total:
-            return 1
-        return math.ceil(total / self.bot.config.queue_length)
-
-    async def build_page(self) -> str:
-        """Build the text content for the current page."""
-        from .utils import format_song_duration
-
-        player = self.player
-        ssd = self.ssd
-        total_entry_count = len(player.playlist.entries)
-
-        if not total_entry_count:
-            return "There are no songs queued! Queue something with a play command."
-
-        current_progress = ""
-        if player.is_playing and player.current_entry:
-            song_progress = format_song_duration(player.progress)
-            song_total = (
-                format_song_duration(player.current_entry.duration_td)
-                if player.current_entry.duration is not None
-                else "(unknown duration)"
-            )
-            added_by = "[autoplaylist]"
-            if player.current_entry.channel and player.current_entry.author:
-                added_by = player.current_entry.author.name
-            current_progress = (
-                f"Currently playing: `{player.current_entry.title}`\n"
-                f"Added by: `{added_by}`\n"
-                f"Progress: `[{song_progress}/{song_total}]`\n\n"
-            )
-
-        start_index = self.bot.config.queue_length * self.page
-        end_index = start_index + self.bot.config.queue_length
-        starting_at = start_index + 1
-
-        tracks_list = ""
-        queue_segment = list(player.playlist.entries)[start_index:end_index]
-        for idx, item in enumerate(queue_segment, starting_at):
-            if item == player.current_entry:
-                continue
-            added_by = "[autoplaylist]"
-            if item.channel and item.author:
-                added_by = item.author.name
-            title = item.title[:40] + " ..." if len(item.title) > 40 else item.title
-            entry_str = f"**#{idx}:** `{title}` — added by `{added_by}`\n"
-            if len(tracks_list) + len(entry_str) < 1800:
-                tracks_list += entry_str
-
-        page_info = f"Page **{self.page + 1}/{self.pages_total}**"
-        return (
-            f"**Songs in queue** — {page_info}\n\n"
-            f"{current_progress}"
-            f"There are `{total_entry_count}` entries total.\n\n"
-            f"{tracks_list}"
-        )
-
-    def _update_buttons(self) -> None:
-        self.prev_button.disabled = self.page <= 0
-        self.next_button.disabled = self.page >= self.pages_total - 1
-
-    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary)
-    async def prev_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
-        self.page = max(0, self.page - 1)
-        self._update_buttons()
-        content = await self.build_page()
-        await interaction.response.edit_message(content=content, view=self)
-
-    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary)
-    async def next_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
-        self.page = min(self.pages_total - 1, self.page + 1)
-        self._update_buttons()
-        content = await self.build_page()
-        await interaction.response.edit_message(content=content, view=self)
-
-    @discord.ui.button(emoji="✖️", style=discord.ButtonStyle.danger)
-    async def close_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ) -> None:
-        self.stop()
-        await interaction.response.edit_message(content="Queue closed.", view=None)
-
-    async def on_timeout(self) -> None:
-        for item in self.children:
-            item.disabled = True  # type: ignore[attr-defined]
-        if self.message:
-            try:
-                await self.message.edit(view=self)
-            except discord.HTTPException:
-                pass
-
     # =======================================================================
     # BATCH 5
     # setperms (group), setname, setnick, setprefix, language (group),
@@ -2278,8 +2278,6 @@ class QueueView(discord.ui.View):
 
     # -----------------------------------------------------------------------
     # /setavatar  (owner-only)
-    # Original supports message attachment OR URL. Slash supports both via
-    # an optional attachment parameter and an optional url parameter.
     # -----------------------------------------------------------------------
 
     @app_commands.command(
@@ -2343,7 +2341,6 @@ class QueueView(discord.ui.View):
 
     # -----------------------------------------------------------------------
     # /restart  (owner-only group)
-    # RestartSignal and TerminateSignal must propagate — not caught by _err.
     # -----------------------------------------------------------------------
 
     restart = app_commands.Group(
@@ -2368,7 +2365,6 @@ class QueueView(discord.ui.View):
                 opt=opt,
             )
         except (exceptions.RestartSignal, exceptions.TerminateSignal):
-            # These must propagate to the bot's run loop — re-raise.
             raise
         except Exception as e:
             await self._err(interaction, e)
