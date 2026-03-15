@@ -1149,3 +1149,498 @@ class SlashCommands(commands.Cog):
             await self._send(interaction, resp)
         except Exception as e:
             await self._err(interaction, e)
+
+    # =======================================================================
+    # BATCH 3
+    # resume, shuffle, clear, remove, skip, volume, speed,
+    # setalias (group), config (group), option
+    # =======================================================================
+
+    # -----------------------------------------------------------------------
+    # /resume
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(name="resume", description="Resume a paused player.")
+    async def slash_resume(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "resume"):
+            return
+        try:
+            player = await self._get_player(interaction)
+            resp = await self.bot.cmd_resume(
+                ssd_=self._ssd(interaction),
+                player=player,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /shuffle
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(name="shuffle", description="Shuffle all tracks currently in the queue.")
+    async def slash_shuffle(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "shuffle"):
+            return
+        try:
+            player = await self._get_player(interaction)
+            resp = await self.bot.cmd_shuffle(
+                ssd_=self._ssd(interaction),
+                channel=interaction.channel,
+                player=player,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /clear
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(name="clear", description="Remove all songs from the queue.")
+    async def slash_clear(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "clear"):
+            return
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            _player = self.bot.get_player_in(guild)
+            resp = await self.bot.cmd_clear(
+                ssd_=self._ssd(interaction),
+                _player=_player,
+                guild=guild,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /remove
+    # Three modes: by position, by range (from+to), by user mention.
+    # Omitting all args removes the last item in the queue.
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="remove",
+        description="Remove a song from the queue by position, range, or user.",
+    )
+    @app_commands.describe(
+        position="Queue position to remove (omit to remove last item).",
+        to_position="End of range — removes FROM position through this one.",
+        user="Remove all songs queued by this member.",
+    )
+    async def slash_remove(
+        self,
+        interaction: discord.Interaction,
+        position: Optional[int] = None,
+        to_position: Optional[int] = None,
+        user: Optional[discord.Member] = None,
+    ) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "remove"):
+            return
+        try:
+            author = interaction.user
+            if not isinstance(author, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            player = await self._get_player(interaction)
+            perms = self.bot.permissions.for_user(author)
+
+            # Map slash args back to what cmd_remove expects:
+            # position=""  leftover_args=[]           → remove last
+            # position="N" leftover_args=[]           → remove at N
+            # position="N" leftover_args=["M"]        → remove range N-M
+            # user_mentions=[user]                    → remove by user
+            pos_str = str(position) if position is not None else ""
+            leftover = [str(to_position)] if to_position is not None else []
+
+            resp = await self.bot.cmd_remove(
+                ssd_=self._ssd(interaction),
+                user_mentions=[user] if user else [],
+                author=author,
+                permissions=perms,
+                player=player,
+                leftover_args=leftover,
+                position=pos_str,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /skip
+    # NOTE: Vote-skip via slash passes message=None, so add_skipper is skipped
+    # (guarded in bot.py). Vote tallying is based on existing skip state only.
+    # Force skip works fully.
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="skip",
+        description="Skip or vote to skip the current song.",
+    )
+    @app_commands.describe(force="Force skip — requires InstaSkip permission.")
+    async def slash_skip(
+        self,
+        interaction: discord.Interaction,
+        force: Optional[bool] = None,
+    ) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "skip"):
+            return
+        try:
+            guild = interaction.guild
+            user = interaction.user
+            if not guild or not isinstance(user, discord.Member):
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            player = await self._get_player(interaction)
+            voice_channel = user.voice.channel if user.voice else None
+            param = "force" if force else ""
+            resp = await self.bot.cmd_skip(
+                ssd_=self._ssd(interaction),
+                guild=guild,
+                player=player,
+                author=user,
+                message=None,       # guarded in bot.py — vote-skip add_skipper skipped
+                permissions=self.bot.permissions.for_user(user),
+                voice_channel=voice_channel,
+                param=param,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /volume
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="volume",
+        description="Set or show the playback volume (1–100). Prefix with + or - for relative.",
+    )
+    @app_commands.describe(level="Volume level 1–100. Use +10 or -10 for relative change.")
+    async def slash_volume(
+        self,
+        interaction: discord.Interaction,
+        level: Optional[str] = None,
+    ) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "volume"):
+            return
+        try:
+            player = await self._get_player(interaction)
+            resp = await self.bot.cmd_volume(
+                ssd_=self._ssd(interaction),
+                player=player,
+                new_volume=level or "",
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /speed
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="speed",
+        description="Change playback speed of the current track (0.5–100.0).",
+    )
+    @app_commands.describe(rate="Playback rate, e.g. 1.5 for 50% faster, 0.75 for slower.")
+    async def slash_speed(
+        self,
+        interaction: discord.Interaction,
+        rate: str,
+    ) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "speed"):
+            return
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            player = await self._get_player(interaction)
+            resp = await self.bot.cmd_speed(
+                ssd_=self._ssd(interaction),
+                guild=guild,
+                player=player,
+                new_speed=rate,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /setalias  (owner-only group)
+    # -----------------------------------------------------------------------
+
+    setalias = app_commands.Group(
+        name="setalias",
+        description="Manage bot command aliases. Owner only.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    async def _owner_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.bot.config.owner_id:
+            await interaction.followup.send(
+                "This command is restricted to the bot owner.", ephemeral=True
+            )
+            return False
+        return True
+
+    @setalias.command(name="add", description="Add a new alias for a command.")
+    @app_commands.describe(
+        alias="The alias name to create.",
+        command="The command the alias maps to.",
+        args="Optional arguments to bake into the alias.",
+    )
+    async def slash_setalias_add(
+        self,
+        interaction: discord.Interaction,
+        alias: str,
+        command: str,
+        args: Optional[str] = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setalias(
+                ssd_=self._ssd(interaction),
+                opt="add",
+                leftover_args=args.split() if args else [],
+                alias=alias,
+                cmd=command,
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @setalias.command(name="remove", description="Remove an existing alias.")
+    @app_commands.describe(alias="The alias name to remove.")
+    async def slash_setalias_remove(
+        self,
+        interaction: discord.Interaction,
+        alias: str,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setalias(
+                ssd_=self._ssd(interaction),
+                opt="remove",
+                leftover_args=[],
+                alias=alias,
+                cmd="",
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @setalias.command(name="save", description="Save current aliases to the config file.")
+    async def slash_setalias_save(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setalias(
+                ssd_=self._ssd(interaction),
+                opt="save",
+                leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @setalias.command(name="load", description="Reload aliases from the config file.")
+    async def slash_setalias_load(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setalias(
+                ssd_=self._ssd(interaction),
+                opt="load",
+                leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /config  (owner-only group)
+    # -----------------------------------------------------------------------
+
+    config = app_commands.Group(
+        name="config",
+        description="Manage bot configuration. Owner only.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    @config.command(name="missing", description="Show any missing config options.")
+    async def slash_config_missing(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="missing", leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="diff", description="List options changed since last config load.")
+    async def slash_config_diff(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="diff", leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="list", description="List all available config options.")
+    async def slash_config_list(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="list", leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="reload", description="Reload options.ini from disk.")
+    async def slash_config_reload(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="reload", leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="help", description="Show help text for a specific config option.")
+    @app_commands.describe(option="Option name (section can be omitted if unambiguous).")
+    async def slash_config_help(self, interaction: discord.Interaction, option: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="help", leftover_args=option.split(),
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="show", description="Show the current value of a config option.")
+    @app_commands.describe(option="Option name (section can be omitted if unambiguous).")
+    async def slash_config_show(self, interaction: discord.Interaction, option: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="show", leftover_args=option.split(),
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="set", description="Set a config option for this session (not saved to file).")
+    @app_commands.describe(
+        option="Option name (section can be omitted if unambiguous).",
+        value="New value to set.",
+    )
+    async def slash_config_set(
+        self, interaction: discord.Interaction, option: str, value: str
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="set", leftover_args=[*option.split(), value],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="save", description="Save the current value of a config option to disk.")
+    @app_commands.describe(option="Option name (section can be omitted if unambiguous).")
+    async def slash_config_save(self, interaction: discord.Interaction, option: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="save", leftover_args=option.split(),
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @config.command(name="reset", description="Reset a config option to its default value.")
+    @app_commands.describe(option="Option name (section can be omitted if unambiguous).")
+    async def slash_config_reset(self, interaction: discord.Interaction, option: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_config(
+                ssd_=self._ssd(interaction),
+                user_mentions=[], channel_mentions=[],
+                option="reset", leftover_args=option.split(),
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /option  (deprecated — just surfaces the error message)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="option",
+        description="Deprecated. Use /config instead.",
+    )
+    async def slash_option(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send(
+            "❌ The `option` command is deprecated. Use `/config` instead.",
+            ephemeral=True,
+        )
