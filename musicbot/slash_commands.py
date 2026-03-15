@@ -2058,3 +2058,392 @@ class QueueView(discord.ui.View):
                 await self.message.edit(view=self)
             except discord.HTTPException:
                 pass
+
+    # =======================================================================
+    # BATCH 5
+    # setperms (group), setname, setnick, setprefix, language (group),
+    # setavatar, disconnect, restart (group), shutdown, leaveserver
+    # =======================================================================
+
+    # -----------------------------------------------------------------------
+    # /setperms  (owner-only group)
+    # -----------------------------------------------------------------------
+
+    setperms = app_commands.Group(
+        name="setperms",
+        description="Manage permissions.ini configuration. Owner only.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    async def _sp(
+        self,
+        interaction: discord.Interaction,
+        option: str,
+        leftover_args: Optional[list] = None,
+    ) -> None:
+        """Shared dispatcher for /setperms subcommands."""
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setperms(
+                ssd_=self._ssd(interaction),
+                user_mentions=[],
+                leftover_args=leftover_args or [],
+                option=option,
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @setperms.command(name="list", description="Show loaded groups and available permission options.")
+    async def slash_setperms_list(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "list")
+
+    @setperms.command(name="reload", description="Reload permissions from permissions.ini.")
+    async def slash_setperms_reload(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "reload")
+
+    @setperms.command(name="add", description="Add a new permissions group with defaults.")
+    @app_commands.describe(group="Name of the new group to create.")
+    async def slash_setperms_add(self, interaction: discord.Interaction, group: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "add", [group])
+
+    @setperms.command(name="remove", description="Remove an existing permissions group.")
+    @app_commands.describe(group="Name of the group to remove.")
+    async def slash_setperms_remove(self, interaction: discord.Interaction, group: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "remove", [group])
+
+    @setperms.command(name="save", description="Save a permissions group to file.")
+    @app_commands.describe(group="Name of the group to save.")
+    async def slash_setperms_save(self, interaction: discord.Interaction, group: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "save", [group])
+
+    @setperms.command(name="help", description="Show help text for a permission option.")
+    @app_commands.describe(permission="Permission option name.")
+    async def slash_setperms_help(self, interaction: discord.Interaction, permission: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "help", [permission])
+
+    @setperms.command(name="show", description="Show the current value of a permission for a group.")
+    @app_commands.describe(group="Group name.", permission="Permission option name.")
+    async def slash_setperms_show(
+        self, interaction: discord.Interaction, group: str, permission: str
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "show", [group, permission])
+
+    @setperms.command(name="set", description="Set a permission value for a group.")
+    @app_commands.describe(
+        group="Group name.",
+        permission="Permission option name.",
+        value="Value to set.",
+    )
+    async def slash_setperms_set(
+        self, interaction: discord.Interaction, group: str, permission: str, value: str
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await self._sp(interaction, "set", [group, permission, value])
+
+    # -----------------------------------------------------------------------
+    # /setname  (owner-only)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="setname",
+        description="Change the bot's Discord username. Limited to twice per hour.",
+    )
+    @app_commands.describe(name="New username for the bot.")
+    async def slash_setname(self, interaction: discord.Interaction, name: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setname(
+                ssd_=self._ssd(interaction),
+                leftover_args=[],
+                name=name,
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /setnick
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="setnick",
+        description="Change the bot's nickname in this server.",
+    )
+    @app_commands.describe(nick="New nickname for the bot.")
+    async def slash_setnick(self, interaction: discord.Interaction, nick: str) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "setnick"):
+            return
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_setnick(
+                ssd_=self._ssd(interaction),
+                guild=guild,
+                channel=interaction.channel,
+                leftover_args=[],
+                nick=nick,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /setprefix
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="setprefix",
+        description="Set or clear a per-server command prefix. Requires EnablePrefixPerGuild.",
+    )
+    @app_commands.describe(prefix="New prefix, or 'clear' to remove the server prefix.")
+    async def slash_setprefix(self, interaction: discord.Interaction, prefix: str) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "setprefix"):
+            return
+        try:
+            resp = await self.bot.cmd_setprefix(
+                ssd_=self._ssd(interaction),
+                prefix=prefix,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /language  (group)
+    # -----------------------------------------------------------------------
+
+    language = app_commands.Group(
+        name="language",
+        description="Manage the bot's language for this server.",
+    )
+
+    @language.command(name="show", description="Show the current language and available options.")
+    async def slash_language_show(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "language"):
+            return
+        try:
+            resp = await self.bot.cmd_language(
+                ssd_=self._ssd(interaction),
+                subcmd="show",
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @language.command(name="set", description="Set the language for this server.")
+    @app_commands.describe(locale="Language code, e.g. en_US, de_DE.")
+    async def slash_language_set(self, interaction: discord.Interaction, locale: str) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "language"):
+            return
+        try:
+            resp = await self.bot.cmd_language(
+                ssd_=self._ssd(interaction),
+                subcmd="set",
+                lang_code=locale,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @language.command(name="reset", description="Reset this server's language to the bot default.")
+    async def slash_language_reset(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "language"):
+            return
+        try:
+            resp = await self.bot.cmd_language(
+                ssd_=self._ssd(interaction),
+                subcmd="reset",
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /setavatar  (owner-only)
+    # Original supports message attachment OR URL. Slash supports both via
+    # an optional attachment parameter and an optional url parameter.
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="setavatar",
+        description="Change the bot's avatar. Provide a URL or attach an image.",
+    )
+    @app_commands.describe(
+        url="Direct image URL.",
+        attachment="Upload an image file directly.",
+    )
+    async def slash_setavatar(
+        self,
+        interaction: discord.Interaction,
+        url: Optional[str] = None,
+        attachment: Optional[discord.Attachment] = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        if not url and not attachment:
+            await interaction.followup.send(
+                "❌ You must provide a URL or attach an image.", ephemeral=True
+            )
+            return
+        try:
+            import aiohttp
+            thing = attachment.url if attachment else url
+            timeout = aiohttp.ClientTimeout(total=10)
+            if self.bot.user and self.bot.session:
+                async with self.bot.session.get(thing, timeout=timeout) as res:
+                    await self.bot.user.edit(avatar=await res.read())
+            ssd = self._ssd(interaction)
+            from .i18n import _D
+            await interaction.followup.send(
+                _D("Changed the bot's avatar.", ssd), ephemeral=True
+            )
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /disconnect
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="disconnect",
+        description="Force MusicBot to disconnect from voice in this server.",
+    )
+    async def slash_disconnect(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "disconnect"):
+            return
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_disconnect(guild=guild)
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /restart  (owner-only group)
+    # RestartSignal and TerminateSignal must propagate — not caught by _err.
+    # -----------------------------------------------------------------------
+
+    restart = app_commands.Group(
+        name="restart",
+        description="Restart the bot in various ways. Owner only.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    async def _restart(self, interaction: discord.Interaction, opt: str) -> None:
+        if not await self._owner_check(interaction):
+            return
+        guild = interaction.guild
+        if not guild:
+            await interaction.followup.send("Guild only.", ephemeral=True)
+            return
+        _player = self.bot.get_player_in(guild)
+        try:
+            await self.bot.cmd_restart(
+                _player=_player,
+                guild=guild,
+                channel=interaction.channel,
+                opt=opt,
+            )
+        except (exceptions.RestartSignal, exceptions.TerminateSignal):
+            # These must propagate to the bot's run loop — re-raise.
+            raise
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @restart.command(name="soft", description="Reload the bot without a full process restart.")
+    async def slash_restart_soft(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send("♻️ Restarting (soft)…", ephemeral=True)
+        await self._restart(interaction, "soft")
+
+    @restart.command(name="full", description="Fully restart the bot process.")
+    async def slash_restart_full(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send("♻️ Restarting (full)…", ephemeral=True)
+        await self._restart(interaction, "full")
+
+    @restart.command(name="uppip", description="Update pip packages then fully restart.")
+    async def slash_restart_uppip(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send("📦 Updating pip and restarting…", ephemeral=True)
+        await self._restart(interaction, "uppip")
+
+    @restart.command(name="upgit", description="Update bot code with git then fully restart.")
+    async def slash_restart_upgit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send("🔄 Updating via git and restarting…", ephemeral=True)
+        await self._restart(interaction, "upgit")
+
+    @restart.command(name="upgrade", description="Update everything (pip + git) then fully restart.")
+    async def slash_restart_upgrade(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.followup.send("⬆️ Upgrading everything and restarting…", ephemeral=True)
+        await self._restart(interaction, "upgrade")
+
+    # -----------------------------------------------------------------------
+    # /shutdown  (owner-only)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="shutdown",
+        description="Disconnect from all voice channels and shut down the bot.",
+    )
+    async def slash_shutdown(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        guild = interaction.guild
+        if not guild:
+            await interaction.followup.send("Guild only.", ephemeral=True)
+            return
+        await interaction.followup.send("👋 Shutting down…", ephemeral=True)
+        try:
+            await self.bot.cmd_shutdown(guild=guild, channel=interaction.channel)
+        except exceptions.TerminateSignal:
+            raise
+
+    # -----------------------------------------------------------------------
+    # /leaveserver  (owner-only)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="leaveserver",
+        description="Force the bot to leave a server by name or ID.",
+    )
+    @app_commands.describe(server="Server ID (preferred) or exact server name.")
+    async def slash_leaveserver(self, interaction: discord.Interaction, server: str) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_leaveserver(
+                ssd_=self._ssd(interaction),
+                val=server,
+                leftover_args=[],
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
