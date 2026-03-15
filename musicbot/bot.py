@@ -343,10 +343,10 @@ class MusicBot(commands.Bot):
         self.create_task(self._test_network(), name="MB_PingTest")
 
         # --- Slash commands (cog only, sync happens in _on_ready_once) ---
-        print("DEBUG: loading slash commands")
+        log.debug("Loading slash commands cog.")
         from .slash_commands import SlashCommands
         await self.add_cog(SlashCommands(self))
-        print("DEBUG: cog added")
+        log.debug("Slash commands cog added.")
 
     async def _test_network(self) -> None:
         """
@@ -2330,7 +2330,7 @@ class MusicBot(commands.Bot):
 
         # Sync slash commands now that application_id is resolved.
         synced = await self.tree.sync()
-        print(f"DEBUG: synced {len(synced)} commands globally: {[c.name for c in synced]}")
+        log.info("Synced %d slash commands globally: %s", len(synced), [c.name for c in synced])
 
         log.info(
             "MusicBot:  %(id)s/%(name)s#%(desc)s",
