@@ -1,56 +1,55 @@
 """
 musicbot/slash_commands.py
 --------------------------
-Slash command wrappers for MusicBot — Batch 1 of N.
+Slash command wrappers for MusicBot.
 
-Covered here (10 commands):
-  resetplaylist, help, blockuser (group), blocksong (group),
-  autoplaylist (group), joinserver, karaoke, play, shuffleplay, playnext
+All 53 user-facing commands are covered across 6 batches:
+
+  Batch 1 — resetplaylist, help, blockuser (group), blocksong (group),
+             autoplaylist (group), joinserver, karaoke, play, shuffleplay, playnext
+  Batch 2 — playnow, seek, repeat, move, stream, search, np, summon, follow, pause
+  Batch 3 — resume, shuffle, clear, remove, skip, volume, speed,
+             setalias (group), config (group), option
+  Batch 4 — cache (group), queue, clean, pldump, id, listids, perms
+  Batch 5 — setperms (group), setname, setnick, setprefix, language (group),
+             setavatar, disconnect, restart (group), shutdown, leaveserver
+  Batch 6 — checkupdates, uptime, botlatency, latency, botversion, setcookies
+
+Dev-only commands intentionally excluded:
+  testready, breakpoint, objgraph, debug, makemarkdown, makeini
 
 Strategy
 --------
 * Each slash handler defers the interaction, resolves the same context objects
   that on_message normally injects (player, ssd_, permissions, …), then calls
-  the existing cmd_* method directly.  Zero business-logic duplication.
+  the existing cmd_* method directly. Zero business-logic duplication.
 * The custom permissions system is preserved via _check_perms().
 * A shared _send() helper converts Response/ErrorResponse → interaction reply.
+* SearchView and QueueView provide interactive UI for /search and /queue.
 
-Required one-time change in bot.py
+Required one-time changes in bot.py
 ------------------------------------
-1.  Class declaration:
-        class MusicBot(discord.Client):
-    →   from discord.ext import commands
+1.  Imports + class declaration:
+        from discord.ext import commands
         class MusicBot(commands.Bot):
 
 2.  __init__: replace super().__init__ call:
-        super().__init__(intents=intents)
-    →   super().__init__(
-            command_prefix=[],   # prefix dispatch stays in custom on_message
-            intents=intents,
-        )
+        super().__init__(command_prefix="\x00", intents=intents)
 
-3.  setup_hook: add at the end (after existing code):
+3.  setup_hook: add at the end:
+        from .slash_commands import SlashCommands
         await self.add_cog(SlashCommands(self))
-        await self.tree.sync()
 
-4.  _do_cmd_unpause_check signature — make message Optional so slash calls
-    that pass None don't crash:
+4.  _on_ready_once: add after _on_ready_sanity_checks():
+        synced = await self.tree.sync()
+        print(f"Synced {len(synced)} slash commands globally.")
 
-        async def _do_cmd_unpause_check(
-            self,
-            player: Optional[MusicPlayer],
-            channel: MessageableChannel,
-            author: discord.Member,
-            message: Optional[discord.Message],   # ← was discord.Message
-        ) -> None:
-            ...
-            if pvc != avc and perms.summonplay:
-                if message is None:                # ← guard added
-                    return
-                await self.cmd_summon(ssd, author.guild, author, message)
-                return
+5.  _do_cmd_unpause_check: message param → Optional[discord.Message], guard summon call
+6.  cmd_summon: message param → Optional[discord.Message], guard last_np_msg assignment
+7.  cmd_skip: message param → Optional[discord.Message], guard add_skipper call
+8.  cmd_clean: message param → Optional[discord.Message], guard before= kwarg
+9.  cmd_clear: fix queue-empty check to use playlist.entries instead of len(playlist) < 1
 """
-
 from __future__ import annotations
 
 import logging
@@ -2441,5 +2440,199 @@ class SlashCommands(commands.Cog):
                 leftover_args=[],
             )
             await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # =======================================================================
+    # BATCH 6  (final)
+    # checkupdates, uptime, botlatency, latency, botversion, setcookies
+    # Dev-only commands excluded: testready, breakpoint, objgraph, debug,
+    #                             makemarkdown, makeini
+    # =======================================================================
+
+    # -----------------------------------------------------------------------
+    # /checkupdates  (owner-only)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="checkupdates",
+        description="Check for MusicBot source code and dependency updates.",
+    )
+    async def slash_checkupdates(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_checkupdates(
+                ssd_=self._ssd(interaction),
+                channel=interaction.channel,
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /uptime
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="uptime",
+        description="Show how long MusicBot has been online since last start.",
+    )
+    async def slash_uptime(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "uptime"):
+            return
+        try:
+            resp = await self.bot.cmd_uptime(ssd_=self._ssd(interaction))
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /botlatency  (owner-only — all voice clients)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="botlatency",
+        description="Show API and voice client latency for all connected guilds.",
+    )
+    async def slash_botlatency(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_botlatency(ssd_=self._ssd(interaction))
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /latency  (this guild only)
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="latency",
+        description="Show API and voice latency for this server.",
+    )
+    async def slash_latency(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if not await self._check_perms(interaction, "latency"):
+            return
+        try:
+            guild = interaction.guild
+            if not guild:
+                await interaction.followup.send("Guild only.", ephemeral=True)
+                return
+            resp = await self.bot.cmd_latency(
+                ssd_=self._ssd(interaction),
+                guild=guild,
+            )
+            await self._send(interaction, resp)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /botversion
+    # -----------------------------------------------------------------------
+
+    @app_commands.command(
+        name="botversion",
+        description="Display the current MusicBot version.",
+    )
+    async def slash_botversion(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._check_perms(interaction, "botversion"):
+            return
+        try:
+            resp = await self.bot.cmd_botversion(ssd_=self._ssd(interaction))
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    # -----------------------------------------------------------------------
+    # /setcookies  (owner-only)
+    # Original relies on message.attachments. Slash version accepts a
+    # discord.Attachment directly and bypasses cmd_setcookies for uploads,
+    # handling the file save inline. on/off subcommands call cmd_setcookies.
+    # -----------------------------------------------------------------------
+
+    setcookies = app_commands.Group(
+        name="setcookies",
+        description="Manage yt-dlp cookies. Owner only.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    @setcookies.command(name="on", description="Enable a previously uploaded cookies.txt.")
+    async def slash_setcookies_on(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setcookies(
+                ssd_=self._ssd(interaction),
+                message=None,
+                opt="on",
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @setcookies.command(name="off", description="Disable cookies without deleting the file.")
+    async def slash_setcookies_off(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            resp = await self.bot.cmd_setcookies(
+                ssd_=self._ssd(interaction),
+                message=None,
+                opt="off",
+            )
+            await self._send(interaction, resp, ephemeral=True)
+        except Exception as e:
+            await self._err(interaction, e)
+
+    @setcookies.command(
+        name="upload",
+        description="Upload a new cookies.txt file. WARNING: see /help setcookies for risks.",
+    )
+    @app_commands.describe(file="A cookies.txt file exported from your browser.")
+    async def slash_setcookies_upload(
+        self, interaction: discord.Interaction, file: discord.Attachment
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await self._owner_check(interaction):
+            return
+        try:
+            # Remove any existing disabled cookies file first.
+            if self.bot.config.disabled_cookies_path.is_file():
+                try:
+                    self.bot.config.disabled_cookies_path.unlink()
+                except OSError as e:
+                    log.warning("Could not remove old disabled cookies file: %s", e)
+
+            # Download and save the attachment to cookies_path.
+            try:
+                await file.save(self.bot.config.cookies_path)
+            except discord.HTTPException as e:
+                raise exceptions.CommandError(
+                    "Error downloading the cookies file from Discord:  %(raw_error)s",
+                    fmt_args={"raw_error": e},
+                ) from e
+            except OSError as e:
+                raise exceptions.CommandError(
+                    "Could not save cookies to disk:  %(raw_error)s",
+                    fmt_args={"raw_error": e},
+                ) from e
+
+            if not self.bot.downloader.cookies_enabled:
+                self.bot.downloader.enable_ytdl_cookies()
+
+            from .i18n import _D
+            await interaction.followup.send(
+                _D("Cookies uploaded and enabled.", self._ssd(interaction)),
+                ephemeral=True,
+            )
         except Exception as e:
             await self._err(interaction, e)

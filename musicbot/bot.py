@@ -5279,10 +5279,11 @@ class MusicBot(commands.Bot):
         If no player is available the queue file will be removed if it exists.
         """
 
-        # Ensure player is not none and that it's not empty
-        if _player and len(_player.playlist) < 1:
+        # Ensure player is not none and that there is actually something queued.
+        # Note: current_entry is the playing track, not a queue entry — don't count it.
+        if _player and not _player.playlist.entries:
             raise exceptions.CommandError(
-                "There is nothing currently playing. Play something with a play command."
+                "There is nothing in the queue to clear."
             )
 
         # Try to gracefully clear the guild queue if we're not in a vc.
@@ -8146,7 +8147,7 @@ class MusicBot(commands.Bot):
         ),
     )
     async def cmd_setcookies(
-        self, ssd_: Optional[GuildSpecificData], message: discord.Message, opt: str = ""
+        self, ssd_: Optional[GuildSpecificData], message: Optional[discord.Message], opt: str = ""
     ) -> CommandResponse:
         """
         setcookies command allows management of yt-dlp cookies feature.
@@ -8195,7 +8196,7 @@ class MusicBot(commands.Bot):
             return Response(_D("Cookies have been disabled.", ssd_))
 
         # check for attached files and inspect them for use.
-        if not message.attachments:
+        if not message or not message.attachments:
             raise exceptions.CommandError(
                 "No attached uploads were found, try again while uploading a cookie file."
             )
@@ -8212,6 +8213,7 @@ class MusicBot(commands.Bot):
 
         # simply save the uploaded file in attachment 1 as cookies.txt.
         try:
+            assert message is not None
             await message.attachments[0].save(self.config.cookies_path)
         except discord.HTTPException as e:
             raise exceptions.CommandError(
