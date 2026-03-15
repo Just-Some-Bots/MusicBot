@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, DefaultDict, Dict, List, Optional, Set, U
 import aiohttp
 import certifi
 import discord
+from discord.ext import commands
 import yt_dlp as youtube_dl  # type: ignore[import-untyped]
 
 from . import downloader, exceptions, write_path
@@ -161,7 +162,7 @@ discord_bot_perms.request_to_speak = True
 #  --  Using tinytag to extract meta data from files and index it.
 
 
-class MusicBot(discord.Client):
+class MusicBot(commands.Bot):
     def __init__(
         self,
         config_file: Optional[pathlib.Path] = None,
@@ -238,7 +239,7 @@ class MusicBot(discord.Client):
         intents = discord.Intents.all()
         intents.typing = False
         intents.presences = False
-        super().__init__(intents=intents)
+        super().__init__(command_prefix=[], intents=intents)
 
     def create_task(
         self,
@@ -340,6 +341,12 @@ class MusicBot(discord.Client):
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()
         self.create_task(self._test_network(), name="MB_PingTest")
+
+        # --- Slash commands (cog only, sync happens in _on_ready_once) ---
+        print("DEBUG: loading slash commands")
+        from .slash_commands import SlashCommands
+        await self.add_cog(SlashCommands(self))
+        print("DEBUG: cog added")
 
     async def _test_network(self) -> None:
         """
@@ -2321,6 +2328,10 @@ class MusicBot(discord.Client):
         # Also takes care of app-info and auto OwnerID updates.
         await self._on_ready_sanity_checks()
 
+        # Sync slash commands now that application_id is resolved.
+        synced = await self.tree.sync()
+        print(f"DEBUG: synced {len(synced)} commands globally: {[c.name for c in synced]}")
+
         log.info(
             "MusicBot:  %(id)s/%(name)s#%(desc)s",
             {
@@ -3765,7 +3776,7 @@ class MusicBot(discord.Client):
         player: Optional[MusicPlayer],
         channel: MessageableChannel,
         author: discord.Member,
-        message: discord.Message,
+        message: Optional[discord.Message],
     ) -> None:
         """
         Checks for paused player and resumes it while sending a notice.
@@ -3790,6 +3801,8 @@ class MusicBot(discord.Client):
             if channel.guild:
                 ssd = self.server_data[channel.guild.id]
             if pvc != avc and perms.summonplay:
+                if message is None:
+                    return
                 await self.cmd_summon(ssd, author.guild, author, message)
                 return
 
@@ -5061,7 +5074,7 @@ class MusicBot(discord.Client):
         ssd_: Optional[GuildSpecificData],
         guild: discord.Guild,
         author: discord.Member,
-        message: discord.Message,
+        message: Optional[discord.Message],
     ) -> CommandResponse:
         """
         With a lock, join the caller's voice channel.
@@ -5110,7 +5123,8 @@ class MusicBot(discord.Client):
                 },
             )
 
-            self.server_data[guild.id].last_np_msg = message
+            if message is not None:
+                self.server_data[guild.id].last_np_msg = message
 
             return Response(
                 _D("Connected to `%(channel)s`", ssd_)
