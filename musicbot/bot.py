@@ -6551,7 +6551,7 @@ class MusicBot(commands.Bot):
     async def cmd_clean(
         self,
         ssd_: Optional[GuildSpecificData],
-        message: discord.Message,
+        message: Optional[discord.Message],
         channel: MessageableChannel,
         guild: discord.Guild,
         author: discord.Member,
@@ -6606,7 +6606,7 @@ class MusicBot(commands.Bot):
 
         if channel.permissions_for(guild.me).manage_messages:
             deleted = await channel.purge(
-                check=check, limit=search_range, before=message
+                check=check, limit=search_range, before=message if message else discord.utils.utcnow()
             )
             return Response(
                 _D("Cleaned up %(number)s message(s).", ssd_)
