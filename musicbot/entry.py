@@ -342,10 +342,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         try:
             info = YtdlpResponseDict(raw_json["info"])
+            # Geändert von raw_json["downloaded"] zu raw_json.get("downloaded", True)
             downloaded = (
-                raw_json["downloaded"] if playlist.bot.config.save_videos else False
+                raw_json.get("downloaded", True) if playlist.bot.config.save_videos else False
             )
-            filename = raw_json["filename"] if downloaded else None
+            filename = raw_json.get("filename") if downloaded else None
 
             channel_id = raw_json.get("channel_id", None)
             if channel_id:
@@ -1058,10 +1059,12 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
 
         try:
             info = YtdlpResponseDict(raw_json["info"])
+            # Geändert von raw_json["downloaded"] zu raw_json.get("downloaded", True)
             downloaded = (
-                raw_json["downloaded"] if playlist.bot.config.save_videos else False
+                raw_json.get("downloaded", True) if playlist.bot.config.save_videos else False
             )
-            filename = raw_json["filename"] if downloaded else None
+            # Geändert zu .get("filename"), falls der Key fehlt
+            filename = raw_json.get("filename") if downloaded else None
 
             channel_id = raw_json.get("channel_id", None)
             if channel_id:
@@ -1070,7 +1073,7 @@ class LocalFilePlaylistEntry(BasePlaylistEntry):
                 if not o_channel:
                     log.warning(
                         "Deserialized LocalFilePlaylistEntry cannot find channel with id:  %s",
-                        raw_json["channel_id"],
+                        raw_json.get("channel_id"),
                     )
 
                 if isinstance(
