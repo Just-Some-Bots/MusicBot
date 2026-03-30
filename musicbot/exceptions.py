@@ -1,24 +1,47 @@
-import shutil
-import textwrap
 from enum import Enum
+from typing import Any, Dict, Optional, Union
 
 
-# Base class for exceptions
 class MusicbotException(Exception):
-    def __init__(self, message: str, *, expire_in: int = 0) -> None:
-        super().__init__(message)  # ???
+    """
+    MusicbotException is a base exception for all exceptions raised by MusicBot.
+    It allows translation of messages into log and UI contexts at display time, not before.
+    Thus, all messages passed to this and child exceptions must use placeholders for
+    variable message segments, and abide best practices for translated messages.
+
+    :param: message:  The untranslated string used as the exception message.
+    :param: fmt_args:  A mapping for variable substitution in messages.
+    :param: delete_after:  Optional timeout period to override the short delay.
+                           Used only when deletion options allow it.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        delete_after: Union[None, float, int] = None,
+        fmt_args: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        # This sets base exception args to the message.
+        # So str() will produce the raw, untranslated message only.
+        if fmt_args:
+            super().__init__(message, fmt_args)
+        else:
+            super().__init__(message)
+
         self._message = message
-        self.expire_in = expire_in
+        self._fmt_args = fmt_args if fmt_args is not None else {}
+        self.delete_after = delete_after
 
     @property
     def message(self) -> str:
-        """Get message text with additional formatting as needed."""
+        """Get raw message text, this has not been translated."""
         return self._message
 
     @property
-    def message_no_format(self) -> str:
-        """Get raw message text with no formatting."""
-        return self._message
+    def fmt_args(self) -> Dict[str, Any]:
+        """Get any arguments that should be formatted into the message."""
+        return self._fmt_args
 
 
 # Something went wrong during the processing of a command
@@ -38,10 +61,7 @@ class InvalidDataError(MusicbotException):
 
 # The no processing entry type failed and an entry was a playlist/vice versa
 class WrongEntryTypeError(ExtractionError):
-    def __init__(self, message: str, is_playlist: bool, use_url: str) -> None:
-        super().__init__(message)
-        self.is_playlist = is_playlist
-        self.use_url = use_url
+    pass
 
 
 # FFmpeg complained about something
@@ -61,79 +81,20 @@ class SpotifyError(ExtractionError):
 
 # The user doesn't have permission to use a command
 class PermissionsError(CommandError):
-    def __init__(self, msg: str, expire_in: int = 0) -> None:
-        super().__init__(msg, expire_in=expire_in)
-
-    @property
-    def message(self) -> str:
-        return (
-            "You don't have permission to use that command.\nReason: " + self._message
-        )
+    pass
 
 
 # Error with pretty formatting for hand-holding users through various errors
 class HelpfulError(MusicbotException):
-    def __init__(
-        self,
-        issue: str,
-        solution: str,
-        *,
-        preface: str = "An error has occured:",
-        footnote: str = "",
-        expire_in: int = 0,
-    ) -> None:
-        self.issue = issue
-        self.solution = solution
-        self.preface = preface
-        self.footnote = footnote
-        self._message_fmt = "\n{preface}\n{problem}\n\n{solution}\n\n{footnote}"
-
-        super().__init__(self.message_no_format, expire_in=expire_in)
-
-    @property
-    def message(self) -> str:
-        return self._message_fmt.format(
-            preface=self.preface,
-            problem=self._pretty_wrap(self.issue, "  Problem:"),
-            solution=self._pretty_wrap(self.solution, "  Solution:"),
-            footnote=self.footnote,
-        )
-
-    @property
-    def message_no_format(self) -> str:
-        return self._message_fmt.format(
-            preface=self.preface,
-            problem=self._pretty_wrap(self.issue, "  Problem:", width=-1),
-            solution=self._pretty_wrap(self.solution, "  Solution:", width=-1),
-            footnote=self.footnote,
-        )
-
-    @staticmethod
-    def _pretty_wrap(text: str, pretext: str, *, width: int = -1) -> str:
-        """
-        Format given `text` and `pretext` using an optional `width` to
-        constrain the text and indent it for better readability.
-        If `width` is not set, or set -1, the current size of the terminal
-        in columns will be used as a default.
-        """
-        if width is None:
-            return "\n".join((pretext.strip(), text))
-
-        if width == -1:
-            pretext = pretext.rstrip() + "\n"
-            width = shutil.get_terminal_size().columns
-
-        lines = []
-        for line in text.split("\n"):
-            lines += textwrap.wrap(line, width=width - 5)
-        lines = [
-            ("    " + line).rstrip().ljust(width - 1).rstrip() + "\n" for line in lines
-        ]
-
-        return pretext + "".join(lines).rstrip()
+    pass
 
 
 class HelpfulWarning(HelpfulError):
+    pass
+
+
+# simple exception used to signal that initial config load should retry.
+class RetryConfigException(Exception):
     pass
 
 
