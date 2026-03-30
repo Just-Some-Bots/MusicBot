@@ -40,26 +40,11 @@ def _add_logger_level(levelname: str, level: int, *, func_name: str = "") -> Non
     :param: func_name:
         The name of the logger function to log to a level, e.g. "info" for log.info(...)
     """
-    _func_prototype = (
-        "def {logger_func_name}(self, message, *args, **kwargs):\n"
-        "    if self.isEnabledFor({levelname}):\n"
-        "        if os.name == 'nt':\n"
-        "            kwargs.setdefault('stacklevel', 1)\n"
-        "        self._log({levelname}, message, args, **kwargs)"
-    )
-
     func_name = func_name or levelname.lower()
 
     setattr(logging, levelname, level)
     logging.addLevelName(level, levelname)
 
-    # TODO: this is cool and all, but there is likely a better way to do this.
-    # we should probably be extending logging.getLoggerClass() instead
-    exec(  # pylint: disable=exec-used
-        _func_prototype.format(logger_func_name=func_name, levelname=levelname),
-        logging.__dict__,
-        locals(),
-    )
     setattr(logging.Logger, func_name, lambda self, msg, *args, **kwargs: self.log(level, msg, *args, **kwargs))  # pylint: disable=eval-used
 
 
