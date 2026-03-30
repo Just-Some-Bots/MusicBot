@@ -66,7 +66,7 @@ def _add_logger_level(levelname: str, level: int, *, func_name: str = "") -> Non
         logging.__dict__,
         locals(),
     )
-    setattr(logging.Logger, func_name, eval(func_name))  # pylint: disable=eval-used
+    setattr(logging.Logger, func_name, lambda self, msg, *args, **kwargs: self.log(level, msg, *args, **kwargs))  # pylint: disable=eval-used
 
 
 def setup_loggers() -> None:
