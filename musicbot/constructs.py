@@ -2,6 +2,7 @@ import asyncio
 import inspect
 import json
 import logging
+from pathlib import Path  # <--- Diese Zeile neu einfügen
 import pydoc
 from collections import defaultdict
 from typing import (
@@ -358,6 +359,10 @@ class Serializer(json.JSONEncoder):
         """
         if hasattr(o, "__json__"):
             return o.__json__()
+
+        # FIX: Konvertiert PosixPath/WindowsPath in einen String für JSON
+        if isinstance(o, Path):
+            return str(o)
 
         return super().default(o)
 
