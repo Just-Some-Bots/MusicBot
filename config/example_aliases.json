@@ -25,5 +25,6 @@
     "queue": ["q"],
     "latency": ["ping"],
     "summon": ["join", "connect", "come"],
-    "disconnect": ["leave", "stop"]
+    "disconnect": ["leave", "stop"],
+    "resume": ["unpause", "continue"]
 }
