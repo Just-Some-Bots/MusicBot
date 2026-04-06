@@ -26,5 +26,6 @@ media/
 i18n/*/LC_MESSAGES/*.mo
 
 docker-compose.yml
+config/autoplaylist.cachemap.json
 
 /env*/
