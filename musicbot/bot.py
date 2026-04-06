@@ -3470,7 +3470,7 @@ class MusicBot(discord.Client):
             pl = self.playlist_mgr.get_playlist(opt_url)
             self.server_data[guild.id].autoplaylist = pl
             await self.server_data[guild.id].save_guild_options_file()
-            await pl.load()
+            await pl.load(force=True)
 
             # Update the player copy if needed.
             if _player and self.config.auto_playlist:
