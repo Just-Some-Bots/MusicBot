@@ -14,6 +14,7 @@ RUN apk update && apk add --no-cache --virtual .build-deps \
 # Install dependencies
 RUN apk update && apk add --no-cache \
   ca-certificates \
+  deno \
   ffmpeg \
   opus-dev \
   libffi \
