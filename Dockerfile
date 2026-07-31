@@ -19,7 +19,6 @@ RUN apk update && apk add --no-cache \
   opus-dev \
   libffi \
   libsodium \
-  gcc \
   git
 
 # Install pip dependencies
