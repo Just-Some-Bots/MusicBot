@@ -368,12 +368,15 @@ class SkipState:
         self.skippers.clear()
         self.skip_msgs.clear()
 
-    def add_skipper(self, skipper_id: int, msg: "discord.Message") -> int:
+    def add_skipper(self, skipper_id: int, msg: Optional["discord.Message"]) -> int:
         """
         Add a message and the author's ID to the skip vote.
+        `msg` may be None when the vote comes from a slash command, which
+        has no originating discord.Message.
         """
         self.skippers.add(skipper_id)
-        self.skip_msgs.add(msg)
+        if msg is not None:
+            self.skip_msgs.add(msg)
         return self.skip_count
 
 

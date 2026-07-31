@@ -2329,8 +2329,20 @@ class MusicBot(commands.Bot):
         await self._on_ready_sanity_checks()
 
         # Sync slash commands now that application_id is resolved.
-        synced = await self.tree.sync()
-        log.info("Synced %d slash commands globally: %s", len(synced), [c.name for c in synced])
+        # A transient Discord API failure or rate-limit here should not
+        # prevent the rest of startup from completing.
+        try:
+            synced = await self.tree.sync()
+            log.info(
+                "Synced %d slash commands globally: %s",
+                len(synced),
+                [c.name for c in synced],
+            )
+        except discord.HTTPException:
+            log.exception(
+                "Failed to sync slash commands. Slash commands may be unavailable "
+                "or out of date until the next successful sync."
+            )
 
         log.info(
             "MusicBot:  %(id)s/%(name)s#%(desc)s",
@@ -5575,9 +5587,10 @@ class MusicBot(commands.Bot):
         if num_voice == 0:
             num_voice = 1
 
-        # add the current skipper id so we can count it.
-        if message is not None:
-            player.skip_state.add_skipper(author.id, message)
+        # add the current skipper id so we can count it. message may be None
+        # when this is invoked from a slash command; skip_state only needs
+        # the author id to count the vote, message is optional bookkeeping.
+        player.skip_state.add_skipper(author.id, message)
         # count all members who are in skippers set.
         num_skips = count_members_in_voice(
             voice_channel,
