@@ -1,4 +1,4 @@
-FROM python:3.8-alpine
+FROM python:3.12-alpine
 
 # Add project source
 WORKDIR /musicbot
@@ -14,6 +14,7 @@ RUN apk update && apk add --no-cache --virtual .build-deps \
 # Install dependencies
 RUN apk update && apk add --no-cache \
   ca-certificates \
+  deno \
   ffmpeg \
   opus-dev \
   libffi \
