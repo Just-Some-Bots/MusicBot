@@ -487,7 +487,14 @@ class SlashCommands(commands.Cog):
             if command:
                 cmd_name = command.lower()
                 cmd_fn = getattr(self.bot, f"cmd_{cmd_name}", None)
-                if not cmd_fn:
+                uid = interaction.user.id
+                is_dev_or_owner = (
+                    uid == self.bot.config.owner_id or uid in self.bot.config.dev_ids
+                )
+                # Mirror cmd_help's gate: dev-only commands are treated as
+                # nonexistent for anyone who isn't owner/dev, so their
+                # existence/usage isn't leaked to regular users either.
+                if not cmd_fn or (hasattr(cmd_fn, "dev_cmd") and not is_dev_or_owner):
                     await interaction.followup.send(
                         f"No command named `{cmd_name}`.", ephemeral=True
                     )
@@ -495,10 +502,13 @@ class SlashCommands(commands.Cog):
                 help_text = await self.bot.gen_cmd_help(cmd_name, guild)
                 await interaction.followup.send(help_text, ephemeral=True)
             else:
+                # Exclude @dev_cmd-marked commands, same as gen_cmd_list().
                 nat_cmds = sorted(
                     c.replace("cmd_", "")
                     for c in dir(self.bot)
-                    if c.startswith("cmd_") and not c.startswith("cmd__")
+                    if c.startswith("cmd_")
+                    and not c.startswith("cmd__")
+                    and not hasattr(getattr(self.bot, c), "dev_cmd")
                 )
                 prefix = self.bot.config.command_prefix
                 body = (
@@ -1850,7 +1860,7 @@ class SlashCommands(commands.Cog):
             import math
             total = len(player.playlist.entries)
             pages_total = math.ceil(total / self.bot.config.queue_length) if total else 1
-            start_page = max(0, (page or 1) - 1)
+            start_page = min(max(0, (page or 1) - 1), pages_total - 1)
 
             view = QueueView(
                 bot=self.bot,
