@@ -346,6 +346,27 @@ class SlashCommands(commands.Cog):
     def __init__(self, bot: MusicBot) -> None:
         self.bot = bot
 
+    async def cog_app_command_error(
+        self, interaction: discord.Interaction, error: app_commands.AppCommandError
+    ) -> None:
+        """
+        Slash command callbacks run through discord.py's app_commands error
+        path, which never reaches Client.on_error. Without this, the
+        RestartSignal/TerminateSignal that _restart()/slash_shutdown() raise
+        would just be logged and swallowed here, leaving the bot running.
+        Mirror on_error's signal handling (see MusicBot.on_error in bot.py).
+        """
+        original = getattr(error, "original", error)
+        if isinstance(original, (exceptions.RestartSignal, exceptions.TerminateSignal)):
+            self.bot.exit_signal = original
+            await self.bot.logout()
+            return
+        log.error(
+            "Error in slash command %s",
+            interaction.command.name if interaction.command else "?",
+            exc_info=original,
+        )
+
     # -----------------------------------------------------------------------
     # Shared context helpers  (mirror on_message kwarg injection)
     # -----------------------------------------------------------------------
