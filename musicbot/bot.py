@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, DefaultDict, Dict, List, Optional, Set, U
 import aiohttp
 import certifi
 import discord
+from discord.ext import commands
 import yt_dlp as youtube_dl  # type: ignore[import-untyped]
 
 from . import downloader, exceptions, write_path
@@ -161,7 +162,7 @@ discord_bot_perms.request_to_speak = True
 #  --  Using tinytag to extract meta data from files and index it.
 
 
-class MusicBot(discord.Client):
+class MusicBot(commands.Bot):
     def __init__(
         self,
         config_file: Optional[pathlib.Path] = None,
@@ -238,7 +239,7 @@ class MusicBot(discord.Client):
         intents = discord.Intents.all()
         intents.typing = False
         intents.presences = False
-        super().__init__(intents=intents)
+        super().__init__(command_prefix="\x00", intents=intents)
 
     def create_task(
         self,
@@ -340,6 +341,12 @@ class MusicBot(discord.Client):
         # this creates an output similar to a progress indicator.
         muffle_discord_console_log()
         self.create_task(self._test_network(), name="MB_PingTest")
+
+        # --- Slash commands (cog only, sync happens in _on_ready_once) ---
+        log.debug("Loading slash commands cog.")
+        from .slash_commands import SlashCommands
+        await self.add_cog(SlashCommands(self))
+        log.debug("Slash commands cog added.")
 
     async def _test_network(self) -> None:
         """
@@ -2321,6 +2328,22 @@ class MusicBot(discord.Client):
         # Also takes care of app-info and auto OwnerID updates.
         await self._on_ready_sanity_checks()
 
+        # Sync slash commands now that application_id is resolved.
+        # A transient Discord API failure or rate-limit here should not
+        # prevent the rest of startup from completing.
+        try:
+            synced = await self.tree.sync()
+            log.info(
+                "Synced %d slash commands globally: %s",
+                len(synced),
+                [c.name for c in synced],
+            )
+        except discord.HTTPException:
+            log.exception(
+                "Failed to sync slash commands. Slash commands may be unavailable "
+                "or out of date until the next successful sync."
+            )
+
         log.info(
             "MusicBot:  %(id)s/%(name)s#%(desc)s",
             {
@@ -3765,7 +3788,7 @@ class MusicBot(discord.Client):
         player: Optional[MusicPlayer],
         channel: MessageableChannel,
         author: discord.Member,
-        message: discord.Message,
+        message: Optional[discord.Message],
     ) -> None:
         """
         Checks for paused player and resumes it while sending a notice.
@@ -3790,6 +3813,8 @@ class MusicBot(discord.Client):
             if channel.guild:
                 ssd = self.server_data[channel.guild.id]
             if pvc != avc and perms.summonplay:
+                if message is None:
+                    return
                 await self.cmd_summon(ssd, author.guild, author, message)
                 return
 
@@ -5061,7 +5086,7 @@ class MusicBot(discord.Client):
         ssd_: Optional[GuildSpecificData],
         guild: discord.Guild,
         author: discord.Member,
-        message: discord.Message,
+        message: Optional[discord.Message],
     ) -> CommandResponse:
         """
         With a lock, join the caller's voice channel.
@@ -5110,7 +5135,8 @@ class MusicBot(discord.Client):
                 },
             )
 
-            self.server_data[guild.id].last_np_msg = message
+            if message is not None:
+                self.server_data[guild.id].last_np_msg = message
 
             return Response(
                 _D("Connected to `%(channel)s`", ssd_)
@@ -5265,10 +5291,11 @@ class MusicBot(discord.Client):
         If no player is available the queue file will be removed if it exists.
         """
 
-        # Ensure player is not none and that it's not empty
-        if _player and len(_player.playlist) < 1:
+        # Ensure player is not none and that there is actually something queued.
+        # Note: current_entry is the playing track, not a queue entry — don't count it.
+        if _player and not _player.playlist.entries:
             raise exceptions.CommandError(
-                "There is nothing currently playing. Play something with a play command."
+                "There is nothing in the queue to clear."
             )
 
         # Try to gracefully clear the guild queue if we're not in a vc.
@@ -5462,7 +5489,7 @@ class MusicBot(discord.Client):
         guild: discord.Guild,
         player: MusicPlayer,
         author: discord.Member,
-        message: discord.Message,
+        message: Optional[discord.Message],
         permissions: PermissionGroup,
         voice_channel: Optional[VoiceableChannel],
         param: str = "",
@@ -5560,7 +5587,9 @@ class MusicBot(discord.Client):
         if num_voice == 0:
             num_voice = 1
 
-        # add the current skipper id so we can count it.
+        # add the current skipper id so we can count it. message may be None
+        # when this is invoked from a slash command; skip_state only needs
+        # the author id to count the vote, message is optional bookkeeping.
         player.skip_state.add_skipper(author.id, message)
         # count all members who are in skippers set.
         num_skips = count_members_in_voice(
@@ -6536,7 +6565,7 @@ class MusicBot(discord.Client):
     async def cmd_clean(
         self,
         ssd_: Optional[GuildSpecificData],
-        message: discord.Message,
+        message: Optional[discord.Message],
         channel: MessageableChannel,
         guild: discord.Guild,
         author: discord.Member,
@@ -6591,7 +6620,7 @@ class MusicBot(discord.Client):
 
         if channel.permissions_for(guild.me).manage_messages:
             deleted = await channel.purge(
-                check=check, limit=search_range, before=message
+                check=check, limit=search_range, before=message if message else discord.utils.utcnow()
             )
             return Response(
                 _D("Cleaned up %(number)s message(s).", ssd_)
@@ -8131,7 +8160,7 @@ class MusicBot(discord.Client):
         ),
     )
     async def cmd_setcookies(
-        self, ssd_: Optional[GuildSpecificData], message: discord.Message, opt: str = ""
+        self, ssd_: Optional[GuildSpecificData], message: Optional[discord.Message], opt: str = ""
     ) -> CommandResponse:
         """
         setcookies command allows management of yt-dlp cookies feature.
@@ -8180,7 +8209,7 @@ class MusicBot(discord.Client):
             return Response(_D("Cookies have been disabled.", ssd_))
 
         # check for attached files and inspect them for use.
-        if not message.attachments:
+        if not message or not message.attachments:
             raise exceptions.CommandError(
                 "No attached uploads were found, try again while uploading a cookie file."
             )
@@ -8197,6 +8226,7 @@ class MusicBot(discord.Client):
 
         # simply save the uploaded file in attachment 1 as cookies.txt.
         try:
+            assert message is not None
             await message.attachments[0].save(self.config.cookies_path)
         except discord.HTTPException as e:
             raise exceptions.CommandError(
